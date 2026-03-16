@@ -1,0 +1,97 @@
+import type {
+  AuthContext,
+  ServiceTypeFlowType,
+  ServiceTypeStatus,
+} from '@properfy/shared';
+import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IServiceTypeRepository } from '../../domain/service-type.repository';
+import { ServiceTypeNotFoundError } from '../../domain/service-type.errors';
+
+export interface UpdateServiceTypeInput {
+  serviceTypeId: string;
+  data: {
+    name?: string;
+    flowType?: ServiceTypeFlowType;
+    requiresTenantConfirmation?: boolean;
+    status?: ServiceTypeStatus;
+  };
+  actor: AuthContext;
+}
+
+export interface UpdateServiceTypeOutput {
+  id: string;
+  code: string;
+  name: string;
+  flowType: string;
+  requiresTenantConfirmation: boolean;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class UpdateServiceTypeUseCase {
+  constructor(
+    private readonly serviceTypeRepo: IServiceTypeRepository,
+    private readonly auditService: AuditService,
+  ) {}
+
+  async execute(input: UpdateServiceTypeInput): Promise<UpdateServiceTypeOutput> {
+    const { serviceTypeId, data, actor } = input;
+
+    if (actor.role !== 'AM') {
+      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+    }
+
+    const serviceType = await this.serviceTypeRepo.findById(serviceTypeId);
+    if (!serviceType) {
+      throw new ServiceTypeNotFoundError();
+    }
+
+    const before = {
+      name: serviceType.name,
+      flowType: serviceType.flowType,
+      requiresTenantConfirmation: serviceType.requiresTenantConfirmation,
+      status: serviceType.status,
+    };
+
+    const updateData: Record<string, unknown> = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.flowType !== undefined) updateData.flowType = data.flowType;
+    if (data.requiresTenantConfirmation !== undefined)
+      updateData.requiresTenantConfirmation = data.requiresTenantConfirmation;
+    if (data.status !== undefined) updateData.status = data.status;
+
+    await this.serviceTypeRepo.update(serviceTypeId, updateData);
+
+    const after = {
+      name: (updateData.name as string) ?? serviceType.name,
+      flowType: (updateData.flowType as string) ?? serviceType.flowType,
+      requiresTenantConfirmation:
+        (updateData.requiresTenantConfirmation as boolean) ??
+        serviceType.requiresTenantConfirmation,
+      status: (updateData.status as string) ?? serviceType.status,
+    };
+
+    this.auditService.log({
+      action: 'service_type.updated',
+      actorType: 'USER',
+      actorId: actor.userId,
+      entityType: 'ServiceType',
+      entityId: serviceTypeId,
+      before,
+      after,
+    });
+
+    return {
+      id: serviceType.id,
+      code: serviceType.code,
+      name: after.name,
+      flowType: after.flowType,
+      requiresTenantConfirmation: after.requiresTenantConfirmation,
+      status: after.status,
+      createdAt: serviceType.createdAt,
+      updatedAt: new Date(),
+    };
+  }
+}
