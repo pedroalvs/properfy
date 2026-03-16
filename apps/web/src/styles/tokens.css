@@ -65,6 +65,38 @@
   --color-user-inactive: #FFCDD2;
   --color-user-locked: #FFAB91;
 
+  /* Financial entry type backgrounds */
+  --color-fin-type-debit: #FFCDD2;
+  --color-fin-type-payout: #C8E6C9;
+  --color-fin-type-refund: #FFE0B2;
+  --color-fin-type-adjustment: #E1BEE7;
+
+  /* Financial entry status backgrounds */
+  --color-fin-status-pending: #FFE0B2;
+  --color-fin-status-approved: #C8E6C9;
+  --color-fin-status-cancelled: #FFCDD2;
+
+  /* Tenant confirmation status backgrounds */
+  --color-confirmation-pending: #FFE0B2;
+  --color-confirmation-confirmed: #C8E6C9;
+  --color-confirmation-unavailable: #FFCDD2;
+  --color-confirmation-no-response: #D7CCC8;
+
+  /* Report type backgrounds */
+  --color-report-type-scheduled: #B3E5FC;
+  --color-report-type-done: #C8E6C9;
+  --color-report-type-cancelled: #FFCDD2;
+  --color-report-type-rejected: #FFAB91;
+  --color-report-type-performance: #E1BEE7;
+  --color-report-type-confirmation: #FFE0B2;
+  --color-report-type-financial: #DCEDC8;
+
+  /* Report status backgrounds */
+  --color-report-status-pending: #FFE0B2;
+  --color-report-status-processing: #B3E5FC;
+  --color-report-status-ready: #C8E6C9;
+  --color-report-status-failed: #FFCDD2;
+
   /* Financial */
   --color-money-positive: rgb(102, 187, 106);
   --color-money-negative: rgb(239, 83, 80);

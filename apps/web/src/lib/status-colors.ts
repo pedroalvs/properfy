@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -80,4 +80,41 @@ export const USER_STATUS_MAP: Record<UserStatus, StatusStyle> = {
   [UserStatus.ACTIVE]:   { bg: 'var(--color-user-active)',   text: 'var(--color-text-primary)', label: 'Ativo' },
   [UserStatus.INACTIVE]: { bg: 'var(--color-user-inactive)', text: 'var(--color-text-primary)', label: 'Inativo' },
   [UserStatus.LOCKED]:   { bg: 'var(--color-user-locked)',   text: 'var(--color-text-primary)', label: 'Bloqueado' },
+};
+
+export const FINANCIAL_ENTRY_TYPE_MAP: Record<FinancialEntryType, StatusStyle> = {
+  [FinancialEntryType.TENANT_DEBIT]:      { bg: 'var(--color-fin-type-debit)',      text: 'var(--color-text-primary)', label: 'Débito Inquilino' },
+  [FinancialEntryType.INSPECTOR_PAYOUT]:  { bg: 'var(--color-fin-type-payout)',     text: 'var(--color-text-primary)', label: 'Pagamento Inspetor' },
+  [FinancialEntryType.REFUND]:            { bg: 'var(--color-fin-type-refund)',     text: 'var(--color-text-primary)', label: 'Reembolso' },
+  [FinancialEntryType.MANUAL_ADJUSTMENT]: { bg: 'var(--color-fin-type-adjustment)', text: 'var(--color-text-primary)', label: 'Ajuste Manual' },
+};
+
+export const FINANCIAL_ENTRY_STATUS_MAP: Record<FinancialEntryStatus, StatusStyle> = {
+  [FinancialEntryStatus.PENDING]:   { bg: 'var(--color-fin-status-pending)',   text: 'var(--color-text-primary)', label: 'Pendente' },
+  [FinancialEntryStatus.APPROVED]:  { bg: 'var(--color-fin-status-approved)',  text: 'var(--color-text-primary)', label: 'Aprovado' },
+  [FinancialEntryStatus.CANCELLED]: { bg: 'var(--color-fin-status-cancelled)', text: 'var(--color-text-primary)', label: 'Cancelado' },
+};
+
+export const TENANT_CONFIRMATION_STATUS_MAP: Record<TenantConfirmationStatus, StatusStyle> = {
+  [TenantConfirmationStatus.PENDING]:     { bg: 'var(--color-confirmation-pending)',     text: 'var(--color-text-primary)', label: 'Pendente' },
+  [TenantConfirmationStatus.CONFIRMED]:   { bg: 'var(--color-confirmation-confirmed)',   text: 'var(--color-text-primary)', label: 'Confirmado' },
+  [TenantConfirmationStatus.UNAVAILABLE]: { bg: 'var(--color-confirmation-unavailable)', text: 'var(--color-text-primary)', label: 'Indisponível' },
+  [TenantConfirmationStatus.NO_RESPONSE]: { bg: 'var(--color-confirmation-no-response)', text: 'var(--color-text-primary)', label: 'Sem Resposta' },
+};
+
+export const REPORT_TYPE_MAP: Record<ReportType, StatusStyle> = {
+  [ReportType.INSPECTIONS_SCHEDULED]: { bg: 'var(--color-report-type-scheduled)',    text: 'var(--color-text-primary)', label: 'Vistorias Agendadas' },
+  [ReportType.INSPECTIONS_DONE]:      { bg: 'var(--color-report-type-done)',         text: 'var(--color-text-primary)', label: 'Vistorias Concluídas' },
+  [ReportType.INSPECTIONS_CANCELLED]: { bg: 'var(--color-report-type-cancelled)',    text: 'var(--color-text-primary)', label: 'Vistorias Canceladas' },
+  [ReportType.INSPECTIONS_REJECTED]:  { bg: 'var(--color-report-type-rejected)',     text: 'var(--color-text-primary)', label: 'Vistorias Rejeitadas' },
+  [ReportType.INSPECTOR_PERFORMANCE]: { bg: 'var(--color-report-type-performance)',  text: 'var(--color-text-primary)', label: 'Desempenho Inspetores' },
+  [ReportType.CONFIRMATION_STATUS]:   { bg: 'var(--color-report-type-confirmation)', text: 'var(--color-text-primary)', label: 'Status Confirmação' },
+  [ReportType.FINANCIAL_SERVICES]:    { bg: 'var(--color-report-type-financial)',    text: 'var(--color-text-primary)', label: 'Serviços Financeiros' },
+};
+
+export const REPORT_STATUS_MAP: Record<ReportStatus, StatusStyle> = {
+  [ReportStatus.PENDING]:    { bg: 'var(--color-report-status-pending)',    text: 'var(--color-text-primary)', label: 'Pendente' },
+  [ReportStatus.PROCESSING]: { bg: 'var(--color-report-status-processing)', text: 'var(--color-text-primary)', label: 'Processando' },
+  [ReportStatus.READY]:      { bg: 'var(--color-report-status-ready)',      text: 'var(--color-text-primary)', label: 'Pronto' },
+  [ReportStatus.FAILED]:     { bg: 'var(--color-report-status-failed)',     text: 'var(--color-text-primary)', label: 'Falhou' },
 };
