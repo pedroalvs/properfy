@@ -1,14 +1,13 @@
 export const ServiceGroupStatus = {
   DRAFT: 'DRAFT',
   PUBLISHED: 'PUBLISHED',
-  ASSIGNED: 'ASSIGNED',
-  COMPLETED: 'COMPLETED',
+  ACCEPTED: 'ACCEPTED',
   CANCELLED: 'CANCELLED',
 } as const;
 export type ServiceGroupStatus = (typeof ServiceGroupStatus)[keyof typeof ServiceGroupStatus];
 
 export const PriorityMode = {
   STANDARD: 'STANDARD',
-  URGENT: 'URGENT',
+  PRIORITY_24H: 'PRIORITY_24H',
 } as const;
 export type PriorityMode = (typeof PriorityMode)[keyof typeof PriorityMode];

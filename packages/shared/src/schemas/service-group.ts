@@ -1,17 +1,42 @@
 import { z } from 'zod';
+import { paginationSchema } from './pagination';
+
+const timeWindowRegex = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
 
 export const createServiceGroupSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().max(1000).optional(),
-  appointmentIds: z.array(z.string().uuid()).min(1),
-  priorityMode: z.enum(['STANDARD', 'URGENT']).default('STANDARD'),
-  scheduledDate: z.string().date().optional(),
-  region: z.string().max(200).optional(),
+  appointmentIds: z.array(z.string().uuid()).min(5).max(25),
+  serviceTypeId: z.string().uuid(),
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  timeWindow: z.string().regex(timeWindowRegex),
+  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
 });
 export type CreateServiceGroupInput = z.infer<typeof createServiceGroupSchema>;
 
-export const acceptOfferSchema = z.object({
+export const publishServiceGroupSchema = z.object({});
+export type PublishServiceGroupInput = z.infer<typeof publishServiceGroupSchema>;
+
+export const assignInspectorSchema = z.object({
   inspectorId: z.string().uuid(),
-  notes: z.string().max(500).optional(),
 });
+export type AssignInspectorInput = z.infer<typeof assignInspectorSchema>;
+
+export const cancelServiceGroupSchema = z.object({
+  reason: z.string().min(1).max(1000),
+});
+export type CancelServiceGroupInput = z.infer<typeof cancelServiceGroupSchema>;
+
+export const acceptOfferSchema = z.object({});
 export type AcceptOfferInput = z.infer<typeof acceptOfferSchema>;
+
+export const listServiceGroupsQuerySchema = paginationSchema.extend({
+  tenantId: z.string().uuid().optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ACCEPTED', 'CANCELLED']).optional(),
+  serviceTypeId: z.string().uuid().optional(),
+  scheduledDateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  scheduledDateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
+});
+export type ListServiceGroupsQuery = z.infer<typeof listServiceGroupsQuerySchema>;
+
+export const listMarketplaceOffersQuerySchema = paginationSchema.extend({});
+export type ListMarketplaceOffersQuery = z.infer<typeof listMarketplaceOffersQuerySchema>;

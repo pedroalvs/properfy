@@ -15,3 +15,5 @@ export * from './audit-log';
 export * from './tenant-portal';
 export * from './inspection-execution';
 export * from './billing';
+export * from './notification';
+export * from './report';

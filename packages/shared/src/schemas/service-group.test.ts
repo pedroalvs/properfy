@@ -1,0 +1,202 @@
+import { describe, it, expect } from 'vitest';
+import {
+  createServiceGroupSchema,
+  publishServiceGroupSchema,
+  assignInspectorSchema,
+  cancelServiceGroupSchema,
+  acceptOfferSchema,
+  listServiceGroupsQuerySchema,
+  listMarketplaceOffersQuerySchema,
+} from './service-group';
+
+const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+
+function generateUuids(count: number): string[] {
+  return Array.from({ length: count }, (_, i) =>
+    `550e8400-e29b-41d4-a716-44665544${String(i).padStart(4, '0')}`,
+  );
+}
+
+describe('createServiceGroupSchema', () => {
+  const validInput = {
+    appointmentIds: generateUuids(5),
+    serviceTypeId: validUuid,
+    scheduledDate: '2026-04-15',
+    timeWindow: '08:00-12:00',
+    priorityMode: 'STANDARD' as const,
+  };
+
+  it('should accept valid input', () => {
+    const result = createServiceGroupSchema.safeParse(validInput);
+    expect(result.success).toBe(true);
+  });
+
+  it('should default priorityMode to STANDARD', () => {
+    const { priorityMode, ...rest } = validInput;
+    const result = createServiceGroupSchema.safeParse(rest);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.priorityMode).toBe('STANDARD');
+    }
+  });
+
+  it('should accept PRIORITY_24H as priorityMode', () => {
+    const result = createServiceGroupSchema.safeParse({
+      ...validInput,
+      priorityMode: 'PRIORITY_24H',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject fewer than 5 appointments', () => {
+    const result = createServiceGroupSchema.safeParse({
+      ...validInput,
+      appointmentIds: generateUuids(4),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject more than 25 appointments', () => {
+    const result = createServiceGroupSchema.safeParse({
+      ...validInput,
+      appointmentIds: generateUuids(26),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid UUID in appointmentIds', () => {
+    const result = createServiceGroupSchema.safeParse({
+      ...validInput,
+      appointmentIds: ['not-a-uuid', ...generateUuids(4)],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid date format', () => {
+    const result = createServiceGroupSchema.safeParse({
+      ...validInput,
+      scheduledDate: '15/04/2026',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid time window format', () => {
+    const result = createServiceGroupSchema.safeParse({
+      ...validInput,
+      timeWindow: '8am-12pm',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing serviceTypeId', () => {
+    const { serviceTypeId, ...rest } = validInput;
+    const result = createServiceGroupSchema.safeParse(rest);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('publishServiceGroupSchema', () => {
+  it('should accept empty object', () => {
+    const result = publishServiceGroupSchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('assignInspectorSchema', () => {
+  it('should accept valid inspectorId', () => {
+    const result = assignInspectorSchema.safeParse({ inspectorId: validUuid });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid UUID', () => {
+    const result = assignInspectorSchema.safeParse({ inspectorId: 'not-a-uuid' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing inspectorId', () => {
+    const result = assignInspectorSchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('cancelServiceGroupSchema', () => {
+  it('should accept valid reason', () => {
+    const result = cancelServiceGroupSchema.safeParse({ reason: 'Client requested cancellation' });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject empty reason', () => {
+    const result = cancelServiceGroupSchema.safeParse({ reason: '' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing reason', () => {
+    const result = cancelServiceGroupSchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject reason exceeding 1000 characters', () => {
+    const result = cancelServiceGroupSchema.safeParse({ reason: 'x'.repeat(1001) });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('acceptOfferSchema', () => {
+  it('should accept empty object', () => {
+    const result = acceptOfferSchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('listServiceGroupsQuerySchema', () => {
+  it('should apply pagination defaults', () => {
+    const result = listServiceGroupsQuerySchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.page).toBe(1);
+      expect(result.data.pageSize).toBe(20);
+      expect(result.data.sortOrder).toBe('desc');
+    }
+  });
+
+  it('should accept all valid filters', () => {
+    const result = listServiceGroupsQuerySchema.safeParse({
+      tenantId: validUuid,
+      status: 'PUBLISHED',
+      serviceTypeId: validUuid,
+      scheduledDateFrom: '2026-01-01',
+      scheduledDateTo: '2026-12-31',
+      priorityMode: 'PRIORITY_24H',
+      page: 2,
+      pageSize: 10,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid status', () => {
+    const result = listServiceGroupsQuerySchema.safeParse({ status: 'INVALID' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid date format in scheduledDateFrom', () => {
+    const result = listServiceGroupsQuerySchema.safeParse({ scheduledDateFrom: '01-01-2026' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid UUID in tenantId', () => {
+    const result = listServiceGroupsQuerySchema.safeParse({ tenantId: 'not-a-uuid' });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('listMarketplaceOffersQuerySchema', () => {
+  it('should apply pagination defaults', () => {
+    const result = listMarketplaceOffersQuerySchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.page).toBe(1);
+      expect(result.data.pageSize).toBe(20);
+      expect(result.data.sortOrder).toBe('desc');
+    }
+  });
+});

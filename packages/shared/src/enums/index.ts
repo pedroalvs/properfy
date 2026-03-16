@@ -5,3 +5,7 @@ export * from './financial';
 export * from './service-group';
 export * from './property';
 export * from './misc';
+export * from './tenant';
+export * from './inspector';
+export * from './service-type';
+export * from './inspection-execution';
