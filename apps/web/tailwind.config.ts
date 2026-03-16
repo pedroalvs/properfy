@@ -44,6 +44,15 @@ const config: Config = {
         'page-x': '32px',
         'page-y': '24px',
       },
+      animation: {
+        shimmer: 'shimmer 1.5s ease-in-out infinite',
+      },
+      keyframes: {
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+      },
       borderRadius: {
         DEFAULT: '4px',
         submenu: '6px',
