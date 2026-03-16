@@ -1,0 +1,363 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AcceptOfferUseCase } from '../../../src/modules/service-group/application/use-cases/accept-offer.use-case';
+import type { IServiceGroupRepository } from '../../../src/modules/service-group/domain/service-group.repository';
+import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import type { AuthContext } from '@properfy/shared';
+import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
+import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
+import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
+import {
+  ServiceGroupNotFoundError,
+  ServiceGroupInvalidStatusError,
+  GroupAlreadyAcceptedError,
+  InspectorIneligibleError,
+  InspectorServiceTypeIneligibleError,
+  InspectorInactiveError,
+  PriorityExpiredError,
+} from '../../../src/modules/service-group/domain/service-group.errors';
+
+function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {}): ServiceGroupEntity {
+  return new ServiceGroupEntity({
+    id: 'group-1',
+    tenantId: 'tenant-1',
+    serviceTypeId: 'svc-type-1',
+    status: 'PUBLISHED',
+    groupSize: 5,
+    offeredCount: 1,
+    confirmedCount: 0,
+    scheduledDate: new Date('2026-04-01'),
+    timeWindow: '08:00-12:00',
+    priorityMode: 'STANDARD',
+    priorityExpiresAt: null,
+    assignedInspectorId: null,
+    publishedAt: new Date(),
+    assignedAt: null,
+    createdByUserId: 'user-op',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  });
+}
+
+function makeInspector(overrides: Partial<ConstructorParameters<typeof InspectorEntity>[0]> = {}): InspectorEntity {
+  return new InspectorEntity({
+    id: 'inspector-1',
+    name: 'John Inspector',
+    email: 'john@inspectors.com',
+    phone: null,
+    status: 'ACTIVE',
+    paymentSettingsJson: {},
+    regionsJson: ['Sydney', 'Bondi'],
+    serviceTypesJson: ['svc-type-1'],
+    clientEligibilityJson: ['tenant-1'],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
+function makeGroupWithAppointments(
+  groupOverrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {},
+  appointmentCount = 5,
+) {
+  const group = makeGroup(groupOverrides);
+  const appointments = Array.from({ length: appointmentCount }, (_, i) => ({
+    id: `appt-${i + 1}`,
+    status: 'AWAITING_INSPECTOR',
+    serviceTypeId: 'svc-type-1',
+    tenantId: 'tenant-1',
+    propertyId: `prop-${i + 1}`,
+    serviceGroupId: group.id,
+  }));
+  return { group, appointments };
+}
+
+function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
+  return {
+    userId: 'user-insp',
+    tenantId: null,
+    role: 'INSP',
+    branchId: null,
+    ...overrides,
+  };
+}
+
+describe('AcceptOfferUseCase', () => {
+  let serviceGroupRepo: IServiceGroupRepository;
+  let inspectorRepo: IInspectorRepository;
+  let auditService: AuditService;
+  let useCase: AcceptOfferUseCase;
+
+  beforeEach(() => {
+    serviceGroupRepo = {
+      findById: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      acceptOptimistic: vi.fn(),
+      findPublishedForInspector: vi.fn(),
+      countPublishedForInspector: vi.fn(),
+      linkAppointments: vi.fn(),
+      unlinkAppointments: vi.fn(),
+      scheduleAppointments: vi.fn(),
+    };
+    inspectorRepo = {
+      findById: vi.fn(),
+      findByEmail: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    auditService = { log: vi.fn() } as unknown as AuditService;
+
+    useCase = new AcceptOfferUseCase(
+      serviceGroupRepo,
+      inspectorRepo,
+      auditService,
+    );
+  });
+
+  it('should accept offer successfully for eligible inspector on PUBLISHED group', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+    vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      inspectorId: 'inspector-1',
+      actor: makeActor(),
+    });
+
+    expect(result.groupId).toBe('group-1');
+    expect(result.status).toBe('ACCEPTED');
+    expect(result.assignedInspectorId).toBe('inspector-1');
+    expect(result.appointmentsScheduled).toBe(5);
+    expect(result.acceptedAt).toBeInstanceOf(Date);
+  });
+
+  it('should reject non-INSP actors', async () => {
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor({ role: 'AM' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor({ role: 'OP' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should throw NotFoundError for missing inspector', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'nonexistent',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it('should throw ServiceGroupNotFoundError for missing group', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        groupId: 'nonexistent',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(ServiceGroupNotFoundError);
+  });
+
+  it('should throw GroupAlreadyAcceptedError when group already ACCEPTED', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ status: 'ACCEPTED', assignedInspectorId: 'other-inspector' }),
+    );
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(GroupAlreadyAcceptedError);
+  });
+
+  it('should throw ServiceGroupInvalidStatusError for DRAFT group', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ status: 'DRAFT', publishedAt: null }),
+    );
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(ServiceGroupInvalidStatusError);
+  });
+
+  it('should throw ServiceGroupInvalidStatusError for CANCELLED group', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ status: 'CANCELLED' }),
+    );
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(ServiceGroupInvalidStatusError);
+  });
+
+  it('should throw InspectorInactiveError for inactive inspector', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ status: 'INACTIVE' }),
+    );
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(InspectorInactiveError);
+  });
+
+  it('should throw InspectorServiceTypeIneligibleError for wrong service type', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ serviceTypesJson: ['svc-type-other'] }),
+    );
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(InspectorServiceTypeIneligibleError);
+  });
+
+  it('should throw InspectorIneligibleError for wrong tenant eligibility', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ clientEligibilityJson: ['tenant-other'] }),
+    );
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(InspectorIneligibleError);
+  });
+
+  it('should throw PriorityExpiredError for expired PRIORITY_24H', async () => {
+    const expiredDate = new Date('2026-03-14T00:00:00Z');
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({
+        priorityMode: 'PRIORITY_24H',
+        priorityExpiresAt: expiredDate,
+      }),
+    );
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(PriorityExpiredError);
+  });
+
+  it('should throw GroupAlreadyAcceptedError when acceptOptimistic returns 0 (race condition)', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+    vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(0);
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(GroupAlreadyAcceptedError);
+  });
+
+  it('should call scheduleAppointments and update confirmedCount on success', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+    vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
+
+    await useCase.execute({
+      groupId: 'group-1',
+      inspectorId: 'inspector-1',
+      actor: makeActor(),
+    });
+
+    expect(serviceGroupRepo.scheduleAppointments).toHaveBeenCalledWith('group-1', 'inspector-1');
+    expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
+      confirmedCount: 5,
+    });
+  });
+
+  it('should log audit with correct action on success', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+    vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
+
+    await useCase.execute({
+      groupId: 'group-1',
+      inspectorId: 'inspector-1',
+      actor: makeActor(),
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'service_group.accepted',
+        actorType: 'USER',
+        actorId: 'user-insp',
+        entityType: 'ServiceGroup',
+        entityId: 'group-1',
+        tenantId: 'tenant-1',
+        before: { status: 'PUBLISHED' },
+        after: expect.objectContaining({
+          status: 'ACCEPTED',
+          assignedInspectorId: 'inspector-1',
+          appointmentsScheduled: 5,
+        }),
+      }),
+    );
+  });
+});

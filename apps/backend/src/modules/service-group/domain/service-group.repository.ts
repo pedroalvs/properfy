@@ -1,0 +1,83 @@
+import type { ServiceGroupEntity } from './service-group.entity';
+
+export interface ServiceGroupFilters {
+  tenantId?: string;
+  status?: string;
+  serviceTypeId?: string;
+  scheduledDateFrom?: string;
+  scheduledDateTo?: string;
+  priorityMode?: string;
+}
+
+export interface PaginationParams {
+  page: number;
+  pageSize: number;
+  sortBy?: string;
+  sortOrder: 'asc' | 'desc';
+}
+
+export interface ServiceGroupWithAppointments {
+  group: ServiceGroupEntity;
+  appointments: Array<{
+    id: string;
+    status: string;
+    serviceTypeId: string;
+    tenantId: string;
+    propertyId: string;
+    serviceGroupId: string | null;
+  }>;
+}
+
+export interface MarketplaceOffer {
+  groupId: string;
+  tenantId: string;
+  tenantName: string;
+  serviceTypeName: string;
+  groupSize: number;
+  scheduledDate: Date;
+  timeWindow: string;
+  priorityMode: string;
+  priorityExpiresAt: Date | null;
+  suburbs: string[];
+}
+
+export interface IServiceGroupRepository {
+  findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null>;
+  findAll(
+    filters: ServiceGroupFilters,
+    pagination: PaginationParams,
+  ): Promise<ServiceGroupEntity[]>;
+  count(filters: ServiceGroupFilters): Promise<number>;
+  save(group: ServiceGroupEntity): Promise<void>;
+  update(
+    id: string,
+    data: Partial<{
+      status: string;
+      offeredCount: number;
+      confirmedCount: number;
+      assignedInspectorId: string | null;
+      publishedAt: Date | null;
+      assignedAt: Date | null;
+      priorityExpiresAt: Date | null;
+    }>,
+  ): Promise<void>;
+  /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
+  acceptOptimistic(id: string, inspectorId: string, assignedAt: Date): Promise<number>;
+  findPublishedForInspector(
+    inspectorServiceTypes: string[],
+    inspectorRegions: string[],
+    inspectorClientEligibility: string[],
+    pagination: PaginationParams,
+  ): Promise<MarketplaceOffer[]>;
+  countPublishedForInspector(
+    inspectorServiceTypes: string[],
+    inspectorRegions: string[],
+    inspectorClientEligibility: string[],
+  ): Promise<number>;
+  /** Set service_group_id on appointments */
+  linkAppointments(appointmentIds: string[], groupId: string): Promise<void>;
+  /** Clear service_group_id on appointments */
+  unlinkAppointments(groupId: string): Promise<void>;
+  /** Atomically transition all group's appointments to SCHEDULED with inspector */
+  scheduleAppointments(groupId: string, inspectorId: string): Promise<number>;
+}

@@ -1,0 +1,97 @@
+import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
+import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import type { PersistentAuditService } from '../../../audit/application/services/persistent-audit.service';
+import type { TokenService } from '../../domain/token.service';
+import { TenantPortalTokenEntity } from '../../domain/tenant-portal-token.entity';
+import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
+
+export interface AuthContext {
+  userId: string;
+  tenantId: string | null;
+  role: string;
+  branchId?: string | null;
+}
+
+export interface GeneratePortalTokenInput {
+  appointmentId: string;
+  actor: AuthContext;
+}
+
+const ALLOWED_ROLES = ['AM', 'OP'] as const;
+
+export class GeneratePortalTokenUseCase {
+  constructor(
+    private readonly tokenRepo: ITenantPortalTokenRepository,
+    private readonly appointmentRepo: IAppointmentRepository,
+    private readonly tenantRepo: ITenantRepository,
+    private readonly tokenService: TokenService,
+    private readonly auditService: PersistentAuditService,
+  ) {}
+
+  async execute(input: GeneratePortalTokenInput) {
+    // 1. Validate actor role
+    if (!ALLOWED_ROLES.includes(input.actor.role as (typeof ALLOWED_ROLES)[number])) {
+      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP roles can generate portal tokens');
+    }
+
+    // 2. Load appointment (AM passes null for tenantId to access any tenant)
+    const tenantIdForQuery = input.actor.role === 'AM' ? null : input.actor.tenantId;
+    const result = await this.appointmentRepo.findById(input.appointmentId, tenantIdForQuery);
+    if (!result) {
+      throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
+    }
+
+    const { appointment } = result;
+
+    // 3. Load tenant to get timezone
+    const tenant = await this.tenantRepo.findById(appointment.tenantId);
+    if (!tenant) {
+      throw new NotFoundError('TENANT_NOT_FOUND', 'Tenant not found');
+    }
+
+    // 4. Revoke all existing tokens for this appointment
+    await this.tokenRepo.revokeAllForAppointment(input.appointmentId);
+
+    // 5. Generate and hash token
+    const rawToken = this.tokenService.generateRawToken();
+    const tokenHash = this.tokenService.hashToken(rawToken);
+
+    // 6. Compute expiry based on scheduled date and tenant timezone
+    const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0];
+    const expiresAt = this.tokenService.computeExpiresAt(scheduledDateStr, tenant.timezone);
+
+    // 7. Create and save token entity
+    const now = new Date();
+    const tokenEntity = new TenantPortalTokenEntity({
+      id: crypto.randomUUID(),
+      appointmentId: input.appointmentId,
+      tokenHash,
+      expiresAt,
+      status: 'ACTIVE',
+      lastAccessedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await this.tokenRepo.save(tokenEntity);
+
+    // 8. Audit log
+    this.auditService.log({
+      action: 'tenant_portal.token_generated',
+      actorType: 'USER',
+      actorId: input.actor.userId,
+      entityType: 'tenant_portal_token',
+      entityId: tokenEntity.id,
+      tenantId: appointment.tenantId,
+      metadata: {
+        appointmentId: input.appointmentId,
+        expiresAt: expiresAt.toISOString(),
+      },
+    });
+
+    return {
+      rawToken,
+      expiresAt,
+    };
+  }
+}

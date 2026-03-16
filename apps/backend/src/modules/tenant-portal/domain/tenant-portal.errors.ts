@@ -1,0 +1,53 @@
+import { NotFoundError, ForbiddenError, ConflictError, DomainError } from '../../../shared/domain/errors';
+
+export class PortalTokenInvalidError extends NotFoundError {
+  constructor() {
+    super('PORTAL_TOKEN_INVALID', 'Portal token not found or invalid');
+  }
+}
+
+export class PortalTokenRevokedError extends DomainError {
+  constructor() {
+    super('PORTAL_TOKEN_REVOKED', 'Portal token has been revoked', 410);
+    this.name = 'PortalTokenRevokedError';
+  }
+}
+
+export class PortalActionBlockedError extends ForbiddenError {
+  constructor() {
+    super('PORTAL_ACTION_BLOCKED', 'Action not allowed past the cutoff time');
+  }
+}
+
+export class PortalAppointmentInactiveError extends ConflictError {
+  constructor() {
+    super('PORTAL_APPOINTMENT_INACTIVE', 'Appointment is no longer active');
+  }
+}
+
+export class PortalRescheduleNotAllowedError extends ForbiddenError {
+  constructor() {
+    super('PORTAL_RESCHEDULE_NOT_ALLOWED', 'Reschedule not allowed for this service type');
+  }
+}
+
+export class PortalRescheduleWindowExceededError extends DomainError {
+  constructor() {
+    super('PORTAL_RESCHEDULE_WINDOW_EXCEEDED', 'New date exceeds the 30-day reschedule window', 422);
+    this.name = 'PortalRescheduleWindowExceededError';
+  }
+}
+
+export class PortalDateInPastError extends DomainError {
+  constructor() {
+    super('PORTAL_DATE_IN_PAST', 'New date cannot be in the past', 422);
+    this.name = 'PortalDateInPastError';
+  }
+}
+
+export class PortalNoContactFieldsError extends DomainError {
+  constructor() {
+    super('PORTAL_NO_CONTACT_FIELDS', 'At least one contact field must be provided', 422);
+    this.name = 'PortalNoContactFieldsError';
+  }
+}

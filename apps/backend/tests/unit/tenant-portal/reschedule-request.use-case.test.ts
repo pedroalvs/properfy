@@ -1,0 +1,280 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  RescheduleRequestUseCase,
+  type RescheduleRequestInput,
+} from '../../../src/modules/tenant-portal/application/use-cases/reschedule-request.use-case';
+import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
+import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
+import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
+import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
+import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
+import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
+import { PortalActionBlockedError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { PortalAppointmentInactiveError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { PortalRescheduleNotAllowedError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { PortalRescheduleWindowExceededError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { PortalDateInPastError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+
+function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
+  return new AppointmentEntity({
+    id: 'appt-1',
+    tenantId: 'tenant-1',
+    branchId: 'branch-1',
+    propertyId: 'property-1',
+    serviceTypeId: 'stype-1',
+    inspectorId: 'inspector-1',
+    status: 'SCHEDULED',
+    scheduledDate: new Date('2026-04-15'),
+    timeSlot: 'MORNING',
+    keyRequired: false,
+    meetingLocation: null,
+    keyLocation: null,
+    tenantConfirmationStatus: 'PENDING',
+    priceAmount: 100,
+    payoutAmount: 70,
+    pricingRuleSnapshotJson: {},
+    notes: null,
+    customFieldsJson: null,
+    reason: null,
+    createdByUserId: 'user-1',
+    doneCheckedByUserId: null,
+    doneCheckedAt: null,
+    serviceGroupId: null,
+    createdAt: new Date('2026-04-01'),
+    updatedAt: new Date('2026-04-01'),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
+function makeServiceType(overrides: Partial<ConstructorParameters<typeof ServiceTypeEntity>[0]> = {}) {
+  return new ServiceTypeEntity({
+    id: 'stype-1',
+    code: 'ROUTINE',
+    name: 'Routine Inspection',
+    flowType: 'ROUTINE',
+    requiresTenantConfirmation: true,
+    status: 'ACTIVE',
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+    ...overrides,
+  });
+}
+
+function makeInput(overrides: Partial<RescheduleRequestInput> = {}): RescheduleRequestInput {
+  return {
+    tokenId: 'token-1',
+    appointmentId: 'appt-1',
+    isReadOnly: false,
+    newDate: '2026-04-20',
+    newTimeSlot: 'AFTERNOON',
+    ipAddress: '127.0.0.1',
+    userAgent: 'TestAgent/1.0',
+    ...overrides,
+  };
+}
+
+describe('RescheduleRequestUseCase', () => {
+  let activityRepo: {
+    save: ReturnType<typeof vi.fn>;
+    findLatestByTokenAndAction: ReturnType<typeof vi.fn>;
+  };
+  let appointmentRepo: {
+    findById: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    deleteRestrictionsByAppointmentId: ReturnType<typeof vi.fn>;
+    saveRestriction: ReturnType<typeof vi.fn>;
+    findAll: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
+    save: ReturnType<typeof vi.fn>;
+    saveContact: ReturnType<typeof vi.fn>;
+    updateContact: ReturnType<typeof vi.fn>;
+  };
+  let serviceTypeRepo: {
+    findById: ReturnType<typeof vi.fn>;
+    findByCode: ReturnType<typeof vi.fn>;
+    findAll: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
+    save: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+  };
+  let auditService: { log: ReturnType<typeof vi.fn> };
+  let useCase: RescheduleRequestUseCase;
+
+  beforeEach(() => {
+    activityRepo = {
+      save: vi.fn().mockResolvedValue(undefined),
+      findLatestByTokenAndAction: vi.fn().mockResolvedValue(null),
+    };
+    appointmentRepo = {
+      findById: vi.fn().mockResolvedValue({
+        appointment: makeAppointment(),
+        contact: null,
+        restrictions: [],
+      }),
+      update: vi.fn().mockResolvedValue(undefined),
+      deleteRestrictionsByAppointmentId: vi.fn().mockResolvedValue(undefined),
+      saveRestriction: vi.fn().mockResolvedValue(undefined),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      saveContact: vi.fn(),
+      updateContact: vi.fn(),
+    };
+    serviceTypeRepo = {
+      findById: vi.fn().mockResolvedValue(makeServiceType()),
+      findByCode: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    auditService = { log: vi.fn() };
+
+    useCase = new RescheduleRequestUseCase(
+      activityRepo as unknown as ITenantPortalActivityRepository,
+      appointmentRepo as unknown as IAppointmentRepository,
+      serviceTypeRepo as unknown as IServiceTypeRepository,
+      auditService as unknown as PersistentAuditService,
+    );
+  });
+
+  it('should reschedule successfully, updating date, timeSlot and resetting confirmation to PENDING', async () => {
+    const result = await useCase.execute(makeInput());
+
+    expect(result).toEqual({
+      scheduledDate: '2026-04-20',
+      timeSlot: 'AFTERNOON',
+      tenantConfirmationStatus: 'PENDING',
+    });
+
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      scheduledDate: new Date('2026-04-20'),
+      timeSlot: 'AFTERNOON',
+      tenantConfirmationStatus: 'PENDING',
+    });
+  });
+
+  it('should throw PortalActionBlockedError when isReadOnly is true', async () => {
+    await expect(useCase.execute(makeInput({ isReadOnly: true }))).rejects.toThrow(
+      PortalActionBlockedError,
+    );
+
+    expect(appointmentRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('should throw PortalRescheduleNotAllowedError for non-ROUTINE service type', async () => {
+    serviceTypeRepo.findById.mockResolvedValue(
+      makeServiceType({ flowType: 'INGOING' as 'ROUTINE' }),
+    );
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalRescheduleNotAllowedError);
+  });
+
+  it('should throw PortalRescheduleWindowExceededError when newDate is more than 30 days from original', async () => {
+    await expect(
+      useCase.execute(makeInput({ newDate: '2026-06-15' })),
+    ).rejects.toThrow(PortalRescheduleWindowExceededError);
+  });
+
+  it('should throw PortalDateInPastError when newDate is in the past', async () => {
+    await expect(
+      useCase.execute(makeInput({ newDate: '2020-01-01' })),
+    ).rejects.toThrow(PortalDateInPastError);
+  });
+
+  it('should throw PortalAppointmentInactiveError for CANCELLED appointment', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ status: 'CANCELLED' }),
+      contact: null,
+      restrictions: [],
+    });
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+  });
+
+  it('should throw PortalAppointmentInactiveError for DONE appointment', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ status: 'DONE' }),
+      contact: null,
+      restrictions: [],
+    });
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+  });
+
+  it('should throw PortalAppointmentInactiveError for REJECTED appointment', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ status: 'REJECTED' }),
+      contact: null,
+      restrictions: [],
+    });
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+  });
+
+  it('should record RESCHEDULE activity with previous and new values', async () => {
+    await useCase.execute(makeInput());
+
+    expect(activityRepo.save).toHaveBeenCalledTimes(1);
+    const savedActivity = activityRepo.save.mock.calls[0][0];
+    expect(savedActivity.action).toBe('RESCHEDULE');
+    expect(savedActivity.previousValuesJson).toEqual({
+      scheduledDate: expect.any(String),
+      timeSlot: 'MORNING',
+      tenantConfirmationStatus: 'PENDING',
+    });
+    expect(savedActivity.newValuesJson).toEqual({
+      scheduledDate: '2026-04-20',
+      timeSlot: 'AFTERNOON',
+      tenantConfirmationStatus: 'PENDING',
+    });
+    expect(savedActivity.ipAddress).toBe('127.0.0.1');
+    expect(savedActivity.userAgent).toBe('TestAgent/1.0');
+  });
+
+  it('should save restrictions when provided', async () => {
+    const restrictions = {
+      isHome: true,
+      unavailableDaysJson: ['2026-04-21'],
+      unavailableHoursJson: ['08:00-10:00'],
+      notes: 'Dog at home',
+    };
+
+    await useCase.execute(makeInput({ restrictions }));
+
+    expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
+    expect(appointmentRepo.saveRestriction).toHaveBeenCalledTimes(1);
+    const savedRestriction = appointmentRepo.saveRestriction.mock.calls[0][0];
+    expect(savedRestriction.isHome).toBe(true);
+    expect(savedRestriction.unavailableDaysJson).toEqual(['2026-04-21']);
+    expect(savedRestriction.source).toBe('TENANT_PORTAL');
+  });
+
+  it('should not save restrictions when not provided', async () => {
+    await useCase.execute(makeInput());
+
+    expect(appointmentRepo.deleteRestrictionsByAppointmentId).not.toHaveBeenCalled();
+    expect(appointmentRepo.saveRestriction).not.toHaveBeenCalled();
+  });
+
+  it('should call audit service with ANONYMOUS actor type', async () => {
+    await useCase.execute(makeInput());
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'tenant_portal.appointment_rescheduled',
+        actorType: 'ANONYMOUS',
+        entityType: 'appointment',
+        entityId: 'appt-1',
+        tenantId: 'tenant-1',
+      }),
+    );
+  });
+
+  it('should throw NotFoundError when appointment does not exist', async () => {
+    appointmentRepo.findById.mockResolvedValue(null);
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow('Appointment not found');
+  });
+});
