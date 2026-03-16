@@ -12,6 +12,20 @@ export interface Inspector {
   updatedAt: string;
 }
 
+export interface InspectorDetail extends Inspector {
+  regions: string[];
+  serviceTypes: string[];
+  document: string | null;
+  rating: number | null;
+}
+
+export interface InspectorDetail extends Inspector {
+  regions: string[];
+  serviceTypes: string[];
+  document: string | null;
+  rating: number | null;
+}
+
 export interface InspectorFiltersState {
   search: string;
   status: string;
