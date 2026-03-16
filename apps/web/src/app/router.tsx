@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import { AppShell } from '@/components/shell/AppShell';
 import { AppointmentListPage } from '@/features/appointments/pages/AppointmentListPage';
+import { PropertyListPage } from '@/features/properties/pages/PropertyListPage';
+import { InspectorListPage } from '@/features/inspectors/pages/InspectorListPage';
 
 function Placeholder({ title }: { title: string }) {
   return <h2 className="text-page-title text-secondary">{title}</h2>;
@@ -31,10 +33,10 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/appointments" replace /> },
           { path: 'appointments', element: <AppointmentListPage /> },
-          { path: 'properties', element: <Placeholder title="Imóveis" /> },
+          { path: 'properties', element: <PropertyListPage /> },
           { path: 'service-groups', element: <Placeholder title="Grupos de Serviço" /> },
           { path: 'financial', element: <Placeholder title="Financeiro" /> },
-          { path: 'inspectors', element: <Placeholder title="Inspetores" /> },
+          { path: 'inspectors', element: <InspectorListPage /> },
           { path: 'tenants', element: <Placeholder title="Inquilinos" /> },
           { path: 'users', element: <Placeholder title="Usuários" /> },
           { path: 'reports', element: <Placeholder title="Relatórios" /> },
