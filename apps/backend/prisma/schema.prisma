@@ -1,5 +1,5 @@
 // This is your Prisma schema file.
-// Auth module entities only — other modules will add entities in subsequent migrations.
+// Auth, tenant, branch, property, service type, inspector, appointment entities.
 
 generator client {
   provider = "prisma-client-js"
@@ -25,6 +25,131 @@ enum UserStatus {
   LOCKED
 }
 
+enum TenantStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PropertyType {
+  RESIDENTIAL
+  COMMERCIAL
+  INDUSTRIAL
+  RURAL
+}
+
+enum GeocodingStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  MANUAL
+}
+
+enum ServiceTypeFlowType {
+  ROUTINE
+  INGOING
+  OUTGOING
+}
+
+enum ServiceTypeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PayoutType {
+  FIXED
+  PERCENTAGE
+}
+
+enum PriceRuleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InspectorStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AvailabilitySlotStatus {
+  AVAILABLE
+  BOOKED
+  CANCELLED
+}
+
+enum AppointmentStatus {
+  DRAFT
+  AWAITING_INSPECTOR
+  SCHEDULED
+  DONE
+  CANCELLED
+  REJECTED
+}
+
+enum TenantConfirmationStatus {
+  PENDING
+  CONFIRMED
+  UNAVAILABLE
+  NO_RESPONSE
+}
+
+enum RestrictionSource {
+  TENANT_PORTAL
+  OPERATOR
+  IMPORT
+}
+
+model Tenant {
+  id            String        @id @default(uuid())
+  name          String        @db.VarChar(200)
+  legal_name    String        @unique @db.VarChar(200)
+  status        TenantStatus  @default(PENDING)
+  timezone      String        @default("Australia/Sydney") @db.VarChar(60)
+  currency      String        @default("AUD") @db.Char(3)
+  settings_json Json          @default("{}")
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+  deleted_at    DateTime?
+
+  branches      Branch[]
+  users         User[]
+  properties    Property[]
+  price_rules   ServicePriceRule[]
+  appointments  Appointment[]
+
+  @@index([status])
+  @@index([deleted_at])
+  @@map("tenants")
+}
+
+model Branch {
+  id            String       @id @default(uuid())
+  tenant_id     String
+  name          String       @db.VarChar(200)
+  address_json  Json?
+  status        BranchStatus @default(ACTIVE)
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+  deleted_at    DateTime?
+
+  tenant        Tenant       @relation(fields: [tenant_id], references: [id])
+  users         User[]
+  properties    Property[]
+  price_rules   ServicePriceRule[]
+  appointments  Appointment[]
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id])
+  @@index([tenant_id, status])
+  @@index([deleted_at])
+  @@map("branches")
+}
+
 model User {
   id                  String      @id @default(uuid())
   tenant_id           String?
@@ -44,7 +169,11 @@ model User {
   updated_at          DateTime    @updatedAt
   deleted_at          DateTime?
 
-  sessions            Session[]
+  sessions                  Session[]
+  tenant                    Tenant?       @relation(fields: [tenant_id], references: [id])
+  branch                    Branch?       @relation(fields: [branch_id], references: [id])
+  created_appointments      Appointment[] @relation("AppointmentCreatedBy")
+  done_checked_appointments Appointment[] @relation("AppointmentDoneCheckedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -71,4 +200,200 @@ model Session {
   @@index([expires_at])
   @@index([user_id, revoked_at])
   @@map("sessions")
+}
+
+model Property {
+  id                String          @id @default(uuid())
+  tenant_id         String
+  branch_id         String?
+  property_code     String          @db.VarChar(50)
+  type              PropertyType
+  street            String          @db.VarChar(300)
+  address_line_2    String?         @db.VarChar(200)
+  suburb            String          @db.VarChar(100)
+  postcode          String          @db.VarChar(20)
+  state             String          @db.VarChar(100)
+  country           String          @default("AU") @db.VarChar(100)
+  lat               Decimal?        @db.Decimal(10, 7)
+  lng               Decimal?        @db.Decimal(10, 7)
+  geocoding_status  GeocodingStatus @default(PENDING)
+  notes             String?         @db.Text
+  rules_json        Json            @default("{}")
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  deleted_at        DateTime?
+
+  tenant            Tenant          @relation(fields: [tenant_id], references: [id])
+  branch            Branch?         @relation(fields: [branch_id], references: [id])
+  appointments      Appointment[]
+
+  @@unique([tenant_id, property_code])
+  @@index([tenant_id])
+  @@index([tenant_id, type])
+  @@index([branch_id])
+  @@index([deleted_at])
+  @@map("properties")
+}
+
+model ServiceType {
+  id                          String              @id @default(uuid())
+  code                        String              @unique @db.VarChar(50)
+  name                        String              @db.VarChar(200)
+  flow_type                   ServiceTypeFlowType
+  requires_tenant_confirmation Boolean            @default(true)
+  status                      ServiceTypeStatus   @default(ACTIVE)
+  created_at                  DateTime            @default(now())
+  updated_at                  DateTime            @updatedAt
+
+  price_rules                 ServicePriceRule[]
+  appointments                Appointment[]
+
+  @@index([status])
+  @@map("service_types")
+}
+
+model ServicePriceRule {
+  id                String          @id @default(uuid())
+  tenant_id         String
+  service_type_id   String
+  branch_id         String?
+  price_amount      Decimal         @db.Decimal(12, 2)
+  payout_type       PayoutType
+  payout_value      Decimal         @db.Decimal(12, 2)
+  bonus_rule_json   Json?
+  status            PriceRuleStatus @default(ACTIVE)
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+
+  tenant            Tenant          @relation(fields: [tenant_id], references: [id])
+  service_type      ServiceType     @relation(fields: [service_type_id], references: [id])
+  branch            Branch?         @relation(fields: [branch_id], references: [id])
+
+  @@unique([tenant_id, service_type_id, branch_id])
+  @@index([tenant_id])
+  @@index([service_type_id])
+  @@index([branch_id])
+  @@map("service_price_rules")
+}
+
+model Inspector {
+  id                        String           @id @default(uuid())
+  name                      String           @db.VarChar(200)
+  email                     String           @unique @db.VarChar(254)
+  phone                     String?          @db.VarChar(20)
+  status                    InspectorStatus  @default(ACTIVE)
+  payment_settings_json     Json             @default("{}")
+  regions_json              Json             @default("[]")
+  service_types_json        Json             @default("[]")
+  client_eligibility_json   Json             @default("[]")
+  created_at                DateTime         @default(now())
+  updated_at                DateTime         @updatedAt
+  deleted_at                DateTime?
+
+  availability_slots        InspectorAvailabilitySlot[]
+  appointments              Appointment[]
+
+  @@index([status])
+  @@index([deleted_at])
+  @@map("inspectors")
+}
+
+model InspectorAvailabilitySlot {
+  id              String                 @id @default(uuid())
+  inspector_id    String
+  date            DateTime               @db.Date
+  start_time      String                 @db.VarChar(5)
+  end_time        String                 @db.VarChar(5)
+  region_json     Json?
+  capacity        Int                    @default(1)
+  status          AvailabilitySlotStatus @default(AVAILABLE)
+  created_at      DateTime               @default(now())
+  updated_at      DateTime               @updatedAt
+
+  inspector       Inspector              @relation(fields: [inspector_id], references: [id])
+
+  @@index([inspector_id])
+  @@index([inspector_id, date])
+  @@index([inspector_id, status])
+  @@map("inspector_availability_slots")
+}
+
+model Appointment {
+  id                          String                   @id @default(uuid())
+  tenant_id                   String
+  branch_id                   String
+  property_id                 String
+  service_type_id             String
+  inspector_id                String?
+  status                      AppointmentStatus        @default(DRAFT)
+  scheduled_date              DateTime                 @db.Date
+  time_slot                   String                   @db.VarChar(50)
+  key_required                Boolean                  @default(false)
+  meeting_location            String?                  @db.VarChar(500)
+  key_location                String?                  @db.VarChar(500)
+  tenant_confirmation_status  TenantConfirmationStatus @default(PENDING)
+  price_amount                Decimal                  @db.Decimal(12, 2)
+  payout_amount               Decimal                  @db.Decimal(12, 2)
+  pricing_rule_snapshot_json  Json
+  notes                       String?                  @db.Text
+  custom_fields_json          Json?
+  reason                      String?                  @db.Text
+  created_by_user_id          String
+  done_checked_by_user_id     String?
+  done_checked_at             DateTime?
+  created_at                  DateTime                 @default(now())
+  updated_at                  DateTime                 @updatedAt
+  deleted_at                  DateTime?
+
+  tenant                      Tenant                   @relation(fields: [tenant_id], references: [id])
+  branch                      Branch                   @relation(fields: [branch_id], references: [id])
+  property                    Property                 @relation(fields: [property_id], references: [id])
+  service_type                ServiceType              @relation(fields: [service_type_id], references: [id])
+  inspector                   Inspector?               @relation(fields: [inspector_id], references: [id])
+  created_by_user             User                     @relation("AppointmentCreatedBy", fields: [created_by_user_id], references: [id])
+  done_checked_by_user        User?                    @relation("AppointmentDoneCheckedBy", fields: [done_checked_by_user_id], references: [id])
+
+  contact                     AppointmentContact?
+  restrictions                AppointmentRestriction[]
+
+  @@index([tenant_id, status])
+  @@index([tenant_id, branch_id])
+  @@index([tenant_id, inspector_id])
+  @@index([tenant_id, scheduled_date])
+  @@index([tenant_id, service_type_id])
+  @@index([deleted_at])
+  @@map("appointments")
+}
+
+model AppointmentContact {
+  id              String      @id @default(uuid())
+  appointment_id  String      @unique
+  tenant_name     String      @db.VarChar(200)
+  primary_email   String?     @db.VarChar(254)
+  secondary_email String?     @db.VarChar(254)
+  primary_phone   String?     @db.VarChar(30)
+  secondary_phone String?     @db.VarChar(30)
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+
+  appointment     Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+
+  @@map("appointment_contacts")
+}
+
+model AppointmentRestriction {
+  id                      String            @id @default(uuid())
+  appointment_id          String
+  is_home                 Boolean
+  unavailable_days_json   Json?
+  unavailable_hours_json  Json?
+  notes                   String?           @db.Text
+  source                  RestrictionSource
+  created_at              DateTime          @default(now())
+  updated_at              DateTime          @updatedAt
+
+  appointment             Appointment       @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+
+  @@index([appointment_id])
+  @@map("appointment_restrictions")
 }
