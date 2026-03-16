@@ -1,5 +1,7 @@
 import type { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 
+export type { AppointmentStatus } from '@properfy/shared';
+
 export interface Appointment {
   id: string;
   code: string;
@@ -32,6 +34,20 @@ export interface AppointmentFiltersState {
   startDate: string;
   endDate: string;
   showCancelled: boolean;
+}
+
+export interface AppointmentDetail extends Appointment {
+  meetingLocation: string | null;
+  keyLocation: string | null;
+  cancellationReason: string | null;
+}
+
+export interface AppointmentTransition {
+  targetStatus: AppointmentStatus;
+  label: string;
+  icon: string;
+  variant: 'primary' | 'outlined' | 'danger' | 'warning';
+  requiresReason: boolean;
 }
 
 export const DEFAULT_FILTERS: AppointmentFiltersState = {
