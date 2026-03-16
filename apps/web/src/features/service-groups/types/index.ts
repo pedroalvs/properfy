@@ -1,0 +1,25 @@
+import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
+
+export interface ServiceGroup {
+  id: string;
+  tenantId: string;
+  name: string;
+  regionName: string | null;
+  inspectorId: string | null;
+  inspectorName: string | null;
+  status: ServiceGroupStatus;
+  priorityMode: PriorityMode;
+  appointmentsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceGroupFiltersState {
+  search: string;
+  status: string;
+}
+
+export const DEFAULT_FILTERS: ServiceGroupFiltersState = {
+  search: '',
+  status: '',
+};

@@ -4,6 +4,7 @@ import { AppShell } from '@/components/shell/AppShell';
 import { AppointmentListPage } from '@/features/appointments/pages/AppointmentListPage';
 import { PropertyListPage } from '@/features/properties/pages/PropertyListPage';
 import { InspectorListPage } from '@/features/inspectors/pages/InspectorListPage';
+import { ServiceGroupListPage } from '@/features/service-groups/pages/ServiceGroupListPage';
 
 function Placeholder({ title }: { title: string }) {
   return <h2 className="text-page-title text-secondary">{title}</h2>;
@@ -34,7 +35,7 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="/appointments" replace /> },
           { path: 'appointments', element: <AppointmentListPage /> },
           { path: 'properties', element: <PropertyListPage /> },
-          { path: 'service-groups', element: <Placeholder title="Grupos de Serviço" /> },
+          { path: 'service-groups', element: <ServiceGroupListPage /> },
           { path: 'financial', element: <Placeholder title="Financeiro" /> },
           { path: 'inspectors', element: <InspectorListPage /> },
           { path: 'tenants', element: <Placeholder title="Inquilinos" /> },
