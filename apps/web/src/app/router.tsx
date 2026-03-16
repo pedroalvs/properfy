@@ -6,10 +6,9 @@ import { PropertyListPage } from '@/features/properties/pages/PropertyListPage';
 import { InspectorListPage } from '@/features/inspectors/pages/InspectorListPage';
 import { ServiceGroupListPage } from '@/features/service-groups/pages/ServiceGroupListPage';
 import { UserListPage } from '@/features/users/pages/UserListPage';
-
-function Placeholder({ title }: { title: string }) {
-  return <h2 className="text-page-title text-secondary">{title}</h2>;
-}
+import { FinancialListPage } from '@/features/financial/pages/FinancialListPage';
+import { TenantContactListPage } from '@/features/tenants/pages/TenantContactListPage';
+import { ReportListPage } from '@/features/reports/pages/ReportListPage';
 
 function LoginPage() {
   return (
@@ -37,11 +36,11 @@ export const router = createBrowserRouter([
           { path: 'appointments', element: <AppointmentListPage /> },
           { path: 'properties', element: <PropertyListPage /> },
           { path: 'service-groups', element: <ServiceGroupListPage /> },
-          { path: 'financial', element: <Placeholder title="Financeiro" /> },
+          { path: 'financial', element: <FinancialListPage /> },
           { path: 'inspectors', element: <InspectorListPage /> },
-          { path: 'tenants', element: <Placeholder title="Inquilinos" /> },
+          { path: 'tenants', element: <TenantContactListPage /> },
           { path: 'users', element: <UserListPage /> },
-          { path: 'reports', element: <Placeholder title="Relatórios" /> },
+          { path: 'reports', element: <ReportListPage /> },
         ],
       },
     ],
