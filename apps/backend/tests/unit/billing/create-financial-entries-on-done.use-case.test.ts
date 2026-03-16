@@ -1,0 +1,246 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { CreateFinancialEntriesOnDoneUseCase } from '../../../src/modules/billing/application/use-cases/create-financial-entries-on-done.use-case';
+import { FinancialEntryEntity } from '../../../src/modules/billing/domain/financial-entry.entity';
+
+const appointmentRepo = {
+  findById: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+  saveContact: vi.fn(),
+  updateContact: vi.fn(),
+  saveRestriction: vi.fn(),
+  deleteRestrictionsByAppointmentId: vi.fn(),
+};
+
+const financialEntryRepo = {
+  findById: vi.fn(),
+  findByAppointmentAndType: vi.fn(),
+  findByReferenceEntryIdAndType: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  updateStatus: vi.fn(),
+  sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
+};
+
+const auditService = { log: vi.fn() };
+
+function makeAppointment(overrides = {}) {
+  return {
+    appointment: {
+      id: 'appt-1',
+      tenantId: 'tenant-1',
+      branchId: 'branch-1',
+      propertyId: 'prop-1',
+      serviceTypeId: 'st-1',
+      inspectorId: 'insp-1',
+      status: 'DONE',
+      scheduledDate: new Date('2026-03-20'),
+      timeSlot: '09:00-11:00',
+      keyRequired: false,
+      meetingLocation: null,
+      keyLocation: null,
+      tenantConfirmationStatus: 'CONFIRMED',
+      priceAmount: 200,
+      payoutAmount: 140,
+      pricingRuleSnapshotJson: {},
+      notes: null,
+      customFieldsJson: null,
+      reason: null,
+      createdByUserId: 'user-1',
+      doneCheckedByUserId: 'op-1',
+      doneCheckedAt: new Date(),
+      serviceGroupId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      ...overrides,
+    },
+    contact: null,
+    restrictions: [],
+  };
+}
+
+function makeSut() {
+  return new CreateFinancialEntriesOnDoneUseCase(
+    appointmentRepo,
+    financialEntryRepo,
+    auditService as any,
+  );
+}
+
+describe('CreateFinancialEntriesOnDoneUseCase', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    appointmentRepo.findById.mockResolvedValue(makeAppointment());
+    financialEntryRepo.findByAppointmentAndType.mockResolvedValue(null);
+    financialEntryRepo.save.mockResolvedValue(undefined);
+  });
+
+  it('should create TENANT_DEBIT (APPROVED) and INSPECTOR_PAYOUT (PENDING) for a DONE appointment', async () => {
+    const sut = makeSut();
+
+    const result = await sut.execute({ appointmentId: 'appt-1' });
+
+    expect(result.debitEntryId).toBeDefined();
+    expect(result.payoutEntryId).toBeDefined();
+    expect(result.debitEntryId).not.toBeNull();
+    expect(result.payoutEntryId).not.toBeNull();
+
+    expect(financialEntryRepo.save).toHaveBeenCalledTimes(2);
+
+    const debitEntry = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
+    expect(debitEntry.entryType).toBe('TENANT_DEBIT');
+    expect(debitEntry.amount).toBe(200);
+    expect(debitEntry.status).toBe('APPROVED');
+    expect(debitEntry.currency).toBe('AUD');
+    expect(debitEntry.tenantId).toBe('tenant-1');
+    expect(debitEntry.appointmentId).toBe('appt-1');
+    expect(debitEntry.inspectorId).toBeNull();
+    expect(debitEntry.initiatedByUserId).toBe('SYSTEM');
+    expect(debitEntry.description).toBe('Inspection service debit');
+
+    const payoutEntry = financialEntryRepo.save.mock.calls[1][0] as FinancialEntryEntity;
+    expect(payoutEntry.entryType).toBe('INSPECTOR_PAYOUT');
+    expect(payoutEntry.amount).toBe(140);
+    expect(payoutEntry.status).toBe('PENDING');
+    expect(payoutEntry.currency).toBe('AUD');
+    expect(payoutEntry.tenantId).toBe('tenant-1');
+    expect(payoutEntry.appointmentId).toBe('appt-1');
+    expect(payoutEntry.inspectorId).toBe('insp-1');
+    expect(payoutEntry.initiatedByUserId).toBe('SYSTEM');
+    expect(payoutEntry.description).toBe('Inspector payout');
+  });
+
+  it('should use priceAmount for debit and payoutAmount for payout', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointment({ priceAmount: 500, payoutAmount: 350 }),
+    );
+
+    await sut.execute({ appointmentId: 'appt-1' });
+
+    const debitEntry = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
+    expect(debitEntry.amount).toBe(500);
+
+    const payoutEntry = financialEntryRepo.save.mock.calls[1][0] as FinancialEntryEntity;
+    expect(payoutEntry.amount).toBe(350);
+  });
+
+  it('should skip creating entries if both already exist (idempotent)', async () => {
+    const sut = makeSut();
+    const existingEntry = new FinancialEntryEntity({
+      id: 'existing-1',
+      tenantId: 'tenant-1',
+      appointmentId: 'appt-1',
+      inspectorId: null,
+      entryType: 'TENANT_DEBIT',
+      amount: 200,
+      currency: 'AUD',
+      status: 'APPROVED',
+      description: 'Inspection service debit',
+      effectiveAt: new Date(),
+      initiatedByUserId: 'SYSTEM',
+      approvedByUserId: null,
+      approvedAt: null,
+      referenceEntryId: null,
+      reason: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    financialEntryRepo.findByAppointmentAndType.mockResolvedValue(existingEntry);
+
+    const result = await sut.execute({ appointmentId: 'appt-1' });
+
+    expect(result.debitEntryId).toBeNull();
+    expect(result.payoutEntryId).toBeNull();
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should skip TENANT_DEBIT but create INSPECTOR_PAYOUT if only debit exists', async () => {
+    const sut = makeSut();
+    const existingDebit = new FinancialEntryEntity({
+      id: 'existing-debit',
+      tenantId: 'tenant-1',
+      appointmentId: 'appt-1',
+      inspectorId: null,
+      entryType: 'TENANT_DEBIT',
+      amount: 200,
+      currency: 'AUD',
+      status: 'APPROVED',
+      description: 'Inspection service debit',
+      effectiveAt: new Date(),
+      initiatedByUserId: 'SYSTEM',
+      approvedByUserId: null,
+      approvedAt: null,
+      referenceEntryId: null,
+      reason: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    financialEntryRepo.findByAppointmentAndType
+      .mockResolvedValueOnce(existingDebit) // TENANT_DEBIT exists
+      .mockResolvedValueOnce(null); // INSPECTOR_PAYOUT does not exist
+
+    const result = await sut.execute({ appointmentId: 'appt-1' });
+
+    expect(result.debitEntryId).toBeNull();
+    expect(result.payoutEntryId).not.toBeNull();
+    expect(financialEntryRepo.save).toHaveBeenCalledOnce();
+
+    const payoutEntry = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
+    expect(payoutEntry.entryType).toBe('INSPECTOR_PAYOUT');
+  });
+
+  it('should return nulls silently if appointment is not DONE', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(makeAppointment({ status: 'SCHEDULED' }));
+
+    const result = await sut.execute({ appointmentId: 'appt-1' });
+
+    expect(result.debitEntryId).toBeNull();
+    expect(result.payoutEntryId).toBeNull();
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should return nulls silently if appointment not found', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(null);
+
+    const result = await sut.execute({ appointmentId: 'nonexistent' });
+
+    expect(result.debitEntryId).toBeNull();
+    expect(result.payoutEntryId).toBeNull();
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should audit log both entries when created', async () => {
+    const sut = makeSut();
+
+    await sut.execute({ appointmentId: 'appt-1' });
+
+    expect(auditService.log).toHaveBeenCalledTimes(2);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'financial_entry.created',
+        actorType: 'SYSTEM',
+        entityType: 'FinancialEntry',
+        tenantId: 'tenant-1',
+        after: expect.objectContaining({ entryType: 'TENANT_DEBIT' }),
+      }),
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'financial_entry.created',
+        actorType: 'SYSTEM',
+        entityType: 'FinancialEntry',
+        tenantId: 'tenant-1',
+        after: expect.objectContaining({ entryType: 'INSPECTOR_PAYOUT' }),
+      }),
+    );
+  });
+});

@@ -1,5 +1,4 @@
 import { prisma } from '../shared/infrastructure/prisma';
-import { AuditService } from '../shared/infrastructure/audit';
 import type { Logger } from '../shared/infrastructure/logger';
 
 // Auth module
@@ -75,6 +74,66 @@ import { ListAvailabilitySlotsUseCase } from '../modules/inspector/application/u
 import { UpdateAvailabilitySlotUseCase } from '../modules/inspector/application/use-cases/update-availability-slot.use-case';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
 
+// Audit module
+import { PrismaAuditLogRepository } from '../modules/audit/infrastructure/prisma-audit-log.repository';
+import { PersistentAuditService } from '../modules/audit/application/services/persistent-audit.service';
+import { ListAuditLogsUseCase } from '../modules/audit/application/use-cases/list-audit-logs.use-case';
+import type { AuditRouteContainer } from '../modules/audit/interfaces/audit.routes';
+
+// Service group module
+import { PrismaServiceGroupRepository } from '../modules/service-group/infrastructure/prisma-service-group.repository';
+import { CreateServiceGroupUseCase } from '../modules/service-group/application/use-cases/create-service-group.use-case';
+import { GetServiceGroupUseCase } from '../modules/service-group/application/use-cases/get-service-group.use-case';
+import { ListServiceGroupsUseCase } from '../modules/service-group/application/use-cases/list-service-groups.use-case';
+import { PublishServiceGroupUseCase } from '../modules/service-group/application/use-cases/publish-service-group.use-case';
+import { AssignInspectorManuallyUseCase } from '../modules/service-group/application/use-cases/assign-inspector-manually.use-case';
+import { AcceptOfferUseCase } from '../modules/service-group/application/use-cases/accept-offer.use-case';
+import { GetMarketplaceOffersUseCase } from '../modules/service-group/application/use-cases/get-marketplace-offers.use-case';
+import { CancelServiceGroupUseCase } from '../modules/service-group/application/use-cases/cancel-service-group.use-case';
+import type { ServiceGroupRouteContainer } from '../modules/service-group/interfaces/service-group.routes';
+import type { MarketplaceRouteContainer } from '../modules/service-group/interfaces/marketplace.routes';
+
+// Tenant portal module
+import { PrismaTenantPortalTokenRepository } from '../modules/tenant-portal/infrastructure/prisma-tenant-portal-token.repository';
+import { PrismaTenantPortalActivityRepository } from '../modules/tenant-portal/infrastructure/prisma-tenant-portal-activity.repository';
+import { TokenService } from '../modules/tenant-portal/domain/token.service';
+import { GetPortalDataUseCase } from '../modules/tenant-portal/application/use-cases/get-portal-data.use-case';
+import { ConfirmAppointmentUseCase } from '../modules/tenant-portal/application/use-cases/confirm-appointment.use-case';
+import { RescheduleRequestUseCase } from '../modules/tenant-portal/application/use-cases/reschedule-request.use-case';
+import { UpdateContactUseCase } from '../modules/tenant-portal/application/use-cases/update-contact.use-case';
+import { ReportUnavailabilityUseCase } from '../modules/tenant-portal/application/use-cases/report-unavailability.use-case';
+import { GeneratePortalTokenUseCase } from '../modules/tenant-portal/application/use-cases/generate-portal-token.use-case';
+import type { TenantPortalRouteContainer } from '../modules/tenant-portal/interfaces/tenant-portal.routes';
+
+// Inspector execution module
+import { PrismaInspectionExecutionRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
+import { PrismaInspectionAssetRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-asset.repository';
+import { PrismaIdempotencyService } from '../modules/inspector-execution/infrastructure/prisma-idempotency.service';
+import { StubStorageService } from '../modules/inspector-execution/infrastructure/stub-storage.service';
+import { PrismaServiceTypeReader } from '../modules/inspector-execution/infrastructure/prisma-service-type-reader';
+import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case';
+import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
+import { StartInspectionUseCase } from '../modules/inspector-execution/application/use-cases/start-inspection.use-case';
+import { FinishInspectionUseCase } from '../modules/inspector-execution/application/use-cases/finish-inspection.use-case';
+import { RequestAssetUploadUseCase } from '../modules/inspector-execution/application/use-cases/request-asset-upload.use-case';
+import { ConfirmAssetUploadUseCase } from '../modules/inspector-execution/application/use-cases/confirm-asset-upload.use-case';
+import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
+
+// Billing module
+import { PrismaFinancialEntryRepository } from '../modules/billing/infrastructure/prisma-financial-entry.repository';
+import { PrismaInspectorInvoiceRepository } from '../modules/billing/infrastructure/prisma-inspector-invoice.repository';
+import { CreateFinancialEntriesOnDoneUseCase } from '../modules/billing/application/use-cases/create-financial-entries-on-done.use-case';
+import { ListFinancialEntriesUseCase } from '../modules/billing/application/use-cases/list-financial-entries.use-case';
+import { GetFinancialEntryUseCase } from '../modules/billing/application/use-cases/get-financial-entry.use-case';
+import { ApproveFinancialEntryUseCase } from '../modules/billing/application/use-cases/approve-financial-entry.use-case';
+import { CreateManualAdjustmentUseCase } from '../modules/billing/application/use-cases/create-manual-adjustment.use-case';
+import { CreateRefundUseCase } from '../modules/billing/application/use-cases/create-refund.use-case';
+import { GenerateInvoiceUseCase } from '../modules/billing/application/use-cases/generate-invoice.use-case';
+import { ListInvoicesUseCase } from '../modules/billing/application/use-cases/list-invoices.use-case';
+import { GetInvoiceUseCase } from '../modules/billing/application/use-cases/get-invoice.use-case';
+import { DownloadInvoiceUseCase } from '../modules/billing/application/use-cases/download-invoice.use-case';
+import type { BillingRouteContainer } from '../modules/billing/interfaces/billing.routes';
+
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
@@ -87,7 +146,7 @@ import type { AppointmentRouteContainer } from '../modules/appointment/interface
 
 export interface AppContainer {
   prisma: typeof prisma;
-  auditService: AuditService;
+  auditService: PersistentAuditService;
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
   user: UserRouteContainer;
@@ -96,10 +155,17 @@ export interface AppContainer {
   pricingRule: PricingRuleRouteContainer;
   inspector: InspectorRouteContainer;
   appointment: AppointmentRouteContainer;
+  audit: AuditRouteContainer;
+  serviceGroup: ServiceGroupRouteContainer;
+  marketplace: MarketplaceRouteContainer;
+  tenantPortal: TenantPortalRouteContainer;
+  inspectorExecution: InspectorExecutionRouteContainer;
+  billing: BillingRouteContainer;
 }
 
 export function createContainer(logger: Logger): AppContainer {
-  const auditService = new AuditService(logger);
+  const auditLogRepo = new PrismaAuditLogRepository(prisma);
+  const auditService = new PersistentAuditService(auditLogRepo, logger);
 
   // Repositories
   const userRepo = new PrismaUserRepository(prisma);
@@ -198,6 +264,75 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService);
 
+  // Tenant portal repositories and use cases
+  const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
+  const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
+  const tokenService = new TokenService();
+  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo);
+  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
+  const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, appointmentRepo, serviceTypeRepo, auditService);
+  const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
+  const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
+  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, tokenService, auditService);
+
+  // Inspector execution repositories and services
+  const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
+  const inspectionAssetRepo = new PrismaInspectionAssetRepository(prisma);
+  const idempotencyService = new PrismaIdempotencyService(prisma);
+  const storageService = new StubStorageService();
+  const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
+
+  // Inspector execution use cases
+  const getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
+    appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec,
+  );
+  const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
+    appointmentRepo, inspectionExecutionRepo, inspectionAssetRepo, serviceTypeReaderForExec,
+  );
+  const startInspectionUseCase = new StartInspectionUseCase(
+    appointmentRepo, inspectionExecutionRepo, idempotencyService, serviceTypeReaderForExec, auditService,
+  );
+  const finishInspectionUseCase = new FinishInspectionUseCase(
+    inspectionExecutionRepo, inspectionAssetRepo, idempotencyService,
+    executeStatusTransitionUseCase, auditService,
+  );
+  const requestAssetUploadUseCase = new RequestAssetUploadUseCase(
+    inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo,
+  );
+  const confirmAssetUploadUseCase = new ConfirmAssetUploadUseCase(
+    inspectionAssetRepo, storageService,
+  );
+
+  // Audit use cases
+  const listAuditLogsUseCase = new ListAuditLogsUseCase(auditLogRepo);
+
+  // Service group repositories and use cases
+  const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
+  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService);
+  const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo);
+  const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo);
+  const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService);
+  const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService);
+  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService);
+  const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
+  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService);
+
+  // Billing repositories and use cases
+  const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
+  const inspectorInvoiceRepo = new PrismaInspectorInvoiceRepository(prisma);
+  const createFinancialEntriesOnDoneUseCase = new CreateFinancialEntriesOnDoneUseCase(
+    appointmentRepo, financialEntryRepo, auditService,
+  );
+  const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo);
+  const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
+  const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService);
+  const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(financialEntryRepo, auditService);
+  const createRefundUseCase = new CreateRefundUseCase(financialEntryRepo, auditService);
+  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService);
+  const listInvoicesUseCase = new ListInvoicesUseCase(inspectorInvoiceRepo);
+  const getInvoiceUseCase = new GetInvoiceUseCase(inspectorInvoiceRepo);
+  const downloadInvoiceUseCase = new DownloadInvoiceUseCase(inspectorInvoiceRepo);
+
   return {
     prisma,
     auditService,
@@ -268,6 +403,57 @@ export function createContainer(logger: Logger): AppContainer {
       updateAppointmentUseCase,
       executeStatusTransitionUseCase,
       forceManualConfirmationUseCase,
+      jwtService,
+    },
+    audit: {
+      listAuditLogsUseCase,
+      jwtService,
+    },
+    serviceGroup: {
+      createServiceGroupUseCase,
+      getServiceGroupUseCase,
+      listServiceGroupsUseCase,
+      publishServiceGroupUseCase,
+      assignInspectorManuallyUseCase,
+      cancelServiceGroupUseCase,
+      jwtService,
+    },
+    marketplace: {
+      getMarketplaceOffersUseCase,
+      acceptOfferUseCase,
+      jwtService,
+    },
+    tenantPortal: {
+      getPortalDataUseCase,
+      confirmAppointmentUseCase,
+      rescheduleRequestUseCase,
+      updateContactUseCase,
+      reportUnavailabilityUseCase,
+      generatePortalTokenUseCase,
+      tokenRepo: tenantPortalTokenRepo,
+      tokenService,
+      jwtService,
+    },
+    inspectorExecution: {
+      getInspectorScheduleUseCase,
+      getAppointmentDetailUseCase,
+      startInspectionUseCase,
+      finishInspectionUseCase,
+      requestAssetUploadUseCase,
+      confirmAssetUploadUseCase,
+      jwtService,
+    },
+    billing: {
+      createFinancialEntriesOnDoneUseCase,
+      listFinancialEntriesUseCase,
+      getFinancialEntryUseCase,
+      approveFinancialEntryUseCase,
+      createManualAdjustmentUseCase,
+      createRefundUseCase,
+      generateInvoiceUseCase,
+      listInvoicesUseCase,
+      getInvoiceUseCase,
+      downloadInvoiceUseCase,
       jwtService,
     },
   };

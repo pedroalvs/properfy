@@ -8,17 +8,17 @@ export type FinancialEntryType = (typeof FinancialEntryType)[keyof typeof Financ
 
 export const FinancialEntryStatus = {
   PENDING: 'PENDING',
-  PROCESSED: 'PROCESSED',
+  APPROVED: 'APPROVED',
   CANCELLED: 'CANCELLED',
 } as const;
 export type FinancialEntryStatus = (typeof FinancialEntryStatus)[keyof typeof FinancialEntryStatus];
 
-export const BillingPeriod = {
+export const BillingPeriodType = {
   WEEKLY: 'WEEKLY',
   BIWEEKLY: 'BIWEEKLY',
   MONTHLY: 'MONTHLY',
 } as const;
-export type BillingPeriod = (typeof BillingPeriod)[keyof typeof BillingPeriod];
+export type BillingPeriodType = (typeof BillingPeriodType)[keyof typeof BillingPeriodType];
 
 export const InspectorInvoiceStatus = {
   OPEN: 'OPEN',

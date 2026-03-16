@@ -8,6 +8,12 @@ import { registerServiceTypeRoutes } from '../modules/service-type/interfaces/se
 import { registerPricingRuleRoutes } from '../modules/pricing-rule/interfaces/pricing-rule.routes';
 import { registerInspectorRoutes } from '../modules/inspector/interfaces/inspector.routes';
 import { registerAppointmentRoutes } from '../modules/appointment/interfaces/appointment.routes';
+import { registerServiceGroupRoutes } from '../modules/service-group/interfaces/service-group.routes';
+import { registerMarketplaceRoutes } from '../modules/service-group/interfaces/marketplace.routes';
+import { registerAuditRoutes } from '../modules/audit/interfaces/audit.routes';
+import { registerTenantPortalRoutes } from '../modules/tenant-portal/interfaces/tenant-portal.routes';
+import { registerInspectorExecutionRoutes } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
+import { registerBillingRoutes } from '../modules/billing/interfaces/billing.routes';
 
 export async function registerRoutes(
   app: FastifyInstance,
@@ -22,4 +28,10 @@ export async function registerRoutes(
   await registerPricingRuleRoutes(app, container.pricingRule);
   await registerInspectorRoutes(app, container.inspector);
   await registerAppointmentRoutes(app, container.appointment);
+  await registerServiceGroupRoutes(app, container.serviceGroup);
+  await registerMarketplaceRoutes(app, container.marketplace);
+  await registerAuditRoutes(app, container.audit);
+  await registerTenantPortalRoutes(app, container.tenantPortal);
+  await registerInspectorExecutionRoutes(app, container.inspectorExecution);
+  await registerBillingRoutes(app, container.billing);
 }
