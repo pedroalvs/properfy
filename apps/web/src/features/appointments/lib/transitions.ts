@@ -82,11 +82,14 @@ export function getAvailableTransitions(
   return filtered.map((targetStatus) => {
     const isReopen = isReopenTransition(status, targetStatus);
     const metaKey = isReopen ? `${AppointmentStatus.DRAFT}_reopen` : targetStatus;
-    const meta = TRANSITION_META[metaKey];
+    const meta = TRANSITION_META[metaKey]!;
 
     return {
       targetStatus,
-      ...meta,
+      label: meta.label,
+      icon: meta.icon,
+      variant: meta.variant,
+      requiresReason: meta.requiresReason,
     };
   });
 }

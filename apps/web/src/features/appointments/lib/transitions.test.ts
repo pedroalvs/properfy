@@ -26,9 +26,9 @@ describe('getAvailableTransitions', () => {
   it('AM from DONE sees 1 transition (DRAFT/reopen)', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.DONE, 'AM');
     expect(transitions).toHaveLength(1);
-    expect(transitions[0].targetStatus).toBe(AppointmentStatus.DRAFT);
-    expect(transitions[0].label).toBe('Reabrir como Rascunho');
-    expect(transitions[0].requiresReason).toBe(true);
+    expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.DRAFT);
+    expect(transitions[0]!.label).toBe('Reabrir como Rascunho');
+    expect(transitions[0]!.requiresReason).toBe(true);
   });
 
   it('OP from DONE sees no transitions (reopen restricted to AM)', () => {
@@ -49,7 +49,7 @@ describe('getAvailableTransitions', () => {
   it('CL_ADMIN from SCHEDULED sees only CANCELLED', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'CL_ADMIN');
     expect(transitions).toHaveLength(1);
-    expect(transitions[0].targetStatus).toBe(AppointmentStatus.CANCELLED);
+    expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.CANCELLED);
   });
 
   it('CL_ADMIN from DONE sees nothing', () => {
@@ -60,7 +60,7 @@ describe('getAvailableTransitions', () => {
   it('INSP from SCHEDULED sees only DONE', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'INSP');
     expect(transitions).toHaveLength(1);
-    expect(transitions[0].targetStatus).toBe(AppointmentStatus.DONE);
+    expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.DONE);
   });
 
   it('INSP from DRAFT sees nothing', () => {
