@@ -1,0 +1,73 @@
+:root {
+  /* Brand colors */
+  --color-primary: #009DD9;
+  --color-secondary: #21566E;
+  --color-accent: #41A69D;
+  --color-error: #FF5252;
+  --color-info: #00CAE3;
+  --color-success: #4CAF50;
+  --color-warning: #FB8C00;
+  --color-realty: #215676;
+  --color-real-estate: #F37A76;
+
+  /* Surfaces */
+  --color-app-bg: #F5F5F5;
+  --color-card-bg: #FFFFFF;
+
+  /* Text */
+  --color-text-primary: rgba(0, 0, 0, 0.87);
+  --color-text-secondary: rgba(0, 0, 0, 0.6);
+  --color-text-muted: rgb(158, 158, 158);
+  --color-text-disabled: rgba(0, 0, 0, 0.38);
+
+  /* Disabled */
+  --color-disabled-bg: rgba(0, 0, 0, 0.12);
+  --color-disabled-text: rgba(0, 0, 0, 0.26);
+
+  /* Status backgrounds */
+  --color-status-draft: #E1BEE7;
+  --color-status-awaiting-inspector: #FFE0B2;
+  --color-status-scheduled: #B3E5FC;
+  --color-status-done: #C8E6C9;
+  --color-status-cancelled: #FFCDD2;
+  --color-status-rejected: #FFAB91;
+
+  /* Financial */
+  --color-money-positive: rgb(102, 187, 106);
+  --color-money-negative: rgb(239, 83, 80);
+
+  /* Typography */
+  --font-family: 'Nunito', sans-serif;
+  --font-size-body: 16px;
+  --font-weight-body: 500;
+  --line-height-body: 24px;
+  --letter-spacing-body: 0.5px;
+
+  --font-size-page-title: 24px;
+  --font-weight-page-title: 700;
+  --font-size-page-title-mobile: 20px;
+
+  --font-size-dialog-title: 20px;
+  --font-weight-dialog-title: 500;
+
+  --font-size-table-header: 14px;
+  --font-weight-table-header: 700;
+  --font-size-table-body: 14px;
+  --font-weight-table-body: 400;
+
+  --font-size-tabs: 14px;
+  --font-weight-tabs: 700;
+
+  --font-size-caption: 12px;
+  --font-weight-caption: 400;
+
+  /* Spacing */
+  --page-padding-x: 32px;
+  --page-padding-y: 24px;
+  --sidebar-width: 75px;
+
+  /* Border radius */
+  --radius-default: 4px;
+  --radius-submenu: 6px;
+  --radius-modal: 8px;
+}
