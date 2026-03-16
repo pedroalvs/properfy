@@ -6,3 +6,5 @@ export type { SelectOption } from './SelectInput';
 export { DateInput } from './DateInput';
 export { NumberInput } from './NumberInput';
 export { Checkbox } from './Checkbox';
+export { FormSection } from './FormSection';
+export { FormActions } from './FormActions';

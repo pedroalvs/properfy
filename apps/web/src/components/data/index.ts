@@ -9,3 +9,4 @@ export { RowActions } from './RowActions';
 export type { RowAction, RowActionsProps } from './RowActions';
 export { EntityListCard } from './EntityListCard';
 export { TableSwitch } from './TableSwitch';
+export { DetailRow } from './DetailRow';
