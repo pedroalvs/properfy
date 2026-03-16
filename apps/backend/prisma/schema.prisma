@@ -140,7 +140,10 @@ model Tenant {
   price_rules   ServicePriceRule[]
   appointments      Appointment[]
   service_groups    ServiceGroup[]
-  financial_entries FinancialEntry[]
+  financial_entries       FinancialEntry[]
+  notifications           Notification[]
+  notification_templates  NotificationTemplate[]
+  reports                 Report[]
 
   @@index([status])
   @@index([deleted_at])
@@ -198,6 +201,7 @@ model User {
   initiated_entries         FinancialEntry[] @relation("EntryInitiator")
   approved_entries          FinancialEntry[] @relation("EntryApprover")
   generated_invoices        InspectorInvoice[]
+  requested_reports         Report[]
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -391,6 +395,7 @@ model Appointment {
   execution                   InspectionExecution?
   inspection_assets           InspectionAsset[]
   financial_entries           FinancialEntry[]
+  notifications               Notification[]
 
   @@index([tenant_id, status])
   @@index([tenant_id, branch_id])
@@ -541,6 +546,19 @@ enum InspectionAssetStatus {
   PENDING
   UPLOADED
   UPLOAD_FAILED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
 }
 
 model TenantPortalToken {
@@ -704,4 +722,108 @@ model InspectorInvoice {
   @@index([inspector_id, status])
   @@index([period_start, period_end])
   @@map("inspector_invoices")
+}
+
+model Notification {
+  id                   String             @id @default(uuid())
+  tenant_id            String
+  appointment_id       String?
+  recipient            String             @db.VarChar(320)
+  channel              NotificationChannel
+  template_code        String             @db.VarChar(100)
+  status               NotificationStatus @default(PENDING)
+  provider_name        String?            @db.VarChar(50)
+  provider_message_id  String?            @db.VarChar(200)
+  sent_at              DateTime?
+  delivered_at         DateTime?
+  failed_at            DateTime?
+  failure_reason       String?            @db.Text
+  payload_json         Json
+  retry_count          Int                @default(0)
+  next_retry_at        DateTime?
+  created_at           DateTime           @default(now())
+  updated_at           DateTime           @updatedAt
+
+  tenant               Tenant             @relation(fields: [tenant_id], references: [id])
+  appointment          Appointment?       @relation(fields: [appointment_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([appointment_id])
+  @@index([status])
+  @@index([template_code])
+  @@index([provider_message_id])
+  @@index([next_retry_at])
+  @@map("notifications")
+}
+
+model NotificationTemplate {
+  id             String              @id @default(uuid())
+  tenant_id      String?
+  template_code  String              @db.VarChar(100)
+  channel        NotificationChannel
+  subject        String?             @db.VarChar(255)
+  body_html      String?             @db.Text
+  body_text      String              @db.Text
+  variables_json Json
+  is_active      Boolean             @default(true)
+  created_at     DateTime            @default(now())
+  updated_at     DateTime            @updatedAt
+
+  tenant         Tenant?             @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, template_code, channel])
+  @@index([template_code, channel])
+  @@index([tenant_id])
+  @@map("notification_templates")
+}
+
+enum ReportType {
+  INSPECTIONS_SCHEDULED
+  INSPECTIONS_DONE
+  INSPECTIONS_CANCELLED
+  INSPECTIONS_REJECTED
+  INSPECTOR_PERFORMANCE
+  CONFIRMATION_STATUS
+  FINANCIAL_SERVICES
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum ReportFormat {
+  XLSX
+}
+
+model Report {
+  id                     String       @id @default(uuid())
+  tenant_id              String?
+  report_type            ReportType
+  filters_json           Json
+  format                 ReportFormat @default(XLSX)
+  status                 ReportStatus @default(PENDING)
+  file_key               String?
+  requested_by_user_id   String
+  started_at             DateTime?
+  completed_at           DateTime?
+  failed_at              DateTime?
+  error_message          String?
+  row_count              Int?
+  expires_at             DateTime?
+  created_at             DateTime     @default(now())
+  updated_at             DateTime     @updatedAt
+
+  tenant                 Tenant?      @relation(fields: [tenant_id], references: [id])
+  requestedBy            User         @relation(fields: [requested_by_user_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([report_type])
+  @@index([status])
+  @@index([requested_by_user_id])
+  @@index([created_at])
+  @@index([expires_at])
+  @@map("reports")
 }
