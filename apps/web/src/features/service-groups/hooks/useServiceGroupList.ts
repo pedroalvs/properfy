@@ -1,25 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type ServiceGroup, type ServiceGroupFiltersState } from '../types';
-
-const MOCK_SERVICE_GROUPS: ServiceGroup[] = [
-  { id: 'sg-01', tenantId: 't-1', name: 'Zona Sul SP', regionName: 'São Paulo - Sul', inspectorId: 'insp-01', inspectorName: 'Carlos Silva', status: ServiceGroupStatus.PUBLISHED, priorityMode: PriorityMode.STANDARD, appointmentsCount: 8, createdAt: '2026-01-10T10:00:00Z', updatedAt: '2026-01-10T10:00:00Z' },
-  { id: 'sg-02', tenantId: 't-1', name: 'Zona Norte SP', regionName: 'São Paulo - Norte', inspectorId: 'insp-02', inspectorName: 'Fernanda Oliveira', status: ServiceGroupStatus.ACCEPTED, priorityMode: PriorityMode.STANDARD, appointmentsCount: 5, createdAt: '2026-01-11T10:00:00Z', updatedAt: '2026-01-11T10:00:00Z' },
-  { id: 'sg-03', tenantId: 't-1', name: 'Centro RJ', regionName: 'Rio de Janeiro - Centro', inspectorId: null, inspectorName: null, status: ServiceGroupStatus.DRAFT, priorityMode: PriorityMode.PRIORITY_24H, appointmentsCount: 0, createdAt: '2026-01-12T10:00:00Z', updatedAt: '2026-01-12T10:00:00Z' },
-  { id: 'sg-04', tenantId: 't-2', name: 'Barra da Tijuca', regionName: 'Rio de Janeiro - Barra', inspectorId: 'insp-03', inspectorName: 'Roberto Alves', status: ServiceGroupStatus.PUBLISHED, priorityMode: PriorityMode.STANDARD, appointmentsCount: 12, createdAt: '2026-01-13T10:00:00Z', updatedAt: '2026-01-13T10:00:00Z' },
-  { id: 'sg-05', tenantId: 't-2', name: 'Campinas Interior', regionName: null, inspectorId: 'insp-05', inspectorName: 'Marcos Santos', status: ServiceGroupStatus.ACCEPTED, priorityMode: PriorityMode.PRIORITY_24H, appointmentsCount: 3, createdAt: '2026-01-14T10:00:00Z', updatedAt: '2026-01-14T10:00:00Z' },
-  { id: 'sg-06', tenantId: 't-1', name: 'Zona Oeste SP', regionName: 'São Paulo - Oeste', inspectorId: null, inspectorName: null, status: ServiceGroupStatus.CANCELLED, priorityMode: PriorityMode.STANDARD, appointmentsCount: 0, createdAt: '2026-01-15T10:00:00Z', updatedAt: '2026-02-01T10:00:00Z' },
-  { id: 'sg-07', tenantId: 't-3', name: 'Curitiba Centro', regionName: 'Curitiba - Centro', inspectorId: 'insp-06', inspectorName: 'Juliana Martins', status: ServiceGroupStatus.PUBLISHED, priorityMode: PriorityMode.STANDARD, appointmentsCount: 7, createdAt: '2026-01-16T10:00:00Z', updatedAt: '2026-01-16T10:00:00Z' },
-  { id: 'sg-08', tenantId: 't-3', name: 'Florianópolis', regionName: 'Florianópolis - Ilha', inspectorId: 'insp-08', inspectorName: 'Priscila Nunes', status: ServiceGroupStatus.ACCEPTED, priorityMode: PriorityMode.STANDARD, appointmentsCount: 4, createdAt: '2026-01-17T10:00:00Z', updatedAt: '2026-01-17T10:00:00Z' },
-  { id: 'sg-09', tenantId: 't-1', name: 'ABC Paulista', regionName: 'São Paulo - ABC', inspectorId: 'insp-09', inspectorName: 'Thiago Ferreira', status: ServiceGroupStatus.DRAFT, priorityMode: PriorityMode.STANDARD, appointmentsCount: 0, createdAt: '2026-01-18T10:00:00Z', updatedAt: '2026-01-18T10:00:00Z' },
-  { id: 'sg-10', tenantId: 't-2', name: 'Niterói', regionName: 'Niterói', inspectorId: null, inspectorName: null, status: ServiceGroupStatus.CANCELLED, priorityMode: PriorityMode.STANDARD, appointmentsCount: 0, createdAt: '2026-01-19T10:00:00Z', updatedAt: '2026-02-05T10:00:00Z' },
-  { id: 'sg-11', tenantId: 't-1', name: 'Guarulhos', regionName: null, inspectorId: 'insp-10', inspectorName: 'Camila Barbosa', status: ServiceGroupStatus.PUBLISHED, priorityMode: PriorityMode.PRIORITY_24H, appointmentsCount: 6, createdAt: '2026-01-20T10:00:00Z', updatedAt: '2026-01-20T10:00:00Z' },
-  { id: 'sg-12', tenantId: 't-2', name: 'Zona Leste SP', regionName: 'São Paulo - Leste', inspectorId: 'insp-11', inspectorName: 'Rafael Moreira', status: ServiceGroupStatus.ACCEPTED, priorityMode: PriorityMode.STANDARD, appointmentsCount: 9, createdAt: '2026-01-21T10:00:00Z', updatedAt: '2026-01-21T10:00:00Z' },
-  { id: 'sg-13', tenantId: 't-3', name: 'Porto Alegre', regionName: 'Porto Alegre - Centro', inspectorId: 'insp-13', inspectorName: 'Lucas Mendes', status: ServiceGroupStatus.DRAFT, priorityMode: PriorityMode.STANDARD, appointmentsCount: 0, createdAt: '2026-01-22T10:00:00Z', updatedAt: '2026-01-22T10:00:00Z' },
-  { id: 'sg-14', tenantId: 't-1', name: 'Santos Litoral', regionName: 'Santos', inspectorId: 'insp-14', inspectorName: 'Beatriz Rodrigues', status: ServiceGroupStatus.PUBLISHED, priorityMode: PriorityMode.STANDARD, appointmentsCount: 2, createdAt: '2026-01-23T10:00:00Z', updatedAt: '2026-01-23T10:00:00Z' },
-  { id: 'sg-15', tenantId: 't-2', name: 'Sorocaba', regionName: null, inspectorId: null, inspectorName: null, status: ServiceGroupStatus.DRAFT, priorityMode: PriorityMode.PRIORITY_24H, appointmentsCount: 0, createdAt: '2026-01-24T10:00:00Z', updatedAt: '2026-01-24T10:00:00Z' },
-];
+import { MOCK_SERVICE_GROUPS } from '../mocks/service-groups';
 
 function filterServiceGroups(
   data: ServiceGroup[],

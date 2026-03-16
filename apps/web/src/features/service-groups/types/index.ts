@@ -14,6 +14,11 @@ export interface ServiceGroup {
   updatedAt: string;
 }
 
+export interface ServiceGroupDetail extends ServiceGroup {
+  appointmentCodes: string[];
+  description: string | null;
+}
+
 export interface ServiceGroupFiltersState {
   search: string;
   status: string;
