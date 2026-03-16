@@ -1,7 +1,11 @@
+import { RouterProvider } from 'react-router-dom';
+import { AuthProvider } from '@/hooks/useAuth';
+import { router } from '@/app/router';
+
 export function App() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-app-bg">
-      <h1 className="text-page-title text-secondary">Properfy</h1>
-    </div>
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   );
 }
