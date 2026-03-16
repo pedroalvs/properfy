@@ -49,6 +49,7 @@ export interface IAppointmentRepository {
       reason: string | null;
       doneCheckedByUserId: string | null;
       doneCheckedAt: Date | null;
+      serviceGroupId: string | null;
       deletedAt: Date | null;
     }>,
   ): Promise<void>;

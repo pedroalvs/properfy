@@ -8,7 +8,6 @@ import {
   AppointmentInvalidTransitionError,
   AppointmentTransitionNotPermittedError,
   AppointmentReasonRequiredError,
-  AppointmentDoneCheckRequiredError,
   AppointmentDoneCheckerInvalidRoleError,
   AppointmentInspectorRequiredError,
 } from '../../domain/appointment.errors';
@@ -79,11 +78,8 @@ export class ExecuteStatusTransitionUseCase {
       throw new AppointmentReasonRequiredError();
     }
 
-    // 5. Check doneCheckedByUserId for DONE transition
-    if (rule.requiresDoneCheckedBy) {
-      if (!doneCheckedByUserId) {
-        throw new AppointmentDoneCheckRequiredError();
-      }
+    // 5. Validate doneCheckedByUserId when provided (optional — not required by INSP)
+    if (doneCheckedByUserId) {
       // Validate the checker is AM or OP
       const checker = await this.userRepo.findById(doneCheckedByUserId);
       if (!checker || (checker.role !== 'AM' && checker.role !== 'OP')) {
@@ -115,8 +111,8 @@ export class ExecuteStatusTransitionUseCase {
       updateData.inspectorId = inspectorId;
     }
 
-    // Set done check for DONE
-    if (rule.requiresDoneCheckedBy && doneCheckedByUserId) {
+    // Set done check for DONE (optional — set when provided)
+    if (doneCheckedByUserId) {
       updateData.doneCheckedByUserId = doneCheckedByUserId;
       updateData.doneCheckedAt = now;
     }

@@ -26,6 +26,7 @@ function makeAppointment(overrides: Partial<AppointmentProps> = {}): Appointment
     createdByUserId: 'user-1',
     doneCheckedByUserId: null,
     doneCheckedAt: null,
+    serviceGroupId: null,
     createdAt: new Date('2026-03-01'),
     updatedAt: new Date('2026-03-01'),
     deletedAt: null,

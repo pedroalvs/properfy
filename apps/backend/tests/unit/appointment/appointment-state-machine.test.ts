@@ -235,14 +235,12 @@ describe('AppointmentStateMachine', () => {
   });
 
   describe('requiresDoneCheckedBy', () => {
-    it('only SCHEDULED → DONE requires doneCheckedBy', () => {
+    it('no transition requires doneCheckedBy (inspector finishes without cross-check)', () => {
       const transitionsRequiringCheck = TRANSITION_RULES.filter((r) => r.requiresDoneCheckedBy);
-      expect(transitionsRequiringCheck).toHaveLength(1);
-      expect(transitionsRequiringCheck[0].from).toBe('SCHEDULED');
-      expect(transitionsRequiringCheck[0].to).toBe('DONE');
+      expect(transitionsRequiringCheck).toHaveLength(0);
     });
 
-    it('all other transitions do not require doneCheckedBy', () => {
+    it('all transitions do not require doneCheckedBy', () => {
       const otherTransitions = TRANSITION_RULES.filter(
         (r) => !(r.from === 'SCHEDULED' && r.to === 'DONE'),
       );

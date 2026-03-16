@@ -134,6 +134,35 @@ import { GetInvoiceUseCase } from '../modules/billing/application/use-cases/get-
 import { DownloadInvoiceUseCase } from '../modules/billing/application/use-cases/download-invoice.use-case';
 import type { BillingRouteContainer } from '../modules/billing/interfaces/billing.routes';
 
+// Report module
+import { PrismaReportRepository } from '../modules/report/infrastructure/prisma-report.repository';
+import { StubReportStorageService } from '../modules/report/infrastructure/stub-report-storage.service';
+import { ExcelJsXlsxGenerator } from '../modules/report/infrastructure/exceljs-xlsx-generator';
+import { PrismaReportDataReader } from '../modules/report/infrastructure/prisma-report-data-reader';
+import { StubJobQueue } from '../modules/report/infrastructure/stub-job-queue';
+import { RequestReportUseCase } from '../modules/report/application/use-cases/request-report.use-case';
+import { GetReportStatusUseCase } from '../modules/report/application/use-cases/get-report-status.use-case';
+import { DownloadReportUseCase } from '../modules/report/application/use-cases/download-report.use-case';
+import { ListReportsUseCase } from '../modules/report/application/use-cases/list-reports.use-case';
+import { ProcessReportJobUseCase } from '../modules/report/application/use-cases/process-report-job.use-case';
+import type { ReportRouteContainer } from '../modules/report/interfaces/report.routes';
+
+// Notification module
+import { PrismaNotificationRepository } from '../modules/notification/infrastructure/prisma-notification.repository';
+import { PrismaNotificationTemplateRepository } from '../modules/notification/infrastructure/prisma-notification-template.repository';
+import { StubEmailProvider } from '../modules/notification/infrastructure/stub-email.provider';
+import { StubSmsProvider } from '../modules/notification/infrastructure/stub-sms.provider';
+import { StubWhatsAppProvider } from '../modules/notification/infrastructure/stub-whatsapp.provider';
+import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
+import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
+import { RetryNotificationUseCase } from '../modules/notification/application/use-cases/retry-notification.use-case';
+import { HandleProviderWebhookUseCase } from '../modules/notification/application/use-cases/handle-provider-webhook.use-case';
+import { ListNotificationsUseCase } from '../modules/notification/application/use-cases/list-notifications.use-case';
+import { GetNotificationUseCase } from '../modules/notification/application/use-cases/get-notification.use-case';
+import { UpsertNotificationTemplateUseCase } from '../modules/notification/application/use-cases/upsert-notification-template.use-case';
+import { ListNotificationTemplatesUseCase } from '../modules/notification/application/use-cases/list-notification-templates.use-case';
+import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
+
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
@@ -161,6 +190,8 @@ export interface AppContainer {
   tenantPortal: TenantPortalRouteContainer;
   inspectorExecution: InspectorExecutionRouteContainer;
   billing: BillingRouteContainer;
+  report: ReportRouteContainer;
+  notification: NotificationRouteContainer;
 }
 
 export function createContainer(logger: Logger): AppContainer {
@@ -333,6 +364,41 @@ export function createContainer(logger: Logger): AppContainer {
   const getInvoiceUseCase = new GetInvoiceUseCase(inspectorInvoiceRepo);
   const downloadInvoiceUseCase = new DownloadInvoiceUseCase(inspectorInvoiceRepo);
 
+  // Report repositories and use cases
+  const reportRepo = new PrismaReportRepository(prisma);
+  const reportStorageService = new StubReportStorageService();
+  const xlsxGenerator = new ExcelJsXlsxGenerator();
+  const reportDataReader = new PrismaReportDataReader(prisma);
+  const reportJobQueue = new StubJobQueue();
+  const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService);
+  const getReportStatusUseCase = new GetReportStatusUseCase(reportRepo);
+  const downloadReportUseCase = new DownloadReportUseCase(reportRepo, reportStorageService);
+  const listReportsUseCase = new ListReportsUseCase(reportRepo);
+  const processReportJobUseCase = new ProcessReportJobUseCase(
+    reportRepo, reportStorageService, xlsxGenerator, reportDataReader,
+  );
+
+  // Notification repositories, providers, and services
+  const notificationRepo = new PrismaNotificationRepository(prisma);
+  const notificationTemplateRepo = new PrismaNotificationTemplateRepository(prisma);
+  const emailProvider = new StubEmailProvider();
+  const smsProvider = new StubSmsProvider();
+  const whatsAppProvider = new StubWhatsAppProvider();
+  const templateRenderer = new TemplateRendererService();
+
+  // Notification use cases
+  const sendNotificationUseCase = new SendNotificationUseCase(
+    notificationRepo, notificationTemplateRepo, emailProvider, smsProvider, whatsAppProvider, templateRenderer,
+  );
+  const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService);
+  const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo);
+  const listNotificationsUseCase = new ListNotificationsUseCase(notificationRepo);
+  const getNotificationUseCase = new GetNotificationUseCase(notificationRepo);
+  const upsertNotificationTemplateUseCase = new UpsertNotificationTemplateUseCase(
+    notificationTemplateRepo, templateRenderer, auditService,
+  );
+  const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo);
+
   return {
     prisma,
     auditService,
@@ -454,6 +520,24 @@ export function createContainer(logger: Logger): AppContainer {
       listInvoicesUseCase,
       getInvoiceUseCase,
       downloadInvoiceUseCase,
+      jwtService,
+    },
+    report: {
+      requestReportUseCase,
+      getReportStatusUseCase,
+      downloadReportUseCase,
+      listReportsUseCase,
+      processReportJobUseCase,
+      jwtService,
+    },
+    notification: {
+      sendNotificationUseCase,
+      retryNotificationUseCase,
+      handleProviderWebhookUseCase,
+      listNotificationsUseCase,
+      getNotificationUseCase,
+      upsertNotificationTemplateUseCase,
+      listNotificationTemplatesUseCase,
       jwtService,
     },
   };

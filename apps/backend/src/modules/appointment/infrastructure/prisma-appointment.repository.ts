@@ -38,6 +38,7 @@ function mapToEntity(row: any): AppointmentEntity {
     createdByUserId: row.created_by_user_id,
     doneCheckedByUserId: row.done_checked_by_user_id,
     doneCheckedAt: row.done_checked_at,
+    serviceGroupId: row.service_group_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -166,6 +167,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       reason: string | null;
       doneCheckedByUserId: string | null;
       doneCheckedAt: Date | null;
+      serviceGroupId: string | null;
       deletedAt: Date | null;
     }>,
   ): Promise<void> {
@@ -187,6 +189,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       updateData['done_checked_by_user_id'] = data.doneCheckedByUserId;
     }
     if (data.doneCheckedAt !== undefined) updateData['done_checked_at'] = data.doneCheckedAt;
+    if (data.serviceGroupId !== undefined) updateData['service_group_id'] = data.serviceGroupId;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
 
     await this.prisma.appointment.updateMany({

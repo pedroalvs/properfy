@@ -7,7 +7,6 @@ import {
   AppointmentInvalidTransitionError,
   AppointmentTransitionNotPermittedError,
   AppointmentReasonRequiredError,
-  AppointmentDoneCheckRequiredError,
   AppointmentDoneCheckerInvalidRoleError,
   AppointmentInspectorRequiredError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
@@ -41,6 +40,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     createdByUserId: 'user-1',
     doneCheckedByUserId: null,
     doneCheckedAt: null,
+    serviceGroupId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
@@ -394,18 +394,19 @@ describe('ExecuteStatusTransitionUseCase – error cases', () => {
     ).rejects.toThrow(AppointmentReasonRequiredError);
   });
 
-  it('throws AppointmentDoneCheckRequiredError when doneCheckedByUserId is missing for DONE transition', async () => {
+  it('allows SCHEDULED → DONE without doneCheckedByUserId (INSP finishing inspection)', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
     );
     const uc = makeUseCase();
-    await expect(
-      uc.execute({
-        appointmentId: 'appt-1',
-        targetStatus: 'DONE',
-        actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1' }),
-      }),
-    ).rejects.toThrow(AppointmentDoneCheckRequiredError);
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1' }),
+    });
+    expect(result.status).toBe('DONE');
+    expect(result.doneCheckedByUserId).toBeNull();
+    expect(result.doneCheckedAt).toBeNull();
   });
 
   it('throws AppointmentDoneCheckerInvalidRoleError when checker is CL_USER', async () => {

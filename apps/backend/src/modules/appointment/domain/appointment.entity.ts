@@ -25,6 +25,7 @@ export interface AppointmentProps {
   createdByUserId: string;
   doneCheckedByUserId: string | null;
   doneCheckedAt: Date | null;
+  serviceGroupId: string | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -52,6 +53,7 @@ export class AppointmentEntity extends BaseEntity {
   readonly createdByUserId: string;
   doneCheckedByUserId: string | null;
   doneCheckedAt: Date | null;
+  serviceGroupId: string | null;
   deletedAt: Date | null;
 
   constructor(props: AppointmentProps) {
@@ -77,6 +79,7 @@ export class AppointmentEntity extends BaseEntity {
     this.createdByUserId = props.createdByUserId;
     this.doneCheckedByUserId = props.doneCheckedByUserId;
     this.doneCheckedAt = props.doneCheckedAt;
+    this.serviceGroupId = props.serviceGroupId;
     this.deletedAt = props.deletedAt;
   }
 

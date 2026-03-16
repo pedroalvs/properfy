@@ -56,7 +56,7 @@ export const TRANSITION_RULES: TransitionRule[] = [
     to: 'DONE',
     allowedActors: ['AM', 'OP', 'INSP'],
     requiresReason: false,
-    requiresDoneCheckedBy: true,
+    requiresDoneCheckedBy: false,  // Inspectors don't set this; OP cross-checks later
   },
   {
     from: 'SCHEDULED',

@@ -135,6 +135,24 @@ vi.mock('../../../src/main/container', () => ({
       downloadInvoiceUseCase: { execute: vi.fn() },
       jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
     },
+    report: {
+      requestReportUseCase: { execute: vi.fn() },
+      getReportStatusUseCase: { execute: vi.fn() },
+      downloadReportUseCase: { execute: vi.fn() },
+      listReportsUseCase: { execute: vi.fn() },
+      processReportJobUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    notification: {
+      sendNotificationUseCase: { execute: vi.fn() },
+      retryNotificationUseCase: { execute: vi.fn() },
+      handleProviderWebhookUseCase: { execute: vi.fn() },
+      listNotificationsUseCase: { execute: vi.fn() },
+      getNotificationUseCase: { execute: vi.fn() },
+      upsertNotificationTemplateUseCase: { execute: vi.fn() },
+      listNotificationTemplatesUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
   }),
 }));
 

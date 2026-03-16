@@ -35,6 +35,7 @@ function makeAppointmentEntity(overrides: Partial<ConstructorParameters<typeof A
     createdByUserId: 'user-1',
     doneCheckedByUserId: null,
     doneCheckedAt: null,
+    serviceGroupId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,

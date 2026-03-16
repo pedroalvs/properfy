@@ -236,6 +236,7 @@ export class CreateAppointmentUseCase {
       createdByUserId: actor.userId,
       doneCheckedByUserId: null,
       doneCheckedAt: null,
+      serviceGroupId: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
