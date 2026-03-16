@@ -15,6 +15,11 @@ export interface User {
   updatedAt: string;
 }
 
+export interface UserDetail extends User {
+  permissions: string[];
+  twoFactorEnabled: boolean;
+}
+
 export interface UserFiltersState {
   search: string;
   role: string;
