@@ -5,6 +5,7 @@ import { AppointmentListPage } from '@/features/appointments/pages/AppointmentLi
 import { PropertyListPage } from '@/features/properties/pages/PropertyListPage';
 import { InspectorListPage } from '@/features/inspectors/pages/InspectorListPage';
 import { ServiceGroupListPage } from '@/features/service-groups/pages/ServiceGroupListPage';
+import { UserListPage } from '@/features/users/pages/UserListPage';
 
 function Placeholder({ title }: { title: string }) {
   return <h2 className="text-page-title text-secondary">{title}</h2>;
@@ -39,7 +40,7 @@ export const router = createBrowserRouter([
           { path: 'financial', element: <Placeholder title="Financeiro" /> },
           { path: 'inspectors', element: <InspectorListPage /> },
           { path: 'tenants', element: <Placeholder title="Inquilinos" /> },
-          { path: 'users', element: <Placeholder title="Usuários" /> },
+          { path: 'users', element: <UserListPage /> },
           { path: 'reports', element: <Placeholder title="Relatórios" /> },
         ],
       },
