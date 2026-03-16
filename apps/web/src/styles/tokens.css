@@ -32,6 +32,16 @@
   --color-status-cancelled: #FFCDD2;
   --color-status-rejected: #FFAB91;
 
+  /* Property type backgrounds */
+  --color-type-residential: #B3E5FC;
+  --color-type-commercial: #FFE0B2;
+  --color-type-industrial: #D7CCC8;
+  --color-type-rural: #DCEDC8;
+
+  /* Inspector status backgrounds */
+  --color-inspector-active: #C8E6C9;
+  --color-inspector-inactive: #FFCDD2;
+
   /* Financial */
   --color-money-positive: rgb(102, 187, 106);
   --color-money-negative: rgb(239, 83, 80);

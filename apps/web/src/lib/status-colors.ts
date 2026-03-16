@@ -1,4 +1,4 @@
-import { AppointmentStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -42,3 +42,15 @@ export const APPOINTMENT_STATUS_MAP: Record<AppointmentStatus, StatusStyle> = {
 export function getStatusStyle(status: AppointmentStatus): StatusStyle {
   return APPOINTMENT_STATUS_MAP[status];
 }
+
+export const PROPERTY_TYPE_MAP: Record<PropertyType, StatusStyle> = {
+  [PropertyType.RESIDENTIAL]: { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Residencial' },
+  [PropertyType.COMMERCIAL]:  { bg: 'var(--color-type-commercial)',  text: 'var(--color-text-primary)', label: 'Comercial' },
+  [PropertyType.INDUSTRIAL]:  { bg: 'var(--color-type-industrial)',  text: 'var(--color-text-primary)', label: 'Industrial' },
+  [PropertyType.RURAL]:       { bg: 'var(--color-type-rural)',       text: 'var(--color-text-primary)', label: 'Rural' },
+};
+
+export const INSPECTOR_STATUS_MAP: Record<InspectorStatus, StatusStyle> = {
+  [InspectorStatus.ACTIVE]:   { bg: 'var(--color-inspector-active)',   text: 'var(--color-text-primary)', label: 'Ativo' },
+  [InspectorStatus.INACTIVE]: { bg: 'var(--color-inspector-inactive)', text: 'var(--color-text-primary)', label: 'Inativo' },
+};
