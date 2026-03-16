@@ -1,0 +1,1 @@
+export { TenantContactListPage } from './TenantContactListPage';
