@@ -28,7 +28,7 @@ export interface AppointmentWithRelations {
 }
 
 export interface IAppointmentRepository {
-  findById(id: string, tenantId: string): Promise<AppointmentWithRelations | null>;
+  findById(id: string, tenantId: string | null): Promise<AppointmentWithRelations | null>;
   findAll(filters: AppointmentFilters, pagination: PaginationParams): Promise<AppointmentEntity[]>;
   count(filters: AppointmentFilters): Promise<number>;
   save(appointment: AppointmentEntity): Promise<void>;
