@@ -1,0 +1,275 @@
+import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+import {
+  createTenantSchema,
+  updateTenantSchema,
+  deactivateSchema,
+  createBranchSchema,
+  updateBranchSchema,
+  listTenantsQuerySchema,
+  listBranchesQuerySchema,
+} from '@properfy/shared';
+import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
+import { ValidationError } from '../../../shared/domain/errors';
+import { success, paginated } from '../../../shared/interfaces/response';
+import type { CreateTenantUseCase } from '../application/use-cases/create-tenant.use-case';
+import type { GetTenantUseCase } from '../application/use-cases/get-tenant.use-case';
+import type { ListTenantsUseCase } from '../application/use-cases/list-tenants.use-case';
+import type { UpdateTenantUseCase } from '../application/use-cases/update-tenant.use-case';
+import type { DeactivateTenantUseCase } from '../application/use-cases/deactivate-tenant.use-case';
+import type { CreateBranchUseCase } from '../application/use-cases/create-branch.use-case';
+import type { ListBranchesUseCase } from '../application/use-cases/list-branches.use-case';
+import type { UpdateBranchUseCase } from '../application/use-cases/update-branch.use-case';
+import type { DeactivateBranchUseCase } from '../application/use-cases/deactivate-branch.use-case';
+import type { JwtService } from '../../auth/application/services/jwt.service';
+
+export interface TenantRouteContainer {
+  createTenantUseCase: CreateTenantUseCase;
+  getTenantUseCase: GetTenantUseCase;
+  listTenantsUseCase: ListTenantsUseCase;
+  updateTenantUseCase: UpdateTenantUseCase;
+  deactivateTenantUseCase: DeactivateTenantUseCase;
+  createBranchUseCase: CreateBranchUseCase;
+  listBranchesUseCase: ListBranchesUseCase;
+  updateBranchUseCase: UpdateBranchUseCase;
+  deactivateBranchUseCase: DeactivateBranchUseCase;
+  jwtService: JwtService;
+}
+
+const tenantIdParam = z.object({ tenantId: z.string().uuid() });
+const branchIdParam = z.object({
+  tenantId: z.string().uuid(),
+  branchId: z.string().uuid(),
+});
+
+export async function registerTenantRoutes(
+  app: FastifyInstance,
+  container: TenantRouteContainer,
+): Promise<void> {
+  const authenticate = createAuthMiddleware((token) =>
+    container.jwtService.verify(token),
+  );
+
+  // POST /v1/tenants
+  app.post(
+    '/v1/tenants',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const parsed = createTenantSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.createTenantUseCase.execute({
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(201).send(success(result));
+    },
+  );
+
+  // GET /v1/tenants
+  app.get(
+    '/v1/tenants',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const parsed = listTenantsQuerySchema.safeParse(request.query);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Invalid query parameters',
+          parsed.error.errors,
+        );
+      const { page, pageSize, sortBy, sortOrder, ...filters } = parsed.data;
+      const result = await container.listTenantsUseCase.execute({
+        filters,
+        pagination: { page, pageSize, sortBy, sortOrder },
+        actor: request.authContext!,
+      });
+      return reply
+        .status(200)
+        .send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // GET /v1/tenants/:tenantId
+  app.get(
+    '/v1/tenants/:tenantId',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid tenant ID',
+          params.error.errors,
+        );
+      const result = await container.getTenantUseCase.execute({
+        tenantId: params.data.tenantId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // PATCH /v1/tenants/:tenantId
+  app.patch(
+    '/v1/tenants/:tenantId',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid tenant ID',
+          params.error.errors,
+        );
+      const parsed = updateTenantSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.updateTenantUseCase.execute({
+        tenantId: params.data.tenantId,
+        data: parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/deactivate
+  app.post(
+    '/v1/tenants/:tenantId/deactivate',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid tenant ID',
+          params.error.errors,
+        );
+      const parsed = deactivateSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      await container.deactivateTenantUseCase.execute({
+        tenantId: params.data.tenantId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/branches
+  app.post(
+    '/v1/tenants/:tenantId/branches',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid tenant ID',
+          params.error.errors,
+        );
+      const parsed = createBranchSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.createBranchUseCase.execute({
+        tenantId: params.data.tenantId,
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(201).send(success(result));
+    },
+  );
+
+  // GET /v1/tenants/:tenantId/branches
+  app.get(
+    '/v1/tenants/:tenantId/branches',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid tenant ID',
+          params.error.errors,
+        );
+      const parsed = listBranchesQuerySchema.safeParse(request.query);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Invalid query parameters',
+          parsed.error.errors,
+        );
+      const { page, pageSize, sortBy, sortOrder, ...filters } = parsed.data;
+      const result = await container.listBranchesUseCase.execute({
+        tenantId: params.data.tenantId,
+        filters,
+        pagination: { page, pageSize, sortBy, sortOrder },
+        actor: request.authContext!,
+      });
+      return reply
+        .status(200)
+        .send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // PATCH /v1/tenants/:tenantId/branches/:branchId
+  app.patch(
+    '/v1/tenants/:tenantId/branches/:branchId',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = branchIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const parsed = updateBranchSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.updateBranchUseCase.execute({
+        tenantId: params.data.tenantId,
+        branchId: params.data.branchId,
+        data: parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/branches/:branchId/deactivate
+  app.post(
+    '/v1/tenants/:tenantId/branches/:branchId/deactivate',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = branchIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const parsed = deactivateSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      await container.deactivateBranchUseCase.execute({
+        tenantId: params.data.tenantId,
+        branchId: params.data.branchId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
+    },
+  );
+}
