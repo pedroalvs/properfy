@@ -42,6 +42,29 @@
   --color-inspector-active: #C8E6C9;
   --color-inspector-inactive: #FFCDD2;
 
+  /* Service group status backgrounds */
+  --color-sg-draft: #E1BEE7;
+  --color-sg-published: #FFE0B2;
+  --color-sg-accepted: #C8E6C9;
+  --color-sg-cancelled: #FFCDD2;
+
+  /* Priority mode backgrounds */
+  --color-priority-standard: #B3E5FC;
+  --color-priority-24h: #FFAB91;
+
+  /* User role backgrounds */
+  --color-role-am: #E1BEE7;
+  --color-role-op: #B3E5FC;
+  --color-role-cl-admin: #FFE0B2;
+  --color-role-cl-user: #FFF9C4;
+  --color-role-insp: #DCEDC8;
+  --color-role-tnt: #D7CCC8;
+
+  /* User status backgrounds */
+  --color-user-active: #C8E6C9;
+  --color-user-inactive: #FFCDD2;
+  --color-user-locked: #FFAB91;
+
   /* Financial */
   --color-money-positive: rgb(102, 187, 106);
   --color-money-negative: rgb(239, 83, 80);

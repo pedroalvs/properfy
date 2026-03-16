@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -53,4 +53,31 @@ export const PROPERTY_TYPE_MAP: Record<PropertyType, StatusStyle> = {
 export const INSPECTOR_STATUS_MAP: Record<InspectorStatus, StatusStyle> = {
   [InspectorStatus.ACTIVE]:   { bg: 'var(--color-inspector-active)',   text: 'var(--color-text-primary)', label: 'Ativo' },
   [InspectorStatus.INACTIVE]: { bg: 'var(--color-inspector-inactive)', text: 'var(--color-text-primary)', label: 'Inativo' },
+};
+
+export const SERVICE_GROUP_STATUS_MAP: Record<ServiceGroupStatus, StatusStyle> = {
+  [ServiceGroupStatus.DRAFT]:     { bg: 'var(--color-sg-draft)',     text: 'var(--color-text-primary)', label: 'Rascunho' },
+  [ServiceGroupStatus.PUBLISHED]: { bg: 'var(--color-sg-published)', text: 'var(--color-text-primary)', label: 'Publicado' },
+  [ServiceGroupStatus.ACCEPTED]:  { bg: 'var(--color-sg-accepted)',  text: 'var(--color-text-primary)', label: 'Aceito' },
+  [ServiceGroupStatus.CANCELLED]: { bg: 'var(--color-sg-cancelled)', text: 'var(--color-text-primary)', label: 'Cancelado' },
+};
+
+export const PRIORITY_MODE_MAP: Record<PriorityMode, StatusStyle> = {
+  [PriorityMode.STANDARD]:     { bg: 'var(--color-priority-standard)', text: 'var(--color-text-primary)', label: 'Padrão' },
+  [PriorityMode.PRIORITY_24H]: { bg: 'var(--color-priority-24h)',      text: 'var(--color-text-primary)', label: 'Prioridade 24h' },
+};
+
+export const USER_ROLE_MAP: Record<UserRole, StatusStyle> = {
+  [UserRole.AM]:       { bg: 'var(--color-role-am)',       text: 'var(--color-text-primary)', label: 'Admin Master' },
+  [UserRole.OP]:       { bg: 'var(--color-role-op)',       text: 'var(--color-text-primary)', label: 'Operador' },
+  [UserRole.CL_ADMIN]: { bg: 'var(--color-role-cl-admin)', text: 'var(--color-text-primary)', label: 'Admin Cliente' },
+  [UserRole.CL_USER]:  { bg: 'var(--color-role-cl-user)',  text: 'var(--color-text-primary)', label: 'Usuário Cliente' },
+  [UserRole.INSP]:     { bg: 'var(--color-role-insp)',     text: 'var(--color-text-primary)', label: 'Inspetor' },
+  [UserRole.TNT]:      { bg: 'var(--color-role-tnt)',      text: 'var(--color-text-primary)', label: 'Inquilino' },
+};
+
+export const USER_STATUS_MAP: Record<UserStatus, StatusStyle> = {
+  [UserStatus.ACTIVE]:   { bg: 'var(--color-user-active)',   text: 'var(--color-text-primary)', label: 'Ativo' },
+  [UserStatus.INACTIVE]: { bg: 'var(--color-user-inactive)', text: 'var(--color-text-primary)', label: 'Inativo' },
+  [UserStatus.LOCKED]:   { bg: 'var(--color-user-locked)',   text: 'var(--color-text-primary)', label: 'Bloqueado' },
 };

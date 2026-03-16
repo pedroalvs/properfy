@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { AppointmentStatus, PropertyType, InspectorStatus } from '@properfy/shared';
-import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP } from './status-colors';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus } from '@properfy/shared';
+import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP, SERVICE_GROUP_STATUS_MAP, PRIORITY_MODE_MAP, USER_ROLE_MAP, USER_STATUS_MAP } from './status-colors';
 
 describe('APPOINTMENT_STATUS_MAP', () => {
   const allStatuses: AppointmentStatus[] = [
@@ -95,5 +95,123 @@ describe('INSPECTOR_STATUS_MAP', () => {
   it('returns correct labels in pt-BR', () => {
     expect(INSPECTOR_STATUS_MAP[InspectorStatus.ACTIVE].label).toBe('Ativo');
     expect(INSPECTOR_STATUS_MAP[InspectorStatus.INACTIVE].label).toBe('Inativo');
+  });
+});
+
+describe('SERVICE_GROUP_STATUS_MAP', () => {
+  const allStatuses: ServiceGroupStatus[] = [
+    ServiceGroupStatus.DRAFT,
+    ServiceGroupStatus.PUBLISHED,
+    ServiceGroupStatus.ACCEPTED,
+    ServiceGroupStatus.CANCELLED,
+  ];
+
+  it('maps all 4 service group statuses', () => {
+    expect(Object.keys(SERVICE_GROUP_STATUS_MAP)).toHaveLength(4);
+    for (const status of allStatuses) {
+      expect(SERVICE_GROUP_STATUS_MAP[status]).toBeDefined();
+    }
+  });
+
+  it.each(allStatuses)('status %s has bg, text, and label', (status) => {
+    const style = SERVICE_GROUP_STATUS_MAP[status];
+    expect(style.bg).toBeTruthy();
+    expect(style.text).toBeTruthy();
+    expect(style.label).toBeTruthy();
+  });
+
+  it('returns correct labels in pt-BR', () => {
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.DRAFT].label).toBe('Rascunho');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.PUBLISHED].label).toBe('Publicado');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.ACCEPTED].label).toBe('Aceito');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.CANCELLED].label).toBe('Cancelado');
+  });
+});
+
+describe('PRIORITY_MODE_MAP', () => {
+  const allModes: PriorityMode[] = [
+    PriorityMode.STANDARD,
+    PriorityMode.PRIORITY_24H,
+  ];
+
+  it('maps both priority modes', () => {
+    expect(Object.keys(PRIORITY_MODE_MAP)).toHaveLength(2);
+    for (const mode of allModes) {
+      expect(PRIORITY_MODE_MAP[mode]).toBeDefined();
+    }
+  });
+
+  it.each(allModes)('mode %s has bg, text, and label', (mode) => {
+    const style = PRIORITY_MODE_MAP[mode];
+    expect(style.bg).toBeTruthy();
+    expect(style.text).toBeTruthy();
+    expect(style.label).toBeTruthy();
+  });
+
+  it('returns correct labels in pt-BR', () => {
+    expect(PRIORITY_MODE_MAP[PriorityMode.STANDARD].label).toBe('Padrão');
+    expect(PRIORITY_MODE_MAP[PriorityMode.PRIORITY_24H].label).toBe('Prioridade 24h');
+  });
+});
+
+describe('USER_ROLE_MAP', () => {
+  const allRoles: UserRole[] = [
+    UserRole.AM,
+    UserRole.OP,
+    UserRole.CL_ADMIN,
+    UserRole.CL_USER,
+    UserRole.INSP,
+    UserRole.TNT,
+  ];
+
+  it('maps all 6 user roles', () => {
+    expect(Object.keys(USER_ROLE_MAP)).toHaveLength(6);
+    for (const role of allRoles) {
+      expect(USER_ROLE_MAP[role]).toBeDefined();
+    }
+  });
+
+  it.each(allRoles)('role %s has bg, text, and label', (role) => {
+    const style = USER_ROLE_MAP[role];
+    expect(style.bg).toBeTruthy();
+    expect(style.text).toBeTruthy();
+    expect(style.label).toBeTruthy();
+  });
+
+  it('returns correct labels in pt-BR', () => {
+    expect(USER_ROLE_MAP[UserRole.AM].label).toBe('Admin Master');
+    expect(USER_ROLE_MAP[UserRole.OP].label).toBe('Operador');
+    expect(USER_ROLE_MAP[UserRole.CL_ADMIN].label).toBe('Admin Cliente');
+    expect(USER_ROLE_MAP[UserRole.CL_USER].label).toBe('Usuário Cliente');
+    expect(USER_ROLE_MAP[UserRole.INSP].label).toBe('Inspetor');
+    expect(USER_ROLE_MAP[UserRole.TNT].label).toBe('Inquilino');
+  });
+});
+
+describe('USER_STATUS_MAP', () => {
+  const allStatuses: UserStatus[] = [
+    UserStatus.ACTIVE,
+    UserStatus.INACTIVE,
+    UserStatus.LOCKED,
+  ];
+
+  it('maps all 3 user statuses', () => {
+    expect(Object.keys(USER_STATUS_MAP)).toHaveLength(3);
+    for (const status of allStatuses) {
+      expect(USER_STATUS_MAP[status]).toBeDefined();
+    }
+  });
+
+  it.each(allStatuses)('status %s has bg, text, and label', (status) => {
+    const style = USER_STATUS_MAP[status];
+    expect(style.bg).toBeTruthy();
+    expect(style.text).toBeTruthy();
+    expect(style.label).toBeTruthy();
+  });
+
+  it('returns correct labels in pt-BR', () => {
+    expect(USER_STATUS_MAP[UserStatus.ACTIVE].label).toBe('Ativo');
+    expect(USER_STATUS_MAP[UserStatus.INACTIVE].label).toBe('Inativo');
+    expect(USER_STATUS_MAP[UserStatus.LOCKED].label).toBe('Bloqueado');
   });
 });
