@@ -19,6 +19,11 @@ export interface Property {
   updatedAt: string;
 }
 
+export interface PropertyDetail extends Property {
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export interface PropertyFiltersState {
   search: string;
   type: string;

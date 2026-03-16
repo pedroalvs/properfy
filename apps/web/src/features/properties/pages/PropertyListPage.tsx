@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import type { FilterSelectOption } from '@/components/filters/FilterSelect';
 import { PropertyFilters } from '../components/PropertyFilters';
 import { PropertyTable } from '../components/PropertyTable';
+import { PropertyDetailDrawer } from '../components/PropertyDetailDrawer';
 import { usePropertyList } from '../hooks/usePropertyList';
 
 const BRANCH_OPTIONS: FilterSelectOption[] = [
@@ -23,26 +25,45 @@ export function PropertyListPage() {
     sorting,
   } = usePropertyList();
 
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   return (
-    <ListFilterTableTemplate
-      title="Imóveis"
-      primaryAction={{ label: 'Novo Imóvel', icon: 'mdi-plus', onClick: () => {} }}
-    >
-      <PropertyFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        branchOptions={BRANCH_OPTIONS}
+    <>
+      <ListFilterTableTemplate
+        title="Imóveis"
+        primaryAction={{ label: 'Novo Imóvel', icon: 'mdi-plus', onClick: () => {} }}
+      >
+        <PropertyFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          branchOptions={BRANCH_OPTIONS}
+        />
+        <PropertyTable
+          data={data}
+          loading={isLoading}
+          error={isError ? (errorMessage ?? 'Erro ao carregar imóveis') : undefined}
+          onRetryError={refetch}
+          pagination={pagination}
+          sorting={sorting}
+          onView={(prop) => {
+            setSelectedId(prop.id);
+            setDrawerOpen(true);
+          }}
+          onEdit={(prop) => {
+            setSelectedId(prop.id);
+            setDrawerOpen(true);
+          }}
+        />
+      </ListFilterTableTemplate>
+      <PropertyDetailDrawer
+        propertyId={selectedId}
+        open={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedId(null);
+        }}
       />
-      <PropertyTable
-        data={data}
-        loading={isLoading}
-        error={isError ? (errorMessage ?? 'Erro ao carregar imóveis') : undefined}
-        onRetryError={refetch}
-        pagination={pagination}
-        sorting={sorting}
-        onView={() => {}}
-        onEdit={() => {}}
-      />
-    </ListFilterTableTemplate>
+    </>
   );
 }

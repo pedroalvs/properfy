@@ -91,6 +91,12 @@
   --color-report-type-confirmation: #FFE0B2;
   --color-report-type-financial: #DCEDC8;
 
+  /* Geocoding status backgrounds */
+  --color-geocoding-pending: #FFE0B2;
+  --color-geocoding-success: #C8E6C9;
+  --color-geocoding-failed: #FFCDD2;
+  --color-geocoding-manual: #B3E5FC;
+
   /* Report status backgrounds */
   --color-report-status-pending: #FFE0B2;
   --color-report-status-processing: #B3E5FC;

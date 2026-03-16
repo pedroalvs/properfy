@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -100,6 +100,13 @@ export const TENANT_CONFIRMATION_STATUS_MAP: Record<TenantConfirmationStatus, St
   [TenantConfirmationStatus.CONFIRMED]:   { bg: 'var(--color-confirmation-confirmed)',   text: 'var(--color-text-primary)', label: 'Confirmado' },
   [TenantConfirmationStatus.UNAVAILABLE]: { bg: 'var(--color-confirmation-unavailable)', text: 'var(--color-text-primary)', label: 'Indisponível' },
   [TenantConfirmationStatus.NO_RESPONSE]: { bg: 'var(--color-confirmation-no-response)', text: 'var(--color-text-primary)', label: 'Sem Resposta' },
+};
+
+export const GEOCODING_STATUS_MAP: Record<GeocodingStatus, StatusStyle> = {
+  [GeocodingStatus.PENDING]:  { bg: 'var(--color-geocoding-pending)',  text: 'var(--color-text-primary)', label: 'Pendente' },
+  [GeocodingStatus.SUCCESS]:  { bg: 'var(--color-geocoding-success)',  text: 'var(--color-text-primary)', label: 'Sucesso' },
+  [GeocodingStatus.FAILED]:   { bg: 'var(--color-geocoding-failed)',   text: 'var(--color-text-primary)', label: 'Falhou' },
+  [GeocodingStatus.MANUAL]:   { bg: 'var(--color-geocoding-manual)',   text: 'var(--color-text-primary)', label: 'Manual' },
 };
 
 export const REPORT_TYPE_MAP: Record<ReportType, StatusStyle> = {
