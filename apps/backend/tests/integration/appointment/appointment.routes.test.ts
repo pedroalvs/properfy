@@ -1,0 +1,392 @@
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+import supertest from 'supertest';
+import { buildApp } from '../../../src/main/server';
+import type { FastifyInstance } from 'fastify';
+
+// Mock functions for appointment use cases
+const mockCreateAppointmentExecute = vi.fn();
+const mockGetAppointmentExecute = vi.fn();
+const mockListAppointmentsExecute = vi.fn();
+const mockUpdateAppointmentExecute = vi.fn();
+const mockExecuteStatusTransitionExecute = vi.fn();
+const mockForceManualConfirmationExecute = vi.fn();
+const mockJwtVerify = vi.fn();
+const mockAuditLog = vi.fn();
+
+vi.mock('../../../src/main/container', () => ({
+  createContainer: () => ({
+    prisma: {},
+    auditService: { log: mockAuditLog },
+    auth: {
+      loginUseCase: { execute: vi.fn() },
+      refreshTokenUseCase: { execute: vi.fn() },
+      logoutUseCase: { execute: vi.fn() },
+      getMeUseCase: { execute: vi.fn() },
+      changePasswordUseCase: { execute: vi.fn() },
+      revokeSessionUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    tenant: {
+      createTenantUseCase: { execute: vi.fn() },
+      getTenantUseCase: { execute: vi.fn() },
+      listTenantsUseCase: { execute: vi.fn() },
+      updateTenantUseCase: { execute: vi.fn() },
+      deactivateTenantUseCase: { execute: vi.fn() },
+      createBranchUseCase: { execute: vi.fn() },
+      listBranchesUseCase: { execute: vi.fn() },
+      updateBranchUseCase: { execute: vi.fn() },
+      deactivateBranchUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    user: {
+      createUserUseCase: { execute: vi.fn() },
+      getUserUseCase: { execute: vi.fn() },
+      listUsersUseCase: { execute: vi.fn() },
+      updateUserUseCase: { execute: vi.fn() },
+      deactivateUserUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    property: {
+      createPropertyUseCase: { execute: vi.fn() },
+      getPropertyUseCase: { execute: vi.fn() },
+      listPropertiesUseCase: { execute: vi.fn() },
+      updatePropertyUseCase: { execute: vi.fn() },
+      deletePropertyUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    serviceType: {
+      createServiceTypeUseCase: { execute: vi.fn() },
+      getServiceTypeUseCase: { execute: vi.fn() },
+      listServiceTypesUseCase: { execute: vi.fn() },
+      updateServiceTypeUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    pricingRule: {
+      createPricingRuleUseCase: { execute: vi.fn() },
+      listPricingRulesUseCase: { execute: vi.fn() },
+      updatePricingRuleUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    inspector: {
+      createInspectorUseCase: { execute: vi.fn() },
+      getInspectorUseCase: { execute: vi.fn() },
+      listInspectorsUseCase: { execute: vi.fn() },
+      updateInspectorUseCase: { execute: vi.fn() },
+      createAvailabilitySlotUseCase: { execute: vi.fn() },
+      listAvailabilitySlotsUseCase: { execute: vi.fn() },
+      updateAvailabilitySlotUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    appointment: {
+      createAppointmentUseCase: { execute: mockCreateAppointmentExecute },
+      getAppointmentUseCase: { execute: mockGetAppointmentExecute },
+      listAppointmentsUseCase: { execute: mockListAppointmentsExecute },
+      updateAppointmentUseCase: { execute: mockUpdateAppointmentExecute },
+      executeStatusTransitionUseCase: { execute: mockExecuteStatusTransitionExecute },
+      forceManualConfirmationUseCase: { execute: mockForceManualConfirmationExecute },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+  }),
+}));
+
+const TENANT_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const BRANCH_ID = 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22';
+const PROPERTY_ID = 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33';
+const SERVICE_TYPE_ID = 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
+const APPOINTMENT_ID = 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55';
+const USER_ID = 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66';
+
+const amContext = {
+  userId: 'admin-1',
+  tenantId: null,
+  role: 'AM',
+  branchId: null,
+};
+
+const clAdminContext = {
+  userId: USER_ID,
+  tenantId: TENANT_ID,
+  role: 'CL_ADMIN',
+  branchId: null,
+};
+
+const appointmentResult = {
+  id: APPOINTMENT_ID,
+  tenantId: TENANT_ID,
+  branchId: BRANCH_ID,
+  propertyId: PROPERTY_ID,
+  serviceTypeId: SERVICE_TYPE_ID,
+  inspectorId: null,
+  status: 'DRAFT',
+  scheduledDate: '2026-04-01',
+  timeSlot: '09:00-10:00',
+  keyRequired: false,
+  meetingLocation: null,
+  keyLocation: null,
+  tenantConfirmationStatus: 'PENDING',
+  priceAmount: 150,
+  payoutAmount: 100,
+  pricingRuleSnapshotJson: {},
+  notes: null,
+  customFieldsJson: null,
+  reason: null,
+  createdByUserId: USER_ID,
+  doneCheckedByUserId: null,
+  doneCheckedAt: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  deletedAt: null,
+  contact: {
+    id: 'contact-uuid-1111-1111-1111-111111111111',
+    appointmentId: APPOINTMENT_ID,
+    tenantName: 'John Doe',
+    primaryEmail: 'john@example.com',
+    secondaryEmail: null,
+    primaryPhone: null,
+    secondaryPhone: null,
+  },
+  restrictions: [],
+};
+
+let app: FastifyInstance;
+
+beforeAll(async () => {
+  process.env['NODE_ENV'] = 'test';
+  process.env['CORS_ORIGIN'] = 'http://localhost:5173';
+  app = await buildApp();
+  await app.ready();
+});
+
+afterAll(async () => {
+  await app.close();
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+const validCreatePayload = {
+  branchId: BRANCH_ID,
+  propertyId: PROPERTY_ID,
+  serviceTypeId: SERVICE_TYPE_ID,
+  scheduledDate: '2026-04-01',
+  timeSlot: '09:00-10:00',
+  contact: {
+    tenantName: 'John Doe',
+    primaryEmail: 'john@example.com',
+  },
+  keyRequired: false,
+};
+
+describe('POST /v1/appointments', () => {
+  it('should return 201 with valid payload', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockCreateAppointmentExecute.mockResolvedValueOnce(appointmentResult);
+
+    const res = await supertest(app.server)
+      .post('/v1/appointments')
+      .set('Authorization', 'Bearer valid-token')
+      .send(validCreatePayload);
+
+    expect(res.status).toBe(201);
+    expect(res.body.data).toHaveProperty('id', APPOINTMENT_ID);
+    expect(res.body.data.status).toBe('DRAFT');
+  });
+
+  it('should return 422 with invalid payload (missing branchId)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/appointments')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        propertyId: PROPERTY_ID,
+        serviceTypeId: SERVICE_TYPE_ID,
+        scheduledDate: '2026-04-01',
+        timeSlot: '09:00-10:00',
+        contact: { tenantName: 'John Doe' },
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('should return 401 without auth token', async () => {
+    const res = await supertest(app.server)
+      .post('/v1/appointments')
+      .send(validCreatePayload);
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('GET /v1/appointments', () => {
+  it('should return 200 with paginated results', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockListAppointmentsExecute.mockResolvedValueOnce({
+      data: [appointmentResult],
+      total: 1,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('data');
+    expect(res.body).toHaveProperty('pagination');
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(APPOINTMENT_ID);
+  });
+
+  it('should return 422 with invalid query params (invalid status)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments?status=INVALID_STATUS')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('GET /v1/appointments/:appointmentId', () => {
+  it('should return 200 with appointment details', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockGetAppointmentExecute.mockResolvedValueOnce(appointmentResult);
+
+    const res = await supertest(app.server)
+      .get(`/v1/appointments/${APPOINTMENT_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(APPOINTMENT_ID);
+    expect(res.body.data.status).toBe('DRAFT');
+  });
+
+  it('should return 422 with invalid UUID', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments/not-a-uuid')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('PATCH /v1/appointments/:appointmentId', () => {
+  it('should return 200 with updated data', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockUpdateAppointmentExecute.mockResolvedValueOnce({
+      ...appointmentResult,
+      notes: 'Updated notes',
+    });
+
+    const res = await supertest(app.server)
+      .patch(`/v1/appointments/${APPOINTMENT_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ notes: 'Updated notes' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.notes).toBe('Updated notes');
+  });
+
+  it('should return 422 with invalid payload (timeSlot wrong format)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+
+    const res = await supertest(app.server)
+      .patch(`/v1/appointments/${APPOINTMENT_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ timeSlot: 'not-a-valid-timeslot' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('POST /v1/appointments/:appointmentId/status-transitions', () => {
+  it('should return 200 with transition result', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockExecuteStatusTransitionExecute.mockResolvedValueOnce({
+      ...appointmentResult,
+      status: 'AWAITING_INSPECTOR',
+    });
+
+    const res = await supertest(app.server)
+      .post(`/v1/appointments/${APPOINTMENT_ID}/status-transitions`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ targetStatus: 'AWAITING_INSPECTOR' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('AWAITING_INSPECTOR');
+  });
+
+  it('should return 422 with invalid targetStatus', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/appointments/${APPOINTMENT_ID}/status-transitions`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ targetStatus: 'INVALID_STATUS' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('should return 422 with missing body', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/appointments/${APPOINTMENT_ID}/status-transitions`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('POST /v1/appointments/:appointmentId/force-confirmation', () => {
+  it('should return 200 with confirmation result', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockForceManualConfirmationExecute.mockResolvedValueOnce({
+      ...appointmentResult,
+      tenantConfirmationStatus: 'CONFIRMED',
+    });
+
+    const res = await supertest(app.server)
+      .post(`/v1/appointments/${APPOINTMENT_ID}/force-confirmation`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ tenantConfirmationStatus: 'CONFIRMED', reason: 'Operator confirmed manually' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.tenantConfirmationStatus).toBe('CONFIRMED');
+  });
+
+  it('should return 422 with missing reason', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/appointments/${APPOINTMENT_ID}/force-confirmation`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ tenantConfirmationStatus: 'CONFIRMED' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('should return 422 with invalid tenantConfirmationStatus (not CONFIRMED)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/appointments/${APPOINTMENT_ID}/force-confirmation`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ tenantConfirmationStatus: 'PENDING', reason: 'Some reason' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});

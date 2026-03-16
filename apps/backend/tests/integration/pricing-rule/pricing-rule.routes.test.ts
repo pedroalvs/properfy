@@ -1,0 +1,226 @@
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+import supertest from 'supertest';
+import { buildApp } from '../../../src/main/server';
+import type { FastifyInstance } from 'fastify';
+
+// Module-level mock functions for pricing rule use cases
+const mockCreatePricingRuleExecute = vi.fn();
+const mockListPricingRulesExecute = vi.fn();
+const mockUpdatePricingRuleExecute = vi.fn();
+const mockJwtVerify = vi.fn();
+const mockAuditLog = vi.fn();
+
+vi.mock('../../../src/main/container', () => ({
+  createContainer: () => ({
+    prisma: {},
+    auditService: { log: mockAuditLog },
+    auth: {
+      loginUseCase: { execute: vi.fn() },
+      refreshTokenUseCase: { execute: vi.fn() },
+      logoutUseCase: { execute: vi.fn() },
+      getMeUseCase: { execute: vi.fn() },
+      changePasswordUseCase: { execute: vi.fn() },
+      revokeSessionUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    tenant: {
+      createTenantUseCase: { execute: vi.fn() },
+      getTenantUseCase: { execute: vi.fn() },
+      listTenantsUseCase: { execute: vi.fn() },
+      updateTenantUseCase: { execute: vi.fn() },
+      deactivateTenantUseCase: { execute: vi.fn() },
+      createBranchUseCase: { execute: vi.fn() },
+      listBranchesUseCase: { execute: vi.fn() },
+      updateBranchUseCase: { execute: vi.fn() },
+      deactivateBranchUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    user: {
+      createUserUseCase: { execute: vi.fn() },
+      getUserUseCase: { execute: vi.fn() },
+      listUsersUseCase: { execute: vi.fn() },
+      updateUserUseCase: { execute: vi.fn() },
+      deactivateUserUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    property: {
+      createPropertyUseCase: { execute: vi.fn() },
+      getPropertyUseCase: { execute: vi.fn() },
+      listPropertiesUseCase: { execute: vi.fn() },
+      updatePropertyUseCase: { execute: vi.fn() },
+      deletePropertyUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    serviceType: {
+      createServiceTypeUseCase: { execute: vi.fn() },
+      getServiceTypeUseCase: { execute: vi.fn() },
+      listServiceTypesUseCase: { execute: vi.fn() },
+      updateServiceTypeUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    pricingRule: {
+      createPricingRuleUseCase: { execute: mockCreatePricingRuleExecute },
+      listPricingRulesUseCase: { execute: mockListPricingRulesExecute },
+      updatePricingRuleUseCase: { execute: mockUpdatePricingRuleExecute },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    inspector: {
+      createInspectorUseCase: { execute: vi.fn() },
+      getInspectorUseCase: { execute: vi.fn() },
+      listInspectorsUseCase: { execute: vi.fn() },
+      updateInspectorUseCase: { execute: vi.fn() },
+      createAvailabilitySlotUseCase: { execute: vi.fn() },
+      listAvailabilitySlotsUseCase: { execute: vi.fn() },
+      updateAvailabilitySlotUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    appointment: {
+      createAppointmentUseCase: { execute: vi.fn() },
+      getAppointmentUseCase: { execute: vi.fn() },
+      listAppointmentsUseCase: { execute: vi.fn() },
+      updateAppointmentUseCase: { execute: vi.fn() },
+      executeStatusTransitionUseCase: { execute: vi.fn() },
+      forceManualConfirmationUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+  }),
+}));
+
+const TENANT_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const SERVICE_TYPE_ID = 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
+const PRICING_RULE_ID = 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55';
+
+const amContext = {
+  userId: 'admin-1',
+  tenantId: null,
+  role: 'AM',
+  branchId: null,
+};
+
+let app: FastifyInstance;
+
+beforeAll(async () => {
+  process.env['NODE_ENV'] = 'test';
+  process.env['CORS_ORIGIN'] = 'http://localhost:5173';
+  app = await buildApp();
+  await app.ready();
+});
+
+afterAll(async () => {
+  await app.close();
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('POST /v1/pricing-rules', () => {
+  it('should return 201 with valid payload', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreatePricingRuleExecute.mockResolvedValueOnce({
+      id: PRICING_RULE_ID,
+      tenantId: TENANT_ID,
+      serviceTypeId: SERVICE_TYPE_ID,
+      branchId: null,
+      priceAmount: 150.0,
+      payoutType: 'FIXED',
+      payoutValue: 100.0,
+      bonusRuleJson: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .post('/v1/pricing-rules')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        tenantId: TENANT_ID,
+        serviceTypeId: SERVICE_TYPE_ID,
+        priceAmount: 150.0,
+        payoutType: 'FIXED',
+        payoutValue: 100.0,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data).toHaveProperty('id');
+    expect(res.body.data.priceAmount).toBe(150.0);
+  });
+
+  it('should return 422 with invalid payload (missing serviceTypeId)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/pricing-rules')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        priceAmount: 150.0,
+        payoutType: 'FIXED',
+        payoutValue: 100.0,
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('GET /v1/pricing-rules', () => {
+  it('should return 200 with paginated response', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockListPricingRulesExecute.mockResolvedValueOnce({
+      data: [
+        {
+          id: PRICING_RULE_ID,
+          tenantId: TENANT_ID,
+          serviceTypeId: SERVICE_TYPE_ID,
+          branchId: null,
+          priceAmount: 150.0,
+          payoutType: 'FIXED',
+          payoutValue: 100.0,
+          bonusRuleJson: null,
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/pricing-rules')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('data');
+    expect(res.body).toHaveProperty('pagination');
+    expect(res.body.data).toHaveLength(1);
+  });
+});
+
+describe('PATCH /v1/pricing-rules/:pricingRuleId', () => {
+  it('should return 200 on successful update', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockUpdatePricingRuleExecute.mockResolvedValueOnce({
+      id: PRICING_RULE_ID,
+      tenantId: TENANT_ID,
+      serviceTypeId: SERVICE_TYPE_ID,
+      branchId: null,
+      priceAmount: 175.0,
+      payoutType: 'FIXED',
+      payoutValue: 120.0,
+      bonusRuleJson: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .patch(`/v1/pricing-rules/${PRICING_RULE_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ priceAmount: 175.0, payoutValue: 120.0 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.priceAmount).toBe(175.0);
+  });
+});

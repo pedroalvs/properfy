@@ -1,0 +1,470 @@
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+import supertest from 'supertest';
+import { buildApp } from '../../../src/main/server';
+import type { FastifyInstance } from 'fastify';
+
+// Module-level mock functions for tenant use cases
+const mockCreateTenantExecute = vi.fn();
+const mockGetTenantExecute = vi.fn();
+const mockListTenantsExecute = vi.fn();
+const mockUpdateTenantExecute = vi.fn();
+const mockDeactivateTenantExecute = vi.fn();
+const mockCreateBranchExecute = vi.fn();
+const mockListBranchesExecute = vi.fn();
+const mockUpdateBranchExecute = vi.fn();
+const mockDeactivateBranchExecute = vi.fn();
+const mockJwtVerify = vi.fn();
+const mockAuditLog = vi.fn();
+
+vi.mock('../../../src/main/container', () => ({
+  createContainer: () => ({
+    prisma: {},
+    auditService: { log: mockAuditLog },
+    auth: {
+      loginUseCase: { execute: vi.fn() },
+      refreshTokenUseCase: { execute: vi.fn() },
+      logoutUseCase: { execute: vi.fn() },
+      getMeUseCase: { execute: vi.fn() },
+      changePasswordUseCase: { execute: vi.fn() },
+      revokeSessionUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    tenant: {
+      createTenantUseCase: { execute: mockCreateTenantExecute },
+      getTenantUseCase: { execute: mockGetTenantExecute },
+      listTenantsUseCase: { execute: mockListTenantsExecute },
+      updateTenantUseCase: { execute: mockUpdateTenantExecute },
+      deactivateTenantUseCase: { execute: mockDeactivateTenantExecute },
+      createBranchUseCase: { execute: mockCreateBranchExecute },
+      listBranchesUseCase: { execute: mockListBranchesExecute },
+      updateBranchUseCase: { execute: mockUpdateBranchExecute },
+      deactivateBranchUseCase: { execute: mockDeactivateBranchExecute },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    user: {
+      createUserUseCase: { execute: vi.fn() },
+      getUserUseCase: { execute: vi.fn() },
+      listUsersUseCase: { execute: vi.fn() },
+      updateUserUseCase: { execute: vi.fn() },
+      deactivateUserUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    property: {
+      createPropertyUseCase: { execute: vi.fn() },
+      getPropertyUseCase: { execute: vi.fn() },
+      listPropertiesUseCase: { execute: vi.fn() },
+      updatePropertyUseCase: { execute: vi.fn() },
+      deletePropertyUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    serviceType: {
+      createServiceTypeUseCase: { execute: vi.fn() },
+      getServiceTypeUseCase: { execute: vi.fn() },
+      listServiceTypesUseCase: { execute: vi.fn() },
+      updateServiceTypeUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    pricingRule: {
+      createPricingRuleUseCase: { execute: vi.fn() },
+      listPricingRulesUseCase: { execute: vi.fn() },
+      updatePricingRuleUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    inspector: {
+      createInspectorUseCase: { execute: vi.fn() },
+      getInspectorUseCase: { execute: vi.fn() },
+      listInspectorsUseCase: { execute: vi.fn() },
+      updateInspectorUseCase: { execute: vi.fn() },
+      createAvailabilitySlotUseCase: { execute: vi.fn() },
+      listAvailabilitySlotsUseCase: { execute: vi.fn() },
+      updateAvailabilitySlotUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+    appointment: {
+      createAppointmentUseCase: { execute: vi.fn() },
+      getAppointmentUseCase: { execute: vi.fn() },
+      listAppointmentsUseCase: { execute: vi.fn() },
+      updateAppointmentUseCase: { execute: vi.fn() },
+      executeStatusTransitionUseCase: { execute: vi.fn() },
+      forceManualConfirmationUseCase: { execute: vi.fn() },
+      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+    },
+  }),
+}));
+
+const TENANT_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const BRANCH_ID = 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22';
+
+const amContext = {
+  userId: 'admin-1',
+  tenantId: null,
+  role: 'AM',
+  branchId: null,
+};
+
+let app: FastifyInstance;
+
+beforeAll(async () => {
+  process.env['NODE_ENV'] = 'test';
+  process.env['CORS_ORIGIN'] = 'http://localhost:5173';
+  app = await buildApp();
+  await app.ready();
+});
+
+afterAll(async () => {
+  await app.close();
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+// ---- Tenant CRUD ----
+
+describe('POST /v1/tenants', () => {
+  it('should return 201 with valid payload', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreateTenantExecute.mockResolvedValueOnce({
+      id: TENANT_ID,
+      name: 'Acme Realty',
+      legalName: 'Acme Realty Pty Ltd',
+      status: 'PENDING',
+      timezone: 'Australia/Sydney',
+      currency: 'AUD',
+      settingsJson: {},
+      createdAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .post('/v1/tenants')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        name: 'Acme Realty',
+        legalName: 'Acme Realty Pty Ltd',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data).toHaveProperty('id');
+    expect(res.body.data.name).toBe('Acme Realty');
+  });
+
+  it('should return 422 with invalid payload (missing name)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/tenants')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ legalName: 'Acme Realty Pty Ltd' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('should return 403 for non-AM role', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    const { ForbiddenError } = await import('../../../src/shared/domain/errors');
+    mockCreateTenantExecute.mockRejectedValueOnce(
+      new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions'),
+    );
+
+    const res = await supertest(app.server)
+      .post('/v1/tenants')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        name: 'Acme Realty',
+        legalName: 'Acme Realty Pty Ltd',
+      });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('should return 401 without auth token', async () => {
+    const res = await supertest(app.server)
+      .post('/v1/tenants')
+      .send({
+        name: 'Acme Realty',
+        legalName: 'Acme Realty Pty Ltd',
+      });
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('GET /v1/tenants', () => {
+  it('should return 200 with paginated response', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockListTenantsExecute.mockResolvedValueOnce({
+      data: [
+        {
+          id: TENANT_ID,
+          name: 'Acme Realty',
+          legalName: 'Acme Realty Pty Ltd',
+          status: 'ACTIVE',
+          timezone: 'Australia/Sydney',
+          currency: 'AUD',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/tenants')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('data');
+    expect(res.body).toHaveProperty('pagination');
+    expect(res.body.data).toHaveLength(1);
+  });
+
+  it('should return 401 without auth token', async () => {
+    const res = await supertest(app.server).get('/v1/tenants');
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('GET /v1/tenants/:tenantId', () => {
+  it('should return 200 with valid tenant', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetTenantExecute.mockResolvedValueOnce({
+      id: TENANT_ID,
+      name: 'Acme Realty',
+      legalName: 'Acme Realty Pty Ltd',
+      status: 'ACTIVE',
+      timezone: 'Australia/Sydney',
+      currency: 'AUD',
+      settingsJson: {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .get(`/v1/tenants/${TENANT_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(TENANT_ID);
+  });
+
+  it('should return 404 when tenant not found', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    const { NotFoundError } = await import('../../../src/shared/domain/errors');
+    mockGetTenantExecute.mockRejectedValueOnce(
+      new NotFoundError('TENANT_NOT_FOUND', 'Tenant not found'),
+    );
+
+    const res = await supertest(app.server)
+      .get(`/v1/tenants/${TENANT_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(404);
+  });
+
+  it('should return 422 with invalid tenant ID format', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/tenants/not-a-uuid')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(422);
+  });
+});
+
+describe('PATCH /v1/tenants/:tenantId', () => {
+  it('should return 200 on successful update', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockUpdateTenantExecute.mockResolvedValueOnce({
+      id: TENANT_ID,
+      name: 'Updated Realty',
+      legalName: 'Acme Realty Pty Ltd',
+      status: 'ACTIVE',
+      timezone: 'Australia/Sydney',
+      currency: 'AUD',
+      settingsJson: {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .patch(`/v1/tenants/${TENANT_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Updated Realty' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.name).toBe('Updated Realty');
+  });
+
+  it('should return 422 with invalid payload', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .patch(`/v1/tenants/${TENANT_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: '' }); // min 1 char
+
+    expect(res.status).toBe(422);
+  });
+});
+
+describe('POST /v1/tenants/:tenantId/deactivate', () => {
+  it('should return 204 on success', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockDeactivateTenantExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'No longer active' });
+
+    expect(res.status).toBe(204);
+  });
+
+  it('should return 422 when reason is missing', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+// ---- Branch CRUD ----
+
+describe('POST /v1/tenants/:tenantId/branches', () => {
+  it('should return 201 with valid payload', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreateBranchExecute.mockResolvedValueOnce({
+      id: BRANCH_ID,
+      tenantId: TENANT_ID,
+      name: 'Main Branch',
+      addressJson: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/branches`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Main Branch' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.name).toBe('Main Branch');
+  });
+
+  it('should return 422 with invalid payload (missing name)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/branches`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(422);
+  });
+});
+
+describe('GET /v1/tenants/:tenantId/branches', () => {
+  it('should return 200 with paginated response', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockListBranchesExecute.mockResolvedValueOnce({
+      data: [
+        {
+          id: BRANCH_ID,
+          tenantId: TENANT_ID,
+          name: 'Main Branch',
+          addressJson: null,
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    const res = await supertest(app.server)
+      .get(`/v1/tenants/${TENANT_ID}/branches`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('data');
+    expect(res.body).toHaveProperty('pagination');
+  });
+});
+
+describe('PATCH /v1/tenants/:tenantId/branches/:branchId', () => {
+  it('should return 200 on successful update', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockUpdateBranchExecute.mockResolvedValueOnce({
+      id: BRANCH_ID,
+      tenantId: TENANT_ID,
+      name: 'Updated Branch',
+      addressJson: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .patch(`/v1/tenants/${TENANT_ID}/branches/${BRANCH_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Updated Branch' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.name).toBe('Updated Branch');
+  });
+
+  it('should return 422 with invalid branch ID format', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .patch(`/v1/tenants/${TENANT_ID}/branches/not-a-uuid`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Updated Branch' });
+
+    expect(res.status).toBe(422);
+  });
+});
+
+describe('POST /v1/tenants/:tenantId/branches/:branchId/deactivate', () => {
+  it('should return 204 on success', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockDeactivateBranchExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/branches/${BRANCH_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'Branch closed' });
+
+    expect(res.status).toBe(204);
+  });
+
+  it('should return 422 when reason is missing', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/branches/${BRANCH_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(422);
+  });
+
+  it('should return 401 without auth token', async () => {
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/branches/${BRANCH_ID}/deactivate`)
+      .send({ reason: 'Branch closed' });
+
+    expect(res.status).toBe(401);
+  });
+});
