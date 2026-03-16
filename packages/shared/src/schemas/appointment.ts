@@ -1,30 +1,80 @@
 import { z } from 'zod';
+import { paginationSchema } from './pagination';
 import { contactSchema } from './contact';
 import { restrictionSchema } from './restriction';
-import { AppointmentStatus } from '../enums/appointment';
+import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
+
+// Inline property for creation (matches createPropertySchema subset)
+const inlinePropertySchema = z.object({
+  propertyCode: z.string().min(1).max(50).trim(),
+  type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']),
+  street: z.string().min(1).max(300).trim(),
+  addressLine2: z.string().max(200).trim().optional(),
+  suburb: z.string().min(1).max(100).trim(),
+  postcode: z.string().min(1).max(20).trim(),
+  state: z.string().min(1).max(100).trim(),
+  country: z.string().min(2).max(100).trim().default('AU'),
+  notes: z.string().max(2000).optional(),
+});
+
+const timeSlotRegex = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
 
 export const createAppointmentSchema = z.object({
   branchId: z.string().uuid(),
   propertyId: z.string().uuid().optional(),
+  property: inlinePropertySchema.optional(),
   serviceTypeId: z.string().uuid(),
   scheduledDate: z.string().date(),
-  timeSlot: z.string().min(1).max(50),
+  timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format'),
   contact: contactSchema,
-  restrictions: z.array(restrictionSchema).optional(),
+  restriction: restrictionSchema.optional(),
   keyRequired: z.boolean().default(false),
+  meetingLocation: z.string().max(500).optional(),
+  keyLocation: z.string().max(500).optional(),
   notes: z.string().max(2000).optional(),
-});
+  customFields: z.record(z.unknown()).optional(),
+}).refine(
+  (data) => !!data.propertyId !== !!data.property,
+  { message: 'Must provide either propertyId or property (inline), but not both', path: ['propertyId'] },
+);
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
+
+export const updateAppointmentSchema = z.object({
+  scheduledDate: z.string().date().optional(),
+  timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
+  keyRequired: z.boolean().optional(),
+  meetingLocation: z.string().max(500).nullable().optional(),
+  keyLocation: z.string().max(500).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  contact: contactSchema.optional(),
+  restriction: restrictionSchema.optional(),
+  customFields: z.record(z.unknown()).nullable().optional(),
+});
+export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 
 export const statusTransitionSchema = z.object({
   targetStatus: z.nativeEnum(AppointmentStatus),
   reason: z.string().max(1000).optional(),
+  doneCheckedByUserId: z.string().uuid().optional(),
+  inspectorId: z.string().uuid().optional(),
 });
 export type StatusTransitionInput = z.infer<typeof statusTransitionSchema>;
 
-export const importAppointmentsSchema = z.object({
-  fileUrl: z.string().url(),
-  branchId: z.string().uuid(),
-  dryRun: z.boolean().default(false),
+export const listAppointmentsQuerySchema = paginationSchema.extend({
+  status: z.nativeEnum(AppointmentStatus).optional(),
+  serviceTypeId: z.string().uuid().optional(),
+  branchId: z.string().uuid().optional(),
+  inspectorId: z.string().uuid().optional(),
+  tenantId: z.string().uuid().optional(),
+  search: z.string().max(200).optional(),
+  fromDate: z.string().date().optional(),
+  toDate: z.string().date().optional(),
+  tenantConfirmationStatus: z.nativeEnum(TenantConfirmationStatus).optional(),
 });
-export type ImportAppointmentsInput = z.infer<typeof importAppointmentsSchema>;
+export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySchema>;
+
+export const forceManualConfirmationSchema = z.object({
+  tenantConfirmationStatus: z.literal('CONFIRMED'),
+  reason: z.string().min(1).max(1000),
+});
+export type ForceManualConfirmationInput = z.infer<typeof forceManualConfirmationSchema>;

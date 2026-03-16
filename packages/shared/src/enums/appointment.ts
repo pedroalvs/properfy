@@ -15,3 +15,10 @@ export const TenantConfirmationStatus = {
   NO_RESPONSE: 'NO_RESPONSE',
 } as const;
 export type TenantConfirmationStatus = (typeof TenantConfirmationStatus)[keyof typeof TenantConfirmationStatus];
+
+export const RestrictionSource = {
+  TENANT_PORTAL: 'TENANT_PORTAL',
+  OPERATOR: 'OPERATOR',
+  IMPORT: 'IMPORT',
+} as const;
+export type RestrictionSource = (typeof RestrictionSource)[keyof typeof RestrictionSource];

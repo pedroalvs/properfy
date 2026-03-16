@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AppointmentStatus, TenantConfirmationStatus } from './appointment';
+import { AppointmentStatus, TenantConfirmationStatus, RestrictionSource } from './appointment';
 
 describe('AppointmentStatus', () => {
   it('should have all expected values', () => {
@@ -22,5 +22,17 @@ describe('TenantConfirmationStatus', () => {
     expect(TenantConfirmationStatus.CONFIRMED).toBe('CONFIRMED');
     expect(TenantConfirmationStatus.UNAVAILABLE).toBe('UNAVAILABLE');
     expect(TenantConfirmationStatus.NO_RESPONSE).toBe('NO_RESPONSE');
+  });
+});
+
+describe('RestrictionSource', () => {
+  it('should have all expected values', () => {
+    expect(RestrictionSource.TENANT_PORTAL).toBe('TENANT_PORTAL');
+    expect(RestrictionSource.OPERATOR).toBe('OPERATOR');
+    expect(RestrictionSource.IMPORT).toBe('IMPORT');
+  });
+
+  it('should have exactly 3 values', () => {
+    expect(Object.keys(RestrictionSource)).toHaveLength(3);
   });
 });
