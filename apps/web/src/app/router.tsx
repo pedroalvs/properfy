@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import { AppShell } from '@/components/shell/AppShell';
+import { AppointmentListPage } from '@/features/appointments/pages/AppointmentListPage';
 
 function Placeholder({ title }: { title: string }) {
   return <h2 className="text-page-title text-secondary">{title}</h2>;
@@ -29,7 +30,7 @@ export const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { index: true, element: <Navigate to="/appointments" replace /> },
-          { path: 'appointments', element: <Placeholder title="Vistorias" /> },
+          { path: 'appointments', element: <AppointmentListPage /> },
           { path: 'properties', element: <Placeholder title="Imóveis" /> },
           { path: 'service-groups', element: <Placeholder title="Grupos de Serviço" /> },
           { path: 'financial', element: <Placeholder title="Financeiro" /> },
