@@ -189,8 +189,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.doneCheckedAt !== undefined) updateData['done_checked_at'] = data.doneCheckedAt;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
 
-    await this.prisma.appointment.update({
-      where: { id },
+    await this.prisma.appointment.updateMany({
+      where: { id, tenant_id: tenantId },
       data: updateData,
     });
   }

@@ -120,7 +120,7 @@ describe('GetAppointmentUseCase', () => {
     });
 
     expect(result.id).toBe('appt-1');
-    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', '');
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
   });
 
   it('should allow CL_ADMIN to get their own tenant appointment', async () => {

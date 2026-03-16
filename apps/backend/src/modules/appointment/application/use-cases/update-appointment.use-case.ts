@@ -82,9 +82,9 @@ export class UpdateAppointmentUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Resolve tenantId for lookup
+    // Resolve tenantId for lookup (null = global access for AM/OP)
     const tenantId =
-      actor.role === 'AM' || actor.role === 'OP' ? '' : actor.tenantId!;
+      actor.role === 'AM' || actor.role === 'OP' ? null : actor.tenantId;
 
     const found = await this.appointmentRepo.findById(appointmentId, tenantId);
     if (!found || found.appointment.isDeleted()) {

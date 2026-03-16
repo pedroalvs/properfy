@@ -118,15 +118,12 @@ export class GetAppointmentUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // AM/OP: global access (no tenant scoping) — pass empty string, repo skips filter when empty
+    // AM/OP/INSP: global access (no tenant scoping), INSP verified after
     // CL_ADMIN/CL_USER: scoped by tenantId from JWT
-    // INSP: global lookup, then verify assignment
-    let tenantId: string;
-    if (actor.role === 'AM' || actor.role === 'OP' || actor.role === 'INSP') {
-      tenantId = '';
-    } else {
-      tenantId = actor.tenantId!;
-    }
+    const tenantId =
+      actor.role === 'AM' || actor.role === 'OP' || actor.role === 'INSP'
+        ? null
+        : actor.tenantId;
 
     const found = await this.appointmentRepo.findById(appointmentId, tenantId);
     if (!found || found.appointment.isDeleted()) {

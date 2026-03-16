@@ -132,24 +132,22 @@ export class CreateAppointmentUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // 2. Resolve tenantId
+    // 2. Resolve tenantId and validate branch
     let tenantId: string;
     if (actor.role === 'AM' || actor.role === 'OP') {
-      // AM/OP: infer tenantId from the branch
+      // AM/OP: lookup branch without tenant scope to infer tenantId
       const branch = await this.branchRepo.findById(input.branchId, '');
       if (!branch) {
         throw new AppointmentBranchNotFoundError();
       }
       tenantId = branch.tenantId;
     } else {
-      // CL_ADMIN/CL_USER: use tenantId from JWT
+      // CL_ADMIN/CL_USER: use tenantId from JWT, validate branch in scope
       tenantId = actor.tenantId!;
-    }
-
-    // 3. Validate branch exists and belongs to tenant
-    const branch = await this.branchRepo.findById(input.branchId, tenantId);
-    if (!branch) {
-      throw new AppointmentBranchNotFoundError();
+      const branch = await this.branchRepo.findById(input.branchId, tenantId);
+      if (!branch) {
+        throw new AppointmentBranchNotFoundError();
+      }
     }
 
     // 4. Resolve property

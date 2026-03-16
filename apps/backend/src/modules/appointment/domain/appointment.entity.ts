@@ -1,5 +1,6 @@
 import { BaseEntity } from '../../../shared/domain/entity';
 import type { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
+import { TRANSITION_RULES } from './appointment-state-machine';
 
 export interface AppointmentProps {
   id: string;
@@ -92,14 +93,6 @@ export class AppointmentEntity extends BaseEntity {
   }
 
   canTransitionTo(target: AppointmentStatus): boolean {
-    const validTargets: Record<AppointmentStatus, AppointmentStatus[]> = {
-      DRAFT: ['AWAITING_INSPECTOR', 'REJECTED', 'CANCELLED'],
-      AWAITING_INSPECTOR: ['SCHEDULED', 'CANCELLED', 'REJECTED'],
-      SCHEDULED: ['DONE', 'CANCELLED', 'REJECTED'],
-      DONE: ['DRAFT', 'REJECTED'],
-      CANCELLED: ['DRAFT'],
-      REJECTED: ['DRAFT', 'AWAITING_INSPECTOR'],
-    };
-    return (validTargets[this.status] ?? []).includes(target);
+    return TRANSITION_RULES.some((r) => r.from === this.status && r.to === target);
   }
 }
