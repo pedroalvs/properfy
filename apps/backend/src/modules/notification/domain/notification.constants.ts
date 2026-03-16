@@ -1,0 +1,20 @@
+export const MANDATORY_TEMPLATE_CODES = [
+  'INSPECTION_NOTICE',
+  'REMINDER_7_DAYS',
+  'REMINDER_5_DAYS',
+  'REMINDER_3_DAYS',
+  'PROPERTY_MANAGER_ESCALATION',
+  'TENANT_SMS_ALERT',
+  'INSPECTION_CONFIRMED',
+  'INSPECTION_RESCHEDULED',
+  'INSPECTION_CANCELLED',
+] as const;
+
+export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
+
+// Retry delays in milliseconds: 15s, 45s, 2min, 5min, 15min
+export const RETRY_DELAYS = [15_000, 45_000, 120_000, 300_000, 900_000] as const;
+
+export const MAX_RETRY_COUNT = 6;
+
+export const JITTER_FACTOR = 0.1; // +/-10%
