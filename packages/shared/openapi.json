@@ -899,6 +899,11 @@
                   "address": {
                     "type": "object",
                     "additionalProperties": {}
+                  },
+                  "contactEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
                   }
                 },
                 "required": [
@@ -946,6 +951,10 @@
                         "addressJson": {
                           "nullable": true
                         },
+                        "contactEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "status": {
                           "type": "string"
                         },
@@ -960,6 +969,7 @@
                         "id",
                         "tenantId",
                         "name",
+                        "contactEmail",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -1079,6 +1089,10 @@
                           "addressJson": {
                             "nullable": true
                           },
+                          "contactEmail": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "status": {
                             "type": "string"
                           },
@@ -1093,6 +1107,7 @@
                           "id",
                           "tenantId",
                           "name",
+                          "contactEmail",
                           "status",
                           "createdAt",
                           "updatedAt"
@@ -1153,6 +1168,12 @@
                   "address": {
                     "type": "object",
                     "additionalProperties": {}
+                  },
+                  "contactEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "nullable": true
                   }
                 },
                 "additionalProperties": false
@@ -1205,6 +1226,10 @@
                         "addressJson": {
                           "nullable": true
                         },
+                        "contactEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "status": {
                           "type": "string"
                         },
@@ -1219,6 +1244,7 @@
                         "id",
                         "tenantId",
                         "name",
+                        "contactEmail",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -4536,6 +4562,46 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/link-user": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "userId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }
@@ -11539,6 +11605,136 @@
                         "isActive",
                         "createdAt",
                         "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/stats": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appointmentsByStatus": {
+                          "type": "object",
+                          "properties": {
+                            "draft": {
+                              "type": "number"
+                            },
+                            "awaitingInspector": {
+                              "type": "number"
+                            },
+                            "scheduled": {
+                              "type": "number"
+                            },
+                            "doneThisMonth": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "draft",
+                            "awaitingInspector",
+                            "scheduled",
+                            "doneThisMonth"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "recentAppointments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "propertyAddress": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "scheduledDate": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "code",
+                              "propertyAddress",
+                              "status",
+                              "scheduledDate"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "pendingActions": {
+                          "type": "object",
+                          "properties": {
+                            "noResponseTenants": {
+                              "type": "number"
+                            },
+                            "pendingFinancialEntries": {
+                              "type": "number"
+                            },
+                            "processingReports": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "noResponseTenants",
+                            "pendingFinancialEntries",
+                            "processingReports"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "quickStats": {
+                          "type": "object",
+                          "properties": {
+                            "totalProperties": {
+                              "type": "number"
+                            },
+                            "activeInspectors": {
+                              "type": "number"
+                            },
+                            "activeServiceGroups": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "totalProperties",
+                            "activeInspectors",
+                            "activeServiceGroups"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "appointmentsByStatus",
+                        "recentAppointments",
+                        "pendingActions",
+                        "quickStats"
                       ],
                       "additionalProperties": false
                     }
