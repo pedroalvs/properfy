@@ -7,6 +7,6 @@
       "@properfy/shared": ["../../packages/shared/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "prisma/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
