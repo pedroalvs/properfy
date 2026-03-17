@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DeletePropertyUseCase } from '../../../src/modules/property/application/use-cases/delete-property.use-case';
 import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
+import type { IAppointmentChecker } from '../../../src/modules/tenant/domain/appointment-checker';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import {
   PropertyNotFoundError,
   PropertyAlreadyDeletedError,
+  PropertyHasActiveAppointmentsError,
 } from '../../../src/modules/property/domain/property.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
@@ -49,6 +51,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 
 describe('DeletePropertyUseCase', () => {
   let propertyRepo: IPropertyRepository;
+  let appointmentChecker: IAppointmentChecker;
   let auditService: AuditService;
   let useCase: DeletePropertyUseCase;
 
@@ -61,8 +64,13 @@ describe('DeletePropertyUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
+    appointmentChecker = {
+      hasOpenAppointmentsForTenant: vi.fn().mockResolvedValue(false),
+      hasOpenAppointmentsForBranch: vi.fn().mockResolvedValue(false),
+      hasOpenAppointmentsForProperty: vi.fn().mockResolvedValue(false),
+    };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new DeletePropertyUseCase(propertyRepo, auditService);
+    useCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   });
 
   it('should soft delete property for AM', async () => {
@@ -120,6 +128,34 @@ describe('DeletePropertyUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(PropertyAlreadyDeletedError);
+  });
+
+  it('should throw PROPERTY_HAS_ACTIVE_APPOINTMENTS when active appointments exist', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(appointmentChecker.hasOpenAppointmentsForProperty).mockResolvedValue(true);
+
+    await expect(
+      useCase.execute({
+        propertyId: 'prop-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(PropertyHasActiveAppointmentsError);
+
+    expect(appointmentChecker.hasOpenAppointmentsForProperty).toHaveBeenCalledWith('prop-1');
+    expect(propertyRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('should proceed with deletion when no active appointments', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(appointmentChecker.hasOpenAppointmentsForProperty).mockResolvedValue(false);
+
+    await useCase.execute({
+      propertyId: 'prop-1',
+      actor: makeActor(),
+    });
+
+    expect(appointmentChecker.hasOpenAppointmentsForProperty).toHaveBeenCalledWith('prop-1');
+    expect(propertyRepo.update).toHaveBeenCalled();
   });
 
   it('should throw AUTH_FORBIDDEN for CL_USER', async () => {

@@ -2,9 +2,11 @@ import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IPropertyRepository } from '../../domain/property.repository';
+import type { IAppointmentChecker } from '../../../tenant/domain/appointment-checker';
 import {
   PropertyNotFoundError,
   PropertyAlreadyDeletedError,
+  PropertyHasActiveAppointmentsError,
 } from '../../domain/property.errors';
 
 export interface DeletePropertyInput {
@@ -15,6 +17,7 @@ export interface DeletePropertyInput {
 export class DeletePropertyUseCase {
   constructor(
     private readonly propertyRepo: IPropertyRepository,
+    private readonly appointmentChecker: IAppointmentChecker,
     private readonly auditService: AuditService,
   ) {}
 
@@ -48,7 +51,10 @@ export class DeletePropertyUseCase {
       throw new PropertyAlreadyDeletedError();
     }
 
-    // TODO: Check for active appointments (will be added in Session 4 - Appointment module)
+    const hasActive = await this.appointmentChecker.hasOpenAppointmentsForProperty(propertyId);
+    if (hasActive) {
+      throw new PropertyHasActiveAppointmentsError();
+    }
 
     const now = new Date();
     await this.propertyRepo.update(propertyId, property.tenantId, {
