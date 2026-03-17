@@ -1,4 +1,4 @@
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/api-error';
 
 interface PortalErrorStateProps {
   error: ApiError | Error;

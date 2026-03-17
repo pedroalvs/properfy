@@ -1,7 +1,7 @@
 import { useState, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/api-error';
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {

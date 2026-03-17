@@ -5,7 +5,8 @@ import {
   type UseQueryOptions,
   type UseMutationOptions,
 } from '@tanstack/react-query';
-import { apiClient, ApiError } from '@/lib/api-client';
+import { api } from '@/services/api';
+import { ApiError } from '@/lib/api-error';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,54 @@ export interface ListParams {
   [key: string]: string | number | boolean | undefined;
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function toStringParams(params?: ListParams): Record<string, string> | undefined {
+  if (!params) return undefined;
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') {
+      result[key] = String(value);
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function toApiError(error: unknown): ApiError {
+  if (error instanceof ApiError) return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return new ApiError(
+      (error as { status?: number }).status ?? 500,
+      (error as { message: string }).message,
+    );
+  }
+  return new ApiError(500, 'Unknown error');
+}
+
+async function apiGet<T>(path: string, params?: Record<string, string>): Promise<T> {
+  const { data, error } = await api.GET(path as any, {
+    params: { query: params as any },
+  });
+  if (error) throw toApiError(error);
+  return data as T;
+}
+
+async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  const { data, error } = await api.POST(path as any, {
+    body: body as any,
+  });
+  if (error) throw toApiError(error);
+  return data as T;
+}
+
+async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  const { data, error } = await api.PATCH(path as any, {
+    body: body as any,
+  });
+  if (error) throw toApiError(error);
+  return data as T;
+}
+
 // ─── Paginated List Query ──────────────────────────────────────────────────
 
 export function usePaginatedQuery<T>(
@@ -45,7 +94,7 @@ export function usePaginatedQuery<T>(
 
   return useQuery<PaginatedResponse<T>, ApiError>({
     queryKey: [...queryKey, params],
-    queryFn: () => apiClient.get<PaginatedResponse<T>>(path, stringParams),
+    queryFn: () => apiGet<PaginatedResponse<T>>(path, stringParams),
     ...options,
   });
 }
@@ -59,7 +108,7 @@ export function useDetailQuery<T>(
 ) {
   return useQuery<SuccessResponse<T>, ApiError>({
     queryKey,
-    queryFn: () => apiClient.get<SuccessResponse<T>>(path),
+    queryFn: () => apiGet<SuccessResponse<T>>(path),
     ...options,
   });
 }
@@ -74,7 +123,7 @@ export function useCreateMutation<TInput, TResponse = unknown>(
   const queryClient = useQueryClient();
 
   return useMutation<SuccessResponse<TResponse>, ApiError, TInput>({
-    mutationFn: (data) => apiClient.post<SuccessResponse<TResponse>>(path, data),
+    mutationFn: (data) => apiPost<SuccessResponse<TResponse>>(path, data),
     onSuccess: (...args) => {
       invalidateKeys?.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
       options?.onSuccess?.(...args);
@@ -93,7 +142,7 @@ export function useUpdateMutation<TInput, TResponse = unknown>(
   const queryClient = useQueryClient();
 
   return useMutation<SuccessResponse<TResponse>, ApiError, TInput>({
-    mutationFn: (data) => apiClient.patch<SuccessResponse<TResponse>>(path, data),
+    mutationFn: (data) => apiPatch<SuccessResponse<TResponse>>(path, data),
     onSuccess: (...args) => {
       invalidateKeys?.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
       options?.onSuccess?.(...args);
@@ -112,24 +161,11 @@ export function useActionMutation<TResponse = unknown>(
   const queryClient = useQueryClient();
 
   return useMutation<SuccessResponse<TResponse>, ApiError, unknown>({
-    mutationFn: (data) => apiClient.post<SuccessResponse<TResponse>>(path, data),
+    mutationFn: (data) => apiPost<SuccessResponse<TResponse>>(path, data),
     onSuccess: (...args) => {
       invalidateKeys?.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
       options?.onSuccess?.(...args);
     },
     ...options,
   });
-}
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
-function toStringParams(params?: ListParams): Record<string, string> | undefined {
-  if (!params) return undefined;
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== '') {
-      result[key] = String(value);
-    }
-  }
-  return Object.keys(result).length > 0 ? result : undefined;
 }
