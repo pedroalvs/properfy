@@ -33,7 +33,10 @@ export class DownloadInvoiceUseCase {
     if (actor.role === 'AM' || actor.role === 'OP') {
       // Full access
     } else if (actor.role === 'INSP') {
-      if (invoice.inspectorId !== actor.userId) {
+      if (!actor.inspectorId) {
+        throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+      }
+      if (invoice.inspectorId !== actor.inspectorId) {
         throw new InvoiceNotFoundError();
       }
     } else {

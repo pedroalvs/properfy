@@ -50,6 +50,10 @@ export class StartInspectionUseCase {
       throw new ForbiddenError('FORBIDDEN', 'Only inspectors can start inspections');
     }
 
+    if (!actor.inspectorId) {
+      throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+    }
+
     // 2. Check idempotency
     const cached = await this.idempotencyService.get<StartInspectionOutput>(
       idempotencyKey,
@@ -64,7 +68,7 @@ export class StartInspectionUseCase {
     const { appointment } = result;
 
     // Check inspector assignment and status
-    if (appointment.inspectorId !== actor.userId) {
+    if (appointment.inspectorId !== actor.inspectorId) {
       throw new ExecutionAppointmentNotFoundError();
     }
     if (appointment.status !== 'SCHEDULED') {
@@ -108,7 +112,7 @@ export class StartInspectionUseCase {
     const execution = new InspectionExecutionEntity({
       id: executionId,
       appointmentId,
-      inspectorId: actor.userId,
+      inspectorId: actor.inspectorId,
       startedAt: now,
       finishedAt: null,
       startLatitude: latitude,
@@ -133,7 +137,7 @@ export class StartInspectionUseCase {
       tenantId: appointment.tenantId,
       after: {
         appointmentId,
-        inspectorId: actor.userId,
+        inspectorId: actor.inspectorId,
         startLatitude: latitude,
         startLongitude: longitude,
       },

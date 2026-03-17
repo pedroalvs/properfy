@@ -44,13 +44,17 @@ export class GetInspectorScheduleUseCase {
       throw new ForbiddenError('FORBIDDEN', 'Only inspectors can access the schedule');
     }
 
+    if (!actor.inspectorId) {
+      throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+    }
+
     const today = new Date();
     const targetDateStr = input.date ?? today.toISOString().split('T')[0]!;
 
     const appointments = await this.appointmentRepo.findAll(
       {
         tenantId: actor.tenantId ?? '',
-        inspectorId: actor.userId,
+        inspectorId: actor.inspectorId,
         status: 'SCHEDULED',
         fromDate: targetDateStr,
         toDate: targetDateStr,

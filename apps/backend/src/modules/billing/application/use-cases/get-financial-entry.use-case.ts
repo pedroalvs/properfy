@@ -2,6 +2,7 @@ import type { AuthContext } from '@properfy/shared';
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import type { FinancialEntryOutputItem } from './list-financial-entries.use-case';
 import { EntryNotFoundError } from '../../domain/billing.errors';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 
 export interface GetFinancialEntryInput {
   entryId: string;
@@ -27,7 +28,10 @@ export class GetFinancialEntryUseCase {
         throw new EntryNotFoundError();
       }
     } else if (actor.role === 'INSP') {
-      if (entry.inspectorId !== actor.userId || entry.entryType !== 'INSPECTOR_PAYOUT') {
+      if (!actor.inspectorId) {
+        throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+      }
+      if (entry.inspectorId !== actor.inspectorId || entry.entryType !== 'INSPECTOR_PAYOUT') {
         throw new EntryNotFoundError();
       }
     }

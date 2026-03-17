@@ -4,6 +4,7 @@ import type {
   FinancialEntryFilters,
   FinancialEntryPagination,
 } from '../../domain/financial-entry.repository';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 
 export interface ListFinancialEntriesInput {
   type?: string;
@@ -73,7 +74,10 @@ export class ListFinancialEntriesUseCase {
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
     } else if (actor.role === 'INSP') {
       // Inspectors: forced inspectorId and entryType
-      filters.inspectorId = actor.userId;
+      if (!actor.inspectorId) {
+        throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+      }
+      filters.inspectorId = actor.inspectorId;
       filters.entryType = 'INSPECTOR_PAYOUT';
       if (input.tenantId) filters.tenantId = input.tenantId;
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];

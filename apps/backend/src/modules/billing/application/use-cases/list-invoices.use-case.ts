@@ -54,7 +54,10 @@ export class ListInvoicesUseCase {
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
     } else if (actor.role === 'INSP') {
       // Inspector: forced to own invoices
-      filters.inspectorId = actor.userId;
+      if (!actor.inspectorId) {
+        throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+      }
+      filters.inspectorId = actor.inspectorId;
     } else {
       throw new ForbiddenError('FORBIDDEN', 'You do not have permission to list invoices');
     }

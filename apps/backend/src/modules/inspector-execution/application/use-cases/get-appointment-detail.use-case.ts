@@ -75,6 +75,10 @@ export class GetAppointmentDetailUseCase {
       throw new ForbiddenError('FORBIDDEN', 'Only inspectors can access appointment details');
     }
 
+    if (!actor.inspectorId) {
+      throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+    }
+
     // Load appointment with cross-tenant access (inspectors are cross-tenant)
     const result = await this.appointmentRepo.findById(appointmentId, null);
     if (!result) {
@@ -84,7 +88,7 @@ export class GetAppointmentDetailUseCase {
     const { appointment, contact, restrictions } = result;
 
     // Verify inspector assignment
-    if (appointment.inspectorId !== actor.userId) {
+    if (appointment.inspectorId !== actor.inspectorId) {
       throw new ExecutionAppointmentNotFoundError();
     }
 

@@ -139,7 +139,10 @@ export class GetAppointmentUseCase {
 
     // INSP: can only see their assigned appointments
     if (actor.role === 'INSP') {
-      if (found.appointment.inspectorId !== actor.userId) {
+      if (!actor.inspectorId) {
+        throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+      }
+      if (found.appointment.inspectorId !== actor.inspectorId) {
         throw new AppointmentAccessDeniedError();
       }
     }

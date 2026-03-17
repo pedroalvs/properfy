@@ -2,6 +2,7 @@ import type { AuthContext, AppointmentStatus } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import { AppointmentStateMachine } from '../../domain/appointment-state-machine';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
   AppointmentNotFoundError,
   AppointmentAccessDeniedError,
@@ -53,8 +54,13 @@ export class ExecuteStatusTransitionUseCase {
     const { appointment } = result;
 
     // 2. INSP access check: must be assigned to this appointment
-    if (actor.role === 'INSP' && appointment.inspectorId !== actor.userId) {
-      throw new AppointmentAccessDeniedError();
+    if (actor.role === 'INSP') {
+      if (!actor.inspectorId) {
+        throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+      }
+      if (appointment.inspectorId !== actor.inspectorId) {
+        throw new AppointmentAccessDeniedError();
+      }
     }
 
     // 3. Validate transition exists in state machine
