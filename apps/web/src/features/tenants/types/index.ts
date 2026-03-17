@@ -15,6 +15,11 @@ export interface TenantContact {
   updatedAt: string;
 }
 
+export interface TenantContactDetail extends TenantContact {
+  notes: string | null;
+  alternativePhone: string | null;
+}
+
 export interface TenantContactFiltersState {
   search: string;
   confirmationStatus: string;

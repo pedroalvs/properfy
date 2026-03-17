@@ -1,6 +1,8 @@
+import { useState, useCallback } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { TenantFilters } from '../components/TenantFilters';
 import { TenantTable } from '../components/TenantTable';
+import { TenantContactDetailDrawer } from '../components/TenantContactDetailDrawer';
 import { useTenantContactList } from '../hooks/useTenantContactList';
 
 export function TenantContactListPage() {
@@ -16,6 +18,19 @@ export function TenantContactListPage() {
     sorting,
   } = useTenantContactList();
 
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const handleView = useCallback((contact: { id: string }) => {
+    setSelectedId(contact.id);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    setSelectedId(null);
+  }, []);
+
   return (
     <ListFilterTableTemplate title="Inquilinos">
       <TenantFilters
@@ -29,7 +44,12 @@ export function TenantContactListPage() {
         onRetryError={refetch}
         pagination={pagination}
         sorting={sorting}
-        onView={() => {}}
+        onView={handleView}
+      />
+      <TenantContactDetailDrawer
+        contactId={selectedId}
+        open={drawerOpen}
+        onClose={handleCloseDrawer}
       />
     </ListFilterTableTemplate>
   );
