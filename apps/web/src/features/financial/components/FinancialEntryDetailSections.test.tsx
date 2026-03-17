@@ -26,10 +26,10 @@ const baseEntry: FinancialEntryDetail = {
 describe('FinancialEntryDetailSections', () => {
   it('renders section titles', () => {
     render(<FinancialEntryDetailSections entry={baseEntry} />);
-    expect(screen.getByText('Identificação')).toBeInTheDocument();
-    expect(screen.getByText('Valores')).toBeInTheDocument();
-    expect(screen.getByText('Detalhes')).toBeInTheDocument();
-    expect(screen.getByText('Registro')).toBeInTheDocument();
+    expect(screen.getByText('Identification')).toBeInTheDocument();
+    expect(screen.getByText('Values')).toBeInTheDocument();
+    expect(screen.getByText('Details')).toBeInTheDocument();
+    expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
   it('renders appointment code and description', () => {
@@ -40,14 +40,15 @@ describe('FinancialEntryDetailSections', () => {
 
   it('shows entry type chip and status chip', () => {
     render(<FinancialEntryDetailSections entry={baseEntry} />);
-    expect(screen.getByText('Débito Inquilino')).toBeInTheDocument();
-    expect(screen.getByText('Aprovado')).toBeInTheDocument();
+    expect(screen.getByText('Tenant Debit')).toBeInTheDocument();
+    expect(screen.getByText('Approved')).toBeInTheDocument();
   });
 
   it('shows amount formatted as BRL currency', () => {
     render(<FinancialEntryDetailSections entry={baseEntry} />);
+    const formatted = (-350).toLocaleString('en-AU', { style: 'currency', currency: 'BRL' });
     const matches = screen.getAllByText((_content, element) => {
-      return element?.textContent?.includes('350') && element?.textContent?.includes('R$') || false;
+      return element?.textContent?.includes('350') && (element?.textContent?.includes('R$') || element?.textContent?.includes('BRL')) || false;
     });
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
@@ -68,19 +69,20 @@ describe('FinancialEntryDetailSections', () => {
 
   it('shows notes section when present, hides when null', () => {
     render(<FinancialEntryDetailSections entry={baseEntry} />);
-    expect(screen.getByText('Observações')).toBeInTheDocument();
+    const notesMatches = screen.getAllByText('Notes');
+    expect(notesMatches.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Conferido e aprovado pelo operador')).toBeInTheDocument();
 
     const noNotes = { ...baseEntry, notes: null };
     const { container } = render(<FinancialEntryDetailSections entry={noNotes} />);
     const sections = container.querySelectorAll('h3, h4');
     const titles = Array.from(sections).map((s) => s.textContent);
-    expect(titles).not.toContain('Observações');
+    expect(titles).not.toContain('Notes');
   });
 
   it('renders createdAt and updatedAt', () => {
     render(<FinancialEntryDetailSections entry={baseEntry} />);
-    const created = new Date('2026-03-15T10:00:00Z').toLocaleString('pt-BR');
+    const created = new Date('2026-03-15T10:00:00Z').toLocaleString('en-AU');
     const matches = screen.getAllByText(created);
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });

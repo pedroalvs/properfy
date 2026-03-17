@@ -4,10 +4,10 @@ import { FinancialEntryType } from '@properfy/shared';
 import { FinancialEntryTypeChip } from './FinancialEntryTypeChip';
 
 const TYPE_LABELS: Record<FinancialEntryType, string> = {
-  TENANT_DEBIT: 'Débito Inquilino',
-  INSPECTOR_PAYOUT: 'Pagamento Inspetor',
-  REFUND: 'Reembolso',
-  MANUAL_ADJUSTMENT: 'Ajuste Manual',
+  TENANT_DEBIT: 'Tenant Debit',
+  INSPECTOR_PAYOUT: 'Inspector Payout',
+  REFUND: 'Refund',
+  MANUAL_ADJUSTMENT: 'Manual Adjustment',
 };
 
 describe('FinancialEntryTypeChip', () => {
@@ -21,7 +21,7 @@ describe('FinancialEntryTypeChip', () => {
 
   it('passes className through', () => {
     render(<FinancialEntryTypeChip entryType={FinancialEntryType.REFUND} className="my-custom" />);
-    const chip = screen.getByText('Reembolso');
+    const chip = screen.getByText('Refund');
     expect(chip.className).toContain('my-custom');
   });
 });

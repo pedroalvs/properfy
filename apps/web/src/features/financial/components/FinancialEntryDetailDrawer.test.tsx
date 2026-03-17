@@ -54,15 +54,15 @@ describe('FinancialEntryDetailDrawer', () => {
   it('shows financial status chip in header', () => {
     renderDrawer({ entryId: 'fin-01', open: true });
     act(() => { vi.advanceTimersByTime(200); });
-    const matches = screen.getAllByText('Aprovado');
+    const matches = screen.getAllByText('Approved');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows detail sections', () => {
     renderDrawer({ entryId: 'fin-01', open: true });
     act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.getByText('Identificação')).toBeInTheDocument();
-    expect(screen.getByText('Valores')).toBeInTheDocument();
+    expect(screen.getByText('Identification')).toBeInTheDocument();
+    expect(screen.getByText('Values')).toBeInTheDocument();
   });
 
   it('edit button calls showInfo snackbar', () => {
@@ -71,12 +71,12 @@ describe('FinancialEntryDetailDrawer', () => {
     const editButton = screen.getByLabelText('Editar');
     fireEvent.click(editButton);
     act(() => { vi.advanceTimersByTime(0); });
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
     renderDrawer({ entryId: 'fin-01', open: true });
-    const loadingElements = screen.getAllByText('Carregando...');
+    const loadingElements = screen.getAllByText('Loading...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
@@ -89,8 +89,8 @@ describe('FinancialEntryDetailDrawer', () => {
 
   it('shows nothing when entryId is null', () => {
     renderDrawer({ entryId: null, open: true });
-    expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
-    expect(screen.queryByText('Identificação')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Identification')).not.toBeInTheDocument();
   });
 
   it('close button calls onClose', () => {

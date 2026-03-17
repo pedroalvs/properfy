@@ -4,9 +4,9 @@ import { FinancialEntryStatus } from '@properfy/shared';
 import { FinancialStatusChip } from './FinancialStatusChip';
 
 const STATUS_LABELS: Record<FinancialEntryStatus, string> = {
-  PENDING: 'Pendente',
-  APPROVED: 'Aprovado',
-  CANCELLED: 'Cancelado',
+  PENDING: 'Pending',
+  APPROVED: 'Approved',
+  CANCELLED: 'Cancelled',
 };
 
 describe('FinancialStatusChip', () => {
@@ -20,7 +20,7 @@ describe('FinancialStatusChip', () => {
 
   it('passes className through', () => {
     render(<FinancialStatusChip status={FinancialEntryStatus.APPROVED} className="my-custom" />);
-    const chip = screen.getByText('Aprovado');
+    const chip = screen.getByText('Approved');
     expect(chip.className).toContain('my-custom');
   });
 });

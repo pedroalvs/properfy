@@ -33,8 +33,8 @@ export function FinancialListPage() {
 
   return (
     <ListFilterTableTemplate
-      title="Financeiro"
-      primaryAction={{ label: 'Nova Entrada', icon: 'mdi-plus', onClick: () => {} }}
+      title="Financial"
+      primaryAction={{ label: 'New Entry', icon: 'mdi-plus', onClick: () => {} }}
     >
       <FinancialFilters
         filters={filters}
@@ -43,7 +43,7 @@ export function FinancialListPage() {
       <FinancialTable
         data={data}
         loading={isLoading}
-        error={isError ? (errorMessage ?? 'Erro ao carregar entradas financeiras') : undefined}
+        error={isError ? (errorMessage ?? 'Failed to load financial entries') : undefined}
         onRetryError={refetch}
         pagination={pagination}
         sorting={sorting}

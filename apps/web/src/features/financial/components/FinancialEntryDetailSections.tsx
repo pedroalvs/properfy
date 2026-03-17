@@ -8,46 +8,46 @@ interface FinancialEntryDetailSectionsProps {
   entry: FinancialEntryDetail;
 }
 
-function formatDateTimeBR(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR');
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-AU');
 }
 
-function formatCurrencyBRL(amount: number): string {
-  return amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+function formatCurrency(amount: number): string {
+  return amount.toLocaleString('en-AU', { style: 'currency', currency: 'BRL' });
 }
 
 export function FinancialEntryDetailSections({ entry }: FinancialEntryDetailSectionsProps) {
   return (
     <div className="flex flex-col gap-6">
-      <FormSection title="Identificação">
-        <DetailRow label="Vistoria" value={entry.appointmentCode} />
-        <DetailRow label="Tipo" value={<FinancialEntryTypeChip entryType={entry.entryType} />} />
+      <FormSection title="Identification">
+        <DetailRow label="Inspection" value={entry.appointmentCode} />
+        <DetailRow label="Type" value={<FinancialEntryTypeChip entryType={entry.entryType} />} />
         <DetailRow label="Status" value={<FinancialStatusChip status={entry.status} />} />
-        <DetailRow label="Referência" value={entry.referenceNumber} />
+        <DetailRow label="Reference" value={entry.referenceNumber} />
       </FormSection>
 
-      <FormSection title="Valores">
-        <DetailRow label="Valor" value={formatCurrencyBRL(entry.amount)} />
-        <DetailRow label="Moeda" value={entry.currency} />
+      <FormSection title="Values">
+        <DetailRow label="Amount" value={formatCurrency(entry.amount)} />
+        <DetailRow label="Currency" value={entry.currency} />
       </FormSection>
 
-      <FormSection title="Detalhes">
-        <DetailRow label="Descrição" value={entry.description} />
-        <DetailRow label="Entidade" value={entry.relatedEntityName} />
-        <DetailRow label="Data Efetiva" value={formatDateTimeBR(entry.effectiveAt)} />
-        <DetailRow label="Aprovado Por" value={entry.approvedByName} />
-        <DetailRow label="Aprovado Em" value={entry.approvedAt ? formatDateTimeBR(entry.approvedAt) : null} />
+      <FormSection title="Details">
+        <DetailRow label="Description" value={entry.description} />
+        <DetailRow label="Entity" value={entry.relatedEntityName} />
+        <DetailRow label="Effective Date" value={formatDateTime(entry.effectiveAt)} />
+        <DetailRow label="Approved By" value={entry.approvedByName} />
+        <DetailRow label="Approved At" value={entry.approvedAt ? formatDateTime(entry.approvedAt) : null} />
       </FormSection>
 
       {entry.notes && (
-        <FormSection title="Observações">
-          <DetailRow label="Notas" value={entry.notes} />
+        <FormSection title="Notes">
+          <DetailRow label="Notes" value={entry.notes} />
         </FormSection>
       )}
 
-      <FormSection title="Registro">
-        <DetailRow label="Criado em" value={formatDateTimeBR(entry.createdAt)} />
-        <DetailRow label="Atualizado em" value={formatDateTimeBR(entry.updatedAt)} />
+      <FormSection title="Record">
+        <DetailRow label="Created at" value={formatDateTime(entry.createdAt)} />
+        <DetailRow label="Updated at" value={formatDateTime(entry.updatedAt)} />
       </FormSection>
     </div>
   );

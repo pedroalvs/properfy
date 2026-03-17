@@ -27,12 +27,12 @@ function makeEntry(overrides: Partial<FinancialEntry> = {}): FinancialEntry {
 describe('FinancialTable', () => {
   it('renders column headers', () => {
     render(<FinancialTable data={[]} />);
-    expect(screen.getByText('Vistoria')).toBeInTheDocument();
-    expect(screen.getByText('Tipo')).toBeInTheDocument();
-    expect(screen.getByText('Valor')).toBeInTheDocument();
+    expect(screen.getByText('Inspection')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
+    expect(screen.getByText('Amount')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Entidade')).toBeInTheDocument();
-    expect(screen.getByText('Data Efetiva')).toBeInTheDocument();
+    expect(screen.getByText('Entity')).toBeInTheDocument();
+    expect(screen.getByText('Effective Date')).toBeInTheDocument();
   });
 
   it('renders data (appointmentCode, relatedEntityName)', () => {
@@ -45,13 +45,13 @@ describe('FinancialTable', () => {
   it('renders FinancialEntryTypeChip for type', () => {
     const entry = makeEntry({ entryType: FinancialEntryType.REFUND });
     render(<FinancialTable data={[entry]} />);
-    expect(screen.getByText('Reembolso')).toBeInTheDocument();
+    expect(screen.getByText('Refund')).toBeInTheDocument();
   });
 
   it('renders FinancialStatusChip for status', () => {
     const entry = makeEntry({ status: FinancialEntryStatus.PENDING });
     render(<FinancialTable data={[entry]} />);
-    expect(screen.getByText('Pendente')).toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
   it('renders positive amount with green color', () => {
@@ -71,7 +71,7 @@ describe('FinancialTable', () => {
   it('renders formatted BRL currency', () => {
     const entry = makeEntry({ amount: -350 });
     render(<FinancialTable data={[entry]} />);
-    expect(screen.getByText(/R\$\s*350,00/)).toBeInTheDocument();
+    expect(screen.getByText(/350\.00/)).toBeInTheDocument();
   });
 
   it('renders formatted date for effectiveAt', () => {
@@ -82,7 +82,7 @@ describe('FinancialTable', () => {
 
   it('shows loading state', () => {
     render(<FinancialTable data={[]} loading />);
-    expect(screen.getByText('Vistoria')).toBeInTheDocument();
+    expect(screen.getByText('Inspection')).toBeInTheDocument();
   });
 
   it('shows empty state when no data', () => {
@@ -100,7 +100,7 @@ describe('FinancialTable', () => {
     const onView = vi.fn();
     const entry = makeEntry();
     render(<FinancialTable data={[entry]} onView={onView} />);
-    await userEvt.click(screen.getByLabelText('Visualizar'));
+    await userEvt.click(screen.getByLabelText('View'));
     expect(onView).toHaveBeenCalledWith(entry);
   });
 
@@ -109,7 +109,7 @@ describe('FinancialTable', () => {
     const onEdit = vi.fn();
     const entry = makeEntry();
     render(<FinancialTable data={[entry]} onEdit={onEdit} />);
-    await userEvt.click(screen.getByLabelText('Editar'));
+    await userEvt.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith(entry);
   });
 });

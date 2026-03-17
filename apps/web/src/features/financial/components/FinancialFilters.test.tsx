@@ -12,12 +12,12 @@ describe('FinancialFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Tipo')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    expect(screen.getByLabelText('Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
-  it('type select ("Tipo") shows "Todos" plus 4 type labels', async () => {
+  it('type select ("Type") shows "All" plus 4 type labels', async () => {
     const user = userEvent.setup();
     render(
       <FinancialFilters
@@ -25,16 +25,16 @@ describe('FinancialFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    await user.click(screen.getByLabelText('Tipo'));
-    const listbox = screen.getByRole('listbox', { name: 'Tipo' });
-    expect(listbox).toHaveTextContent('Todos');
-    expect(screen.getByText('Débito Inquilino')).toBeInTheDocument();
-    expect(screen.getByText('Pagamento Inspetor')).toBeInTheDocument();
-    expect(screen.getByText('Reembolso')).toBeInTheDocument();
-    expect(screen.getByText('Ajuste Manual')).toBeInTheDocument();
+    await user.click(screen.getByLabelText('Type'));
+    const listbox = screen.getByRole('listbox', { name: 'Type' });
+    expect(listbox).toHaveTextContent('All');
+    expect(screen.getByText('Tenant Debit')).toBeInTheDocument();
+    expect(screen.getByText('Inspector Payout')).toBeInTheDocument();
+    expect(screen.getByText('Refund')).toBeInTheDocument();
+    expect(screen.getByText('Manual Adjustment')).toBeInTheDocument();
   });
 
-  it('status select shows "Todos" plus 3 status labels', async () => {
+  it('status select shows "All" plus 3 status labels', async () => {
     const user = userEvent.setup();
     render(
       <FinancialFilters
@@ -44,10 +44,10 @@ describe('FinancialFilters', () => {
     );
     await user.click(screen.getByLabelText('Status'));
     const listbox = screen.getByRole('listbox', { name: 'Status' });
-    expect(listbox).toHaveTextContent('Todos');
-    expect(screen.getByText('Pendente')).toBeInTheDocument();
-    expect(screen.getByText('Aprovado')).toBeInTheDocument();
-    expect(screen.getByText('Cancelado')).toBeInTheDocument();
+    expect(listbox).toHaveTextContent('All');
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText('Approved')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
   });
 
   it('calls onFiltersChange on type selection', async () => {
@@ -59,19 +59,19 @@ describe('FinancialFilters', () => {
         onFiltersChange={onChange}
       />,
     );
-    await user.click(screen.getByLabelText('Tipo'));
-    await user.click(screen.getByText('Reembolso'));
+    await user.click(screen.getByLabelText('Type'));
+    await user.click(screen.getByText('Refund'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, entryType: 'REFUND' });
   });
 
-  it('search input accessible via "Buscar"', () => {
+  it('search input accessible via "Search"', () => {
     render(
       <FinancialFilters
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
       />,
     );
-    const input = screen.getByLabelText('Buscar');
+    const input = screen.getByLabelText('Search');
     expect(input.tagName).toBe('INPUT');
   });
 });

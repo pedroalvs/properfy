@@ -28,20 +28,20 @@ export function FinancialTable({
   const columns: DataTableColumn<FinancialEntry>[] = [
     {
       key: 'appointmentCode',
-      label: 'Vistoria',
+      label: 'Inspection',
       width: '120px',
       sortable: true,
     },
     {
       key: 'entryType',
-      label: 'Tipo',
+      label: 'Type',
       width: '180px',
       sortable: true,
       render: (row) => <FinancialEntryTypeChip entryType={row.entryType} />,
     },
     {
       key: 'amount',
-      label: 'Valor',
+      label: 'Amount',
       width: '140px',
       sortable: true,
       render: (row) => (
@@ -51,7 +51,7 @@ export function FinancialTable({
             fontWeight: 600,
           }}
         >
-          {row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          {row.amount.toLocaleString('en-AU', { style: 'currency', currency: 'BRL' })}
         </span>
       ),
     },
@@ -64,15 +64,15 @@ export function FinancialTable({
     },
     {
       key: 'relatedEntityName',
-      label: 'Entidade',
+      label: 'Entity',
       width: '160px',
     },
     {
       key: 'effectiveAt',
-      label: 'Data Efetiva',
+      label: 'Effective Date',
       width: '140px',
       sortable: true,
-      render: (row) => <>{new Date(row.effectiveAt).toLocaleDateString('pt-BR')}</>,
+      render: (row) => <>{new Date(row.effectiveAt).toLocaleDateString('en-AU')}</>,
     },
     {
       key: 'actions',
@@ -83,12 +83,12 @@ export function FinancialTable({
           actions={[
             {
               icon: 'mdi-eye-outline',
-              label: 'Visualizar',
+              label: 'View',
               onClick: () => onView?.(row),
             },
             {
               icon: 'mdi-pencil-outline',
-              label: 'Editar',
+              label: 'Edit',
               onClick: () => onEdit?.(row),
             },
           ]}

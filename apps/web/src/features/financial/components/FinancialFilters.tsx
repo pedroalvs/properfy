@@ -5,7 +5,7 @@ import { FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP } from '@/lib/stat
 import type { FinancialFiltersState } from '../types';
 
 const TYPE_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todos', value: '' },
+  { label: 'All', value: '' },
   ...Object.entries(FINANCIAL_ENTRY_TYPE_MAP).map(([value, config]) => ({
     label: config.label,
     value,
@@ -13,7 +13,7 @@ const TYPE_OPTIONS: FilterSelectOption[] = [
 ];
 
 const STATUS_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todos', value: '' },
+  { label: 'All', value: '' },
   ...Object.entries(FINANCIAL_ENTRY_STATUS_MAP).map(([value, config]) => ({
     label: config.label,
     value,
@@ -32,13 +32,13 @@ export function FinancialFilters({
   return (
     <FilterBar>
       <FilterInput
-        label="Buscar"
-        placeholder="Descrição, código da vistoria..."
+        label="Search"
+        placeholder="Description, inspection code..."
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />
       <FilterSelect
-        label="Tipo"
+        label="Type"
         value={filters.entryType}
         onChange={(entryType) => onFiltersChange({ ...filters, entryType })}
         options={TYPE_OPTIONS}
