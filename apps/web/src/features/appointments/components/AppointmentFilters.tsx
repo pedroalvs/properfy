@@ -7,7 +7,7 @@ import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import type { AppointmentFiltersState } from '../types';
 
 const STATUS_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todos', value: '' },
+  { label: 'All', value: '' },
   ...Object.entries(APPOINTMENT_STATUS_MAP).map(([value, config]) => ({
     label: config.label,
     value,
@@ -28,8 +28,8 @@ export function AppointmentFilters({
   return (
     <FilterBar>
       <FilterInput
-        label="Buscar"
-        placeholder="Código, endereço, inquilino..."
+        label="Search"
+        placeholder="Code, address, tenant..."
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />
@@ -40,20 +40,20 @@ export function AppointmentFilters({
         options={STATUS_OPTIONS}
       />
       <FilterSelect
-        label="Filial"
+        label="Branch"
         value={filters.branchId}
         onChange={(branchId) => onFiltersChange({ ...filters, branchId })}
         options={branchOptions}
       />
       <FilterDateRange
-        label="Período"
+        label="Period"
         startDate={filters.startDate}
         endDate={filters.endDate}
         onStartChange={(startDate) => onFiltersChange({ ...filters, startDate })}
         onEndChange={(endDate) => onFiltersChange({ ...filters, endDate })}
       />
       <FilterBoolean
-        label="Exibir cancelados"
+        label="Show cancelled"
         value={filters.showCancelled}
         onChange={(showCancelled) => onFiltersChange({ ...filters, showCancelled })}
       />

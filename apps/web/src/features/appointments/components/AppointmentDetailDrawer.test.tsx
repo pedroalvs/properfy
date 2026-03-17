@@ -54,11 +54,11 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     if (id === 'loading') return { appointment: null, isLoading: true, isError: false, refetch: vi.fn() };
     return {
       appointment: {
-        id: 'apt-01', code: 'VST-001', status: 'DRAFT', branchName: 'Filial Centro',
-        branchId: 'branch-1', propertyId: 'prop-1', propertyAddress: 'Rua das Flores, 123',
-        serviceTypeId: 'st-1', serviceTypeName: 'Vistoria', tenantId: 'tenant-1',
-        tenantConfirmationStatus: 'PENDING', contactName: 'João', scheduledDate: '2026-04-01',
-        timeSlot: '09:00-12:00', contactPhone: '11999', contactEmail: 'joao@test.com',
+        id: 'apt-01', code: 'VST-001', status: 'DRAFT', branchName: 'Downtown Branch',
+        branchId: 'branch-1', propertyId: 'prop-1', propertyAddress: '123 Flower Street',
+        serviceTypeId: 'st-1', serviceTypeName: 'Inspection', tenantId: 'tenant-1',
+        tenantConfirmationStatus: 'PENDING', contactName: 'John', scheduledDate: '2026-04-01',
+        timeSlot: '09:00-12:00', contactPhone: '11999', contactEmail: 'john@test.com',
         inspectorId: null, inspectorName: null, keyRequired: false,
         meetingLocation: null, keyLocation: null, cancellationReason: null,
         notes: '', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z',
@@ -118,13 +118,13 @@ describe('AppointmentDetailDrawer', () => {
 
   it('shows status chip in header', () => {
     renderDrawer({ appointmentId: 'apt-01', open: true });
-    expect(screen.getByText('Rascunho')).toBeInTheDocument();
+    expect(screen.getByText('Draft')).toBeInTheDocument();
   });
 
   it('shows detail sections', () => {
     renderDrawer({ appointmentId: 'apt-01', open: true });
-    expect(screen.getByText('Dados da Vistoria')).toBeInTheDocument();
-    expect(screen.getByText('Contato')).toBeInTheDocument();
+    expect(screen.getByText('Inspection Details')).toBeInTheDocument();
+    expect(screen.getByText('Contact')).toBeInTheDocument();
   });
 
   it('shows transition buttons for AM user', async () => {
@@ -142,15 +142,15 @@ describe('AppointmentDetailDrawer', () => {
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ appointmentId: 'apt-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
     // Snackbar renders the info message
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
     renderDrawer({ appointmentId: 'loading', open: true });
-    const loadingElements = screen.getAllByText('Carregando...');
+    const loadingElements = screen.getAllByText('Loading...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
@@ -163,27 +163,27 @@ describe('AppointmentDetailDrawer', () => {
 
   it('shows nothing when appointmentId is null', () => {
     renderDrawer({ appointmentId: null, open: true });
-    expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
-    expect(screen.queryByText('Dados da Vistoria')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Inspection Details')).not.toBeInTheDocument();
   });
 
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ appointmentId: 'apt-01', open: true, onClose });
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('edit button calls onEdit with appointment id when onEdit prop is provided', () => {
     const onEdit = vi.fn();
     renderDrawer({ appointmentId: 'apt-01', open: true, onEdit });
-    fireEvent.click(screen.getByLabelText('Editar'));
+    fireEvent.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith('apt-01');
   });
 
   it('edit button falls back to snackbar when onEdit prop is not provided', () => {
     renderDrawer({ appointmentId: 'apt-01', open: true });
-    fireEvent.click(screen.getByLabelText('Editar'));
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Edit'));
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 });

@@ -92,17 +92,17 @@ function renderPage() {
 describe('AppointmentListPage', () => {
   it('renders page title "Vistorias"', () => {
     renderPage();
-    expect(screen.getByText('Vistorias')).toBeInTheDocument();
+    expect(screen.getByText('Appointments')).toBeInTheDocument();
   });
 
-  it('renders "Nova Vistoria" CTA button', () => {
+  it('renders "New Appointment" CTA button', () => {
     renderPage();
-    expect(screen.getAllByText('Nova Vistoria').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('New Appointment').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders filter bar with search and status controls', () => {
     renderPage();
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
@@ -115,6 +115,6 @@ describe('AppointmentListPage', () => {
 
   it('shows loading state initially', () => {
     renderPage();
-    expect(screen.getByText('Código')).toBeInTheDocument();
+    expect(screen.getByText('Code')).toBeInTheDocument();
   });
 });

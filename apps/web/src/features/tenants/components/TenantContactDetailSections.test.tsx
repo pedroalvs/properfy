@@ -17,17 +17,17 @@ const baseContact: TenantContactDetail = {
   lastActivityAt: '2026-03-16T08:00:00Z',
   createdAt: '2026-03-15T10:00:00Z',
   updatedAt: '2026-03-15T10:00:00Z',
-  notes: 'Inquilino confirmou por e-mail',
+  notes: 'Tenant confirmed by email',
   alternativePhone: '11998000001',
 };
 
 describe('TenantContactDetailSections', () => {
   it('renders section titles', () => {
     render(<TenantContactDetailSections contact={baseContact} />);
-    expect(screen.getByText('Contato')).toBeInTheDocument();
-    expect(screen.getByText('Vistoria')).toBeInTheDocument();
-    expect(screen.getByText('Confirmação')).toBeInTheDocument();
-    expect(screen.getByText('Registro')).toBeInTheDocument();
+    expect(screen.getByText('Contact')).toBeInTheDocument();
+    expect(screen.getByText('Appointment')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation')).toBeInTheDocument();
+    expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
   it('renders name and email', () => {
@@ -59,7 +59,7 @@ describe('TenantContactDetailSections', () => {
 
   it('shows confirmation status chip', () => {
     render(<TenantContactDetailSections contact={baseContact} />);
-    expect(screen.getByText('Pendente')).toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
   it('shows lastActivityAt when present, em-dash when null', () => {
@@ -73,13 +73,13 @@ describe('TenantContactDetailSections', () => {
 
   it('shows notes section when present, hides when null', () => {
     render(<TenantContactDetailSections contact={baseContact} />);
-    expect(screen.getByText('Observações')).toBeInTheDocument();
-    expect(screen.getByText('Inquilino confirmou por e-mail')).toBeInTheDocument();
+    expect(screen.getByText('Observations')).toBeInTheDocument();
+    expect(screen.getByText('Tenant confirmed by email')).toBeInTheDocument();
 
     const noNotes = { ...baseContact, notes: null };
     const { container } = render(<TenantContactDetailSections contact={noNotes} />);
     const sections = container.querySelectorAll('h3, h4');
     const titles = Array.from(sections).map((s) => s.textContent);
-    expect(titles).not.toContain('Observações');
+    expect(titles).not.toContain('Observations');
   });
 });

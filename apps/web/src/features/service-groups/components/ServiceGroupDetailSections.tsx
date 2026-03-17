@@ -17,12 +17,12 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
 
   return (
     <div className="flex flex-col gap-6">
-      <FormSection title="Informações">
-        <DetailRow label="Nome" value={serviceGroup.name} />
-        <DetailRow label="Região" value={serviceGroup.regionName} />
+      <FormSection title="Information">
+        <DetailRow label="Name" value={serviceGroup.name} />
+        <DetailRow label="Region" value={serviceGroup.regionName} />
         <DetailRow label="Status" value={<ServiceGroupStatusChip status={serviceGroup.status} />} />
         <DetailRow
-          label="Prioridade"
+          label="Priority"
           value={
             <span
               className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
@@ -34,24 +34,24 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
         />
       </FormSection>
 
-      <FormSection title="Inspetor">
-        <DetailRow label="Nome do Inspetor" value={serviceGroup.inspectorName} />
+      <FormSection title="Inspector">
+        <DetailRow label="Inspector Name" value={serviceGroup.inspectorName} />
       </FormSection>
 
-      <FormSection title="Vistorias">
-        <DetailRow label="Quantidade" value={serviceGroup.appointmentsCount.toString()} />
-        <DetailRow label="Códigos" value={serviceGroup.appointmentCodes.length > 0 ? serviceGroup.appointmentCodes.join(', ') : null} />
+      <FormSection title="Appointments">
+        <DetailRow label="Count" value={serviceGroup.appointmentsCount.toString()} />
+        <DetailRow label="Codes" value={serviceGroup.appointmentCodes.length > 0 ? serviceGroup.appointmentCodes.join(', ') : null} />
       </FormSection>
 
       {serviceGroup.description && (
-        <FormSection title="Observações">
-          <DetailRow label="Descrição" value={serviceGroup.description} />
+        <FormSection title="Notes">
+          <DetailRow label="Description" value={serviceGroup.description} />
         </FormSection>
       )}
 
-      <FormSection title="Registro">
-        <DetailRow label="Criado em" value={formatDateTimeBR(serviceGroup.createdAt)} />
-        <DetailRow label="Atualizado em" value={formatDateTimeBR(serviceGroup.updatedAt)} />
+      <FormSection title="Record">
+        <DetailRow label="Created At" value={formatDateTimeBR(serviceGroup.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTimeBR(serviceGroup.updatedAt)} />
       </FormSection>
     </div>
   );

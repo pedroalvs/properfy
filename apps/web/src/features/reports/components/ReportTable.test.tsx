@@ -22,23 +22,23 @@ function makeReport(overrides: Partial<Report> = {}): Report {
 describe('ReportTable', () => {
   it('renders column headers', () => {
     render(<ReportTable data={[]} />);
-    expect(screen.getByText('Tipo')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Arquivo')).toBeInTheDocument();
-    expect(screen.getByText('Solicitado Por')).toBeInTheDocument();
-    expect(screen.getByText('Criado Em')).toBeInTheDocument();
+    expect(screen.getByText('File')).toBeInTheDocument();
+    expect(screen.getByText('Requested By')).toBeInTheDocument();
+    expect(screen.getByText('Created At')).toBeInTheDocument();
   });
 
   it('renders ReportTypeChip for type', () => {
     const report = makeReport({ reportType: ReportType.INSPECTIONS_DONE });
     render(<ReportTable data={[report]} />);
-    expect(screen.getByText('Vistorias Concluídas')).toBeInTheDocument();
+    expect(screen.getByText('Completed Inspections')).toBeInTheDocument();
   });
 
   it('renders ReportStatusChip for status', () => {
     const report = makeReport({ status: ReportStatus.PROCESSING });
     render(<ReportTable data={[report]} />);
-    expect(screen.getByText('Processando')).toBeInTheDocument();
+    expect(screen.getByText('Processing')).toBeInTheDocument();
   });
 
   it('renders fileName or em dash', () => {
@@ -63,34 +63,34 @@ describe('ReportTable', () => {
   it('shows download action when status is READY', () => {
     const report = makeReport({ status: ReportStatus.READY });
     render(<ReportTable data={[report]} />);
-    expect(screen.getByLabelText('Baixar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Download')).toBeInTheDocument();
   });
 
   it('shows retry action when status is FAILED', () => {
     const report = makeReport({ status: ReportStatus.FAILED });
     render(<ReportTable data={[report]} />);
-    expect(screen.getByLabelText('Reprocessar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Reprocess')).toBeInTheDocument();
   });
 
   it('shows view action for other statuses', () => {
     const report = makeReport({ status: ReportStatus.PENDING });
     render(<ReportTable data={[report]} />);
-    expect(screen.getByLabelText('Visualizar')).toBeInTheDocument();
+    expect(screen.getByLabelText('View')).toBeInTheDocument();
   });
 
   it('shows loading state', () => {
     render(<ReportTable data={[]} loading />);
-    expect(screen.getByText('Tipo')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
   });
 
   it('shows empty state when no data', () => {
     render(<ReportTable data={[]} />);
-    expect(screen.getByText('Nenhum registro encontrado')).toBeInTheDocument();
+    expect(screen.getByText('No records found')).toBeInTheDocument();
   });
 
   it('shows error state', () => {
-    render(<ReportTable data={[]} error="Erro de rede" />);
-    expect(screen.getByText('Erro de rede')).toBeInTheDocument();
+    render(<ReportTable data={[]} error="Network error" />);
+    expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
   it('download action calls onDownload', async () => {
@@ -98,7 +98,7 @@ describe('ReportTable', () => {
     const onDownload = vi.fn();
     const report = makeReport({ status: ReportStatus.READY });
     render(<ReportTable data={[report]} onDownload={onDownload} />);
-    await userEvt.click(screen.getByLabelText('Baixar'));
+    await userEvt.click(screen.getByLabelText('Download'));
     expect(onDownload).toHaveBeenCalledWith(report);
   });
 
@@ -107,7 +107,7 @@ describe('ReportTable', () => {
     const onRetry = vi.fn();
     const report = makeReport({ status: ReportStatus.FAILED });
     render(<ReportTable data={[report]} onRetry={onRetry} />);
-    await userEvt.click(screen.getByLabelText('Reprocessar'));
+    await userEvt.click(screen.getByLabelText('Reprocess'));
     expect(onRetry).toHaveBeenCalledWith(report);
   });
 });

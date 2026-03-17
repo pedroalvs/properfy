@@ -58,7 +58,7 @@ describe('Snackbar', () => {
     await user.click(screen.getByText('Success'));
     expect(screen.getByText('Sucesso!')).toBeInTheDocument();
 
-    await user.click(screen.getByLabelText('Fechar'));
+    await user.click(screen.getByLabelText('Close'));
     expect(screen.queryByText('Sucesso!')).not.toBeInTheDocument();
   });
 

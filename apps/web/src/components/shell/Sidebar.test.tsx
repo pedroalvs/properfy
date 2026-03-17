@@ -49,27 +49,27 @@ function renderSidebar(route = '/appointments') {
 describe('Sidebar', () => {
   it('renders navigation items', () => {
     renderSidebar();
-    expect(screen.getByLabelText('Vistorias')).toBeInTheDocument();
-    expect(screen.getByLabelText('Imóveis')).toBeInTheDocument();
-    expect(screen.getByLabelText('Grupos')).toBeInTheDocument();
-    expect(screen.getByLabelText('Financeiro')).toBeInTheDocument();
-    expect(screen.getByLabelText('Relatórios')).toBeInTheDocument();
+    expect(screen.getByLabelText('Appointments')).toBeInTheDocument();
+    expect(screen.getByLabelText('Properties')).toBeInTheDocument();
+    expect(screen.getByLabelText('Service Groups')).toBeInTheDocument();
+    expect(screen.getByLabelText('Financial')).toBeInTheDocument();
+    expect(screen.getByLabelText('Reports')).toBeInTheDocument();
   });
 
   it('renders submenu group for users', () => {
     renderSidebar();
-    expect(screen.getByLabelText('Usuários')).toBeInTheDocument();
+    expect(screen.getByLabelText('Users')).toBeInTheDocument();
   });
 
   it('marks active item matching current route', () => {
     renderSidebar('/appointments');
-    const link = screen.getByLabelText('Vistorias');
+    const link = screen.getByLabelText('Appointments');
     expect(link).toHaveClass('sidebar-active');
   });
 
   it('does not mark non-matching items as active', () => {
     renderSidebar('/appointments');
-    const link = screen.getByLabelText('Imóveis');
+    const link = screen.getByLabelText('Properties');
     expect(link).not.toHaveClass('sidebar-active');
   });
 

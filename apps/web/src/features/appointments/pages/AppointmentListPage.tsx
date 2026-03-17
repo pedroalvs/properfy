@@ -8,7 +8,7 @@ import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { useAppointmentList } from '../hooks/useAppointmentList';
 
 const BRANCH_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todas', value: '' },
+  { label: 'All', value: '' },
   { label: 'Filial Centro', value: 'branch-1' },
   { label: 'Filial Norte', value: 'branch-2' },
 ];
@@ -34,8 +34,8 @@ export function AppointmentListPage() {
   return (
     <>
       <ListFilterTableTemplate
-        title="Vistorias"
-        primaryAction={{ label: 'Nova Vistoria', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } }}
+        title="Appointments"
+        primaryAction={{ label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } }}
       >
         <AppointmentFilters
           filters={filters}
@@ -45,7 +45,7 @@ export function AppointmentListPage() {
         <AppointmentTable
           data={data}
           loading={isLoading}
-          error={isError ? (errorMessage ?? 'Erro ao carregar vistorias') : undefined}
+          error={isError ? (errorMessage ?? 'Failed to load appointments') : undefined}
           onRetryError={refetch}
           pagination={pagination}
           sorting={sorting}

@@ -21,31 +21,31 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
 
   return (
     <div className="flex flex-col gap-6">
-      <FormSection title="Dados da Vistoria">
-        <DetailRow label="Tipo de Serviço" value={appointment.serviceTypeName} />
-        <DetailRow label="Endereço" value={appointment.propertyAddress} />
-        <DetailRow label="Filial" value={appointment.branchName} />
-        <DetailRow label="Data Agendada" value={formatDateBR(appointment.scheduledDate)} />
-        <DetailRow label="Horário" value={appointment.timeSlot} />
-        <DetailRow label="Inspetor" value={appointment.inspectorName} />
+      <FormSection title="Inspection Details">
+        <DetailRow label="Service Type" value={appointment.serviceTypeName} />
+        <DetailRow label="Address" value={appointment.propertyAddress} />
+        <DetailRow label="Branch" value={appointment.branchName} />
+        <DetailRow label="Scheduled Date" value={formatDateBR(appointment.scheduledDate)} />
+        <DetailRow label="Time Slot" value={appointment.timeSlot} />
+        <DetailRow label="Inspector" value={appointment.inspectorName} />
       </FormSection>
 
-      <FormSection title="Contato">
-        <DetailRow label="Nome" value={appointment.contactName} />
-        <DetailRow label="Telefone" value={appointment.contactPhone} />
+      <FormSection title="Contact">
+        <DetailRow label="Name" value={appointment.contactName} />
+        <DetailRow label="Phone" value={appointment.contactPhone} />
         <DetailRow label="Email" value={appointment.contactEmail} />
       </FormSection>
 
-      <FormSection title="Acesso">
+      <FormSection title="Access">
         <DetailRow
-          label="Chave Necessária"
+          label="Key Required"
           value={<BooleanIcon value={appointment.keyRequired} />}
         />
-        <DetailRow label="Ponto de Encontro" value={appointment.meetingLocation} />
-        <DetailRow label="Local da Chave" value={appointment.keyLocation} />
+        <DetailRow label="Meeting Point" value={appointment.meetingLocation} />
+        <DetailRow label="Key Location" value={appointment.keyLocation} />
       </FormSection>
 
-      <FormSection title="Confirmação do Inquilino">
+      <FormSection title="Tenant Confirmation">
         <DetailRow
           label="Status"
           value={
@@ -60,16 +60,16 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
       </FormSection>
 
       {appointment.notes && (
-        <FormSection title="Observações">
-          <DetailRow label="Notas" value={appointment.notes} />
+        <FormSection title="Notes">
+          <DetailRow label="Notes" value={appointment.notes} />
         </FormSection>
       )}
 
-      <FormSection title="Registro">
-        <DetailRow label="Criado em" value={formatDateTimeBR(appointment.createdAt)} />
-        <DetailRow label="Atualizado em" value={formatDateTimeBR(appointment.updatedAt)} />
+      <FormSection title="Record">
+        <DetailRow label="Created At" value={formatDateTimeBR(appointment.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTimeBR(appointment.updatedAt)} />
         {appointment.cancellationReason && (
-          <DetailRow label="Motivo de Cancelamento/Rejeição" value={appointment.cancellationReason} />
+          <DetailRow label="Cancellation/Rejection Reason" value={appointment.cancellationReason} />
         )}
       </FormSection>
     </div>

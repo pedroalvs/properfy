@@ -55,7 +55,7 @@ export function DataTable<T>({
   pagination,
   sorting,
   onRowClick,
-  emptyMessage = 'Nenhum registro encontrado',
+  emptyMessage = 'No records found',
   keyExtractor,
 }: DataTableProps<T>) {
   const colSpan = columns.length;
@@ -82,14 +82,14 @@ export function DataTable<T>({
     return (
       <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#E0E0E0] px-4 py-3">
         <span className="text-sm text-text-secondary">
-          {`Exibindo ${start}–${end} de ${total}`}
+          {`Showing ${start}–${end} of ${total}`}
         </span>
         <div className="flex items-center gap-4">
           <select
             value={pageSize}
             onChange={(e) => pagination.onChange(1, Number(e.target.value))}
             className="rounded border border-[#E0E0E0] bg-white px-2 py-1 text-sm text-text-primary"
-            aria-label="Itens por página"
+            aria-label="Items per page"
           >
             {PAGE_SIZE_OPTIONS.map((size) => (
               <option key={size} value={size}>
@@ -103,14 +103,14 @@ export function DataTable<T>({
               disabled={page <= 1}
               className="rounded px-3 py-1 text-sm font-semibold text-primary hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-40"
             >
-              Anterior
+              Previous
             </button>
             <button
               onClick={() => pagination.onChange(page + 1, pageSize)}
               disabled={page >= totalPages}
               className="rounded px-3 py-1 text-sm font-semibold text-primary hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-40"
             >
-              Próximo
+              Next
             </button>
           </div>
         </div>

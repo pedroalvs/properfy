@@ -5,7 +5,7 @@ import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import type { ServiceGroupFiltersState } from '../types';
 
 const STATUS_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todos', value: '' },
+  { label: 'All', value: '' },
   ...Object.entries(SERVICE_GROUP_STATUS_MAP).map(([value, config]) => ({
     label: config.label,
     value,
@@ -24,8 +24,8 @@ export function ServiceGroupFilters({
   return (
     <FilterBar>
       <FilterInput
-        label="Buscar"
-        placeholder="Nome, região, inspetor..."
+        label="Search"
+        placeholder="Name, region, inspector..."
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />

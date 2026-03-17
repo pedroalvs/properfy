@@ -51,7 +51,7 @@ describe('DataTable', () => {
 
   it('shows empty state when data is empty', () => {
     render(<DataTable columns={columns} data={[]} />);
-    expect(screen.getByText('Nenhum registro encontrado')).toBeInTheDocument();
+    expect(screen.getByText('No records found')).toBeInTheDocument();
   });
 
   it('shows custom empty message', () => {
@@ -101,9 +101,9 @@ describe('DataTable', () => {
         pagination={{ page: 1, pageSize: 10, total: 25, onChange: () => {} }}
       />,
     );
-    expect(screen.getByText(/Exibindo 1.10 de 25/)).toBeInTheDocument();
-    expect(screen.getByText('Anterior')).toBeDisabled();
-    expect(screen.getByText('Próximo')).not.toBeDisabled();
+    expect(screen.getByText(/Showing 1.10 of 25/)).toBeInTheDocument();
+    expect(screen.getByText('Previous')).toBeDisabled();
+    expect(screen.getByText('Next')).not.toBeDisabled();
   });
 
   it('handles pagination page change', async () => {
@@ -116,7 +116,7 @@ describe('DataTable', () => {
         pagination={{ page: 2, pageSize: 10, total: 25, onChange }}
       />,
     );
-    await user.click(screen.getByText('Anterior'));
+    await user.click(screen.getByText('Previous'));
     expect(onChange).toHaveBeenCalledWith(1, 10);
   });
 
@@ -130,7 +130,7 @@ describe('DataTable', () => {
         pagination={{ page: 1, pageSize: 10, total: 25, onChange }}
       />,
     );
-    await user.selectOptions(screen.getByLabelText('Itens por página'), '20');
+    await user.selectOptions(screen.getByLabelText('Items per page'), '20');
     expect(onChange).toHaveBeenCalledWith(1, 20);
   });
 

@@ -17,22 +17,22 @@ export function PropertyDetailSections({ property }: PropertyDetailSectionsProps
 
   return (
     <div className="flex flex-col gap-6">
-      <FormSection title="Identificação">
-        <DetailRow label="Código" value={property.propertyCode} />
-        <DetailRow label="Tipo" value={<PropertyTypeChip type={property.type} />} />
-        <DetailRow label="Filial" value={property.branchName} />
+      <FormSection title="Identification">
+        <DetailRow label="Code" value={property.propertyCode} />
+        <DetailRow label="Type" value={<PropertyTypeChip type={property.type} />} />
+        <DetailRow label="Branch" value={property.branchName} />
       </FormSection>
 
-      <FormSection title="Endereço">
-        <DetailRow label="Logradouro" value={property.street} />
-        <DetailRow label="Complemento" value={property.addressLine2} />
-        <DetailRow label="Bairro" value={property.suburb} />
-        <DetailRow label="CEP" value={property.postcode} />
-        <DetailRow label="Estado" value={property.state} />
-        <DetailRow label="País" value={property.country} />
+      <FormSection title="Address">
+        <DetailRow label="Street" value={property.street} />
+        <DetailRow label="Address Line 2" value={property.addressLine2} />
+        <DetailRow label="Suburb" value={property.suburb} />
+        <DetailRow label="Postcode" value={property.postcode} />
+        <DetailRow label="State" value={property.state} />
+        <DetailRow label="Country" value={property.country} />
       </FormSection>
 
-      <FormSection title="Geocodificação">
+      <FormSection title="Geocoding">
         <DetailRow
           label="Status"
           value={
@@ -49,14 +49,14 @@ export function PropertyDetailSections({ property }: PropertyDetailSectionsProps
       </FormSection>
 
       {property.notes && (
-        <FormSection title="Observações">
-          <DetailRow label="Notas" value={property.notes} />
+        <FormSection title="Observations">
+          <DetailRow label="Notes" value={property.notes} />
         </FormSection>
       )}
 
-      <FormSection title="Registro">
-        <DetailRow label="Criado em" value={formatDateTimeBR(property.createdAt)} />
-        <DetailRow label="Atualizado em" value={formatDateTimeBR(property.updatedAt)} />
+      <FormSection title="Record">
+        <DetailRow label="Created At" value={formatDateTimeBR(property.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTimeBR(property.updatedAt)} />
       </FormSection>
     </div>
   );

@@ -26,12 +26,12 @@ function makeUser(overrides: Partial<User> = {}): User {
 describe('UserTable', () => {
   it('renders column headers', () => {
     render(<UserTable data={[]} />);
-    expect(screen.getByText('Nome')).toBeInTheDocument();
-    expect(screen.getByText('E-mail')).toBeInTheDocument();
-    expect(screen.getByText('Perfil')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Email')).toBeInTheDocument();
+    expect(screen.getByText('Role')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Filial')).toBeInTheDocument();
-    expect(screen.getByText('Último Acesso')).toBeInTheDocument();
+    expect(screen.getByText('Branch')).toBeInTheDocument();
+    expect(screen.getByText('Last Login')).toBeInTheDocument();
   });
 
   it('renders user data (name, email)', () => {
@@ -44,13 +44,13 @@ describe('UserTable', () => {
   it('renders UserRoleChip for role column', () => {
     const user = makeUser({ role: UserRole.OP });
     render(<UserTable data={[user]} />);
-    expect(screen.getByText('Operador')).toBeInTheDocument();
+    expect(screen.getByText('Operator')).toBeInTheDocument();
   });
 
   it('renders UserStatusChip for status column', () => {
     const user = makeUser({ status: UserStatus.LOCKED });
     render(<UserTable data={[user]} />);
-    expect(screen.getByText('Bloqueado')).toBeInTheDocument();
+    expect(screen.getByText('Blocked')).toBeInTheDocument();
   });
 
   it('renders em dash for null branchName', () => {
@@ -75,17 +75,17 @@ describe('UserTable', () => {
 
   it('shows loading state', () => {
     render(<UserTable data={[]} loading />);
-    expect(screen.getByText('Nome')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
   });
 
   it('shows empty state when no data', () => {
     render(<UserTable data={[]} />);
-    expect(screen.getByText('Nenhum registro encontrado')).toBeInTheDocument();
+    expect(screen.getByText('No records found')).toBeInTheDocument();
   });
 
   it('shows error state', () => {
-    render(<UserTable data={[]} error="Erro de rede" />);
-    expect(screen.getByText('Erro de rede')).toBeInTheDocument();
+    render(<UserTable data={[]} error="Network error" />);
+    expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
   it('view action calls onView with correct user', async () => {
@@ -93,7 +93,7 @@ describe('UserTable', () => {
     const onView = vi.fn();
     const user = makeUser();
     render(<UserTable data={[user]} onView={onView} />);
-    await userEvt.click(screen.getByLabelText('Visualizar'));
+    await userEvt.click(screen.getByLabelText('View'));
     expect(onView).toHaveBeenCalledWith(user);
   });
 
@@ -102,7 +102,7 @@ describe('UserTable', () => {
     const onEdit = vi.fn();
     const user = makeUser();
     render(<UserTable data={[user]} onEdit={onEdit} />);
-    await userEvt.click(screen.getByLabelText('Editar'));
+    await userEvt.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith(user);
   });
 });

@@ -26,19 +26,19 @@ describe('APPOINTMENT_STATUS_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.DRAFT].label).toBe('Rascunho');
-    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.AWAITING_INSPECTOR].label).toBe('Aguardando Inspetor');
-    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.SCHEDULED].label).toBe('Agendado');
-    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.DONE].label).toBe('Concluído');
-    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.CANCELLED].label).toBe('Cancelado');
-    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.REJECTED].label).toBe('Rejeitado');
+  it('returns correct labels', () => {
+    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.DRAFT].label).toBe('Draft');
+    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.AWAITING_INSPECTOR].label).toBe('Awaiting Inspector');
+    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.SCHEDULED].label).toBe('Scheduled');
+    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.DONE].label).toBe('Done');
+    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.CANCELLED].label).toBe('Cancelled');
+    expect(APPOINTMENT_STATUS_MAP[AppointmentStatus.REJECTED].label).toBe('Rejected');
   });
 
   it('getStatusStyle returns the correct style', () => {
     const style = getStatusStyle(AppointmentStatus.DONE);
     expect(style.bg).toBe('var(--color-status-done)');
-    expect(style.label).toBe('Concluído');
+    expect(style.label).toBe('Done');
   });
 });
 
@@ -64,9 +64,9 @@ describe('PROPERTY_TYPE_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(PROPERTY_TYPE_MAP[PropertyType.RESIDENTIAL].label).toBe('Residencial');
-    expect(PROPERTY_TYPE_MAP[PropertyType.COMMERCIAL].label).toBe('Comercial');
+  it('returns correct labels', () => {
+    expect(PROPERTY_TYPE_MAP[PropertyType.RESIDENTIAL].label).toBe('Residential');
+    expect(PROPERTY_TYPE_MAP[PropertyType.COMMERCIAL].label).toBe('Commercial');
     expect(PROPERTY_TYPE_MAP[PropertyType.INDUSTRIAL].label).toBe('Industrial');
     expect(PROPERTY_TYPE_MAP[PropertyType.RURAL].label).toBe('Rural');
   });
@@ -92,9 +92,9 @@ describe('INSPECTOR_STATUS_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(INSPECTOR_STATUS_MAP[InspectorStatus.ACTIVE].label).toBe('Ativo');
-    expect(INSPECTOR_STATUS_MAP[InspectorStatus.INACTIVE].label).toBe('Inativo');
+  it('returns correct labels', () => {
+    expect(INSPECTOR_STATUS_MAP[InspectorStatus.ACTIVE].label).toBe('Active');
+    expect(INSPECTOR_STATUS_MAP[InspectorStatus.INACTIVE].label).toBe('Inactive');
   });
 });
 
@@ -120,11 +120,11 @@ describe('SERVICE_GROUP_STATUS_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.DRAFT].label).toBe('Rascunho');
-    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.PUBLISHED].label).toBe('Publicado');
-    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.ACCEPTED].label).toBe('Aceito');
-    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.CANCELLED].label).toBe('Cancelado');
+  it('returns correct labels', () => {
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.DRAFT].label).toBe('Draft');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.PUBLISHED].label).toBe('Published');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.ACCEPTED].label).toBe('Accepted');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.CANCELLED].label).toBe('Cancelled');
   });
 });
 
@@ -148,9 +148,9 @@ describe('PRIORITY_MODE_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(PRIORITY_MODE_MAP[PriorityMode.STANDARD].label).toBe('Padrão');
-    expect(PRIORITY_MODE_MAP[PriorityMode.PRIORITY_24H].label).toBe('Prioridade 24h');
+  it('returns correct labels', () => {
+    expect(PRIORITY_MODE_MAP[PriorityMode.STANDARD].label).toBe('Standard');
+    expect(PRIORITY_MODE_MAP[PriorityMode.PRIORITY_24H].label).toBe('24h Priority');
   });
 });
 
@@ -178,13 +178,13 @@ describe('USER_ROLE_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
+  it('returns correct labels', () => {
     expect(USER_ROLE_MAP[UserRole.AM].label).toBe('Admin Master');
-    expect(USER_ROLE_MAP[UserRole.OP].label).toBe('Operador');
-    expect(USER_ROLE_MAP[UserRole.CL_ADMIN].label).toBe('Admin Cliente');
-    expect(USER_ROLE_MAP[UserRole.CL_USER].label).toBe('Usuário Cliente');
-    expect(USER_ROLE_MAP[UserRole.INSP].label).toBe('Inspetor');
-    expect(USER_ROLE_MAP[UserRole.TNT].label).toBe('Inquilino');
+    expect(USER_ROLE_MAP[UserRole.OP].label).toBe('Operator');
+    expect(USER_ROLE_MAP[UserRole.CL_ADMIN].label).toBe('Client Admin');
+    expect(USER_ROLE_MAP[UserRole.CL_USER].label).toBe('Client User');
+    expect(USER_ROLE_MAP[UserRole.INSP].label).toBe('Inspector');
+    expect(USER_ROLE_MAP[UserRole.TNT].label).toBe('Tenant');
   });
 });
 
@@ -209,10 +209,10 @@ describe('USER_STATUS_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(USER_STATUS_MAP[UserStatus.ACTIVE].label).toBe('Ativo');
-    expect(USER_STATUS_MAP[UserStatus.INACTIVE].label).toBe('Inativo');
-    expect(USER_STATUS_MAP[UserStatus.LOCKED].label).toBe('Bloqueado');
+  it('returns correct labels', () => {
+    expect(USER_STATUS_MAP[UserStatus.ACTIVE].label).toBe('Active');
+    expect(USER_STATUS_MAP[UserStatus.INACTIVE].label).toBe('Inactive');
+    expect(USER_STATUS_MAP[UserStatus.LOCKED].label).toBe('Blocked');
   });
 });
 
@@ -296,11 +296,11 @@ describe('TENANT_CONFIRMATION_STATUS_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.PENDING].label).toBe('Pendente');
-    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.CONFIRMED].label).toBe('Confirmado');
-    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.UNAVAILABLE].label).toBe('Indisponível');
-    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.NO_RESPONSE].label).toBe('Sem Resposta');
+  it('returns correct labels', () => {
+    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.PENDING].label).toBe('Pending');
+    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.CONFIRMED].label).toBe('Confirmed');
+    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.UNAVAILABLE].label).toBe('Unavailable');
+    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.NO_RESPONSE].label).toBe('No Response');
   });
 });
 
@@ -329,14 +329,14 @@ describe('REPORT_TYPE_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(REPORT_TYPE_MAP[ReportType.INSPECTIONS_SCHEDULED].label).toBe('Vistorias Agendadas');
-    expect(REPORT_TYPE_MAP[ReportType.INSPECTIONS_DONE].label).toBe('Vistorias Concluídas');
-    expect(REPORT_TYPE_MAP[ReportType.INSPECTIONS_CANCELLED].label).toBe('Vistorias Canceladas');
-    expect(REPORT_TYPE_MAP[ReportType.INSPECTIONS_REJECTED].label).toBe('Vistorias Rejeitadas');
-    expect(REPORT_TYPE_MAP[ReportType.INSPECTOR_PERFORMANCE].label).toBe('Desempenho Inspetores');
-    expect(REPORT_TYPE_MAP[ReportType.CONFIRMATION_STATUS].label).toBe('Status Confirmação');
-    expect(REPORT_TYPE_MAP[ReportType.FINANCIAL_SERVICES].label).toBe('Serviços Financeiros');
+  it('returns correct labels', () => {
+    expect(REPORT_TYPE_MAP[ReportType.INSPECTIONS_SCHEDULED].label).toBe('Scheduled Inspections');
+    expect(REPORT_TYPE_MAP[ReportType.INSPECTIONS_DONE].label).toBe('Completed Inspections');
+    expect(REPORT_TYPE_MAP[ReportType.INSPECTIONS_CANCELLED].label).toBe('Cancelled Inspections');
+    expect(REPORT_TYPE_MAP[ReportType.INSPECTIONS_REJECTED].label).toBe('Rejected Inspections');
+    expect(REPORT_TYPE_MAP[ReportType.INSPECTOR_PERFORMANCE].label).toBe('Inspector Performance');
+    expect(REPORT_TYPE_MAP[ReportType.CONFIRMATION_STATUS].label).toBe('Confirmation Status');
+    expect(REPORT_TYPE_MAP[ReportType.FINANCIAL_SERVICES].label).toBe('Financial Services');
   });
 });
 
@@ -362,10 +362,10 @@ describe('REPORT_STATUS_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(REPORT_STATUS_MAP[ReportStatus.PENDING].label).toBe('Pendente');
-    expect(REPORT_STATUS_MAP[ReportStatus.PROCESSING].label).toBe('Processando');
-    expect(REPORT_STATUS_MAP[ReportStatus.READY].label).toBe('Pronto');
-    expect(REPORT_STATUS_MAP[ReportStatus.FAILED].label).toBe('Falhou');
+  it('returns correct labels', () => {
+    expect(REPORT_STATUS_MAP[ReportStatus.PENDING].label).toBe('Pending');
+    expect(REPORT_STATUS_MAP[ReportStatus.PROCESSING].label).toBe('Processing');
+    expect(REPORT_STATUS_MAP[ReportStatus.READY].label).toBe('Ready');
+    expect(REPORT_STATUS_MAP[ReportStatus.FAILED].label).toBe('Failed');
   });
 });

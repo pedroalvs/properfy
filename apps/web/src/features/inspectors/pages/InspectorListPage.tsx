@@ -27,9 +27,9 @@ export function InspectorListPage() {
   return (
     <>
       <ListFilterTableTemplate
-        title="Inspetores"
+        title="Inspectors"
         primaryAction={{
-          label: 'Novo Inspetor',
+          label: 'New Inspector',
           icon: 'mdi-plus',
           onClick: () => {
             setEditId(null);
@@ -44,7 +44,7 @@ export function InspectorListPage() {
         <InspectorTable
           data={data}
           loading={isLoading}
-          error={isError ? (errorMessage ?? 'Erro ao carregar inspetores') : undefined}
+          error={isError ? (errorMessage ?? 'Failed to load inspectors') : undefined}
           onRetryError={refetch}
           pagination={pagination}
           sorting={sorting}

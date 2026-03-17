@@ -11,14 +11,14 @@ describe('DrawerHeader', () => {
 
   it('renders close button', () => {
     render(<DrawerHeader title="Test" onClose={() => {}} />);
-    expect(screen.getByLabelText('Fechar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Close')).toBeInTheDocument();
   });
 
   it('calls onClose on close click', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(<DrawerHeader title="Test" onClose={onClose} />);
-    await user.click(screen.getByLabelText('Fechar'));
+    await user.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -27,14 +27,14 @@ describe('DrawerHeader', () => {
       <DrawerHeader
         title="Test"
         onClose={() => {}}
-        actions={<button data-testid="edit-btn">Editar</button>}
+        actions={<button data-testid="edit-btn">Edit</button>}
       />,
     );
     expect(screen.getByTestId('edit-btn')).toBeInTheDocument();
   });
 
-  it('close button has aria-label "Fechar"', () => {
+  it('close button has aria-label "Close"', () => {
     render(<DrawerHeader title="Test" onClose={() => {}} />);
-    expect(screen.getByLabelText('Fechar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Close')).toBeInTheDocument();
   });
 });

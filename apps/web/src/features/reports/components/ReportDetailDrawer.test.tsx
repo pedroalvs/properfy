@@ -110,26 +110,26 @@ describe('ReportDetailDrawer', () => {
 
   it('shows report status chip in header', () => {
     renderDrawer({ reportId: 'rpt-01', open: true });
-    const matches = screen.getAllByText('Pronto');
+    const matches = screen.getAllByText('Ready');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows detail sections', () => {
     renderDrawer({ reportId: 'rpt-01', open: true });
-    expect(screen.getAllByText('Relatório').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Arquivo')).toBeInTheDocument();
+    expect(screen.getAllByText('Report').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('File')).toBeInTheDocument();
   });
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ reportId: 'rpt-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
     renderDrawer({ reportId: 'loading', open: true });
-    const loadingElements = screen.getAllByText('Carregando...');
+    const loadingElements = screen.getAllByText('Loading...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
@@ -141,14 +141,14 @@ describe('ReportDetailDrawer', () => {
 
   it('shows nothing when reportId is null', () => {
     renderDrawer({ reportId: null, open: true });
-    expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
-    expect(screen.queryByText('Arquivo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(screen.queryByText('File')).not.toBeInTheDocument();
   });
 
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ reportId: 'rpt-01', open: true, onClose });
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
 });

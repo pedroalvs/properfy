@@ -26,9 +26,9 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
 describe('InspectorDetailSections', () => {
   it('renders section titles', () => {
     render(<InspectorDetailSections inspector={makeInspector()} />);
-    expect(screen.getByText('Dados Pessoais')).toBeInTheDocument();
-    expect(screen.getByText('Atuação')).toBeInTheDocument();
-    expect(screen.getByText('Registro')).toBeInTheDocument();
+    expect(screen.getByText('Personal Details')).toBeInTheDocument();
+    expect(screen.getByText('Coverage')).toBeInTheDocument();
+    expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
   it('renders name and email', () => {

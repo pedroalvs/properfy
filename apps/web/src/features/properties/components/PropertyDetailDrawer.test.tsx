@@ -116,26 +116,26 @@ describe('PropertyDetailDrawer', () => {
 
   it('shows property type chip in header', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    const matches = screen.getAllByText('Residencial');
+    const matches = screen.getAllByText('Residential');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows detail sections', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    expect(screen.getByText('Identificação')).toBeInTheDocument();
-    expect(screen.getByText('Endereço')).toBeInTheDocument();
+    expect(screen.getByText('Identification')).toBeInTheDocument();
+    expect(screen.getByText('Address')).toBeInTheDocument();
   });
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
     renderDrawer({ propertyId: 'loading', open: true });
-    const loadingElements = screen.getAllByText('Carregando...');
+    const loadingElements = screen.getAllByText('Loading...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
@@ -147,34 +147,34 @@ describe('PropertyDetailDrawer', () => {
 
   it('shows nothing when propertyId is null', () => {
     renderDrawer({ propertyId: null, open: true });
-    expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
-    expect(screen.queryByText('Identificação')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Identification')).not.toBeInTheDocument();
   });
 
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ propertyId: 'prop-01', open: true, onClose });
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('renders geocoding status', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    expect(screen.getByText('Sucesso')).toBeInTheDocument();
+    expect(screen.getByText('Success')).toBeInTheDocument();
   });
 
   it('edit button calls onEdit with property id when onEdit prop is provided', () => {
     const onEdit = vi.fn();
     renderDrawer({ propertyId: 'prop-01', open: true, onEdit });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
     expect(onEdit).toHaveBeenCalledWith('prop-01');
   });
 
   it('edit button falls back to snackbar when onEdit prop is not provided', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 });

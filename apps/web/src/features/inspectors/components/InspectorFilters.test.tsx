@@ -12,11 +12,11 @@ describe('InspectorFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
-  it('status select shows "Todos" plus 2 status labels', async () => {
+  it('status select shows "All" plus 2 status labels', async () => {
     const user = userEvent.setup();
     render(
       <InspectorFilters
@@ -26,9 +26,9 @@ describe('InspectorFilters', () => {
     );
     await user.click(screen.getByLabelText('Status'));
     const listbox = screen.getByRole('listbox', { name: 'Status' });
-    expect(listbox).toHaveTextContent('Todos');
-    expect(screen.getByText('Ativo')).toBeInTheDocument();
-    expect(screen.getByText('Inativo')).toBeInTheDocument();
+    expect(listbox).toHaveTextContent('All');
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Inactive')).toBeInTheDocument();
   });
 
   it('calls onFiltersChange on status selection', async () => {
@@ -41,18 +41,18 @@ describe('InspectorFilters', () => {
       />,
     );
     await user.click(screen.getByLabelText('Status'));
-    await user.click(screen.getByText('Ativo'));
+    await user.click(screen.getByText('Active'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'ACTIVE' });
   });
 
-  it('search input accessible via "Buscar"', () => {
+  it('search input accessible via "Search"', () => {
     render(
       <InspectorFilters
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
       />,
     );
-    const input = screen.getByLabelText('Buscar');
+    const input = screen.getByLabelText('Search');
     expect(input.tagName).toBe('INPUT');
   });
 });

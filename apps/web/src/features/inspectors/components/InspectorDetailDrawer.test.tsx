@@ -110,25 +110,25 @@ describe('InspectorDetailDrawer', () => {
 
   it('shows inspector status chip in header', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    expect(screen.getByText('Ativo')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
   it('shows detail sections', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    expect(screen.getByText('Dados Pessoais')).toBeInTheDocument();
-    expect(screen.getByText('Atuação')).toBeInTheDocument();
+    expect(screen.getByText('Personal Details')).toBeInTheDocument();
+    expect(screen.getByText('Coverage')).toBeInTheDocument();
   });
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
     renderDrawer({ inspectorId: 'loading', open: true });
-    const loadingElements = screen.getAllByText('Carregando...');
+    const loadingElements = screen.getAllByText('Loading...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
@@ -140,27 +140,27 @@ describe('InspectorDetailDrawer', () => {
 
   it('shows nothing when inspectorId is null', () => {
     renderDrawer({ inspectorId: null, open: true });
-    expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
-    expect(screen.queryByText('Dados Pessoais')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Personal Details')).not.toBeInTheDocument();
   });
 
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ inspectorId: 'insp-01', open: true, onClose });
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('edit button calls onEdit with inspector id when onEdit prop is provided', () => {
     const onEdit = vi.fn();
     renderDrawer({ inspectorId: 'insp-01', open: true, onEdit });
-    fireEvent.click(screen.getByLabelText('Editar'));
+    fireEvent.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith('insp-01');
   });
 
   it('edit button falls back to snackbar when onEdit prop is not provided', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    fireEvent.click(screen.getByLabelText('Editar'));
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Edit'));
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 });

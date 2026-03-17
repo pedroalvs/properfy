@@ -23,12 +23,12 @@ function makeInspector(overrides: Partial<Inspector> = {}): Inspector {
 describe('InspectorTable', () => {
   it('renders column headers', () => {
     render(<InspectorTable data={[]} />);
-    expect(screen.getByText('Nome')).toBeInTheDocument();
-    expect(screen.getByText('E-mail')).toBeInTheDocument();
-    expect(screen.getByText('Telefone')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Email')).toBeInTheDocument();
+    expect(screen.getByText('Phone')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Regiões')).toBeInTheDocument();
-    expect(screen.getByText('Serviços')).toBeInTheDocument();
+    expect(screen.getByText('Regions')).toBeInTheDocument();
+    expect(screen.getByText('Services')).toBeInTheDocument();
   });
 
   it('renders inspector data (name, email, regions/services counts)', () => {
@@ -43,7 +43,7 @@ describe('InspectorTable', () => {
   it('renders InspectorStatusChip', () => {
     const insp = makeInspector({ status: InspectorStatus.INACTIVE });
     render(<InspectorTable data={[insp]} />);
-    expect(screen.getByText('Inativo')).toBeInTheDocument();
+    expect(screen.getByText('Inactive')).toBeInTheDocument();
   });
 
   it('renders em dash for null phone', () => {
@@ -54,17 +54,17 @@ describe('InspectorTable', () => {
 
   it('shows loading state', () => {
     render(<InspectorTable data={[]} loading />);
-    expect(screen.getByText('Nome')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
   });
 
   it('shows empty state when no data', () => {
     render(<InspectorTable data={[]} />);
-    expect(screen.getByText('Nenhum registro encontrado')).toBeInTheDocument();
+    expect(screen.getByText('No records found')).toBeInTheDocument();
   });
 
   it('shows error state', () => {
-    render(<InspectorTable data={[]} error="Erro de rede" />);
-    expect(screen.getByText('Erro de rede')).toBeInTheDocument();
+    render(<InspectorTable data={[]} error="Network error" />);
+    expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
   it('view action calls onView with correct inspector', async () => {
@@ -72,7 +72,7 @@ describe('InspectorTable', () => {
     const onView = vi.fn();
     const insp = makeInspector();
     render(<InspectorTable data={[insp]} onView={onView} />);
-    await user.click(screen.getByLabelText('Visualizar'));
+    await user.click(screen.getByLabelText('View'));
     expect(onView).toHaveBeenCalledWith(insp);
   });
 
@@ -81,7 +81,7 @@ describe('InspectorTable', () => {
     const onEdit = vi.fn();
     const insp = makeInspector();
     render(<InspectorTable data={[insp]} onEdit={onEdit} />);
-    await user.click(screen.getByLabelText('Editar'));
+    await user.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith(insp);
   });
 });

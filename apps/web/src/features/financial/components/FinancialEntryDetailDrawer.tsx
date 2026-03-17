@@ -45,7 +45,7 @@ export function FinancialEntryDetailDrawer({ entryId, open, onClose, onEdit }: F
               actions={
                 <>
                   <FinancialStatusChip status={entry.status} />
-                  <Button variant="icon" onClick={handleEdit} aria-label="Editar">
+                  <Button variant="icon" onClick={handleEdit} aria-label="Edit">
                     <i className="mdi mdi-pencil-outline text-xl" />
                   </Button>
                 </>

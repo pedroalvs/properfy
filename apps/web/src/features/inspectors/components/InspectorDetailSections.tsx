@@ -21,22 +21,22 @@ function formatRating(rating: number | null): string | null {
 export function InspectorDetailSections({ inspector }: InspectorDetailSectionsProps) {
   return (
     <div className="flex flex-col gap-6">
-      <FormSection title="Dados Pessoais">
-        <DetailRow label="Nome" value={inspector.name} />
-        <DetailRow label="E-mail" value={inspector.email} />
-        <DetailRow label="Telefone" value={inspector.phone} />
+      <FormSection title="Personal Details">
+        <DetailRow label="Name" value={inspector.name} />
+        <DetailRow label="Email" value={inspector.email} />
+        <DetailRow label="Phone" value={inspector.phone} />
         <DetailRow label="CPF" value={inspector.document} />
       </FormSection>
 
-      <FormSection title="Atuação">
-        <DetailRow label="Regiões" value={formatList(inspector.regions)} />
-        <DetailRow label="Tipos de Serviço" value={formatList(inspector.serviceTypes)} />
-        <DetailRow label="Avaliação" value={formatRating(inspector.rating)} />
+      <FormSection title="Coverage">
+        <DetailRow label="Regions" value={formatList(inspector.regions)} />
+        <DetailRow label="Service Types" value={formatList(inspector.serviceTypes)} />
+        <DetailRow label="Rating" value={formatRating(inspector.rating)} />
       </FormSection>
 
-      <FormSection title="Registro">
-        <DetailRow label="Criado em" value={formatDateTimeBR(inspector.createdAt)} />
-        <DetailRow label="Atualizado em" value={formatDateTimeBR(inspector.updatedAt)} />
+      <FormSection title="Record">
+        <DetailRow label="Created At" value={formatDateTimeBR(inspector.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTimeBR(inspector.updatedAt)} />
       </FormSection>
     </div>
   );

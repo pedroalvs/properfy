@@ -5,7 +5,7 @@ import { USER_ROLE_MAP, USER_STATUS_MAP } from '@/lib/status-colors';
 import type { UserFiltersState } from '../types';
 
 const ROLE_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todos', value: '' },
+  { label: 'All', value: '' },
   ...Object.entries(USER_ROLE_MAP).map(([value, config]) => ({
     label: config.label,
     value,
@@ -13,7 +13,7 @@ const ROLE_OPTIONS: FilterSelectOption[] = [
 ];
 
 const STATUS_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todos', value: '' },
+  { label: 'All', value: '' },
   ...Object.entries(USER_STATUS_MAP).map(([value, config]) => ({
     label: config.label,
     value,
@@ -32,13 +32,13 @@ export function UserFilters({
   return (
     <FilterBar>
       <FilterInput
-        label="Buscar"
-        placeholder="Nome, e-mail, telefone..."
+        label="Search"
+        placeholder="Name, email, phone..."
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />
       <FilterSelect
-        label="Perfil"
+        label="Role"
         value={filters.role}
         onChange={(role) => onFiltersChange({ ...filters, role })}
         options={ROLE_OPTIONS}

@@ -40,7 +40,7 @@ export function AppointmentDetailDrawer({
       setTransitionLoading(true);
       await new Promise((resolve) => setTimeout(resolve, 500));
       setTransitionLoading(false);
-      showSuccess('Transição realizada');
+      showSuccess('Transition completed');
       refetch();
     },
     [showSuccess, refetch],
@@ -50,7 +50,7 @@ export function AppointmentDetailDrawer({
     if (onEdit && appointmentId) {
       onEdit(appointmentId);
     } else {
-      showInfo('Edição em breve');
+      showInfo('Editing coming soon');
     }
   }, [onEdit, appointmentId, showInfo]);
 
@@ -59,7 +59,7 @@ export function AppointmentDetailDrawer({
       <div className="flex h-full flex-col">
         {isLoading ? (
           <>
-            <DrawerHeader title="Carregando..." onClose={onClose} />
+            <DrawerHeader title="Loading..." onClose={onClose} />
             <div className="flex-1 px-6 py-4">
               <LoadingState rows={6} />
             </div>
@@ -72,7 +72,7 @@ export function AppointmentDetailDrawer({
               actions={
                 <>
                   <StatusChip status={appointment.status} />
-                  <Button variant="icon" onClick={handleEdit} aria-label="Editar">
+                  <Button variant="icon" onClick={handleEdit} aria-label="Edit">
                     <i className="mdi mdi-pencil-outline text-xl" />
                   </Button>
                 </>

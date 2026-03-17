@@ -3,37 +3,37 @@ import type { AppointmentTransition } from '../types';
 
 const TRANSITION_META: Record<string, Omit<AppointmentTransition, 'targetStatus'>> = {
   [AppointmentStatus.AWAITING_INSPECTOR]: {
-    label: 'Liberar para Inspetor',
+    label: 'Release to Inspector',
     icon: 'mdi-account-search',
     variant: 'primary',
     requiresReason: false,
   },
   [AppointmentStatus.SCHEDULED]: {
-    label: 'Agendar',
+    label: 'Schedule',
     icon: 'mdi-calendar-check',
     variant: 'primary',
     requiresReason: false,
   },
   [AppointmentStatus.DONE]: {
-    label: 'Marcar como Concluído',
+    label: 'Mark as Done',
     icon: 'mdi-check-circle',
     variant: 'primary',
     requiresReason: false,
   },
   [AppointmentStatus.CANCELLED]: {
-    label: 'Cancelar',
+    label: 'Cancel',
     icon: 'mdi-cancel',
     variant: 'danger',
     requiresReason: true,
   },
   [AppointmentStatus.REJECTED]: {
-    label: 'Rejeitar',
+    label: 'Reject',
     icon: 'mdi-close-circle',
     variant: 'warning',
     requiresReason: true,
   },
   [`${AppointmentStatus.DRAFT}_reopen`]: {
-    label: 'Reabrir como Rascunho',
+    label: 'Reopen as Draft',
     icon: 'mdi-restart',
     variant: 'outlined',
     requiresReason: true,

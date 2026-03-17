@@ -12,11 +12,11 @@ describe('TenantFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Status Confirmação')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirmation Status')).toBeInTheDocument();
   });
 
-  it('status select shows "Todos" plus 4 status labels', async () => {
+  it('status select shows "All" plus 4 status labels', async () => {
     const user = userEvent.setup();
     render(
       <TenantFilters
@@ -24,13 +24,13 @@ describe('TenantFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    await user.click(screen.getByLabelText('Status Confirmação'));
-    const listbox = screen.getByRole('listbox', { name: 'Status Confirmação' });
-    expect(listbox).toHaveTextContent('Todos');
-    expect(screen.getByText('Pendente')).toBeInTheDocument();
-    expect(screen.getByText('Confirmado')).toBeInTheDocument();
-    expect(screen.getByText('Indisponível')).toBeInTheDocument();
-    expect(screen.getByText('Sem Resposta')).toBeInTheDocument();
+    await user.click(screen.getByLabelText('Confirmation Status'));
+    const listbox = screen.getByRole('listbox', { name: 'Confirmation Status' });
+    expect(listbox).toHaveTextContent('All');
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText('Confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('No Response')).toBeInTheDocument();
   });
 
   it('calls onFiltersChange on status selection', async () => {
@@ -42,19 +42,19 @@ describe('TenantFilters', () => {
         onFiltersChange={onChange}
       />,
     );
-    await user.click(screen.getByLabelText('Status Confirmação'));
-    await user.click(screen.getByText('Confirmado'));
+    await user.click(screen.getByLabelText('Confirmation Status'));
+    await user.click(screen.getByText('Confirmed'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, confirmationStatus: 'CONFIRMED' });
   });
 
-  it('search input accessible via "Buscar"', () => {
+  it('search input accessible via "Search"', () => {
     render(
       <TenantFilters
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
       />,
     );
-    const input = screen.getByLabelText('Buscar');
+    const input = screen.getByLabelText('Search');
     expect(input.tagName).toBe('INPUT');
   });
 });

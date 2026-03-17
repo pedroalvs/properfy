@@ -4,10 +4,10 @@ import { TenantConfirmationStatus } from '@properfy/shared';
 import { TenantConfirmationStatusChip } from './TenantConfirmationStatusChip';
 
 const STATUS_LABELS: Record<TenantConfirmationStatus, string> = {
-  PENDING: 'Pendente',
-  CONFIRMED: 'Confirmado',
-  UNAVAILABLE: 'Indisponível',
-  NO_RESPONSE: 'Sem Resposta',
+  PENDING: 'Pending',
+  CONFIRMED: 'Confirmed',
+  UNAVAILABLE: 'Unavailable',
+  NO_RESPONSE: 'No Response',
 };
 
 describe('TenantConfirmationStatusChip', () => {
@@ -21,7 +21,7 @@ describe('TenantConfirmationStatusChip', () => {
 
   it('passes className through', () => {
     render(<TenantConfirmationStatusChip status={TenantConfirmationStatus.CONFIRMED} className="my-custom" />);
-    const chip = screen.getByText('Confirmado');
+    const chip = screen.getByText('Confirmed');
     expect(chip.className).toContain('my-custom');
   });
 });

@@ -27,8 +27,8 @@ export function UserListPage() {
   return (
     <>
       <ListFilterTableTemplate
-        title="Usuários"
-        primaryAction={{ label: 'Novo Usuário', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } }}
+        title="Users"
+        primaryAction={{ label: 'New User', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } }}
       >
         <UserFilters
           filters={filters}
@@ -37,7 +37,7 @@ export function UserListPage() {
         <UserTable
           data={data}
           loading={isLoading}
-          error={isError ? (errorMessage ?? 'Erro ao carregar usuários') : undefined}
+          error={isError ? (errorMessage ?? 'Failed to load users') : undefined}
           onRetryError={refetch}
           pagination={pagination}
           sorting={sorting}

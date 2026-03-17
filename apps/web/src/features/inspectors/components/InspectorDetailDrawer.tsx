@@ -28,7 +28,7 @@ export function InspectorDetailDrawer({
     if (onEdit && inspectorId) {
       onEdit(inspectorId);
     } else {
-      showInfo('Edição em breve');
+      showInfo('Editing coming soon');
     }
   }, [onEdit, inspectorId, showInfo]);
 
@@ -37,7 +37,7 @@ export function InspectorDetailDrawer({
       <div className="flex h-full flex-col">
         {isLoading ? (
           <>
-            <DrawerHeader title="Carregando..." onClose={onClose} />
+            <DrawerHeader title="Loading..." onClose={onClose} />
             <div className="flex-1 px-6 py-4">
               <LoadingState rows={6} />
             </div>
@@ -50,7 +50,7 @@ export function InspectorDetailDrawer({
               actions={
                 <>
                   <InspectorStatusChip status={inspector.status} />
-                  <Button variant="icon" onClick={handleEdit} aria-label="Editar">
+                  <Button variant="icon" onClick={handleEdit} aria-label="Edit">
                     <i className="mdi mdi-pencil-outline text-xl" />
                   </Button>
                 </>

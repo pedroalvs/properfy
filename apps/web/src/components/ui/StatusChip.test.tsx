@@ -6,17 +6,17 @@ import { StatusChip } from './StatusChip';
 describe('StatusChip', () => {
   it('renders the correct label for DRAFT', () => {
     render(<StatusChip status={AppointmentStatus.DRAFT} />);
-    expect(screen.getByText('Rascunho')).toBeInTheDocument();
+    expect(screen.getByText('Draft')).toBeInTheDocument();
   });
 
   it('renders the correct label for DONE', () => {
     render(<StatusChip status={AppointmentStatus.DONE} />);
-    expect(screen.getByText('Concluído')).toBeInTheDocument();
+    expect(screen.getByText('Done')).toBeInTheDocument();
   });
 
   it('applies background color from status map', () => {
     render(<StatusChip status={AppointmentStatus.SCHEDULED} />);
-    const chip = screen.getByText('Agendado');
+    const chip = screen.getByText('Scheduled');
     expect(chip.style.backgroundColor).toBe('var(--color-status-scheduled)');
   });
 

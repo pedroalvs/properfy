@@ -4,8 +4,8 @@ import { PropertyType } from '@properfy/shared';
 import { PropertyTypeChip } from './PropertyTypeChip';
 
 const TYPE_LABELS: Record<PropertyType, string> = {
-  RESIDENTIAL: 'Residencial',
-  COMMERCIAL: 'Comercial',
+  RESIDENTIAL: 'Residential',
+  COMMERCIAL: 'Commercial',
   INDUSTRIAL: 'Industrial',
   RURAL: 'Rural',
 };
@@ -21,7 +21,7 @@ describe('PropertyTypeChip', () => {
 
   it('passes className through', () => {
     render(<PropertyTypeChip type={PropertyType.RESIDENTIAL} className="my-custom" />);
-    const chip = screen.getByText('Residencial');
+    const chip = screen.getByText('Residential');
     expect(chip.className).toContain('my-custom');
   });
 });

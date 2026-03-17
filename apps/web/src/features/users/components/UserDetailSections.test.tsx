@@ -27,10 +27,10 @@ function makeUser(overrides: Partial<UserDetail> = {}): UserDetail {
 describe('UserDetailSections', () => {
   it('renders section titles', () => {
     render(<UserDetailSections user={makeUser()} />);
-    expect(screen.getByText('Dados Pessoais')).toBeInTheDocument();
-    expect(screen.getAllByText('Perfil').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Atividade')).toBeInTheDocument();
-    expect(screen.getByText('Registro')).toBeInTheDocument();
+    expect(screen.getByText('Personal Details')).toBeInTheDocument();
+    expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Activity')).toBeInTheDocument();
+    expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
   it('renders name and email', () => {
@@ -51,7 +51,7 @@ describe('UserDetailSections', () => {
   it('shows role chip and status chip', () => {
     render(<UserDetailSections user={makeUser()} />);
     expect(screen.getByText('Admin Master')).toBeInTheDocument();
-    expect(screen.getByText('Ativo')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
   it('shows branch name, em-dash when null', () => {
@@ -70,7 +70,7 @@ describe('UserDetailSections', () => {
 
   it('shows lastLoginAt when present, em-dash when null', () => {
     const { rerender } = render(<UserDetailSections user={makeUser()} />);
-    expect(screen.getByText('Último Acesso')).toBeInTheDocument();
+    expect(screen.getByText('Last Login')).toBeInTheDocument();
 
     rerender(<UserDetailSections user={makeUser({ lastLoginAt: null })} />);
     const dashes = screen.getAllByText('—');
@@ -79,9 +79,9 @@ describe('UserDetailSections', () => {
 
   it('shows BooleanIcon for twoFactorEnabled', () => {
     const { rerender } = render(<UserDetailSections user={makeUser({ twoFactorEnabled: true })} />);
-    expect(screen.getByLabelText('Sim')).toBeInTheDocument();
+    expect(screen.getByLabelText('Yes')).toBeInTheDocument();
 
     rerender(<UserDetailSections user={makeUser({ twoFactorEnabled: false })} />);
-    expect(screen.getByLabelText('Não')).toBeInTheDocument();
+    expect(screen.getByLabelText('No')).toBeInTheDocument();
   });
 });

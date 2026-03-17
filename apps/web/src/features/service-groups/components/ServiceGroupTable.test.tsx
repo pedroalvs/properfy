@@ -25,12 +25,12 @@ function makeServiceGroup(overrides: Partial<ServiceGroup> = {}): ServiceGroup {
 describe('ServiceGroupTable', () => {
   it('renders column headers', () => {
     render(<ServiceGroupTable data={[]} />);
-    expect(screen.getByText('Nome')).toBeInTheDocument();
-    expect(screen.getByText('Região')).toBeInTheDocument();
-    expect(screen.getByText('Inspetor')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Region')).toBeInTheDocument();
+    expect(screen.getByText('Inspector')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Prioridade')).toBeInTheDocument();
-    expect(screen.getByText('Vistorias')).toBeInTheDocument();
+    expect(screen.getByText('Priority')).toBeInTheDocument();
+    expect(screen.getByText('Appointments')).toBeInTheDocument();
   });
 
   it('renders service group data (name, regionName, appointmentsCount)', () => {
@@ -44,13 +44,13 @@ describe('ServiceGroupTable', () => {
   it('renders ServiceGroupStatusChip for status', () => {
     const sg = makeServiceGroup({ status: ServiceGroupStatus.ACCEPTED });
     render(<ServiceGroupTable data={[sg]} />);
-    expect(screen.getByText('Aceito')).toBeInTheDocument();
+    expect(screen.getByText('Accepted')).toBeInTheDocument();
   });
 
   it('renders priority mode chip', () => {
     const sg = makeServiceGroup({ priorityMode: PriorityMode.PRIORITY_24H });
     render(<ServiceGroupTable data={[sg]} />);
-    expect(screen.getByText('Prioridade 24h')).toBeInTheDocument();
+    expect(screen.getByText('24h Priority')).toBeInTheDocument();
   });
 
   it('renders em dash for null regionName', () => {
@@ -69,17 +69,17 @@ describe('ServiceGroupTable', () => {
 
   it('shows loading state', () => {
     render(<ServiceGroupTable data={[]} loading />);
-    expect(screen.getByText('Nome')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
   });
 
   it('shows empty state when no data', () => {
     render(<ServiceGroupTable data={[]} />);
-    expect(screen.getByText('Nenhum registro encontrado')).toBeInTheDocument();
+    expect(screen.getByText('No records found')).toBeInTheDocument();
   });
 
   it('shows error state', () => {
-    render(<ServiceGroupTable data={[]} error="Erro de rede" />);
-    expect(screen.getByText('Erro de rede')).toBeInTheDocument();
+    render(<ServiceGroupTable data={[]} error="Network error" />);
+    expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
   it('view action calls onView with correct service group', async () => {
@@ -87,7 +87,7 @@ describe('ServiceGroupTable', () => {
     const onView = vi.fn();
     const sg = makeServiceGroup();
     render(<ServiceGroupTable data={[sg]} onView={onView} />);
-    await user.click(screen.getByLabelText('Visualizar'));
+    await user.click(screen.getByLabelText('View'));
     expect(onView).toHaveBeenCalledWith(sg);
   });
 
@@ -96,7 +96,7 @@ describe('ServiceGroupTable', () => {
     const onEdit = vi.fn();
     const sg = makeServiceGroup();
     render(<ServiceGroupTable data={[sg]} onEdit={onEdit} />);
-    await user.click(screen.getByLabelText('Editar'));
+    await user.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith(sg);
   });
 });

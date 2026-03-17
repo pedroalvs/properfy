@@ -110,26 +110,26 @@ describe('TenantContactDetailDrawer', () => {
 
   it('shows confirmation status chip in header', () => {
     renderDrawer({ contactId: 'tnt-01', open: true });
-    const matches = screen.getAllByText('Pendente');
+    const matches = screen.getAllByText('Pending');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows detail sections', () => {
     renderDrawer({ contactId: 'tnt-01', open: true });
-    expect(screen.getByText('Contato')).toBeInTheDocument();
-    expect(screen.getByText('Vistoria')).toBeInTheDocument();
+    expect(screen.getByText('Contact')).toBeInTheDocument();
+    expect(screen.getByText('Appointment')).toBeInTheDocument();
   });
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ contactId: 'tnt-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
     renderDrawer({ contactId: 'loading', open: true });
-    const loadingElements = screen.getAllByText('Carregando...');
+    const loadingElements = screen.getAllByText('Loading...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
@@ -141,14 +141,14 @@ describe('TenantContactDetailDrawer', () => {
 
   it('shows nothing when contactId is null', () => {
     renderDrawer({ contactId: null, open: true });
-    expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
-    expect(screen.queryByText('Contato')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Contact')).not.toBeInTheDocument();
   });
 
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ contactId: 'tnt-01', open: true, onClose });
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
 });

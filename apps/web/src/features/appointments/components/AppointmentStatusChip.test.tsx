@@ -4,12 +4,12 @@ import { AppointmentStatus } from '@properfy/shared';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  DRAFT: 'Rascunho',
-  AWAITING_INSPECTOR: 'Aguardando Inspetor',
-  SCHEDULED: 'Agendado',
-  DONE: 'Concluído',
-  CANCELLED: 'Cancelado',
-  REJECTED: 'Rejeitado',
+  DRAFT: 'Draft',
+  AWAITING_INSPECTOR: 'Awaiting Inspector',
+  SCHEDULED: 'Scheduled',
+  DONE: 'Done',
+  CANCELLED: 'Cancelled',
+  REJECTED: 'Rejected',
 };
 
 describe('AppointmentStatusChip', () => {
@@ -25,7 +25,7 @@ describe('AppointmentStatusChip', () => {
     render(
       <AppointmentStatusChip status={AppointmentStatus.DRAFT} className="my-custom" />,
     );
-    const chip = screen.getByText('Rascunho');
+    const chip = screen.getByText('Draft');
     expect(chip.className).toContain('my-custom');
   });
 });

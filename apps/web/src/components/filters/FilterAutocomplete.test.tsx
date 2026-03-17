@@ -63,6 +63,6 @@ describe('FilterAutocomplete', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Cidade' }));
     await user.type(screen.getByRole('combobox', { name: 'Cidade' }), 'xyz');
-    expect(screen.getByText('Nenhum resultado')).toBeInTheDocument();
+    expect(screen.getByText('No results')).toBeInTheDocument();
   });
 });

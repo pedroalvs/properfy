@@ -16,7 +16,7 @@ function makeServiceGroup(overrides: Partial<ServiceGroupDetail> = {}): ServiceG
     priorityMode: PriorityMode.STANDARD,
     appointmentsCount: 8,
     appointmentCodes: ['VST-001', 'VST-002', 'VST-003'],
-    description: 'Grupo operacional região sul',
+    description: 'Operational group south region',
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
     ...overrides,
@@ -26,10 +26,10 @@ function makeServiceGroup(overrides: Partial<ServiceGroupDetail> = {}): ServiceG
 describe('ServiceGroupDetailSections', () => {
   it('renders section titles', () => {
     render(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
-    expect(screen.getByText('Informações')).toBeInTheDocument();
-    expect(screen.getByText('Inspetor')).toBeInTheDocument();
-    expect(screen.getByText('Vistorias')).toBeInTheDocument();
-    expect(screen.getByText('Registro')).toBeInTheDocument();
+    expect(screen.getByText('Information')).toBeInTheDocument();
+    expect(screen.getByText('Inspector')).toBeInTheDocument();
+    expect(screen.getByText('Appointments')).toBeInTheDocument();
+    expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
   it('renders name and region', () => {
@@ -40,8 +40,8 @@ describe('ServiceGroupDetailSections', () => {
 
   it('shows status chip and priority mode chip', () => {
     render(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
-    expect(screen.getByText('Publicado')).toBeInTheDocument();
-    expect(screen.getByText('Padrão')).toBeInTheDocument();
+    expect(screen.getByText('Published')).toBeInTheDocument();
+    expect(screen.getByText('Standard')).toBeInTheDocument();
   });
 
   it('shows inspector name, em-dash when null', () => {
@@ -73,19 +73,19 @@ describe('ServiceGroupDetailSections', () => {
 
   it('shows description section when present, hides when null', () => {
     const { unmount } = render(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
-    expect(screen.getByText('Observações')).toBeInTheDocument();
-    expect(screen.getByText('Grupo operacional região sul')).toBeInTheDocument();
+    expect(screen.getByText('Notes')).toBeInTheDocument();
+    expect(screen.getByText('Operational group south region')).toBeInTheDocument();
     unmount();
 
     render(
       <ServiceGroupDetailSections serviceGroup={makeServiceGroup({ description: null })} />,
     );
-    expect(screen.queryByText('Observações')).not.toBeInTheDocument();
+    expect(screen.queryByText('Notes')).not.toBeInTheDocument();
   });
 
   it('renders createdAt and updatedAt', () => {
     render(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
-    expect(screen.getByText('Criado em')).toBeInTheDocument();
-    expect(screen.getByText('Atualizado em')).toBeInTheDocument();
+    expect(screen.getByText('Created At')).toBeInTheDocument();
+    expect(screen.getByText('Updated At')).toBeInTheDocument();
   });
 });

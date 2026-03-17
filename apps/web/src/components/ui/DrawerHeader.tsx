@@ -15,7 +15,7 @@ export function DrawerHeader({ title, onClose, actions }: DrawerHeaderProps) {
         <button
           onClick={onClose}
           className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-black/5"
-          aria-label="Fechar"
+          aria-label="Close"
         >
           <i className="mdi mdi-close text-xl" />
         </button>

@@ -6,22 +6,22 @@ describe('FilterDateRange', () => {
   it('renders start and end date inputs', () => {
     render(
       <FilterDateRange
-        label="Período"
+        label="Period"
         startDate=""
         endDate=""
         onStartChange={() => {}}
         onEndChange={() => {}}
       />,
     );
-    expect(screen.getByLabelText('Período - início')).toBeInTheDocument();
-    expect(screen.getByLabelText('Período - fim')).toBeInTheDocument();
+    expect(screen.getByLabelText('Period - start')).toBeInTheDocument();
+    expect(screen.getByLabelText('Period - end')).toBeInTheDocument();
   });
 
   it('calls onStartChange when start date changes', () => {
     const onStartChange = vi.fn();
     render(
       <FilterDateRange
-        label="Período"
+        label="Period"
         startDate=""
         endDate=""
         onStartChange={onStartChange}
@@ -29,7 +29,7 @@ describe('FilterDateRange', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('Período - início'), {
+    fireEvent.change(screen.getByLabelText('Period - start'), {
       target: { value: '2026-01-01' },
     });
     expect(onStartChange).toHaveBeenCalledWith('2026-01-01');
@@ -39,7 +39,7 @@ describe('FilterDateRange', () => {
     const onEndChange = vi.fn();
     render(
       <FilterDateRange
-        label="Período"
+        label="Period"
         startDate=""
         endDate=""
         onStartChange={() => {}}
@@ -47,7 +47,7 @@ describe('FilterDateRange', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('Período - fim'), {
+    fireEvent.change(screen.getByLabelText('Period - end'), {
       target: { value: '2026-12-31' },
     });
     expect(onEndChange).toHaveBeenCalledWith('2026-12-31');
@@ -56,13 +56,13 @@ describe('FilterDateRange', () => {
   it('shows floating label when dates have values', () => {
     render(
       <FilterDateRange
-        label="Período"
+        label="Period"
         startDate="2026-01-01"
         endDate=""
         onStartChange={() => {}}
         onEndChange={() => {}}
       />,
     );
-    expect(screen.getByText('Período')).toBeInTheDocument();
+    expect(screen.getByText('Period')).toBeInTheDocument();
   });
 });

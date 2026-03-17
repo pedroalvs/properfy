@@ -30,12 +30,12 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
 describe('PropertyTable', () => {
   it('renders column headers', () => {
     render(<PropertyTable data={[]} />);
-    expect(screen.getByText('Código')).toBeInTheDocument();
-    expect(screen.getByText('Tipo')).toBeInTheDocument();
-    expect(screen.getByText('Endereço')).toBeInTheDocument();
-    expect(screen.getByText('CEP')).toBeInTheDocument();
-    expect(screen.getByText('Estado')).toBeInTheDocument();
-    expect(screen.getByText('Filial')).toBeInTheDocument();
+    expect(screen.getByText('Code')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
+    expect(screen.getByText('Address')).toBeInTheDocument();
+    expect(screen.getByText('Postcode')).toBeInTheDocument();
+    expect(screen.getByText('State')).toBeInTheDocument();
+    expect(screen.getByText('Branch')).toBeInTheDocument();
   });
 
   it('renders property data (code, composite address, state)', () => {
@@ -49,7 +49,7 @@ describe('PropertyTable', () => {
   it('renders PropertyTypeChip for type', () => {
     const prop = makeProperty({ type: PropertyType.COMMERCIAL });
     render(<PropertyTable data={[prop]} />);
-    expect(screen.getByText('Comercial')).toBeInTheDocument();
+    expect(screen.getByText('Commercial')).toBeInTheDocument();
   });
 
   it('renders em dash for null branchName', () => {
@@ -60,17 +60,17 @@ describe('PropertyTable', () => {
 
   it('shows loading state', () => {
     render(<PropertyTable data={[]} loading />);
-    expect(screen.getByText('Código')).toBeInTheDocument();
+    expect(screen.getByText('Code')).toBeInTheDocument();
   });
 
   it('shows empty state when no data', () => {
     render(<PropertyTable data={[]} />);
-    expect(screen.getByText('Nenhum registro encontrado')).toBeInTheDocument();
+    expect(screen.getByText('No records found')).toBeInTheDocument();
   });
 
   it('shows error state', () => {
-    render(<PropertyTable data={[]} error="Erro de rede" />);
-    expect(screen.getByText('Erro de rede')).toBeInTheDocument();
+    render(<PropertyTable data={[]} error="Network error" />);
+    expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
   it('view action calls onView with correct property', async () => {
@@ -78,7 +78,7 @@ describe('PropertyTable', () => {
     const onView = vi.fn();
     const prop = makeProperty();
     render(<PropertyTable data={[prop]} onView={onView} />);
-    await user.click(screen.getByLabelText('Visualizar'));
+    await user.click(screen.getByLabelText('View'));
     expect(onView).toHaveBeenCalledWith(prop);
   });
 
@@ -87,7 +87,7 @@ describe('PropertyTable', () => {
     const onEdit = vi.fn();
     const prop = makeProperty();
     render(<PropertyTable data={[prop]} onEdit={onEdit} />);
-    await user.click(screen.getByLabelText('Editar'));
+    await user.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith(prop);
   });
 });

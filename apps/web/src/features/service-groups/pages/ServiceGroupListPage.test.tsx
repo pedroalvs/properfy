@@ -74,18 +74,18 @@ function renderPage() {
 describe('ServiceGroupListPage', () => {
   it('renders page title "Grupos de Serviço"', () => {
     renderPage();
-    expect(screen.getByText('Grupos de Serviço')).toBeInTheDocument();
+    expect(screen.getByText('Service Groups')).toBeInTheDocument();
   });
 
-  it('renders "Novo Grupo" CTA button', () => {
+  it('renders "New Group" CTA button', () => {
     renderPage();
-    const matches = screen.getAllByText('Novo Grupo');
+    const matches = screen.getAllByText('New Group');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders filter bar with search and status controls', () => {
     renderPage();
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
@@ -98,7 +98,7 @@ describe('ServiceGroupListPage', () => {
 
   it('shows loading state initially', () => {
     renderPage();
-    const matches = screen.getAllByText('Nome');
+    const matches = screen.getAllByText('Name');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 });

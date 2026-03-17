@@ -74,17 +74,17 @@ function renderPage() {
 describe('ReportListPage', () => {
   it('renders page title "Relatórios"', () => {
     renderPage();
-    expect(screen.getByText('Relatórios')).toBeInTheDocument();
+    expect(screen.getByText('Reports')).toBeInTheDocument();
   });
 
-  it('renders "Gerar Relatório" CTA button', () => {
+  it('renders "Generate Report" CTA button', () => {
     renderPage();
-    expect(screen.getByText('Gerar Relatório')).toBeInTheDocument();
+    expect(screen.getByText('Generate Report')).toBeInTheDocument();
   });
 
   it('renders filter bar with type and status controls', () => {
     renderPage();
-    expect(screen.getByLabelText('Tipo')).toBeInTheDocument();
+    expect(screen.getByLabelText('Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 

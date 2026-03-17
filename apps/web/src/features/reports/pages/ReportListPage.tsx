@@ -33,8 +33,8 @@ export function ReportListPage() {
 
   return (
     <ListFilterTableTemplate
-      title="Relatórios"
-      primaryAction={{ label: 'Gerar Relatório', icon: 'mdi-plus', onClick: () => {} }}
+      title="Reports"
+      primaryAction={{ label: 'Generate Report', icon: 'mdi-plus', onClick: () => {} }}
     >
       <ReportFilters
         filters={filters}
@@ -43,7 +43,7 @@ export function ReportListPage() {
       <ReportTable
         data={data}
         loading={isLoading}
-        error={isError ? (errorMessage ?? 'Erro ao carregar relatórios') : undefined}
+        error={isError ? (errorMessage ?? 'Failed to load reports') : undefined}
         onRetryError={refetch}
         pagination={pagination}
         sorting={sorting}

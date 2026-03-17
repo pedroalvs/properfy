@@ -16,27 +16,27 @@ function formatDateTimeBR(iso: string): string {
 export function UserDetailSections({ user }: UserDetailSectionsProps) {
   return (
     <div className="flex flex-col gap-6">
-      <FormSection title="Dados Pessoais">
-        <DetailRow label="Nome" value={user.name} />
-        <DetailRow label="E-mail" value={user.email} />
-        <DetailRow label="Telefone" value={user.phone} />
+      <FormSection title="Personal Details">
+        <DetailRow label="Name" value={user.name} />
+        <DetailRow label="Email" value={user.email} />
+        <DetailRow label="Phone" value={user.phone} />
       </FormSection>
 
-      <FormSection title="Perfil">
-        <DetailRow label="Perfil" value={<UserRoleChip role={user.role} />} />
+      <FormSection title="Profile">
+        <DetailRow label="Role" value={<UserRoleChip role={user.role} />} />
         <DetailRow label="Status" value={<UserStatusChip status={user.status} />} />
-        <DetailRow label="Filial" value={user.branchName} />
-        <DetailRow label="Permissões" value={user.permissions.length > 0 ? user.permissions.join(', ') : null} />
+        <DetailRow label="Branch" value={user.branchName} />
+        <DetailRow label="Permissions" value={user.permissions.length > 0 ? user.permissions.join(', ') : null} />
       </FormSection>
 
-      <FormSection title="Atividade">
-        <DetailRow label="Último Acesso" value={user.lastLoginAt ? formatDateTimeBR(user.lastLoginAt) : null} />
+      <FormSection title="Activity">
+        <DetailRow label="Last Login" value={user.lastLoginAt ? formatDateTimeBR(user.lastLoginAt) : null} />
         <DetailRow label="2FA" value={<BooleanIcon value={user.twoFactorEnabled} />} />
       </FormSection>
 
-      <FormSection title="Registro">
-        <DetailRow label="Criado em" value={formatDateTimeBR(user.createdAt)} />
-        <DetailRow label="Atualizado em" value={formatDateTimeBR(user.updatedAt)} />
+      <FormSection title="Record">
+        <DetailRow label="Created At" value={formatDateTimeBR(user.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTimeBR(user.updatedAt)} />
       </FormSection>
     </div>
   );

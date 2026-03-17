@@ -10,26 +10,26 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
     code: 'VST-001',
     tenantId: 'tenant-1',
     branchId: 'branch-1',
-    branchName: 'Filial Centro',
+    branchName: 'Downtown Branch',
     propertyId: 'prop-1',
-    propertyAddress: 'Rua das Flores, 123',
+    propertyAddress: '123 Flower Street',
     serviceTypeId: 'svc-1',
-    serviceTypeName: 'Vistoria de Entrada',
+    serviceTypeName: 'Move-in Inspection',
     status: AppointmentStatus.DRAFT,
     tenantConfirmationStatus: TenantConfirmationStatus.CONFIRMED,
-    contactName: 'João Silva',
+    contactName: 'John Silva',
     contactPhone: '11999999999',
-    contactEmail: 'joao@email.com',
+    contactEmail: 'john@email.com',
     inspectorId: 'insp-1',
-    inspectorName: 'Carlos Inspetor',
+    inspectorName: 'Carlos Inspector',
     scheduledDate: '2026-03-25T12:00:00Z',
     timeSlot: '09:00-12:00',
     keyRequired: true,
-    notes: 'Observação de teste',
+    notes: 'Test observation',
     createdAt: '2026-03-10T10:00:00Z',
     updatedAt: '2026-03-10T10:00:00Z',
-    meetingLocation: 'Portaria principal',
-    keyLocation: 'Com o zelador',
+    meetingLocation: 'Main entrance',
+    keyLocation: 'With the caretaker',
     cancellationReason: null,
     ...overrides,
   };
@@ -38,37 +38,37 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
 describe('AppointmentDetailSections', () => {
   it('renders section titles', () => {
     render(<AppointmentDetailSections appointment={makeAppointment()} />);
-    expect(screen.getByText('Dados da Vistoria')).toBeInTheDocument();
-    expect(screen.getByText('Contato')).toBeInTheDocument();
-    expect(screen.getByText('Acesso')).toBeInTheDocument();
+    expect(screen.getByText('Inspection Details')).toBeInTheDocument();
+    expect(screen.getByText('Contact')).toBeInTheDocument();
+    expect(screen.getByText('Access')).toBeInTheDocument();
   });
 
   it('renders service type and property address', () => {
     render(<AppointmentDetailSections appointment={makeAppointment()} />);
-    expect(screen.getByText('Vistoria de Entrada')).toBeInTheDocument();
-    expect(screen.getByText('Rua das Flores, 123')).toBeInTheDocument();
+    expect(screen.getByText('Move-in Inspection')).toBeInTheDocument();
+    expect(screen.getByText('123 Flower Street')).toBeInTheDocument();
   });
 
   it('renders contact name, phone, email', () => {
     render(<AppointmentDetailSections appointment={makeAppointment()} />);
-    expect(screen.getByText('João Silva')).toBeInTheDocument();
+    expect(screen.getByText('John Silva')).toBeInTheDocument();
     expect(screen.getByText('11999999999')).toBeInTheDocument();
-    expect(screen.getByText('joao@email.com')).toBeInTheDocument();
+    expect(screen.getByText('john@email.com')).toBeInTheDocument();
   });
 
   it('shows BooleanIcon for keyRequired', () => {
     render(<AppointmentDetailSections appointment={makeAppointment({ keyRequired: true })} />);
-    expect(screen.getByLabelText('Sim')).toBeInTheDocument();
+    expect(screen.getByLabelText('Yes')).toBeInTheDocument();
   });
 
   it('shows tenant confirmation status chip', () => {
     render(<AppointmentDetailSections appointment={makeAppointment()} />);
-    expect(screen.getByText('Confirmado')).toBeInTheDocument();
+    expect(screen.getByText('Confirmed')).toBeInTheDocument();
   });
 
   it('shows notes when present', () => {
     render(<AppointmentDetailSections appointment={makeAppointment()} />);
-    expect(screen.getByText('Observação de teste')).toBeInTheDocument();
+    expect(screen.getByText('Test observation')).toBeInTheDocument();
   });
 
   it('shows em-dash for null inspector', () => {
@@ -81,14 +81,14 @@ describe('AppointmentDetailSections', () => {
     const { rerender } = render(
       <AppointmentDetailSections appointment={makeAppointment({ cancellationReason: null })} />,
     );
-    expect(screen.queryByText('Motivo de Cancelamento/Rejeição')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cancellation/Rejection Reason')).not.toBeInTheDocument();
 
     rerender(
       <AppointmentDetailSections
-        appointment={makeAppointment({ cancellationReason: 'Inquilino cancelou' })}
+        appointment={makeAppointment({ cancellationReason: 'Tenant cancelled' })}
       />,
     );
-    expect(screen.getByText('Motivo de Cancelamento/Rejeição')).toBeInTheDocument();
-    expect(screen.getByText('Inquilino cancelou')).toBeInTheDocument();
+    expect(screen.getByText('Cancellation/Rejection Reason')).toBeInTheDocument();
+    expect(screen.getByText('Tenant cancelled')).toBeInTheDocument();
   });
 });

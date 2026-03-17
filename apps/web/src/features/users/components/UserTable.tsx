@@ -28,18 +28,18 @@ export function UserTable({
   const columns: DataTableColumn<User>[] = [
     {
       key: 'name',
-      label: 'Nome',
+      label: 'Name',
       sortable: true,
     },
     {
       key: 'email',
-      label: 'E-mail',
+      label: 'Email',
       width: '220px',
       sortable: true,
     },
     {
       key: 'role',
-      label: 'Perfil',
+      label: 'Role',
       width: '150px',
       sortable: true,
       render: (row) => <UserRoleChip role={row.role} />,
@@ -53,13 +53,13 @@ export function UserTable({
     },
     {
       key: 'branchName',
-      label: 'Filial',
+      label: 'Branch',
       width: '160px',
       render: (row) => <>{row.branchName ?? '—'}</>,
     },
     {
       key: 'lastLoginAt',
-      label: 'Último Acesso',
+      label: 'Last Login',
       width: '160px',
       sortable: true,
       render: (row) => (
@@ -79,12 +79,12 @@ export function UserTable({
           actions={[
             {
               icon: 'mdi-eye-outline',
-              label: 'Visualizar',
+              label: 'View',
               onClick: () => onView?.(row),
             },
             {
               icon: 'mdi-pencil-outline',
-              label: 'Editar',
+              label: 'Edit',
               onClick: () => onEdit?.(row),
             },
           ]}

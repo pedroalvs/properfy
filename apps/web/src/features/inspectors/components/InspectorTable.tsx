@@ -27,18 +27,18 @@ export function InspectorTable({
   const columns: DataTableColumn<Inspector>[] = [
     {
       key: 'name',
-      label: 'Nome',
+      label: 'Name',
       sortable: true,
     },
     {
       key: 'email',
-      label: 'E-mail',
+      label: 'Email',
       width: '220px',
       sortable: true,
     },
     {
       key: 'phone',
-      label: 'Telefone',
+      label: 'Phone',
       width: '140px',
       render: (row) => <>{row.phone ?? '—'}</>,
     },
@@ -51,12 +51,12 @@ export function InspectorTable({
     },
     {
       key: 'regionsCount',
-      label: 'Regiões',
+      label: 'Regions',
       width: '100px',
     },
     {
       key: 'serviceTypesCount',
-      label: 'Serviços',
+      label: 'Services',
       width: '100px',
     },
     {
@@ -68,12 +68,12 @@ export function InspectorTable({
           actions={[
             {
               icon: 'mdi-eye-outline',
-              label: 'Visualizar',
+              label: 'View',
               onClick: () => onView?.(row),
             },
             {
               icon: 'mdi-pencil-outline',
-              label: 'Editar',
+              label: 'Edit',
               onClick: () => onEdit?.(row),
             },
           ]}

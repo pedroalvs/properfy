@@ -27,15 +27,15 @@ export function FilterDateRange({
           className="flex-1 bg-transparent text-sm text-text-primary outline-none"
           value={startDate}
           onChange={(e) => onStartChange(e.target.value)}
-          aria-label={`${label} - início`}
+          aria-label={`${label} - start`}
         />
-        <span className="text-xs text-text-muted">até</span>
+        <span className="text-xs text-text-muted">to</span>
         <input
           type="date"
           className="flex-1 bg-transparent text-sm text-text-primary outline-none"
           value={endDate}
           onChange={(e) => onEndChange(e.target.value)}
-          aria-label={`${label} - fim`}
+          aria-label={`${label} - end`}
         />
       </div>
     </div>

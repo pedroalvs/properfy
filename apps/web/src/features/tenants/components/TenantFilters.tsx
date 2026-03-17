@@ -5,7 +5,7 @@ import { TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import type { TenantContactFiltersState } from '../types';
 
 const STATUS_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todos', value: '' },
+  { label: 'All', value: '' },
   ...Object.entries(TENANT_CONFIRMATION_STATUS_MAP).map(([value, config]) => ({
     label: config.label,
     value,
@@ -24,13 +24,13 @@ export function TenantFilters({
   return (
     <FilterBar>
       <FilterInput
-        label="Buscar"
-        placeholder="Nome, e-mail, telefone..."
+        label="Search"
+        placeholder="Name, email, phone..."
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />
       <FilterSelect
-        label="Status Confirmação"
+        label="Confirmation Status"
         value={filters.confirmationStatus}
         onChange={(confirmationStatus) => onFiltersChange({ ...filters, confirmationStatus })}
         options={STATUS_OPTIONS}

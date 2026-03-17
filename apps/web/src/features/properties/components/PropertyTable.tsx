@@ -27,36 +27,36 @@ export function PropertyTable({
   const columns: DataTableColumn<Property>[] = [
     {
       key: 'propertyCode',
-      label: 'Código',
+      label: 'Code',
       width: '120px',
       sortable: true,
     },
     {
       key: 'type',
-      label: 'Tipo',
+      label: 'Type',
       width: '140px',
       sortable: true,
       render: (row) => <PropertyTypeChip type={row.type} />,
     },
     {
       key: 'street',
-      label: 'Endereço',
+      label: 'Address',
       render: (row) => <>{row.street}, {row.suburb}</>,
     },
     {
       key: 'postcode',
-      label: 'CEP',
+      label: 'Postcode',
       width: '100px',
     },
     {
       key: 'state',
-      label: 'Estado',
+      label: 'State',
       width: '100px',
       sortable: true,
     },
     {
       key: 'branchName',
-      label: 'Filial',
+      label: 'Branch',
       width: '140px',
       sortable: true,
       render: (row) => <>{row.branchName ?? '—'}</>,
@@ -70,12 +70,12 @@ export function PropertyTable({
           actions={[
             {
               icon: 'mdi-eye-outline',
-              label: 'Visualizar',
+              label: 'View',
               onClick: () => onView?.(row),
             },
             {
               icon: 'mdi-pencil-outline',
-              label: 'Editar',
+              label: 'Edit',
               onClick: () => onEdit?.(row),
             },
           ]}

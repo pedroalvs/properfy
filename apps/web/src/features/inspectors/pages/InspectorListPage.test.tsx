@@ -74,18 +74,18 @@ function renderPage() {
 describe('InspectorListPage', () => {
   it('renders page title "Inspetores"', () => {
     renderPage();
-    expect(screen.getByText('Inspetores')).toBeInTheDocument();
+    expect(screen.getByText('Inspectors')).toBeInTheDocument();
   });
 
-  it('renders "Novo Inspetor" CTA button', () => {
+  it('renders "New Inspector" CTA button', () => {
     renderPage();
-    const buttons = screen.getAllByText('Novo Inspetor');
+    const buttons = screen.getAllByText('New Inspector');
     expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders filter bar with search and status controls', () => {
     renderPage();
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
@@ -98,7 +98,7 @@ describe('InspectorListPage', () => {
 
   it('shows loading state initially', () => {
     renderPage();
-    const nameElements = screen.getAllByText('Nome');
+    const nameElements = screen.getAllByText('Name');
     expect(nameElements.length).toBeGreaterThanOrEqual(1);
   });
 });

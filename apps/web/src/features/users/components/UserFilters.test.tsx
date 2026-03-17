@@ -12,12 +12,12 @@ describe('UserFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Perfil')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    expect(screen.getByLabelText('Role')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
-  it('role select ("Perfil") shows "Todos" plus 6 role labels', async () => {
+  it('role select shows "All" plus 6 role labels', async () => {
     const user = userEvent.setup();
     render(
       <UserFilters
@@ -25,18 +25,18 @@ describe('UserFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    await user.click(screen.getByLabelText('Perfil'));
-    const listbox = screen.getByRole('listbox', { name: 'Perfil' });
-    expect(listbox).toHaveTextContent('Todos');
+    await user.click(screen.getByLabelText('Role'));
+    const listbox = screen.getByRole('listbox', { name: 'Role' });
+    expect(listbox).toHaveTextContent('All');
     expect(screen.getByText('Admin Master')).toBeInTheDocument();
-    expect(screen.getByText('Operador')).toBeInTheDocument();
-    expect(screen.getByText('Admin Cliente')).toBeInTheDocument();
-    expect(screen.getByText('Usuário Cliente')).toBeInTheDocument();
-    expect(screen.getByText('Inspetor')).toBeInTheDocument();
-    expect(screen.getByText('Inquilino')).toBeInTheDocument();
+    expect(screen.getByText('Operator')).toBeInTheDocument();
+    expect(screen.getByText('Client Admin')).toBeInTheDocument();
+    expect(screen.getByText('Client User')).toBeInTheDocument();
+    expect(screen.getByText('Inspector')).toBeInTheDocument();
+    expect(screen.getByText('Tenant')).toBeInTheDocument();
   });
 
-  it('status select shows "Todos" plus 3 status labels', async () => {
+  it('status select shows "All" plus 3 status labels', async () => {
     const user = userEvent.setup();
     render(
       <UserFilters
@@ -46,10 +46,10 @@ describe('UserFilters', () => {
     );
     await user.click(screen.getByLabelText('Status'));
     const listbox = screen.getByRole('listbox', { name: 'Status' });
-    expect(listbox).toHaveTextContent('Todos');
-    expect(screen.getByText('Ativo')).toBeInTheDocument();
-    expect(screen.getByText('Inativo')).toBeInTheDocument();
-    expect(screen.getByText('Bloqueado')).toBeInTheDocument();
+    expect(listbox).toHaveTextContent('All');
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Inactive')).toBeInTheDocument();
+    expect(screen.getByText('Blocked')).toBeInTheDocument();
   });
 
   it('calls onFiltersChange on role selection', async () => {
@@ -61,19 +61,19 @@ describe('UserFilters', () => {
         onFiltersChange={onChange}
       />,
     );
-    await user.click(screen.getByLabelText('Perfil'));
-    await user.click(screen.getByText('Operador'));
+    await user.click(screen.getByLabelText('Role'));
+    await user.click(screen.getByText('Operator'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, role: 'OP' });
   });
 
-  it('search input accessible via "Buscar"', () => {
+  it('search input accessible via "Search"', () => {
     render(
       <UserFilters
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
       />,
     );
-    const input = screen.getByLabelText('Buscar');
+    const input = screen.getByLabelText('Search');
     expect(input.tagName).toBe('INPUT');
   });
 });

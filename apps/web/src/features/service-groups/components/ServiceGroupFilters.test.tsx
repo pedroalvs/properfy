@@ -12,11 +12,11 @@ describe('ServiceGroupFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
-  it('status select shows "Todos" plus 4 status labels', async () => {
+  it('status select shows "All" plus 4 status labels', async () => {
     const user = userEvent.setup();
     render(
       <ServiceGroupFilters
@@ -26,11 +26,11 @@ describe('ServiceGroupFilters', () => {
     );
     await user.click(screen.getByLabelText('Status'));
     const listbox = screen.getByRole('listbox', { name: 'Status' });
-    expect(listbox).toHaveTextContent('Todos');
-    expect(screen.getByText('Rascunho')).toBeInTheDocument();
-    expect(screen.getByText('Publicado')).toBeInTheDocument();
-    expect(screen.getByText('Aceito')).toBeInTheDocument();
-    expect(screen.getByText('Cancelado')).toBeInTheDocument();
+    expect(listbox).toHaveTextContent('All');
+    expect(screen.getByText('Draft')).toBeInTheDocument();
+    expect(screen.getByText('Published')).toBeInTheDocument();
+    expect(screen.getByText('Accepted')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
   });
 
   it('calls onFiltersChange on status selection', async () => {
@@ -43,18 +43,18 @@ describe('ServiceGroupFilters', () => {
       />,
     );
     await user.click(screen.getByLabelText('Status'));
-    await user.click(screen.getByText('Publicado'));
+    await user.click(screen.getByText('Published'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'PUBLISHED' });
   });
 
-  it('search input accessible via "Buscar"', () => {
+  it('search input accessible via "Search"', () => {
     render(
       <ServiceGroupFilters
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
       />,
     );
-    const input = screen.getByLabelText('Buscar');
+    const input = screen.getByLabelText('Search');
     expect(input.tagName).toBe('INPUT');
   });
 });

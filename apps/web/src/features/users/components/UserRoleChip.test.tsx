@@ -5,11 +5,11 @@ import { UserRoleChip } from './UserRoleChip';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   AM: 'Admin Master',
-  OP: 'Operador',
-  CL_ADMIN: 'Admin Cliente',
-  CL_USER: 'Usuário Cliente',
-  INSP: 'Inspetor',
-  TNT: 'Inquilino',
+  OP: 'Operator',
+  CL_ADMIN: 'Client Admin',
+  CL_USER: 'Client User',
+  INSP: 'Inspector',
+  TNT: 'Tenant',
 };
 
 describe('UserRoleChip', () => {

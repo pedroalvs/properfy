@@ -140,7 +140,8 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getByText(/done/i)).toBeInTheDocument();
+      const matches = screen.getAllByText(/done/i);
+      expect(matches.length).toBeGreaterThan(0);
     });
   });
 

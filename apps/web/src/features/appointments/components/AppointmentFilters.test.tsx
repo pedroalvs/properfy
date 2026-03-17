@@ -6,8 +6,8 @@ import { DEFAULT_FILTERS } from '../types';
 import type { FilterSelectOption } from '@/components/filters/FilterSelect';
 
 const branchOptions: FilterSelectOption[] = [
-  { label: 'Todas', value: '' },
-  { label: 'Filial Centro', value: 'branch-1' },
+  { label: 'All', value: '' },
+  { label: 'Downtown Branch', value: 'branch-1' },
 ];
 
 describe('AppointmentFilters', () => {
@@ -19,15 +19,15 @@ describe('AppointmentFilters', () => {
         branchOptions={branchOptions}
       />,
     );
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
-    expect(screen.getByLabelText('Filial')).toBeInTheDocument();
-    expect(screen.getByLabelText('Período - início')).toBeInTheDocument();
-    expect(screen.getByLabelText('Período - fim')).toBeInTheDocument();
-    expect(screen.getByLabelText('Exibir cancelados')).toBeInTheDocument();
+    expect(screen.getByLabelText('Branch')).toBeInTheDocument();
+    expect(screen.getByLabelText('Period - start')).toBeInTheDocument();
+    expect(screen.getByLabelText('Period - end')).toBeInTheDocument();
+    expect(screen.getByLabelText('Show cancelled')).toBeInTheDocument();
   });
 
-  it('renders search input accessible via label "Buscar"', () => {
+  it('renders search input accessible via label "Search"', () => {
     render(
       <AppointmentFilters
         filters={DEFAULT_FILTERS}
@@ -35,11 +35,11 @@ describe('AppointmentFilters', () => {
         branchOptions={branchOptions}
       />,
     );
-    const input = screen.getByLabelText('Buscar');
+    const input = screen.getByLabelText('Search');
     expect(input.tagName).toBe('INPUT');
   });
 
-  it('renders status select with all 6 status labels plus "Todos"', async () => {
+  it('renders status select with all 6 status labels plus "All"', async () => {
     const user = userEvent.setup();
     render(
       <AppointmentFilters
@@ -50,16 +50,16 @@ describe('AppointmentFilters', () => {
     );
     await user.click(screen.getByLabelText('Status'));
     const listbox = screen.getByRole('listbox', { name: 'Status' });
-    expect(listbox).toHaveTextContent('Todos');
-    expect(screen.getByText('Rascunho')).toBeInTheDocument();
-    expect(screen.getByText('Aguardando Inspetor')).toBeInTheDocument();
-    expect(screen.getByText('Agendado')).toBeInTheDocument();
-    expect(screen.getByText('Concluído')).toBeInTheDocument();
-    expect(screen.getByText('Cancelado')).toBeInTheDocument();
-    expect(screen.getByText('Rejeitado')).toBeInTheDocument();
+    expect(listbox).toHaveTextContent('All');
+    expect(screen.getByText('Draft')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting Inspector')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled')).toBeInTheDocument();
+    expect(screen.getByText('Done')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.getByText('Rejected')).toBeInTheDocument();
   });
 
-  it('renders "Exibir cancelados" boolean toggle', () => {
+  it('renders "Show cancelled" boolean toggle', () => {
     render(
       <AppointmentFilters
         filters={DEFAULT_FILTERS}
@@ -67,7 +67,7 @@ describe('AppointmentFilters', () => {
         branchOptions={branchOptions}
       />,
     );
-    const checkbox = screen.getByLabelText('Exibir cancelados');
+    const checkbox = screen.getByLabelText('Show cancelled');
     expect(checkbox).not.toBeChecked();
   });
 
@@ -81,7 +81,7 @@ describe('AppointmentFilters', () => {
         branchOptions={branchOptions}
       />,
     );
-    await user.click(screen.getByLabelText('Exibir cancelados'));
+    await user.click(screen.getByLabelText('Show cancelled'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, showCancelled: true });
   });
 
@@ -96,7 +96,7 @@ describe('AppointmentFilters', () => {
       />,
     );
     await user.click(screen.getByLabelText('Status'));
-    await user.click(screen.getByText('Agendado'));
+    await user.click(screen.getByText('Scheduled'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'SCHEDULED' });
   });
 });

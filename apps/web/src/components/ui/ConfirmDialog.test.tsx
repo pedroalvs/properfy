@@ -20,8 +20,8 @@ describe('ConfirmDialog', () => {
 
   it('renders default button labels', () => {
     render(<ConfirmDialog {...defaultProps} />);
-    expect(screen.getByRole('button', { name: 'Confirmar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 
   it('renders custom button labels', () => {
@@ -36,7 +36,7 @@ describe('ConfirmDialog', () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
     render(<ConfirmDialog {...defaultProps} onConfirm={onConfirm} />);
-    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
@@ -44,18 +44,18 @@ describe('ConfirmDialog', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(<ConfirmDialog {...defaultProps} onClose={onClose} />);
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('shows loading state on confirm button', () => {
     render(<ConfirmDialog {...defaultProps} loading />);
-    expect(screen.getByRole('button', { name: /Confirmar/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled();
   });
 
   it('danger variant uses error color on confirm', () => {
     render(<ConfirmDialog {...defaultProps} variant="danger" />);
-    const confirmBtn = screen.getByRole('button', { name: 'Confirmar' });
+    const confirmBtn = screen.getByRole('button', { name: 'Confirm' });
     expect(confirmBtn.className).toContain('bg-error');
   });
 

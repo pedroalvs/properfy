@@ -25,42 +25,42 @@ export function TenantTable({
   const columns: DataTableColumn<TenantContact>[] = [
     {
       key: 'name',
-      label: 'Nome',
+      label: 'Name',
       sortable: true,
     },
     {
       key: 'primaryEmail',
-      label: 'E-mail',
+      label: 'Email',
       width: '200px',
       render: (row) => <>{row.primaryEmail ?? '—'}</>,
     },
     {
       key: 'primaryPhone',
-      label: 'Telefone',
+      label: 'Phone',
       width: '140px',
       render: (row) => <>{row.primaryPhone ?? '—'}</>,
     },
     {
       key: 'confirmationStatus',
-      label: 'Confirmação',
+      label: 'Confirmation',
       width: '160px',
       sortable: true,
       render: (row) => <TenantConfirmationStatusChip status={row.confirmationStatus} />,
     },
     {
       key: 'propertyAddress',
-      label: 'Imóvel',
+      label: 'Property',
     },
     {
       key: 'appointmentDate',
-      label: 'Data Vistoria',
+      label: 'Appointment Date',
       width: '140px',
       sortable: true,
       render: (row) => <>{new Date(row.appointmentDate).toLocaleDateString('pt-BR')}</>,
     },
     {
       key: 'lastActivityAt',
-      label: 'Última Atividade',
+      label: 'Last Activity',
       width: '150px',
       sortable: true,
       render: (row) => (
@@ -80,7 +80,7 @@ export function TenantTable({
           actions={[
             {
               icon: 'mdi-eye-outline',
-              label: 'Visualizar',
+              label: 'View',
               onClick: () => onView?.(row),
             },
           ]}

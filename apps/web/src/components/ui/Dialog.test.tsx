@@ -31,7 +31,7 @@ describe('Dialog', () => {
         <p>Body</p>
       </Dialog>,
     );
-    await user.click(screen.getByLabelText('Fechar'));
+    await user.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalledOnce();
   });
 

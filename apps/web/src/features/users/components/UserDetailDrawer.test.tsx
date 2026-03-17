@@ -110,26 +110,26 @@ describe('UserDetailDrawer', () => {
 
   it('shows user status chip in header', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    const matches = screen.getAllByText('Ativo');
+    const matches = screen.getAllByText('Active');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows detail sections', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    expect(screen.getByText('Dados Pessoais')).toBeInTheDocument();
-    expect(screen.getAllByText('Perfil').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Personal Details')).toBeInTheDocument();
+    expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
   });
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
     renderDrawer({ userId: 'loading', open: true });
-    const loadingElements = screen.getAllByText('Carregando...');
+    const loadingElements = screen.getAllByText('Loading...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
@@ -141,27 +141,27 @@ describe('UserDetailDrawer', () => {
 
   it('shows nothing when userId is null', () => {
     renderDrawer({ userId: null, open: true });
-    expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
-    expect(screen.queryByText('Dados Pessoais')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Personal Details')).not.toBeInTheDocument();
   });
 
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ userId: 'usr-01', open: true, onClose });
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('edit button calls onEdit with user id when onEdit prop is provided', () => {
     const onEdit = vi.fn();
     renderDrawer({ userId: 'usr-01', open: true, onEdit });
-    fireEvent.click(screen.getByLabelText('Editar'));
+    fireEvent.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith('usr-01');
   });
 
   it('edit button falls back to snackbar when onEdit prop is not provided', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    fireEvent.click(screen.getByLabelText('Editar'));
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Edit'));
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 });

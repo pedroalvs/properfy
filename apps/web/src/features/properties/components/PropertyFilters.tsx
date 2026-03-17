@@ -5,7 +5,7 @@ import { PROPERTY_TYPE_MAP } from '@/lib/status-colors';
 import type { PropertyFiltersState } from '../types';
 
 const TYPE_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todos', value: '' },
+  { label: 'All', value: '' },
   ...Object.entries(PROPERTY_TYPE_MAP).map(([value, config]) => ({
     label: config.label,
     value,
@@ -26,19 +26,19 @@ export function PropertyFilters({
   return (
     <FilterBar>
       <FilterInput
-        label="Buscar"
-        placeholder="Código, endereço, bairro..."
+        label="Search"
+        placeholder="Code, address, suburb..."
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />
       <FilterSelect
-        label="Tipo"
+        label="Type"
         value={filters.type}
         onChange={(type) => onFiltersChange({ ...filters, type })}
         options={TYPE_OPTIONS}
       />
       <FilterSelect
-        label="Filial"
+        label="Branch"
         value={filters.branchId}
         onChange={(branchId) => onFiltersChange({ ...filters, branchId })}
         options={branchOptions}

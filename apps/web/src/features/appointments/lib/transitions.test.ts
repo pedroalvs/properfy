@@ -27,7 +27,7 @@ describe('getAvailableTransitions', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.DONE, 'AM');
     expect(transitions).toHaveLength(1);
     expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.DRAFT);
-    expect(transitions[0]!.label).toBe('Reabrir como Rascunho');
+    expect(transitions[0]!.label).toBe('Reopen as Draft');
     expect(transitions[0]!.requiresReason).toBe(true);
   });
 

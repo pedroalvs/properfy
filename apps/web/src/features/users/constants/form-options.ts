@@ -2,15 +2,15 @@ import type { SelectOption } from '@/components/forms/SelectInput';
 
 export const USER_ROLE_OPTIONS: SelectOption[] = [
   { label: 'Admin Master', value: 'AM' },
-  { label: 'Operador', value: 'OP' },
-  { label: 'Admin Cliente', value: 'CL_ADMIN' },
-  { label: 'Usuário Cliente', value: 'CL_USER' },
-  { label: 'Inspetor', value: 'INSP' },
-  { label: 'Inquilino', value: 'TNT' },
+  { label: 'Operator', value: 'OP' },
+  { label: 'Client Admin', value: 'CL_ADMIN' },
+  { label: 'Client User', value: 'CL_USER' },
+  { label: 'Inspector', value: 'INSP' },
+  { label: 'Tenant', value: 'TNT' },
 ];
 
 export const USER_STATUS_OPTIONS: SelectOption[] = [
-  { label: 'Ativo', value: 'ACTIVE' },
-  { label: 'Inativo', value: 'INACTIVE' },
-  { label: 'Bloqueado', value: 'LOCKED' },
+  { label: 'Active', value: 'ACTIVE' },
+  { label: 'Inactive', value: 'INACTIVE' },
+  { label: 'Blocked', value: 'LOCKED' },
 ];

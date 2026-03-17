@@ -4,13 +4,13 @@ import { ReportType } from '@properfy/shared';
 import { ReportTypeChip } from './ReportTypeChip';
 
 const TYPE_LABELS: Record<ReportType, string> = {
-  INSPECTIONS_SCHEDULED: 'Vistorias Agendadas',
-  INSPECTIONS_DONE: 'Vistorias Concluídas',
-  INSPECTIONS_CANCELLED: 'Vistorias Canceladas',
-  INSPECTIONS_REJECTED: 'Vistorias Rejeitadas',
-  INSPECTOR_PERFORMANCE: 'Desempenho Inspetores',
-  CONFIRMATION_STATUS: 'Status Confirmação',
-  FINANCIAL_SERVICES: 'Serviços Financeiros',
+  INSPECTIONS_SCHEDULED: 'Scheduled Inspections',
+  INSPECTIONS_DONE: 'Completed Inspections',
+  INSPECTIONS_CANCELLED: 'Cancelled Inspections',
+  INSPECTIONS_REJECTED: 'Rejected Inspections',
+  INSPECTOR_PERFORMANCE: 'Inspector Performance',
+  CONFIRMATION_STATUS: 'Confirmation Status',
+  FINANCIAL_SERVICES: 'Financial Services',
 };
 
 describe('ReportTypeChip', () => {
@@ -24,7 +24,7 @@ describe('ReportTypeChip', () => {
 
   it('passes className through', () => {
     render(<ReportTypeChip reportType={ReportType.INSPECTIONS_DONE} className="my-custom" />);
-    const chip = screen.getByText('Vistorias Concluídas');
+    const chip = screen.getByText('Completed Inspections');
     expect(chip.className).toContain('my-custom');
   });
 });

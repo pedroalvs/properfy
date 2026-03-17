@@ -4,10 +4,10 @@ import { ReportStatus } from '@properfy/shared';
 import { ReportStatusChip } from './ReportStatusChip';
 
 const STATUS_LABELS: Record<ReportStatus, string> = {
-  PENDING: 'Pendente',
-  PROCESSING: 'Processando',
-  READY: 'Pronto',
-  FAILED: 'Falhou',
+  PENDING: 'Pending',
+  PROCESSING: 'Processing',
+  READY: 'Ready',
+  FAILED: 'Failed',
 };
 
 describe('ReportStatusChip', () => {
@@ -21,7 +21,7 @@ describe('ReportStatusChip', () => {
 
   it('passes className through', () => {
     render(<ReportStatusChip status={ReportStatus.READY} className="my-custom" />);
-    const chip = screen.getByText('Pronto');
+    const chip = screen.getByText('Ready');
     expect(chip.className).toContain('my-custom');
   });
 });

@@ -74,20 +74,20 @@ function renderPage() {
 describe('PropertyListPage', () => {
   it('renders page title "Imóveis"', () => {
     renderPage();
-    expect(screen.getByText('Imóveis')).toBeInTheDocument();
+    expect(screen.getByText('Properties')).toBeInTheDocument();
   });
 
-  it('renders "Novo Imóvel" CTA button', () => {
+  it('renders "New Property" CTA button', () => {
     renderPage();
-    const matches = screen.getAllByText('Novo Imóvel');
+    const matches = screen.getAllByText('New Property');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders filter bar with search and type controls', () => {
     renderPage();
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
-    const tipoElements = screen.getAllByLabelText('Tipo');
-    expect(tipoElements.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    const typeElements = screen.getAllByLabelText('Type');
+    expect(typeElements.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders data table with property data after loading', async () => {
@@ -99,6 +99,6 @@ describe('PropertyListPage', () => {
 
   it('shows loading state initially', () => {
     renderPage();
-    expect(screen.getByText('Código')).toBeInTheDocument();
+    expect(screen.getByText('Code')).toBeInTheDocument();
   });
 });

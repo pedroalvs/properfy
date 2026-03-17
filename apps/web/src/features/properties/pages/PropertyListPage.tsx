@@ -8,7 +8,7 @@ import { PropertyFormDrawer } from '../components/PropertyFormDrawer';
 import { usePropertyList } from '../hooks/usePropertyList';
 
 const BRANCH_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todas', value: '' },
+  { label: 'All', value: '' },
   { label: 'Filial Centro', value: 'branch-1' },
   { label: 'Filial Norte', value: 'branch-2' },
 ];
@@ -34,9 +34,9 @@ export function PropertyListPage() {
   return (
     <>
       <ListFilterTableTemplate
-        title="Imóveis"
+        title="Properties"
         primaryAction={{
-          label: 'Novo Imóvel',
+          label: 'New Property',
           icon: 'mdi-plus',
           onClick: () => {
             setEditId(null);
@@ -52,7 +52,7 @@ export function PropertyListPage() {
         <PropertyTable
           data={data}
           loading={isLoading}
-          error={isError ? (errorMessage ?? 'Erro ao carregar imóveis') : undefined}
+          error={isError ? (errorMessage ?? 'Failed to load properties') : undefined}
           onRetryError={refetch}
           pagination={pagination}
           sorting={sorting}

@@ -24,6 +24,13 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+  },
+}));
+
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: {
     getAccessToken: vi.fn(() => 'mock-token'),
@@ -34,15 +41,17 @@ vi.mock('@/lib/auth-storage', () => ({
 }));
 
 import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { UserListPage } from './UserListPage';
 
 const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+const mockApiGET = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_ME = { id: 'usr-99', name: 'Test Admin', email: 'admin@test.com', role: 'AM', tenantId: 'tenant-1', branchId: null, totpEnabled: false };
 
 const MOCK_USERS = [
-  { id: 'usr-01', name: 'Admin Principal', email: 'admin@properfy.com', role: 'AM', status: 'ACTIVE' },
-  { id: 'usr-02', name: 'Ana Gestora', email: 'ana@imobiliaria.com', role: 'CL_ADMIN', status: 'ACTIVE' },
+  { id: 'usr-01', name: 'Main Admin', email: 'admin@properfy.com', role: 'AM', status: 'ACTIVE' },
+  { id: 'usr-02', name: 'Ana Manager', email: 'ana@agency.com', role: 'CL_ADMIN', status: 'ACTIVE' },
 ];
 
 function createWrapper() {
@@ -62,10 +71,9 @@ function createWrapper() {
 
 beforeEach(() => {
   mockGet.mockReset();
-  mockGet.mockImplementation((path: string) => {
-    if (path === '/v1/me') {
-      return Promise.resolve(MOCK_ME);
-    }
+  mockApiGET.mockReset();
+  mockApiGET.mockResolvedValue({ data: MOCK_ME, error: undefined });
+  mockGet.mockImplementation(() => {
     return Promise.resolve({
       data: MOCK_USERS,
       pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
@@ -79,34 +87,34 @@ function renderPage() {
 }
 
 describe('UserListPage', () => {
-  it('renders page title "Usuários"', () => {
+  it('renders page title "Users"', () => {
     renderPage();
-    expect(screen.getByText('Usuários')).toBeInTheDocument();
+    expect(screen.getByText('Users')).toBeInTheDocument();
   });
 
-  it('renders "Novo Usuário" CTA button', () => {
+  it('renders "New User" CTA button', () => {
     renderPage();
-    const matches = screen.getAllByText('Novo Usuário');
+    const matches = screen.getAllByText('New User');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders filter bar with search, role, and status controls', () => {
     renderPage();
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
-    expect(screen.getAllByLabelText('Perfil').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Role').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByLabelText('Status').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders data table with user data after loading', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Admin Principal')).toBeInTheDocument();
+      expect(screen.getByText('Main Admin')).toBeInTheDocument();
     });
   });
 
   it('shows loading state initially', () => {
     renderPage();
-    const nameMatches = screen.getAllByText('Nome');
+    const nameMatches = screen.getAllByText('Name');
     expect(nameMatches.length).toBeGreaterThanOrEqual(1);
   });
 });

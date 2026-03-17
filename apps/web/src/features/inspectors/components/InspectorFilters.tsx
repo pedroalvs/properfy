@@ -5,7 +5,7 @@ import { INSPECTOR_STATUS_MAP } from '@/lib/status-colors';
 import type { InspectorFiltersState } from '../types';
 
 const STATUS_OPTIONS: FilterSelectOption[] = [
-  { label: 'Todos', value: '' },
+  { label: 'All', value: '' },
   ...Object.entries(INSPECTOR_STATUS_MAP).map(([value, config]) => ({
     label: config.label,
     value,
@@ -24,8 +24,8 @@ export function InspectorFilters({
   return (
     <FilterBar>
       <FilterInput
-        label="Buscar"
-        placeholder="Nome, e-mail, telefone..."
+        label="Search"
+        placeholder="Name, email, phone..."
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />

@@ -23,7 +23,7 @@ export function ServiceGroupDetailDrawer({ serviceGroupId, open, onClose, onEdit
     if (onEdit && serviceGroupId) {
       onEdit(serviceGroupId);
     } else {
-      showInfo('Edição em breve');
+      showInfo('Editing coming soon');
     }
   }, [onEdit, serviceGroupId, showInfo]);
 
@@ -32,7 +32,7 @@ export function ServiceGroupDetailDrawer({ serviceGroupId, open, onClose, onEdit
       <div className="flex h-full flex-col">
         {isLoading ? (
           <>
-            <DrawerHeader title="Carregando..." onClose={onClose} />
+            <DrawerHeader title="Loading..." onClose={onClose} />
             <div className="flex-1 px-6 py-4">
               <LoadingState rows={6} />
             </div>
@@ -45,7 +45,7 @@ export function ServiceGroupDetailDrawer({ serviceGroupId, open, onClose, onEdit
               actions={
                 <>
                   <ServiceGroupStatusChip status={serviceGroup.status} />
-                  <Button variant="icon" onClick={handleEdit} aria-label="Editar">
+                  <Button variant="icon" onClick={handleEdit} aria-label="Edit">
                     <i className="mdi mdi-pencil-outline text-xl" />
                   </Button>
                 </>

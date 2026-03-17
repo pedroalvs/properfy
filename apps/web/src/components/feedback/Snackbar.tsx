@@ -30,7 +30,7 @@ export function Snackbar() {
           <button
             onClick={() => dismiss(msg.id)}
             className="ml-2 flex-shrink-0 opacity-70 hover:opacity-100"
-            aria-label="Fechar"
+            aria-label="Close"
           >
             <i className="mdi mdi-close text-base" />
           </button>

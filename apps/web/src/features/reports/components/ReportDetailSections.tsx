@@ -21,25 +21,25 @@ function formatFileSize(bytes: number | null): string | null {
 export function ReportDetailSections({ report }: ReportDetailSectionsProps) {
   return (
     <div className="flex flex-col gap-6">
-      <FormSection title="Relatório">
-        <DetailRow label="Tipo" value={<ReportTypeChip reportType={report.reportType} />} />
+      <FormSection title="Report">
+        <DetailRow label="Type" value={<ReportTypeChip reportType={report.reportType} />} />
         <DetailRow label="Status" value={<ReportStatusChip status={report.status} />} />
-        <DetailRow label="Formato" value={report.format} />
+        <DetailRow label="Format" value={report.format} />
       </FormSection>
 
-      <FormSection title="Arquivo">
-        <DetailRow label="Nome" value={report.fileName} />
-        <DetailRow label="Tamanho" value={formatFileSize(report.fileSize)} />
+      <FormSection title="File">
+        <DetailRow label="Name" value={report.fileName} />
+        <DetailRow label="Size" value={formatFileSize(report.fileSize)} />
       </FormSection>
 
-      <FormSection title="Solicitação">
-        <DetailRow label="Solicitado Por" value={report.requestedByName} />
-        <DetailRow label="Parâmetros" value={report.parameters} />
+      <FormSection title="Request">
+        <DetailRow label="Requested By" value={report.requestedByName} />
+        <DetailRow label="Parameters" value={report.parameters} />
       </FormSection>
 
-      <FormSection title="Registro">
-        <DetailRow label="Criado em" value={formatDateTimeBR(report.createdAt)} />
-        <DetailRow label="Atualizado em" value={formatDateTimeBR(report.updatedAt)} />
+      <FormSection title="Record">
+        <DetailRow label="Created At" value={formatDateTimeBR(report.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTimeBR(report.updatedAt)} />
       </FormSection>
     </div>
   );

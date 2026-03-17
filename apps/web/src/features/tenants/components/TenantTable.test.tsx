@@ -26,13 +26,13 @@ function makeContact(overrides: Partial<TenantContact> = {}): TenantContact {
 describe('TenantTable', () => {
   it('renders column headers', () => {
     render(<TenantTable data={[]} />);
-    expect(screen.getByText('Nome')).toBeInTheDocument();
-    expect(screen.getByText('E-mail')).toBeInTheDocument();
-    expect(screen.getByText('Telefone')).toBeInTheDocument();
-    expect(screen.getByText('Confirmação')).toBeInTheDocument();
-    expect(screen.getByText('Imóvel')).toBeInTheDocument();
-    expect(screen.getByText('Data Vistoria')).toBeInTheDocument();
-    expect(screen.getByText('Última Atividade')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Email')).toBeInTheDocument();
+    expect(screen.getByText('Phone')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation')).toBeInTheDocument();
+    expect(screen.getByText('Property')).toBeInTheDocument();
+    expect(screen.getByText('Appointment Date')).toBeInTheDocument();
+    expect(screen.getByText('Last Activity')).toBeInTheDocument();
   });
 
   it('renders data (name, propertyAddress)', () => {
@@ -45,7 +45,7 @@ describe('TenantTable', () => {
   it('renders TenantConfirmationStatusChip for status', () => {
     const contact = makeContact({ confirmationStatus: TenantConfirmationStatus.PENDING });
     render(<TenantTable data={[contact]} />);
-    expect(screen.getByText('Pendente')).toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
   it('renders em dash for null primaryEmail', () => {
@@ -77,17 +77,17 @@ describe('TenantTable', () => {
 
   it('shows loading state', () => {
     render(<TenantTable data={[]} loading />);
-    expect(screen.getByText('Nome')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
   });
 
   it('shows empty state when no data', () => {
     render(<TenantTable data={[]} />);
-    expect(screen.getByText('Nenhum registro encontrado')).toBeInTheDocument();
+    expect(screen.getByText('No records found')).toBeInTheDocument();
   });
 
   it('shows error state', () => {
-    render(<TenantTable data={[]} error="Erro de rede" />);
-    expect(screen.getByText('Erro de rede')).toBeInTheDocument();
+    render(<TenantTable data={[]} error="Network error" />);
+    expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
   it('view action calls onView with correct contact', async () => {
@@ -95,7 +95,7 @@ describe('TenantTable', () => {
     const onView = vi.fn();
     const contact = makeContact();
     render(<TenantTable data={[contact]} onView={onView} />);
-    await userEvt.click(screen.getByLabelText('Visualizar'));
+    await userEvt.click(screen.getByLabelText('View'));
     expect(onView).toHaveBeenCalledWith(contact);
   });
 });

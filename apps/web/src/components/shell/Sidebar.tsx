@@ -4,20 +4,20 @@ import { SidebarUser } from './SidebarUser';
 
 const NAV_ITEMS = [
   { icon: 'mdi-view-dashboard-outline', label: 'Dashboard', to: '/dashboard' },
-  { icon: 'mdi-calendar-month', label: 'Vistorias', to: '/appointments' },
-  { icon: 'mdi-home-city-outline', label: 'Imóveis', to: '/properties' },
+  { icon: 'mdi-calendar-month', label: 'Appointments', to: '/appointments' },
+  { icon: 'mdi-home-city-outline', label: 'Properties', to: '/properties' },
   {
     icon: 'mdi-account-group-outline',
-    label: 'Usuários',
+    label: 'Users',
     submenu: [
-      { icon: 'mdi-account-multiple-outline', label: 'Inquilinos', to: '/tenants' },
-      { icon: 'mdi-badge-account-outline', label: 'Inspetores', to: '/inspectors' },
-      { icon: 'mdi-shield-account-outline', label: 'Usuários', to: '/users' },
+      { icon: 'mdi-account-multiple-outline', label: 'Tenants', to: '/tenants' },
+      { icon: 'mdi-badge-account-outline', label: 'Inspectors', to: '/inspectors' },
+      { icon: 'mdi-shield-account-outline', label: 'Users', to: '/users' },
     ],
   },
-  { icon: 'mdi-office-building-marker', label: 'Grupos', to: '/service-groups' },
-  { icon: 'mdi-bank-outline', label: 'Financeiro', to: '/financial' },
-  { icon: 'mdi-chart-bar', label: 'Relatórios', to: '/reports' },
+  { icon: 'mdi-office-building-marker', label: 'Service Groups', to: '/service-groups' },
+  { icon: 'mdi-bank-outline', label: 'Financial', to: '/financial' },
+  { icon: 'mdi-chart-bar', label: 'Reports', to: '/reports' },
 ];
 
 export function Sidebar() {

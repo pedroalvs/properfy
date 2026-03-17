@@ -27,7 +27,7 @@ function getRowActions(
     return [
       {
         icon: 'mdi-download-outline',
-        label: 'Baixar',
+        label: 'Download',
         onClick: () => onDownload?.(row),
       },
     ];
@@ -37,7 +37,7 @@ function getRowActions(
     return [
       {
         icon: 'mdi-refresh',
-        label: 'Reprocessar',
+        label: 'Reprocess',
         onClick: () => onRetry?.(row),
       },
     ];
@@ -46,7 +46,7 @@ function getRowActions(
   return [
     {
       icon: 'mdi-eye-outline',
-      label: 'Visualizar',
+      label: 'View',
       onClick: () => onView?.(row),
     },
   ];
@@ -66,7 +66,7 @@ export function ReportTable({
   const columns: DataTableColumn<Report>[] = [
     {
       key: 'reportType',
-      label: 'Tipo',
+      label: 'Type',
       width: '200px',
       sortable: true,
       render: (row) => <ReportTypeChip reportType={row.reportType} />,
@@ -80,18 +80,18 @@ export function ReportTable({
     },
     {
       key: 'fileName',
-      label: 'Arquivo',
+      label: 'File',
       render: (row) => <>{row.fileName ?? '—'}</>,
     },
     {
       key: 'requestedByName',
-      label: 'Solicitado Por',
+      label: 'Requested By',
       width: '180px',
       sortable: true,
     },
     {
       key: 'createdAt',
-      label: 'Criado Em',
+      label: 'Created At',
       width: '140px',
       sortable: true,
       render: (row) => <>{new Date(row.createdAt).toLocaleDateString('pt-BR')}</>,

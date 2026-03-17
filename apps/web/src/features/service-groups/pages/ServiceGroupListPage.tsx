@@ -27,9 +27,9 @@ export function ServiceGroupListPage() {
   return (
     <>
       <ListFilterTableTemplate
-        title="Grupos de Serviço"
+        title="Service Groups"
         primaryAction={{
-          label: 'Novo Grupo',
+          label: 'New Group',
           icon: 'mdi-plus',
           onClick: () => {
             setEditId(null);
@@ -44,7 +44,7 @@ export function ServiceGroupListPage() {
         <ServiceGroupTable
           data={data}
           loading={isLoading}
-          error={isError ? (errorMessage ?? 'Erro ao carregar grupos de serviço') : undefined}
+          error={isError ? (errorMessage ?? 'Failed to load service groups') : undefined}
           onRetryError={refetch}
           pagination={pagination}
           sorting={sorting}

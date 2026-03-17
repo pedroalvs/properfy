@@ -90,7 +90,7 @@ export function FilterAutocomplete({
       {open && (
         <ul className={filterDropdown} role="listbox" aria-label={label}>
           {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-text-muted">Nenhum resultado</li>
+            <li className="px-3 py-2 text-sm text-text-muted">No results</li>
           ) : (
             filtered.map((opt) => (
               <li

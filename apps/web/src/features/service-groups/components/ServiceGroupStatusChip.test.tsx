@@ -4,10 +4,10 @@ import { ServiceGroupStatus } from '@properfy/shared';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
 
 const STATUS_LABELS: Record<ServiceGroupStatus, string> = {
-  DRAFT: 'Rascunho',
-  PUBLISHED: 'Publicado',
-  ACCEPTED: 'Aceito',
-  CANCELLED: 'Cancelado',
+  DRAFT: 'Draft',
+  PUBLISHED: 'Published',
+  ACCEPTED: 'Accepted',
+  CANCELLED: 'Cancelled',
 };
 
 describe('ServiceGroupStatusChip', () => {
@@ -21,7 +21,7 @@ describe('ServiceGroupStatusChip', () => {
 
   it('passes className through', () => {
     render(<ServiceGroupStatusChip status={ServiceGroupStatus.DRAFT} className="my-custom" />);
-    const chip = screen.getByText('Rascunho');
+    const chip = screen.getByText('Draft');
     expect(chip.className).toContain('my-custom');
   });
 });

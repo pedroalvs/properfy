@@ -74,13 +74,13 @@ function renderPage() {
 describe('TenantContactListPage', () => {
   it('renders page title "Inquilinos"', () => {
     renderPage();
-    expect(screen.getByText('Inquilinos')).toBeInTheDocument();
+    expect(screen.getByText('Tenants')).toBeInTheDocument();
   });
 
   it('renders filter bar with search and status controls', () => {
     renderPage();
-    expect(screen.getByLabelText('Buscar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Status Confirmação')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirmation Status')).toBeInTheDocument();
   });
 
   it('renders data table with tenant data after loading', async () => {
@@ -92,6 +92,6 @@ describe('TenantContactListPage', () => {
 
   it('shows loading state initially', () => {
     renderPage();
-    expect(screen.getByText('Nome')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
   });
 });

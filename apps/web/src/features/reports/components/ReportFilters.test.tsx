@@ -12,11 +12,11 @@ describe('ReportFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    expect(screen.getByLabelText('Tipo')).toBeInTheDocument();
+    expect(screen.getByLabelText('Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
-  it('type select shows "Todos" plus 7 type labels', async () => {
+  it('type select shows "All" plus 7 type labels', async () => {
     const user = userEvent.setup();
     render(
       <ReportFilters
@@ -24,19 +24,19 @@ describe('ReportFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    await user.click(screen.getByLabelText('Tipo'));
-    const listbox = screen.getByRole('listbox', { name: 'Tipo' });
-    expect(listbox).toHaveTextContent('Todos');
-    expect(screen.getByText('Vistorias Agendadas')).toBeInTheDocument();
-    expect(screen.getByText('Vistorias Concluídas')).toBeInTheDocument();
-    expect(screen.getByText('Vistorias Canceladas')).toBeInTheDocument();
-    expect(screen.getByText('Vistorias Rejeitadas')).toBeInTheDocument();
-    expect(screen.getByText('Desempenho Inspetores')).toBeInTheDocument();
-    expect(screen.getByText('Status Confirmação')).toBeInTheDocument();
-    expect(screen.getByText('Serviços Financeiros')).toBeInTheDocument();
+    await user.click(screen.getByLabelText('Type'));
+    const listbox = screen.getByRole('listbox', { name: 'Type' });
+    expect(listbox).toHaveTextContent('All');
+    expect(screen.getByText('Scheduled Inspections')).toBeInTheDocument();
+    expect(screen.getByText('Completed Inspections')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled Inspections')).toBeInTheDocument();
+    expect(screen.getByText('Rejected Inspections')).toBeInTheDocument();
+    expect(screen.getByText('Inspector Performance')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation Status')).toBeInTheDocument();
+    expect(screen.getByText('Financial Services')).toBeInTheDocument();
   });
 
-  it('status select shows "Todos" plus 4 status labels', async () => {
+  it('status select shows "All" plus 4 status labels', async () => {
     const user = userEvent.setup();
     render(
       <ReportFilters
@@ -46,11 +46,11 @@ describe('ReportFilters', () => {
     );
     await user.click(screen.getByLabelText('Status'));
     const listbox = screen.getByRole('listbox', { name: 'Status' });
-    expect(listbox).toHaveTextContent('Todos');
-    expect(screen.getByText('Pendente')).toBeInTheDocument();
-    expect(screen.getByText('Processando')).toBeInTheDocument();
-    expect(screen.getByText('Pronto')).toBeInTheDocument();
-    expect(screen.getByText('Falhou')).toBeInTheDocument();
+    expect(listbox).toHaveTextContent('All');
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText('Processing')).toBeInTheDocument();
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+    expect(screen.getByText('Failed')).toBeInTheDocument();
   });
 
   it('calls onFiltersChange on type selection', async () => {
@@ -62,8 +62,8 @@ describe('ReportFilters', () => {
         onFiltersChange={onChange}
       />,
     );
-    await user.click(screen.getByLabelText('Tipo'));
-    await user.click(screen.getByText('Vistorias Agendadas'));
+    await user.click(screen.getByLabelText('Type'));
+    await user.click(screen.getByText('Scheduled Inspections'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, reportType: 'INSPECTIONS_SCHEDULED' });
   });
 });

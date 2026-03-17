@@ -13,27 +13,27 @@ const baseReport: ReportDetail = {
   fileName: 'vistorias-agendadas-marco-2026.xlsx',
   createdAt: '2026-03-15T14:00:00Z',
   updatedAt: '2026-03-15T14:30:00Z',
-  parameters: 'Período: 01/03/2026 a 15/03/2026',
+  parameters: 'Period: 01/03/2026 to 15/03/2026',
   fileSize: 1048576,
 };
 
 describe('ReportDetailSections', () => {
   it('renders section titles', () => {
     render(<ReportDetailSections report={baseReport} />);
-    expect(screen.getAllByText('Relatório').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Arquivo')).toBeInTheDocument();
-    expect(screen.getByText('Solicitação')).toBeInTheDocument();
-    expect(screen.getByText('Registro')).toBeInTheDocument();
+    expect(screen.getAllByText('Report').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('File')).toBeInTheDocument();
+    expect(screen.getByText('Request')).toBeInTheDocument();
+    expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
   it('shows report type chip', () => {
     render(<ReportDetailSections report={baseReport} />);
-    expect(screen.getByText('Vistorias Agendadas')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled Inspections')).toBeInTheDocument();
   });
 
   it('shows report status chip', () => {
     render(<ReportDetailSections report={baseReport} />);
-    expect(screen.getByText('Pronto')).toBeInTheDocument();
+    expect(screen.getByText('Ready')).toBeInTheDocument();
   });
 
   it('shows format', () => {
@@ -59,6 +59,6 @@ describe('ReportDetailSections', () => {
 
   it('shows parameters when present, em-dash when null', () => {
     render(<ReportDetailSections report={baseReport} />);
-    expect(screen.getByText('Período: 01/03/2026 a 15/03/2026')).toBeInTheDocument();
+    expect(screen.getByText('Period: 01/03/2026 to 15/03/2026')).toBeInTheDocument();
   });
 });

@@ -124,7 +124,7 @@ describe('FinancialEntryDetailDrawer', () => {
 
   it('edit button calls showInfo snackbar when onEdit not provided', () => {
     renderDrawer({ entryId: 'fin-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
     expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
@@ -132,7 +132,7 @@ describe('FinancialEntryDetailDrawer', () => {
   it('edit button calls onEdit with entry id when onEdit prop is provided', () => {
     const onEdit = vi.fn();
     renderDrawer({ entryId: 'fin-01', open: true, onEdit });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
     expect(onEdit).toHaveBeenCalledWith('fin-01');
   });
@@ -158,7 +158,7 @@ describe('FinancialEntryDetailDrawer', () => {
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ entryId: 'fin-01', open: true, onClose });
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
 });

@@ -19,7 +19,7 @@ export function ReportDetailDrawer({ reportId, open, onClose }: ReportDetailDraw
   const { showInfo } = useSnackbar();
 
   const handleEdit = useCallback(() => {
-    showInfo('Edição em breve');
+    showInfo('Editing coming soon');
   }, [showInfo]);
 
   return (
@@ -27,7 +27,7 @@ export function ReportDetailDrawer({ reportId, open, onClose }: ReportDetailDraw
       <div className="flex h-full flex-col">
         {isLoading ? (
           <>
-            <DrawerHeader title="Carregando..." onClose={onClose} />
+            <DrawerHeader title="Loading..." onClose={onClose} />
             <div className="flex-1 px-6 py-4">
               <LoadingState rows={6} />
             </div>
@@ -35,12 +35,12 @@ export function ReportDetailDrawer({ reportId, open, onClose }: ReportDetailDraw
         ) : report ? (
           <>
             <DrawerHeader
-              title={report.fileName ?? 'Relatório'}
+              title={report.fileName ?? 'Report'}
               onClose={onClose}
               actions={
                 <>
                   <ReportStatusChip status={report.status} />
-                  <Button variant="icon" onClick={handleEdit} aria-label="Editar">
+                  <Button variant="icon" onClick={handleEdit} aria-label="Edit">
                     <i className="mdi mdi-pencil-outline text-xl" />
                   </Button>
                 </>

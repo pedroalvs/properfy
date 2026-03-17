@@ -112,26 +112,26 @@ describe('ServiceGroupDetailDrawer', () => {
 
   it('shows status chip in header', () => {
     renderDrawer({ serviceGroupId: 'sg-01', open: true });
-    const matches = screen.getAllByText('Publicado');
+    const matches = screen.getAllByText('Published');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows detail sections', () => {
     renderDrawer({ serviceGroupId: 'sg-01', open: true });
-    expect(screen.getByText('Informações')).toBeInTheDocument();
-    expect(screen.getByText('Inspetor')).toBeInTheDocument();
+    expect(screen.getByText('Information')).toBeInTheDocument();
+    expect(screen.getByText('Inspector')).toBeInTheDocument();
   });
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ serviceGroupId: 'sg-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
     renderDrawer({ serviceGroupId: 'loading', open: true });
-    const loadingElements = screen.getAllByText('Carregando...');
+    const loadingElements = screen.getAllByText('Loading...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
@@ -143,29 +143,29 @@ describe('ServiceGroupDetailDrawer', () => {
 
   it('shows nothing when serviceGroupId is null', () => {
     renderDrawer({ serviceGroupId: null, open: true });
-    expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
-    expect(screen.queryByText('Informações')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Information')).not.toBeInTheDocument();
   });
 
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ serviceGroupId: 'sg-01', open: true, onClose });
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('edit button calls onEdit with service group id when onEdit prop is provided', () => {
     const onEdit = vi.fn();
     renderDrawer({ serviceGroupId: 'sg-01', open: true, onEdit });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
     expect(onEdit).toHaveBeenCalledWith('sg-01');
   });
 
   it('edit button falls back to snackbar when onEdit prop is not provided', () => {
     renderDrawer({ serviceGroupId: 'sg-01', open: true });
-    const editButton = screen.getByLabelText('Editar');
+    const editButton = screen.getByLabelText('Edit');
     fireEvent.click(editButton);
-    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
+    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 });

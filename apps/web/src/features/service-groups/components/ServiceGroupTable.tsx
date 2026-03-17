@@ -28,19 +28,19 @@ export function ServiceGroupTable({
   const columns: DataTableColumn<ServiceGroup>[] = [
     {
       key: 'name',
-      label: 'Nome',
+      label: 'Name',
       sortable: true,
     },
     {
       key: 'regionName',
-      label: 'Região',
+      label: 'Region',
       width: '180px',
       sortable: true,
       render: (row) => <>{row.regionName ?? '—'}</>,
     },
     {
       key: 'inspectorName',
-      label: 'Inspetor',
+      label: 'Inspector',
       width: '180px',
       sortable: true,
       render: (row) => <>{row.inspectorName ?? '—'}</>,
@@ -54,7 +54,7 @@ export function ServiceGroupTable({
     },
     {
       key: 'priorityMode',
-      label: 'Prioridade',
+      label: 'Priority',
       width: '140px',
       render: (row) => {
         const style = PRIORITY_MODE_MAP[row.priorityMode];
@@ -70,7 +70,7 @@ export function ServiceGroupTable({
     },
     {
       key: 'appointmentsCount',
-      label: 'Vistorias',
+      label: 'Appointments',
       width: '100px',
     },
     {
@@ -82,12 +82,12 @@ export function ServiceGroupTable({
           actions={[
             {
               icon: 'mdi-eye-outline',
-              label: 'Visualizar',
+              label: 'View',
               onClick: () => onView?.(row),
             },
             {
               icon: 'mdi-pencil-outline',
-              label: 'Editar',
+              label: 'Edit',
               onClick: () => onEdit?.(row),
             },
           ]}

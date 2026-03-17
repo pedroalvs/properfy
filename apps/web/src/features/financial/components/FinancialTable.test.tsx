@@ -14,7 +14,7 @@ function makeEntry(overrides: Partial<FinancialEntry> = {}): FinancialEntry {
     amount: -350,
     currency: 'BRL',
     status: FinancialEntryStatus.APPROVED,
-    description: 'Débito referente à vistoria',
+    description: 'Inspection debit',
     relatedEntityName: 'Imobiliária Centro',
     effectiveAt: '2026-03-10T14:00:00Z',
     approvedByName: 'Admin Principal',
@@ -87,12 +87,12 @@ describe('FinancialTable', () => {
 
   it('shows empty state when no data', () => {
     render(<FinancialTable data={[]} />);
-    expect(screen.getByText('Nenhum registro encontrado')).toBeInTheDocument();
+    expect(screen.getByText('No records found')).toBeInTheDocument();
   });
 
   it('shows error state', () => {
-    render(<FinancialTable data={[]} error="Erro de rede" />);
-    expect(screen.getByText('Erro de rede')).toBeInTheDocument();
+    render(<FinancialTable data={[]} error="Network error" />);
+    expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
   it('view action calls onView with correct entry', async () => {

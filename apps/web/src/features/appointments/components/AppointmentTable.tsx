@@ -27,17 +27,17 @@ export function AppointmentTable({
   const columns: DataTableColumn<Appointment>[] = [
     {
       key: 'code',
-      label: 'Código',
+      label: 'Code',
       width: '120px',
       sortable: true,
     },
     {
       key: 'propertyAddress',
-      label: 'Endereço',
+      label: 'Address',
     },
     {
       key: 'contactName',
-      label: 'Inquilino',
+      label: 'Tenant',
       width: '160px',
       sortable: true,
     },
@@ -50,13 +50,13 @@ export function AppointmentTable({
     },
     {
       key: 'inspectorName',
-      label: 'Inspetor',
+      label: 'Inspector',
       width: '160px',
       render: (row) => <>{row.inspectorName ?? '—'}</>,
     },
     {
       key: 'scheduledDate',
-      label: 'Data Agendada',
+      label: 'Scheduled Date',
       width: '140px',
       sortable: true,
       render: (row) => <>{new Date(row.scheduledDate).toLocaleDateString('pt-BR')}</>,
@@ -70,12 +70,12 @@ export function AppointmentTable({
           actions={[
             {
               icon: 'mdi-eye-outline',
-              label: 'Visualizar',
+              label: 'View',
               onClick: () => onView?.(row),
             },
             {
               icon: 'mdi-pencil-outline',
-              label: 'Editar',
+              label: 'Edit',
               onClick: () => onEdit?.(row),
             },
           ]}

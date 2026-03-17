@@ -4,8 +4,8 @@ import { InspectorStatus } from '@properfy/shared';
 import { InspectorStatusChip } from './InspectorStatusChip';
 
 const STATUS_LABELS: Record<InspectorStatus, string> = {
-  ACTIVE: 'Ativo',
-  INACTIVE: 'Inativo',
+  ACTIVE: 'Active',
+  INACTIVE: 'Inactive',
 };
 
 describe('InspectorStatusChip', () => {
@@ -19,7 +19,7 @@ describe('InspectorStatusChip', () => {
 
   it('passes className through', () => {
     render(<InspectorStatusChip status={InspectorStatus.ACTIVE} className="my-custom" />);
-    const chip = screen.getByText('Ativo');
+    const chip = screen.getByText('Active');
     expect(chip.className).toContain('my-custom');
   });
 });

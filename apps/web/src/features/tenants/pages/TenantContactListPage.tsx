@@ -32,7 +32,7 @@ export function TenantContactListPage() {
   }, []);
 
   return (
-    <ListFilterTableTemplate title="Inquilinos">
+    <ListFilterTableTemplate title="Tenants">
       <TenantFilters
         filters={filters}
         onFiltersChange={setFilters}
@@ -40,7 +40,7 @@ export function TenantContactListPage() {
       <TenantTable
         data={data}
         loading={isLoading}
-        error={isError ? (errorMessage ?? 'Erro ao carregar inquilinos') : undefined}
+        error={isError ? (errorMessage ?? 'Failed to load tenants') : undefined}
         onRetryError={refetch}
         pagination={pagination}
         sorting={sorting}

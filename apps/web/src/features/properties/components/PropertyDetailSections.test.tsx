@@ -19,7 +19,7 @@ function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
     state: 'SP',
     country: 'BR',
     geocodingStatus: GeocodingStatus.SUCCESS,
-    notes: 'Observação de teste',
+    notes: 'Test note',
     latitude: -23.5505,
     longitude: -46.6333,
     createdAt: '2026-01-10T10:00:00Z',
@@ -31,16 +31,16 @@ function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
 describe('PropertyDetailSections', () => {
   it('renders section titles', () => {
     render(<PropertyDetailSections property={makeProperty()} />);
-    expect(screen.getByText('Identificação')).toBeInTheDocument();
-    expect(screen.getByText('Endereço')).toBeInTheDocument();
-    expect(screen.getByText('Geocodificação')).toBeInTheDocument();
-    expect(screen.getByText('Registro')).toBeInTheDocument();
+    expect(screen.getByText('Identification')).toBeInTheDocument();
+    expect(screen.getByText('Address')).toBeInTheDocument();
+    expect(screen.getByText('Geocoding')).toBeInTheDocument();
+    expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
   it('renders property code and type chip', () => {
     render(<PropertyDetailSections property={makeProperty()} />);
     expect(screen.getByText('IMV-001')).toBeInTheDocument();
-    expect(screen.getByText('Residencial')).toBeInTheDocument();
+    expect(screen.getByText('Residential')).toBeInTheDocument();
   });
 
   it('renders address fields', () => {
@@ -64,23 +64,23 @@ describe('PropertyDetailSections', () => {
 
   it('shows geocoding status chip', () => {
     render(<PropertyDetailSections property={makeProperty()} />);
-    expect(screen.getByText('Sucesso')).toBeInTheDocument();
+    expect(screen.getByText('Success')).toBeInTheDocument();
   });
 
   it('shows notes section when present, hides when null', () => {
     const { rerender } = render(
-      <PropertyDetailSections property={makeProperty({ notes: 'Nota importante' })} />,
+      <PropertyDetailSections property={makeProperty({ notes: 'Important note' })} />,
     );
-    expect(screen.getByText('Observações')).toBeInTheDocument();
-    expect(screen.getByText('Nota importante')).toBeInTheDocument();
+    expect(screen.getByText('Observations')).toBeInTheDocument();
+    expect(screen.getByText('Important note')).toBeInTheDocument();
 
     rerender(<PropertyDetailSections property={makeProperty({ notes: null })} />);
-    expect(screen.queryByText('Observações')).not.toBeInTheDocument();
+    expect(screen.queryByText('Observations')).not.toBeInTheDocument();
   });
 
   it('renders createdAt and updatedAt', () => {
     render(<PropertyDetailSections property={makeProperty()} />);
-    expect(screen.getByText('Criado em')).toBeInTheDocument();
-    expect(screen.getByText('Atualizado em')).toBeInTheDocument();
+    expect(screen.getByText('Created At')).toBeInTheDocument();
+    expect(screen.getByText('Updated At')).toBeInTheDocument();
   });
 });
