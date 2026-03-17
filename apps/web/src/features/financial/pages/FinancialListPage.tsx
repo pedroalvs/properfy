@@ -1,6 +1,8 @@
+import { useState, useCallback } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { FinancialFilters } from '../components/FinancialFilters';
 import { FinancialTable } from '../components/FinancialTable';
+import { FinancialEntryDetailDrawer } from '../components/FinancialEntryDetailDrawer';
 import { useFinancialList } from '../hooks/useFinancialList';
 
 export function FinancialListPage() {
@@ -15,6 +17,19 @@ export function FinancialListPage() {
     pagination,
     sorting,
   } = useFinancialList();
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const handleView = useCallback((entry: { id: string }) => {
+    setSelectedId(entry.id);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    setSelectedId(null);
+  }, []);
 
   return (
     <ListFilterTableTemplate
@@ -32,8 +47,13 @@ export function FinancialListPage() {
         onRetryError={refetch}
         pagination={pagination}
         sorting={sorting}
-        onView={() => {}}
-        onEdit={() => {}}
+        onView={handleView}
+        onEdit={handleView}
+      />
+      <FinancialEntryDetailDrawer
+        entryId={selectedId}
+        open={drawerOpen}
+        onClose={handleCloseDrawer}
       />
     </ListFilterTableTemplate>
   );

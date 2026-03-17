@@ -1,22 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type FinancialEntry, type FinancialFiltersState } from '../types';
-
-const MOCK_ENTRIES: FinancialEntry[] = [
-  { id: 'fin-01', tenantId: 't-1', appointmentCode: 'VIST-001', entryType: FinancialEntryType.TENANT_DEBIT, amount: -350, currency: 'BRL', status: FinancialEntryStatus.APPROVED, description: 'Débito vistoria residencial Centro', relatedEntityName: 'Imobiliária Centro', effectiveAt: '2026-03-15T00:00:00Z', approvedByName: 'Admin Principal', createdAt: '2026-03-15T10:00:00Z', updatedAt: '2026-03-15T10:00:00Z' },
-  { id: 'fin-02', tenantId: 't-1', appointmentCode: 'VIST-002', entryType: FinancialEntryType.TENANT_DEBIT, amount: -420, currency: 'BRL', status: FinancialEntryStatus.PENDING, description: 'Débito vistoria comercial Paulista', relatedEntityName: 'Imobiliária Paulista', effectiveAt: '2026-03-14T00:00:00Z', approvedByName: null, createdAt: '2026-03-14T10:00:00Z', updatedAt: '2026-03-14T10:00:00Z' },
-  { id: 'fin-03', tenantId: 't-2', appointmentCode: 'VIST-003', entryType: FinancialEntryType.TENANT_DEBIT, amount: -280, currency: 'BRL', status: FinancialEntryStatus.APPROVED, description: 'Débito vistoria apartamento Vila Mariana', relatedEntityName: 'Realty Premium', effectiveAt: '2026-03-13T00:00:00Z', approvedByName: 'Admin Principal', createdAt: '2026-03-13T10:00:00Z', updatedAt: '2026-03-13T10:00:00Z' },
-  { id: 'fin-04', tenantId: 't-1', appointmentCode: 'VIST-004', entryType: FinancialEntryType.INSPECTOR_PAYOUT, amount: -175, currency: 'BRL', status: FinancialEntryStatus.APPROVED, description: 'Pagamento inspetor Diego - vistoria Centro', relatedEntityName: 'Diego Inspetor', effectiveAt: '2026-03-15T00:00:00Z', approvedByName: 'Carlos Operador', createdAt: '2026-03-15T11:00:00Z', updatedAt: '2026-03-15T11:00:00Z' },
-  { id: 'fin-05', tenantId: 't-1', appointmentCode: 'VIST-005', entryType: FinancialEntryType.INSPECTOR_PAYOUT, amount: -210, currency: 'BRL', status: FinancialEntryStatus.PENDING, description: 'Pagamento inspetor Camila - vistoria Paulista', relatedEntityName: 'Camila Inspetora', effectiveAt: '2026-03-14T00:00:00Z', approvedByName: null, createdAt: '2026-03-14T11:00:00Z', updatedAt: '2026-03-14T11:00:00Z' },
-  { id: 'fin-06', tenantId: 't-2', appointmentCode: 'VIST-006', entryType: FinancialEntryType.INSPECTOR_PAYOUT, amount: -140, currency: 'BRL', status: FinancialEntryStatus.CANCELLED, description: 'Pagamento inspetor Rafael - cancelado', relatedEntityName: 'Rafael Inspetor', effectiveAt: '2026-03-12T00:00:00Z', approvedByName: null, createdAt: '2026-03-12T11:00:00Z', updatedAt: '2026-03-12T15:00:00Z' },
-  { id: 'fin-07', tenantId: 't-1', appointmentCode: 'VIST-007', entryType: FinancialEntryType.REFUND, amount: 350, currency: 'BRL', status: FinancialEntryStatus.APPROVED, description: 'Reembolso vistoria não realizada Centro', relatedEntityName: 'Imobiliária Centro', effectiveAt: '2026-03-11T00:00:00Z', approvedByName: 'Admin Principal', createdAt: '2026-03-11T10:00:00Z', updatedAt: '2026-03-11T10:00:00Z' },
-  { id: 'fin-08', tenantId: 't-1', appointmentCode: 'VIST-008', entryType: FinancialEntryType.REFUND, amount: 210, currency: 'BRL', status: FinancialEntryStatus.PENDING, description: 'Reembolso parcial Paulista', relatedEntityName: 'Imobiliária Paulista', effectiveAt: '2026-03-10T00:00:00Z', approvedByName: null, createdAt: '2026-03-10T10:00:00Z', updatedAt: '2026-03-10T10:00:00Z' },
-  { id: 'fin-09', tenantId: 't-2', appointmentCode: 'VIST-009', entryType: FinancialEntryType.REFUND, amount: 180, currency: 'BRL', status: FinancialEntryStatus.PENDING, description: 'Reembolso vistoria Vila Mariana', relatedEntityName: 'Realty Premium', effectiveAt: '2026-03-09T00:00:00Z', approvedByName: null, createdAt: '2026-03-09T10:00:00Z', updatedAt: '2026-03-09T10:00:00Z' },
-  { id: 'fin-10', tenantId: 't-1', appointmentCode: 'VIST-010', entryType: FinancialEntryType.MANUAL_ADJUSTMENT, amount: 50, currency: 'BRL', status: FinancialEntryStatus.APPROVED, description: 'Ajuste compensação atraso', relatedEntityName: 'Imobiliária Centro', effectiveAt: '2026-03-08T00:00:00Z', approvedByName: 'Admin Principal', createdAt: '2026-03-08T10:00:00Z', updatedAt: '2026-03-08T10:00:00Z' },
-  { id: 'fin-11', tenantId: 't-1', appointmentCode: 'VIST-011', entryType: FinancialEntryType.MANUAL_ADJUSTMENT, amount: -30, currency: 'BRL', status: FinancialEntryStatus.APPROVED, description: 'Ajuste correção valor Paulista', relatedEntityName: 'Imobiliária Paulista', effectiveAt: '2026-03-07T00:00:00Z', approvedByName: 'Carlos Operador', createdAt: '2026-03-07T10:00:00Z', updatedAt: '2026-03-07T10:00:00Z' },
-  { id: 'fin-12', tenantId: 't-2', appointmentCode: 'VIST-012', entryType: FinancialEntryType.MANUAL_ADJUSTMENT, amount: 100, currency: 'BRL', status: FinancialEntryStatus.PENDING, description: 'Ajuste bonificação Realty', relatedEntityName: 'Realty Premium', effectiveAt: '2026-03-06T00:00:00Z', approvedByName: null, createdAt: '2026-03-06T10:00:00Z', updatedAt: '2026-03-06T10:00:00Z' },
-];
+import { MOCK_FINANCIAL_ENTRIES } from '../mocks/financialEntries';
 
 function filterEntries(
   data: FinancialEntry[],
@@ -82,7 +67,7 @@ export function useFinancialList(): UseFinancialListReturn {
   }, [simulateLoad]);
 
   const filtered = useMemo(
-    () => filterEntries(MOCK_ENTRIES, filters),
+    () => filterEntries(MOCK_FINANCIAL_ENTRIES, filters),
     [filters],
   );
 

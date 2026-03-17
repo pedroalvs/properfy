@@ -16,6 +16,12 @@ export interface FinancialEntry {
   updatedAt: string;
 }
 
+export interface FinancialEntryDetail extends FinancialEntry {
+  notes: string | null;
+  approvedAt: string | null;
+  referenceNumber: string | null;
+}
+
 export interface FinancialFiltersState {
   search: string;
   entryType: string;
