@@ -38,6 +38,7 @@ function makeBranch(
     tenantId: 'tenant-1',
     name: 'Main Branch',
     addressJson: null,
+    contactEmail: null,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -145,6 +146,38 @@ describe('UpdateBranchUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(BranchNameConflictError);
+  });
+
+  it('should update branch contactEmail', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      branchId: 'branch-1',
+      data: { contactEmail: 'pm@agency.com' },
+      actor: makeActor(),
+    });
+
+    expect(result.contactEmail).toBe('pm@agency.com');
+    expect(branchRepo.update).toHaveBeenCalledWith('branch-1', { contactEmail: 'pm@agency.com' });
+  });
+
+  it('should clear branch contactEmail (set to null)', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    vi.mocked(branchRepo.findById).mockResolvedValue(
+      makeBranch({ contactEmail: 'old@agency.com' }),
+    );
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      branchId: 'branch-1',
+      data: { contactEmail: null },
+      actor: makeActor(),
+    });
+
+    expect(result.contactEmail).toBeNull();
+    expect(branchRepo.update).toHaveBeenCalledWith('branch-1', { contactEmail: null });
   });
 
   it('should throw BRANCH_NOT_FOUND when branch does not exist', async () => {

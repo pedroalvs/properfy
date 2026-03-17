@@ -27,6 +27,7 @@ export interface IBranchRepository {
     data: Partial<{
       name: string;
       addressJson: Record<string, unknown> | null;
+      contactEmail: string | null;
       status: string;
       deletedAt: Date | null;
     }>,

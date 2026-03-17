@@ -12,6 +12,7 @@ function mapToEntity(row: {
   tenant_id: string;
   name: string;
   address_json: unknown;
+  contact_email: string | null;
   status: string;
   created_at: Date;
   updated_at: Date;
@@ -22,6 +23,7 @@ function mapToEntity(row: {
     tenantId: row.tenant_id,
     name: row.name,
     addressJson: (row.address_json as Record<string, unknown>) ?? null,
+    contactEmail: row.contact_email,
     status: row.status as BranchStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -78,6 +80,7 @@ export class PrismaBranchRepository implements IBranchRepository {
         tenant_id: branch.tenantId,
         name: branch.name,
         address_json: branch.addressJson,
+        contact_email: branch.contactEmail,
         status: branch.status as string,
       },
     });
@@ -96,6 +99,8 @@ export class PrismaBranchRepository implements IBranchRepository {
     if (data.name !== undefined) updateData['name'] = data.name;
     if (data.addressJson !== undefined)
       updateData['address_json'] = data.addressJson;
+    if (data.contactEmail !== undefined)
+      updateData['contact_email'] = data.contactEmail;
     if (data.status !== undefined) updateData['status'] = data.status;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
     await this.prisma.branch.update({ where: { id }, data: updateData });

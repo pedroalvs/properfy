@@ -40,6 +40,7 @@ function makeBranch(
     tenantId: 'tenant-1',
     name: 'Main Branch',
     addressJson: null,
+    contactEmail: null,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),

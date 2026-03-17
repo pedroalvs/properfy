@@ -40,6 +40,7 @@ export type DeactivateInput = z.infer<typeof deactivateSchema>;
 export const createBranchSchema = z.object({
   name: z.string().min(1).max(200).trim(),
   address: z.record(z.unknown()).optional(),
+  contactEmail: z.string().email().max(254).optional(),
 });
 export type CreateBranchInput = z.infer<typeof createBranchSchema>;
 
@@ -47,6 +48,7 @@ export type CreateBranchInput = z.infer<typeof createBranchSchema>;
 export const updateBranchSchema = z.object({
   name: z.string().min(1).max(200).trim().optional(),
   address: z.record(z.unknown()).optional(),
+  contactEmail: z.string().email().max(254).nullish(),
 });
 export type UpdateBranchInput = z.infer<typeof updateBranchSchema>;
 

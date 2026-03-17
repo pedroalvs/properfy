@@ -39,6 +39,7 @@ function makeBranch(
     tenantId: 'tenant-1',
     name: 'Main Branch',
     addressJson: null,
+    contactEmail: null,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -152,6 +153,33 @@ describe('CreateBranchUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(BranchNameConflictError);
+  });
+
+  it('should create branch with contactEmail', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    vi.mocked(branchRepo.findByName).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      name: 'New Branch',
+      contactEmail: 'pm@agency.com',
+      actor: makeActor(),
+    });
+
+    expect(result.contactEmail).toBe('pm@agency.com');
+  });
+
+  it('should create branch without contactEmail (defaults to null)', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    vi.mocked(branchRepo.findByName).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      name: 'New Branch',
+      actor: makeActor(),
+    });
+
+    expect(result.contactEmail).toBeNull();
   });
 
   it('should throw TENANT_NOT_FOUND when tenant does not exist', async () => {

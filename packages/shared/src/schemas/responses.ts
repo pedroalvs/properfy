@@ -76,6 +76,7 @@ export const branchResponseSchema = z.object({
   tenantId: z.string().uuid(),
   name: z.string(),
   addressJson: z.unknown().nullable(),
+  contactEmail: z.string().nullable(),
   status: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),

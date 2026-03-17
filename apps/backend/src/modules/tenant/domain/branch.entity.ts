@@ -6,6 +6,7 @@ export interface BranchProps {
   tenantId: string;
   name: string;
   addressJson: Record<string, unknown> | null;
+  contactEmail: string | null;
   status: BranchStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -16,6 +17,7 @@ export class BranchEntity extends BaseEntity {
   readonly tenantId: string;
   readonly name: string;
   readonly addressJson: Record<string, unknown> | null;
+  readonly contactEmail: string | null;
   status: BranchStatus;
   readonly deletedAt: Date | null;
 
@@ -24,6 +26,7 @@ export class BranchEntity extends BaseEntity {
     this.tenantId = props.tenantId;
     this.name = props.name;
     this.addressJson = props.addressJson;
+    this.contactEmail = props.contactEmail;
     this.status = props.status;
     this.deletedAt = props.deletedAt;
   }

@@ -14,6 +14,7 @@ export interface CreateBranchInput {
   tenantId: string;
   name: string;
   address?: Record<string, unknown>;
+  contactEmail?: string;
   actor: AuthContext;
 }
 
@@ -22,6 +23,7 @@ export interface CreateBranchOutput {
   tenantId: string;
   name: string;
   addressJson: Record<string, unknown> | null;
+  contactEmail: string | null;
   status: string;
   createdAt: Date;
 }
@@ -34,7 +36,7 @@ export class CreateBranchUseCase {
   ) {}
 
   async execute(input: CreateBranchInput): Promise<CreateBranchOutput> {
-    const { tenantId, name, address, actor } = input;
+    const { tenantId, name, address, contactEmail, actor } = input;
 
     // RBAC: AM any tenant; CL_ADMIN own tenant only
     if (
@@ -65,6 +67,7 @@ export class CreateBranchUseCase {
       tenantId,
       name,
       addressJson: address ?? null,
+      contactEmail: contactEmail ?? null,
       status: 'ACTIVE',
       createdAt: now,
       updatedAt: now,
@@ -85,6 +88,7 @@ export class CreateBranchUseCase {
         tenantId,
         name,
         addressJson: branch.addressJson,
+        contactEmail: branch.contactEmail,
         status: 'ACTIVE',
       },
     });
@@ -94,6 +98,7 @@ export class CreateBranchUseCase {
       tenantId: branch.tenantId,
       name: branch.name,
       addressJson: branch.addressJson,
+      contactEmail: branch.contactEmail,
       status: branch.status,
       createdAt: branch.createdAt,
     };

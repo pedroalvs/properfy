@@ -15,6 +15,7 @@ export interface UpdateBranchInput {
   data: {
     name?: string;
     address?: Record<string, unknown> | null;
+    contactEmail?: string | null;
   };
   actor: AuthContext;
 }
@@ -24,6 +25,7 @@ export interface UpdateBranchOutput {
   tenantId: string;
   name: string;
   addressJson: Record<string, unknown> | null;
+  contactEmail: string | null;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -68,11 +70,13 @@ export class UpdateBranchUseCase {
     const before = {
       name: branch.name,
       addressJson: branch.addressJson,
+      contactEmail: branch.contactEmail,
     };
 
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.address !== undefined) updateData.addressJson = data.address;
+    if (data.contactEmail !== undefined) updateData.contactEmail = data.contactEmail;
 
     await this.branchRepo.update(branchId, updateData);
 
@@ -81,6 +85,10 @@ export class UpdateBranchUseCase {
       addressJson:
         (updateData.addressJson as Record<string, unknown> | null) ??
         branch.addressJson,
+      contactEmail:
+        updateData.contactEmail !== undefined
+          ? (updateData.contactEmail as string | null)
+          : branch.contactEmail,
     };
 
     this.auditService.log({
@@ -99,6 +107,7 @@ export class UpdateBranchUseCase {
       tenantId: branch.tenantId,
       name: after.name,
       addressJson: after.addressJson,
+      contactEmail: after.contactEmail,
       status: branch.status,
       createdAt: branch.createdAt,
       updatedAt: new Date(),

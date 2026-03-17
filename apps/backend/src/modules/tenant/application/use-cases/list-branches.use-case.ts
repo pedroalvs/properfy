@@ -21,6 +21,7 @@ export interface ListBranchesOutput {
     tenantId: string;
     name: string;
     addressJson: Record<string, unknown> | null;
+    contactEmail: string | null;
     status: string;
     createdAt: Date;
     updatedAt: Date;
@@ -65,6 +66,7 @@ export class ListBranchesUseCase {
         tenantId: b.tenantId,
         name: b.name,
         addressJson: b.addressJson,
+        contactEmail: b.contactEmail,
         status: b.status,
         createdAt: b.createdAt,
         updatedAt: b.updatedAt,
