@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
+import { createMockContainer } from '../../helpers/mock-container';
 
-// Module-level mock functions for inspector use cases
 const mockCreateInspectorExecute = vi.fn();
 const mockGetInspectorExecute = vi.fn();
 const mockListInspectorsExecute = vi.fn();
@@ -15,59 +15,14 @@ const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
 vi.mock('../../../src/main/container', () => ({
-  createContainer: () => ({
-    prisma: {},
-    auditService: { log: mockAuditLog },
-    auth: {
-      loginUseCase: { execute: vi.fn() },
-      refreshTokenUseCase: { execute: vi.fn() },
-      logoutUseCase: { execute: vi.fn() },
-      getMeUseCase: { execute: vi.fn() },
-      changePasswordUseCase: { execute: vi.fn() },
-      revokeSessionUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    tenant: {
-      createTenantUseCase: { execute: vi.fn() },
-      getTenantUseCase: { execute: vi.fn() },
-      listTenantsUseCase: { execute: vi.fn() },
-      updateTenantUseCase: { execute: vi.fn() },
-      deactivateTenantUseCase: { execute: vi.fn() },
-      createBranchUseCase: { execute: vi.fn() },
-      listBranchesUseCase: { execute: vi.fn() },
-      updateBranchUseCase: { execute: vi.fn() },
-      deactivateBranchUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    user: {
-      createUserUseCase: { execute: vi.fn() },
-      getUserUseCase: { execute: vi.fn() },
-      listUsersUseCase: { execute: vi.fn() },
-      updateUserUseCase: { execute: vi.fn() },
-      deactivateUserUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    property: {
-      createPropertyUseCase: { execute: vi.fn() },
-      getPropertyUseCase: { execute: vi.fn() },
-      listPropertiesUseCase: { execute: vi.fn() },
-      updatePropertyUseCase: { execute: vi.fn() },
-      deletePropertyUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    serviceType: {
-      createServiceTypeUseCase: { execute: vi.fn() },
-      getServiceTypeUseCase: { execute: vi.fn() },
-      listServiceTypesUseCase: { execute: vi.fn() },
-      updateServiceTypeUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    pricingRule: {
-      createPricingRuleUseCase: { execute: vi.fn() },
-      listPricingRulesUseCase: { execute: vi.fn() },
-      updatePricingRuleUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
+  createContainer: () => createMockContainer({
+    auditService: { log: mockAuditLog } as any,
+    auth: { jwtService: { verify: mockJwtVerify } },
+    tenant: { jwtService: { verify: mockJwtVerify } },
+    user: { jwtService: { verify: mockJwtVerify } },
+    property: { jwtService: { verify: mockJwtVerify } },
+    serviceType: { jwtService: { verify: mockJwtVerify } },
+    pricingRule: { jwtService: { verify: mockJwtVerify } },
     inspector: {
       createInspectorUseCase: { execute: mockCreateInspectorExecute },
       getInspectorUseCase: { execute: mockGetInspectorExecute },
@@ -76,98 +31,24 @@ vi.mock('../../../src/main/container', () => ({
       createAvailabilitySlotUseCase: { execute: mockCreateAvailabilitySlotExecute },
       listAvailabilitySlotsUseCase: { execute: mockListAvailabilitySlotsExecute },
       updateAvailabilitySlotUseCase: { execute: mockUpdateAvailabilitySlotExecute },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+      jwtService: { verify: mockJwtVerify },
     },
-    appointment: {
-      createAppointmentUseCase: { execute: vi.fn() },
-      getAppointmentUseCase: { execute: vi.fn() },
-      listAppointmentsUseCase: { execute: vi.fn() },
-      updateAppointmentUseCase: { execute: vi.fn() },
-      executeStatusTransitionUseCase: { execute: vi.fn() },
-      forceManualConfirmationUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    audit: {
-      listAuditLogsUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    serviceGroup: {
-      createServiceGroupUseCase: { execute: vi.fn() },
-      getServiceGroupUseCase: { execute: vi.fn() },
-      listServiceGroupsUseCase: { execute: vi.fn() },
-      publishServiceGroupUseCase: { execute: vi.fn() },
-      assignInspectorManuallyUseCase: { execute: vi.fn() },
-      cancelServiceGroupUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    marketplace: {
-      getMarketplaceOffersUseCase: { execute: vi.fn() },
-      acceptOfferUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    tenantPortal: {
-      getPortalDataUseCase: { execute: vi.fn() },
-      confirmAppointmentUseCase: { execute: vi.fn() },
-      rescheduleRequestUseCase: { execute: vi.fn() },
-      updateContactUseCase: { execute: vi.fn() },
-      reportUnavailabilityUseCase: { execute: vi.fn() },
-      generatePortalTokenUseCase: { execute: vi.fn() },
-      tokenRepo: { findByTokenHash: vi.fn(), findActiveByAppointmentId: vi.fn(), save: vi.fn(), updateStatus: vi.fn(), updateLastAccessedAt: vi.fn(), revokeAllForAppointment: vi.fn() },
-      tokenService: { generateRawToken: vi.fn(), hashToken: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    inspectorExecution: {
-      getInspectorScheduleUseCase: { execute: vi.fn() },
-      getAppointmentDetailUseCase: { execute: vi.fn() },
-      startInspectionUseCase: { execute: vi.fn() },
-      finishInspectionUseCase: { execute: vi.fn() },
-      requestAssetUploadUseCase: { execute: vi.fn() },
-      confirmAssetUploadUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    billing: {
-      createFinancialEntriesOnDoneUseCase: { execute: vi.fn() },
-      listFinancialEntriesUseCase: { execute: vi.fn() },
-      getFinancialEntryUseCase: { execute: vi.fn() },
-      approveFinancialEntryUseCase: { execute: vi.fn() },
-      createManualAdjustmentUseCase: { execute: vi.fn() },
-      createRefundUseCase: { execute: vi.fn() },
-      generateInvoiceUseCase: { execute: vi.fn() },
-      listInvoicesUseCase: { execute: vi.fn() },
-      getInvoiceUseCase: { execute: vi.fn() },
-      downloadInvoiceUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    report: {
-      requestReportUseCase: { execute: vi.fn() },
-      getReportStatusUseCase: { execute: vi.fn() },
-      downloadReportUseCase: { execute: vi.fn() },
-      listReportsUseCase: { execute: vi.fn() },
-      processReportJobUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    notification: {
-      sendNotificationUseCase: { execute: vi.fn() },
-      retryNotificationUseCase: { execute: vi.fn() },
-      handleProviderWebhookUseCase: { execute: vi.fn() },
-      listNotificationsUseCase: { execute: vi.fn() },
-      getNotificationUseCase: { execute: vi.fn() },
-      upsertNotificationTemplateUseCase: { execute: vi.fn() },
-      listNotificationTemplatesUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
+    appointment: { jwtService: { verify: mockJwtVerify } },
+    audit: { jwtService: { verify: mockJwtVerify } },
+    serviceGroup: { jwtService: { verify: mockJwtVerify } },
+    marketplace: { jwtService: { verify: mockJwtVerify } },
+    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    inspectorExecution: { jwtService: { verify: mockJwtVerify } },
+    billing: { jwtService: { verify: mockJwtVerify } },
+    report: { jwtService: { verify: mockJwtVerify } },
+    notification: { jwtService: { verify: mockJwtVerify } },
   }),
 }));
 
 const INSPECTOR_ID = 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66';
 const SLOT_ID = 'a6eebc99-9c0b-4ef8-bb6d-6bb9bd380a77';
 
-const amContext = {
-  userId: 'admin-1',
-  tenantId: null,
-  role: 'AM',
-  branchId: null,
-};
+const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null };
 
 let app: FastifyInstance;
 
@@ -178,39 +59,48 @@ beforeAll(async () => {
   await app.ready();
 });
 
-afterAll(async () => {
-  await app.close();
-});
+afterAll(async () => { await app.close(); });
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+beforeEach(() => { vi.clearAllMocks(); });
+
+const fullInspector = {
+  id: INSPECTOR_ID,
+  name: 'John Inspector',
+  email: 'john@inspect.com',
+  phone: null,
+  status: 'ACTIVE',
+  paymentSettingsJson: {},
+  regionsJson: [],
+  serviceTypesJson: [],
+  clientEligibilityJson: [],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+
+const fullSlot = {
+  id: SLOT_ID,
+  inspectorId: INSPECTOR_ID,
+  date: '2026-04-01',
+  startTime: '09:00',
+  endTime: '12:00',
+  regionJson: null,
+  capacity: 1,
+  status: 'AVAILABLE',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 
 // ---- Inspector CRUD ----
 
 describe('POST /v1/inspectors', () => {
   it('should return 201 with valid payload', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockCreateInspectorExecute.mockResolvedValueOnce({
-      id: INSPECTOR_ID,
-      name: 'John Inspector',
-      email: 'john@inspect.com',
-      phone: null,
-      status: 'ACTIVE',
-      paymentSettingsJson: {},
-      regionsJson: [],
-      serviceTypesJson: [],
-      clientEligibilityJson: [],
-      createdAt: new Date().toISOString(),
-    });
+    mockCreateInspectorExecute.mockResolvedValueOnce(fullInspector);
 
     const res = await supertest(app.server)
       .post('/v1/inspectors')
       .set('Authorization', 'Bearer valid-token')
-      .send({
-        name: 'John Inspector',
-        email: 'john@inspect.com',
-      });
+      .send({ name: 'John Inspector', email: 'john@inspect.com' });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toHaveProperty('id');
@@ -234,19 +124,7 @@ describe('GET /v1/inspectors', () => {
   it('should return 200 with paginated response', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockListInspectorsExecute.mockResolvedValueOnce({
-      data: [
-        {
-          id: INSPECTOR_ID,
-          name: 'John Inspector',
-          email: 'john@inspect.com',
-          phone: null,
-          status: 'ACTIVE',
-          regionsJson: [],
-          serviceTypesJson: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ],
+      data: [fullInspector],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -266,19 +144,7 @@ describe('GET /v1/inspectors', () => {
 describe('GET /v1/inspectors/:inspectorId', () => {
   it('should return 200 with valid inspector', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockGetInspectorExecute.mockResolvedValueOnce({
-      id: INSPECTOR_ID,
-      name: 'John Inspector',
-      email: 'john@inspect.com',
-      phone: null,
-      status: 'ACTIVE',
-      paymentSettingsJson: {},
-      regionsJson: [],
-      serviceTypesJson: [],
-      clientEligibilityJson: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    mockGetInspectorExecute.mockResolvedValueOnce(fullInspector);
 
     const res = await supertest(app.server)
       .get(`/v1/inspectors/${INSPECTOR_ID}`)
@@ -293,17 +159,9 @@ describe('PATCH /v1/inspectors/:inspectorId', () => {
   it('should return 200 on successful update', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockUpdateInspectorExecute.mockResolvedValueOnce({
-      id: INSPECTOR_ID,
+      ...fullInspector,
       name: 'Updated Inspector',
-      email: 'john@inspect.com',
       phone: '+61400000000',
-      status: 'ACTIVE',
-      paymentSettingsJson: {},
-      regionsJson: [],
-      serviceTypesJson: [],
-      clientEligibilityJson: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     });
 
     const res = await supertest(app.server)
@@ -321,26 +179,12 @@ describe('PATCH /v1/inspectors/:inspectorId', () => {
 describe('POST /v1/inspectors/:inspectorId/availability-slots', () => {
   it('should return 201 with valid payload', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockCreateAvailabilitySlotExecute.mockResolvedValueOnce({
-      id: SLOT_ID,
-      inspectorId: INSPECTOR_ID,
-      date: '2026-04-01',
-      startTime: '09:00',
-      endTime: '12:00',
-      regionJson: null,
-      capacity: 1,
-      status: 'AVAILABLE',
-      createdAt: new Date().toISOString(),
-    });
+    mockCreateAvailabilitySlotExecute.mockResolvedValueOnce(fullSlot);
 
     const res = await supertest(app.server)
       .post(`/v1/inspectors/${INSPECTOR_ID}/availability-slots`)
       .set('Authorization', 'Bearer valid-token')
-      .send({
-        date: '2026-04-01',
-        startTime: '09:00',
-        endTime: '12:00',
-      });
+      .send({ date: '2026-04-01', startTime: '09:00', endTime: '12:00' });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toHaveProperty('id');
@@ -352,20 +196,7 @@ describe('GET /v1/inspectors/:inspectorId/availability-slots', () => {
   it('should return 200 with paginated response', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockListAvailabilitySlotsExecute.mockResolvedValueOnce({
-      data: [
-        {
-          id: SLOT_ID,
-          inspectorId: INSPECTOR_ID,
-          date: '2026-04-01',
-          startTime: '09:00',
-          endTime: '12:00',
-          regionJson: null,
-          capacity: 1,
-          status: 'AVAILABLE',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ],
+      data: [fullSlot],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -386,16 +217,9 @@ describe('PATCH /v1/inspectors/:inspectorId/availability-slots/:slotId', () => {
   it('should return 200 on successful update', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockUpdateAvailabilitySlotExecute.mockResolvedValueOnce({
-      id: SLOT_ID,
-      inspectorId: INSPECTOR_ID,
-      date: '2026-04-01',
-      startTime: '09:00',
+      ...fullSlot,
       endTime: '14:00',
-      regionJson: null,
       capacity: 2,
-      status: 'AVAILABLE',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     });
 
     const res = await supertest(app.server)

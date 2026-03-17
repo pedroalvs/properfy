@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
+import { createMockContainer } from '../../helpers/mock-container';
 
 // Module-level mock functions — must be defined before vi.mock() factory
 const mockLoginExecute = vi.fn();
@@ -15,9 +16,8 @@ const mockJwtSign = vi.fn();
 const mockAuditLog = vi.fn();
 
 vi.mock('../../../src/main/container', () => ({
-  createContainer: () => ({
-    prisma: {},
-    auditService: { log: mockAuditLog },
+  createContainer: () => createMockContainer({
+    auditService: { log: mockAuditLog } as any,
     auth: {
       loginUseCase: { execute: mockLoginExecute },
       refreshTokenUseCase: { execute: mockRefreshExecute },
@@ -30,135 +30,21 @@ vi.mock('../../../src/main/container', () => ({
         signAccessToken: mockJwtSign,
       },
     },
-    tenant: {
-      createTenantUseCase: { execute: vi.fn() },
-      getTenantUseCase: { execute: vi.fn() },
-      listTenantsUseCase: { execute: vi.fn() },
-      updateTenantUseCase: { execute: vi.fn() },
-      deactivateTenantUseCase: { execute: vi.fn() },
-      createBranchUseCase: { execute: vi.fn() },
-      listBranchesUseCase: { execute: vi.fn() },
-      updateBranchUseCase: { execute: vi.fn() },
-      deactivateBranchUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    user: {
-      createUserUseCase: { execute: vi.fn() },
-      getUserUseCase: { execute: vi.fn() },
-      listUsersUseCase: { execute: vi.fn() },
-      updateUserUseCase: { execute: vi.fn() },
-      deactivateUserUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    property: {
-      createPropertyUseCase: { execute: vi.fn() },
-      getPropertyUseCase: { execute: vi.fn() },
-      listPropertiesUseCase: { execute: vi.fn() },
-      updatePropertyUseCase: { execute: vi.fn() },
-      deletePropertyUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    serviceType: {
-      createServiceTypeUseCase: { execute: vi.fn() },
-      getServiceTypeUseCase: { execute: vi.fn() },
-      listServiceTypesUseCase: { execute: vi.fn() },
-      updateServiceTypeUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    pricingRule: {
-      createPricingRuleUseCase: { execute: vi.fn() },
-      listPricingRulesUseCase: { execute: vi.fn() },
-      updatePricingRuleUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    inspector: {
-      createInspectorUseCase: { execute: vi.fn() },
-      getInspectorUseCase: { execute: vi.fn() },
-      listInspectorsUseCase: { execute: vi.fn() },
-      updateInspectorUseCase: { execute: vi.fn() },
-      createAvailabilitySlotUseCase: { execute: vi.fn() },
-      listAvailabilitySlotsUseCase: { execute: vi.fn() },
-      updateAvailabilitySlotUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    appointment: {
-      createAppointmentUseCase: { execute: vi.fn() },
-      getAppointmentUseCase: { execute: vi.fn() },
-      listAppointmentsUseCase: { execute: vi.fn() },
-      updateAppointmentUseCase: { execute: vi.fn() },
-      executeStatusTransitionUseCase: { execute: vi.fn() },
-      forceManualConfirmationUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    audit: {
-      listAuditLogsUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    serviceGroup: {
-      createServiceGroupUseCase: { execute: vi.fn() },
-      getServiceGroupUseCase: { execute: vi.fn() },
-      listServiceGroupsUseCase: { execute: vi.fn() },
-      publishServiceGroupUseCase: { execute: vi.fn() },
-      assignInspectorManuallyUseCase: { execute: vi.fn() },
-      cancelServiceGroupUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    marketplace: {
-      getMarketplaceOffersUseCase: { execute: vi.fn() },
-      acceptOfferUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    tenantPortal: {
-      getPortalDataUseCase: { execute: vi.fn() },
-      confirmAppointmentUseCase: { execute: vi.fn() },
-      rescheduleRequestUseCase: { execute: vi.fn() },
-      updateContactUseCase: { execute: vi.fn() },
-      reportUnavailabilityUseCase: { execute: vi.fn() },
-      generatePortalTokenUseCase: { execute: vi.fn() },
-      tokenRepo: { findByTokenHash: vi.fn(), findActiveByAppointmentId: vi.fn(), save: vi.fn(), updateStatus: vi.fn(), updateLastAccessedAt: vi.fn(), revokeAllForAppointment: vi.fn() },
-      tokenService: { generateRawToken: vi.fn(), hashToken: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    inspectorExecution: {
-      getInspectorScheduleUseCase: { execute: vi.fn() },
-      getAppointmentDetailUseCase: { execute: vi.fn() },
-      startInspectionUseCase: { execute: vi.fn() },
-      finishInspectionUseCase: { execute: vi.fn() },
-      requestAssetUploadUseCase: { execute: vi.fn() },
-      confirmAssetUploadUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    billing: {
-      createFinancialEntriesOnDoneUseCase: { execute: vi.fn() },
-      listFinancialEntriesUseCase: { execute: vi.fn() },
-      getFinancialEntryUseCase: { execute: vi.fn() },
-      approveFinancialEntryUseCase: { execute: vi.fn() },
-      createManualAdjustmentUseCase: { execute: vi.fn() },
-      createRefundUseCase: { execute: vi.fn() },
-      generateInvoiceUseCase: { execute: vi.fn() },
-      listInvoicesUseCase: { execute: vi.fn() },
-      getInvoiceUseCase: { execute: vi.fn() },
-      downloadInvoiceUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
-    report: {
-      requestReportUseCase: { execute: vi.fn() },
-      getReportStatusUseCase: { execute: vi.fn() },
-      downloadReportUseCase: { execute: vi.fn() },
-      listReportsUseCase: { execute: vi.fn() },
-      processReportJobUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    notification: {
-      sendNotificationUseCase: { execute: vi.fn() },
-      retryNotificationUseCase: { execute: vi.fn() },
-      handleProviderWebhookUseCase: { execute: vi.fn() },
-      listNotificationsUseCase: { execute: vi.fn() },
-      getNotificationUseCase: { execute: vi.fn() },
-      upsertNotificationTemplateUseCase: { execute: vi.fn() },
-      listNotificationTemplatesUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign },
-    },
+    tenant: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    user: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    property: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    serviceType: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    pricingRule: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    inspector: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    appointment: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    audit: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    serviceGroup: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    marketplace: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    tenantPortal: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    inspectorExecution: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    billing: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    report: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    notification: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
   }),
 }));
 
@@ -180,14 +66,13 @@ describe('POST /v1/auth/login', () => {
     mockLoginExecute.mockResolvedValueOnce({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
+      expiresIn: 900,
       user: {
-        id: 'user-1',
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
         name: 'Test',
         email: 'test@example.com',
         role: 'CL_ADMIN',
-        tenantId: 'tenant-1',
-        branchId: null,
-        totpEnabled: false,
+        tenantId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
       },
     });
 
@@ -249,6 +134,7 @@ describe('POST /v1/auth/refresh', () => {
     mockRefreshExecute.mockResolvedValueOnce({
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
+      expiresIn: 900,
     });
 
     const res = await supertest(app.server)
@@ -310,17 +196,13 @@ describe('GET /v1/me', () => {
       branchId: null,
     });
     mockGetMeExecute.mockResolvedValueOnce({
-      id: 'user-1',
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       name: 'Test User',
       email: 'test@example.com',
-      phone: null,
       role: 'CL_ADMIN',
-      status: 'ACTIVE',
-      tenantId: 'tenant-1',
+      tenantId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
       branchId: null,
       totpEnabled: false,
-      lastLoginAt: null,
-      createdAt: '2026-01-01T00:00:00.000Z',
     });
 
     const res = await supertest(app.server)
@@ -328,7 +210,7 @@ describe('GET /v1/me', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.id).toBe('user-1');
+    expect(res.body.id).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
   });
 
   it('should return 401 with expired access token', async () => {

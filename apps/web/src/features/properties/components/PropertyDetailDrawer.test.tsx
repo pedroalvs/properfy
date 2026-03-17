@@ -1,7 +1,67 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act , waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
 import { PropertyDetailDrawer } from './PropertyDetailDrawer';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn().mockResolvedValue({ data: {} }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+    patch: vi.fn().mockResolvedValue({ data: {} }),
+    put: vi.fn().mockResolvedValue({ data: {} }),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+vi.mock('@/lib/auth-storage', () => ({
+  authStorage: {
+    getAccessToken: vi.fn(() => null),
+    hasTokens: vi.fn(() => false),
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+  },
+}));
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: 'AM', tenantId: 'tenant-1' },
+    token: 'mock-token',
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('../hooks/usePropertyDetail', () => ({
+  usePropertyDetail: (id: string | null) => {
+    if (!id) return { property: null, isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'loading') return { property: null, isLoading: true, isError: false, refetch: vi.fn() };
+    return {
+      property: {
+        id: 'prop-01', propertyCode: 'IMV-001', type: 'RESIDENTIAL', branchName: 'Filial Centro',
+        tenantId: 'tenant-1', branchId: 'branch-1',
+        street: 'Rua das Flores, 123', addressLine2: null, suburb: 'Centro', postcode: '01001-000', state: 'SP',
+        country: 'BR', latitude: -23.5, longitude: -46.6, geocodingStatus: 'SUCCESS',
+        notes: null, createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z',
+      },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    };
+  },
+}));
+
 
 function SnackbarDisplay() {
   const { messages } = useSnackbar();
@@ -14,12 +74,18 @@ function SnackbarDisplay() {
   );
 }
 
+const testQueryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+});
+
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <SnackbarProvider>
+    <QueryClientProvider client={testQueryClient}>
+      <SnackbarProvider>
       {children}
       <SnackbarDisplay />
-    </SnackbarProvider>
+      </SnackbarProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -41,54 +107,40 @@ function renderDrawer(props: {
   );
 }
 
-beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 describe('PropertyDetailDrawer', () => {
   it('renders drawer with property code in header', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     const matches = screen.getAllByText('IMV-001');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows property type chip in header', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     const matches = screen.getAllByText('Residencial');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows detail sections', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     expect(screen.getByText('Identificação')).toBeInTheDocument();
     expect(screen.getByText('Endereço')).toBeInTheDocument();
   });
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     const editButton = screen.getByLabelText('Editar');
     fireEvent.click(editButton);
-    act(() => { vi.advanceTimersByTime(0); });
     expect(screen.getByText('Edição em breve')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
-    renderDrawer({ propertyId: 'prop-01', open: true });
+    renderDrawer({ propertyId: 'loading', open: true });
     const loadingElements = screen.getAllByText('Carregando...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
   it('drawer panel is hidden when closed', () => {
     renderDrawer({ propertyId: 'prop-01', open: false });
-    act(() => { vi.advanceTimersByTime(200); });
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveClass('translate-x-full');
   });
@@ -102,21 +154,18 @@ describe('PropertyDetailDrawer', () => {
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ propertyId: 'prop-01', open: true, onClose });
-    act(() => { vi.advanceTimersByTime(200); });
     fireEvent.click(screen.getByLabelText('Fechar'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('renders geocoding status', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     expect(screen.getByText('Sucesso')).toBeInTheDocument();
   });
 
   it('edit button calls onEdit with property id when onEdit prop is provided', () => {
     const onEdit = vi.fn();
     renderDrawer({ propertyId: 'prop-01', open: true, onEdit });
-    act(() => { vi.advanceTimersByTime(200); });
     const editButton = screen.getByLabelText('Editar');
     fireEvent.click(editButton);
     expect(onEdit).toHaveBeenCalledWith('prop-01');
@@ -124,10 +173,8 @@ describe('PropertyDetailDrawer', () => {
 
   it('edit button falls back to snackbar when onEdit prop is not provided', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     const editButton = screen.getByLabelText('Editar');
     fireEvent.click(editButton);
-    act(() => { vi.advanceTimersByTime(0); });
     expect(screen.getByText('Edição em breve')).toBeInTheDocument();
   });
 });

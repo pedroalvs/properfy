@@ -1,7 +1,66 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act , waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
 import { InspectorDetailDrawer } from './InspectorDetailDrawer';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn().mockResolvedValue({ data: {} }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+    patch: vi.fn().mockResolvedValue({ data: {} }),
+    put: vi.fn().mockResolvedValue({ data: {} }),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+vi.mock('@/lib/auth-storage', () => ({
+  authStorage: {
+    getAccessToken: vi.fn(() => null),
+    hasTokens: vi.fn(() => false),
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+  },
+}));
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: 'AM', tenantId: 'tenant-1' },
+    token: 'mock-token',
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('../hooks/useInspectorDetail', () => ({
+  useInspectorDetail: (id: string | null) => {
+    if (!id) return { inspector: null, isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'loading') return { inspector: null, isLoading: true, isError: false, refetch: vi.fn() };
+    return {
+      inspector: {
+        id: 'insp-01', name: 'Carlos Silva', email: 'carlos@inspecoes.com', phone: '11999999999',
+        document: '123.456.789-00', status: 'ACTIVE', regions: ['Zona Sul'], serviceTypes: ['Vistoria'],
+        regionsCount: 1, serviceTypesCount: 1, rating: 4.5,
+        createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
+      },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    };
+  },
+}));
+
 
 function SnackbarDisplay() {
   const { messages } = useSnackbar();
@@ -14,12 +73,18 @@ function SnackbarDisplay() {
   );
 }
 
+const testQueryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+});
+
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <SnackbarProvider>
+    <QueryClientProvider client={testQueryClient}>
+      <SnackbarProvider>
       {children}
       <SnackbarDisplay />
-    </SnackbarProvider>
+      </SnackbarProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -36,53 +101,39 @@ function renderDrawer(props: { inspectorId: string | null; open: boolean; onClos
   );
 }
 
-beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 describe('InspectorDetailDrawer', () => {
   it('renders drawer with inspector name in header', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     const matches = screen.getAllByText('Carlos Silva');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows inspector status chip in header', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     expect(screen.getByText('Ativo')).toBeInTheDocument();
   });
 
   it('shows detail sections', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     expect(screen.getByText('Dados Pessoais')).toBeInTheDocument();
     expect(screen.getByText('Atuação')).toBeInTheDocument();
   });
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     const editButton = screen.getByLabelText('Editar');
     fireEvent.click(editButton);
-    act(() => { vi.advanceTimersByTime(0); });
     expect(screen.getByText('Edição em breve')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
-    renderDrawer({ inspectorId: 'insp-01', open: true });
+    renderDrawer({ inspectorId: 'loading', open: true });
     const loadingElements = screen.getAllByText('Carregando...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
   it('drawer panel is hidden when closed', () => {
     renderDrawer({ inspectorId: 'insp-01', open: false });
-    act(() => { vi.advanceTimersByTime(200); });
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveClass('translate-x-full');
   });
@@ -96,7 +147,6 @@ describe('InspectorDetailDrawer', () => {
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ inspectorId: 'insp-01', open: true, onClose });
-    act(() => { vi.advanceTimersByTime(200); });
     fireEvent.click(screen.getByLabelText('Fechar'));
     expect(onClose).toHaveBeenCalled();
   });
@@ -104,16 +154,13 @@ describe('InspectorDetailDrawer', () => {
   it('edit button calls onEdit with inspector id when onEdit prop is provided', () => {
     const onEdit = vi.fn();
     renderDrawer({ inspectorId: 'insp-01', open: true, onEdit });
-    act(() => { vi.advanceTimersByTime(200); });
     fireEvent.click(screen.getByLabelText('Editar'));
     expect(onEdit).toHaveBeenCalledWith('insp-01');
   });
 
   it('edit button falls back to snackbar when onEdit prop is not provided', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     fireEvent.click(screen.getByLabelText('Editar'));
-    act(() => { vi.advanceTimersByTime(0); });
     expect(screen.getByText('Edição em breve')).toBeInTheDocument();
   });
 });

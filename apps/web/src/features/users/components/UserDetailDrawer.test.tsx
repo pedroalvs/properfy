@@ -1,7 +1,66 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act , waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
 import { UserDetailDrawer } from './UserDetailDrawer';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn().mockResolvedValue({ data: {} }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+    patch: vi.fn().mockResolvedValue({ data: {} }),
+    put: vi.fn().mockResolvedValue({ data: {} }),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+vi.mock('@/lib/auth-storage', () => ({
+  authStorage: {
+    getAccessToken: vi.fn(() => null),
+    hasTokens: vi.fn(() => false),
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+  },
+}));
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: 'AM', tenantId: 'tenant-1' },
+    token: 'mock-token',
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('../hooks/useUserDetail', () => ({
+  useUserDetail: (id: string | null) => {
+    if (!id) return { user: null, isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'loading') return { user: null, isLoading: true, isError: false, refetch: vi.fn() };
+    return {
+      user: {
+        id: 'usr-01', name: 'Admin Principal', email: 'admin@properfy.com', phone: '11999999999',
+        role: 'AM', status: 'ACTIVE', branchName: null, tenantId: null, branchId: null,
+        lastLoginAt: null, twoFactorEnabled: false, permissions: [],
+        createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
+      },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    };
+  },
+}));
+
 
 function SnackbarDisplay() {
   const { messages } = useSnackbar();
@@ -14,12 +73,18 @@ function SnackbarDisplay() {
   );
 }
 
+const testQueryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+});
+
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <SnackbarProvider>
+    <QueryClientProvider client={testQueryClient}>
+      <SnackbarProvider>
       {children}
       <SnackbarDisplay />
-    </SnackbarProvider>
+      </SnackbarProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -36,54 +101,40 @@ function renderDrawer(props: { userId: string | null; open: boolean; onClose?: (
   );
 }
 
-beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 describe('UserDetailDrawer', () => {
   it('renders drawer with user name in header', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     const matches = screen.getAllByText('Admin Principal');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows user status chip in header', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     const matches = screen.getAllByText('Ativo');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows detail sections', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     expect(screen.getByText('Dados Pessoais')).toBeInTheDocument();
     expect(screen.getAllByText('Perfil').length).toBeGreaterThanOrEqual(1);
   });
 
   it('edit button calls showInfo snackbar', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     const editButton = screen.getByLabelText('Editar');
     fireEvent.click(editButton);
-    act(() => { vi.advanceTimersByTime(0); });
     expect(screen.getByText('Edição em breve')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
-    renderDrawer({ userId: 'usr-01', open: true });
+    renderDrawer({ userId: 'loading', open: true });
     const loadingElements = screen.getAllByText('Carregando...');
     expect(loadingElements.length).toBeGreaterThan(0);
   });
 
   it('drawer panel is hidden when closed', () => {
     renderDrawer({ userId: 'usr-01', open: false });
-    act(() => { vi.advanceTimersByTime(200); });
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveClass('translate-x-full');
   });
@@ -97,7 +148,6 @@ describe('UserDetailDrawer', () => {
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ userId: 'usr-01', open: true, onClose });
-    act(() => { vi.advanceTimersByTime(200); });
     fireEvent.click(screen.getByLabelText('Fechar'));
     expect(onClose).toHaveBeenCalled();
   });
@@ -105,16 +155,13 @@ describe('UserDetailDrawer', () => {
   it('edit button calls onEdit with user id when onEdit prop is provided', () => {
     const onEdit = vi.fn();
     renderDrawer({ userId: 'usr-01', open: true, onEdit });
-    act(() => { vi.advanceTimersByTime(200); });
     fireEvent.click(screen.getByLabelText('Editar'));
     expect(onEdit).toHaveBeenCalledWith('usr-01');
   });
 
   it('edit button falls back to snackbar when onEdit prop is not provided', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    act(() => { vi.advanceTimersByTime(200); });
     fireEvent.click(screen.getByLabelText('Editar'));
-    act(() => { vi.advanceTimersByTime(0); });
     expect(screen.getByText('Edição em breve')).toBeInTheDocument();
   });
 });

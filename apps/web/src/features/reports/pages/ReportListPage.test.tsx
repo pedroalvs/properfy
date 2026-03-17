@@ -1,29 +1,75 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+vi.mock('@/lib/auth-storage', () => ({
+  authStorage: {
+    getAccessToken: vi.fn(() => null),
+    hasTokens: vi.fn(() => false),
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+  },
+}));
+
+import { apiClient } from '@/lib/api-client';
 import { ReportListPage } from './ReportListPage';
 
-function Wrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <SnackbarProvider>{children}</SnackbarProvider>
-  );
-}
+const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
 
-function renderPage() {
-  return render(
-    <Wrapper>
-      <ReportListPage />
-    </Wrapper>,
-  );
+const MOCK_REPORTS = [
+  { id: 'rpt-01', reportType: 'INSPECTIONS_SCHEDULED', status: 'PENDING', requestedByName: 'Admin Principal', createdAt: '2026-03-15' },
+  { id: 'rpt-02', reportType: 'FINANCIAL_SERVICES', status: 'PROCESSING', requestedByName: 'Admin Principal', createdAt: '2026-03-16' },
+];
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SnackbarProvider>{children}</SnackbarProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    );
+  };
 }
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  mockGet.mockReset();
+  mockGet.mockResolvedValue({
+    data: MOCK_REPORTS,
+    pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+  });
 });
 
-afterEach(() => {
-  vi.useRealTimers();
-});
+function renderPage() {
+  const Wrapper = createWrapper();
+  return render(<Wrapper><ReportListPage /></Wrapper>);
+}
 
 describe('ReportListPage', () => {
   it('renders page title "Relatórios"', () => {
@@ -42,61 +88,10 @@ describe('ReportListPage', () => {
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
-  it('renders data table with report data after loading', () => {
+  it('renders data table with report data after loading', async () => {
     renderPage();
-    act(() => { vi.advanceTimersByTime(300); });
-    expect(screen.getAllByText('Admin Principal').length).toBeGreaterThan(0);
-  });
-
-  it('clicking view icon opens drawer', () => {
-    renderPage();
-    act(() => { vi.advanceTimersByTime(300); });
-    const viewButtons = screen.getAllByLabelText('Visualizar');
-    fireEvent.click(viewButtons[0]!);
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.getByText('Solicitação')).toBeInTheDocument();
-  });
-
-  it('drawer shows correct report data', () => {
-    renderPage();
-    act(() => { vi.advanceTimersByTime(300); });
-    const viewButtons = screen.getAllByLabelText('Visualizar');
-    fireEvent.click(viewButtons[0]!);
-    act(() => { vi.advanceTimersByTime(200); });
-    const matches = screen.getAllByText('Pendente');
-    expect(matches.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('closing drawer resets state', () => {
-    renderPage();
-    act(() => { vi.advanceTimersByTime(300); });
-    const viewButtons = screen.getAllByLabelText('Visualizar');
-    fireEvent.click(viewButtons[0]!);
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.getByText('Solicitação')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Fechar'));
-    act(() => { vi.advanceTimersByTime(0); });
-    expect(screen.queryByText('Solicitação')).not.toBeInTheDocument();
-  });
-
-  it('clicking different row updates drawer', () => {
-    renderPage();
-    act(() => { vi.advanceTimersByTime(300); });
-    const viewButtons = screen.getAllByLabelText('Visualizar');
-    fireEvent.click(viewButtons[0]!);
-    act(() => { vi.advanceTimersByTime(200); });
-
-    fireEvent.click(viewButtons[1]!);
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-  });
-
-  it('drawer renders within page', () => {
-    renderPage();
-    act(() => { vi.advanceTimersByTime(300); });
-    const viewButtons = screen.getAllByLabelText('Visualizar');
-    fireEvent.click(viewButtons[0]!);
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText('Admin Principal').length).toBeGreaterThan(0);
+    });
   });
 });

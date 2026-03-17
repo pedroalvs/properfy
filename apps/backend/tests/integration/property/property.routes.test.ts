@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
+import { createMockContainer } from '../../helpers/mock-container';
 
-// Module-level mock functions for property use cases
 const mockCreatePropertyExecute = vi.fn();
 const mockGetPropertyExecute = vi.fn();
 const mockListPropertiesExecute = vi.fn();
@@ -13,159 +13,38 @@ const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
 vi.mock('../../../src/main/container', () => ({
-  createContainer: () => ({
-    prisma: {},
-    auditService: { log: mockAuditLog },
-    auth: {
-      loginUseCase: { execute: vi.fn() },
-      refreshTokenUseCase: { execute: vi.fn() },
-      logoutUseCase: { execute: vi.fn() },
-      getMeUseCase: { execute: vi.fn() },
-      changePasswordUseCase: { execute: vi.fn() },
-      revokeSessionUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    tenant: {
-      createTenantUseCase: { execute: vi.fn() },
-      getTenantUseCase: { execute: vi.fn() },
-      listTenantsUseCase: { execute: vi.fn() },
-      updateTenantUseCase: { execute: vi.fn() },
-      deactivateTenantUseCase: { execute: vi.fn() },
-      createBranchUseCase: { execute: vi.fn() },
-      listBranchesUseCase: { execute: vi.fn() },
-      updateBranchUseCase: { execute: vi.fn() },
-      deactivateBranchUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    user: {
-      createUserUseCase: { execute: vi.fn() },
-      getUserUseCase: { execute: vi.fn() },
-      listUsersUseCase: { execute: vi.fn() },
-      updateUserUseCase: { execute: vi.fn() },
-      deactivateUserUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
+  createContainer: () => createMockContainer({
+    auditService: { log: mockAuditLog } as any,
+    auth: { jwtService: { verify: mockJwtVerify } },
+    tenant: { jwtService: { verify: mockJwtVerify } },
+    user: { jwtService: { verify: mockJwtVerify } },
     property: {
       createPropertyUseCase: { execute: mockCreatePropertyExecute },
       getPropertyUseCase: { execute: mockGetPropertyExecute },
       listPropertiesUseCase: { execute: mockListPropertiesExecute },
       updatePropertyUseCase: { execute: mockUpdatePropertyExecute },
       deletePropertyUseCase: { execute: mockDeletePropertyExecute },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+      jwtService: { verify: mockJwtVerify },
     },
-    serviceType: {
-      createServiceTypeUseCase: { execute: vi.fn() },
-      getServiceTypeUseCase: { execute: vi.fn() },
-      listServiceTypesUseCase: { execute: vi.fn() },
-      updateServiceTypeUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    pricingRule: {
-      createPricingRuleUseCase: { execute: vi.fn() },
-      listPricingRulesUseCase: { execute: vi.fn() },
-      updatePricingRuleUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    inspector: {
-      createInspectorUseCase: { execute: vi.fn() },
-      getInspectorUseCase: { execute: vi.fn() },
-      listInspectorsUseCase: { execute: vi.fn() },
-      updateInspectorUseCase: { execute: vi.fn() },
-      createAvailabilitySlotUseCase: { execute: vi.fn() },
-      listAvailabilitySlotsUseCase: { execute: vi.fn() },
-      updateAvailabilitySlotUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    appointment: {
-      createAppointmentUseCase: { execute: vi.fn() },
-      getAppointmentUseCase: { execute: vi.fn() },
-      listAppointmentsUseCase: { execute: vi.fn() },
-      updateAppointmentUseCase: { execute: vi.fn() },
-      executeStatusTransitionUseCase: { execute: vi.fn() },
-      forceManualConfirmationUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    audit: {
-      listAuditLogsUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    serviceGroup: {
-      createServiceGroupUseCase: { execute: vi.fn() },
-      getServiceGroupUseCase: { execute: vi.fn() },
-      listServiceGroupsUseCase: { execute: vi.fn() },
-      publishServiceGroupUseCase: { execute: vi.fn() },
-      assignInspectorManuallyUseCase: { execute: vi.fn() },
-      cancelServiceGroupUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    marketplace: {
-      getMarketplaceOffersUseCase: { execute: vi.fn() },
-      acceptOfferUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    tenantPortal: {
-      getPortalDataUseCase: { execute: vi.fn() },
-      confirmAppointmentUseCase: { execute: vi.fn() },
-      rescheduleRequestUseCase: { execute: vi.fn() },
-      updateContactUseCase: { execute: vi.fn() },
-      reportUnavailabilityUseCase: { execute: vi.fn() },
-      generatePortalTokenUseCase: { execute: vi.fn() },
-      tokenRepo: { findByTokenHash: vi.fn(), findActiveByAppointmentId: vi.fn(), save: vi.fn(), updateStatus: vi.fn(), updateLastAccessedAt: vi.fn(), revokeAllForAppointment: vi.fn() },
-      tokenService: { generateRawToken: vi.fn(), hashToken: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    inspectorExecution: {
-      getInspectorScheduleUseCase: { execute: vi.fn() },
-      getAppointmentDetailUseCase: { execute: vi.fn() },
-      startInspectionUseCase: { execute: vi.fn() },
-      finishInspectionUseCase: { execute: vi.fn() },
-      requestAssetUploadUseCase: { execute: vi.fn() },
-      confirmAssetUploadUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    billing: {
-      createFinancialEntriesOnDoneUseCase: { execute: vi.fn() },
-      listFinancialEntriesUseCase: { execute: vi.fn() },
-      getFinancialEntryUseCase: { execute: vi.fn() },
-      approveFinancialEntryUseCase: { execute: vi.fn() },
-      createManualAdjustmentUseCase: { execute: vi.fn() },
-      createRefundUseCase: { execute: vi.fn() },
-      generateInvoiceUseCase: { execute: vi.fn() },
-      listInvoicesUseCase: { execute: vi.fn() },
-      getInvoiceUseCase: { execute: vi.fn() },
-      downloadInvoiceUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    report: {
-      requestReportUseCase: { execute: vi.fn() },
-      getReportStatusUseCase: { execute: vi.fn() },
-      downloadReportUseCase: { execute: vi.fn() },
-      listReportsUseCase: { execute: vi.fn() },
-      processReportJobUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    notification: {
-      sendNotificationUseCase: { execute: vi.fn() },
-      retryNotificationUseCase: { execute: vi.fn() },
-      handleProviderWebhookUseCase: { execute: vi.fn() },
-      listNotificationsUseCase: { execute: vi.fn() },
-      getNotificationUseCase: { execute: vi.fn() },
-      upsertNotificationTemplateUseCase: { execute: vi.fn() },
-      listNotificationTemplatesUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
+    serviceType: { jwtService: { verify: mockJwtVerify } },
+    pricingRule: { jwtService: { verify: mockJwtVerify } },
+    inspector: { jwtService: { verify: mockJwtVerify } },
+    appointment: { jwtService: { verify: mockJwtVerify } },
+    audit: { jwtService: { verify: mockJwtVerify } },
+    serviceGroup: { jwtService: { verify: mockJwtVerify } },
+    marketplace: { jwtService: { verify: mockJwtVerify } },
+    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    inspectorExecution: { jwtService: { verify: mockJwtVerify } },
+    billing: { jwtService: { verify: mockJwtVerify } },
+    report: { jwtService: { verify: mockJwtVerify } },
+    notification: { jwtService: { verify: mockJwtVerify } },
   }),
 }));
 
 const TENANT_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 const PROPERTY_ID = 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33';
 
-const amContext = {
-  userId: 'admin-1',
-  tenantId: null,
-  role: 'AM',
-  branchId: null,
-};
+const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null };
 
 let app: FastifyInstance;
 
@@ -176,34 +55,35 @@ beforeAll(async () => {
   await app.ready();
 });
 
-afterAll(async () => {
-  await app.close();
-});
+afterAll(async () => { await app.close(); });
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+beforeEach(() => { vi.clearAllMocks(); });
+
+const fullProperty = {
+  id: PROPERTY_ID,
+  tenantId: TENANT_ID,
+  branchId: null,
+  propertyCode: 'PROP-001',
+  type: 'RESIDENTIAL',
+  street: '123 Main St',
+  addressLine2: null,
+  suburb: 'Sydney',
+  postcode: '2000',
+  state: 'NSW',
+  country: 'AU',
+  lat: null,
+  lng: null,
+  geocodingStatus: 'PENDING',
+  notes: null,
+  rulesJson: {},
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 
 describe('POST /v1/properties', () => {
   it('should return 201 with valid payload', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockCreatePropertyExecute.mockResolvedValueOnce({
-      id: PROPERTY_ID,
-      tenantId: TENANT_ID,
-      branchId: null,
-      propertyCode: 'PROP-001',
-      type: 'RESIDENTIAL',
-      street: '123 Main St',
-      addressLine2: null,
-      suburb: 'Sydney',
-      postcode: '2000',
-      state: 'NSW',
-      country: 'AU',
-      geocodingStatus: 'PENDING',
-      notes: null,
-      rulesJson: {},
-      createdAt: new Date().toISOString(),
-    });
+    mockCreatePropertyExecute.mockResolvedValueOnce(fullProperty);
 
     const res = await supertest(app.server)
       .post('/v1/properties')
@@ -262,25 +142,7 @@ describe('GET /v1/properties', () => {
   it('should return 200 with paginated response', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockListPropertiesExecute.mockResolvedValueOnce({
-      data: [
-        {
-          id: PROPERTY_ID,
-          tenantId: TENANT_ID,
-          branchId: null,
-          propertyCode: 'PROP-001',
-          type: 'RESIDENTIAL',
-          street: '123 Main St',
-          addressLine2: null,
-          suburb: 'Sydney',
-          postcode: '2000',
-          state: 'NSW',
-          country: 'AU',
-          geocodingStatus: 'PENDING',
-          notes: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ],
+      data: [fullProperty],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -300,26 +162,7 @@ describe('GET /v1/properties', () => {
 describe('GET /v1/properties/:propertyId', () => {
   it('should return 200 with valid property', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockGetPropertyExecute.mockResolvedValueOnce({
-      id: PROPERTY_ID,
-      tenantId: TENANT_ID,
-      branchId: null,
-      propertyCode: 'PROP-001',
-      type: 'RESIDENTIAL',
-      street: '123 Main St',
-      addressLine2: null,
-      suburb: 'Sydney',
-      postcode: '2000',
-      state: 'NSW',
-      country: 'AU',
-      lat: null,
-      lng: null,
-      geocodingStatus: 'PENDING',
-      notes: null,
-      rulesJson: {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    mockGetPropertyExecute.mockResolvedValueOnce(fullProperty);
 
     const res = await supertest(app.server)
       .get(`/v1/properties/${PROPERTY_ID}`)
@@ -358,22 +201,8 @@ describe('PATCH /v1/properties/:propertyId', () => {
   it('should return 200 on successful update', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockUpdatePropertyExecute.mockResolvedValueOnce({
-      id: PROPERTY_ID,
-      tenantId: TENANT_ID,
-      branchId: null,
+      ...fullProperty,
       propertyCode: 'PROP-002',
-      type: 'RESIDENTIAL',
-      street: '123 Main St',
-      addressLine2: null,
-      suburb: 'Sydney',
-      postcode: '2000',
-      state: 'NSW',
-      country: 'AU',
-      geocodingStatus: 'PENDING',
-      notes: null,
-      rulesJson: {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     });
 
     const res = await supertest(app.server)

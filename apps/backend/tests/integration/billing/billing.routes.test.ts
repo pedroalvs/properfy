@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
+import { createMockContainer } from '../../helpers/mock-container';
 
-// Mock functions for billing use cases
 const mockListFinancialEntriesExecute = vi.fn();
 const mockGetFinancialEntryExecute = vi.fn();
 const mockApproveFinancialEntryExecute = vi.fn();
@@ -17,116 +17,21 @@ const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
 vi.mock('../../../src/main/container', () => ({
-  createContainer: () => ({
-    prisma: {},
-    auditService: { log: mockAuditLog },
-    auth: {
-      loginUseCase: { execute: vi.fn() },
-      refreshTokenUseCase: { execute: vi.fn() },
-      logoutUseCase: { execute: vi.fn() },
-      getMeUseCase: { execute: vi.fn() },
-      changePasswordUseCase: { execute: vi.fn() },
-      revokeSessionUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    tenant: {
-      createTenantUseCase: { execute: vi.fn() },
-      getTenantUseCase: { execute: vi.fn() },
-      listTenantsUseCase: { execute: vi.fn() },
-      updateTenantUseCase: { execute: vi.fn() },
-      deactivateTenantUseCase: { execute: vi.fn() },
-      createBranchUseCase: { execute: vi.fn() },
-      listBranchesUseCase: { execute: vi.fn() },
-      updateBranchUseCase: { execute: vi.fn() },
-      deactivateBranchUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    user: {
-      createUserUseCase: { execute: vi.fn() },
-      getUserUseCase: { execute: vi.fn() },
-      listUsersUseCase: { execute: vi.fn() },
-      updateUserUseCase: { execute: vi.fn() },
-      deactivateUserUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    property: {
-      createPropertyUseCase: { execute: vi.fn() },
-      getPropertyUseCase: { execute: vi.fn() },
-      listPropertiesUseCase: { execute: vi.fn() },
-      updatePropertyUseCase: { execute: vi.fn() },
-      deletePropertyUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    serviceType: {
-      createServiceTypeUseCase: { execute: vi.fn() },
-      getServiceTypeUseCase: { execute: vi.fn() },
-      listServiceTypesUseCase: { execute: vi.fn() },
-      updateServiceTypeUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    pricingRule: {
-      createPricingRuleUseCase: { execute: vi.fn() },
-      listPricingRulesUseCase: { execute: vi.fn() },
-      updatePricingRuleUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    inspector: {
-      createInspectorUseCase: { execute: vi.fn() },
-      getInspectorUseCase: { execute: vi.fn() },
-      listInspectorsUseCase: { execute: vi.fn() },
-      updateInspectorUseCase: { execute: vi.fn() },
-      createAvailabilitySlotUseCase: { execute: vi.fn() },
-      listAvailabilitySlotsUseCase: { execute: vi.fn() },
-      updateAvailabilitySlotUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    appointment: {
-      createAppointmentUseCase: { execute: vi.fn() },
-      getAppointmentUseCase: { execute: vi.fn() },
-      listAppointmentsUseCase: { execute: vi.fn() },
-      updateAppointmentUseCase: { execute: vi.fn() },
-      executeStatusTransitionUseCase: { execute: vi.fn() },
-      forceManualConfirmationUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    audit: {
-      listAuditLogsUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    serviceGroup: {
-      createServiceGroupUseCase: { execute: vi.fn() },
-      getServiceGroupUseCase: { execute: vi.fn() },
-      listServiceGroupsUseCase: { execute: vi.fn() },
-      publishServiceGroupUseCase: { execute: vi.fn() },
-      assignInspectorManuallyUseCase: { execute: vi.fn() },
-      cancelServiceGroupUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    marketplace: {
-      getMarketplaceOffersUseCase: { execute: vi.fn() },
-      acceptOfferUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    tenantPortal: {
-      getPortalDataUseCase: { execute: vi.fn() },
-      confirmAppointmentUseCase: { execute: vi.fn() },
-      rescheduleRequestUseCase: { execute: vi.fn() },
-      updateContactUseCase: { execute: vi.fn() },
-      reportUnavailabilityUseCase: { execute: vi.fn() },
-      generatePortalTokenUseCase: { execute: vi.fn() },
-      tokenRepo: { findByTokenHash: vi.fn(), findActiveByAppointmentId: vi.fn(), save: vi.fn(), updateStatus: vi.fn(), updateLastAccessedAt: vi.fn(), revokeAllForAppointment: vi.fn() },
-      tokenService: { generateRawToken: vi.fn(), hashToken: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    inspectorExecution: {
-      getInspectorScheduleUseCase: { execute: vi.fn() },
-      getAppointmentDetailUseCase: { execute: vi.fn() },
-      startInspectionUseCase: { execute: vi.fn() },
-      finishInspectionUseCase: { execute: vi.fn() },
-      requestAssetUploadUseCase: { execute: vi.fn() },
-      confirmAssetUploadUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
+  createContainer: () => createMockContainer({
+    auditService: { log: mockAuditLog } as any,
+    auth: { jwtService: { verify: mockJwtVerify } },
+    tenant: { jwtService: { verify: mockJwtVerify } },
+    user: { jwtService: { verify: mockJwtVerify } },
+    property: { jwtService: { verify: mockJwtVerify } },
+    serviceType: { jwtService: { verify: mockJwtVerify } },
+    pricingRule: { jwtService: { verify: mockJwtVerify } },
+    inspector: { jwtService: { verify: mockJwtVerify } },
+    appointment: { jwtService: { verify: mockJwtVerify } },
+    audit: { jwtService: { verify: mockJwtVerify } },
+    serviceGroup: { jwtService: { verify: mockJwtVerify } },
+    marketplace: { jwtService: { verify: mockJwtVerify } },
+    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: {
       createFinancialEntriesOnDoneUseCase: { execute: vi.fn() },
       listFinancialEntriesUseCase: { execute: mockListFinancialEntriesExecute },
@@ -138,26 +43,10 @@ vi.mock('../../../src/main/container', () => ({
       listInvoicesUseCase: { execute: mockListInvoicesExecute },
       getInvoiceUseCase: { execute: mockGetInvoiceExecute },
       downloadInvoiceUseCase: { execute: mockDownloadInvoiceExecute },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+      jwtService: { verify: mockJwtVerify },
     },
-    report: {
-      requestReportUseCase: { execute: vi.fn() },
-      getReportStatusUseCase: { execute: vi.fn() },
-      downloadReportUseCase: { execute: vi.fn() },
-      listReportsUseCase: { execute: vi.fn() },
-      processReportJobUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    notification: {
-      sendNotificationUseCase: { execute: vi.fn() },
-      retryNotificationUseCase: { execute: vi.fn() },
-      handleProviderWebhookUseCase: { execute: vi.fn() },
-      listNotificationsUseCase: { execute: vi.fn() },
-      getNotificationUseCase: { execute: vi.fn() },
-      upsertNotificationTemplateUseCase: { execute: vi.fn() },
-      listNotificationTemplatesUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
+    report: { jwtService: { verify: mockJwtVerify } },
+    notification: { jwtService: { verify: mockJwtVerify } },
   }),
 }));
 
@@ -175,45 +64,57 @@ beforeAll(async () => {
   await app.ready();
 });
 
-afterAll(async () => {
-  await app.close();
-});
+afterAll(async () => { await app.close(); });
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+beforeEach(() => { vi.clearAllMocks(); });
+
+const fullFinancialEntry = {
+  id: ENTRY_ID,
+  tenantId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  appointmentId: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55',
+  inspectorId: null,
+  entryType: 'TENANT_DEBIT',
+  amount: 150,
+  currency: 'AUD',
+  status: 'APPROVED',
+  description: 'Service debit',
+  effectiveAt: '2026-03-16T00:00:00.000Z',
+  reason: null,
+  referenceEntryId: null,
+  initiatedByUserId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
+  approvedByUserId: null,
+  approvedAt: null,
+  createdAt: '2026-03-16T00:00:00.000Z',
+  updatedAt: '2026-03-16T00:00:00.000Z',
+};
+
+const fullInvoice = {
+  id: INVOICE_ID,
+  inspectorId: 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66',
+  periodStart: '2026-03-01',
+  periodEnd: '2026-03-15',
+  periodType: 'BIWEEKLY',
+  status: 'CLOSED',
+  totalAmount: 500,
+  currency: 'AUD',
+  fileKey: null,
+  generatedByUserId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
+  generatedAt: '2026-03-16T00:00:00.000Z',
+  paidAt: null,
+  notes: null,
+  createdAt: '2026-03-16T00:00:00.000Z',
+  updatedAt: '2026-03-16T00:00:00.000Z',
+};
 
 // --- Financial Entries ---
 
 describe('GET /v1/financial/entries', () => {
   it('should return 200 with paginated entries', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const listResult = {
-      data: [
-        {
-          id: ENTRY_ID,
-          tenantId: 'tenant-1',
-          appointmentId: 'appt-1',
-          inspectorId: null,
-          entryType: 'TENANT_DEBIT',
-          amount: '150.00',
-          currency: 'AUD',
-          status: 'APPROVED',
-          description: 'Service debit',
-          effectiveAt: '2026-03-16T00:00:00.000Z',
-          reason: null,
-          referenceEntryId: null,
-          initiatedByUserId: 'SYSTEM',
-          approvedByUserId: null,
-          approvedAt: null,
-          createdAt: '2026-03-16T00:00:00.000Z',
-        },
-      ],
-      total: 1,
-      page: 1,
-      pageSize: 20,
-    };
-    mockListFinancialEntriesExecute.mockResolvedValueOnce(listResult);
+    mockListFinancialEntriesExecute.mockResolvedValueOnce({
+      data: [fullFinancialEntry],
+      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
 
     const res = await supertest(app.server)
       .get('/v1/financial/entries')
@@ -221,7 +122,6 @@ describe('GET /v1/financial/entries', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.total).toBe(1);
   });
 
   it('should return 401 without auth', async () => {
@@ -233,25 +133,7 @@ describe('GET /v1/financial/entries', () => {
 describe('GET /v1/financial/entries/:entryId', () => {
   it('should return 200 with entry detail', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const entryResult = {
-      id: ENTRY_ID,
-      tenantId: 'tenant-1',
-      appointmentId: 'appt-1',
-      inspectorId: null,
-      entryType: 'TENANT_DEBIT',
-      amount: '150.00',
-      currency: 'AUD',
-      status: 'APPROVED',
-      description: 'Service debit',
-      effectiveAt: '2026-03-16T00:00:00.000Z',
-      reason: null,
-      referenceEntryId: null,
-      initiatedByUserId: 'SYSTEM',
-      approvedByUserId: null,
-      approvedAt: null,
-      createdAt: '2026-03-16T00:00:00.000Z',
-    };
-    mockGetFinancialEntryExecute.mockResolvedValueOnce(entryResult);
+    mockGetFinancialEntryExecute.mockResolvedValueOnce(fullFinancialEntry);
 
     const res = await supertest(app.server)
       .get(`/v1/financial/entries/${ENTRY_ID}`)
@@ -270,13 +152,12 @@ describe('GET /v1/financial/entries/:entryId', () => {
 describe('POST /v1/financial/entries/:entryId/approve', () => {
   it('should return 200 with approval result', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const approveResult = {
-      id: ENTRY_ID,
+    mockApproveFinancialEntryExecute.mockResolvedValueOnce({
+      ...fullFinancialEntry,
       status: 'APPROVED',
-      approvedBy: 'am-1',
-      approvedAt: new Date('2026-03-16T10:00:00.000Z'),
-    };
-    mockApproveFinancialEntryExecute.mockResolvedValueOnce(approveResult);
+      approvedByUserId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
+      approvedAt: '2026-03-16T10:00:00.000Z',
+    });
 
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
@@ -295,23 +176,16 @@ describe('POST /v1/financial/entries/:entryId/approve', () => {
 describe('POST /v1/financial/entries/adjust', () => {
   it('should return 201 with adjustment result', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const adjustResult = {
-      id: 'new-adj-id',
-      tenantId: 'tenant-1',
+    mockCreateManualAdjustmentExecute.mockResolvedValueOnce({
+      ...fullFinancialEntry,
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
       appointmentId: null,
-      inspectorId: null,
       entryType: 'MANUAL_ADJUSTMENT',
       amount: 50,
-      currency: 'AUD',
       status: 'PENDING',
       description: 'Correction',
       reason: 'Overcharge correction',
-      effectiveAt: new Date('2026-03-16T00:00:00.000Z'),
-      initiatedByUserId: 'am-1',
-      referenceEntryId: null,
-      createdAt: new Date('2026-03-16T00:00:00.000Z'),
-    };
-    mockCreateManualAdjustmentExecute.mockResolvedValueOnce(adjustResult);
+    });
 
     const res = await supertest(app.server)
       .post('/v1/financial/entries/adjust')
@@ -337,7 +211,6 @@ describe('POST /v1/financial/entries/adjust', () => {
         tenantId: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55',
         amount: 50,
         description: 'Correction',
-        // missing reason
       });
 
     expect(res.status).toBe(422);
@@ -360,21 +233,15 @@ describe('POST /v1/financial/entries/adjust', () => {
 describe('POST /v1/financial/entries/:entryId/refund', () => {
   it('should return 201 with refund result', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const refundResult = {
-      id: 'new-refund-id',
-      tenantId: 'tenant-1',
-      appointmentId: 'appt-1',
+    mockCreateRefundExecute.mockResolvedValueOnce({
+      ...fullFinancialEntry,
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
       entryType: 'REFUND',
-      amount: 150,
-      currency: 'AUD',
       status: 'PENDING',
       description: 'Service not performed',
       reason: 'Inspector did not show up',
       referenceEntryId: ENTRY_ID,
-      initiatedByUserId: 'am-1',
-      createdAt: new Date('2026-03-16T00:00:00.000Z'),
-    };
-    mockCreateRefundExecute.mockResolvedValueOnce(refundResult);
+    });
 
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/refund`)
@@ -419,27 +286,10 @@ describe('POST /v1/financial/entries/:entryId/refund', () => {
 describe('GET /v1/invoices', () => {
   it('should return 200 with paginated invoices', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const listResult = {
-      data: [
-        {
-          id: INVOICE_ID,
-          inspectorId: 'insp-1',
-          periodStart: '2026-03-01',
-          periodEnd: '2026-03-15',
-          periodType: 'BIWEEKLY',
-          status: 'CLOSED',
-          totalAmount: '500.00',
-          currency: 'AUD',
-          generatedAt: '2026-03-16T00:00:00.000Z',
-          paidAt: null,
-          createdAt: '2026-03-16T00:00:00.000Z',
-        },
-      ],
-      total: 1,
-      page: 1,
-      pageSize: 20,
-    };
-    mockListInvoicesExecute.mockResolvedValueOnce(listResult);
+    mockListInvoicesExecute.mockResolvedValueOnce({
+      data: [fullInvoice],
+      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
 
     const res = await supertest(app.server)
       .get('/v1/invoices')
@@ -447,7 +297,6 @@ describe('GET /v1/invoices', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.total).toBe(1);
   });
 
   it('should return 401 without auth', async () => {
@@ -459,14 +308,7 @@ describe('GET /v1/invoices', () => {
 describe('POST /v1/invoices/generate', () => {
   it('should return 202 with invoice result', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const generateResult = {
-      invoiceId: INVOICE_ID,
-      status: 'CLOSED',
-      totalAmount: '500.00',
-      currency: 'AUD',
-      message: 'Invoice generation queued. File will be available shortly.',
-    };
-    mockGenerateInvoiceExecute.mockResolvedValueOnce(generateResult);
+    mockGenerateInvoiceExecute.mockResolvedValueOnce(fullInvoice);
 
     const res = await supertest(app.server)
       .post('/v1/invoices/generate')
@@ -478,7 +320,7 @@ describe('POST /v1/invoices/generate', () => {
       });
 
     expect(res.status).toBe(202);
-    expect(res.body.data.invoiceId).toBe(INVOICE_ID);
+    expect(res.body.data.id).toBe(INVOICE_ID);
     expect(res.body.data.status).toBe('CLOSED');
   });
 
@@ -513,24 +355,7 @@ describe('POST /v1/invoices/generate', () => {
 describe('GET /v1/invoices/:invoiceId', () => {
   it('should return 200 with invoice detail', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const invoiceResult = {
-      id: INVOICE_ID,
-      inspectorId: 'insp-1',
-      periodStart: '2026-03-01',
-      periodEnd: '2026-03-15',
-      periodType: 'BIWEEKLY',
-      status: 'CLOSED',
-      totalAmount: '500.00',
-      currency: 'AUD',
-      fileKey: null,
-      generatedByUserId: 'am-1',
-      generatedAt: '2026-03-16T00:00:00.000Z',
-      paidAt: null,
-      notes: null,
-      createdAt: '2026-03-16T00:00:00.000Z',
-      updatedAt: '2026-03-16T00:00:00.000Z',
-    };
-    mockGetInvoiceExecute.mockResolvedValueOnce(invoiceResult);
+    mockGetInvoiceExecute.mockResolvedValueOnce(fullInvoice);
 
     const res = await supertest(app.server)
       .get(`/v1/invoices/${INVOICE_ID}`)

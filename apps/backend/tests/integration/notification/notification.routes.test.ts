@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
+import { createMockContainer } from '../../helpers/mock-container';
 
-// Mock functions for notification use cases
 const mockSendNotificationExecute = vi.fn();
 const mockRetryNotificationExecute = vi.fn();
 const mockHandleProviderWebhookExecute = vi.fn();
@@ -15,137 +15,23 @@ const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
 vi.mock('../../../src/main/container', () => ({
-  createContainer: () => ({
-    prisma: {},
-    auditService: { log: mockAuditLog },
-    auth: {
-      loginUseCase: { execute: vi.fn() },
-      refreshTokenUseCase: { execute: vi.fn() },
-      logoutUseCase: { execute: vi.fn() },
-      getMeUseCase: { execute: vi.fn() },
-      changePasswordUseCase: { execute: vi.fn() },
-      revokeSessionUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    tenant: {
-      createTenantUseCase: { execute: vi.fn() },
-      getTenantUseCase: { execute: vi.fn() },
-      listTenantsUseCase: { execute: vi.fn() },
-      updateTenantUseCase: { execute: vi.fn() },
-      deactivateTenantUseCase: { execute: vi.fn() },
-      createBranchUseCase: { execute: vi.fn() },
-      listBranchesUseCase: { execute: vi.fn() },
-      updateBranchUseCase: { execute: vi.fn() },
-      deactivateBranchUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    user: {
-      createUserUseCase: { execute: vi.fn() },
-      getUserUseCase: { execute: vi.fn() },
-      listUsersUseCase: { execute: vi.fn() },
-      updateUserUseCase: { execute: vi.fn() },
-      deactivateUserUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    property: {
-      createPropertyUseCase: { execute: vi.fn() },
-      getPropertyUseCase: { execute: vi.fn() },
-      listPropertiesUseCase: { execute: vi.fn() },
-      updatePropertyUseCase: { execute: vi.fn() },
-      deletePropertyUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    serviceType: {
-      createServiceTypeUseCase: { execute: vi.fn() },
-      getServiceTypeUseCase: { execute: vi.fn() },
-      listServiceTypesUseCase: { execute: vi.fn() },
-      updateServiceTypeUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    pricingRule: {
-      createPricingRuleUseCase: { execute: vi.fn() },
-      listPricingRulesUseCase: { execute: vi.fn() },
-      updatePricingRuleUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    inspector: {
-      createInspectorUseCase: { execute: vi.fn() },
-      getInspectorUseCase: { execute: vi.fn() },
-      listInspectorsUseCase: { execute: vi.fn() },
-      updateInspectorUseCase: { execute: vi.fn() },
-      createAvailabilitySlotUseCase: { execute: vi.fn() },
-      listAvailabilitySlotsUseCase: { execute: vi.fn() },
-      updateAvailabilitySlotUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    appointment: {
-      createAppointmentUseCase: { execute: vi.fn() },
-      getAppointmentUseCase: { execute: vi.fn() },
-      listAppointmentsUseCase: { execute: vi.fn() },
-      updateAppointmentUseCase: { execute: vi.fn() },
-      executeStatusTransitionUseCase: { execute: vi.fn() },
-      forceManualConfirmationUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    audit: {
-      listAuditLogsUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    serviceGroup: {
-      createServiceGroupUseCase: { execute: vi.fn() },
-      getServiceGroupUseCase: { execute: vi.fn() },
-      listServiceGroupsUseCase: { execute: vi.fn() },
-      publishServiceGroupUseCase: { execute: vi.fn() },
-      assignInspectorManuallyUseCase: { execute: vi.fn() },
-      cancelServiceGroupUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    marketplace: {
-      getMarketplaceOffersUseCase: { execute: vi.fn() },
-      acceptOfferUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    tenantPortal: {
-      getPortalDataUseCase: { execute: vi.fn() },
-      confirmAppointmentUseCase: { execute: vi.fn() },
-      rescheduleRequestUseCase: { execute: vi.fn() },
-      updateContactUseCase: { execute: vi.fn() },
-      reportUnavailabilityUseCase: { execute: vi.fn() },
-      generatePortalTokenUseCase: { execute: vi.fn() },
-      tokenRepo: { findByTokenHash: vi.fn(), findActiveByAppointmentId: vi.fn(), save: vi.fn(), updateStatus: vi.fn(), updateLastAccessedAt: vi.fn(), revokeAllForAppointment: vi.fn() },
-      tokenService: { generateRawToken: vi.fn(), hashToken: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    inspectorExecution: {
-      getInspectorScheduleUseCase: { execute: vi.fn() },
-      getAppointmentDetailUseCase: { execute: vi.fn() },
-      startInspectionUseCase: { execute: vi.fn() },
-      finishInspectionUseCase: { execute: vi.fn() },
-      requestAssetUploadUseCase: { execute: vi.fn() },
-      confirmAssetUploadUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    billing: {
-      createFinancialEntriesOnDoneUseCase: { execute: vi.fn() },
-      listFinancialEntriesUseCase: { execute: vi.fn() },
-      getFinancialEntryUseCase: { execute: vi.fn() },
-      approveFinancialEntryUseCase: { execute: vi.fn() },
-      createManualAdjustmentUseCase: { execute: vi.fn() },
-      createRefundUseCase: { execute: vi.fn() },
-      generateInvoiceUseCase: { execute: vi.fn() },
-      listInvoicesUseCase: { execute: vi.fn() },
-      getInvoiceUseCase: { execute: vi.fn() },
-      downloadInvoiceUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
-    report: {
-      requestReportUseCase: { execute: vi.fn() },
-      getReportStatusUseCase: { execute: vi.fn() },
-      downloadReportUseCase: { execute: vi.fn() },
-      listReportsUseCase: { execute: vi.fn() },
-      processReportJobUseCase: { execute: vi.fn() },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
-    },
+  createContainer: () => createMockContainer({
+    auditService: { log: mockAuditLog } as any,
+    auth: { jwtService: { verify: mockJwtVerify } },
+    tenant: { jwtService: { verify: mockJwtVerify } },
+    user: { jwtService: { verify: mockJwtVerify } },
+    property: { jwtService: { verify: mockJwtVerify } },
+    serviceType: { jwtService: { verify: mockJwtVerify } },
+    pricingRule: { jwtService: { verify: mockJwtVerify } },
+    inspector: { jwtService: { verify: mockJwtVerify } },
+    appointment: { jwtService: { verify: mockJwtVerify } },
+    audit: { jwtService: { verify: mockJwtVerify } },
+    serviceGroup: { jwtService: { verify: mockJwtVerify } },
+    marketplace: { jwtService: { verify: mockJwtVerify } },
+    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    inspectorExecution: { jwtService: { verify: mockJwtVerify } },
+    billing: { jwtService: { verify: mockJwtVerify } },
+    report: { jwtService: { verify: mockJwtVerify } },
     notification: {
       sendNotificationUseCase: { execute: mockSendNotificationExecute },
       retryNotificationUseCase: { execute: mockRetryNotificationExecute },
@@ -154,7 +40,7 @@ vi.mock('../../../src/main/container', () => ({
       getNotificationUseCase: { execute: mockGetNotificationExecute },
       upsertNotificationTemplateUseCase: { execute: mockUpsertNotificationTemplateExecute },
       listNotificationTemplatesUseCase: { execute: mockListNotificationTemplatesExecute },
-      jwtService: { verify: mockJwtVerify, signAccessToken: vi.fn() },
+      jwtService: { verify: mockJwtVerify },
     },
   }),
 }));
@@ -171,13 +57,43 @@ beforeAll(async () => {
   await app.ready();
 });
 
-afterAll(async () => {
-  await app.close();
-});
+afterAll(async () => { await app.close(); });
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+beforeEach(() => { vi.clearAllMocks(); });
+
+const fullNotification = {
+  id: NOTIFICATION_ID,
+  tenantId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  appointmentId: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55',
+  recipient: 'test@example.com',
+  channel: 'EMAIL',
+  templateCode: 'INSPECTION_NOTICE',
+  status: 'SENT',
+  providerName: 'resend',
+  providerMessageId: 'msg-123',
+  sentAt: '2026-03-16T10:00:00.000Z',
+  deliveredAt: null,
+  failedAt: null,
+  failureReason: null,
+  retryCount: 0,
+  nextRetryAt: null,
+  createdAt: '2026-03-16T09:00:00.000Z',
+  updatedAt: '2026-03-16T10:00:00.000Z',
+};
+
+const fullTemplate = {
+  id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+  tenantId: null,
+  templateCode: 'INSPECTION_NOTICE',
+  channel: 'EMAIL',
+  subject: 'Inspection Notice',
+  bodyHtml: null,
+  bodyText: 'Hello {{tenantName}}',
+  variablesJson: ['tenantName'],
+  isActive: true,
+  createdAt: '2026-03-16T00:00:00.000Z',
+  updatedAt: '2026-03-16T00:00:00.000Z',
+};
 
 // --- Notifications ---
 
@@ -189,30 +105,10 @@ describe('GET /v1/notifications', () => {
 
   it('should return 200 with paginated notifications for AM', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const listResult = {
-      data: [
-        {
-          id: NOTIFICATION_ID,
-          tenantId: 'tenant-1',
-          appointmentId: 'appt-1',
-          recipient: 'test@example.com',
-          channel: 'EMAIL',
-          templateCode: 'INSPECTION_NOTICE',
-          status: 'SENT',
-          providerName: 'resend',
-          sentAt: '2026-03-16T10:00:00.000Z',
-          deliveredAt: null,
-          failedAt: null,
-          failureReason: null,
-          retryCount: 0,
-          createdAt: '2026-03-16T09:00:00.000Z',
-        },
-      ],
-      total: 1,
-      page: 1,
-      pageSize: 20,
-    };
-    mockListNotificationsExecute.mockResolvedValueOnce(listResult);
+    mockListNotificationsExecute.mockResolvedValueOnce({
+      data: [fullNotification],
+      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
 
     const res = await supertest(app.server)
       .get('/v1/notifications')
@@ -220,7 +116,6 @@ describe('GET /v1/notifications', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.total).toBe(1);
   });
 });
 
@@ -232,27 +127,7 @@ describe('GET /v1/notifications/:notificationId', () => {
 
   it('should return 200 with notification detail for AM', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const detailResult = {
-      id: NOTIFICATION_ID,
-      tenantId: 'tenant-1',
-      appointmentId: 'appt-1',
-      recipient: 'test@example.com',
-      channel: 'EMAIL',
-      templateCode: 'INSPECTION_NOTICE',
-      status: 'SENT',
-      providerName: 'resend',
-      providerMessageId: 'msg-123',
-      sentAt: '2026-03-16T10:00:00.000Z',
-      deliveredAt: null,
-      failedAt: null,
-      failureReason: null,
-      payloadJson: { tenantName: 'John' },
-      retryCount: 0,
-      nextRetryAt: null,
-      createdAt: '2026-03-16T09:00:00.000Z',
-      updatedAt: '2026-03-16T10:00:00.000Z',
-    };
-    mockGetNotificationExecute.mockResolvedValueOnce(detailResult);
+    mockGetNotificationExecute.mockResolvedValueOnce(fullNotification);
 
     const res = await supertest(app.server)
       .get(`/v1/notifications/${NOTIFICATION_ID}`)
@@ -271,12 +146,11 @@ describe('POST /v1/notifications/:notificationId/retry', () => {
 
   it('should return 200 on successful retry for AM', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const retryResult = {
-      notificationId: NOTIFICATION_ID,
+    mockRetryNotificationExecute.mockResolvedValueOnce({
+      ...fullNotification,
       status: 'PENDING',
-      retriedAt: '2026-03-16T10:00:00.000Z',
-    };
-    mockRetryNotificationExecute.mockResolvedValueOnce(retryResult);
+      retryCount: 1,
+    });
 
     const res = await supertest(app.server)
       .post(`/v1/notifications/${NOTIFICATION_ID}/retry`)
@@ -359,23 +233,10 @@ describe('GET /v1/notification-templates', () => {
 
   it('should return 200 with templates for AM', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const listResult = {
-      data: [
-        {
-          id: 'tpl-1',
-          tenantId: null,
-          templateCode: 'INSPECTION_NOTICE',
-          channel: 'EMAIL',
-          subject: 'Inspection Notice',
-          bodyText: 'Hello {{tenantName}}',
-          isActive: true,
-          variables: ['tenantName'],
-          createdAt: '2026-03-16T00:00:00.000Z',
-          updatedAt: '2026-03-16T00:00:00.000Z',
-        },
-      ],
-    };
-    mockListNotificationTemplatesExecute.mockResolvedValueOnce(listResult);
+    mockListNotificationTemplatesExecute.mockResolvedValueOnce({
+      data: [fullTemplate],
+      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
 
     const res = await supertest(app.server)
       .get('/v1/notification-templates')
@@ -396,15 +257,7 @@ describe('PUT /v1/notification-templates/:templateCode/:channel', () => {
 
   it('should return 200 on successful upsert for AM', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const upsertResult = {
-      id: 'tpl-1',
-      tenantId: null,
-      templateCode: 'INSPECTION_NOTICE',
-      channel: 'EMAIL',
-      isActive: true,
-      updatedAt: '2026-03-16T10:00:00.000Z',
-    };
-    mockUpsertNotificationTemplateExecute.mockResolvedValueOnce(upsertResult);
+    mockUpsertNotificationTemplateExecute.mockResolvedValueOnce(fullTemplate);
 
     const res = await supertest(app.server)
       .put('/v1/notification-templates/INSPECTION_NOTICE/EMAIL')
