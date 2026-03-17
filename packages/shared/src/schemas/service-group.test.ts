@@ -32,7 +32,7 @@ describe('createServiceGroupSchema', () => {
   });
 
   it('should default priorityMode to STANDARD', () => {
-    const { priorityMode, ...rest } = validInput;
+    const { priorityMode: _priorityMode, ...rest } = validInput;
     const result = createServiceGroupSchema.safeParse(rest);
     expect(result.success).toBe(true);
     if (result.success) {
@@ -89,7 +89,7 @@ describe('createServiceGroupSchema', () => {
   });
 
   it('should reject missing serviceTypeId', () => {
-    const { serviceTypeId, ...rest } = validInput;
+    const { serviceTypeId: _serviceTypeId, ...rest } = validInput;
     const result = createServiceGroupSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });

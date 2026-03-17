@@ -92,7 +92,7 @@ describe('createUserSchema', () => {
   });
 
   it('should reject missing name', () => {
-    const { name: _, ...withoutName } = validInput;
+    const { name: _name, ...withoutName } = validInput;
     const result = createUserSchema.safeParse(withoutName);
     expect(result.success).toBe(false);
   });

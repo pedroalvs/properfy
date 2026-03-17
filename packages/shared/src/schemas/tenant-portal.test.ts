@@ -83,7 +83,7 @@ describe('rescheduleRequestPortalSchema', () => {
   });
 
   it('should reject missing newDate', () => {
-    const { newDate, ...rest } = validInput;
+    const { newDate: _newDate, ...rest } = validInput;
     const result = rescheduleRequestPortalSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
@@ -97,7 +97,7 @@ describe('rescheduleRequestPortalSchema', () => {
   });
 
   it('should reject missing newTimeSlot', () => {
-    const { newTimeSlot, ...rest } = validInput;
+    const { newTimeSlot: _newTimeSlot, ...rest } = validInput;
     const result = rescheduleRequestPortalSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });

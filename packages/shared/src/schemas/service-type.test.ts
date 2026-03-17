@@ -26,13 +26,13 @@ describe('createServiceTypeSchema', () => {
   });
 
   it('should reject missing code', () => {
-    const { code, ...rest } = validInput;
+    const { code: _code, ...rest } = validInput;
     const result = createServiceTypeSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
 
   it('should reject missing name', () => {
-    const { name, ...rest } = validInput;
+    const { name: _name, ...rest } = validInput;
     const result = createServiceTypeSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });

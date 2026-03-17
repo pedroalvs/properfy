@@ -27,7 +27,7 @@ describe('createPricingRuleSchema', () => {
   });
 
   it('should reject missing serviceTypeId', () => {
-    const { serviceTypeId, ...rest } = validInput;
+    const { serviceTypeId: _serviceTypeId, ...rest } = validInput;
     const result = createPricingRuleSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });

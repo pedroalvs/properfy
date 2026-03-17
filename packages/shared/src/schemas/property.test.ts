@@ -37,31 +37,31 @@ describe('createPropertySchema', () => {
   });
 
   it('should reject missing propertyCode', () => {
-    const { propertyCode, ...rest } = validInput;
+    const { propertyCode: _propertyCode, ...rest } = validInput;
     const result = createPropertySchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
 
   it('should reject missing street', () => {
-    const { street, ...rest } = validInput;
+    const { street: _street, ...rest } = validInput;
     const result = createPropertySchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
 
   it('should reject missing suburb', () => {
-    const { suburb, ...rest } = validInput;
+    const { suburb: _suburb, ...rest } = validInput;
     const result = createPropertySchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
 
   it('should reject missing postcode', () => {
-    const { postcode, ...rest } = validInput;
+    const { postcode: _postcode, ...rest } = validInput;
     const result = createPropertySchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
 
   it('should reject missing state', () => {
-    const { state, ...rest } = validInput;
+    const { state: _state, ...rest } = validInput;
     const result = createPropertySchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
