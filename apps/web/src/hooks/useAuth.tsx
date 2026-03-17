@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { authStorage } from '@/lib/auth-storage';
 
 export interface AuthUser {
@@ -21,23 +21,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  user: AuthUser;
-}
-
-interface MeResponse {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  tenantId: string | null;
-  branchId: string | null;
-  totpEnabled: boolean;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(authStorage.getAccessToken());
@@ -46,15 +29,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!authStorage.hasTokens()) return;
 
-    apiClient.get<MeResponse>('/v1/me')
-      .then((me) => {
-        setUser({
-          id: me.id,
-          name: me.name,
-          email: me.email,
-          role: me.role,
-          tenantId: me.tenantId,
-        });
+    api.GET('/v1/me')
+      .then(({ data }) => {
+        if (data) {
+          setUser({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            role: data.role,
+            tenantId: data.tenantId,
+          });
+        }
       })
       .catch(() => {
         authStorage.clearTokens();
@@ -64,14 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const result = await apiClient.post<LoginResponse>('/v1/auth/login', { email, password });
-    authStorage.setTokens(result.accessToken, result.refreshToken);
-    setToken(result.accessToken);
-    setUser(result.user);
+    const { data, error } = await api.POST('/v1/auth/login', {
+      body: { email, password },
+    });
+    if (error || !data) {
+      throw new Error('Login failed');
+    }
+    authStorage.setTokens(data.accessToken, data.refreshToken);
+    setToken(data.accessToken);
+    setUser(data.user);
   }, []);
 
   const logout = useCallback(() => {
-    apiClient.post('/v1/auth/logout').catch(() => {});
+    api.POST('/v1/auth/logout').catch(() => {});
     authStorage.clearTokens();
     setToken(null);
     setUser(null);
