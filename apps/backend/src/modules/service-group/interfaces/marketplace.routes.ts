@@ -46,7 +46,7 @@ export async function registerMarketplaceRoutes(
       }
       const { page, pageSize, sortBy, sortOrder } = parsed.data;
       const result = await container.getMarketplaceOffersUseCase.execute({
-        inspectorId: request.authContext!.userId,
+        inspectorId: request.authContext!.inspectorId!,
         pagination: { page, pageSize, sortBy, sortOrder },
         actor: request.authContext!,
       });
@@ -71,7 +71,7 @@ export async function registerMarketplaceRoutes(
       }
       const result = await container.acceptOfferUseCase.execute({
         groupId: params.data.groupId,
-        inspectorId: request.authContext!.userId,
+        inspectorId: request.authContext!.inspectorId!,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
