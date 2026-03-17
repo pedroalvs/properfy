@@ -72,6 +72,7 @@ import { UpdateInspectorUseCase } from '../modules/inspector/application/use-cas
 import { CreateAvailabilitySlotUseCase } from '../modules/inspector/application/use-cases/create-availability-slot.use-case';
 import { ListAvailabilitySlotsUseCase } from '../modules/inspector/application/use-cases/list-availability-slots.use-case';
 import { UpdateAvailabilitySlotUseCase } from '../modules/inspector/application/use-cases/update-availability-slot.use-case';
+import { LinkInspectorToUserUseCase } from '../modules/inspector/application/use-cases/link-inspector-to-user.use-case';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
 
 // Audit module
@@ -213,6 +214,7 @@ export function createContainer(logger: Logger): AppContainer {
   const userManagementRepo = new PrismaUserManagementRepository(prisma);
 
   const appointmentChecker = new PrismaAppointmentChecker(prisma);
+  const inspectorRepo = new PrismaInspectorRepository(prisma);
 
   // Services
   const jwtPrivateKey = process.env['JWT_PRIVATE_KEY'];
@@ -230,8 +232,8 @@ export function createContainer(logger: Logger): AppContainer {
   const totpService = new TotpService();
 
   // Auth use cases
-  const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService);
-  const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService);
+  const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo);
+  const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
   const getMeUseCase = new GetMeUseCase(userRepo);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService);
@@ -276,8 +278,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listPricingRulesUseCase = new ListPricingRulesUseCase(pricingRuleRepo);
   const updatePricingRuleUseCase = new UpdatePricingRuleUseCase(pricingRuleRepo, auditService);
 
-  // Inspector repositories and use cases
-  const inspectorRepo = new PrismaInspectorRepository(prisma);
+  // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
   const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, auditService);
   const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo);
@@ -286,6 +287,7 @@ export function createContainer(logger: Logger): AppContainer {
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
+  const linkInspectorToUserUseCase = new LinkInspectorToUserUseCase(inspectorRepo, userManagementRepo, auditService);
 
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
@@ -472,6 +474,7 @@ export function createContainer(logger: Logger): AppContainer {
       createAvailabilitySlotUseCase,
       listAvailabilitySlotsUseCase,
       updateAvailabilitySlotUseCase,
+      linkInspectorToUserUseCase,
       jwtService,
     },
     appointment: {

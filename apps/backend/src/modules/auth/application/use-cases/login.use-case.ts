@@ -5,6 +5,7 @@ import type { ISessionRepository } from '../../domain/session.repository';
 import type { JwtService } from '../services/jwt.service';
 import type { TotpService } from '../services/totp.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { LoginInput, LoginOutput } from '../dtos/login.dto';
 import {
   InvalidCredentialsError,
@@ -25,6 +26,7 @@ export class LoginUseCase {
     private readonly jwtService: JwtService,
     private readonly totpService: TotpService,
     private readonly auditService: AuditService,
+    private readonly inspectorRepo: IInspectorRepository,
   ) {}
 
   async execute(input: LoginInput): Promise<LoginOutput> {
@@ -123,11 +125,18 @@ export class LoginUseCase {
       createdAt: new Date(),
     });
 
+    let inspectorId: string | null = null;
+    if (user.role === 'INSP') {
+      const inspector = await this.inspectorRepo.findByUserId(user.id);
+      inspectorId = inspector?.id ?? null;
+    }
+
     const accessToken = await this.jwtService.signAccessToken({
       sub: user.id,
       tenant_id: user.tenantId,
       role: user.role,
       branch_id: user.branchId,
+      inspector_id: inspectorId,
     });
 
     this.auditService.log({

@@ -7,6 +7,7 @@ export interface JwtClaims {
   tenant_id: string | null;
   role: UserRole;
   branch_id: string | null;
+  inspector_id: string | null;
 }
 
 export interface JwtConfig {
@@ -50,6 +51,7 @@ export class JwtService {
       tenant_id: claims.tenant_id,
       role: claims.role,
       branch_id: claims.branch_id,
+      inspector_id: claims.inspector_id,
     })
       .setProtectedHeader({ alg: 'RS256', kid: this.config.keyId })
       .setSubject(claims.sub)
@@ -81,6 +83,7 @@ export class JwtService {
         tenantId: (payload['tenant_id'] as string | null) ?? null,
         role: payload['role'] as UserRole,
         branchId: (payload['branch_id'] as string | null) ?? null,
+        inspectorId: (payload['inspector_id'] as string | null) ?? null,
       };
     } catch {
       throw new UnauthorizedError('AUTH_UNAUTHORIZED', 'Authentication required');
