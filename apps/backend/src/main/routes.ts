@@ -22,7 +22,56 @@ export async function registerRoutes(
   app: FastifyInstance,
   container: AppContainer,
 ): Promise<void> {
-  app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+  // Health check with DB connectivity
+  app.get('/health', async (_request, reply) => {
+    const timestamp = new Date().toISOString();
+    try {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('DB health check timeout')), 2000),
+      );
+      await Promise.race([
+        container.prisma.$queryRaw`SELECT 1`,
+        timeoutPromise,
+      ]);
+      return reply.status(200).send({
+        status: 'ok',
+        db: 'connected',
+        timestamp,
+      });
+    } catch {
+      return reply.status(503).send({
+        status: 'degraded',
+        db: 'disconnected',
+        timestamp,
+      });
+    }
+  });
+
+  // Readiness probe — checks DB + queue readiness
+  app.get('/ready', async (_request, reply) => {
+    const timestamp = new Date().toISOString();
+    const checks: Record<string, string> = {};
+
+    try {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('DB readiness check timeout')), 2000),
+      );
+      await Promise.race([
+        container.prisma.$queryRaw`SELECT 1`,
+        timeoutPromise,
+      ]);
+      checks.db = 'ready';
+    } catch {
+      checks.db = 'not_ready';
+    }
+
+    const allReady = Object.values(checks).every((v) => v === 'ready');
+    return reply.status(allReady ? 200 : 503).send({
+      status: allReady ? 'ready' : 'not_ready',
+      checks,
+      timestamp,
+    });
+  });
   await registerAuthRoutes(app, container.auth);
   await registerTenantRoutes(app, container.tenant);
   await registerUserRoutes(app, container.user);

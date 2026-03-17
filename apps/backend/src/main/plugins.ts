@@ -9,8 +9,11 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from 'fastify-type-provider-zod';
+import { getEnv } from './env';
 
 export async function registerPlugins(app: FastifyInstance): Promise<void> {
+  const env = getEnv();
+
   // Zod type provider compilers
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -21,12 +24,8 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
   });
 
   // CORS
-  const corsOrigin = process.env['CORS_ORIGIN'];
-  if (!corsOrigin && process.env['NODE_ENV'] !== 'development') {
-    throw new Error('CORS_ORIGIN environment variable is required in non-development environments');
-  }
   await app.register(cors, {
-    origin: corsOrigin ?? 'http://localhost:5173',
+    origin: env.CORS_ORIGIN ?? 'http://localhost:5173',
     credentials: true,
   });
 
@@ -68,8 +67,7 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
   });
 
   // Swagger UI (dev/staging only)
-  const env = process.env['NODE_ENV'] ?? 'development';
-  if (env !== 'production') {
+  if (env.NODE_ENV !== 'production') {
     await app.register(fastifySwaggerUI, {
       routePrefix: '/docs',
     });

@@ -36,6 +36,12 @@ export async function registerAuthRoutes(
 
   // POST /v1/auth/login
   app.post('/v1/auth/login', {
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
     schema: {
       body: loginSchema,
       response: { 200: loginResponseSchema },
@@ -57,6 +63,12 @@ export async function registerAuthRoutes(
 
   // POST /v1/auth/refresh
   app.post('/v1/auth/refresh', {
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
     schema: {
       body: refreshSchema,
       response: { 200: refreshResponseSchema },

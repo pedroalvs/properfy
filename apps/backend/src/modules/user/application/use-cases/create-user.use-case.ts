@@ -12,6 +12,8 @@ import {
   BranchNotFoundError,
 } from '../../../tenant/domain/tenant.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { validatePasswordStrength } from '../../../auth/domain/password-policy';
+import { PasswordTooWeakError } from '../../../auth/domain/auth.errors';
 
 export interface CreateUserInput {
   tenantId: string;
@@ -91,6 +93,12 @@ export class CreateUserUseCase {
     const existingUser = await this.userManagementRepo.findByEmail(email);
     if (existingUser) {
       throw new UserEmailConflictError();
+    }
+
+    // Validate password strength
+    const strengthResult = validatePasswordStrength(password);
+    if (!strengthResult.valid) {
+      throw new PasswordTooWeakError(strengthResult.violations);
     }
 
     // Hash password

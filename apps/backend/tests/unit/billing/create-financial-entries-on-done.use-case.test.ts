@@ -27,6 +27,11 @@ const financialEntryRepo = {
 
 const auditService = { log: vi.fn() };
 
+const idempotencyService = {
+  get: vi.fn().mockResolvedValue(null),
+  set: vi.fn().mockResolvedValue(undefined),
+};
+
 function makeAppointment(overrides = {}) {
   return {
     appointment: {
@@ -68,6 +73,7 @@ function makeSut() {
     appointmentRepo,
     financialEntryRepo,
     auditService as any,
+    idempotencyService,
   );
 }
 
@@ -77,6 +83,36 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
     appointmentRepo.findById.mockResolvedValue(makeAppointment());
     financialEntryRepo.findByAppointmentAndType.mockResolvedValue(null);
     financialEntryRepo.save.mockResolvedValue(undefined);
+    idempotencyService.get.mockResolvedValue(null);
+  });
+
+  it('should return cached result on duplicate call (idempotency)', async () => {
+    const cachedResult = { debitEntryId: 'cached-debit', payoutEntryId: 'cached-payout' };
+    idempotencyService.get.mockResolvedValue(cachedResult);
+
+    const sut = makeSut();
+    const result = await sut.execute({ appointmentId: 'appt-1' });
+
+    expect(result).toEqual(cachedResult);
+    expect(appointmentRepo.findById).not.toHaveBeenCalled();
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+    expect(idempotencyService.get).toHaveBeenCalledWith('financial-entries-on-done:appt-1', 'financial-entries-on-done');
+  });
+
+  it('should cache result after successful execution', async () => {
+    const sut = makeSut();
+
+    await sut.execute({ appointmentId: 'appt-1' });
+
+    expect(idempotencyService.set).toHaveBeenCalledWith(
+      'financial-entries-on-done:appt-1',
+      'financial-entries-on-done',
+      expect.objectContaining({
+        debitEntryId: expect.any(String),
+        payoutEntryId: expect.any(String),
+      }),
+      24,
+    );
   });
 
   it('should create TENANT_DEBIT (APPROVED) and INSPECTOR_PAYOUT (PENDING) for a DONE appointment', async () => {

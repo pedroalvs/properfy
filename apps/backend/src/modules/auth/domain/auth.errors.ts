@@ -83,3 +83,10 @@ export class PasswordSameAsCurrentError extends DomainError {
     this.name = 'PasswordSameAsCurrentError';
   }
 }
+
+export class PasswordTooWeakError extends DomainError {
+  constructor(violations: string[]) {
+    super('AUTH_PASSWORD_TOO_WEAK', 'Password does not meet strength requirements', 400, violations);
+    this.name = 'PasswordTooWeakError';
+  }
+}

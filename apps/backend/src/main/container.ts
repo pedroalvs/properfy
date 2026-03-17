@@ -1,6 +1,7 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { prisma } from '../shared/infrastructure/prisma';
 import type { Logger } from '../shared/infrastructure/logger';
+import { getEnv } from './env';
 
 // Auth module
 import { PrismaUserRepository } from '../modules/auth/infrastructure/prisma-user.repository';
@@ -216,20 +217,16 @@ export interface AppContainer {
 }
 
 export function createContainer(logger: Logger): AppContainer {
+  const env = getEnv();
   const auditLogRepo = new PrismaAuditLogRepository(prisma);
   const auditService = new PersistentAuditService(auditLogRepo, logger);
 
   // S3 client for Supabase storage (optional — falls back to stubs when not configured)
-  const s3Endpoint = process.env['SUPABASE_S3_ENDPOINT'];
-  const s3AccessKeyId = process.env['SUPABASE_S3_ACCESS_KEY_ID'];
-  const s3SecretAccessKey = process.env['SUPABASE_S3_SECRET_ACCESS_KEY'];
-  const storageBucket = process.env['SUPABASE_STORAGE_BUCKET'] ?? 'properfy-assets';
-
-  const s3Client = s3Endpoint && s3AccessKeyId && s3SecretAccessKey
+  const s3Client = env.SUPABASE_S3_ENDPOINT && env.SUPABASE_S3_ACCESS_KEY_ID && env.SUPABASE_S3_SECRET_ACCESS_KEY
     ? new S3Client({
-        endpoint: s3Endpoint,
+        endpoint: env.SUPABASE_S3_ENDPOINT,
         region: 'us-east-1',
-        credentials: { accessKeyId: s3AccessKeyId, secretAccessKey: s3SecretAccessKey },
+        credentials: { accessKeyId: env.SUPABASE_S3_ACCESS_KEY_ID, secretAccessKey: env.SUPABASE_S3_SECRET_ACCESS_KEY },
         forcePathStyle: true,
       })
     : null;
@@ -245,17 +242,12 @@ export function createContainer(logger: Logger): AppContainer {
   const inspectorRepo = new PrismaInspectorRepository(prisma);
 
   // Services
-  const jwtPrivateKey = process.env['JWT_PRIVATE_KEY'];
-  const jwtPublicKey = process.env['JWT_PUBLIC_KEY'];
-  if (!jwtPrivateKey) throw new Error('Missing required environment variable: JWT_PRIVATE_KEY');
-  if (!jwtPublicKey) throw new Error('Missing required environment variable: JWT_PUBLIC_KEY');
-
   const jwtService = new JwtService({
-    privateKeyPem: jwtPrivateKey.replace(/\\n/g, '\n'),
-    publicKeyPem: jwtPublicKey.replace(/\\n/g, '\n'),
-    keyId: process.env['JWT_KEY_ID'] ?? 'properfy-key-v1',
-    previousPublicKeyPem: process.env['JWT_PREVIOUS_PUBLIC_KEY']?.replace(/\\n/g, '\n'),
-    previousKeyId: process.env['JWT_PREVIOUS_KEY_ID'],
+    privateKeyPem: env.JWT_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    publicKeyPem: env.JWT_PUBLIC_KEY.replace(/\\n/g, '\n'),
+    keyId: env.JWT_KEY_ID,
+    previousPublicKeyPem: env.JWT_PREVIOUS_PUBLIC_KEY?.replace(/\\n/g, '\n'),
+    previousKeyId: env.JWT_PREVIOUS_KEY_ID,
   });
   const totpService = new TotpService();
 
@@ -319,10 +311,13 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification repositories and create use case (needed before appointments for handler wiring)
   const notificationRepo = new PrismaNotificationRepository(prisma);
-  const notificationJobQueue = process.env['ENABLE_JOB_QUEUE'] === 'true'
+  const notificationJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
   const createNotificationUseCase = new CreateNotificationUseCase(notificationRepo, notificationJobQueue);
+
+  // Shared idempotency service (used across modules)
+  const idempotencyService = new PrismaIdempotencyService(prisma);
 
   // Billing repositories (needed before appointments for onDoneHandler wiring)
   const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
@@ -331,7 +326,7 @@ export function createContainer(logger: Logger): AppContainer {
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
   const createFinancialEntriesOnDoneUseCase = new CreateFinancialEntriesOnDoneUseCase(
-    appointmentRepo, financialEntryRepo, auditService,
+    appointmentRepo, financialEntryRepo, auditService, idempotencyService,
   );
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
@@ -369,7 +364,6 @@ export function createContainer(logger: Logger): AppContainer {
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
   const inspectionAssetRepo = new PrismaInspectionAssetRepository(prisma);
-  const idempotencyService = new PrismaIdempotencyService(prisma);
   const storageService = s3Client
     ? new SupabaseStorageService(s3Client)
     : new StubStorageService();
@@ -406,7 +400,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo);
   const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService);
   const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService);
-  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService);
+  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService);
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
   const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService);
 
@@ -414,7 +408,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo);
   const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
   const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService);
-  const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(financialEntryRepo, auditService);
+  const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(financialEntryRepo, auditService, idempotencyService);
   const createRefundUseCase = new CreateRefundUseCase(financialEntryRepo, auditService);
   const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService);
   const listInvoicesUseCase = new ListInvoicesUseCase(inspectorInvoiceRepo);
@@ -424,11 +418,11 @@ export function createContainer(logger: Logger): AppContainer {
   // Report repositories and use cases
   const reportRepo = new PrismaReportRepository(prisma);
   const reportStorageService = s3Client
-    ? new SupabaseReportStorageService(s3Client, storageBucket)
+    ? new SupabaseReportStorageService(s3Client, env.SUPABASE_STORAGE_BUCKET)
     : new StubReportStorageService();
   const xlsxGenerator = new ExcelJsXlsxGenerator();
   const reportDataReader = new PrismaReportDataReader(prisma);
-  const reportJobQueue = process.env['ENABLE_JOB_QUEUE'] === 'true'
+  const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
   const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService);
@@ -441,17 +435,12 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification providers and services (notificationRepo created above)
   const notificationTemplateRepo = new PrismaNotificationTemplateRepository(prisma);
-  const resendApiKey = process.env['RESEND_API_KEY'];
-  const resendFromEmail = process.env['RESEND_FROM_EMAIL'];
-  const emailProvider = resendApiKey && resendFromEmail
-    ? new ResendEmailProvider(resendApiKey, resendFromEmail)
+  const emailProvider = env.RESEND_API_KEY && env.RESEND_FROM_EMAIL
+    ? new ResendEmailProvider(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL)
     : new StubEmailProvider();
 
-  const twilioSid = process.env['TWILIO_ACCOUNT_SID'];
-  const twilioToken = process.env['TWILIO_AUTH_TOKEN'];
-  const twilioPhone = process.env['TWILIO_PHONE_NUMBER'];
-  const smsProvider = twilioSid && twilioToken && twilioPhone
-    ? new TwilioSmsProvider(twilioSid, twilioToken, twilioPhone)
+  const smsProvider = env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER
+    ? new TwilioSmsProvider(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.TWILIO_PHONE_NUMBER)
     : new StubSmsProvider();
 
   // WhatsApp stays stub until provider is configured

@@ -16,6 +16,11 @@ const financialEntryRepo = {
 
 const auditService = { log: vi.fn() };
 
+const idempotencyService = {
+  get: vi.fn().mockResolvedValue(null),
+  set: vi.fn().mockResolvedValue(undefined),
+};
+
 const opActor = {
   userId: 'op-1',
   tenantId: 'tenant-1',
@@ -33,13 +38,88 @@ const amActor = {
 };
 
 function makeSut() {
-  return new CreateManualAdjustmentUseCase(financialEntryRepo, auditService as any);
+  return new CreateManualAdjustmentUseCase(financialEntryRepo, auditService as any, idempotencyService);
 }
 
 describe('CreateManualAdjustmentUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     financialEntryRepo.save.mockResolvedValue(undefined);
+    idempotencyService.get.mockResolvedValue(null);
+  });
+
+  it('should return cached result on duplicate call when idempotencyKey is provided', async () => {
+    const cachedResult = {
+      id: 'cached-id',
+      tenantId: 'tenant-1',
+      appointmentId: 'appt-1',
+      inspectorId: null,
+      entryType: 'MANUAL_ADJUSTMENT' as const,
+      amount: 50,
+      currency: 'AUD',
+      status: 'PENDING' as const,
+      description: 'Late fee adjustment',
+      reason: 'Inspector arrived late',
+      effectiveAt: new Date('2026-03-17T00:00:00Z'),
+      initiatedByUserId: 'op-1',
+      referenceEntryId: null,
+      createdAt: new Date('2026-03-17T00:00:00Z'),
+    };
+    idempotencyService.get.mockResolvedValue(cachedResult);
+
+    const sut = makeSut();
+    const result = await sut.execute({
+      tenantId: 'tenant-1',
+      appointmentId: 'appt-1',
+      amount: 50,
+      description: 'Late fee adjustment',
+      reason: 'Inspector arrived late',
+      idempotencyKey: 'my-idem-key',
+      actor: opActor,
+    });
+
+    expect(result).toEqual(cachedResult);
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+    expect(idempotencyService.get).toHaveBeenCalledWith('my-idem-key', 'manual-adjustment');
+  });
+
+  it('should cache result after successful execution when idempotencyKey is provided', async () => {
+    const sut = makeSut();
+
+    await sut.execute({
+      tenantId: 'tenant-1',
+      amount: 50,
+      description: 'Late fee adjustment',
+      reason: 'Inspector arrived late',
+      idempotencyKey: 'my-idem-key',
+      actor: opActor,
+    });
+
+    expect(idempotencyService.set).toHaveBeenCalledWith(
+      'my-idem-key',
+      'manual-adjustment',
+      expect.objectContaining({
+        entryType: 'MANUAL_ADJUSTMENT',
+        amount: 50,
+      }),
+      24,
+    );
+  });
+
+  it('should not check idempotency when idempotencyKey is not provided', async () => {
+    const sut = makeSut();
+
+    await sut.execute({
+      tenantId: 'tenant-1',
+      amount: 50,
+      description: 'Late fee adjustment',
+      reason: 'Inspector arrived late',
+      actor: opActor,
+    });
+
+    expect(idempotencyService.get).not.toHaveBeenCalled();
+    expect(idempotencyService.set).not.toHaveBeenCalled();
+    expect(financialEntryRepo.save).toHaveBeenCalledOnce();
   });
 
   it('should create a MANUAL_ADJUSTMENT entry with PENDING status', async () => {

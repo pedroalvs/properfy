@@ -4,6 +4,7 @@ import type { IFinancialEntryRepository } from '../../domain/financial-entry.rep
 import { FinancialEntryEntity } from '../../domain/financial-entry.entity';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 
 export interface CreateManualAdjustmentInput {
   tenantId: string;
@@ -14,6 +15,7 @@ export interface CreateManualAdjustmentInput {
   reason: string;
   effectiveAt?: Date;
   referenceEntryId?: string;
+  idempotencyKey?: string;
   actor: AuthContext;
 }
 
@@ -38,6 +40,7 @@ export class CreateManualAdjustmentUseCase {
   constructor(
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
+    private readonly idempotencyService: IIdempotencyService,
   ) {}
 
   async execute(input: CreateManualAdjustmentInput): Promise<CreateManualAdjustmentOutput> {
@@ -46,6 +49,14 @@ export class CreateManualAdjustmentUseCase {
     // 1. Validate actor role
     if (actor.role !== 'AM' && actor.role !== 'OP') {
       throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can create manual adjustments');
+    }
+
+    // 1.5 Idempotency check (external key from Idempotency-Key header)
+    if (input.idempotencyKey) {
+      const cached = await this.idempotencyService.get<CreateManualAdjustmentOutput>(input.idempotencyKey, 'manual-adjustment');
+      if (cached) {
+        return cached;
+      }
     }
 
     // 2. Create entry
@@ -94,7 +105,7 @@ export class CreateManualAdjustmentUseCase {
       },
     });
 
-    return {
+    const result: CreateManualAdjustmentOutput = {
       id,
       tenantId: input.tenantId,
       appointmentId: input.appointmentId ?? null,
@@ -110,5 +121,11 @@ export class CreateManualAdjustmentUseCase {
       referenceEntryId: input.referenceEntryId ?? null,
       createdAt: now,
     };
+
+    if (input.idempotencyKey) {
+      await this.idempotencyService.set(input.idempotencyKey, 'manual-adjustment', result, 24);
+    }
+
+    return result;
   }
 }

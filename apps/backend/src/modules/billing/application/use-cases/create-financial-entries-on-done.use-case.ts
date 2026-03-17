@@ -3,6 +3,7 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import { FinancialEntryEntity } from '../../domain/financial-entry.entity';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 
 export interface CreateFinancialEntriesOnDoneInput {
   appointmentId: string;
@@ -18,18 +19,25 @@ export class CreateFinancialEntriesOnDoneUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
+    private readonly idempotencyService: IIdempotencyService,
   ) {}
 
   async execute(input: CreateFinancialEntriesOnDoneInput): Promise<CreateFinancialEntriesOnDoneOutput> {
     const { appointmentId } = input;
 
+    const idempotencyKey = `financial-entries-on-done:${appointmentId}`;
+    const cached = await this.idempotencyService.get<CreateFinancialEntriesOnDoneOutput>(idempotencyKey, 'financial-entries-on-done');
+    if (cached) {
+      return cached;
+    }
+
     // 1. Load appointment (system call, no tenant scope)
-    const result = await this.appointmentRepo.findById(appointmentId, null);
-    if (!result) {
+    const findResult = await this.appointmentRepo.findById(appointmentId, null);
+    if (!findResult) {
       return { debitEntryId: null, payoutEntryId: null };
     }
 
-    const { appointment } = result;
+    const { appointment } = findResult;
 
     // 2. Idempotency guard: only process DONE appointments
     if (appointment.status !== 'DONE') {
@@ -132,6 +140,10 @@ export class CreateFinancialEntriesOnDoneUseCase {
       });
     }
 
-    return { debitEntryId, payoutEntryId };
+    const result: CreateFinancialEntriesOnDoneOutput = { debitEntryId, payoutEntryId };
+
+    await this.idempotencyService.set(idempotencyKey, 'financial-entries-on-done', result, 24);
+
+    return result;
   }
 }

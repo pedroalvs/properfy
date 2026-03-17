@@ -112,9 +112,11 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
       const result = await container.createManualAdjustmentUseCase.execute({
         ...parsed.data,
         effectiveAt: parsed.data.effectiveAt ? new Date(parsed.data.effectiveAt) : undefined,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(201).send(success(result));

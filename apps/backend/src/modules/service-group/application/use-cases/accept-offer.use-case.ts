@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import {
@@ -32,10 +33,17 @@ export class AcceptOfferUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly inspectorRepo: IInspectorRepository,
     private readonly auditService: AuditService,
+    private readonly idempotencyService: IIdempotencyService,
   ) {}
 
   async execute(input: AcceptOfferInput): Promise<AcceptOfferOutput> {
     const { actor, groupId, inspectorId } = input;
+
+    const idempotencyKey = `accept-offer:${groupId}:${inspectorId}`;
+    const cached = await this.idempotencyService.get<AcceptOfferOutput>(idempotencyKey, 'accept-offer');
+    if (cached) {
+      return cached;
+    }
 
     if (actor.role !== 'INSP') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Only inspectors can accept offers');
@@ -50,11 +58,11 @@ export class AcceptOfferUseCase {
       throw new InspectorInactiveError();
     }
 
-    const result = await this.serviceGroupRepo.findById(groupId, null);
-    if (!result) {
+    const findResult = await this.serviceGroupRepo.findById(groupId, null);
+    if (!findResult) {
       throw new ServiceGroupNotFoundError();
     }
-    const { group } = result;
+    const { group } = findResult;
 
     if (!group.canAccept()) {
       if (group.status === 'ACCEPTED') {
@@ -102,12 +110,16 @@ export class AcceptOfferUseCase {
       },
     });
 
-    return {
+    const result: AcceptOfferOutput = {
       groupId,
       status: 'ACCEPTED',
       assignedInspectorId: inspectorId,
       appointmentsScheduled: scheduledCount,
       acceptedAt: now,
     };
+
+    await this.idempotencyService.set(idempotencyKey, 'accept-offer', result, 24);
+
+    return result;
   }
 }

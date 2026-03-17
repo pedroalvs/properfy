@@ -89,6 +89,7 @@ describe('AcceptOfferUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
   let inspectorRepo: IInspectorRepository;
   let auditService: AuditService;
+  let idempotencyService: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn> };
   let useCase: AcceptOfferUseCase;
 
   beforeEach(() => {
@@ -114,11 +115,64 @@ describe('AcceptOfferUseCase', () => {
       update: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
+    idempotencyService = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+    };
 
     useCase = new AcceptOfferUseCase(
       serviceGroupRepo,
       inspectorRepo,
       auditService,
+      idempotencyService,
+    );
+  });
+
+  it('should return cached result on duplicate call (idempotency)', async () => {
+    const cachedResult = {
+      groupId: 'group-1',
+      status: 'ACCEPTED',
+      assignedInspectorId: 'inspector-1',
+      appointmentsScheduled: 5,
+      acceptedAt: new Date('2026-03-17T00:00:00Z'),
+    };
+    idempotencyService.get.mockResolvedValue(cachedResult);
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      inspectorId: 'inspector-1',
+      actor: makeActor(),
+    });
+
+    expect(result).toEqual(cachedResult);
+    expect(serviceGroupRepo.findById).not.toHaveBeenCalled();
+    expect(serviceGroupRepo.acceptOptimistic).not.toHaveBeenCalled();
+    expect(idempotencyService.get).toHaveBeenCalledWith('accept-offer:group-1:inspector-1', 'accept-offer');
+  });
+
+  it('should cache result after successful execution', async () => {
+    idempotencyService.get.mockResolvedValue(null);
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+    vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
+
+    await useCase.execute({
+      groupId: 'group-1',
+      inspectorId: 'inspector-1',
+      actor: makeActor(),
+    });
+
+    expect(idempotencyService.set).toHaveBeenCalledWith(
+      'accept-offer:group-1:inspector-1',
+      'accept-offer',
+      expect.objectContaining({
+        groupId: 'group-1',
+        status: 'ACCEPTED',
+        assignedInspectorId: 'inspector-1',
+        appointmentsScheduled: 5,
+      }),
+      24,
     );
   });
 

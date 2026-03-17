@@ -7,7 +7,9 @@ import {
   InvalidCurrentPasswordError,
   PasswordTooCommonError,
   PasswordSameAsCurrentError,
+  PasswordTooWeakError,
 } from '../../domain/auth.errors';
+import { validatePasswordStrength } from '../../domain/password-policy';
 import { COMMON_PASSWORDS } from '../constants/common-passwords';
 import { UnauthorizedError } from '../../../../shared/domain/errors';
 
@@ -27,6 +29,11 @@ export class ChangePasswordUseCase {
     const currentPasswordValid = await bcrypt.compare(input.currentPassword, user.passwordHash);
     if (!currentPasswordValid) {
       throw new InvalidCurrentPasswordError();
+    }
+
+    const strengthResult = validatePasswordStrength(input.newPassword);
+    if (!strengthResult.valid) {
+      throw new PasswordTooWeakError(strengthResult.violations);
     }
 
     if (COMMON_PASSWORDS.has(input.newPassword.toLowerCase())) {
