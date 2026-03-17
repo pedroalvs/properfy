@@ -1,74 +1,36 @@
 import { useState, useCallback } from 'react';
-import { createAppointmentSchema, updateAppointmentSchema } from '@properfy/shared';
+import { contactSchema, AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 import type { AppointmentDetail } from '../types';
-import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 import { MOCK_APPOINTMENTS } from '../mocks/appointments';
-
-const FIELD_LABELS: Record<string, keyof AppointmentFormData> = {
-  branchId: 'branchId',
-  propertyId: 'propertyId',
-  serviceTypeId: 'serviceTypeId',
-  scheduledDate: 'scheduledDate',
-  timeSlot: 'timeSlot',
-  'contact.tenantName': 'contactName',
-  'contact.primaryPhone': 'contactPhone',
-  'contact.primaryEmail': 'contactEmail',
-  keyRequired: 'keyRequired',
-  meetingLocation: 'meetingLocation',
-  keyLocation: 'keyLocation',
-  notes: 'notes',
-};
 
 const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
 
-function buildCreatePayload(data: AppointmentFormData) {
-  return {
-    branchId: data.branchId,
-    propertyId: data.propertyId || undefined,
-    serviceTypeId: data.serviceTypeId,
-    scheduledDate: data.scheduledDate,
-    timeSlot: data.timeSlot,
-    contact: {
-      tenantName: data.contactName,
-      primaryEmail: data.contactEmail || undefined,
-      primaryPhone: data.contactPhone || undefined,
-    },
-    keyRequired: data.keyRequired,
-    meetingLocation: data.meetingLocation || undefined,
-    keyLocation: data.keyLocation || undefined,
-    notes: data.notes || undefined,
-  };
-}
+const CREATE_REQUIRED_FIELDS: (keyof AppointmentFormData)[] = [
+  'branchId',
+  'propertyId',
+  'serviceTypeId',
+  'scheduledDate',
+  'timeSlot',
+  'contactName',
+];
 
-function buildUpdatePayload(data: AppointmentFormData) {
-  return {
-    scheduledDate: data.scheduledDate || undefined,
-    timeSlot: data.timeSlot || undefined,
-    contact: {
-      tenantName: data.contactName,
-      primaryEmail: data.contactEmail || undefined,
-      primaryPhone: data.contactPhone || undefined,
-    },
-    keyRequired: data.keyRequired,
-    meetingLocation: data.meetingLocation || undefined,
-    keyLocation: data.keyLocation || undefined,
-    notes: data.notes || undefined,
-  };
-}
-
-function mapZodErrors(issues: Array<{ path: (string | number)[]; message: string }>): AppointmentFormErrors {
+function validateRequired(data: AppointmentFormData, fields: (keyof AppointmentFormData)[]): AppointmentFormErrors {
   const errors: AppointmentFormErrors = {};
-  for (const issue of issues) {
-    const path = issue.path.join('.');
-    const field = FIELD_LABELS[path];
-    if (field && !errors[field]) {
-      errors[field] = issue.message === 'Required' || issue.message === 'String must contain at least 1 character(s)'
-        ? REQUIRED_FIELD_MESSAGE
-        : issue.message;
+  for (const field of fields) {
+    const value = data[field];
+    if (typeof value === 'string' && !value.trim()) {
+      errors[field] = REQUIRED_FIELD_MESSAGE;
     }
   }
   return errors;
+}
+
+function validateEmail(email: string): string | undefined {
+  if (!email) return undefined;
+  const result = contactSchema.shape.primaryEmail.safeParse(email);
+  if (!result.success) return 'E-mail inválido';
+  return undefined;
 }
 
 export interface UseAppointmentSaveReturn {
@@ -81,17 +43,19 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
   const [isSaving, setIsSaving] = useState(false);
 
   const validate = useCallback((data: AppointmentFormData, mode: 'create' | 'edit'): AppointmentFormErrors => {
+    const errors: AppointmentFormErrors = {};
+
     if (mode === 'create') {
-      const payload = buildCreatePayload(data);
-      const result = createAppointmentSchema.safeParse(payload);
-      if (result.success) return {};
-      return mapZodErrors(result.error.issues);
+      Object.assign(errors, validateRequired(data, CREATE_REQUIRED_FIELDS));
     } else {
-      const payload = buildUpdatePayload(data);
-      const result = updateAppointmentSchema.safeParse(payload);
-      if (result.success) return {};
-      return mapZodErrors(result.error.issues);
+      // Edit mode: contactName is still required
+      Object.assign(errors, validateRequired(data, ['contactName']));
     }
+
+    const emailError = validateEmail(data.contactEmail);
+    if (emailError) errors.contactEmail = emailError;
+
+    return errors;
   }, []);
 
   const save = useCallback(async (data: AppointmentFormData, appointmentId?: string): Promise<boolean> => {
