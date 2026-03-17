@@ -38,8 +38,14 @@ export class CreateAvailabilitySlotUseCase {
   async execute(input: CreateAvailabilitySlotInput): Promise<CreateAvailabilitySlotOutput> {
     const { inspectorId, date, startTime, endTime, regionJson, capacity, actor } = input;
 
-    // TODO: INSP role should be allowed to create slots for own inspector once User-Inspector link is established
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
+    if (actor.role === 'INSP') {
+      if (!actor.inspectorId) {
+        throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+      }
+      if (inspectorId !== actor.inspectorId) {
+        throw new ForbiddenError('FORBIDDEN', "Cannot access another inspector's data");
+      }
+    } else if (actor.role !== 'AM' && actor.role !== 'OP') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 

@@ -28,9 +28,13 @@ export class GetInspectorUseCase {
   async execute(input: GetInspectorInput): Promise<GetInspectorOutput> {
     const { inspectorId, actor } = input;
 
-    // TODO: INSP role should be allowed to get their own inspector record once User-Inspector link is established
     if (actor.role === 'INSP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+      if (!actor.inspectorId) {
+        throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+      }
+      if (inspectorId !== actor.inspectorId) {
+        throw new ForbiddenError('FORBIDDEN', "Cannot access another inspector's data");
+      }
     }
 
     const inspector = await this.inspectorRepo.findById(inspectorId);

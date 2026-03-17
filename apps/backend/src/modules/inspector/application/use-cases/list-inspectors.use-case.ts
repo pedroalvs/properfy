@@ -36,9 +36,32 @@ export class ListInspectorsUseCase {
     const { pagination, actor } = input;
     let { filters } = input;
 
-    // TODO: INSP role should be allowed to list own record once User-Inspector link is established
     if (actor.role === 'INSP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+      if (!actor.inspectorId) {
+        throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+      }
+      const inspector = await this.inspectorRepo.findById(actor.inspectorId);
+      const item = inspector && !inspector.isDeleted() ? inspector : null;
+      return {
+        data: item
+          ? [
+              {
+                id: item.id,
+                name: item.name,
+                email: item.email,
+                phone: item.phone,
+                status: item.status,
+                regionsJson: item.regionsJson,
+                serviceTypesJson: item.serviceTypesJson,
+                createdAt: item.createdAt,
+                updatedAt: item.updatedAt,
+              },
+            ]
+          : [],
+        total: item ? 1 : 0,
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+      };
     }
 
     // CL_ADMIN and CL_USER can only see eligible inspectors for their tenant
