@@ -1,3 +1,4 @@
+import { S3Client } from '@aws-sdk/client-s3';
 import { prisma } from '../shared/infrastructure/prisma';
 import type { Logger } from '../shared/infrastructure/logger';
 
@@ -111,6 +112,7 @@ import { PrismaInspectionExecutionRepository } from '../modules/inspector-execut
 import { PrismaInspectionAssetRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-asset.repository';
 import { PrismaIdempotencyService } from '../modules/inspector-execution/infrastructure/prisma-idempotency.service';
 import { StubStorageService } from '../modules/inspector-execution/infrastructure/stub-storage.service';
+import { SupabaseStorageService } from '../modules/inspector-execution/infrastructure/supabase-storage.service';
 import { PrismaServiceTypeReader } from '../modules/inspector-execution/infrastructure/prisma-service-type-reader';
 import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case';
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
@@ -138,6 +140,7 @@ import type { BillingRouteContainer } from '../modules/billing/interfaces/billin
 // Report module
 import { PrismaReportRepository } from '../modules/report/infrastructure/prisma-report.repository';
 import { StubReportStorageService } from '../modules/report/infrastructure/stub-report-storage.service';
+import { SupabaseReportStorageService } from '../modules/report/infrastructure/supabase-report-storage.service';
 import { ExcelJsXlsxGenerator } from '../modules/report/infrastructure/exceljs-xlsx-generator';
 import { PrismaReportDataReader } from '../modules/report/infrastructure/prisma-report-data-reader';
 import { StubJobQueue } from '../modules/report/infrastructure/stub-job-queue';
@@ -205,6 +208,21 @@ export interface AppContainer {
 export function createContainer(logger: Logger): AppContainer {
   const auditLogRepo = new PrismaAuditLogRepository(prisma);
   const auditService = new PersistentAuditService(auditLogRepo, logger);
+
+  // S3 client for Supabase storage (optional — falls back to stubs when not configured)
+  const s3Endpoint = process.env['SUPABASE_S3_ENDPOINT'];
+  const s3AccessKeyId = process.env['SUPABASE_S3_ACCESS_KEY_ID'];
+  const s3SecretAccessKey = process.env['SUPABASE_S3_SECRET_ACCESS_KEY'];
+  const storageBucket = process.env['SUPABASE_STORAGE_BUCKET'] ?? 'properfy-assets';
+
+  const s3Client = s3Endpoint && s3AccessKeyId && s3SecretAccessKey
+    ? new S3Client({
+        endpoint: s3Endpoint,
+        region: 'us-east-1',
+        credentials: { accessKeyId: s3AccessKeyId, secretAccessKey: s3SecretAccessKey },
+        forcePathStyle: true,
+      })
+    : null;
 
   // Repositories
   const userRepo = new PrismaUserRepository(prisma);
@@ -318,7 +336,9 @@ export function createContainer(logger: Logger): AppContainer {
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
   const inspectionAssetRepo = new PrismaInspectionAssetRepository(prisma);
   const idempotencyService = new PrismaIdempotencyService(prisma);
-  const storageService = new StubStorageService();
+  const storageService = s3Client
+    ? new SupabaseStorageService(s3Client)
+    : new StubStorageService();
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
 
   // Inspector execution use cases
@@ -374,7 +394,9 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Report repositories and use cases
   const reportRepo = new PrismaReportRepository(prisma);
-  const reportStorageService = new StubReportStorageService();
+  const reportStorageService = s3Client
+    ? new SupabaseReportStorageService(s3Client, storageBucket)
+    : new StubReportStorageService();
   const xlsxGenerator = new ExcelJsXlsxGenerator();
   const reportDataReader = new PrismaReportDataReader(prisma);
   const reportJobQueue = process.env['ENABLE_JOB_QUEUE'] === 'true'
