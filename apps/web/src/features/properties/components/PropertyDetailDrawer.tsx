@@ -12,19 +12,25 @@ interface PropertyDetailDrawerProps {
   propertyId: string | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: (id: string) => void;
 }
 
 export function PropertyDetailDrawer({
   propertyId,
   open,
   onClose,
+  onEdit,
 }: PropertyDetailDrawerProps) {
   const { property, isLoading } = usePropertyDetail(propertyId);
   const { showInfo } = useSnackbar();
 
   const handleEdit = useCallback(() => {
-    showInfo('Edição em breve');
-  }, [showInfo]);
+    if (onEdit && propertyId) {
+      onEdit(propertyId);
+    } else {
+      showInfo('Edição em breve');
+    }
+  }, [onEdit, propertyId, showInfo]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">

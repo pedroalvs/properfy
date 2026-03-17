@@ -23,13 +23,19 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function renderDrawer(props: { propertyId: string | null; open: boolean; onClose?: () => void }) {
+function renderDrawer(props: {
+  propertyId: string | null;
+  open: boolean;
+  onClose?: () => void;
+  onEdit?: (id: string) => void;
+}) {
   return render(
     <Wrapper>
       <PropertyDetailDrawer
         propertyId={props.propertyId}
         open={props.open}
         onClose={props.onClose ?? vi.fn()}
+        onEdit={props.onEdit}
       />
     </Wrapper>,
   );
@@ -105,5 +111,23 @@ describe('PropertyDetailDrawer', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
     act(() => { vi.advanceTimersByTime(200); });
     expect(screen.getByText('Sucesso')).toBeInTheDocument();
+  });
+
+  it('edit button calls onEdit with property id when onEdit prop is provided', () => {
+    const onEdit = vi.fn();
+    renderDrawer({ propertyId: 'prop-01', open: true, onEdit });
+    act(() => { vi.advanceTimersByTime(200); });
+    const editButton = screen.getByLabelText('Editar');
+    fireEvent.click(editButton);
+    expect(onEdit).toHaveBeenCalledWith('prop-01');
+  });
+
+  it('edit button falls back to snackbar when onEdit prop is not provided', () => {
+    renderDrawer({ propertyId: 'prop-01', open: true });
+    act(() => { vi.advanceTimersByTime(200); });
+    const editButton = screen.getByLabelText('Editar');
+    fireEvent.click(editButton);
+    act(() => { vi.advanceTimersByTime(0); });
+    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import type { FilterSelectOption } from '@/components/filters/FilterSelect';
 import { PropertyFilters } from '../components/PropertyFilters';
 import { PropertyTable } from '../components/PropertyTable';
 import { PropertyDetailDrawer } from '../components/PropertyDetailDrawer';
+import { PropertyFormDrawer } from '../components/PropertyFormDrawer';
 import { usePropertyList } from '../hooks/usePropertyList';
 
 const BRANCH_OPTIONS: FilterSelectOption[] = [
@@ -27,12 +28,21 @@ export function PropertyListPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
 
   return (
     <>
       <ListFilterTableTemplate
         title="Imóveis"
-        primaryAction={{ label: 'Novo Imóvel', icon: 'mdi-plus', onClick: () => {} }}
+        primaryAction={{
+          label: 'Novo Imóvel',
+          icon: 'mdi-plus',
+          onClick: () => {
+            setEditId(null);
+            setFormOpen(true);
+          },
+        }}
       >
         <PropertyFilters
           filters={filters}
@@ -62,6 +72,25 @@ export function PropertyListPage() {
         onClose={() => {
           setDrawerOpen(false);
           setSelectedId(null);
+        }}
+        onEdit={(id) => {
+          setDrawerOpen(false);
+          setSelectedId(null);
+          setEditId(id);
+          setFormOpen(true);
+        }}
+      />
+      <PropertyFormDrawer
+        open={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setEditId(null);
+        }}
+        propertyId={editId}
+        onSaved={() => {
+          setFormOpen(false);
+          setEditId(null);
+          refetch();
         }}
       />
     </>
