@@ -12,15 +12,20 @@ interface UserDetailDrawerProps {
   userId: string | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: (id: string) => void;
 }
 
-export function UserDetailDrawer({ userId, open, onClose }: UserDetailDrawerProps) {
+export function UserDetailDrawer({ userId, open, onClose, onEdit }: UserDetailDrawerProps) {
   const { user, isLoading } = useUserDetail(userId);
   const { showInfo } = useSnackbar();
 
   const handleEdit = useCallback(() => {
-    showInfo('Edição em breve');
-  }, [showInfo]);
+    if (onEdit && userId) {
+      onEdit(userId);
+    } else {
+      showInfo('Edição em breve');
+    }
+  }, [onEdit, userId, showInfo]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">

@@ -3,6 +3,7 @@ import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilte
 import { UserFilters } from '../components/UserFilters';
 import { UserTable } from '../components/UserTable';
 import { UserDetailDrawer } from '../components/UserDetailDrawer';
+import { UserFormDrawer } from '../components/UserFormDrawer';
 import { useUserList } from '../hooks/useUserList';
 
 export function UserListPage() {
@@ -20,12 +21,14 @@ export function UserListPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
 
   return (
     <>
       <ListFilterTableTemplate
         title="Usuários"
-        primaryAction={{ label: 'Novo Usuário', icon: 'mdi-plus', onClick: () => {} }}
+        primaryAction={{ label: 'Novo Usuário', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } }}
       >
         <UserFilters
           filters={filters}
@@ -55,6 +58,18 @@ export function UserListPage() {
           setDrawerOpen(false);
           setSelectedId(null);
         }}
+        onEdit={(id) => {
+          setDrawerOpen(false);
+          setSelectedId(null);
+          setEditId(id);
+          setFormOpen(true);
+        }}
+      />
+      <UserFormDrawer
+        open={formOpen}
+        onClose={() => { setFormOpen(false); setEditId(null); }}
+        userId={editId}
+        onSaved={() => { setFormOpen(false); setEditId(null); refetch(); }}
       />
     </>
   );
