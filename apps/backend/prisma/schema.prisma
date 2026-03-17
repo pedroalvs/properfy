@@ -195,6 +195,7 @@ model User {
   sessions                  Session[]
   tenant                    Tenant?       @relation(fields: [tenant_id], references: [id])
   branch                    Branch?       @relation(fields: [branch_id], references: [id])
+  inspector                 Inspector?
   created_appointments      Appointment[]    @relation("AppointmentCreatedBy")
   done_checked_appointments Appointment[]    @relation("AppointmentDoneCheckedBy")
   created_service_groups    ServiceGroup[]   @relation("ServiceGroupCreatedBy")
@@ -307,6 +308,7 @@ model ServicePriceRule {
 
 model Inspector {
   id                        String           @id @default(uuid())
+  user_id                   String?          @unique
   name                      String           @db.VarChar(200)
   email                     String           @unique @db.VarChar(254)
   phone                     String?          @db.VarChar(20)
@@ -319,6 +321,7 @@ model Inspector {
   updated_at                DateTime         @updatedAt
   deleted_at                DateTime?
 
+  user                        User?            @relation(fields: [user_id], references: [id])
   availability_slots          InspectorAvailabilitySlot[]
   appointments                Appointment[]
   assigned_service_groups     ServiceGroup[]
@@ -327,6 +330,7 @@ model Inspector {
   invoices                    InspectorInvoice[]
 
   @@index([status])
+  @@index([user_id])
   @@index([deleted_at])
   @@map("inspectors")
 }
