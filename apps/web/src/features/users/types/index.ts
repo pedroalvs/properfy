@@ -31,3 +31,23 @@ export const DEFAULT_FILTERS: UserFiltersState = {
   role: '',
   status: '',
 };
+
+export interface UserFormData {
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: string;
+  branchId: string;
+}
+
+export type UserFormErrors = Partial<Record<keyof UserFormData, string>>;
+
+export const EMPTY_USER_FORM: UserFormData = {
+  name: '',
+  email: '',
+  phone: '',
+  role: '',
+  status: '',
+  branchId: '',
+};
