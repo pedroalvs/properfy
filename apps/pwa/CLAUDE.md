@@ -248,7 +248,7 @@ When you (Claude Code) implement or modify PWA code:
 4. **Offline support** – cached schedule, queued actions, clear feedback.
 5. **Share types from `packages/shared`** for enums, IDs and DTOs.
 6. **Same visual tokens** as web (colors, typography, status chips).
-7. **Language: pt-BR** for all user-facing text.
+7. **Language: English** for all user-facing text. Mock/seed data may retain Portuguese names.
 8. **Performance matters** – compress images, lazy load, minimize bundle.
 9. **Touch-friendly** – large targets, no hover-dependent interactions.
 10. **Consult `projeto-consolidado/`** for complete business rules, especially state machine and T-1 rules.

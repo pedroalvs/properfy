@@ -279,3 +279,104 @@ When you (Claude Code) implement or modify code in this project:
 2. Transactional email: Resend
 3. Maps and geocoding: Mapbox
 4. Database and storage: Supabase (PostgreSQL + S3-compatible storage)
+
+---
+
+## 16. Workflow orchestration
+
+### Plan mode
+
+- Enter plan mode before any non-trivial task to discuss approach, constraints and risks.
+- Draft a step-by-step plan and wait for approval before writing code.
+- Update the plan whenever the approach changes mid-task.
+
+### Subagents
+
+- Use subagents to parallelize independent work (research, implementation, testing).
+- Each subagent must have a clear, scoped task description with all necessary context.
+- Prefer foreground agents when their output is needed before the next step; use background agents for truly independent work.
+
+### Self-improvement
+
+- After completing a task, reflect on what went well and what could improve.
+- If you discover a recurring pattern or convention not yet documented, propose adding it to the relevant CLAUDE.md.
+- Capture reusable lessons in memory so future conversations benefit.
+
+### Verification
+
+- Never claim work is complete without running verification commands (build, lint, typecheck, tests).
+- Show evidence of passing verification before marking a task as done.
+- If verification fails, fix the issue and re-verify — do not skip or defer.
+
+### Elegance
+
+- Prefer the simplest solution that fully meets requirements.
+- Avoid over-engineering, unnecessary abstractions and speculative generality.
+- Code should read naturally — clear names, minimal nesting, obvious flow.
+
+### Autonomous bug fixing
+
+- When a build, lint or test failure occurs during your work, fix it immediately.
+- Do not ask for permission to fix errors you introduced — just fix them and re-verify.
+- If the fix is non-trivial or touches unrelated code, explain what happened and why.
+
+---
+
+## 17. Task management
+
+### Plan first
+
+- Break complex tasks into discrete, verifiable steps before starting.
+- Use the task system to track progress within the current conversation.
+- Each step should have clear completion criteria.
+
+### Verify at every step
+
+- Run relevant checks (typecheck, lint, tests) after each meaningful change.
+- Do not batch multiple changes and verify only at the end.
+- If a step fails verification, fix it before moving to the next step.
+
+### Track progress
+
+- Update task status as you complete each step.
+- If you deviate from the plan, update the plan and explain why.
+- Surface blockers early — do not silently skip steps.
+
+### Explain decisions
+
+- When making a non-obvious choice, state the alternatives you considered and why you chose this one.
+- Keep explanations concise — one or two sentences, not paragraphs.
+
+### Document as you go
+
+- Add inline comments only where the logic is not self-evident.
+- Update relevant documentation if your change affects public APIs or conventions.
+- Do not add documentation for documentation's sake.
+
+### Capture lessons
+
+- If you discover something surprising about the codebase, save it to memory.
+- If a debugging session reveals a non-obvious cause, note the pattern for future reference.
+- Lessons should be specific and actionable, not generic advice.
+
+---
+
+## 18. Core principles
+
+### Simplicity
+
+- The best code is the least code that solves the problem correctly.
+- Prefer standard library and framework features over custom implementations.
+- Delete dead code — do not comment it out or hide it behind flags.
+
+### No laziness
+
+- Never use placeholder comments like `// TODO: implement`, `// rest of code here` or `// ...`.
+- Never truncate output or skip sections — complete every implementation fully.
+- If a task is too large for one pass, say so and propose how to split it — do not silently cut corners.
+
+### Minimal impact
+
+- Change only what is necessary to achieve the goal.
+- Do not refactor, reformat or reorganize code that is not directly related to the task.
+- Preserve existing conventions and patterns — match the style of surrounding code.

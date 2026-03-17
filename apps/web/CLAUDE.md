@@ -333,7 +333,7 @@ When you (Claude Code) implement or modify frontend code:
 4. **Reuse base components** before creating page-specific variations.
 5. **Implement all states** – loading, empty, error, permission on every data screen.
 6. **Respect responsiveness** – desktop-first but tablet/mobile must not look improvised.
-7. **Language: pt-BR** for all user-facing text (labels, messages, placeholders).
+7. **Language: English** for all user-facing text (labels, messages, placeholders). Mock/seed data may retain Portuguese names.
 8. **Types from `packages/shared`** for enums, IDs and shared schemas.
 9. **If a rule is still open**, declare the assumption explicitly in your output.
 10. **The frontend must NOT look like a generic Tailwind template.**
