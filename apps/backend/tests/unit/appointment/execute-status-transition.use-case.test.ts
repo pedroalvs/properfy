@@ -120,17 +120,30 @@ const auditService = {
   log: vi.fn(),
 };
 
-function makeUseCase() {
+const onDoneHandler = {
+  execute: vi.fn().mockResolvedValue(undefined),
+};
+
+const onTransitionHandler = {
+  execute: vi.fn().mockResolvedValue(undefined),
+};
+
+function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean } = {}) {
   return new ExecuteStatusTransitionUseCase(
     appointmentRepo as any,
     userRepo as any,
     auditService as any,
+    opts.withOnDoneHandler ? onDoneHandler : undefined,
+    opts.withOnTransitionHandler ? onTransitionHandler : undefined,
   );
 }
+
 
 beforeEach(() => {
   vi.clearAllMocks();
   appointmentRepo.update.mockResolvedValue(undefined);
+  onDoneHandler.execute.mockResolvedValue(undefined);
+  onTransitionHandler.execute.mockResolvedValue(undefined);
 });
 
 // =============================================================================
@@ -670,5 +683,171 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
     });
     expect(result.status).toBe('SCHEDULED');
     expect(result.inspectorId).toBe('existing-insp');
+  });
+});
+
+// =============================================================================
+// DONE side effects (onDoneHandler)
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – DONE side effects', () => {
+  it('calls onDoneHandler.execute when transitioning to DONE', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    const uc = makeUseCase({ withOnDoneHandler: true });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    expect(onDoneHandler.execute).toHaveBeenCalledOnce();
+    expect(onDoneHandler.execute).toHaveBeenCalledWith({ appointmentId: 'appt-1' });
+  });
+
+  it('succeeds without onDoneHandler (backward compatibility)', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    const uc = makeUseCase();
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    expect(result.status).toBe('DONE');
+    expect(onDoneHandler.execute).not.toHaveBeenCalled();
+  });
+
+  it('transition still succeeds if onDoneHandler throws', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    onDoneHandler.execute.mockRejectedValueOnce(new Error('Financial entry creation failed'));
+
+    const uc = makeUseCase({ withOnDoneHandler: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    expect(result.status).toBe('DONE');
+    expect(onDoneHandler.execute).toHaveBeenCalledOnce();
+  });
+
+  it('does NOT call onDoneHandler for non-DONE transitions', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+    );
+    const uc = makeUseCase({ withOnDoneHandler: true });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+
+    expect(onDoneHandler.execute).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call onDoneHandler when reopening FROM DONE to DRAFT', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({
+        status: 'DONE',
+        doneCheckedByUserId: 'checker-1',
+        doneCheckedAt: new Date(),
+      }),
+    );
+    const uc = makeUseCase({ withOnDoneHandler: true });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'Reopening',
+      actor: makeActor('AM'),
+    });
+
+    expect(onDoneHandler.execute).not.toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// Transition side effects (onTransitionHandler)
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
+  it('calls onTransitionHandler with correct args when transitioning to SCHEDULED', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+    );
+    const uc = makeUseCase({ withOnTransitionHandler: true });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+
+    expect(onTransitionHandler.execute).toHaveBeenCalledOnce();
+    expect(onTransitionHandler.execute).toHaveBeenCalledWith({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+  });
+
+  it('calls onTransitionHandler with correct args when transitioning to CANCELLED', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase({ withOnTransitionHandler: true });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      actor: makeActor('AM'),
+    });
+
+    expect(onTransitionHandler.execute).toHaveBeenCalledOnce();
+    expect(onTransitionHandler.execute).toHaveBeenCalledWith({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+    });
+  });
+
+  it('transition succeeds if onTransitionHandler throws', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+    );
+    onTransitionHandler.execute.mockRejectedValueOnce(new Error('Notification failure'));
+
+    const uc = makeUseCase({ withOnTransitionHandler: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+
+    expect(result.status).toBe('SCHEDULED');
+    expect(onTransitionHandler.execute).toHaveBeenCalledOnce();
+  });
+
+  it('does not call onTransitionHandler when not provided', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+    );
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+
+    expect(onTransitionHandler.execute).not.toHaveBeenCalled();
   });
 });

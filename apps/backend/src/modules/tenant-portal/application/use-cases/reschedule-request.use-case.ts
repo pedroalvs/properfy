@@ -38,6 +38,7 @@ export class RescheduleRequestUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly serviceTypeRepo: IServiceTypeRepository,
     private readonly auditService: PersistentAuditService,
+    private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
   ) {}
 
   async execute(input: RescheduleRequestInput) {
@@ -144,6 +145,15 @@ export class RescheduleRequestUseCase {
       after: newValues,
       ipAddress: input.ipAddress ?? undefined,
     });
+
+    // 12. Side effect: notification on reschedule
+    if (this.onNotificationHandler) {
+      try {
+        await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, action: 'RESCHEDULE' });
+      } catch {
+        // fire-and-forget — notification failure must not affect the reschedule
+      }
+    }
 
     return {
       scheduledDate: input.newDate,

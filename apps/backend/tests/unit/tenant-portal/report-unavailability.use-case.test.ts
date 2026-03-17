@@ -84,6 +84,7 @@ describe('ReportUnavailabilityUseCase', () => {
       }),
       update: vi.fn().mockResolvedValue(undefined),
       deleteRestrictionsByAppointmentId: vi.fn().mockResolvedValue(undefined),
+      findScheduledOnDate: vi.fn(),
       saveRestriction: vi.fn().mockResolvedValue(undefined),
       findAll: vi.fn(),
       count: vi.fn(),

@@ -255,3 +255,72 @@ describe('ConfirmAppointmentUseCase', () => {
     expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
   });
 });
+
+describe('ConfirmAppointmentUseCase – onNotificationHandler', () => {
+  let activityRepo: ITenantPortalActivityRepository;
+  let appointmentRepo: IAppointmentRepository;
+  let auditService: PersistentAuditService;
+  let onNotificationHandler: { execute: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    activityRepo = {
+      save: vi.fn(),
+      findLatestByTokenAndAction: vi.fn(),
+    };
+    appointmentRepo = {
+      findById: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      saveContact: vi.fn(),
+      updateContact: vi.fn(),
+      saveRestriction: vi.fn(),
+      deleteRestrictionsByAppointmentId: vi.fn(),
+    };
+    auditService = {
+      log: vi.fn(),
+    } as unknown as PersistentAuditService;
+    onNotificationHandler = {
+      execute: vi.fn().mockResolvedValue(undefined),
+    };
+  });
+
+  it('calls onNotificationHandler with CONFIRM action after confirmation', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+    const useCase = new ConfirmAppointmentUseCase(
+      activityRepo, appointmentRepo, auditService, onNotificationHandler,
+    );
+    await useCase.execute(makeInput());
+
+    expect(onNotificationHandler.execute).toHaveBeenCalledOnce();
+    expect(onNotificationHandler.execute).toHaveBeenCalledWith({
+      appointmentId: 'appt-1',
+      action: 'CONFIRM',
+    });
+  });
+
+  it('confirmation succeeds if onNotificationHandler throws', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    onNotificationHandler.execute.mockRejectedValueOnce(new Error('Notification failure'));
+
+    const useCase = new ConfirmAppointmentUseCase(
+      activityRepo, appointmentRepo, auditService, onNotificationHandler,
+    );
+    const result = await useCase.execute(makeInput());
+
+    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+  });
+
+  it('does not call onNotificationHandler when not provided', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+    const useCase = new ConfirmAppointmentUseCase(
+      activityRepo, appointmentRepo, auditService,
+    );
+    await useCase.execute(makeInput());
+
+    expect(onNotificationHandler.execute).not.toHaveBeenCalled();
+  });
+});

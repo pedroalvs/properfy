@@ -150,6 +150,7 @@ describe('GeneratePortalTokenUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      findScheduledOnDate: vi.fn(),
     };
     tenantRepo = {
       findById: vi.fn().mockResolvedValue(makeTenant()),

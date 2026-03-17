@@ -7,6 +7,42 @@ import { registerErrorHandler } from '../shared/interfaces/error-handler';
 
 const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
 const LOG_LEVEL = process.env['LOG_LEVEL'] ?? 'info';
+const SHUTDOWN_TIMEOUT_MS = 30_000;
+
+interface ShutdownLogger {
+  info(obj: Record<string, unknown>, msg: string): void;
+  error(obj: unknown, msg?: string): void;
+}
+
+interface ShutdownApp {
+  close(): Promise<void>;
+}
+
+export function createShutdownHandler(
+  app: ShutdownApp,
+  logger: ShutdownLogger,
+  enableQueue: boolean,
+) {
+  return async (signal: string) => {
+    logger.info({ signal }, 'Shutdown signal received, draining...');
+    const timer = setTimeout(() => {
+      logger.error({ signal }, 'Shutdown timed out, forcing exit');
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT_MS);
+    try {
+      await app.close();
+      if (enableQueue) {
+        const { stopQueue } = await import('../shared/infrastructure/queue.js');
+        await stopQueue();
+      }
+    } catch (err) {
+      logger.error(err, 'Error during shutdown');
+    } finally {
+      clearTimeout(timer);
+      process.exit(0);
+    }
+  };
+}
 
 async function createApp() {
   const app = Fastify({
@@ -48,6 +84,10 @@ async function start() {
     const { registerWorkers } = await import('./workers.js');
     await registerWorkers(
       container.report.processReportJobUseCase,
+      container.notification.sendNotificationUseCase,
+      container.notification.pollRetryableNotificationsUseCase,
+      container.notification.dispatchRemindersUseCase,
+      container.notification.dispatchEscalationsUseCase,
       app.log,
     );
   }
@@ -58,6 +98,10 @@ async function start() {
     app.log.error(err);
     process.exit(1);
   }
+
+  const shutdown = createShutdownHandler(app, app.log, process.env['ENABLE_JOB_QUEUE'] === 'true');
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
 // Only start server when running directly (not in tests)

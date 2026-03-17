@@ -114,6 +114,7 @@ describe('RescheduleRequestUseCase', () => {
       }),
       update: vi.fn().mockResolvedValue(undefined),
       deleteRestrictionsByAppointmentId: vi.fn().mockResolvedValue(undefined),
+      findScheduledOnDate: vi.fn(),
       saveRestriction: vi.fn().mockResolvedValue(undefined),
       findAll: vi.fn(),
       count: vi.fn(),
@@ -276,5 +277,88 @@ describe('RescheduleRequestUseCase', () => {
     appointmentRepo.findById.mockResolvedValue(null);
 
     await expect(useCase.execute(makeInput())).rejects.toThrow('Appointment not found');
+  });
+});
+
+describe('RescheduleRequestUseCase – onNotificationHandler', () => {
+  let onNotificationHandler: { execute: ReturnType<typeof vi.fn> };
+
+  function makeUseCaseWithHandler() {
+    const activityRepo = {
+      save: vi.fn().mockResolvedValue(undefined),
+      findLatestByTokenAndAction: vi.fn().mockResolvedValue(null),
+    };
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue({
+        appointment: makeAppointment(),
+        contact: null,
+        restrictions: [],
+      }),
+      update: vi.fn().mockResolvedValue(undefined),
+      deleteRestrictionsByAppointmentId: vi.fn().mockResolvedValue(undefined),
+      findScheduledOnDate: vi.fn(),
+      saveRestriction: vi.fn().mockResolvedValue(undefined),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      saveContact: vi.fn(),
+      updateContact: vi.fn(),
+    };
+    const serviceTypeRepo = {
+      findById: vi.fn().mockResolvedValue(makeServiceType()),
+      findByCode: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    const auditService = { log: vi.fn() };
+    onNotificationHandler = {
+      execute: vi.fn().mockResolvedValue(undefined),
+    };
+
+    return {
+      useCase: new RescheduleRequestUseCase(
+        activityRepo as unknown as ITenantPortalActivityRepository,
+        appointmentRepo as unknown as IAppointmentRepository,
+        serviceTypeRepo as unknown as IServiceTypeRepository,
+        auditService as unknown as PersistentAuditService,
+        onNotificationHandler,
+      ),
+      useCaseWithout: new RescheduleRequestUseCase(
+        activityRepo as unknown as ITenantPortalActivityRepository,
+        appointmentRepo as unknown as IAppointmentRepository,
+        serviceTypeRepo as unknown as IServiceTypeRepository,
+        auditService as unknown as PersistentAuditService,
+      ),
+      onNotificationHandler,
+    };
+  }
+
+  it('calls onNotificationHandler with RESCHEDULE action after reschedule', async () => {
+    const { useCase, onNotificationHandler } = makeUseCaseWithHandler();
+    await useCase.execute(makeInput());
+
+    expect(onNotificationHandler.execute).toHaveBeenCalledOnce();
+    expect(onNotificationHandler.execute).toHaveBeenCalledWith({
+      appointmentId: 'appt-1',
+      action: 'RESCHEDULE',
+    });
+  });
+
+  it('reschedule succeeds if onNotificationHandler throws', async () => {
+    const { useCase, onNotificationHandler } = makeUseCaseWithHandler();
+    onNotificationHandler.execute.mockRejectedValueOnce(new Error('Notification failure'));
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.tenantConfirmationStatus).toBe('PENDING');
+  });
+
+  it('does not call onNotificationHandler when not provided', async () => {
+    const { useCaseWithout, onNotificationHandler } = makeUseCaseWithHandler();
+    await useCaseWithout.execute(makeInput());
+
+    expect(onNotificationHandler.execute).not.toHaveBeenCalled();
   });
 });

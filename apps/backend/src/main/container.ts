@@ -143,8 +143,8 @@ import { StubReportStorageService } from '../modules/report/infrastructure/stub-
 import { SupabaseReportStorageService } from '../modules/report/infrastructure/supabase-report-storage.service';
 import { ExcelJsXlsxGenerator } from '../modules/report/infrastructure/exceljs-xlsx-generator';
 import { PrismaReportDataReader } from '../modules/report/infrastructure/prisma-report-data-reader';
-import { StubJobQueue } from '../modules/report/infrastructure/stub-job-queue';
-import { PgBossJobQueue } from '../modules/report/infrastructure/pgboss-job-queue';
+import { StubJobQueue } from '../shared/infrastructure/stub-job-queue';
+import { PgBossJobQueue } from '../shared/infrastructure/pgboss-job-queue';
 import { RequestReportUseCase } from '../modules/report/application/use-cases/request-report.use-case';
 import { GetReportStatusUseCase } from '../modules/report/application/use-cases/get-report-status.use-case';
 import { DownloadReportUseCase } from '../modules/report/application/use-cases/download-report.use-case';
@@ -168,7 +168,15 @@ import { ListNotificationsUseCase } from '../modules/notification/application/us
 import { GetNotificationUseCase } from '../modules/notification/application/use-cases/get-notification.use-case';
 import { UpsertNotificationTemplateUseCase } from '../modules/notification/application/use-cases/upsert-notification-template.use-case';
 import { ListNotificationTemplatesUseCase } from '../modules/notification/application/use-cases/list-notification-templates.use-case';
+import { CreateNotificationUseCase } from '../modules/notification/application/use-cases/create-notification.use-case';
+import { PollRetryableNotificationsUseCase } from '../modules/notification/application/use-cases/poll-retryable-notifications.use-case';
+import { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
+import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
+
+// Notification handlers
+import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
+import { NotifyOnTenantPortalActionHandler } from '../modules/notification/application/handlers/notify-on-tenant-portal-action.handler';
 
 // Dashboard module
 import { PrismaDashboardRepository } from '../modules/dashboard/infrastructure/prisma-dashboard.repository';
@@ -309,8 +317,22 @@ export function createContainer(logger: Logger): AppContainer {
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
   const linkInspectorToUserUseCase = new LinkInspectorToUserUseCase(inspectorRepo, userManagementRepo, auditService);
 
+  // Notification repositories and create use case (needed before appointments for handler wiring)
+  const notificationRepo = new PrismaNotificationRepository(prisma);
+  const notificationJobQueue = process.env['ENABLE_JOB_QUEUE'] === 'true'
+    ? new PgBossJobQueue()
+    : new StubJobQueue();
+  const createNotificationUseCase = new CreateNotificationUseCase(notificationRepo, notificationJobQueue);
+
+  // Billing repositories (needed before appointments for onDoneHandler wiring)
+  const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
+  const inspectorInvoiceRepo = new PrismaInspectorInvoiceRepository(prisma);
+
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
+  const createFinancialEntriesOnDoneUseCase = new CreateFinancialEntriesOnDoneUseCase(
+    appointmentRepo, financialEntryRepo, auditService,
+  );
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
     createPropertyUseCase, auditService,
@@ -318,8 +340,18 @@ export function createContainer(logger: Logger): AppContainer {
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo);
   const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService);
+  // Notification handlers (depend on appointmentRepo, propertyRepo, createNotificationUseCase)
+  const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
+    appointmentRepo, propertyRepo, createNotificationUseCase,
+  );
+  const notifyOnTenantPortalActionHandler = new NotifyOnTenantPortalActionHandler(
+    appointmentRepo, propertyRepo, createNotificationUseCase,
+  );
+
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(
     appointmentRepo, userManagementRepo, auditService,
+    createFinancialEntriesOnDoneUseCase,
+    notifyOnStatusTransitionHandler,
   );
   const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService);
 
@@ -328,8 +360,8 @@ export function createContainer(logger: Logger): AppContainer {
   const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
   const tokenService = new TokenService();
   const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo);
-  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
-  const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, appointmentRepo, serviceTypeRepo, auditService);
+  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler);
+  const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, appointmentRepo, serviceTypeRepo, auditService, notifyOnTenantPortalActionHandler);
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
   const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, tokenService, auditService);
@@ -378,12 +410,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
   const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService);
 
-  // Billing repositories and use cases
-  const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
-  const inspectorInvoiceRepo = new PrismaInspectorInvoiceRepository(prisma);
-  const createFinancialEntriesOnDoneUseCase = new CreateFinancialEntriesOnDoneUseCase(
-    appointmentRepo, financialEntryRepo, auditService,
-  );
+  // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo);
   const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
   const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService);
@@ -412,8 +439,7 @@ export function createContainer(logger: Logger): AppContainer {
     reportRepo, reportStorageService, xlsxGenerator, reportDataReader,
   );
 
-  // Notification repositories, providers, and services
-  const notificationRepo = new PrismaNotificationRepository(prisma);
+  // Notification providers and services (notificationRepo created above)
   const notificationTemplateRepo = new PrismaNotificationTemplateRepository(prisma);
   const resendApiKey = process.env['RESEND_API_KEY'];
   const resendFromEmail = process.env['RESEND_FROM_EMAIL'];
@@ -444,6 +470,10 @@ export function createContainer(logger: Logger): AppContainer {
     notificationTemplateRepo, templateRenderer, auditService,
   );
   const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo);
+  // createNotificationUseCase and notificationJobQueue created above (before appointments)
+  const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue);
+  const dispatchRemindersUseCase = new DispatchRemindersUseCase(appointmentRepo, notificationRepo, createNotificationUseCase);
+  const dispatchEscalationsUseCase = new DispatchEscalationsUseCase(appointmentRepo, branchRepo, notificationRepo, createNotificationUseCase);
 
   // Dashboard repositories and use cases
   const dashboardRepo = new PrismaDashboardRepository(prisma);
@@ -589,6 +619,10 @@ export function createContainer(logger: Logger): AppContainer {
       getNotificationUseCase,
       upsertNotificationTemplateUseCase,
       listNotificationTemplatesUseCase,
+      createNotificationUseCase,
+      pollRetryableNotificationsUseCase,
+      dispatchRemindersUseCase,
+      dispatchEscalationsUseCase,
       jwtService,
     },
     dashboard: {

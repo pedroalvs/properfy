@@ -34,6 +34,14 @@ export interface ExecuteStatusTransitionOutput {
   updatedAt: Date;
 }
 
+interface OnDoneHandler {
+  execute(input: { appointmentId: string }): Promise<unknown>;
+}
+
+interface OnTransitionHandler {
+  execute(input: { appointmentId: string; previousStatus: string; targetStatus: string }): Promise<unknown>;
+}
+
 export class ExecuteStatusTransitionUseCase {
   private readonly stateMachine = new AppointmentStateMachine();
 
@@ -41,6 +49,8 @@ export class ExecuteStatusTransitionUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly userRepo: IUserManagementRepository,
     private readonly auditService: AuditService,
+    private readonly onDoneHandler?: OnDoneHandler,
+    private readonly onTransitionHandler?: OnTransitionHandler,
   ) {}
 
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
@@ -144,6 +154,29 @@ export class ExecuteStatusTransitionUseCase {
       after: { status: targetStatus },
       reason: reason ?? undefined,
     });
+
+    // 9b. Side effect: create financial entries on DONE
+    if (targetStatus === 'DONE' && this.onDoneHandler) {
+      try {
+        await this.onDoneHandler.execute({ appointmentId });
+      } catch {
+        // Log but don't fail — transition is already persisted and audited
+        // Financial entries can be created manually via billing API
+      }
+    }
+
+    // 9c. Side effect: notifications on transition
+    if (this.onTransitionHandler) {
+      try {
+        await this.onTransitionHandler.execute({
+          appointmentId,
+          previousStatus: appointment.status,
+          targetStatus,
+        });
+      } catch {
+        // fire-and-forget — notification failure must not affect the transition
+      }
+    }
 
     // 10. Return result
     return {

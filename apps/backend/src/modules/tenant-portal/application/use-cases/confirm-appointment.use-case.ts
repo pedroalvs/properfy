@@ -29,6 +29,7 @@ export class ConfirmAppointmentUseCase {
     private readonly activityRepo: ITenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: PersistentAuditService,
+    private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
   ) {}
 
   async execute(input: ConfirmAppointmentInput) {
@@ -111,6 +112,15 @@ export class ConfirmAppointmentUseCase {
       after: { tenantConfirmationStatus: 'CONFIRMED' },
       ipAddress: input.ipAddress ?? undefined,
     });
+
+    // 10. Side effect: notification on confirmation
+    if (this.onNotificationHandler) {
+      try {
+        await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, action: 'CONFIRM' });
+      } catch {
+        // fire-and-forget — notification failure must not affect the confirmation
+      }
+    }
 
     return {
       tenantConfirmationStatus: 'CONFIRMED' as const,
