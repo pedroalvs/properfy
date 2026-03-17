@@ -44,10 +44,12 @@ describe('ListInspectorsUseCase', () => {
     inspectorRepo = {
       findById: vi.fn(),
       findByEmail: vi.fn(),
+      findByUserId: vi.fn(),
       findAll: vi.fn().mockResolvedValue([makeInspector()]),
       count: vi.fn().mockResolvedValue(1),
       save: vi.fn(),
       update: vi.fn(),
+      linkUserId: vi.fn(),
     };
     useCase = new ListInspectorsUseCase(inspectorRepo);
   });
@@ -81,13 +83,40 @@ describe('ListInspectorsUseCase', () => {
     );
   });
 
-  it('should reject INSP with AUTH_FORBIDDEN', async () => {
+  it('should return single-item list for INSP own profile', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+
+    const result = await useCase.execute({
+      filters: {},
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.total).toBe(1);
+    expect(inspectorRepo.findById).toHaveBeenCalledWith('inspector-1');
+  });
+
+  it('should throw ForbiddenError when INSP has no inspectorId', async () => {
     await expect(
       useCase.execute({
         filters: {},
         pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
-        actor: makeActor({ role: 'INSP' }),
+        actor: makeActor({ role: 'INSP', inspectorId: null }),
       }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should return empty list for INSP when inspector not found', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      filters: {},
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+    });
+
+    expect(result.data).toHaveLength(0);
+    expect(result.total).toBe(0);
   });
 });

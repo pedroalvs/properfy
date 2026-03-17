@@ -10,6 +10,7 @@ import {
   InspectorNotFoundError,
   AvailabilitySlotOverlapError,
 } from '../../../src/modules/inspector/domain/inspector.errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 function makeInspector(
   overrides: Partial<ConstructorParameters<typeof InspectorEntity>[0]> = {},
@@ -70,10 +71,12 @@ describe('CreateAvailabilitySlotUseCase', () => {
     inspectorRepo = {
       findById: vi.fn(),
       findByEmail: vi.fn(),
+      findByUserId: vi.fn(),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      linkUserId: vi.fn(),
     };
     slotRepo = {
       findById: vi.fn(),
@@ -137,5 +140,45 @@ describe('CreateAvailabilitySlotUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(AvailabilitySlotOverlapError);
+  });
+
+  it('should create slot for INSP own inspector', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+
+    const result = await useCase.execute({
+      inspectorId: 'inspector-1',
+      date: new Date('2026-04-01'),
+      startTime: '09:00',
+      endTime: '12:00',
+      actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+    });
+
+    expect(result.status).toBe('AVAILABLE');
+    expect(result.inspectorId).toBe('inspector-1');
+    expect(slotRepo.save).toHaveBeenCalled();
+  });
+
+  it('should throw ForbiddenError when INSP creates slot for another inspector', async () => {
+    await expect(
+      useCase.execute({
+        inspectorId: 'other-inspector',
+        date: new Date('2026-04-01'),
+        startTime: '09:00',
+        endTime: '12:00',
+        actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should throw ForbiddenError when INSP has no inspectorId', async () => {
+    await expect(
+      useCase.execute({
+        inspectorId: 'inspector-1',
+        date: new Date('2026-04-01'),
+        startTime: '09:00',
+        endTime: '12:00',
+        actor: makeActor({ role: 'INSP', inspectorId: null }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
   });
 });

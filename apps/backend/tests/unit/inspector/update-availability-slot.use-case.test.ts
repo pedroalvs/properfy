@@ -8,6 +8,7 @@ import {
   AvailabilitySlotNotFoundError,
   AvailabilitySlotOverlapError,
 } from '../../../src/modules/inspector/domain/inspector.errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 function makeSlot(
   overrides: Partial<ConstructorParameters<typeof AvailabilitySlotEntity>[0]> = {},
@@ -100,5 +101,41 @@ describe('UpdateAvailabilitySlotUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(AvailabilitySlotOverlapError);
+  });
+
+  it('should update own slot for INSP', async () => {
+    vi.mocked(slotRepo.findById).mockResolvedValue(makeSlot());
+
+    const result = await useCase.execute({
+      inspectorId: 'inspector-1',
+      slotId: 'slot-1',
+      data: { capacity: 3 },
+      actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+    });
+
+    expect(result.capacity).toBe(3);
+    expect(slotRepo.update).toHaveBeenCalled();
+  });
+
+  it('should throw ForbiddenError when INSP updates another inspector slot', async () => {
+    await expect(
+      useCase.execute({
+        inspectorId: 'other-inspector',
+        slotId: 'slot-1',
+        data: { capacity: 2 },
+        actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should throw ForbiddenError when INSP has no inspectorId', async () => {
+    await expect(
+      useCase.execute({
+        inspectorId: 'inspector-1',
+        slotId: 'slot-1',
+        data: { capacity: 2 },
+        actor: makeActor({ role: 'INSP', inspectorId: null }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
   });
 });

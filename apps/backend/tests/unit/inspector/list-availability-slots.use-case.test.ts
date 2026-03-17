@@ -75,4 +75,40 @@ describe('ListAvailabilitySlotsUseCase', () => {
       }),
     ).rejects.toThrow(ForbiddenError);
   });
+
+  it('should return own slots for INSP', async () => {
+    const result = await useCase.execute({
+      inspectorId: 'inspector-1',
+      filters: {},
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.total).toBe(1);
+    expect(result.page).toBe(1);
+    expect(result.pageSize).toBe(10);
+  });
+
+  it('should throw ForbiddenError when INSP lists another inspector slots', async () => {
+    await expect(
+      useCase.execute({
+        inspectorId: 'other-inspector',
+        filters: {},
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should throw ForbiddenError when INSP has no inspectorId', async () => {
+    await expect(
+      useCase.execute({
+        inspectorId: 'inspector-1',
+        filters: {},
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'INSP', inspectorId: null }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
 });

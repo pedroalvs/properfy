@@ -45,10 +45,12 @@ describe('GetInspectorUseCase', () => {
     inspectorRepo = {
       findById: vi.fn(),
       findByEmail: vi.fn(),
+      findByUserId: vi.fn(),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      linkUserId: vi.fn(),
     };
     useCase = new GetInspectorUseCase(inspectorRepo);
   });
@@ -102,11 +104,31 @@ describe('GetInspectorUseCase', () => {
     ).rejects.toThrow(InspectorNotFoundError);
   });
 
-  it('should reject INSP with AUTH_FORBIDDEN', async () => {
+  it('should return own inspector for INSP', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+
+    const result = await useCase.execute({
+      inspectorId: 'inspector-1',
+      actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+    });
+
+    expect(result.id).toBe('inspector-1');
+  });
+
+  it('should throw ForbiddenError when INSP accesses another inspector', async () => {
+    await expect(
+      useCase.execute({
+        inspectorId: 'other-inspector',
+        actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should throw ForbiddenError when INSP has no inspectorId', async () => {
     await expect(
       useCase.execute({
         inspectorId: 'inspector-1',
-        actor: makeActor({ role: 'INSP' }),
+        actor: makeActor({ role: 'INSP', inspectorId: null }),
       }),
     ).rejects.toThrow(ForbiddenError);
   });
