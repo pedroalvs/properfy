@@ -11,6 +11,11 @@ export interface Report {
   updatedAt: string;
 }
 
+export interface ReportDetail extends Report {
+  parameters: string | null;
+  fileSize: number | null;
+}
+
 export interface ReportFiltersState {
   reportType: string;
   status: string;

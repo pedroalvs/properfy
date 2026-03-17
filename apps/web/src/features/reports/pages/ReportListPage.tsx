@@ -1,6 +1,8 @@
+import { useState, useCallback } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { ReportFilters } from '../components/ReportFilters';
 import { ReportTable } from '../components/ReportTable';
+import { ReportDetailDrawer } from '../components/ReportDetailDrawer';
 import { useReportList } from '../hooks/useReportList';
 
 export function ReportListPage() {
@@ -15,6 +17,19 @@ export function ReportListPage() {
     pagination,
     sorting,
   } = useReportList();
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const handleView = useCallback((report: { id: string }) => {
+    setSelectedId(report.id);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    setSelectedId(null);
+  }, []);
 
   return (
     <ListFilterTableTemplate
@@ -34,7 +49,12 @@ export function ReportListPage() {
         sorting={sorting}
         onDownload={() => {}}
         onRetry={() => {}}
-        onView={() => {}}
+        onView={handleView}
+      />
+      <ReportDetailDrawer
+        reportId={selectedId}
+        open={drawerOpen}
+        onClose={handleCloseDrawer}
       />
     </ListFilterTableTemplate>
   );
