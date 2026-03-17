@@ -249,6 +249,27 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
   }
 
+  async findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]> {
+    const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
+
+    const rows = await this.prisma.appointment.findMany({
+      where: {
+        status: 'SCHEDULED',
+        scheduled_date: { gte: startOfDay, lt: endOfDay },
+        deleted_at: null,
+      },
+      include: { contact: true, restrictions: true },
+    });
+
+    return rows.map((row) => {
+      const appointment = mapToEntity(row);
+      const contact = row.contact ? mapContactToEntity(row.contact) : null;
+      const restrictions = row.restrictions.map(mapRestrictionToEntity);
+      return { appointment, contact, restrictions };
+    });
+  }
+
   async deleteRestrictionsByAppointmentId(appointmentId: string): Promise<void> {
     await this.prisma.appointmentRestriction.deleteMany({
       where: { appointment_id: appointmentId },

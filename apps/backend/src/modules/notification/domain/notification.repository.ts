@@ -23,6 +23,8 @@ export interface INotificationRepository {
   findByProviderMessageId(providerMessageId: string): Promise<NotificationEntity | null>;
   findAll(filters: NotificationFilters, pagination: NotificationPagination): Promise<NotificationEntity[]>;
   count(filters: NotificationFilters): Promise<number>;
+  findRetryable(now: Date, limit?: number): Promise<NotificationEntity[]>;
   save(notification: NotificationEntity): Promise<void>;
   update(notification: NotificationEntity): Promise<void>;
+  existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
 }

@@ -66,4 +66,5 @@ export interface IAppointmentRepository {
   ): Promise<void>;
   saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void>;
   deleteRestrictionsByAppointmentId(appointmentId: string): Promise<void>;
+  findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]>;
 }

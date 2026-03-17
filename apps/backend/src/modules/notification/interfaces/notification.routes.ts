@@ -20,6 +20,10 @@ import type { ListNotificationsUseCase } from '../application/use-cases/list-not
 import type { GetNotificationUseCase } from '../application/use-cases/get-notification.use-case';
 import type { UpsertNotificationTemplateUseCase } from '../application/use-cases/upsert-notification-template.use-case';
 import type { ListNotificationTemplatesUseCase } from '../application/use-cases/list-notification-templates.use-case';
+import type { CreateNotificationUseCase } from '../application/use-cases/create-notification.use-case';
+import type { PollRetryableNotificationsUseCase } from '../application/use-cases/poll-retryable-notifications.use-case';
+import type { DispatchRemindersUseCase } from '../application/use-cases/dispatch-reminders.use-case';
+import type { DispatchEscalationsUseCase } from '../application/use-cases/dispatch-escalations.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface NotificationRouteContainer {
@@ -30,6 +34,10 @@ export interface NotificationRouteContainer {
   getNotificationUseCase: GetNotificationUseCase;
   upsertNotificationTemplateUseCase: UpsertNotificationTemplateUseCase;
   listNotificationTemplatesUseCase: ListNotificationTemplatesUseCase;
+  createNotificationUseCase: CreateNotificationUseCase;
+  pollRetryableNotificationsUseCase: PollRetryableNotificationsUseCase;
+  dispatchRemindersUseCase: DispatchRemindersUseCase;
+  dispatchEscalationsUseCase: DispatchEscalationsUseCase;
   jwtService: JwtService;
 }
 

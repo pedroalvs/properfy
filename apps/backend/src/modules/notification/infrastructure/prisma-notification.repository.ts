@@ -92,6 +92,19 @@ export class PrismaNotificationRepository implements INotificationRepository {
     return this.prisma.notification.count({ where });
   }
 
+  async findRetryable(now: Date, limit = 100): Promise<NotificationEntity[]> {
+    const rows = await this.prisma.notification.findMany({
+      where: {
+        status: 'PENDING',
+        retry_count: { gt: 0 },
+        next_retry_at: { lte: now },
+      },
+      take: limit,
+      orderBy: { next_retry_at: 'asc' },
+    });
+    return rows.map(mapToEntity);
+  }
+
   async save(notification: NotificationEntity): Promise<void> {
     await this.prisma.notification.create({
       data: {
@@ -113,6 +126,13 @@ export class PrismaNotificationRepository implements INotificationRepository {
         next_retry_at: notification.nextRetryAt,
       },
     });
+  }
+
+  async existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean> {
+    const count = await this.prisma.notification.count({
+      where: { appointment_id: appointmentId, template_code: templateCode },
+    });
+    return count > 0;
   }
 
   async update(notification: NotificationEntity): Promise<void> {
