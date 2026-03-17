@@ -14,9 +14,3 @@ export const USER_STATUS_OPTIONS: SelectOption[] = [
   { label: 'Inativo', value: 'INACTIVE' },
   { label: 'Bloqueado', value: 'LOCKED' },
 ];
-
-export const BRANCH_OPTIONS: SelectOption[] = [
-  { label: 'Filial Centro', value: 'b-1' },
-  { label: 'Filial Zona Sul', value: 'b-2' },
-  { label: 'Matriz', value: 'b-3' },
-];

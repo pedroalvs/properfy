@@ -22,6 +22,10 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('@/hooks/useFormOptions', () => ({
+  useFormOptions: () => ({ options: [], isLoading: false }),
+}));
+
 const mockSave = vi.fn();
 const mockValidate = vi.fn();
 

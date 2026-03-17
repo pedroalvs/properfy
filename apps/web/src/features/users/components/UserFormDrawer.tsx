@@ -10,9 +10,10 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import { useUserDetail } from '../hooks/useUserDetail';
 import { useUserSave } from '../hooks/useUserSave';
-import { USER_ROLE_OPTIONS, USER_STATUS_OPTIONS, BRANCH_OPTIONS } from '../constants/form-options';
+import { USER_ROLE_OPTIONS, USER_STATUS_OPTIONS } from '../constants/form-options';
 import type { UserFormData, UserFormErrors } from '../types';
 import { EMPTY_USER_FORM } from '../types';
 
@@ -29,6 +30,12 @@ export function UserFormDrawer({
   userId,
   onSaved,
 }: UserFormDrawerProps) {
+  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+    ['branches', 'form-options'],
+    '/v1/branches',
+    (item) => ({ value: item.id, label: item.name }),
+  );
+
   const isEditMode = !!userId;
   const { user, isLoading: isLoadingDetail } = useUserDetail(
     isEditMode ? userId : null,
@@ -170,7 +177,7 @@ export function UserFormDrawer({
                       <SelectInput
                         value={form.branchId}
                         onChange={(v) => updateField('branchId', v)}
-                        options={BRANCH_OPTIONS}
+                        options={branchOptions}
                         placeholder="Nenhuma"
                         aria-label="Filial"
                       />

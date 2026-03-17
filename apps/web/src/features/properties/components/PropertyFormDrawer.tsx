@@ -11,9 +11,10 @@ import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { usePropertySave } from '../hooks/usePropertySave';
-import { PROPERTY_TYPE_OPTIONS, PROPERTY_BRANCH_OPTIONS } from '../constants/form-options';
+import { PROPERTY_TYPE_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 
@@ -30,6 +31,12 @@ export function PropertyFormDrawer({
   propertyId,
   onSaved,
 }: PropertyFormDrawerProps) {
+  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+    ['branches', 'form-options'],
+    '/v1/branches',
+    (item) => ({ value: item.id, label: item.name }),
+  );
+
   const isEditMode = !!propertyId;
   const { property, isLoading: isLoadingDetail } = usePropertyDetail(
     isEditMode ? propertyId : null,
@@ -158,7 +165,7 @@ export function PropertyFormDrawer({
                       <SelectInput
                         value={form.branchId}
                         onChange={(v) => updateField('branchId', v)}
-                        options={PROPERTY_BRANCH_OPTIONS}
+                        options={branchOptions}
                         placeholder="Selecione a filial"
                         aria-label="Filial"
                       />

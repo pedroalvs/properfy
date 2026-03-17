@@ -13,14 +13,10 @@ import { DateInput } from '@/components/forms/DateInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
-import {
-  BRANCH_OPTIONS,
-  PROPERTY_OPTIONS,
-  SERVICE_TYPE_OPTIONS,
-  TIME_SLOT_OPTIONS,
-} from '../constants/form-options';
+import { TIME_SLOT_OPTIONS } from '../constants/form-options';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 import { EMPTY_FORM_DATA } from '../types';
 
@@ -37,6 +33,22 @@ export function AppointmentFormDrawer({
   appointmentId,
   onSaved,
 }: AppointmentFormDrawerProps) {
+  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+    ['branches', 'form-options'],
+    '/v1/branches',
+    (item) => ({ value: item.id, label: item.name }),
+  );
+  const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
+    ['service-types', 'form-options'],
+    '/v1/service-types',
+    (item) => ({ value: item.id, label: item.name }),
+  );
+  const { options: propertyOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
+    ['properties', 'form-options'],
+    '/v1/properties',
+    (item) => ({ value: item.id, label: `${item.propertyCode} - ${item.street}` }),
+  );
+
   const isEditMode = !!appointmentId;
   const { appointment, isLoading: isLoadingDetail } = useAppointmentDetail(
     isEditMode ? appointmentId : null,
@@ -154,7 +166,7 @@ export function AppointmentFormDrawer({
                       <SelectInput
                         value={form.branchId}
                         onChange={(v) => updateField('branchId', v)}
-                        options={BRANCH_OPTIONS}
+                        options={branchOptions}
                         placeholder="Selecione a filial"
                         disabled={isEditMode}
                         error={!!errors.branchId}
@@ -165,7 +177,7 @@ export function AppointmentFormDrawer({
                       <SelectInput
                         value={form.propertyId}
                         onChange={(v) => updateField('propertyId', v)}
-                        options={PROPERTY_OPTIONS}
+                        options={propertyOptions}
                         placeholder="Selecione o imóvel"
                         disabled={isEditMode}
                         error={!!errors.propertyId}
@@ -176,7 +188,7 @@ export function AppointmentFormDrawer({
                       <SelectInput
                         value={form.serviceTypeId}
                         onChange={(v) => updateField('serviceTypeId', v)}
-                        options={SERVICE_TYPE_OPTIONS}
+                        options={serviceTypeOptions}
                         placeholder="Selecione o tipo"
                         disabled={isEditMode}
                         error={!!errors.serviceTypeId}
