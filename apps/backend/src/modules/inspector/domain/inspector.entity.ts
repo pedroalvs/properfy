@@ -3,6 +3,7 @@ import type { InspectorStatus } from '@properfy/shared';
 
 export interface InspectorProps {
   id: string;
+  userId: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -17,6 +18,7 @@ export interface InspectorProps {
 }
 
 export class InspectorEntity extends BaseEntity {
+  readonly userId: string | null;
   readonly name: string;
   readonly email: string;
   readonly phone: string | null;
@@ -29,6 +31,7 @@ export class InspectorEntity extends BaseEntity {
 
   constructor(props: InspectorProps) {
     super(props.id, props.createdAt, props.updatedAt);
+    this.userId = props.userId;
     this.name = props.name;
     this.email = props.email;
     this.phone = props.phone;

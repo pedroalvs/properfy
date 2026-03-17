@@ -18,6 +18,8 @@ export interface PaginationParams {
 export interface IInspectorRepository {
   findById(id: string): Promise<InspectorEntity | null>;
   findByEmail(email: string): Promise<InspectorEntity | null>;
+  findByUserId(userId: string): Promise<InspectorEntity | null>;
+  linkUserId(inspectorId: string, userId: string): Promise<void>;
   findAll(
     filters: InspectorFilters,
     pagination: PaginationParams,

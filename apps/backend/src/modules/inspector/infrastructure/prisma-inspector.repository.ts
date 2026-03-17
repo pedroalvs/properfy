@@ -9,6 +9,7 @@ import type { InspectorStatus } from '@properfy/shared';
 
 function mapToEntity(row: {
   id: string;
+  user_id: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -23,6 +24,7 @@ function mapToEntity(row: {
 }): InspectorEntity {
   return new InspectorEntity({
     id: row.id,
+    userId: row.user_id,
     name: row.name,
     email: row.email,
     phone: row.phone,
@@ -53,6 +55,20 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       where: { email, deleted_at: null },
     });
     return row ? mapToEntity(row) : null;
+  }
+
+  async findByUserId(userId: string): Promise<InspectorEntity | null> {
+    const row = await this.prisma.inspector.findFirst({
+      where: { user_id: userId, deleted_at: null },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  async linkUserId(inspectorId: string, userId: string): Promise<void> {
+    await this.prisma.inspector.update({
+      where: { id: inspectorId },
+      data: { user_id: userId },
+    });
   }
 
   async findAll(
