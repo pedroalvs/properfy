@@ -5,9 +5,9 @@ interface PendingActionsCardProps {
 }
 
 const ACTIONS = [
-  { icon: 'mdi-account-question-outline', label: 'Inquilinos sem resposta', key: 'noResponseTenants' },
-  { icon: 'mdi-cash-clock', label: 'Entradas financeiras pendentes', key: 'pendingFinancialEntries' },
-  { icon: 'mdi-file-clock-outline', label: 'Relatórios em processamento', key: 'processingReports' },
+  { icon: 'mdi-account-question-outline', label: 'No-response tenants', key: 'noResponseTenants' },
+  { icon: 'mdi-cash-clock', label: 'Pending financial entries', key: 'pendingFinancialEntries' },
+  { icon: 'mdi-file-clock-outline', label: 'Reports processing', key: 'processingReports' },
 ] as const;
 
 export function PendingActionsCard({
@@ -24,7 +24,7 @@ export function PendingActionsCard({
   return (
     <div className="rounded bg-card-bg shadow-sm overflow-hidden">
       <div className="px-4 pt-4 pb-2">
-        <h2 className="text-base font-bold text-secondary">Ações Pendentes</h2>
+        <h2 className="text-base font-bold text-secondary">Pending Actions</h2>
       </div>
 
       <div>

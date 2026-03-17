@@ -29,21 +29,21 @@ export function DashboardPage() {
             <StatCard
               icon="mdi-home-city-outline"
               value={stats.quickStats.totalProperties}
-              label="Imóveis cadastrados"
+              label="Registered Properties"
               colorClass="border-l-[#21566E]"
               iconColorClass="text-secondary"
             />
             <StatCard
               icon="mdi-badge-account-outline"
               value={stats.quickStats.activeInspectors}
-              label="Inspetores ativos"
+              label="Active Inspectors"
               colorClass="border-l-[#21566E]"
               iconColorClass="text-secondary"
             />
             <StatCard
               icon="mdi-office-building-marker"
               value={stats.quickStats.activeServiceGroups}
-              label="Grupos de serviço ativos"
+              label="Active Service Groups"
               colorClass="border-l-[#21566E]"
               iconColorClass="text-secondary"
             />

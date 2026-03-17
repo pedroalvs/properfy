@@ -16,9 +16,9 @@ function makeRecentAppointments(): RecentAppointment[] {
 }
 
 describe('RecentAppointmentsList', () => {
-  it('renders section title "Vistorias Recentes"', () => {
+  it('renders section title "Recent Appointments"', () => {
     render(<RecentAppointmentsList appointments={makeRecentAppointments()} />);
-    expect(screen.getByText('Vistorias Recentes')).toBeInTheDocument();
+    expect(screen.getByText('Recent Appointments')).toBeInTheDocument();
   });
 
   it('renders appointment codes', () => {
@@ -32,16 +32,16 @@ describe('RecentAppointmentsList', () => {
 
   it('renders status chips', () => {
     render(<RecentAppointmentsList appointments={makeRecentAppointments()} />);
-    expect(screen.getByText('Rascunho')).toBeInTheDocument();
-    expect(screen.getByText('Aguardando Inspetor')).toBeInTheDocument();
-    expect(screen.getByText('Agendado')).toBeInTheDocument();
-    expect(screen.getByText('Concluído')).toBeInTheDocument();
-    expect(screen.getByText('Cancelado')).toBeInTheDocument();
+    expect(screen.getByText('Draft')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting Inspector')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled')).toBeInTheDocument();
+    expect(screen.getByText('Done')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
   });
 
-  it('renders "Ver todas" link', () => {
+  it('renders "View all" link', () => {
     render(<RecentAppointmentsList appointments={makeRecentAppointments()} />);
-    expect(screen.getByText('Ver todas')).toBeInTheDocument();
+    expect(screen.getByText('View all')).toBeInTheDocument();
   });
 
   it('calls onViewAppointment with id when row clicked', async () => {
@@ -59,7 +59,7 @@ describe('RecentAppointmentsList', () => {
     expect(onViewAppointment).toHaveBeenCalledWith('3');
   });
 
-  it('calls onViewAll when "Ver todas" clicked', async () => {
+  it('calls onViewAll when "View all" clicked', async () => {
     const user = userEvent.setup();
     const onViewAll = vi.fn();
     render(
@@ -69,12 +69,12 @@ describe('RecentAppointmentsList', () => {
       />,
     );
 
-    await user.click(screen.getByText('Ver todas'));
+    await user.click(screen.getByText('View all'));
     expect(onViewAll).toHaveBeenCalled();
   });
 
-  it('renders "Nenhuma vistoria recente" when empty array', () => {
+  it('renders "No recent appointments" when empty array', () => {
     render(<RecentAppointmentsList appointments={[]} />);
-    expect(screen.getByText('Nenhuma vistoria recente')).toBeInTheDocument();
+    expect(screen.getByText('No recent appointments')).toBeInTheDocument();
   });
 });

@@ -18,10 +18,10 @@ describe('DashboardSummaryCards', () => {
 
   it('renders correct labels', () => {
     render(<DashboardSummaryCards {...defaultProps} />);
-    expect(screen.getByText('Rascunho')).toBeInTheDocument();
-    expect(screen.getByText('Aguardando Inspetor')).toBeInTheDocument();
-    expect(screen.getByText('Agendadas')).toBeInTheDocument();
-    expect(screen.getByText('Concluídas este mês')).toBeInTheDocument();
+    expect(screen.getByText('Draft')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting Inspector')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled')).toBeInTheDocument();
+    expect(screen.getByText('Done This Month')).toBeInTheDocument();
   });
 
   it('renders correct values', () => {

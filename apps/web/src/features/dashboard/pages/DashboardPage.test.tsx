@@ -7,19 +7,11 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-  },
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
+const mockGET = vi.fn();
+
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: (...args: unknown[]) => mockGET(...args),
   },
 }));
 
@@ -32,10 +24,7 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
 import { DashboardPage } from './DashboardPage';
-
-const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
 
 const MOCK_STATS = {
   appointmentsByStatus: {
@@ -79,8 +68,8 @@ function createWrapper() {
 }
 
 beforeEach(() => {
-  mockGet.mockReset();
-  mockGet.mockResolvedValue({ data: MOCK_STATS });
+  mockGET.mockReset();
+  mockGET.mockResolvedValue({ data: { data: MOCK_STATS }, error: undefined });
 });
 
 function renderPage() {
@@ -103,22 +92,22 @@ describe('DashboardPage', () => {
   it('renders summary cards after loading', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getAllByText('Rascunho').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Draft').length).toBeGreaterThanOrEqual(1);
     });
-    expect(screen.getAllByText('Aguardando Inspetor').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Awaiting Inspector').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders recent appointments section', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Vistorias Recentes')).toBeInTheDocument();
+      expect(screen.getByText('Recent Appointments')).toBeInTheDocument();
     });
   });
 
   it('renders pending actions section', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Ações Pendentes')).toBeInTheDocument();
+      expect(screen.getByText('Pending Actions')).toBeInTheDocument();
     });
   });
 

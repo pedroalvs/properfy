@@ -1,31 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
-vi.mock('@/config/env', () => ({
-  env: { apiBaseUrl: 'http://localhost:3000' },
-}));
+const mockGET = vi.fn();
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-  },
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: (...args: unknown[]) => mockGET(...args),
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
 import { useDashboardStats } from './useDashboardStats';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
-
-const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
 
 const MOCK_STATS = {
   appointmentsByStatus: {
@@ -54,8 +39,8 @@ const MOCK_STATS = {
 };
 
 beforeEach(() => {
-  mockGet.mockReset();
-  mockGet.mockResolvedValue({ data: MOCK_STATS });
+  mockGET.mockReset();
+  mockGET.mockResolvedValue({ data: { data: MOCK_STATS }, error: undefined });
 });
 
 describe('useDashboardStats', () => {
@@ -133,7 +118,7 @@ describe('useDashboardStats', () => {
   });
 
   it('handles API error gracefully', async () => {
-    mockGet.mockRejectedValueOnce(new Error('Network error'));
+    mockGET.mockResolvedValueOnce({ data: undefined, error: { message: 'Network error' } });
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useDashboardStats(), { wrapper });
 

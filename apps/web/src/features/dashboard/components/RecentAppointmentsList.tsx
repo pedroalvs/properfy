@@ -15,12 +15,12 @@ export function RecentAppointmentsList({
   return (
     <div className="rounded bg-card-bg shadow-sm overflow-hidden">
       <div className="px-4 pt-4 pb-2">
-        <h2 className="text-base font-bold text-secondary">Vistorias Recentes</h2>
+        <h2 className="text-base font-bold text-secondary">Recent Appointments</h2>
       </div>
 
       {appointments.length === 0 ? (
         <div className="px-4 py-6 text-center text-sm text-text-muted">
-          Nenhuma vistoria recente
+          No recent appointments
         </div>
       ) : (
         <div>
@@ -53,7 +53,7 @@ export function RecentAppointmentsList({
           className="text-sm text-primary font-semibold"
           onClick={onViewAll}
         >
-          Ver todas
+          View all
         </button>
       </div>
     </div>

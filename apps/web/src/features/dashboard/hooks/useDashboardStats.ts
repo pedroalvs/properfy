@@ -1,10 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, type ApiError } from '@/lib/api-client';
+import { api } from '@/services/api';
 import type { DashboardStats } from '../types';
-
-interface DashboardStatsResponse {
-  data: DashboardStats;
-}
 
 export interface UseDashboardStatsReturn {
   stats: DashboardStats | null;
@@ -13,13 +9,17 @@ export interface UseDashboardStatsReturn {
 }
 
 export function useDashboardStats(): UseDashboardStatsReturn {
-  const { data: response, isLoading, isError } = useQuery<DashboardStatsResponse, ApiError>({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard', 'stats'],
-    queryFn: () => apiClient.get<DashboardStatsResponse>('/v1/dashboard/stats'),
+    queryFn: async () => {
+      const { data, error } = await api.GET('/v1/dashboard/stats');
+      if (error) throw error;
+      return data;
+    },
   });
 
   return {
-    stats: response?.data ?? null,
+    stats: (data?.data as DashboardStats) ?? null,
     isLoading,
     isError,
   };

@@ -9,9 +9,9 @@ describe('PendingActionsCard', () => {
     processingReports: 3,
   };
 
-  it('renders section title "Ações Pendentes"', () => {
+  it('renders section title "Pending Actions"', () => {
     render(<PendingActionsCard {...defaultProps} />);
-    expect(screen.getByText('Ações Pendentes')).toBeInTheDocument();
+    expect(screen.getByText('Pending Actions')).toBeInTheDocument();
   });
 
   it('renders three action items', () => {
@@ -22,9 +22,9 @@ describe('PendingActionsCard', () => {
 
   it('renders correct descriptions', () => {
     render(<PendingActionsCard {...defaultProps} />);
-    expect(screen.getByText('Inquilinos sem resposta')).toBeInTheDocument();
-    expect(screen.getByText('Entradas financeiras pendentes')).toBeInTheDocument();
-    expect(screen.getByText('Relatórios em processamento')).toBeInTheDocument();
+    expect(screen.getByText('No-response tenants')).toBeInTheDocument();
+    expect(screen.getByText('Pending financial entries')).toBeInTheDocument();
+    expect(screen.getByText('Reports processing')).toBeInTheDocument();
   });
 
   it('renders correct counts as badge text', () => {
