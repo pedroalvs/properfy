@@ -50,6 +50,38 @@ export interface AppointmentTransition {
   requiresReason: boolean;
 }
 
+export interface AppointmentFormData {
+  branchId: string;
+  propertyId: string;
+  serviceTypeId: string;
+  scheduledDate: string;
+  timeSlot: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  keyRequired: boolean;
+  meetingLocation: string;
+  keyLocation: string;
+  notes: string;
+}
+
+export type AppointmentFormErrors = Partial<Record<keyof AppointmentFormData, string>>;
+
+export const EMPTY_FORM_DATA: AppointmentFormData = {
+  branchId: '',
+  propertyId: '',
+  serviceTypeId: '',
+  scheduledDate: '',
+  timeSlot: '',
+  contactName: '',
+  contactPhone: '',
+  contactEmail: '',
+  keyRequired: false,
+  meetingLocation: '',
+  keyLocation: '',
+  notes: '',
+};
+
 export const DEFAULT_FILTERS: AppointmentFiltersState = {
   search: '',
   status: '',
