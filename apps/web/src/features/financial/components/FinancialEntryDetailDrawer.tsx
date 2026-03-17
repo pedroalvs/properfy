@@ -12,15 +12,20 @@ interface FinancialEntryDetailDrawerProps {
   entryId: string | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: (id: string) => void;
 }
 
-export function FinancialEntryDetailDrawer({ entryId, open, onClose }: FinancialEntryDetailDrawerProps) {
+export function FinancialEntryDetailDrawer({ entryId, open, onClose, onEdit }: FinancialEntryDetailDrawerProps) {
   const { entry, isLoading } = useFinancialEntryDetail(entryId);
   const { showInfo } = useSnackbar();
 
   const handleEdit = useCallback(() => {
-    showInfo('Editing coming soon');
-  }, [showInfo]);
+    if (onEdit && entryId) {
+      onEdit(entryId);
+    } else {
+      showInfo('Editing coming soon');
+    }
+  }, [onEdit, entryId, showInfo]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">

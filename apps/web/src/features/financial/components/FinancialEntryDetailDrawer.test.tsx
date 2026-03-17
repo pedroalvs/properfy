@@ -23,13 +23,14 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function renderDrawer(props: { entryId: string | null; open: boolean; onClose?: () => void }) {
+function renderDrawer(props: { entryId: string | null; open: boolean; onClose?: () => void; onEdit?: (id: string) => void }) {
   return render(
     <Wrapper>
       <FinancialEntryDetailDrawer
         entryId={props.entryId}
         open={props.open}
         onClose={props.onClose ?? vi.fn()}
+        onEdit={props.onEdit}
       />
     </Wrapper>,
   );
@@ -65,13 +66,22 @@ describe('FinancialEntryDetailDrawer', () => {
     expect(screen.getByText('Values')).toBeInTheDocument();
   });
 
-  it('edit button calls showInfo snackbar', () => {
+  it('edit button calls showInfo snackbar when onEdit not provided', () => {
     renderDrawer({ entryId: 'fin-01', open: true });
     act(() => { vi.advanceTimersByTime(200); });
     const editButton = screen.getByLabelText('Editar');
     fireEvent.click(editButton);
     act(() => { vi.advanceTimersByTime(0); });
     expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
+  });
+
+  it('edit button calls onEdit with entry id when onEdit prop is provided', () => {
+    const onEdit = vi.fn();
+    renderDrawer({ entryId: 'fin-01', open: true, onEdit });
+    act(() => { vi.advanceTimersByTime(200); });
+    const editButton = screen.getByLabelText('Editar');
+    fireEvent.click(editButton);
+    expect(onEdit).toHaveBeenCalledWith('fin-01');
   });
 
   it('shows loading state while fetching', () => {

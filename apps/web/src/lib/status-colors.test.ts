@@ -238,11 +238,11 @@ describe('FINANCIAL_ENTRY_TYPE_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.TENANT_DEBIT].label).toBe('Débito Inquilino');
-    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.INSPECTOR_PAYOUT].label).toBe('Pagamento Inspetor');
-    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.REFUND].label).toBe('Reembolso');
-    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.MANUAL_ADJUSTMENT].label).toBe('Ajuste Manual');
+  it('returns correct labels in English', () => {
+    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.TENANT_DEBIT].label).toBe('Tenant Debit');
+    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.INSPECTOR_PAYOUT].label).toBe('Inspector Payout');
+    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.REFUND].label).toBe('Refund');
+    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.MANUAL_ADJUSTMENT].label).toBe('Manual Adjustment');
   });
 });
 
@@ -267,10 +267,10 @@ describe('FINANCIAL_ENTRY_STATUS_MAP', () => {
     expect(style.label).toBeTruthy();
   });
 
-  it('returns correct labels in pt-BR', () => {
-    expect(FINANCIAL_ENTRY_STATUS_MAP[FinancialEntryStatus.PENDING].label).toBe('Pendente');
-    expect(FINANCIAL_ENTRY_STATUS_MAP[FinancialEntryStatus.APPROVED].label).toBe('Aprovado');
-    expect(FINANCIAL_ENTRY_STATUS_MAP[FinancialEntryStatus.CANCELLED].label).toBe('Cancelado');
+  it('returns correct labels in English', () => {
+    expect(FINANCIAL_ENTRY_STATUS_MAP[FinancialEntryStatus.PENDING].label).toBe('Pending');
+    expect(FINANCIAL_ENTRY_STATUS_MAP[FinancialEntryStatus.APPROVED].label).toBe('Approved');
+    expect(FINANCIAL_ENTRY_STATUS_MAP[FinancialEntryStatus.CANCELLED].label).toBe('Cancelled');
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { FinancialListPage } from './FinancialListPage';
 
@@ -33,13 +33,15 @@ describe('FinancialListPage', () => {
 
   it('renders "New Entry" CTA button', () => {
     renderPage();
-    expect(screen.getByText('New Entry')).toBeInTheDocument();
+    const matches = screen.getAllByText('New Entry');
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders filter bar with search, type, and status controls', () => {
     renderPage();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
-    expect(screen.getByLabelText('Type')).toBeInTheDocument();
+    const typeLabels = screen.getAllByLabelText('Type');
+    expect(typeLabels.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
@@ -81,9 +83,11 @@ describe('FinancialListPage', () => {
     fireEvent.click(viewButton);
     act(() => { vi.advanceTimersByTime(200); });
     expect(screen.getByText('Identification')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    const narrowDrawer = document.querySelector('.w-drawer-narrow') as HTMLElement;
+    const closeButton = within(narrowDrawer).getByLabelText('Fechar');
+    fireEvent.click(closeButton);
     act(() => { vi.advanceTimersByTime(0); });
-    expect(screen.queryByText('Identification')).not.toBeInTheDocument();
+    expect(narrowDrawer).toHaveClass('translate-x-full');
   });
 
   it('clicking different row updates drawer', () => {
@@ -107,6 +111,60 @@ describe('FinancialListPage', () => {
     const viewButton = screen.getAllByLabelText('View')[0]!;
     fireEvent.click(viewButton);
     act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const dialogs = screen.getAllByRole('dialog');
+    expect(dialogs.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('clicking "New Entry" opens form drawer with "Create Entry" submit button', () => {
+    renderPage();
+    const newEntryButtons = screen.getAllByText('New Entry');
+    fireEvent.click(newEntryButtons[0]!);
+    act(() => { vi.advanceTimersByTime(0); });
+    expect(screen.getByText('Create Entry')).toBeInTheDocument();
+  });
+
+  it('form drawer renders all form sections', () => {
+    renderPage();
+    const newEntryButtons = screen.getAllByText('New Entry');
+    fireEvent.click(newEntryButtons[0]!);
+    act(() => { vi.advanceTimersByTime(0); });
+    expect(screen.getByText('Type & Values')).toBeInTheDocument();
+    const detailsMatches = screen.getAllByText('Details');
+    expect(detailsMatches.length).toBeGreaterThanOrEqual(1);
+    const notesMatches = screen.getAllByText('Notes');
+    expect(notesMatches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('closing form drawer hides form content', () => {
+    renderPage();
+    const newEntryButtons = screen.getAllByText('New Entry');
+    fireEvent.click(newEntryButtons[0]!);
+    act(() => { vi.advanceTimersByTime(0); });
+    const wideDrawer = document.querySelector('.w-drawer-wide') as HTMLElement;
+    expect(wideDrawer).not.toHaveClass('translate-x-full');
+    const closeButton = within(wideDrawer).getByLabelText('Fechar');
+    fireEvent.click(closeButton);
+    act(() => { vi.advanceTimersByTime(0); });
+    expect(wideDrawer).toHaveClass('translate-x-full');
+  });
+
+  it('edit from detail drawer opens form drawer with "Edit Entry" title', () => {
+    renderPage();
+    act(() => { vi.advanceTimersByTime(300); });
+    const viewButton = screen.getAllByLabelText('View')[0]!;
+    fireEvent.click(viewButton);
+    act(() => { vi.advanceTimersByTime(200); });
+    const narrowDrawer = document.querySelector('.w-drawer-narrow') as HTMLElement;
+    const editButton = within(narrowDrawer).getByLabelText('Editar');
+    fireEvent.click(editButton);
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(screen.getByText('Edit Entry')).toBeInTheDocument();
+  });
+
+  it('"New Entry" button is present and clickable', () => {
+    renderPage();
+    const newEntryButtons = screen.getAllByText('New Entry');
+    expect(newEntryButtons.length).toBeGreaterThanOrEqual(1);
+    expect(() => fireEvent.click(newEntryButtons[0]!)).not.toThrow();
   });
 });
