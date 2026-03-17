@@ -5,14 +5,17 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
@@ -21,14 +24,14 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { usePropertySave } from './usePropertySave';
 import type { PropertyFormData } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockPost = apiClient.post as ReturnType<typeof vi.fn>;
-const mockPatch = apiClient.patch as ReturnType<typeof vi.fn>;
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
+const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: PropertyFormData = {
   propertyCode: 'IMV-100',
@@ -46,8 +49,8 @@ const VALID_CREATE_DATA: PropertyFormData = {
 beforeEach(() => {
   mockPost.mockReset();
   mockPatch.mockReset();
-  mockPost.mockResolvedValue({ data: { id: 'new-prop' } });
-  mockPatch.mockResolvedValue({ data: { id: 'prop-01' } });
+  mockPost.mockResolvedValue({ data: { data: { id: 'new-prop' } } });
+  mockPatch.mockResolvedValue({ data: { data: { id: 'prop-01' } } });
 });
 
 describe('usePropertySave', () => {
@@ -100,7 +103,7 @@ describe('usePropertySave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/properties', VALID_CREATE_DATA);
+    expect(mockPost).toHaveBeenCalledWith('/v1/properties', { body: VALID_CREATE_DATA });
   });
 
   it('save returns success on edit', async () => {
@@ -113,7 +116,7 @@ describe('usePropertySave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/prop-01', VALID_CREATE_DATA);
+    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/prop-01', { body: VALID_CREATE_DATA });
   });
 
   it('isSaving is true during save operation', async () => {
@@ -133,7 +136,7 @@ describe('usePropertySave', () => {
     expect(result.current.isSaving).toBe(true);
 
     await act(async () => {
-      resolvePost({ data: { id: 'new' } });
+      resolvePost({ data: { data: { id: 'new' } } });
       await savePromise!;
     });
 

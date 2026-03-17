@@ -5,14 +5,17 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
@@ -21,11 +24,11 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useAppointmentList } from './useAppointmentList';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_APPOINTMENTS = [
   { id: 'apt-01', code: 'VST-001', status: 'DONE', contactName: 'João' },
@@ -34,8 +37,10 @@ const MOCK_APPOINTMENTS = [
 
 function mockPaginatedResponse(data = MOCK_APPOINTMENTS) {
   return {
-    data,
-    pagination: { page: 1, pageSize: 10, total: data.length, totalPages: 1 },
+    data: {
+      data,
+      pagination: { page: 1, pageSize: 10, total: data.length, totalPages: 1 },
+    },
   };
 }
 
@@ -79,7 +84,7 @@ describe('useAppointmentList', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(mockGet).toHaveBeenCalledWith('/v1/appointments', expect.any(Object));
+    expect(mockGet).toHaveBeenCalledWith('/v1/appointments', { params: { query: expect.any(Object) } });
   });
 
   it('pagination total reflects API response', async () => {
@@ -106,7 +111,7 @@ describe('useAppointmentList', () => {
   });
 
   it('handles API error gracefully', async () => {
-    mockGet.mockRejectedValueOnce(new Error('Network error'));
+    mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Network error' } });
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useAppointmentList(), { wrapper });
 

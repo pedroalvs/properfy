@@ -5,14 +5,17 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
@@ -21,14 +24,14 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useFinancialEntrySave } from './useFinancialEntrySave';
 import type { FinancialEntryFormData } from '../types';
 import { EMPTY_FINANCIAL_ENTRY_FORM } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockPost = apiClient.post as ReturnType<typeof vi.fn>;
-const mockPatch = apiClient.patch as ReturnType<typeof vi.fn>;
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
+const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: FinancialEntryFormData = {
   entryType: 'TENANT_DEBIT',
@@ -43,8 +46,8 @@ const VALID_CREATE_DATA: FinancialEntryFormData = {
 beforeEach(() => {
   mockPost.mockReset();
   mockPatch.mockReset();
-  mockPost.mockResolvedValue({ data: { id: 'new-fin' } });
-  mockPatch.mockResolvedValue({ data: { id: 'fin-01' } });
+  mockPost.mockResolvedValue({ data: { data: { id: 'new-fin' } } });
+  mockPatch.mockResolvedValue({ data: { data: { id: 'fin-01' } } });
 });
 
 describe('useFinancialEntrySave', () => {
@@ -97,7 +100,7 @@ describe('useFinancialEntrySave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/financial/entries/adjust', expect.any(Object));
+    expect(mockPost).toHaveBeenCalledWith('/v1/financial/entries/adjust', { body: expect.any(Object) });
   });
 
   it('save returns success on edit', async () => {
@@ -110,7 +113,7 @@ describe('useFinancialEntrySave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/financial/entries/fin-01', expect.any(Object));
+    expect(mockPatch).toHaveBeenCalledWith('/v1/financial/entries/fin-01', { body: expect.any(Object) });
   });
 
   it('isSaving is true during save operation', async () => {
@@ -130,7 +133,7 @@ describe('useFinancialEntrySave', () => {
     expect(result.current.isSaving).toBe(true);
 
     await act(async () => {
-      resolvePost({ data: { id: 'new' } });
+      resolvePost({ data: { data: { id: 'new' } } });
       await savePromise!;
     });
 

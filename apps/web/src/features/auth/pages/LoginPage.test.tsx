@@ -6,6 +6,15 @@ import { LoginPage } from './LoginPage';
 const mockLogin = vi.fn();
 const mockNavigate = vi.fn();
 
+vi.mock('@/lib/api-error', () => ({
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     login: mockLogin,
@@ -74,7 +83,7 @@ describe('LoginPage', () => {
   });
 
   it('shows error message on invalid credentials', async () => {
-    const { ApiError } = await import('@/lib/api-client');
+    const { ApiError } = await import('@/lib/api-error');
     mockLogin.mockRejectedValueOnce(
       new ApiError(401, 'Invalid credentials', 'AUTH_INVALID_CREDENTIALS'),
     );

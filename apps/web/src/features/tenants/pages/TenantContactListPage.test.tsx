@@ -8,14 +8,17 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
@@ -33,10 +36,10 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { TenantContactListPage } from './TenantContactListPage';
 
-const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_CONTACTS = [
   { id: 'tnt-01', name: 'Ana Silva', email: 'ana.silva@email.com', phone: '11999999999', confirmationStatus: 'CONFIRMED', appointmentDate: '2026-04-01' },
@@ -60,10 +63,10 @@ function createWrapper() {
 
 beforeEach(() => {
   mockGet.mockReset();
-  mockGet.mockResolvedValue({
+  mockGet.mockResolvedValue({ data: {
     data: MOCK_CONTACTS,
     pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
-  });
+  } });
 });
 
 function renderPage() {

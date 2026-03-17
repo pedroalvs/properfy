@@ -5,9 +5,23 @@ import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@properfy/shared', () => ({}));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
-vi.mock('@/lib/api-client', () => ({
-  apiClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
-  ApiError: class extends Error {},
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/api-error', () => ({
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
 }));
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: { getAccessToken: vi.fn(() => null), hasTokens: vi.fn(() => false), setTokens: vi.fn(), clearTokens: vi.fn() },
@@ -80,29 +94,29 @@ describe('PropertyFormDrawer', () => {
   it('renders create mode with correct title, form sections, and cancel calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ onClose });
-    expect(screen.getByText('Novo Imóvel')).toBeInTheDocument();
-    expect(screen.getByText('Criar Imóvel')).toBeInTheDocument();
-    expect(screen.getByText('Identificação')).toBeInTheDocument();
-    expect(screen.getByText('Endereço')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Cancelar'));
+    expect(screen.getByText('New Property')).toBeInTheDocument();
+    expect(screen.getByText('Create Property')).toBeInTheDocument();
+    expect(screen.getByText('Identification')).toBeInTheDocument();
+    expect(screen.getByText('Address')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('renders edit mode with populated fields and correct buttons', () => {
     renderDrawer({ propertyId: 'prop-01' });
-    expect(screen.getByText('Editar Imóvel')).toBeInTheDocument();
-    expect(screen.getByText('Salvar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Código do Imóvel')).toHaveValue('P-001');
-    expect(screen.getByLabelText('Rua')).toHaveValue('Rua das Flores, 123');
-    expect(screen.getByLabelText('Bairro')).toHaveValue('Centro');
-    expect(screen.getByLabelText('CEP')).toHaveValue('01000-000');
+    expect(screen.getByText('Edit Property')).toBeInTheDocument();
+    expect(screen.getByText('Save')).toBeInTheDocument();
+    expect(screen.getByLabelText('Property Code')).toHaveValue('P-001');
+    expect(screen.getByLabelText('Street')).toHaveValue('Rua das Flores, 123');
+    expect(screen.getByLabelText('Suburb')).toHaveValue('Centro');
+    expect(screen.getByLabelText('Postcode')).toHaveValue('01000-000');
   });
 
   it('shows validation errors and prevents save when validation fails', () => {
-    mockValidate.mockReturnValue({ street: 'Campo obrigatório' });
+    mockValidate.mockReturnValue({ street: 'Required field' });
     renderDrawer();
-    fireEvent.click(screen.getByText('Criar Imóvel'));
-    expect(screen.getByText('Campo obrigatório')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Create Property'));
+    expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
   });
 });

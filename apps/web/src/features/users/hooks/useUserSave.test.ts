@@ -5,14 +5,17 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
@@ -32,14 +35,14 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }));
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useUserSave } from './useUserSave';
 import type { UserFormData } from '../types';
 import { EMPTY_USER_FORM } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockPost = apiClient.post as ReturnType<typeof vi.fn>;
-const mockPatch = apiClient.patch as ReturnType<typeof vi.fn>;
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
+const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: UserFormData = {
   name: 'Teste Usuário',
@@ -53,8 +56,8 @@ const VALID_CREATE_DATA: UserFormData = {
 beforeEach(() => {
   mockPost.mockReset();
   mockPatch.mockReset();
-  mockPost.mockResolvedValue({ data: { id: 'new-usr' } });
-  mockPatch.mockResolvedValue({ data: { id: 'usr-01' } });
+  mockPost.mockResolvedValue({ data: { data: { id: 'new-usr' } } });
+  mockPatch.mockResolvedValue({ data: { data: { id: 'usr-01' } } });
 });
 
 describe('useUserSave', () => {
@@ -78,7 +81,7 @@ describe('useUserSave', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useUserSave(), { wrapper });
     const errors = result.current.validate({ ...VALID_CREATE_DATA, email: 'not-an-email' }, 'create');
-    expect(errors.email).toBe('E-mail inválido');
+    expect(errors.email).toBe('Invalid email');
   });
 
   it('validate accepts empty optional fields', () => {
@@ -102,7 +105,7 @@ describe('useUserSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/tenant-1/users', expect.any(Object));
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/tenant-1/users', { body: expect.any(Object) });
   });
 
   it('save returns success on edit', async () => {
@@ -115,7 +118,7 @@ describe('useUserSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/tenant-1/users/usr-01', expect.any(Object));
+    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/tenant-1/users/usr-01', { body: expect.any(Object) });
   });
 
   it('isSaving is true during save operation', async () => {
@@ -135,7 +138,7 @@ describe('useUserSave', () => {
     expect(result.current.isSaving).toBe(true);
 
     await act(async () => {
-      resolvePost({ data: { id: 'new' } });
+      resolvePost({ data: { data: { id: 'new' } } });
       await savePromise!;
     });
 

@@ -5,14 +5,17 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
@@ -21,11 +24,11 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useServiceGroupDetail } from './useServiceGroupDetail';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_SERVICE_GROUP = {
   id: 'sg-01',
@@ -36,7 +39,7 @@ const MOCK_SERVICE_GROUP = {
 
 beforeEach(() => {
   mockGet.mockReset();
-  mockGet.mockResolvedValue({ data: MOCK_SERVICE_GROUP });
+  mockGet.mockResolvedValue({ data: { data: MOCK_SERVICE_GROUP } });
 });
 
 describe('useServiceGroupDetail', () => {
@@ -75,11 +78,11 @@ describe('useServiceGroupDetail', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(mockGet).toHaveBeenCalledWith('/v1/service-groups/sg-01');
+    expect(mockGet).toHaveBeenCalledWith('/v1/service-groups/sg-01', { params: { query: undefined } });
   });
 
   it('handles API error gracefully', async () => {
-    mockGet.mockRejectedValueOnce(new Error('Not found'));
+    mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Not found' } });
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useServiceGroupDetail('sg-01'), { wrapper });
 

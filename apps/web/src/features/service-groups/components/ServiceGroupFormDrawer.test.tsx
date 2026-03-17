@@ -5,9 +5,23 @@ import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@properfy/shared', () => ({}));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
-vi.mock('@/lib/api-client', () => ({
-  apiClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
-  ApiError: class extends Error {},
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/api-error', () => ({
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
 }));
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: { getAccessToken: vi.fn(() => null), hasTokens: vi.fn(() => false), setTokens: vi.fn(), clearTokens: vi.fn() },
@@ -75,26 +89,26 @@ describe('ServiceGroupFormDrawer', () => {
   it('renders create mode with correct title, form sections, and cancel calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ onClose });
-    expect(screen.getByText('Novo Grupo')).toBeInTheDocument();
-    expect(screen.getByText('Criar Grupo')).toBeInTheDocument();
-    expect(screen.getByText('Informações')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Cancelar'));
+    expect(screen.getByText('New Service Group')).toBeInTheDocument();
+    expect(screen.getByText('Create Service Group')).toBeInTheDocument();
+    expect(screen.getByText('Information')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('renders edit mode with populated fields and correct buttons', () => {
     renderDrawer({ serviceGroupId: 'sg-01' });
-    expect(screen.getByText('Editar Grupo')).toBeInTheDocument();
-    expect(screen.getByText('Salvar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Nome')).toHaveValue('Group Alpha');
-    expect(screen.getByLabelText('Região')).toHaveValue('Centro');
+    expect(screen.getByText('Edit Service Group')).toBeInTheDocument();
+    expect(screen.getByText('Save')).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Group Alpha');
+    expect(screen.getByLabelText('Region')).toHaveValue('Centro');
   });
 
   it('shows validation errors and prevents save when validation fails', () => {
-    mockValidate.mockReturnValue({ name: 'Campo obrigatório' });
+    mockValidate.mockReturnValue({ name: 'Required field' });
     renderDrawer();
-    fireEvent.click(screen.getByText('Criar Grupo'));
-    expect(screen.getByText('Campo obrigatório')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Create Service Group'));
+    expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
   });
 });

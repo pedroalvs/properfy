@@ -5,14 +5,17 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
@@ -21,14 +24,14 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useAppointmentSave } from './useAppointmentSave';
 import type { AppointmentFormData } from '../types';
 import { EMPTY_FORM_DATA } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockPost = apiClient.post as ReturnType<typeof vi.fn>;
-const mockPatch = apiClient.patch as ReturnType<typeof vi.fn>;
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
+const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: AppointmentFormData = {
   branchId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -48,8 +51,8 @@ const VALID_CREATE_DATA: AppointmentFormData = {
 beforeEach(() => {
   mockPost.mockReset();
   mockPatch.mockReset();
-  mockPost.mockResolvedValue({ data: { id: 'new-apt' } });
-  mockPatch.mockResolvedValue({ data: { id: 'apt-01' } });
+  mockPost.mockResolvedValue({ data: { data: { id: 'new-apt' } } });
+  mockPatch.mockResolvedValue({ data: { data: { id: 'apt-01' } } });
 });
 
 describe('useAppointmentSave', () => {
@@ -102,7 +105,7 @@ describe('useAppointmentSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/appointments', VALID_CREATE_DATA);
+    expect(mockPost).toHaveBeenCalledWith('/v1/appointments', { body: VALID_CREATE_DATA });
   });
 
   it('save returns success on edit', async () => {
@@ -115,11 +118,11 @@ describe('useAppointmentSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', VALID_CREATE_DATA);
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', { body: VALID_CREATE_DATA });
   });
 
   it('save returns failure on API error', async () => {
-    mockPost.mockRejectedValueOnce(new Error('Server error'));
+    mockPost.mockResolvedValueOnce({ data: undefined, error: { error: { message: 'Server error' } } });
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useAppointmentSave(), { wrapper });
 
@@ -149,7 +152,7 @@ describe('useAppointmentSave', () => {
     expect(result.current.isSaving).toBe(true);
 
     await act(async () => {
-      resolvePost({ data: { id: 'new' } });
+      resolvePost({ data: { data: { id: 'new' } } });
       await savePromise!;
     });
 

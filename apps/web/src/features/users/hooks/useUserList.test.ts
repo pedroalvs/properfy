@@ -5,14 +5,17 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
@@ -32,11 +35,11 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }));
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useUserList } from './useUserList';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_USERS = [
   { id: 'usr-01', name: 'Admin Principal', email: 'admin@properfy.com', role: 'AM', status: 'ACTIVE' },
@@ -45,10 +48,10 @@ const MOCK_USERS = [
 
 beforeEach(() => {
   mockGet.mockReset();
-  mockGet.mockResolvedValue({
+  mockGet.mockResolvedValue({ data: {
     data: MOCK_USERS,
     pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
-  });
+  } });
 });
 
 describe('useUserList', () => {
@@ -83,7 +86,7 @@ describe('useUserList', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(mockGet).toHaveBeenCalledWith('/v1/tenants/tenant-1/users', expect.any(Object));
+    expect(mockGet).toHaveBeenCalledWith('/v1/tenants/tenant-1/users', { params: { query: expect.any(Object) } });
   });
 
   it('pagination total reflects API response', async () => {
@@ -98,7 +101,7 @@ describe('useUserList', () => {
   });
 
   it('handles API error gracefully', async () => {
-    mockGet.mockRejectedValueOnce(new Error('Network error'));
+    mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Network error' } });
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useUserList(), { wrapper });
 

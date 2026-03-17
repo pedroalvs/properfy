@@ -9,9 +9,23 @@ vi.mock('@properfy/shared', () => ({
   TenantConfirmationStatus: { PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', UNAVAILABLE: 'UNAVAILABLE', NO_RESPONSE: 'NO_RESPONSE' },
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
-vi.mock('@/lib/api-client', () => ({
-  apiClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
-  ApiError: class extends Error {},
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/api-error', () => ({
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
 }));
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: { getAccessToken: vi.fn(() => null), hasTokens: vi.fn(() => false), setTokens: vi.fn(), clearTokens: vi.fn() },
@@ -85,29 +99,29 @@ describe('AppointmentFormDrawer', () => {
   it('renders create mode with correct title, form sections, and cancel calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ onClose });
-    expect(screen.getByText('Nova Vistoria')).toBeInTheDocument();
-    expect(screen.getByText('Criar Vistoria')).toBeInTheDocument();
-    expect(screen.getByText('Dados da Vistoria')).toBeInTheDocument();
-    expect(screen.getByText('Contato do Inquilino')).toBeInTheDocument();
-    expect(screen.getByText('Acesso e Chave')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Cancelar'));
+    expect(screen.getByText('New Appointment')).toBeInTheDocument();
+    expect(screen.getByText('Create Appointment')).toBeInTheDocument();
+    expect(screen.getByText('Appointment Details')).toBeInTheDocument();
+    expect(screen.getByText('Tenant Contact')).toBeInTheDocument();
+    expect(screen.getByText('Access & Key')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('renders edit mode with populated fields and correct buttons', () => {
     renderDrawer({ appointmentId: 'apt-01' });
-    expect(screen.getByText('Editar Vistoria')).toBeInTheDocument();
-    expect(screen.getByText('Salvar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Nome do Inquilino')).toHaveValue('John Doe');
-    expect(screen.getByLabelText('Telefone')).toHaveValue('11999999999');
-    expect(screen.getByLabelText('E-mail')).toHaveValue('john@test.com');
+    expect(screen.getByText('Edit Appointment')).toBeInTheDocument();
+    expect(screen.getByText('Save')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tenant Name')).toHaveValue('John Doe');
+    expect(screen.getByLabelText('Phone')).toHaveValue('11999999999');
+    expect(screen.getByLabelText('Email')).toHaveValue('john@test.com');
   });
 
   it('shows validation errors and prevents save when validation fails', () => {
-    mockValidate.mockReturnValue({ contactName: 'Campo obrigatório' });
+    mockValidate.mockReturnValue({ contactName: 'Required field' });
     renderDrawer();
-    fireEvent.click(screen.getByText('Criar Vistoria'));
-    expect(screen.getByText('Campo obrigatório')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Create Appointment'));
+    expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
   });
 });

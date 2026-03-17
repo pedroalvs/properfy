@@ -8,30 +8,30 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
-    constructor(
-      public status: number,
-      message: string,
-      public code?: string,
-    ) {
+    constructor(public status: number, message: string, public code?: string) {
       super(message);
       this.name = 'ApiError';
     }
   },
 }));
 
-import { apiClient, ApiError } from '@/lib/api-client';
+import { api } from '@/services/api';
+import { ApiError } from '@/lib/api-error';
 import { PortalPage } from './PortalPage';
 
-const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_PORTAL_DATA = {
   token: { status: 'ACTIVE', isReadOnly: false },
@@ -93,14 +93,14 @@ function renderPortal(path?: string) {
 
 describe('PortalPage', () => {
   it('shows loading state initially', () => {
-    mockGet.mockReturnValue(new Promise(() => {})); // never resolves
+    mockGet.mockReturnValue(new Promise(() => { /* never resolves */ }));
     renderPortal();
     // Should show skeleton placeholders
     expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
   it('renders appointment details on successful load', async () => {
-    mockGet.mockResolvedValue(MOCK_PORTAL_DATA);
+    mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
     renderPortal();
 
     await waitFor(() => {
@@ -110,7 +110,7 @@ describe('PortalPage', () => {
   });
 
   it('shows confirm section when status is PENDING', async () => {
-    mockGet.mockResolvedValue(MOCK_PORTAL_DATA);
+    mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
     renderPortal();
 
     await waitFor(() => {
@@ -119,10 +119,10 @@ describe('PortalPage', () => {
   });
 
   it('shows read-only banner when token is expired', async () => {
-    mockGet.mockResolvedValue({
+    mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
-    });
+    } });
     renderPortal();
 
     await waitFor(() => {
@@ -133,10 +133,10 @@ describe('PortalPage', () => {
   });
 
   it('shows terminal state banner when appointment is DONE', async () => {
-    mockGet.mockResolvedValue({
+    mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       appointment: { ...MOCK_PORTAL_DATA.appointment, status: 'DONE' },
-    });
+    } });
     renderPortal();
 
     await waitFor(() => {
@@ -146,7 +146,7 @@ describe('PortalPage', () => {
   });
 
   it('shows error state when API fails', async () => {
-    mockGet.mockRejectedValue(new ApiError(404, 'Not found', 'PORTAL_TOKEN_NOT_FOUND'));
+    mockGet.mockResolvedValue({ data: undefined, error: new ApiError(404, 'Not found', 'PORTAL_TOKEN_NOT_FOUND') });
     renderPortal();
 
     await waitFor(() => {
@@ -155,7 +155,7 @@ describe('PortalPage', () => {
   });
 
   it('renders contact form with pre-filled data', async () => {
-    mockGet.mockResolvedValue(MOCK_PORTAL_DATA);
+    mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
     renderPortal();
 
     await waitFor(() => {
@@ -165,7 +165,7 @@ describe('PortalPage', () => {
   });
 
   it('shows reschedule form when not read-only and not terminal', async () => {
-    mockGet.mockResolvedValue(MOCK_PORTAL_DATA);
+    mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
     renderPortal();
 
     await waitFor(() => {
@@ -174,10 +174,10 @@ describe('PortalPage', () => {
   });
 
   it('hides reschedule form when read-only', async () => {
-    mockGet.mockResolvedValue({
+    mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
-    });
+    } });
     renderPortal();
 
     await waitFor(() => {
@@ -187,7 +187,7 @@ describe('PortalPage', () => {
   });
 
   it('shows unavailability section when confirmation is PENDING', async () => {
-    mockGet.mockResolvedValue(MOCK_PORTAL_DATA);
+    mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
     renderPortal();
 
     await waitFor(() => {
@@ -196,13 +196,13 @@ describe('PortalPage', () => {
   });
 
   it('hides confirm section when already CONFIRMED', async () => {
-    mockGet.mockResolvedValue({
+    mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       appointment: {
         ...MOCK_PORTAL_DATA.appointment,
         tenantConfirmationStatus: 'CONFIRMED',
       },
-    });
+    } });
     renderPortal();
 
     await waitFor(() => {

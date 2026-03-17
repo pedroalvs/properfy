@@ -7,14 +7,14 @@ import type { AppointmentTransition } from '../types';
 const mockTransitions: AppointmentTransition[] = [
   {
     targetStatus: AppointmentStatus.DONE,
-    label: 'Marcar como Concluído',
+    label: 'Mark as Done',
     icon: 'mdi-check-circle',
     variant: 'primary',
     requiresReason: false,
   },
   {
     targetStatus: AppointmentStatus.CANCELLED,
-    label: 'Cancelar',
+    label: 'Cancel',
     icon: 'mdi-cancel',
     variant: 'danger',
     requiresReason: true,
@@ -26,8 +26,8 @@ describe('AppointmentTransitionActions', () => {
     render(
       <AppointmentTransitionActions transitions={mockTransitions} onTransition={() => {}} />,
     );
-    expect(screen.getByText('Marcar como Concluído')).toBeInTheDocument();
-    expect(screen.getByText('Cancelar')).toBeInTheDocument();
+    expect(screen.getByText('Mark as Done')).toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
   it('click without reason calls onTransition immediately', () => {
@@ -35,7 +35,7 @@ describe('AppointmentTransitionActions', () => {
     render(
       <AppointmentTransitionActions transitions={mockTransitions} onTransition={onTransition} />,
     );
-    fireEvent.click(screen.getByText('Marcar como Concluído'));
+    fireEvent.click(screen.getByText('Mark as Done'));
     expect(onTransition).toHaveBeenCalledWith(AppointmentStatus.DONE);
   });
 
@@ -43,8 +43,8 @@ describe('AppointmentTransitionActions', () => {
     render(
       <AppointmentTransitionActions transitions={mockTransitions} onTransition={() => {}} />,
     );
-    fireEvent.click(screen.getByText('Cancelar'));
-    expect(screen.getByPlaceholderText('Informe o motivo...')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(screen.getByPlaceholderText('Enter the reason...')).toBeInTheDocument();
   });
 
   it('confirm in dialog calls onTransition with reason', () => {
@@ -52,12 +52,12 @@ describe('AppointmentTransitionActions', () => {
     render(
       <AppointmentTransitionActions transitions={mockTransitions} onTransition={onTransition} />,
     );
-    fireEvent.click(screen.getByText('Cancelar'));
-    fireEvent.change(screen.getByPlaceholderText('Informe o motivo...'), {
-      target: { value: 'Motivo teste' },
+    fireEvent.click(screen.getByText('Cancel'));
+    fireEvent.change(screen.getByPlaceholderText('Enter the reason...'), {
+      target: { value: 'Test reason' },
     });
-    fireEvent.click(screen.getByText('Confirmar'));
-    expect(onTransition).toHaveBeenCalledWith(AppointmentStatus.CANCELLED, 'Motivo teste');
+    fireEvent.click(screen.getByText('Confirm'));
+    expect(onTransition).toHaveBeenCalledWith(AppointmentStatus.CANCELLED, 'Test reason');
   });
 
   it('no buttons when transitions is empty', () => {
@@ -79,7 +79,7 @@ describe('AppointmentTransitionActions', () => {
     render(
       <AppointmentTransitionActions transitions={mockTransitions} onTransition={() => {}} />,
     );
-    expect(screen.getByText('Marcar como Concluído')).toBeInTheDocument();
-    expect(screen.getByText('Cancelar')).toBeInTheDocument();
+    expect(screen.getByText('Mark as Done')).toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 });

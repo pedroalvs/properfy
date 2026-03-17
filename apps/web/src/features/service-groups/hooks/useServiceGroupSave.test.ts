@@ -5,14 +5,17 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
@@ -21,14 +24,14 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useServiceGroupSave } from './useServiceGroupSave';
 import type { ServiceGroupFormData } from '../types';
 import { EMPTY_SERVICE_GROUP_FORM } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockPost = apiClient.post as ReturnType<typeof vi.fn>;
-const mockPatch = apiClient.patch as ReturnType<typeof vi.fn>;
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
+const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: ServiceGroupFormData = {
   name: 'Teste Grupo',
@@ -40,8 +43,8 @@ const VALID_CREATE_DATA: ServiceGroupFormData = {
 beforeEach(() => {
   mockPost.mockReset();
   mockPatch.mockReset();
-  mockPost.mockResolvedValue({ data: { id: 'new-sg' } });
-  mockPatch.mockResolvedValue({ data: { id: 'sg-01' } });
+  mockPost.mockResolvedValue({ data: { data: { id: 'new-sg' } } });
+  mockPatch.mockResolvedValue({ data: { data: { id: 'sg-01' } } });
 });
 
 describe('useServiceGroupSave', () => {
@@ -81,7 +84,7 @@ describe('useServiceGroupSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/service-groups', VALID_CREATE_DATA);
+    expect(mockPost).toHaveBeenCalledWith('/v1/service-groups', { body: VALID_CREATE_DATA });
   });
 
   it('save returns success on edit', async () => {
@@ -94,7 +97,7 @@ describe('useServiceGroupSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/service-groups/sg-01', VALID_CREATE_DATA);
+    expect(mockPatch).toHaveBeenCalledWith('/v1/service-groups/sg-01', { body: VALID_CREATE_DATA });
   });
 
   it('isSaving is true during save operation', async () => {
@@ -114,7 +117,7 @@ describe('useServiceGroupSave', () => {
     expect(result.current.isSaving).toBe(true);
 
     await act(async () => {
-      resolvePost({ data: { id: 'new' } });
+      resolvePost({ data: { data: { id: 'new' } } });
       await savePromise!;
     });
 

@@ -7,9 +7,17 @@ import { createElement } from 'react';
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 
 const mockGet = vi.fn();
-vi.mock('@/lib/api-client', () => ({
-  apiClient: { get: (...args: unknown[]) => mockGet(...args) },
-  ApiError: class extends Error {},
+vi.mock('@/services/api', () => ({
+  api: { GET: (...args: unknown[]) => mockGet(...args) },
+}));
+
+vi.mock('@/lib/api-error', () => ({
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
 }));
 
 import { useFormOptions } from './useFormOptions';
@@ -24,13 +32,13 @@ function createWrapper() {
 
 describe('useFormOptions', () => {
   it('returns mapped options from a paginated endpoint', async () => {
-    mockGet.mockResolvedValue({
+    mockGet.mockResolvedValue({ data: {
       data: [
         { id: 'b-1', name: 'Branch A' },
         { id: 'b-2', name: 'Branch B' },
       ],
       pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
-    });
+    } });
 
     const { result } = renderHook(
       () =>
@@ -51,7 +59,7 @@ describe('useFormOptions', () => {
 
     expect(mockGet).toHaveBeenCalledWith(
       '/v1/branches',
-      expect.objectContaining({ pageSize: '100' }),
+      { params: { query: expect.objectContaining({ pageSize: '100' }) } },
     );
   });
 

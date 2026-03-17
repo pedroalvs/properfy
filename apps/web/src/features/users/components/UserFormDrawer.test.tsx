@@ -7,9 +7,23 @@ vi.mock('@properfy/shared', () => ({
   contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
-vi.mock('@/lib/api-client', () => ({
-  apiClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
-  ApiError: class extends Error {},
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/api-error', () => ({
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
 }));
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: { getAccessToken: vi.fn(() => null), hasTokens: vi.fn(() => false), setTokens: vi.fn(), clearTokens: vi.fn() },
@@ -81,28 +95,28 @@ describe('UserFormDrawer', () => {
   it('renders create mode with correct title, form sections, and cancel calls onClose', () => {
     const onClose = vi.fn();
     renderDrawer({ onClose });
-    expect(screen.getByText('Novo Usuário')).toBeInTheDocument();
-    expect(screen.getByText('Criar Usuário')).toBeInTheDocument();
-    expect(screen.getByText('Dados Pessoais')).toBeInTheDocument();
-    expect(screen.getByText('Vínculo')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Cancelar'));
+    expect(screen.getByText('New User')).toBeInTheDocument();
+    expect(screen.getByText('Create User')).toBeInTheDocument();
+    expect(screen.getByText('Personal Details')).toBeInTheDocument();
+    expect(screen.getByText('Assignment')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('renders edit mode with populated fields and correct buttons', () => {
     renderDrawer({ userId: 'usr-01' });
-    expect(screen.getByText('Editar Usuário')).toBeInTheDocument();
-    expect(screen.getByText('Salvar')).toBeInTheDocument();
-    expect(screen.getByLabelText('Nome')).toHaveValue('Maria Test');
-    expect(screen.getByLabelText('E-mail')).toHaveValue('maria@test.com');
-    expect(screen.getByLabelText('Telefone')).toHaveValue('11777777777');
+    expect(screen.getByText('Edit User')).toBeInTheDocument();
+    expect(screen.getByText('Save')).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Maria Test');
+    expect(screen.getByLabelText('Email')).toHaveValue('maria@test.com');
+    expect(screen.getByLabelText('Phone')).toHaveValue('11777777777');
   });
 
   it('shows validation errors and prevents save when validation fails', () => {
-    mockValidate.mockReturnValue({ name: 'Campo obrigatório' });
+    mockValidate.mockReturnValue({ name: 'Required field' });
     renderDrawer();
-    fireEvent.click(screen.getByText('Criar Usuário'));
-    expect(screen.getByText('Campo obrigatório')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Create User'));
+    expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
   });
 });

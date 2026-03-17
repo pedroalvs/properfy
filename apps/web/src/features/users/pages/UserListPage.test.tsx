@@ -8,26 +8,22 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/api-error', () => ({
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string, public code?: string) {
       super(message);
       this.name = 'ApiError';
     }
-  },
-}));
-
-vi.mock('@/services/api', () => ({
-  api: {
-    GET: vi.fn(),
-    POST: vi.fn(),
   },
 }));
 
@@ -40,12 +36,10 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
-import { apiClient } from '@/lib/api-client';
 import { api } from '@/services/api';
 import { UserListPage } from './UserListPage';
 
-const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
-const mockApiGET = api.GET as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_ME = { id: 'usr-99', name: 'Test Admin', email: 'admin@test.com', role: 'AM', tenantId: 'tenant-1', branchId: null, totpEnabled: false };
 
@@ -71,13 +65,14 @@ function createWrapper() {
 
 beforeEach(() => {
   mockGet.mockReset();
-  mockApiGET.mockReset();
-  mockApiGET.mockResolvedValue({ data: MOCK_ME, error: undefined });
-  mockGet.mockImplementation(() => {
-    return Promise.resolve({
+  mockGet.mockImplementation((path: string) => {
+    if (path === '/v1/me') {
+      return Promise.resolve({ data: MOCK_ME, error: undefined });
+    }
+    return Promise.resolve({ data: {
       data: MOCK_USERS,
       pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
-    });
+    } });
   });
 });
 
