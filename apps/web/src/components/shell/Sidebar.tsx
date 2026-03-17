@@ -3,6 +3,7 @@ import { SidebarSubmenu } from './SidebarSubmenu';
 import { SidebarUser } from './SidebarUser';
 
 const NAV_ITEMS = [
+  { icon: 'mdi-view-dashboard-outline', label: 'Dashboard', to: '/dashboard' },
   { icon: 'mdi-calendar-month', label: 'Vistorias', to: '/appointments' },
   { icon: 'mdi-home-city-outline', label: 'Imóveis', to: '/properties' },
   {

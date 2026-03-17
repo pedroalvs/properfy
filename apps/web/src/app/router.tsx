@@ -9,6 +9,7 @@ import { UserListPage } from '@/features/users/pages/UserListPage';
 import { FinancialListPage } from '@/features/financial/pages/FinancialListPage';
 import { TenantContactListPage } from '@/features/tenants/pages/TenantContactListPage';
 import { ReportListPage } from '@/features/reports/pages/ReportListPage';
+import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 
 function LoginPage() {
   return (
@@ -32,7 +33,8 @@ export const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <Navigate to="/appointments" replace /> },
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: 'dashboard', element: <DashboardPage /> },
           { path: 'appointments', element: <AppointmentListPage /> },
           { path: 'properties', element: <PropertyListPage /> },
           { path: 'service-groups', element: <ServiceGroupListPage /> },

@@ -55,7 +55,7 @@ describe('RecentAppointmentsList', () => {
     );
 
     const rows = screen.getAllByTestId('appointment-row');
-    await user.click(rows[2]);
+    await user.click(rows[2]!);
     expect(onViewAppointment).toHaveBeenCalledWith('3');
   });
 
