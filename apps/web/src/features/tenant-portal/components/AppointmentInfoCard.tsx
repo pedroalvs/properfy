@@ -1,0 +1,93 @@
+import { StatusChip } from '@/components/ui/StatusChip';
+import { TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
+import type { TenantConfirmationStatus } from '@properfy/shared';
+import type { PortalAppointment } from '../types';
+
+interface AppointmentInfoCardProps {
+  appointment: PortalAppointment;
+}
+
+export function AppointmentInfoCard({ appointment }: AppointmentInfoCardProps) {
+  const confirmationStyle =
+    TENANT_CONFIRMATION_STATUS_MAP[appointment.tenantConfirmationStatus];
+
+  return (
+    <div className="rounded bg-card-bg p-6 shadow-sm">
+      <h2 className="mb-4 text-base font-bold text-secondary">
+        Appointment Details
+      </h2>
+
+      <div className="space-y-3 text-sm">
+        <InfoRow label="Status">
+          <StatusChip status={appointment.status} />
+        </InfoRow>
+
+        <InfoRow label="Scheduled Date">
+          {formatDate(appointment.scheduledDate)}
+        </InfoRow>
+
+        <InfoRow label="Time Slot">{appointment.timeSlot}</InfoRow>
+
+        <InfoRow label="Confirmation">
+          <span
+            className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
+            style={{
+              backgroundColor: confirmationStyle.bg,
+              color: confirmationStyle.text,
+            }}
+          >
+            {confirmationStyle.label}
+          </span>
+        </InfoRow>
+
+        {appointment.keyRequired && (
+          <InfoRow label="Key Required">
+            <span className="inline-flex items-center gap-1 text-warning">
+              <i className="mdi mdi-key text-base" />
+              Yes
+            </span>
+          </InfoRow>
+        )}
+
+        {appointment.meetingLocation && (
+          <InfoRow label="Meeting Location">
+            {appointment.meetingLocation}
+          </InfoRow>
+        )}
+
+        {appointment.notes && (
+          <InfoRow label="Notes">{appointment.notes}</InfoRow>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <span className="font-medium text-text-secondary">{label}</span>
+      <span className="text-right text-text-primary">{children}</span>
+    </div>
+  );
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-AU', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}

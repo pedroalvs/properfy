@@ -11,11 +11,16 @@ import { FinancialListPage } from '@/features/financial/pages/FinancialListPage'
 import { TenantContactListPage } from '@/features/tenants/pages/TenantContactListPage';
 import { ReportListPage } from '@/features/reports/pages/ReportListPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
+import { PortalPage } from '@/features/tenant-portal/pages/PortalPage';
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/portal/:token',
+    element: <PortalPage />,
   },
   {
     element: <ProtectedRoute />,
