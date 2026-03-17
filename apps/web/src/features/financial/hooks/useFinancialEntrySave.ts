@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import type { FinancialEntryFormData, FinancialEntryFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
@@ -58,9 +58,11 @@ export function useFinancialEntrySave(): UseFinancialEntrySaveReturn {
       };
 
       if (entryId) {
-        await apiClient.patch(`/v1/financial/entries/${entryId}`, payload);
+        const { error } = await api.PATCH(`/v1/financial/entries/${entryId}` as any, { body: payload as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        await apiClient.post('/v1/financial/entries/adjust', payload);
+        const { error } = await api.POST('/v1/financial/entries/adjust' as any, { body: payload as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
 
       await queryClient.invalidateQueries({ queryKey: ['financial-entries'] });

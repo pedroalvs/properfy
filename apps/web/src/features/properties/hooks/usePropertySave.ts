@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 
-const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
+const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const CREATE_REQUIRED_FIELDS: (keyof PropertyFormData)[] = [
   'propertyCode',
@@ -63,9 +63,11 @@ export function usePropertySave(): UsePropertySaveReturn {
     setIsSaving(true);
     try {
       if (propertyId) {
-        await apiClient.patch(`/v1/properties/${propertyId}`, data);
+        const { error } = await api.PATCH(`/v1/properties/${propertyId}` as any, { body: data as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        await apiClient.post('/v1/properties', data);
+        const { error } = await api.POST('/v1/properties' as any, { body: data as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
       queryClient.invalidateQueries({ queryKey: ['properties'] });
       return { success: true };

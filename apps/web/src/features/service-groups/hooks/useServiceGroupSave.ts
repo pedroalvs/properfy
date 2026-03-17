@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ServiceGroupFormData, ServiceGroupFormErrors } from '../types';
 
-const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
+const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const REQUIRED_FIELDS: (keyof ServiceGroupFormData)[] = ['name', 'priorityMode'];
 
@@ -43,9 +43,11 @@ export function useServiceGroupSave(): UseServiceGroupSaveReturn {
     setIsSaving(true);
     try {
       if (serviceGroupId) {
-        await apiClient.patch(`/v1/service-groups/${serviceGroupId}`, data);
+        const { error } = await api.PATCH(`/v1/service-groups/${serviceGroupId}` as any, { body: data as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        await apiClient.post('/v1/service-groups', data);
+        const { error } = await api.POST('/v1/service-groups' as any, { body: data as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
       return { success: true };

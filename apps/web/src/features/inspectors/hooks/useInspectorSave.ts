@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { contactSchema } from '@properfy/shared';
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 
-const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
+const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const REQUIRED_FIELDS: (keyof InspectorFormData)[] = ['name', 'email'];
 
@@ -22,7 +22,7 @@ function validateRequired(data: InspectorFormData, fields: (keyof InspectorFormD
 function validateEmail(email: string): string | undefined {
   if (!email) return undefined;
   const result = contactSchema.shape.primaryEmail.safeParse(email);
-  if (!result.success) return 'E-mail inválido';
+  if (!result.success) return 'Invalid email';
   return undefined;
 }
 
@@ -66,9 +66,11 @@ export function useInspectorSave(): UseInspectorSaveReturn {
       };
 
       if (inspectorId) {
-        await apiClient.patch(`/v1/inspectors/${inspectorId}`, payload);
+        const { error } = await api.PATCH(`/v1/inspectors/${inspectorId}` as any, { body: payload as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        await apiClient.post('/v1/inspectors', payload);
+        const { error } = await api.POST('/v1/inspectors' as any, { body: payload as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
 
       await queryClient.invalidateQueries({ queryKey: ['inspectors'] });

@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import { contactSchema } from '@properfy/shared';
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 
-const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
+const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const CREATE_REQUIRED_FIELDS: (keyof AppointmentFormData)[] = [
   'branchId',
@@ -29,7 +29,7 @@ function validateRequired(data: AppointmentFormData, fields: (keyof AppointmentF
 function validateEmail(email: string): string | undefined {
   if (!email) return undefined;
   const result = contactSchema.shape.primaryEmail.safeParse(email);
-  if (!result.success) return 'E-mail inválido';
+  if (!result.success) return 'Invalid email';
   return undefined;
 }
 
@@ -67,9 +67,11 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
     setIsSaving(true);
     try {
       if (appointmentId) {
-        await apiClient.patch(`/v1/appointments/${appointmentId}`, data);
+        const { error } = await api.PATCH(`/v1/appointments/${appointmentId}` as any, { body: data as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        await apiClient.post('/v1/appointments', data);
+        const { error } = await api.POST('/v1/appointments' as any, { body: data as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       return { success: true };

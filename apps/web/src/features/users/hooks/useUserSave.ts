@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { contactSchema } from '@properfy/shared';
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserFormData, UserFormErrors } from '../types';
 
-const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
+const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const REQUIRED_FIELDS: (keyof UserFormData)[] = ['name', 'email', 'role'];
 
@@ -23,7 +23,7 @@ function validateRequired(data: UserFormData, fields: (keyof UserFormData)[]): U
 function validateEmail(email: string): string | undefined {
   if (!email) return undefined;
   const result = contactSchema.shape.primaryEmail.safeParse(email);
-  if (!result.success) return 'E-mail inválido';
+  if (!result.success) return 'Invalid email';
   return undefined;
 }
 
@@ -70,9 +70,11 @@ export function useUserSave(): UseUserSaveReturn {
       };
 
       if (userId) {
-        await apiClient.patch(`/v1/tenants/${tenantId}/users/${userId}`, payload);
+        const { error } = await api.PATCH(`/v1/tenants/${tenantId}/users/${userId}` as any, { body: payload as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        await apiClient.post(`/v1/tenants/${tenantId}/users`, payload);
+        const { error } = await api.POST(`/v1/tenants/${tenantId}/users` as any, { body: payload as any });
+        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
 
       await queryClient.invalidateQueries({ queryKey: ['users'] });
