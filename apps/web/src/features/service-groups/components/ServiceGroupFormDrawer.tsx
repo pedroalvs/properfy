@@ -73,7 +73,7 @@ export function ServiceGroupFormDrawer({ open, onClose, serviceGroupId, onSaved 
     if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
     const result = await save(form, serviceGroupId ?? undefined);
     if (result.success) {
-      showSuccess(isEditMode ? 'Grupo atualizado com sucesso' : 'Grupo criado com sucesso');
+      showSuccess(isEditMode ? 'Service group updated successfully' : 'Service group created successfully');
       onSaved();
     } else {
       showError(result.error ?? 'Failed to save');
@@ -91,39 +91,39 @@ export function ServiceGroupFormDrawer({ open, onClose, serviceGroupId, onSaved 
     <>
       <DrawerPanel open={open} onClose={handleClose} size="wide">
         <div className="flex h-full flex-col">
-          <DrawerHeader title={isEditMode ? 'Editar Grupo' : 'Novo Grupo'} onClose={handleClose} />
+          <DrawerHeader title={isEditMode ? 'Edit Service Group' : 'New Service Group'} onClose={handleClose} />
           {isEditMode && isLoadingDetail ? (
             <div className="flex-1 px-6 py-4"><LoadingState rows={6} /></div>
           ) : (
             <>
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="flex flex-col gap-6">
-                  <FormSection title="Informações" columns={2}>
-                    <FormField label="Nome" required error={errors.name}>
-                      <TextInput value={form.name} onChange={(v) => updateField('name', v)} aria-label="Nome" />
+                  <FormSection title="Information" columns={2}>
+                    <FormField label="Name" required error={errors.name}>
+                      <TextInput value={form.name} onChange={(v) => updateField('name', v)} aria-label="Name" />
                     </FormField>
-                    <FormField label="Região" error={errors.regionName}>
-                      <TextInput value={form.regionName} onChange={(v) => updateField('regionName', v)} aria-label="Região" />
+                    <FormField label="Region" error={errors.regionName}>
+                      <TextInput value={form.regionName} onChange={(v) => updateField('regionName', v)} aria-label="Region" />
                     </FormField>
-                    <FormField label="Prioridade" required error={errors.priorityMode}>
+                    <FormField label="Priority" required error={errors.priorityMode}>
                       <SelectInput
                         value={form.priorityMode}
                         onChange={(v) => updateField('priorityMode', v)}
                         options={PRIORITY_MODE_OPTIONS}
-                        placeholder="Selecione a prioridade"
-                        aria-label="Prioridade"
+                        placeholder="Select priority"
+                        aria-label="Priority"
                       />
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Observações">
-                    <FormField label="Descrição" error={errors.description}>
+                  <FormSection title="Notes">
+                    <FormField label="Description" error={errors.description}>
                       <Textarea
                         value={form.description}
                         onChange={(v) => updateField('description', v)}
                         rows={3}
-                        placeholder="Descrição opcional do grupo"
-                        aria-label="Descrição"
+                        placeholder="Optional group description"
+                        aria-label="Description"
                       />
                     </FormField>
                   </FormSection>
@@ -131,9 +131,9 @@ export function ServiceGroupFormDrawer({ open, onClose, serviceGroupId, onSaved 
               </div>
               <div className="border-t border-black/10 px-6 py-4">
                 <FormActions>
-                  <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
+                  <Button variant="secondary" onClick={handleClose}>Cancel</Button>
                   <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
-                    {isEditMode ? 'Salvar' : 'Criar Grupo'}
+                    {isEditMode ? 'Save' : 'Create Service Group'}
                   </Button>
                 </FormActions>
               </div>
@@ -143,10 +143,10 @@ export function ServiceGroupFormDrawer({ open, onClose, serviceGroupId, onSaved 
       </DrawerPanel>
       <ConfirmDialog
         open={showConfirm}
-        title="Descartar alterações?"
-        message="Você tem alterações não salvas. Deseja descartá-las?"
-        confirmLabel="Descartar"
-        cancelLabel="Continuar editando"
+        title="Discard changes?"
+        message="You have unsaved changes. Do you want to discard them?"
+        confirmLabel="Discard"
+        cancelLabel="Continue editing"
         variant="warning"
         onConfirm={forceClose}
         onClose={cancelDiscard}

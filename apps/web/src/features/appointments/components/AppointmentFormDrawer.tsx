@@ -120,7 +120,7 @@ export function AppointmentFormDrawer({
 
     const result = await save(form, appointmentId ?? undefined);
     if (result.success) {
-      showSuccess(isEditMode ? 'Vistoria atualizada com sucesso' : 'Vistoria criada com sucesso');
+      showSuccess(isEditMode ? 'Appointment updated successfully' : 'Appointment created successfully');
       onSaved();
     } else {
       showError(result.error ?? 'Failed to save');
@@ -149,7 +149,7 @@ export function AppointmentFormDrawer({
       <DrawerPanel open={open} onClose={handleClose} size="wide">
         <div className="flex h-full flex-col">
           <DrawerHeader
-            title={isEditMode ? 'Editar Vistoria' : 'Nova Vistoria'}
+            title={isEditMode ? 'Edit Appointment' : 'New Appointment'}
             onClose={handleClose}
           />
 
@@ -161,127 +161,127 @@ export function AppointmentFormDrawer({
             <>
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="flex flex-col gap-6">
-                  <FormSection title="Dados da Vistoria" columns={2}>
-                    <FormField label="Filial" required error={errors.branchId}>
+                  <FormSection title="Appointment Details" columns={2}>
+                    <FormField label="Branch" required error={errors.branchId}>
                       <SelectInput
                         value={form.branchId}
                         onChange={(v) => updateField('branchId', v)}
                         options={branchOptions}
-                        placeholder="Selecione a filial"
+                        placeholder="Select branch"
                         disabled={isEditMode}
                         error={!!errors.branchId}
-                        aria-label="Filial"
+                        aria-label="Branch"
                       />
                     </FormField>
-                    <FormField label="Imóvel" required error={errors.propertyId}>
+                    <FormField label="Property" required error={errors.propertyId}>
                       <SelectInput
                         value={form.propertyId}
                         onChange={(v) => updateField('propertyId', v)}
                         options={propertyOptions}
-                        placeholder="Selecione o imóvel"
+                        placeholder="Select property"
                         disabled={isEditMode}
                         error={!!errors.propertyId}
-                        aria-label="Imóvel"
+                        aria-label="Property"
                       />
                     </FormField>
-                    <FormField label="Tipo de Serviço" required error={errors.serviceTypeId}>
+                    <FormField label="Service Type" required error={errors.serviceTypeId}>
                       <SelectInput
                         value={form.serviceTypeId}
                         onChange={(v) => updateField('serviceTypeId', v)}
                         options={serviceTypeOptions}
-                        placeholder="Selecione o tipo"
+                        placeholder="Select type"
                         disabled={isEditMode}
                         error={!!errors.serviceTypeId}
-                        aria-label="Tipo de Serviço"
+                        aria-label="Service Type"
                       />
                     </FormField>
-                    <FormField label="Data Agendada" required error={errors.scheduledDate}>
+                    <FormField label="Scheduled Date" required error={errors.scheduledDate}>
                       <DateInput
                         value={form.scheduledDate}
                         onChange={(v) => updateField('scheduledDate', v)}
                         error={!!errors.scheduledDate}
-                        aria-label="Data Agendada"
+                        aria-label="Scheduled Date"
                       />
                     </FormField>
-                    <FormField label="Faixa de Horário" required error={errors.timeSlot}>
+                    <FormField label="Time Slot" required error={errors.timeSlot}>
                       <SelectInput
                         value={form.timeSlot}
                         onChange={(v) => updateField('timeSlot', v)}
                         options={TIME_SLOT_OPTIONS}
-                        placeholder="Selecione o horário"
+                        placeholder="Select time slot"
                         error={!!errors.timeSlot}
-                        aria-label="Faixa de Horário"
+                        aria-label="Time Slot"
                       />
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Contato do Inquilino" columns={2}>
-                    <FormField label="Nome do Inquilino" required error={errors.contactName}>
+                  <FormSection title="Tenant Contact" columns={2}>
+                    <FormField label="Tenant Name" required error={errors.contactName}>
                       <TextInput
                         value={form.contactName}
                         onChange={(v) => updateField('contactName', v)}
-                        placeholder="Nome completo"
+                        placeholder="Full name"
                         error={!!errors.contactName}
-                        aria-label="Nome do Inquilino"
+                        aria-label="Tenant Name"
                       />
                     </FormField>
-                    <FormField label="Telefone" error={errors.contactPhone}>
+                    <FormField label="Phone" error={errors.contactPhone}>
                       <TextInput
                         value={form.contactPhone}
                         onChange={(v) => updateField('contactPhone', v)}
                         type="tel"
                         placeholder="(00) 00000-0000"
                         error={!!errors.contactPhone}
-                        aria-label="Telefone"
+                        aria-label="Phone"
                       />
                     </FormField>
-                    <FormField label="E-mail" error={errors.contactEmail}>
+                    <FormField label="Email" error={errors.contactEmail}>
                       <TextInput
                         value={form.contactEmail}
                         onChange={(v) => updateField('contactEmail', v)}
                         type="email"
-                        placeholder="email@exemplo.com"
+                        placeholder="email@example.com"
                         error={!!errors.contactEmail}
-                        aria-label="E-mail"
+                        aria-label="Email"
                       />
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Acesso e Chave" columns={2}>
+                  <FormSection title="Access & Key" columns={2}>
                     <div className="flex items-center">
                       <Checkbox
-                        label="Chave necessária"
+                        label="Key required"
                         checked={form.keyRequired}
                         onChange={(v) => updateField('keyRequired', v)}
                       />
                     </div>
                     <div />
-                    <FormField label="Local de Encontro" error={errors.meetingLocation}>
+                    <FormField label="Meeting Location" error={errors.meetingLocation}>
                       <TextInput
                         value={form.meetingLocation}
                         onChange={(v) => updateField('meetingLocation', v)}
-                        placeholder="Onde encontrar"
-                        aria-label="Local de Encontro"
+                        placeholder="Where to meet"
+                        aria-label="Meeting Location"
                       />
                     </FormField>
-                    <FormField label="Local da Chave" error={errors.keyLocation}>
+                    <FormField label="Key Location" error={errors.keyLocation}>
                       <TextInput
                         value={form.keyLocation}
                         onChange={(v) => updateField('keyLocation', v)}
-                        placeholder="Onde retirar a chave"
-                        aria-label="Local da Chave"
+                        placeholder="Where to pick up key"
+                        aria-label="Key Location"
                       />
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Observações">
-                    <FormField label="Observações" error={errors.notes}>
+                  <FormSection title="Notes">
+                    <FormField label="Notes" error={errors.notes}>
                       <Textarea
                         value={form.notes}
                         onChange={(v) => updateField('notes', v)}
                         rows={4}
-                        placeholder="Informações adicionais"
-                        aria-label="Observações"
+                        placeholder="Additional information"
+                        aria-label="Notes"
                       />
                     </FormField>
                   </FormSection>
@@ -291,10 +291,10 @@ export function AppointmentFormDrawer({
               <div className="border-t border-black/10 px-6 py-4">
                 <FormActions>
                   <Button variant="secondary" onClick={handleClose}>
-                    Cancelar
+                    Cancel
                   </Button>
                   <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
-                    {isEditMode ? 'Salvar' : 'Criar Vistoria'}
+                    {isEditMode ? 'Save' : 'Create Appointment'}
                   </Button>
                 </FormActions>
               </div>
@@ -305,10 +305,10 @@ export function AppointmentFormDrawer({
 
       <ConfirmDialog
         open={showConfirm}
-        title="Descartar alterações?"
-        message="Você tem alterações não salvas. Deseja descartá-las?"
-        confirmLabel="Descartar"
-        cancelLabel="Continuar editando"
+        title="Discard changes?"
+        message="You have unsaved changes. Do you want to discard them?"
+        confirmLabel="Discard"
+        cancelLabel="Continue editing"
         variant="warning"
         onConfirm={forceClose}
         onClose={cancelDiscard}

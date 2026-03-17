@@ -44,7 +44,7 @@ export function StatusTransitionDialog({
       actions={
         <>
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancelar
+            Cancel
           </Button>
           <button
             className={`inline-flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-150 select-none ${confirmButtonClass} ${
@@ -54,17 +54,17 @@ export function StatusTransitionDialog({
             onClick={() => onConfirm(reason.trim())}
           >
             {loading && <i className="mdi mdi-loading mdi-spin text-base" aria-hidden="true" />}
-            Confirmar
+            Confirm
           </button>
         </>
       }
     >
       <p className="mb-4 text-sm text-text-secondary">{message}</p>
-      <FormField label="Motivo" required>
+      <FormField label="Reason" required>
         <Textarea
           value={reason}
           onChange={setReason}
-          placeholder="Informe o motivo..."
+          placeholder="Enter the reason..."
           rows={3}
         />
       </FormField>

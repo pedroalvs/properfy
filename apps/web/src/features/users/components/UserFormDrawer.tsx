@@ -98,7 +98,7 @@ export function UserFormDrawer({
     }
     const result = await save(form, userId ?? undefined);
     if (result.success) {
-      showSuccess(isEditMode ? 'Usuário atualizado com sucesso' : 'Usuário criado com sucesso');
+      showSuccess(isEditMode ? 'User updated successfully' : 'User created successfully');
       onSaved();
     } else {
       showError(result.error ?? 'Failed to save');
@@ -127,7 +127,7 @@ export function UserFormDrawer({
       <DrawerPanel open={open} onClose={handleClose} size="wide">
         <div className="flex h-full flex-col">
           <DrawerHeader
-            title={isEditMode ? 'Editar Usuário' : 'Novo Usuário'}
+            title={isEditMode ? 'Edit User' : 'New User'}
             onClose={handleClose}
           />
           {isEditMode && isLoadingDetail ? (
@@ -138,48 +138,48 @@ export function UserFormDrawer({
             <>
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="flex flex-col gap-6">
-                  <FormSection title="Dados Pessoais" columns={2}>
-                    <FormField label="Nome" required error={errors.name}>
+                  <FormSection title="Personal Details" columns={2}>
+                    <FormField label="Name" required error={errors.name}>
                       <TextInput
                         value={form.name}
                         onChange={(v) => updateField('name', v)}
-                        aria-label="Nome"
+                        aria-label="Name"
                       />
                     </FormField>
-                    <FormField label="E-mail" required error={errors.email}>
+                    <FormField label="Email" required error={errors.email}>
                       <TextInput
                         value={form.email}
                         onChange={(v) => updateField('email', v)}
-                        aria-label="E-mail"
+                        aria-label="Email"
                       />
                     </FormField>
-                    <FormField label="Telefone" error={errors.phone}>
+                    <FormField label="Phone" error={errors.phone}>
                       <TextInput
                         value={form.phone}
                         onChange={(v) => updateField('phone', v)}
                         type="tel"
-                        aria-label="Telefone"
+                        aria-label="Phone"
                       />
                     </FormField>
-                    <FormField label="Perfil" required error={errors.role}>
+                    <FormField label="Role" required error={errors.role}>
                       <SelectInput
                         value={form.role}
                         onChange={(v) => updateField('role', v)}
                         options={USER_ROLE_OPTIONS}
-                        placeholder="Selecione o perfil"
-                        aria-label="Perfil"
+                        placeholder="Select role"
+                        aria-label="Role"
                       />
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Vínculo" columns={2}>
-                    <FormField label="Filial" error={errors.branchId}>
+                  <FormSection title="Assignment" columns={2}>
+                    <FormField label="Branch" error={errors.branchId}>
                       <SelectInput
                         value={form.branchId}
                         onChange={(v) => updateField('branchId', v)}
                         options={branchOptions}
-                        placeholder="Nenhuma"
-                        aria-label="Filial"
+                        placeholder="None"
+                        aria-label="Branch"
                       />
                     </FormField>
                   </FormSection>
@@ -202,10 +202,10 @@ export function UserFormDrawer({
               <div className="border-t border-black/10 px-6 py-4">
                 <FormActions>
                   <Button variant="secondary" onClick={handleClose}>
-                    Cancelar
+                    Cancel
                   </Button>
                   <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
-                    {isEditMode ? 'Salvar' : 'Criar Usuário'}
+                    {isEditMode ? 'Save' : 'Create User'}
                   </Button>
                 </FormActions>
               </div>
@@ -216,10 +216,10 @@ export function UserFormDrawer({
 
       <ConfirmDialog
         open={showConfirm}
-        title="Descartar alterações?"
-        message="Você tem alterações não salvas. Deseja descartá-las?"
-        confirmLabel="Descartar"
-        cancelLabel="Continuar editando"
+        title="Discard changes?"
+        message="You have unsaved changes. Do you want to discard them?"
+        confirmLabel="Discard"
+        cancelLabel="Continue editing"
         variant="warning"
         onConfirm={forceClose}
         onClose={cancelDiscard}

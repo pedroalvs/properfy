@@ -103,7 +103,7 @@ export function PropertyFormDrawer({
     }
     const result = await save(form, propertyId ?? undefined);
     if (result.success) {
-      showSuccess(isEditMode ? 'Imóvel atualizado com sucesso' : 'Imóvel criado com sucesso');
+      showSuccess(isEditMode ? 'Property updated successfully' : 'Property created successfully');
       onSaved();
     } else {
       showError(result.error ?? 'Failed to save');
@@ -132,7 +132,7 @@ export function PropertyFormDrawer({
       <DrawerPanel open={open} onClose={handleClose} size="wide">
         <div className="flex h-full flex-col">
           <DrawerHeader
-            title={isEditMode ? 'Editar Imóvel' : 'Novo Imóvel'}
+            title={isEditMode ? 'Edit Property' : 'New Property'}
             onClose={handleClose}
           />
           {isEditMode && isLoadingDetail ? (
@@ -143,88 +143,88 @@ export function PropertyFormDrawer({
             <>
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="flex flex-col gap-6">
-                  <FormSection title="Identificação" columns={2}>
-                    <FormField label="Código do Imóvel" required error={errors.propertyCode}>
+                  <FormSection title="Identification" columns={2}>
+                    <FormField label="Property Code" required error={errors.propertyCode}>
                       <TextInput
                         value={form.propertyCode}
                         onChange={(v) => updateField('propertyCode', v)}
                         disabled={isEditMode}
-                        aria-label="Código do Imóvel"
+                        aria-label="Property Code"
                       />
                     </FormField>
-                    <FormField label="Tipo" required error={errors.type}>
+                    <FormField label="Type" required error={errors.type}>
                       <SelectInput
                         value={form.type}
                         onChange={(v) => updateField('type', v)}
                         options={PROPERTY_TYPE_OPTIONS}
-                        placeholder="Selecione o tipo"
-                        aria-label="Tipo"
+                        placeholder="Select type"
+                        aria-label="Type"
                       />
                     </FormField>
-                    <FormField label="Filial" error={errors.branchId}>
+                    <FormField label="Branch" error={errors.branchId}>
                       <SelectInput
                         value={form.branchId}
                         onChange={(v) => updateField('branchId', v)}
                         options={branchOptions}
-                        placeholder="Selecione a filial"
-                        aria-label="Filial"
+                        placeholder="Select branch"
+                        aria-label="Branch"
                       />
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Endereço" columns={2}>
-                    <FormField label="Rua" required error={errors.street}>
+                  <FormSection title="Address" columns={2}>
+                    <FormField label="Street" required error={errors.street}>
                       <TextInput
                         value={form.street}
                         onChange={(v) => updateField('street', v)}
-                        aria-label="Rua"
+                        aria-label="Street"
                       />
                     </FormField>
-                    <FormField label="Complemento" error={errors.addressLine2}>
+                    <FormField label="Address Line 2" error={errors.addressLine2}>
                       <TextInput
                         value={form.addressLine2}
                         onChange={(v) => updateField('addressLine2', v)}
-                        aria-label="Complemento"
+                        aria-label="Address Line 2"
                       />
                     </FormField>
-                    <FormField label="Bairro" required error={errors.suburb}>
+                    <FormField label="Suburb" required error={errors.suburb}>
                       <TextInput
                         value={form.suburb}
                         onChange={(v) => updateField('suburb', v)}
-                        aria-label="Bairro"
+                        aria-label="Suburb"
                       />
                     </FormField>
-                    <FormField label="CEP" required error={errors.postcode}>
+                    <FormField label="Postcode" required error={errors.postcode}>
                       <TextInput
                         value={form.postcode}
                         onChange={(v) => updateField('postcode', v)}
-                        aria-label="CEP"
+                        aria-label="Postcode"
                       />
                     </FormField>
-                    <FormField label="Estado" required error={errors.state}>
+                    <FormField label="State" required error={errors.state}>
                       <TextInput
                         value={form.state}
                         onChange={(v) => updateField('state', v)}
-                        aria-label="Estado"
+                        aria-label="State"
                       />
                     </FormField>
-                    <FormField label="País" error={errors.country}>
+                    <FormField label="Country" error={errors.country}>
                       <TextInput
                         value={form.country}
                         onChange={(v) => updateField('country', v)}
-                        aria-label="País"
+                        aria-label="Country"
                       />
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Observações">
-                    <FormField label="Observações" error={errors.notes}>
+                  <FormSection title="Notes">
+                    <FormField label="Notes" error={errors.notes}>
                       <Textarea
                         value={form.notes}
                         onChange={(v) => updateField('notes', v)}
                         rows={4}
-                        placeholder="Informações adicionais"
-                        aria-label="Observações"
+                        placeholder="Additional information"
+                        aria-label="Notes"
                       />
                     </FormField>
                   </FormSection>
@@ -234,10 +234,10 @@ export function PropertyFormDrawer({
               <div className="border-t border-black/10 px-6 py-4">
                 <FormActions>
                   <Button variant="secondary" onClick={handleClose}>
-                    Cancelar
+                    Cancel
                   </Button>
                   <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
-                    {isEditMode ? 'Salvar' : 'Criar Imóvel'}
+                    {isEditMode ? 'Save' : 'Create Property'}
                   </Button>
                 </FormActions>
               </div>
@@ -248,10 +248,10 @@ export function PropertyFormDrawer({
 
       <ConfirmDialog
         open={showConfirm}
-        title="Descartar alterações?"
-        message="Você tem alterações não salvas. Deseja descartá-las?"
-        confirmLabel="Descartar"
-        cancelLabel="Continuar editando"
+        title="Discard changes?"
+        message="You have unsaved changes. Do you want to discard them?"
+        confirmLabel="Discard"
+        cancelLabel="Continue editing"
         variant="warning"
         onConfirm={forceClose}
         onClose={cancelDiscard}

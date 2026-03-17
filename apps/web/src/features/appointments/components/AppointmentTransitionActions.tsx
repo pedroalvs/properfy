@@ -75,7 +75,7 @@ export function AppointmentTransitionActions({
           onClose={() => setDialogTransition(null)}
           onConfirm={handleConfirm}
           title={dialogTransition.label}
-          message={`Confirma a transição para "${dialogTransition.label}"?`}
+          message={`Are you sure you want to transition to "${dialogTransition.label}"?`}
           variant={dialogTransition.variant === 'danger' ? 'danger' : 'warning'}
           loading={loading}
         />

@@ -5,10 +5,10 @@ import { PageHeader, type PageHeaderAction } from '../PageHeader';
  * Template: Grouped List
  *
  * Usage pattern:
- *   <GroupedListTemplate title="Financeiro">
- *     <PageSectionHeader title="Março 2025" count={12} />
+ *   <GroupedListTemplate title="Financial">
+ *     <PageSectionHeader title="March 2025" count={12} />
  *     <EntityListCard>...</EntityListCard>
- *     <PageSectionHeader title="Fevereiro 2025" count={8} />
+ *     <PageSectionHeader title="February 2025" count={8} />
  *     <EntityListCard>...</EntityListCard>
  *   </GroupedListTemplate>
  */
