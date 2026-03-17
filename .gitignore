@@ -40,3 +40,4 @@ pnpm-debug.log*
 .cache/
 tmp/
 temp/
+.worktrees/
