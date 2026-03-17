@@ -66,6 +66,8 @@ function makeAMContext(overrides: Partial<AuthContext> = {}): AuthContext {
     userId: 'admin-1',
     tenantId: null,
     role: 'AM',
+    branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }
@@ -75,6 +77,8 @@ function makeOPContext(overrides: Partial<AuthContext> = {}): AuthContext {
     userId: 'operator-1',
     tenantId: 'tenant-1',
     role: 'OP',
+    branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }
@@ -224,7 +228,7 @@ describe('GeneratePortalTokenUseCase', () => {
     await expect(
       useCase.execute(
         makeInput({
-          actor: { userId: 'client-1', tenantId: 'tenant-1', role: 'CL_ADMIN' },
+          actor: { userId: 'client-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null },
         }),
       ),
     ).rejects.toThrow(ForbiddenError);
@@ -236,7 +240,7 @@ describe('GeneratePortalTokenUseCase', () => {
     await expect(
       useCase.execute(
         makeInput({
-          actor: { userId: 'insp-1', tenantId: null, role: 'INSP' },
+          actor: { userId: 'insp-1', tenantId: null, role: 'INSP', branchId: null, inspectorId: null },
         }),
       ),
     ).rejects.toThrow(ForbiddenError);
@@ -248,7 +252,7 @@ describe('GeneratePortalTokenUseCase', () => {
     await expect(
       useCase.execute(
         makeInput({
-          actor: { userId: 'user-1', tenantId: 'tenant-1', role: 'CL_USER' },
+          actor: { userId: 'user-1', tenantId: 'tenant-1', role: 'CL_USER', branchId: null, inspectorId: null },
         }),
       ),
     ).rejects.toThrow(ForbiddenError);

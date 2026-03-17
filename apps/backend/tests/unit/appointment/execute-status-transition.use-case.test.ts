@@ -86,6 +86,7 @@ function makeActor(role: AuthContext['role'], overrides: Partial<AuthContext> = 
     tenantId: role === 'AM' || role === 'OP' ? null : 'tenant-1',
     role,
     branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }
@@ -229,7 +230,7 @@ describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
       appointmentId: 'appt-1',
       targetStatus: 'DONE',
       doneCheckedByUserId: 'checker-1',
-      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1' }),
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
     });
     expect(result.status).toBe('DONE');
     expect(result.doneCheckedByUserId).toBe('checker-1');
@@ -402,7 +403,7 @@ describe('ExecuteStatusTransitionUseCase – error cases', () => {
     const result = await uc.execute({
       appointmentId: 'appt-1',
       targetStatus: 'DONE',
-      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1' }),
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
     });
     expect(result.status).toBe('DONE');
     expect(result.doneCheckedByUserId).toBeNull();
@@ -420,7 +421,7 @@ describe('ExecuteStatusTransitionUseCase – error cases', () => {
         appointmentId: 'appt-1',
         targetStatus: 'DONE',
         doneCheckedByUserId: 'checker-1',
-        actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1' }),
+        actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
       }),
     ).rejects.toThrow(AppointmentDoneCheckerInvalidRoleError);
   });
@@ -436,7 +437,7 @@ describe('ExecuteStatusTransitionUseCase – error cases', () => {
         appointmentId: 'appt-1',
         targetStatus: 'DONE',
         doneCheckedByUserId: 'nonexistent',
-        actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1' }),
+        actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
       }),
     ).rejects.toThrow(AppointmentDoneCheckerInvalidRoleError);
   });
@@ -465,7 +466,7 @@ describe('ExecuteStatusTransitionUseCase – error cases', () => {
         appointmentId: 'appt-1',
         targetStatus: 'DONE',
         doneCheckedByUserId: 'checker-1',
-        actor: makeActor('INSP', { userId: 'different-insp', tenantId: 'tenant-1' }),
+        actor: makeActor('INSP', { userId: 'different-insp', tenantId: 'tenant-1', inspectorId: 'different-insp' }),
       }),
     ).rejects.toThrow(AppointmentAccessDeniedError);
   });
@@ -594,7 +595,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
       appointmentId: 'appt-1',
       targetStatus: 'DONE',
       doneCheckedByUserId: 'checker-1',
-      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1' }),
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
     });
     expect(result.doneCheckedByUserId).toBe('checker-1');
     expect(result.doneCheckedAt).toBeInstanceOf(Date);

@@ -34,6 +34,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
     tenantId: null,
     role: 'AM',
     branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }
@@ -148,7 +149,7 @@ describe('ListFinancialEntriesUseCase', () => {
       ...defaultInput,
       inspectorId: 'some-other-inspector', // Should be ignored
       type: 'TENANT_DEBIT', // Should be ignored
-      actor: makeActor({ role: 'INSP', userId: 'insp-user-1' }),
+      actor: makeActor({ role: 'INSP', userId: 'insp-user-1', inspectorId: 'insp-user-1' }),
     });
 
     expect(entryRepo.findAll).toHaveBeenCalledWith(

@@ -50,6 +50,7 @@ const amContext = {
   tenantId: null,
   role: 'AM',
   branchId: null,
+  inspectorId: null,
 };
 
 let app: FastifyInstance;
@@ -79,6 +80,7 @@ describe('POST /v1/tenants/:tenantId/users', () => {
       role: 'CL_ADMIN',
       tenantId: TENANT_ID,
       branchId: null,
+      inspectorId: null,
       phone: null,
       status: 'ACTIVE',
       totpEnabled: false,
@@ -160,6 +162,7 @@ describe('GET /v1/tenants/:tenantId/users', () => {
           role: 'CL_ADMIN',
           tenantId: TENANT_ID,
           branchId: null,
+          inspectorId: null,
           phone: null,
           status: 'ACTIVE',
           totpEnabled: false,
@@ -201,6 +204,7 @@ describe('GET /v1/tenants/:tenantId/users/:userId', () => {
       role: 'CL_ADMIN',
       tenantId: TENANT_ID,
       branchId: null,
+      inspectorId: null,
       phone: null,
       status: 'ACTIVE',
       totpEnabled: false,
@@ -252,6 +256,7 @@ describe('PATCH /v1/tenants/:tenantId/users/:userId', () => {
       role: 'CL_ADMIN',
       tenantId: TENANT_ID,
       branchId: null,
+      inspectorId: null,
       phone: '+61412345678',
       status: 'ACTIVE',
       totpEnabled: false,

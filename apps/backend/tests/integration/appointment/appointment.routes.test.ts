@@ -50,8 +50,8 @@ const SERVICE_TYPE_ID = 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
 const APPOINTMENT_ID = 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55';
 const USER_ID = 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66';
 
-const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null };
-const clAdminContext = { userId: USER_ID, tenantId: TENANT_ID, role: 'CL_ADMIN', branchId: null };
+const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
+const clAdminContext = { userId: USER_ID, tenantId: TENANT_ID, role: 'CL_ADMIN', branchId: null, inspectorId: null };
 
 const appointmentResult = {
   id: APPOINTMENT_ID,

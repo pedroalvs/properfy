@@ -39,6 +39,7 @@ describe('ListUsersUseCase', () => {
     tenantId: null,
     role: 'AM',
     branchId: null,
+    inspectorId: null,
   };
 
   const opActor: AuthContext = {
@@ -46,6 +47,7 @@ describe('ListUsersUseCase', () => {
     tenantId: null,
     role: 'OP',
     branchId: null,
+    inspectorId: null,
   };
 
   const clAdminActor: AuthContext = {
@@ -53,6 +55,7 @@ describe('ListUsersUseCase', () => {
     tenantId: 'tenant-1',
     role: 'CL_ADMIN',
     branchId: null,
+    inspectorId: null,
   };
 
   const defaultPagination = {

@@ -41,7 +41,7 @@ const TENANT_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 const SERVICE_TYPE_ID = 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
 const PRICING_RULE_ID = 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55';
 
-const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null };
+const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 
 let app: FastifyInstance;
 

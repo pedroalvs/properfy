@@ -42,8 +42,8 @@ vi.mock('../../../src/main/container', () => ({
 }));
 
 const REPORT_ID = 'a1eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-const amContext = { userId: 'am-1', tenantId: null, role: 'AM', branchId: null };
-const clAdminContext = { userId: 'cl-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null };
+const amContext = { userId: 'am-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
+const clAdminContext = { userId: 'cl-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
 
 let app: FastifyInstance;
 

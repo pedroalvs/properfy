@@ -51,6 +51,8 @@ function makeAuth(overrides: Partial<AuthContext> = {}): AuthContext {
     userId: 'user-1',
     tenantId: null,
     role: 'AM',
+    branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }

@@ -89,6 +89,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
     tenantId: null,
     role: 'AM',
     branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }
@@ -157,7 +158,7 @@ describe('GetAppointmentUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      actor: makeActor({ role: 'INSP', userId: 'inspector-user-1' }),
+      actor: makeActor({ role: 'INSP', userId: 'inspector-user-1', inspectorId: 'inspector-user-1' }),
     });
 
     expect(result.id).toBe('appt-1');
@@ -172,7 +173,7 @@ describe('GetAppointmentUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        actor: makeActor({ role: 'INSP', userId: 'inspector-user-1' }),
+        actor: makeActor({ role: 'INSP', userId: 'inspector-user-1', inspectorId: 'inspector-user-1' }),
       }),
     ).rejects.toThrow(AppointmentAccessDeniedError);
   });

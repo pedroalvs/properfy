@@ -74,6 +74,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
     tenantId: 'tenant-1',
     role: 'CL_ADMIN',
     branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }

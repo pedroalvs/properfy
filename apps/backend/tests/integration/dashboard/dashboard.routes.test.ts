@@ -37,6 +37,7 @@ const amContext = {
   tenantId: null,
   role: 'AM',
   branchId: null,
+  inspectorId: null,
 };
 
 const mockStats = {

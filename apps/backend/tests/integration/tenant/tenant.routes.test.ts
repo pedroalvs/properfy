@@ -58,6 +58,7 @@ const amContext = {
   tenantId: null,
   role: 'AM',
   branchId: null,
+  inspectorId: null,
 };
 
 let app: FastifyInstance;

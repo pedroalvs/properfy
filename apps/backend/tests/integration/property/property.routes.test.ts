@@ -44,7 +44,7 @@ vi.mock('../../../src/main/container', () => ({
 const TENANT_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 const PROPERTY_ID = 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33';
 
-const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null };
+const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 
 let app: FastifyInstance;
 

@@ -171,6 +171,7 @@ describe('POST /v1/auth/logout', () => {
       tenantId: 'tenant-1',
       role: 'CL_ADMIN',
       branchId: null,
+      inspectorId: null,
     });
     mockLogoutExecute.mockResolvedValueOnce(undefined);
 
@@ -194,6 +195,7 @@ describe('GET /v1/me', () => {
       tenantId: 'tenant-1',
       role: 'CL_ADMIN',
       branchId: null,
+      inspectorId: null,
     });
     mockGetMeExecute.mockResolvedValueOnce({
       id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
@@ -202,6 +204,7 @@ describe('GET /v1/me', () => {
       role: 'CL_ADMIN',
       tenantId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
       branchId: null,
+      inspectorId: null,
       totpEnabled: false,
     });
 
@@ -234,6 +237,7 @@ describe('POST /v1/auth/change-password', () => {
       tenantId: 'tenant-1',
       role: 'CL_ADMIN',
       branchId: null,
+      inspectorId: null,
     });
     mockChangePasswordExecute.mockResolvedValueOnce(undefined);
 
@@ -251,6 +255,7 @@ describe('POST /v1/auth/change-password', () => {
       tenantId: 'tenant-1',
       role: 'CL_ADMIN',
       branchId: null,
+      inspectorId: null,
     });
 
     const res = await supertest(app.server)
@@ -269,6 +274,7 @@ describe('DELETE /v1/auth/sessions/:sessionId', () => {
       tenantId: 'tenant-1',
       role: 'CL_ADMIN',
       branchId: null,
+      inspectorId: null,
     });
     mockRevokeSessionExecute.mockResolvedValueOnce(undefined);
 
@@ -285,6 +291,7 @@ describe('DELETE /v1/auth/sessions/:sessionId', () => {
       tenantId: 'tenant-1',
       role: 'CL_ADMIN',
       branchId: null,
+      inspectorId: null,
     });
     const { ForbiddenError } = await import('../../../src/shared/domain/errors');
     mockRevokeSessionExecute.mockRejectedValueOnce(
@@ -304,6 +311,7 @@ describe('DELETE /v1/auth/sessions/:sessionId', () => {
       tenantId: null,
       role: 'AM',
       branchId: null,
+      inspectorId: null,
     });
     mockRevokeSessionExecute.mockResolvedValueOnce(undefined);
 

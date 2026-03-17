@@ -65,6 +65,7 @@ const inspActor: AuthContext = {
   tenantId: 'tenant-1',
   role: 'INSP' as const,
   branchId: null,
+  inspectorId: 'insp-1',
 };
 
 describe('RequestAssetUploadUseCase', () => {
@@ -122,6 +123,7 @@ describe('RequestAssetUploadUseCase', () => {
       tenantId: 'tenant-1',
       role: 'OP' as const,
       branchId: null,
+      inspectorId: null,
     };
 
     await expect(

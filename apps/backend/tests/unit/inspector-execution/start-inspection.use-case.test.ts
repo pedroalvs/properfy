@@ -77,6 +77,7 @@ const inspActor = {
   tenantId: 'tenant-1',
   role: 'INSP' as const,
   branchId: null,
+  inspectorId: 'insp-1',
 };
 
 function makeSut() {
@@ -314,7 +315,7 @@ describe('StartInspectionUseCase', () => {
         latitude: -33.891,
         longitude: 151.277,
         idempotencyKey: 'key-8',
-        actor: { userId: 'user-1', tenantId: 'tenant-1', role: 'CL_ADMIN' as any, branchId: null },
+        actor: { userId: 'user-1', tenantId: 'tenant-1', role: 'CL_ADMIN' as any, branchId: null, inspectorId: null },
       }),
     ).rejects.toThrow(ForbiddenError);
   });

@@ -68,6 +68,7 @@ const inspActor: AuthContext = {
   tenantId: 'tenant-1',
   role: 'INSP',
   branchId: null,
+  inspectorId: 'insp-1',
 };
 
 describe('GetInspectorScheduleUseCase', () => {
@@ -135,7 +136,7 @@ describe('GetInspectorScheduleUseCase', () => {
   });
 
   it('should throw ForbiddenError when actor role is not INSP', async () => {
-    const amActor: AuthContext = { userId: 'user-1', tenantId: null, role: 'AM', branchId: null };
+    const amActor: AuthContext = { userId: 'user-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 
     await expect(useCase.execute({ date: '2026-03-21', actor: amActor })).rejects.toThrow(
       ForbiddenError,

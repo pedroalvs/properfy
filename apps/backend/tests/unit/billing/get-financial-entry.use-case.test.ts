@@ -35,6 +35,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
     tenantId: null,
     role: 'AM',
     branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }
@@ -135,7 +136,7 @@ describe('GetFinancialEntryUseCase', () => {
 
     const result = await useCase.execute({
       entryId: 'entry-1',
-      actor: makeActor({ role: 'INSP', userId: 'insp-user-1' }),
+      actor: makeActor({ role: 'INSP', userId: 'insp-user-1', inspectorId: 'insp-user-1' }),
     });
 
     expect(result.id).toBe('entry-1');
@@ -153,7 +154,7 @@ describe('GetFinancialEntryUseCase', () => {
     await expect(
       useCase.execute({
         entryId: 'entry-1',
-        actor: makeActor({ role: 'INSP', userId: 'insp-user-1' }),
+        actor: makeActor({ role: 'INSP', userId: 'insp-user-1', inspectorId: 'insp-user-1' }),
       }),
     ).rejects.toThrow(EntryNotFoundError);
   });
@@ -169,7 +170,7 @@ describe('GetFinancialEntryUseCase', () => {
     await expect(
       useCase.execute({
         entryId: 'entry-1',
-        actor: makeActor({ role: 'INSP', userId: 'insp-user-1' }),
+        actor: makeActor({ role: 'INSP', userId: 'insp-user-1', inspectorId: 'insp-user-1' }),
       }),
     ).rejects.toThrow(EntryNotFoundError);
   });

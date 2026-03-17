@@ -33,6 +33,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
     tenantId: null,
     role: 'AM',
     branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }
@@ -93,7 +94,7 @@ describe('ListInvoicesUseCase', () => {
       inspectorId: 'insp-other', // Should be ignored
       page: 1,
       pageSize: 10,
-      actor: makeActor({ role: 'INSP', userId: 'insp-1' }),
+      actor: makeActor({ role: 'INSP', userId: 'insp-1', inspectorId: 'insp-1' }),
     });
 
     expect(invoiceRepo.findAll).toHaveBeenCalledWith(

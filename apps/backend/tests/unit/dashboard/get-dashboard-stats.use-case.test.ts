@@ -44,7 +44,7 @@ describe('GetDashboardStatsUseCase', () => {
 
   it('should delegate to repository without tenantId for AM role', async () => {
     const result = await useCase.execute({
-      actor: { userId: 'u1', tenantId: null, role: 'AM', branchId: null },
+      actor: { userId: 'u1', tenantId: null, role: 'AM', branchId: null, inspectorId: null },
     });
 
     expect(repository.getStats).toHaveBeenCalledWith(undefined);
@@ -53,7 +53,7 @@ describe('GetDashboardStatsUseCase', () => {
 
   it('should delegate to repository without tenantId for OP role', async () => {
     await useCase.execute({
-      actor: { userId: 'u2', tenantId: null, role: 'OP', branchId: null },
+      actor: { userId: 'u2', tenantId: null, role: 'OP', branchId: null, inspectorId: null },
     });
 
     expect(repository.getStats).toHaveBeenCalledWith(undefined);
@@ -61,7 +61,7 @@ describe('GetDashboardStatsUseCase', () => {
 
   it('should delegate to repository with tenantId for CL_ADMIN role', async () => {
     await useCase.execute({
-      actor: { userId: 'u3', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null },
+      actor: { userId: 'u3', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null },
     });
 
     expect(repository.getStats).toHaveBeenCalledWith('tenant-1');
@@ -69,7 +69,7 @@ describe('GetDashboardStatsUseCase', () => {
 
   it('should delegate to repository with tenantId for CL_USER role', async () => {
     await useCase.execute({
-      actor: { userId: 'u4', tenantId: 'tenant-2', role: 'CL_USER', branchId: 'b1' },
+      actor: { userId: 'u4', tenantId: 'tenant-2', role: 'CL_USER', branchId: 'b1', inspectorId: null },
     });
 
     expect(repository.getStats).toHaveBeenCalledWith('tenant-2');
@@ -78,7 +78,7 @@ describe('GetDashboardStatsUseCase', () => {
   it('should throw ForbiddenError for INSP role', async () => {
     await expect(
       useCase.execute({
-        actor: { userId: 'u5', tenantId: null, role: 'INSP', branchId: null },
+        actor: { userId: 'u5', tenantId: null, role: 'INSP', branchId: null, inspectorId: null },
       }),
     ).rejects.toThrow('Insufficient permissions to view dashboard stats');
   });
@@ -86,7 +86,7 @@ describe('GetDashboardStatsUseCase', () => {
   it('should throw ForbiddenError for TNT role', async () => {
     await expect(
       useCase.execute({
-        actor: { userId: 'u6', tenantId: null, role: 'TNT' as never, branchId: null },
+        actor: { userId: 'u6', tenantId: null, role: 'TNT' as never, branchId: null, inspectorId: null },
       }),
     ).rejects.toThrow('Insufficient permissions to view dashboard stats');
   });

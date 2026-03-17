@@ -41,6 +41,7 @@ const inspActor = {
   tenantId: 'tenant-1',
   role: 'INSP' as const,
   branchId: null,
+  inspectorId: 'insp-1',
 };
 
 function makeExecution(overrides = {}) {
@@ -269,7 +270,7 @@ describe('FinishInspectionUseCase', () => {
         latitude: -33.900,
         longitude: 151.300,
         idempotencyKey: 'key-7',
-        actor: { userId: 'user-1', tenantId: 'tenant-1', role: 'CL_ADMIN' as any, branchId: null },
+        actor: { userId: 'user-1', tenantId: 'tenant-1', role: 'CL_ADMIN' as any, branchId: null, inspectorId: null },
       }),
     ).rejects.toThrow(ForbiddenError);
   });

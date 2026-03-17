@@ -30,6 +30,7 @@ const amActor: AuthContext = {
   tenantId: null,
   role: 'AM',
   branchId: null,
+  inspectorId: null,
 };
 
 const opActor: AuthContext = {
@@ -37,6 +38,7 @@ const opActor: AuthContext = {
   tenantId: 'tenant-1',
   role: 'OP',
   branchId: null,
+  inspectorId: null,
 };
 
 const clAdminActor: AuthContext = {
@@ -103,7 +105,7 @@ describe('ListAuditLogsUseCase', () => {
       useCase.execute({
         filters: {},
         pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
-        actor: { userId: 'insp-1', tenantId: null, role: 'INSP', branchId: null },
+        actor: { userId: 'insp-1', tenantId: null, role: 'INSP', branchId: null, inspectorId: null },
       }),
     ).rejects.toThrow(ForbiddenError);
   });

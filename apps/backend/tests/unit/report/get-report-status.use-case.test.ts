@@ -52,7 +52,7 @@ describe('GetReportStatusUseCase', () => {
     const report = makeReport({ errorMessage: 'some internal error', status: 'FAILED' as any });
     vi.mocked(repo.findById).mockResolvedValue(report);
 
-    const auth: AuthContext = { userId: 'admin-user', tenantId: null, role: 'AM' };
+    const auth: AuthContext = { userId: 'admin-user', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
     const result = await useCase.execute('report-1', auth);
 
     expect(result.id).toBe('report-1');
@@ -66,7 +66,7 @@ describe('GetReportStatusUseCase', () => {
     const report = makeReport({ errorMessage: 'timeout', status: 'FAILED' as any });
     vi.mocked(repo.findById).mockResolvedValue(report);
 
-    const auth: AuthContext = { userId: 'op-user', tenantId: null, role: 'OP' };
+    const auth: AuthContext = { userId: 'op-user', tenantId: null, role: 'OP', branchId: null, inspectorId: null };
     const result = await useCase.execute('report-1', auth);
 
     expect(result.id).toBe('report-1');
@@ -77,7 +77,7 @@ describe('GetReportStatusUseCase', () => {
     const report = makeReport({ requestedByUserId: 'cl-admin-1' });
     vi.mocked(repo.findById).mockResolvedValue(report);
 
-    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN' };
+    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
     const result = await useCase.execute('report-1', auth);
 
     expect(result.id).toBe('report-1');
@@ -89,7 +89,7 @@ describe('GetReportStatusUseCase', () => {
     const report = makeReport({ requestedByUserId: 'other-user' });
     vi.mocked(repo.findById).mockResolvedValue(report);
 
-    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN' };
+    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
 
     await expect(useCase.execute('report-1', auth)).rejects.toThrow(ReportNotFoundError);
   });
@@ -97,7 +97,7 @@ describe('GetReportStatusUseCase', () => {
   it('throws ReportNotFoundError when report does not exist', async () => {
     vi.mocked(repo.findById).mockResolvedValue(null);
 
-    const auth: AuthContext = { userId: 'user-1', tenantId: 'tenant-1', role: 'AM' };
+    const auth: AuthContext = { userId: 'user-1', tenantId: 'tenant-1', role: 'AM', branchId: null, inspectorId: null };
 
     await expect(useCase.execute('nonexistent', auth)).rejects.toThrow(ReportNotFoundError);
   });
@@ -111,12 +111,12 @@ describe('GetReportStatusUseCase', () => {
 
     // AM sees the error
     vi.mocked(repo.findById).mockResolvedValue(report);
-    const amAuth: AuthContext = { userId: 'admin-user', tenantId: null, role: 'AM' };
+    const amAuth: AuthContext = { userId: 'admin-user', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
     const amResult = await useCase.execute('report-1', amAuth);
     expect(amResult.errorMessage).toBe('DB connection lost');
 
     // CL_ADMIN (owner) does not see the error
-    const clAuth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN' };
+    const clAuth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
     const clResult = await useCase.execute('report-1', clAuth);
     expect(clResult.errorMessage).toBeNull();
   });
@@ -125,7 +125,7 @@ describe('GetReportStatusUseCase', () => {
     const report = makeReport();
     vi.mocked(repo.findById).mockResolvedValue(report);
 
-    const auth: AuthContext = { userId: 'admin-user', tenantId: null, role: 'AM' };
+    const auth: AuthContext = { userId: 'admin-user', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
     const result = await useCase.execute('report-1', auth);
 
     expect(result).toEqual({

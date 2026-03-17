@@ -58,6 +58,7 @@ function makeActor(role: AuthContext['role'], overrides: Partial<AuthContext> = 
     tenantId: role === 'AM' || role === 'OP' ? null : 'tenant-1',
     role,
     branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }

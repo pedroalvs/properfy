@@ -49,6 +49,7 @@ const opActor = {
   tenantId: 'tenant-1',
   role: 'OP' as const,
   branchId: null,
+  inspectorId: null,
 };
 
 const amActor = {
@@ -56,6 +57,7 @@ const amActor = {
   tenantId: null,
   role: 'AM' as const,
   branchId: null,
+  inspectorId: null,
 };
 
 function makeSut() {
@@ -185,6 +187,7 @@ describe('CreateRefundUseCase', () => {
       tenantId: 'tenant-1',
       role: 'CL_ADMIN' as const,
       branchId: null,
+      inspectorId: null,
     };
 
     await expect(

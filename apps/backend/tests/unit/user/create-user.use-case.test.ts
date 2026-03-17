@@ -88,6 +88,7 @@ describe('CreateUserUseCase', () => {
     tenantId: null,
     role: 'AM',
     branchId: null,
+    inspectorId: null,
   };
 
   const clAdminActor: AuthContext = {
@@ -95,6 +96,7 @@ describe('CreateUserUseCase', () => {
     tenantId: 'tenant-1',
     role: 'CL_ADMIN',
     branchId: null,
+    inspectorId: null,
   };
 
   beforeEach(() => {

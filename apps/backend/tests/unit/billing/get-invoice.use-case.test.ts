@@ -34,6 +34,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
     tenantId: null,
     role: 'AM',
     branchId: null,
+    inspectorId: null,
     ...overrides,
   };
 }
@@ -88,7 +89,7 @@ describe('GetInvoiceUseCase', () => {
 
     const result = await useCase.execute({
       invoiceId: 'invoice-1',
-      actor: makeActor({ role: 'INSP', userId: 'insp-1' }),
+      actor: makeActor({ role: 'INSP', userId: 'insp-1', inspectorId: 'insp-1' }),
     });
 
     expect(result.id).toBe('invoice-1');
@@ -103,7 +104,7 @@ describe('GetInvoiceUseCase', () => {
     await expect(
       useCase.execute({
         invoiceId: 'invoice-1',
-        actor: makeActor({ role: 'INSP', userId: 'insp-1' }),
+        actor: makeActor({ role: 'INSP', userId: 'insp-1', inspectorId: 'insp-1' }),
       }),
     ).rejects.toThrow(InvoiceNotFoundError);
   });

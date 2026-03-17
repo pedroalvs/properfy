@@ -56,7 +56,7 @@ describe('DownloadReportUseCase', () => {
   let useCase: DownloadReportUseCase;
   let repo: IReportRepository;
   let storage: IReportStorageService;
-  const defaultAuth: AuthContext = { userId: 'user-1', tenantId: 'tenant-1', role: 'AM' };
+  const defaultAuth: AuthContext = { userId: 'user-1', tenantId: 'tenant-1', role: 'AM', branchId: null, inspectorId: null };
 
   beforeEach(() => {
     repo = makeMockRepo();
@@ -138,7 +138,7 @@ describe('DownloadReportUseCase', () => {
     vi.mocked(repo.findById).mockResolvedValue(report);
     vi.mocked(storage.generatePresignedGetUrl).mockResolvedValue('https://storage.example.com/signed-url');
 
-    const auth: AuthContext = { userId: 'admin-user', tenantId: null, role: 'AM' };
+    const auth: AuthContext = { userId: 'admin-user', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
     const result = await useCase.execute('report-1', auth);
 
     expect(result.downloadUrl).toBe('https://storage.example.com/signed-url');
@@ -149,7 +149,7 @@ describe('DownloadReportUseCase', () => {
     vi.mocked(repo.findById).mockResolvedValue(report);
     vi.mocked(storage.generatePresignedGetUrl).mockResolvedValue('https://storage.example.com/signed-url');
 
-    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN' };
+    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
     const result = await useCase.execute('report-1', auth);
 
     expect(result.downloadUrl).toBe('https://storage.example.com/signed-url');
@@ -159,7 +159,7 @@ describe('DownloadReportUseCase', () => {
     const report = makeReport({ requestedByUserId: 'other-user' });
     vi.mocked(repo.findById).mockResolvedValue(report);
 
-    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN' };
+    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
 
     await expect(useCase.execute('report-1', auth)).rejects.toThrow(ReportNotFoundError);
   });

@@ -21,6 +21,7 @@ const opActor = {
   tenantId: 'tenant-1',
   role: 'OP' as const,
   branchId: null,
+  inspectorId: null,
 };
 
 const amActor = {
@@ -28,6 +29,7 @@ const amActor = {
   tenantId: null,
   role: 'AM' as const,
   branchId: null,
+  inspectorId: null,
 };
 
 function makeSut() {
@@ -144,6 +146,7 @@ describe('CreateManualAdjustmentUseCase', () => {
       tenantId: 'tenant-1',
       role: 'INSP' as const,
       branchId: null,
+      inspectorId: null,
     };
 
     await expect(
