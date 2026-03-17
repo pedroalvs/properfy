@@ -13,7 +13,7 @@ import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceGroupDetail } from '../hooks/useServiceGroupDetail';
 import { useServiceGroupSave } from '../hooks/useServiceGroupSave';
-import { PRIORITY_MODE_OPTIONS } from '../mocks/form-options';
+import { PRIORITY_MODE_OPTIONS } from '../constants/form-options';
 import type { ServiceGroupFormData, ServiceGroupFormErrors } from '../types';
 import { EMPTY_SERVICE_GROUP_FORM } from '../types';
 
@@ -28,7 +28,7 @@ export function ServiceGroupFormDrawer({ open, onClose, serviceGroupId, onSaved 
   const isEditMode = !!serviceGroupId;
   const { serviceGroup, isLoading: isLoadingDetail } = useServiceGroupDetail(isEditMode ? serviceGroupId : null);
   const { save, isSaving, validate } = useServiceGroupSave();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
 
   const [form, setForm] = useState<ServiceGroupFormData>(EMPTY_SERVICE_GROUP_FORM);
   const [initialData, setInitialData] = useState<ServiceGroupFormData>(EMPTY_SERVICE_GROUP_FORM);
@@ -71,12 +71,14 @@ export function ServiceGroupFormDrawer({ open, onClose, serviceGroupId, onSaved 
     const mode = isEditMode ? 'edit' : 'create';
     const validationErrors = validate(form, mode);
     if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
-    const success = await save(form, serviceGroupId ?? undefined);
-    if (success) {
+    const result = await save(form, serviceGroupId ?? undefined);
+    if (result.success) {
       showSuccess(isEditMode ? 'Grupo atualizado com sucesso' : 'Grupo criado com sucesso');
       onSaved();
+    } else {
+      showError(result.error ?? 'Failed to save');
     }
-  }, [isEditMode, form, validate, save, serviceGroupId, showSuccess, onSaved]);
+  }, [isEditMode, form, validate, save, serviceGroupId, showSuccess, showError, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isDirty) { setShowConfirm(true); } else { onClose(); }

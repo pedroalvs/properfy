@@ -15,7 +15,7 @@ import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFinancialEntryDetail } from '../hooks/useFinancialEntryDetail';
 import { useFinancialEntrySave } from '../hooks/useFinancialEntrySave';
-import { ENTRY_TYPE_OPTIONS } from '../mocks/form-options';
+import { ENTRY_TYPE_OPTIONS } from '../constants/form-options';
 import type { FinancialEntryFormData, FinancialEntryFormErrors } from '../types';
 import { EMPTY_FINANCIAL_ENTRY_FORM } from '../types';
 
@@ -30,7 +30,7 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
   const isEditMode = !!entryId;
   const { entry, isLoading: isLoadingDetail } = useFinancialEntryDetail(isEditMode ? entryId : null);
   const { save, isSaving, validate } = useFinancialEntrySave();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
 
   const [form, setForm] = useState<FinancialEntryFormData>(EMPTY_FINANCIAL_ENTRY_FORM);
   const [initialData, setInitialData] = useState<FinancialEntryFormData>(EMPTY_FINANCIAL_ENTRY_FORM);
@@ -76,12 +76,14 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
     const mode = isEditMode ? 'edit' : 'create';
     const validationErrors = validate(form, mode);
     if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
-    const success = await save(form, entryId ?? undefined);
-    if (success) {
+    const result = await save(form, entryId ?? undefined);
+    if (result.success) {
       showSuccess(isEditMode ? 'Entry updated successfully' : 'Entry created successfully');
       onSaved();
+    } else {
+      showError(result.error ?? 'Failed to save');
     }
-  }, [isEditMode, form, validate, save, entryId, showSuccess, onSaved]);
+  }, [isEditMode, form, validate, save, entryId, showSuccess, showError, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isDirty) { setShowConfirm(true); } else { onClose(); }

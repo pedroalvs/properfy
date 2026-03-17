@@ -1,8 +1,34 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+import { apiClient } from '@/lib/api-client';
 import { useServiceGroupSave } from './useServiceGroupSave';
 import type { ServiceGroupFormData } from '../types';
 import { EMPTY_SERVICE_GROUP_FORM } from '../types';
+import { createQueryWrapper } from '@/test-utils/test-wrappers';
+
+const mockPost = apiClient.post as ReturnType<typeof vi.fn>;
+const mockPatch = apiClient.patch as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: ServiceGroupFormData = {
   name: 'Teste Grupo',
@@ -12,29 +38,31 @@ const VALID_CREATE_DATA: ServiceGroupFormData = {
 };
 
 beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
+  mockPost.mockReset();
+  mockPatch.mockReset();
+  mockPost.mockResolvedValue({ data: { id: 'new-sg' } });
+  mockPatch.mockResolvedValue({ data: { id: 'sg-01' } });
 });
 
 describe('useServiceGroupSave', () => {
   it('validate returns errors for required fields when form is empty', () => {
-    const { result } = renderHook(() => useServiceGroupSave());
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupSave(), { wrapper });
     const errors = result.current.validate(EMPTY_SERVICE_GROUP_FORM, 'create');
     expect(errors.name).toBeDefined();
     expect(errors.priorityMode).toBeDefined();
   });
 
   it('validate returns no errors for valid create form data', () => {
-    const { result } = renderHook(() => useServiceGroupSave());
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupSave(), { wrapper });
     const errors = result.current.validate(VALID_CREATE_DATA, 'create');
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
   it('validate accepts empty optional fields (regionName, description)', () => {
-    const { result } = renderHook(() => useServiceGroupSave());
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupSave(), { wrapper });
     const errors = result.current.validate({
       ...VALID_CREATE_DATA,
       regionName: '',
@@ -43,39 +71,59 @@ describe('useServiceGroupSave', () => {
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
-  it('save resolves true on success (create mode)', async () => {
-    const { result } = renderHook(() => useServiceGroupSave());
-    let resolved = false;
-    act(() => {
-      result.current.save(VALID_CREATE_DATA).then((res) => { resolved = true; expect(res).toBe(true); });
+  it('save returns success on create', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupSave(), { wrapper });
+
+    let saveResult: { success: boolean } | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
     });
-    await act(async () => { vi.advanceTimersByTime(500); });
-    expect(resolved).toBe(true);
+
+    expect(saveResult?.success).toBe(true);
+    expect(mockPost).toHaveBeenCalledWith('/v1/service-groups', VALID_CREATE_DATA);
   });
 
-  it('save resolves true on success (edit mode)', async () => {
-    const { result } = renderHook(() => useServiceGroupSave());
-    let resolved = false;
-    act(() => {
-      result.current.save(VALID_CREATE_DATA, 'sg-01').then((res) => { resolved = true; expect(res).toBe(true); });
+  it('save returns success on edit', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupSave(), { wrapper });
+
+    let saveResult: { success: boolean } | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA, 'sg-01');
     });
-    await act(async () => { vi.advanceTimersByTime(500); });
-    expect(resolved).toBe(true);
+
+    expect(saveResult?.success).toBe(true);
+    expect(mockPatch).toHaveBeenCalledWith('/v1/service-groups/sg-01', VALID_CREATE_DATA);
   });
 
   it('isSaving is true during save operation', async () => {
-    const { result } = renderHook(() => useServiceGroupSave());
+    let resolvePost!: (value: unknown) => void;
+    mockPost.mockReturnValueOnce(new Promise((resolve) => { resolvePost = resolve; }));
+
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupSave(), { wrapper });
+
     expect(result.current.isSaving).toBe(false);
+
+    let savePromise: Promise<unknown>;
     act(() => {
-      result.current.save(VALID_CREATE_DATA);
+      savePromise = result.current.save(VALID_CREATE_DATA);
     });
+
     expect(result.current.isSaving).toBe(true);
-    await act(async () => { vi.advanceTimersByTime(500); });
+
+    await act(async () => {
+      resolvePost({ data: { id: 'new' } });
+      await savePromise!;
+    });
+
     expect(result.current.isSaving).toBe(false);
   });
 
   it('validate requires priorityMode even when other fields are filled', () => {
-    const { result } = renderHook(() => useServiceGroupSave());
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupSave(), { wrapper });
     const errors = result.current.validate({
       ...VALID_CREATE_DATA,
       priorityMode: '',

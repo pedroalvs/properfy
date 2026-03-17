@@ -1,83 +1,104 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { ServiceGroupStatus } from '@properfy/shared';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+import { apiClient } from '@/lib/api-client';
 import { useServiceGroupList } from './useServiceGroupList';
+import { createQueryWrapper } from '@/test-utils/test-wrappers';
+
+const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+
+const MOCK_SERVICE_GROUPS = [
+  { id: 'sg-01', name: 'ABC Paulista', regionName: 'São Paulo - ABC', status: 'ACTIVE', inspectorName: 'Carlos Silva' },
+  { id: 'sg-02', name: 'Barra RJ', regionName: 'Rio de Janeiro - Barra', status: 'DRAFT', inspectorName: 'Fernanda Lima' },
+];
 
 beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
+  mockGet.mockReset();
+  mockGet.mockResolvedValue({
+    data: MOCK_SERVICE_GROUPS,
+    pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+  });
 });
 
 describe('useServiceGroupList', () => {
-  it('returns mock data after loading resolves', () => {
-    const { result } = renderHook(() => useServiceGroupList());
+  it('returns data after loading resolves', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
     expect(result.current.isLoading).toBe(true);
     expect(result.current.data).toHaveLength(0);
 
-    act(() => { vi.advanceTimersByTime(300); });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
 
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.data.length).toBeGreaterThan(0);
+    expect(result.current.data).toHaveLength(2);
+    expect(result.current.data[0]?.name).toBe('ABC Paulista');
   });
 
-  it('initially shows loading then resolves', () => {
-    const { result } = renderHook(() => useServiceGroupList());
+  it('initially shows loading then resolves', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
     expect(result.current.isLoading).toBe(true);
 
-    act(() => { vi.advanceTimersByTime(300); });
-
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it('filtering by status returns only matching service groups', () => {
-    const { result } = renderHook(() => useServiceGroupList());
-    act(() => { vi.advanceTimersByTime(300); });
-
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        status: ServiceGroupStatus.DRAFT,
-      });
-    });
-
-    expect(result.current.data.length).toBeGreaterThan(0);
-    result.current.data.forEach((sg) => {
-      expect(sg.status).toBe(ServiceGroupStatus.DRAFT);
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
   });
 
-  it('search filters by name/regionName/inspectorName', () => {
-    const { result } = renderHook(() => useServiceGroupList());
-    act(() => { vi.advanceTimersByTime(300); });
+  it('calls API with correct path', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
 
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        search: 'carlos',
-      });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.data.length).toBeGreaterThan(0);
-    expect(result.current.data[0]?.inspectorName).toBe('Carlos Silva');
+    expect(mockGet).toHaveBeenCalledWith('/v1/service-groups', expect.any(Object));
   });
 
-  it('pagination total matches filtered data length', () => {
-    const { result } = renderHook(() => useServiceGroupList());
-    act(() => { vi.advanceTimersByTime(300); });
+  it('pagination total reflects API response', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
 
-    const total = result.current.pagination.total;
-    expect(total).toBeGreaterThan(0);
-
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        status: ServiceGroupStatus.CANCELLED,
-      });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.pagination.total).toBeLessThan(total);
+    expect(result.current.pagination.total).toBe(2);
+  });
+
+  it('handles API error gracefully', async () => {
+    mockGet.mockRejectedValueOnce(new Error('Network error'));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.data).toHaveLength(0);
   });
 });

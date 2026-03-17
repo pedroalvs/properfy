@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
-import { contactSchema, AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
+import { contactSchema } from '@properfy/shared';
+import { apiClient } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
-import type { AppointmentDetail } from '../types';
-import { MOCK_APPOINTMENTS } from '../mocks/appointments';
 
 const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
 
@@ -33,14 +33,20 @@ function validateEmail(email: string): string | undefined {
   return undefined;
 }
 
+export interface SaveResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface UseAppointmentSaveReturn {
-  save: (data: AppointmentFormData, appointmentId?: string) => Promise<boolean>;
+  save: (data: AppointmentFormData, appointmentId?: string) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: AppointmentFormData, mode: 'create' | 'edit') => AppointmentFormErrors;
 }
 
 export function useAppointmentSave(): UseAppointmentSaveReturn {
   const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   const validate = useCallback((data: AppointmentFormData, mode: 'create' | 'edit'): AppointmentFormErrors => {
     const errors: AppointmentFormErrors = {};
@@ -48,7 +54,6 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
     if (mode === 'create') {
       Object.assign(errors, validateRequired(data, CREATE_REQUIRED_FIELDS));
     } else {
-      // Edit mode: contactName is still required
       Object.assign(errors, validateRequired(data, ['contactName']));
     }
 
@@ -58,62 +63,23 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
     return errors;
   }, []);
 
-  const save = useCallback(async (data: AppointmentFormData, appointmentId?: string): Promise<boolean> => {
+  const save = useCallback(async (data: AppointmentFormData, appointmentId?: string): Promise<SaveResult> => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    if (appointmentId) {
-      const idx = MOCK_APPOINTMENTS.findIndex((a) => a.id === appointmentId);
-      if (idx !== -1) {
-        const existing = MOCK_APPOINTMENTS[idx]!;
-        MOCK_APPOINTMENTS[idx] = {
-          ...existing,
-          scheduledDate: data.scheduledDate || existing.scheduledDate,
-          timeSlot: data.timeSlot || existing.timeSlot,
-          contactName: data.contactName,
-          contactPhone: data.contactPhone || null,
-          contactEmail: data.contactEmail || null,
-          keyRequired: data.keyRequired,
-          meetingLocation: data.meetingLocation || null,
-          keyLocation: data.keyLocation || null,
-          notes: data.notes || null,
-          updatedAt: new Date().toISOString(),
-        };
+    try {
+      if (appointmentId) {
+        await apiClient.patch(`/v1/appointments/${appointmentId}`, data);
+      } else {
+        await apiClient.post('/v1/appointments', data);
       }
-    } else {
-      const newAppointment: AppointmentDetail = {
-        id: `apt-${Date.now()}`,
-        code: `VST-${String(MOCK_APPOINTMENTS.length + 1).padStart(3, '0')}`,
-        tenantId: 'tenant-1',
-        branchId: data.branchId,
-        branchName: data.branchId === 'branch-1' ? 'Filial Centro' : 'Filial Norte',
-        propertyId: data.propertyId,
-        propertyAddress: data.propertyId,
-        serviceTypeId: data.serviceTypeId,
-        serviceTypeName: data.serviceTypeId === 'svc-1' ? 'Vistoria de Entrada' : 'Vistoria de Saída',
-        status: AppointmentStatus.DRAFT,
-        tenantConfirmationStatus: TenantConfirmationStatus.PENDING,
-        contactName: data.contactName,
-        contactPhone: data.contactPhone || null,
-        contactEmail: data.contactEmail || null,
-        inspectorId: null,
-        inspectorName: null,
-        scheduledDate: data.scheduledDate,
-        timeSlot: data.timeSlot,
-        keyRequired: data.keyRequired,
-        notes: data.notes || null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        meetingLocation: data.meetingLocation || null,
-        keyLocation: data.keyLocation || null,
-        cancellationReason: null,
-      };
-      MOCK_APPOINTMENTS.push(newAppointment);
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save';
+      return { success: false, error: message };
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
-    return true;
-  }, []);
+  }, [queryClient]);
 
   return { save, isSaving, validate };
 }

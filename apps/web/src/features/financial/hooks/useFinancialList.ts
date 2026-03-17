@@ -1,40 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState } from 'react';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type FinancialEntry, type FinancialFiltersState } from '../types';
-import { MOCK_FINANCIAL_ENTRIES } from '../mocks/financialEntries';
-
-function filterEntries(
-  data: FinancialEntry[],
-  filters: FinancialFiltersState,
-): FinancialEntry[] {
-  return data.filter((entry) => {
-    if (filters.entryType && entry.entryType !== filters.entryType) return false;
-    if (filters.status && entry.status !== filters.status) return false;
-
-    if (filters.search) {
-      const term = filters.search.toLowerCase();
-      const matches =
-        entry.description.toLowerCase().includes(term) ||
-        entry.appointmentCode.toLowerCase().includes(term);
-      if (!matches) return false;
-    }
-
-    return true;
-  });
-}
-
-function sortEntries(
-  data: FinancialEntry[],
-  sortBy: string,
-  sortOrder: 'asc' | 'desc',
-): FinancialEntry[] {
-  return [...data].sort((a, b) => {
-    const aVal = String((a as unknown as Record<string, unknown>)[sortBy] ?? '');
-    const bVal = String((b as unknown as Record<string, unknown>)[sortBy] ?? '');
-    const cmp = aVal.localeCompare(bVal);
-    return sortOrder === 'asc' ? cmp : -cmp;
-  });
-}
 
 export interface UseFinancialListReturn {
   data: FinancialEntry[];
@@ -50,41 +17,29 @@ export interface UseFinancialListReturn {
 
 export function useFinancialList(): UseFinancialListReturn {
   const [filters, setFilters] = useState<FinancialFiltersState>(DEFAULT_FILTERS);
-  const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState('effectiveAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const simulateLoad = useCallback(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    return simulateLoad();
-  }, [simulateLoad]);
-
-  const filtered = useMemo(
-    () => filterEntries(MOCK_FINANCIAL_ENTRIES, filters),
-    [filters],
+  const query = usePaginatedQuery<FinancialEntry>(
+    ['financial-entries'],
+    '/v1/financial/entries',
+    {
+      page,
+      pageSize,
+      sortBy,
+      sortOrder,
+      ...(filters.entryType ? { entryType: filters.entryType } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.search ? { search: filters.search } : {}),
+    },
   );
-
-  const sorted = useMemo(
-    () => sortEntries(filtered, sortBy, sortOrder),
-    [filtered, sortBy, sortOrder],
-  );
-
-  const paginatedData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return sorted.slice(start, start + pageSize);
-  }, [sorted, page, pageSize]);
 
   const pagination: DataTablePagination = {
     page,
     pageSize,
-    total: filtered.length,
+    total: query.data?.pagination.total ?? 0,
     onChange: (newPage, newPageSize) => {
       setPage(newPage);
       setPageSize(newPageSize);
@@ -100,16 +55,12 @@ export function useFinancialList(): UseFinancialListReturn {
     },
   };
 
-  const refetch = useCallback(() => {
-    simulateLoad();
-  }, [simulateLoad]);
-
   return {
-    data: isLoading ? [] : paginatedData,
-    isLoading,
-    isError: false,
-    errorMessage: null,
-    refetch,
+    data: query.data?.data ?? [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    errorMessage: query.error?.message ?? null,
+    refetch: query.refetch,
     filters,
     setFilters,
     pagination,

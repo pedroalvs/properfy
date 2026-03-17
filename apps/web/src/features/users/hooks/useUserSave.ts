@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
-import { contactSchema, UserStatus, UserRole } from '@properfy/shared';
-import type { UserRole as UserRoleType, UserStatus as UserStatusType } from '@properfy/shared';
+import { useQueryClient } from '@tanstack/react-query';
+import { contactSchema } from '@properfy/shared';
+import { apiClient } from '@/lib/api-client';
+import { useAuth } from '@/hooks/useAuth';
 import type { UserFormData, UserFormErrors } from '../types';
-import { MOCK_USERS } from '../mocks/users';
-import { BRANCH_OPTIONS } from '../mocks/form-options';
 
 const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
 
@@ -27,14 +27,22 @@ function validateEmail(email: string): string | undefined {
   return undefined;
 }
 
+export interface SaveResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface UseUserSaveReturn {
-  save: (data: UserFormData, userId?: string) => Promise<boolean>;
+  save: (data: UserFormData, userId?: string) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: UserFormData, mode: 'create' | 'edit') => UserFormErrors;
 }
 
 export function useUserSave(): UseUserSaveReturn {
   const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
+  const { user: authUser } = useAuth();
+  const tenantId = authUser?.tenantId;
 
   const validate = useCallback((data: UserFormData, _mode: 'create' | 'edit'): UserFormErrors => {
     const errors: UserFormErrors = {};
@@ -47,50 +55,35 @@ export function useUserSave(): UseUserSaveReturn {
     return errors;
   }, []);
 
-  const save = useCallback(async (data: UserFormData, userId?: string): Promise<boolean> => {
+  const save = useCallback(async (data: UserFormData, userId?: string): Promise<SaveResult> => {
+    if (!tenantId) return { success: false, error: 'No tenant context' };
+
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    const branchName = BRANCH_OPTIONS.find((b) => b.value === data.branchId)?.label ?? null;
-
-    if (userId) {
-      const idx = MOCK_USERS.findIndex((u) => u.id === userId);
-      if (idx !== -1) {
-        const existing = MOCK_USERS[idx]!;
-        MOCK_USERS[idx] = {
-          ...existing,
-          name: data.name,
-          email: data.email,
-          phone: data.phone || null,
-          role: (data.role || existing.role) as UserRoleType,
-          status: (data.status || existing.status) as UserStatusType,
-          branchId: data.branchId || null,
-          branchName,
-          updatedAt: new Date().toISOString(),
-        };
-      }
-    } else {
-      MOCK_USERS.push({
-        id: `usr-${Date.now()}`,
-        tenantId: null,
-        branchId: data.branchId || null,
-        branchName,
-        role: data.role as UserRoleType,
+    try {
+      const payload = {
         name: data.name,
         email: data.email,
-        phone: data.phone || null,
-        status: UserStatus.ACTIVE,
-        lastLoginAt: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        permissions: [],
-        twoFactorEnabled: false,
-      });
-    }
+        phone: data.phone || undefined,
+        role: data.role || undefined,
+        status: data.status || undefined,
+        branchId: data.branchId || undefined,
+      };
 
-    setIsSaving(false);
-    return true;
-  }, []);
+      if (userId) {
+        await apiClient.patch(`/v1/tenants/${tenantId}/users/${userId}`, payload);
+      } else {
+        await apiClient.post(`/v1/tenants/${tenantId}/users`, payload);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['users'] });
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save';
+      return { success: false, error: message };
+    } finally {
+      setIsSaving(false);
+    }
+  }, [queryClient, tenantId]);
 
   return { save, isSaving, validate };
 }

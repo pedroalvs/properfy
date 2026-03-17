@@ -1,51 +1,93 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+import { apiClient } from '@/lib/api-client';
 import { usePropertyDetail } from './usePropertyDetail';
+import { createQueryWrapper } from '@/test-utils/test-wrappers';
+
+const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+
+const MOCK_PROPERTY = {
+  id: 'prop-01',
+  propertyCode: 'IMV-001',
+  type: 'RESIDENTIAL',
+  street: 'Rua das Flores, 123',
+};
 
 beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
+  mockGet.mockReset();
+  mockGet.mockResolvedValue({ data: MOCK_PROPERTY });
 });
 
 describe('usePropertyDetail', () => {
-  it('returns property by id', () => {
-    const { result } = renderHook(() => usePropertyDetail('prop-01'));
-    act(() => { vi.advanceTimersByTime(200); });
+  it('returns property by id', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyDetail('prop-01'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
     expect(result.current.property).not.toBeNull();
     expect(result.current.property?.propertyCode).toBe('IMV-001');
   });
 
-  it('returns null for unknown id', () => {
-    const { result } = renderHook(() => usePropertyDetail('unknown'));
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(result.current.property).toBeNull();
-  });
-
   it('returns null when id is null', () => {
-    const { result } = renderHook(() => usePropertyDetail(null));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyDetail(null), { wrapper });
+
     expect(result.current.property).toBeNull();
     expect(result.current.isLoading).toBe(false);
   });
 
   it('shows loading state initially', () => {
-    const { result } = renderHook(() => usePropertyDetail('prop-01'));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyDetail('prop-01'), { wrapper });
+
     expect(result.current.isLoading).toBe(true);
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(result.current.isLoading).toBe(false);
   });
 
-  it('refetch triggers reload', () => {
-    const { result } = renderHook(() => usePropertyDetail('prop-01'));
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(result.current.isLoading).toBe(false);
+  it('calls API with correct path', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyDetail('prop-01'), { wrapper });
 
-    act(() => { result.current.refetch(); });
-    expect(result.current.isLoading).toBe(true);
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.property?.propertyCode).toBe('IMV-001');
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockGet).toHaveBeenCalledWith('/v1/properties/prop-01');
+  });
+
+  it('handles API error gracefully', async () => {
+    mockGet.mockRejectedValueOnce(new Error('Not found'));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyDetail('prop-01'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.property).toBeNull();
   });
 });

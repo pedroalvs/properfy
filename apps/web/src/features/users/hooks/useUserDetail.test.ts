@@ -1,51 +1,105 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'usr-99', name: 'Test', email: 'test@test.com', role: 'AM', tenantId: 'tenant-1' },
+    token: 'mock-token',
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
+import { apiClient } from '@/lib/api-client';
 import { useUserDetail } from './useUserDetail';
+import { createQueryWrapper } from '@/test-utils/test-wrappers';
+
+const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+
+const MOCK_USER = {
+  id: 'usr-01',
+  name: 'Admin Principal',
+  email: 'admin@properfy.com',
+  role: 'AM',
+  status: 'ACTIVE',
+};
 
 beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
+  mockGet.mockReset();
+  mockGet.mockResolvedValue({ data: MOCK_USER });
 });
 
 describe('useUserDetail', () => {
-  it('returns user by id', () => {
-    const { result } = renderHook(() => useUserDetail('usr-01'));
-    act(() => { vi.advanceTimersByTime(200); });
+  it('returns user by id', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserDetail('usr-01'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
     expect(result.current.user).not.toBeNull();
     expect(result.current.user?.name).toBe('Admin Principal');
   });
 
-  it('returns null for unknown id', () => {
-    const { result } = renderHook(() => useUserDetail('unknown'));
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(result.current.user).toBeNull();
-  });
-
   it('returns null when id is null', () => {
-    const { result } = renderHook(() => useUserDetail(null));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserDetail(null), { wrapper });
+
     expect(result.current.user).toBeNull();
     expect(result.current.isLoading).toBe(false);
   });
 
   it('shows loading state initially', () => {
-    const { result } = renderHook(() => useUserDetail('usr-01'));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserDetail('usr-01'), { wrapper });
+
     expect(result.current.isLoading).toBe(true);
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(result.current.isLoading).toBe(false);
   });
 
-  it('refetch triggers reload', () => {
-    const { result } = renderHook(() => useUserDetail('usr-01'));
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(result.current.isLoading).toBe(false);
+  it('calls API with tenant-scoped path', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserDetail('usr-01'), { wrapper });
 
-    act(() => { result.current.refetch(); });
-    expect(result.current.isLoading).toBe(true);
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.user?.name).toBe('Admin Principal');
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockGet).toHaveBeenCalledWith('/v1/tenants/tenant-1/users/usr-01');
+  });
+
+  it('handles API error gracefully', async () => {
+    mockGet.mockRejectedValueOnce(new Error('Not found'));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserDetail('usr-01'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.user).toBeNull();
   });
 });

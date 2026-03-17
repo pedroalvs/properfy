@@ -1,97 +1,120 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { AppointmentStatus } from '@properfy/shared';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+import { apiClient } from '@/lib/api-client';
 import { useAppointmentList } from './useAppointmentList';
+import { createQueryWrapper } from '@/test-utils/test-wrappers';
+
+const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+
+const MOCK_APPOINTMENTS = [
+  { id: 'apt-01', code: 'VST-001', status: 'DONE', contactName: 'João' },
+  { id: 'apt-02', code: 'VST-002', status: 'SCHEDULED', contactName: 'Maria' },
+];
+
+function mockPaginatedResponse(data = MOCK_APPOINTMENTS) {
+  return {
+    data,
+    pagination: { page: 1, pageSize: 10, total: data.length, totalPages: 1 },
+  };
+}
 
 beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
+  mockGet.mockReset();
+  mockGet.mockResolvedValue(mockPaginatedResponse());
 });
 
 describe('useAppointmentList', () => {
-  it('returns mock data after loading resolves', async () => {
-    const { result } = renderHook(() => useAppointmentList());
+  it('returns data after loading resolves', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
+
     expect(result.current.isLoading).toBe(true);
     expect(result.current.data).toHaveLength(0);
 
-    act(() => { vi.advanceTimersByTime(300); });
-
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.data.length).toBeGreaterThan(0);
-  });
-
-  it('initially shows loading then resolves', () => {
-    const { result } = renderHook(() => useAppointmentList());
-    expect(result.current.isLoading).toBe(true);
-
-    act(() => { vi.advanceTimersByTime(300); });
-
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it('filtering by status returns only matching appointments', () => {
-    const { result } = renderHook(() => useAppointmentList());
-    act(() => { vi.advanceTimersByTime(300); });
-
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        status: AppointmentStatus.DONE,
-        showCancelled: true,
-      });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.data.length).toBeGreaterThan(0);
-    result.current.data.forEach((apt) => {
-      expect(apt.status).toBe(AppointmentStatus.DONE);
-    });
-  });
-
-  it('search filters by code/address/contactName', () => {
-    const { result } = renderHook(() => useAppointmentList());
-    act(() => { vi.advanceTimersByTime(300); });
-
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        search: 'VST-001',
-        showCancelled: true,
-      });
-    });
-
-    expect(result.current.data).toHaveLength(1);
+    expect(result.current.data).toHaveLength(2);
     expect(result.current.data[0]?.code).toBe('VST-001');
   });
 
-  it('showCancelled=false hides CANCELLED appointments', () => {
-    const { result } = renderHook(() => useAppointmentList());
-    act(() => { vi.advanceTimersByTime(300); });
+  it('initially shows loading then resolves', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
 
-    const withoutCancelled = result.current.data;
-    const hasCancelled = withoutCancelled.some(
-      (apt) => apt.status === AppointmentStatus.CANCELLED,
-    );
-    expect(hasCancelled).toBe(false);
+    expect(result.current.isLoading).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
   });
 
-  it('pagination total matches filtered data length', () => {
-    const { result } = renderHook(() => useAppointmentList());
-    act(() => { vi.advanceTimersByTime(300); });
+  it('calls API with correct path', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
 
-    const total = result.current.pagination.total;
-    expect(total).toBeGreaterThan(0);
-
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        status: AppointmentStatus.DONE,
-        showCancelled: true,
-      });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.pagination.total).toBeLessThan(total);
+    expect(mockGet).toHaveBeenCalledWith('/v1/appointments', expect.any(Object));
+  });
+
+  it('pagination total reflects API response', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.pagination.total).toBe(2);
+  });
+
+  it('exposes filters and setFilters', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.filters).toBeDefined();
+    expect(typeof result.current.setFilters).toBe('function');
+  });
+
+  it('handles API error gracefully', async () => {
+    mockGet.mockRejectedValueOnce(new Error('Network error'));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.data).toHaveLength(0);
   });
 });

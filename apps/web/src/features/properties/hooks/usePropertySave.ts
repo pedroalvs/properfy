@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
-import { GeocodingStatus } from '@properfy/shared';
+import { apiClient } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
-import type { PropertyDetail } from '../types';
-import { MOCK_PROPERTIES } from '../mocks/properties';
 
 const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
 
@@ -33,14 +32,20 @@ function validateRequired(data: PropertyFormData, fields: (keyof PropertyFormDat
   return errors;
 }
 
+export interface SaveResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface UsePropertySaveReturn {
-  save: (data: PropertyFormData, propertyId?: string) => Promise<boolean>;
+  save: (data: PropertyFormData, propertyId?: string) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: PropertyFormData, mode: 'create' | 'edit') => PropertyFormErrors;
 }
 
 export function usePropertySave(): UsePropertySaveReturn {
   const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   const validate = useCallback((data: PropertyFormData, mode: 'create' | 'edit'): PropertyFormErrors => {
     const errors: PropertyFormErrors = {};
@@ -54,55 +59,23 @@ export function usePropertySave(): UsePropertySaveReturn {
     return errors;
   }, []);
 
-  const save = useCallback(async (data: PropertyFormData, propertyId?: string): Promise<boolean> => {
+  const save = useCallback(async (data: PropertyFormData, propertyId?: string): Promise<SaveResult> => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    if (propertyId) {
-      const idx = MOCK_PROPERTIES.findIndex((p) => p.id === propertyId);
-      if (idx !== -1) {
-        const existing = MOCK_PROPERTIES[idx]!;
-        MOCK_PROPERTIES[idx] = {
-          ...existing,
-          type: data.type as PropertyDetail['type'],
-          branchId: data.branchId || null,
-          street: data.street,
-          addressLine2: data.addressLine2 || null,
-          suburb: data.suburb,
-          postcode: data.postcode,
-          state: data.state,
-          country: data.country,
-          notes: data.notes || null,
-          updatedAt: new Date().toISOString(),
-        };
+    try {
+      if (propertyId) {
+        await apiClient.patch(`/v1/properties/${propertyId}`, data);
+      } else {
+        await apiClient.post('/v1/properties', data);
       }
-    } else {
-      const newProperty: PropertyDetail = {
-        id: `prop-${Date.now()}`,
-        propertyCode: `IMV-${String(MOCK_PROPERTIES.length + 1).padStart(3, '0')}`,
-        tenantId: 'tenant-1',
-        branchId: data.branchId || null,
-        branchName: data.branchId === 'branch-1' ? 'Filial Centro' : data.branchId === 'branch-2' ? 'Filial Norte' : null,
-        type: data.type as PropertyDetail['type'],
-        street: data.street,
-        addressLine2: data.addressLine2 || null,
-        suburb: data.suburb,
-        postcode: data.postcode,
-        state: data.state,
-        country: data.country,
-        geocodingStatus: GeocodingStatus.PENDING,
-        notes: data.notes || null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        latitude: null,
-        longitude: null,
-      };
-      MOCK_PROPERTIES.push(newProperty);
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save';
+      return { success: false, error: message };
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
-    return true;
-  }, []);
+  }, [queryClient]);
 
   return { save, isSaving, validate };
 }

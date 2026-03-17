@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import { AppShell } from '@/components/shell/AppShell';
+import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { AppointmentListPage } from '@/features/appointments/pages/AppointmentListPage';
 import { PropertyListPage } from '@/features/properties/pages/PropertyListPage';
 import { InspectorListPage } from '@/features/inspectors/pages/InspectorListPage';
@@ -10,17 +11,6 @@ import { FinancialListPage } from '@/features/financial/pages/FinancialListPage'
 import { TenantContactListPage } from '@/features/tenants/pages/TenantContactListPage';
 import { ReportListPage } from '@/features/reports/pages/ReportListPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
-
-function LoginPage() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-app-bg">
-      <div className="rounded bg-card-bg p-8 shadow">
-        <h1 className="text-page-title text-secondary">Login</h1>
-        <p className="mt-2 text-text-secondary">Em breve</p>
-      </div>
-    </div>
-  );
-}
 
 export const router = createBrowserRouter([
   {

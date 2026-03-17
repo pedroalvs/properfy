@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { contactSchema, InspectorStatus } from '@properfy/shared';
+import { useQueryClient } from '@tanstack/react-query';
+import { contactSchema } from '@properfy/shared';
+import { apiClient } from '@/lib/api-client';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
-import { MOCK_INSPECTORS } from '../mocks/inspectors';
 
 const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
 
@@ -25,18 +26,20 @@ function validateEmail(email: string): string | undefined {
   return undefined;
 }
 
-function splitComma(value: string): string[] {
-  return value.split(',').map((s) => s.trim()).filter(Boolean);
+export interface SaveResult {
+  success: boolean;
+  error?: string;
 }
 
 export interface UseInspectorSaveReturn {
-  save: (data: InspectorFormData, inspectorId?: string) => Promise<boolean>;
+  save: (data: InspectorFormData, inspectorId?: string) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: InspectorFormData, mode: 'create' | 'edit') => InspectorFormErrors;
 }
 
 export function useInspectorSave(): UseInspectorSaveReturn {
   const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   const validate = useCallback((data: InspectorFormData, _mode: 'create' | 'edit'): InspectorFormErrors => {
     const errors: InspectorFormErrors = {};
@@ -49,52 +52,34 @@ export function useInspectorSave(): UseInspectorSaveReturn {
     return errors;
   }, []);
 
-  const save = useCallback(async (data: InspectorFormData, inspectorId?: string): Promise<boolean> => {
+  const save = useCallback(async (data: InspectorFormData, inspectorId?: string): Promise<SaveResult> => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    const regions = splitComma(data.regions);
-    const serviceTypes = splitComma(data.serviceTypes);
-
-    if (inspectorId) {
-      const idx = MOCK_INSPECTORS.findIndex((i) => i.id === inspectorId);
-      if (idx !== -1) {
-        const existing = MOCK_INSPECTORS[idx]!;
-        MOCK_INSPECTORS[idx] = {
-          ...existing,
-          name: data.name,
-          email: data.email,
-          phone: data.phone || null,
-          document: data.document || null,
-          status: (data.status || existing.status) as InspectorStatus,
-          regions,
-          serviceTypes,
-          regionsCount: regions.length,
-          serviceTypesCount: serviceTypes.length,
-          updatedAt: new Date().toISOString(),
-        };
-      }
-    } else {
-      MOCK_INSPECTORS.push({
-        id: `insp-${Date.now()}`,
+    try {
+      const payload = {
         name: data.name,
         email: data.email,
-        phone: data.phone || null,
-        document: data.document || null,
-        status: InspectorStatus.ACTIVE,
-        rating: null,
-        regions,
-        serviceTypes,
-        regionsCount: regions.length,
-        serviceTypesCount: serviceTypes.length,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
+        phone: data.phone || undefined,
+        document: data.document || undefined,
+        status: data.status || undefined,
+        regions: data.regions ? data.regions.split(',').map((s) => s.trim()).filter(Boolean) : undefined,
+        serviceTypes: data.serviceTypes ? data.serviceTypes.split(',').map((s) => s.trim()).filter(Boolean) : undefined,
+      };
 
-    setIsSaving(false);
-    return true;
-  }, []);
+      if (inspectorId) {
+        await apiClient.patch(`/v1/inspectors/${inspectorId}`, payload);
+      } else {
+        await apiClient.post('/v1/inspectors', payload);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['inspectors'] });
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save';
+      return { success: false, error: message };
+    } finally {
+      setIsSaving(false);
+    }
+  }, [queryClient]);
 
   return { save, isSaving, validate };
 }

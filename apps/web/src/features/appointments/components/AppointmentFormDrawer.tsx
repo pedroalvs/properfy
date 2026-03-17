@@ -20,7 +20,7 @@ import {
   PROPERTY_OPTIONS,
   SERVICE_TYPE_OPTIONS,
   TIME_SLOT_OPTIONS,
-} from '../mocks/form-options';
+} from '../constants/form-options';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 import { EMPTY_FORM_DATA } from '../types';
 
@@ -42,7 +42,7 @@ export function AppointmentFormDrawer({
     isEditMode ? appointmentId : null,
   );
   const { save, isSaving, validate } = useAppointmentSave();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
 
   const [form, setForm] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [initialData, setInitialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
@@ -106,12 +106,14 @@ export function AppointmentFormDrawer({
       return;
     }
 
-    const success = await save(form, appointmentId ?? undefined);
-    if (success) {
+    const result = await save(form, appointmentId ?? undefined);
+    if (result.success) {
       showSuccess(isEditMode ? 'Vistoria atualizada com sucesso' : 'Vistoria criada com sucesso');
       onSaved();
+    } else {
+      showError(result.error ?? 'Failed to save');
     }
-  }, [isEditMode, form, validate, save, appointmentId, showSuccess, onSaved]);
+  }, [isEditMode, form, validate, save, appointmentId, showSuccess, showError, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {

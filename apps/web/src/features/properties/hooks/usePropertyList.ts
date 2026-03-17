@@ -1,42 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState } from 'react';
+import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type Property, type PropertyFiltersState } from '../types';
-import { MOCK_PROPERTIES } from '../mocks/properties';
-
-function filterProperties(
-  data: Property[],
-  filters: PropertyFiltersState,
-): Property[] {
-  return data.filter((prop) => {
-    if (filters.type && prop.type !== filters.type) return false;
-
-    if (filters.branchId && prop.branchId !== filters.branchId) return false;
-
-    if (filters.search) {
-      const term = filters.search.toLowerCase();
-      const matches =
-        prop.propertyCode.toLowerCase().includes(term) ||
-        prop.street.toLowerCase().includes(term) ||
-        prop.suburb.toLowerCase().includes(term);
-      if (!matches) return false;
-    }
-
-    return true;
-  });
-}
-
-function sortProperties(
-  data: Property[],
-  sortBy: string,
-  sortOrder: 'asc' | 'desc',
-): Property[] {
-  return [...data].sort((a, b) => {
-    const aVal = String((a as unknown as Record<string, unknown>)[sortBy] ?? '');
-    const bVal = String((b as unknown as Record<string, unknown>)[sortBy] ?? '');
-    const cmp = aVal.localeCompare(bVal);
-    return sortOrder === 'asc' ? cmp : -cmp;
-  });
-}
 
 export interface UsePropertyListReturn {
   data: Property[];
@@ -52,41 +17,31 @@ export interface UsePropertyListReturn {
 
 export function usePropertyList(): UsePropertyListReturn {
   const [filters, setFilters] = useState<PropertyFiltersState>(DEFAULT_FILTERS);
-  const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState('propertyCode');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  const simulateLoad = useCallback(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
+  const params: ListParams = {
+    page,
+    pageSize,
+    sortBy,
+    sortOrder,
+    type: filters.type || undefined,
+    branchId: filters.branchId || undefined,
+    search: filters.search || undefined,
+  };
 
-  useEffect(() => {
-    return simulateLoad();
-  }, [simulateLoad]);
-
-  const filtered = useMemo(
-    () => filterProperties(MOCK_PROPERTIES, filters),
-    [filters],
+  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<Property>(
+    ['properties'],
+    '/v1/properties',
+    params,
   );
-
-  const sorted = useMemo(
-    () => sortProperties(filtered, sortBy, sortOrder),
-    [filtered, sortBy, sortOrder],
-  );
-
-  const paginatedData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return sorted.slice(start, start + pageSize);
-  }, [sorted, page, pageSize]);
 
   const pagination: DataTablePagination = {
     page,
     pageSize,
-    total: filtered.length,
+    total: response?.pagination.total ?? 0,
     onChange: (newPage, newPageSize) => {
       setPage(newPage);
       setPageSize(newPageSize);
@@ -102,14 +57,10 @@ export function usePropertyList(): UsePropertyListReturn {
     },
   };
 
-  const refetch = useCallback(() => {
-    simulateLoad();
-  }, [simulateLoad]);
-
   return {
-    data: isLoading ? [] : paginatedData,
+    data: response?.data ?? [],
     isLoading,
-    isError: false,
+    isError,
     errorMessage: null,
     refetch,
     filters,

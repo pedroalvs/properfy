@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
-import { FinancialEntryStatus } from '@properfy/shared';
-import type { FinancialEntryType } from '@properfy/shared';
+import { useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import type { FinancialEntryFormData, FinancialEntryFormErrors } from '../types';
-import { MOCK_FINANCIAL_ENTRIES } from '../mocks/financialEntries';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
 
@@ -25,63 +24,54 @@ function validateRequired(data: FinancialEntryFormData, fields: (keyof Financial
   return errors;
 }
 
+export interface SaveResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface UseFinancialEntrySaveReturn {
-  save: (data: FinancialEntryFormData, entryId?: string) => Promise<boolean>;
+  save: (data: FinancialEntryFormData, entryId?: string) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: FinancialEntryFormData, mode: 'create' | 'edit') => FinancialEntryFormErrors;
 }
 
 export function useFinancialEntrySave(): UseFinancialEntrySaveReturn {
   const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   const validate = useCallback((data: FinancialEntryFormData, mode: 'create' | 'edit'): FinancialEntryFormErrors => {
     const fields = mode === 'create' ? CREATE_REQUIRED_FIELDS : EDIT_REQUIRED_FIELDS;
     return validateRequired(data, fields);
   }, []);
 
-  const save = useCallback(async (data: FinancialEntryFormData, entryId?: string): Promise<boolean> => {
+  const save = useCallback(async (data: FinancialEntryFormData, entryId?: string): Promise<SaveResult> => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    if (entryId) {
-      const idx = MOCK_FINANCIAL_ENTRIES.findIndex((e) => e.id === entryId);
-      if (idx !== -1) {
-        const existing = MOCK_FINANCIAL_ENTRIES[idx]!;
-        MOCK_FINANCIAL_ENTRIES[idx] = {
-          ...existing,
-          amount: Number(data.amount),
-          description: data.description,
-          relatedEntityName: data.relatedEntityName,
-          effectiveAt: new Date(data.effectiveAt).toISOString(),
-          referenceNumber: data.referenceNumber || null,
-          notes: data.notes || null,
-          updatedAt: new Date().toISOString(),
-        };
-      }
-    } else {
-      MOCK_FINANCIAL_ENTRIES.push({
-        id: `fin-${Date.now()}`,
-        tenantId: 't-1',
-        appointmentCode: '',
-        entryType: data.entryType as FinancialEntryType,
+    try {
+      const payload = {
+        entryType: data.entryType || undefined,
         amount: Number(data.amount),
-        currency: 'BRL',
-        status: FinancialEntryStatus.PENDING,
         description: data.description,
         relatedEntityName: data.relatedEntityName,
-        effectiveAt: new Date(data.effectiveAt).toISOString(),
-        approvedByName: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        notes: data.notes || null,
-        approvedAt: null,
-        referenceNumber: data.referenceNumber || null,
-      });
-    }
+        effectiveAt: data.effectiveAt ? new Date(data.effectiveAt).toISOString() : undefined,
+        referenceNumber: data.referenceNumber || undefined,
+        notes: data.notes || undefined,
+      };
 
-    setIsSaving(false);
-    return true;
-  }, []);
+      if (entryId) {
+        await apiClient.patch(`/v1/financial/entries/${entryId}`, payload);
+      } else {
+        await apiClient.post('/v1/financial/entries/adjust', payload);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['financial-entries'] });
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save';
+      return { success: false, error: message };
+    } finally {
+      setIsSaving(false);
+    }
+  }, [queryClient]);
 
   return { save, isSaving, validate };
 }

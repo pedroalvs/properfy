@@ -13,7 +13,7 @@ import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { usePropertySave } from '../hooks/usePropertySave';
-import { PROPERTY_TYPE_OPTIONS, PROPERTY_BRANCH_OPTIONS } from '../mocks/form-options';
+import { PROPERTY_TYPE_OPTIONS, PROPERTY_BRANCH_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 
@@ -35,7 +35,7 @@ export function PropertyFormDrawer({
     isEditMode ? propertyId : null,
   );
   const { save, isSaving, validate } = usePropertySave();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
 
   const [form, setForm] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
   const [initialData, setInitialData] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
@@ -94,12 +94,14 @@ export function PropertyFormDrawer({
       setErrors(validationErrors);
       return;
     }
-    const success = await save(form, propertyId ?? undefined);
-    if (success) {
+    const result = await save(form, propertyId ?? undefined);
+    if (result.success) {
       showSuccess(isEditMode ? 'Imóvel atualizado com sucesso' : 'Imóvel criado com sucesso');
       onSaved();
+    } else {
+      showError(result.error ?? 'Failed to save');
     }
-  }, [isEditMode, form, validate, save, propertyId, showSuccess, onSaved]);
+  }, [isEditMode, form, validate, save, propertyId, showSuccess, showError, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {

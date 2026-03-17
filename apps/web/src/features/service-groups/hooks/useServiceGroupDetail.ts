@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useDetailQuery } from '@/hooks/useApiQuery';
 import type { ServiceGroupDetail } from '../types';
-import { MOCK_SERVICE_GROUPS } from '../mocks/service-groups';
 
 export interface UseServiceGroupDetailReturn {
   serviceGroup: ServiceGroupDetail | null;
@@ -10,30 +9,16 @@ export interface UseServiceGroupDetailReturn {
 }
 
 export function useServiceGroupDetail(id: string | null): UseServiceGroupDetailReturn {
-  const [serviceGroup, setServiceGroup] = useState<ServiceGroupDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadCount, setLoadCount] = useState(0);
+  const { data: response, isLoading, isError, refetch } = useDetailQuery<ServiceGroupDetail>(
+    ['service-groups', id],
+    `/v1/service-groups/${id}`,
+    { enabled: !!id },
+  );
 
-  const refetch = useCallback(() => {
-    setLoadCount((c) => c + 1);
-  }, []);
-
-  useEffect(() => {
-    if (!id) {
-      setServiceGroup(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      const found = MOCK_SERVICE_GROUPS.find((sg) => sg.id === id) ?? null;
-      setServiceGroup(found);
-      setIsLoading(false);
-    }, 200);
-
-    return () => clearTimeout(timer);
-  }, [id, loadCount]);
-
-  return { serviceGroup, isLoading, isError: false, refetch };
+  return {
+    serviceGroup: response?.data ?? null,
+    isLoading,
+    isError,
+    refetch,
+  };
 }

@@ -1,8 +1,34 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+import { apiClient } from '@/lib/api-client';
 import { usePropertySave } from './usePropertySave';
 import type { PropertyFormData } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
+import { createQueryWrapper } from '@/test-utils/test-wrappers';
+
+const mockPost = apiClient.post as ReturnType<typeof vi.fn>;
+const mockPatch = apiClient.patch as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: PropertyFormData = {
   propertyCode: 'IMV-100',
@@ -18,16 +44,16 @@ const VALID_CREATE_DATA: PropertyFormData = {
 };
 
 beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
+  mockPost.mockReset();
+  mockPatch.mockReset();
+  mockPost.mockResolvedValue({ data: { id: 'new-prop' } });
+  mockPatch.mockResolvedValue({ data: { id: 'prop-01' } });
 });
 
 describe('usePropertySave', () => {
   it('validate returns errors for all required fields when create form is empty', () => {
-    const { result } = renderHook(() => usePropertySave());
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
     const errors = result.current.validate(EMPTY_PROPERTY_FORM, 'create');
     expect(errors.propertyCode).toBeDefined();
     expect(errors.type).toBeDefined();
@@ -38,13 +64,15 @@ describe('usePropertySave', () => {
   });
 
   it('validate returns no errors for valid create form data', () => {
-    const { result } = renderHook(() => usePropertySave());
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
     const errors = result.current.validate(VALID_CREATE_DATA, 'create');
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
   it('validate does not require propertyCode in edit mode', () => {
-    const { result } = renderHook(() => usePropertySave());
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
     const errors = result.current.validate(
       { ...VALID_CREATE_DATA, propertyCode: '' },
       'edit',
@@ -53,7 +81,8 @@ describe('usePropertySave', () => {
   });
 
   it('validate requires address fields in edit mode', () => {
-    const { result } = renderHook(() => usePropertySave());
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
     const errors = result.current.validate(EMPTY_PROPERTY_FORM, 'edit');
     expect(errors.street).toBeDefined();
     expect(errors.suburb).toBeDefined();
@@ -61,34 +90,53 @@ describe('usePropertySave', () => {
     expect(errors.state).toBeDefined();
   });
 
-  it('save resolves true on success (create mode)', async () => {
-    const { result } = renderHook(() => usePropertySave());
-    let resolved = false;
-    act(() => {
-      result.current.save(VALID_CREATE_DATA).then((res) => { resolved = true; expect(res).toBe(true); });
+  it('save returns success on create', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+
+    let saveResult: { success: boolean } | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
     });
-    await act(async () => { vi.advanceTimersByTime(500); });
-    expect(resolved).toBe(true);
+
+    expect(saveResult?.success).toBe(true);
+    expect(mockPost).toHaveBeenCalledWith('/v1/properties', VALID_CREATE_DATA);
   });
 
-  it('save resolves true on success (edit mode)', async () => {
-    const { result } = renderHook(() => usePropertySave());
-    let resolved = false;
-    act(() => {
-      result.current.save(VALID_CREATE_DATA, 'prop-01').then((res) => { resolved = true; expect(res).toBe(true); });
+  it('save returns success on edit', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+
+    let saveResult: { success: boolean } | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA, 'prop-01');
     });
-    await act(async () => { vi.advanceTimersByTime(500); });
-    expect(resolved).toBe(true);
+
+    expect(saveResult?.success).toBe(true);
+    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/prop-01', VALID_CREATE_DATA);
   });
 
   it('isSaving is true during save operation', async () => {
-    const { result } = renderHook(() => usePropertySave());
+    let resolvePost!: (value: unknown) => void;
+    mockPost.mockReturnValueOnce(new Promise((resolve) => { resolvePost = resolve; }));
+
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+
     expect(result.current.isSaving).toBe(false);
+
+    let savePromise: Promise<unknown>;
     act(() => {
-      result.current.save(VALID_CREATE_DATA);
+      savePromise = result.current.save(VALID_CREATE_DATA);
     });
+
     expect(result.current.isSaving).toBe(true);
-    await act(async () => { vi.advanceTimersByTime(500); });
+
+    await act(async () => {
+      resolvePost({ data: { id: 'new' } });
+      await savePromise!;
+    });
+
     expect(result.current.isSaving).toBe(false);
   });
 });

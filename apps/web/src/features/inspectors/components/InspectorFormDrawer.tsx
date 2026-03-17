@@ -13,7 +13,7 @@ import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useInspectorDetail } from '../hooks/useInspectorDetail';
 import { useInspectorSave } from '../hooks/useInspectorSave';
-import { INSPECTOR_STATUS_OPTIONS } from '../mocks/form-options';
+import { INSPECTOR_STATUS_OPTIONS } from '../constants/form-options';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 import { EMPTY_INSPECTOR_FORM } from '../types';
 
@@ -35,7 +35,7 @@ export function InspectorFormDrawer({
     isEditMode ? inspectorId : null,
   );
   const { save, isSaving, validate } = useInspectorSave();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
 
   const [form, setForm] = useState<InspectorFormData>(EMPTY_INSPECTOR_FORM);
   const [initialData, setInitialData] = useState<InspectorFormData>(EMPTY_INSPECTOR_FORM);
@@ -91,12 +91,14 @@ export function InspectorFormDrawer({
       setErrors(validationErrors);
       return;
     }
-    const success = await save(form, inspectorId ?? undefined);
-    if (success) {
+    const result = await save(form, inspectorId ?? undefined);
+    if (result.success) {
       showSuccess(isEditMode ? 'Inspetor atualizado com sucesso' : 'Inspetor criado com sucesso');
       onSaved();
+    } else {
+      showError(result.error ?? 'Failed to save');
     }
-  }, [isEditMode, form, validate, save, inspectorId, showSuccess, onSaved]);
+  }, [isEditMode, form, validate, save, inspectorId, showSuccess, showError, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {

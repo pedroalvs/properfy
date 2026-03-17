@@ -1,83 +1,104 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { PropertyType } from '@properfy/shared';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+import { apiClient } from '@/lib/api-client';
 import { usePropertyList } from './usePropertyList';
+import { createQueryWrapper } from '@/test-utils/test-wrappers';
+
+const mockGet = apiClient.get as ReturnType<typeof vi.fn>;
+
+const MOCK_PROPERTIES = [
+  { id: 'prop-01', propertyCode: 'IMV-001', type: 'RESIDENTIAL', street: 'Rua das Flores, 123' },
+  { id: 'prop-02', propertyCode: 'IMV-002', type: 'COMMERCIAL', street: 'Av. Paulista, 1000' },
+];
 
 beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
+  mockGet.mockReset();
+  mockGet.mockResolvedValue({
+    data: MOCK_PROPERTIES,
+    pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+  });
 });
 
 describe('usePropertyList', () => {
-  it('returns mock data after loading resolves', () => {
-    const { result } = renderHook(() => usePropertyList());
+  it('returns data after loading resolves', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyList(), { wrapper });
+
     expect(result.current.isLoading).toBe(true);
     expect(result.current.data).toHaveLength(0);
 
-    act(() => { vi.advanceTimersByTime(300); });
-
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.data.length).toBeGreaterThan(0);
-  });
-
-  it('initially shows loading then resolves', () => {
-    const { result } = renderHook(() => usePropertyList());
-    expect(result.current.isLoading).toBe(true);
-
-    act(() => { vi.advanceTimersByTime(300); });
-
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it('filtering by type returns only matching properties', () => {
-    const { result } = renderHook(() => usePropertyList());
-    act(() => { vi.advanceTimersByTime(300); });
-
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        type: PropertyType.INDUSTRIAL,
-      });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.data.length).toBeGreaterThan(0);
-    result.current.data.forEach((prop) => {
-      expect(prop.type).toBe(PropertyType.INDUSTRIAL);
-    });
-  });
-
-  it('search filters by code/street/suburb', () => {
-    const { result } = renderHook(() => usePropertyList());
-    act(() => { vi.advanceTimersByTime(300); });
-
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        search: 'IMV-001',
-      });
-    });
-
-    expect(result.current.data).toHaveLength(1);
+    expect(result.current.data).toHaveLength(2);
     expect(result.current.data[0]?.propertyCode).toBe('IMV-001');
   });
 
-  it('pagination total matches filtered data length', () => {
-    const { result } = renderHook(() => usePropertyList());
-    act(() => { vi.advanceTimersByTime(300); });
+  it('initially shows loading then resolves', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyList(), { wrapper });
 
-    const total = result.current.pagination.total;
-    expect(total).toBeGreaterThan(0);
+    expect(result.current.isLoading).toBe(true);
 
-    act(() => {
-      result.current.setFilters({
-        ...result.current.filters,
-        type: PropertyType.INDUSTRIAL,
-      });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+  });
+
+  it('calls API with correct path', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.pagination.total).toBeLessThan(total);
+    expect(mockGet).toHaveBeenCalledWith('/v1/properties', expect.any(Object));
+  });
+
+  it('pagination total reflects API response', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.pagination.total).toBe(2);
+  });
+
+  it('handles API error gracefully', async () => {
+    mockGet.mockRejectedValueOnce(new Error('Network error'));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertyList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.data).toHaveLength(0);
   });
 });

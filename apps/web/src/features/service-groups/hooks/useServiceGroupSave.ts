@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
-import { ServiceGroupStatus } from '@properfy/shared';
-import type { PriorityMode } from '@properfy/shared';
+import { apiClient } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ServiceGroupFormData, ServiceGroupFormErrors } from '../types';
-import { MOCK_SERVICE_GROUPS } from '../mocks/service-groups';
 
 const REQUIRED_FIELD_MESSAGE = 'Campo obrigatório';
 
@@ -19,14 +18,20 @@ function validateRequired(data: ServiceGroupFormData, fields: (keyof ServiceGrou
   return errors;
 }
 
+export interface SaveResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface UseServiceGroupSaveReturn {
-  save: (data: ServiceGroupFormData, serviceGroupId?: string) => Promise<boolean>;
+  save: (data: ServiceGroupFormData, serviceGroupId?: string) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: ServiceGroupFormData, mode: 'create' | 'edit') => ServiceGroupFormErrors;
 }
 
 export function useServiceGroupSave(): UseServiceGroupSaveReturn {
   const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   const validate = useCallback((data: ServiceGroupFormData, _mode: 'create' | 'edit'): ServiceGroupFormErrors => {
     const errors: ServiceGroupFormErrors = {};
@@ -34,44 +39,23 @@ export function useServiceGroupSave(): UseServiceGroupSaveReturn {
     return errors;
   }, []);
 
-  const save = useCallback(async (data: ServiceGroupFormData, serviceGroupId?: string): Promise<boolean> => {
+  const save = useCallback(async (data: ServiceGroupFormData, serviceGroupId?: string): Promise<SaveResult> => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    if (serviceGroupId) {
-      const idx = MOCK_SERVICE_GROUPS.findIndex((sg) => sg.id === serviceGroupId);
-      if (idx !== -1) {
-        const existing = MOCK_SERVICE_GROUPS[idx]!;
-        MOCK_SERVICE_GROUPS[idx] = {
-          ...existing,
-          name: data.name,
-          regionName: data.regionName || null,
-          priorityMode: (data.priorityMode || existing.priorityMode) as PriorityMode,
-          description: data.description || null,
-          updatedAt: new Date().toISOString(),
-        };
+    try {
+      if (serviceGroupId) {
+        await apiClient.patch(`/v1/service-groups/${serviceGroupId}`, data);
+      } else {
+        await apiClient.post('/v1/service-groups', data);
       }
-    } else {
-      MOCK_SERVICE_GROUPS.push({
-        id: `sg-${Date.now()}`,
-        tenantId: 't-1',
-        name: data.name,
-        regionName: data.regionName || null,
-        inspectorId: null,
-        inspectorName: null,
-        status: ServiceGroupStatus.DRAFT,
-        priorityMode: data.priorityMode as PriorityMode,
-        appointmentsCount: 0,
-        appointmentCodes: [],
-        description: data.description || null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      queryClient.invalidateQueries({ queryKey: ['service-groups'] });
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save';
+      return { success: false, error: message };
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
-    return true;
-  }, []);
+  }, [queryClient]);
 
   return { save, isSaving, validate };
 }

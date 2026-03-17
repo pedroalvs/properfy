@@ -1,6 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient, type ApiError } from '@/lib/api-client';
 import type { DashboardStats } from '../types';
-import { MOCK_DASHBOARD_STATS } from '../mocks/dashboardStats';
+
+interface DashboardStatsResponse {
+  data: DashboardStats;
+}
 
 export interface UseDashboardStatsReturn {
   stats: DashboardStats | null;
@@ -9,17 +13,14 @@ export interface UseDashboardStatsReturn {
 }
 
 export function useDashboardStats(): UseDashboardStatsReturn {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: response, isLoading, isError } = useQuery<DashboardStatsResponse, ApiError>({
+    queryKey: ['dashboard', 'stats'],
+    queryFn: () => apiClient.get<DashboardStatsResponse>('/v1/dashboard/stats'),
+  });
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setStats(MOCK_DASHBOARD_STATS);
-      setIsLoading(false);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  return { stats, isLoading, isError: false };
+  return {
+    stats: response?.data ?? null,
+    isLoading,
+    isError,
+  };
 }

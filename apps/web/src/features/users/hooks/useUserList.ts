@@ -1,41 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState } from 'react';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import { usePaginatedQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/hooks/useAuth';
 import { DEFAULT_FILTERS, type User, type UserFiltersState } from '../types';
-import { MOCK_USERS } from '../mocks/users';
-
-function filterUsers(
-  data: User[],
-  filters: UserFiltersState,
-): User[] {
-  return data.filter((user) => {
-    if (filters.role && user.role !== filters.role) return false;
-    if (filters.status && user.status !== filters.status) return false;
-
-    if (filters.search) {
-      const term = filters.search.toLowerCase();
-      const matches =
-        user.name.toLowerCase().includes(term) ||
-        user.email.toLowerCase().includes(term) ||
-        (user.phone?.toLowerCase().includes(term) ?? false);
-      if (!matches) return false;
-    }
-
-    return true;
-  });
-}
-
-function sortUsers(
-  data: User[],
-  sortBy: string,
-  sortOrder: 'asc' | 'desc',
-): User[] {
-  return [...data].sort((a, b) => {
-    const aVal = String((a as unknown as Record<string, unknown>)[sortBy] ?? '');
-    const bVal = String((b as unknown as Record<string, unknown>)[sortBy] ?? '');
-    const cmp = aVal.localeCompare(bVal);
-    return sortOrder === 'asc' ? cmp : -cmp;
-  });
-}
 
 export interface UseUserListReturn {
   data: User[];
@@ -50,42 +17,34 @@ export interface UseUserListReturn {
 }
 
 export function useUserList(): UseUserListReturn {
+  const { user: authUser } = useAuth();
+  const tenantId = authUser?.tenantId;
+
   const [filters, setFilters] = useState<UserFiltersState>(DEFAULT_FILTERS);
-  const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  const simulateLoad = useCallback(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    return simulateLoad();
-  }, [simulateLoad]);
-
-  const filtered = useMemo(
-    () => filterUsers(MOCK_USERS, filters),
-    [filters],
+  const query = usePaginatedQuery<User>(
+    ['users', tenantId],
+    `/v1/tenants/${tenantId}/users`,
+    {
+      page,
+      pageSize,
+      sortBy,
+      sortOrder,
+      ...(filters.role ? { role: filters.role } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.search ? { search: filters.search } : {}),
+    },
+    { enabled: !!tenantId },
   );
-
-  const sorted = useMemo(
-    () => sortUsers(filtered, sortBy, sortOrder),
-    [filtered, sortBy, sortOrder],
-  );
-
-  const paginatedData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return sorted.slice(start, start + pageSize);
-  }, [sorted, page, pageSize]);
 
   const pagination: DataTablePagination = {
     page,
     pageSize,
-    total: filtered.length,
+    total: query.data?.pagination.total ?? 0,
     onChange: (newPage, newPageSize) => {
       setPage(newPage);
       setPageSize(newPageSize);
@@ -101,16 +60,12 @@ export function useUserList(): UseUserListReturn {
     },
   };
 
-  const refetch = useCallback(() => {
-    simulateLoad();
-  }, [simulateLoad]);
-
   return {
-    data: isLoading ? [] : paginatedData,
-    isLoading,
-    isError: false,
-    errorMessage: null,
-    refetch,
+    data: query.data?.data ?? [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    errorMessage: query.error?.message ?? null,
+    refetch: query.refetch,
     filters,
     setFilters,
     pagination,

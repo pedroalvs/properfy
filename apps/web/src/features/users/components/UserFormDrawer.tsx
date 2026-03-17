@@ -12,7 +12,7 @@ import { SelectInput } from '@/components/forms/SelectInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useUserDetail } from '../hooks/useUserDetail';
 import { useUserSave } from '../hooks/useUserSave';
-import { USER_ROLE_OPTIONS, USER_STATUS_OPTIONS, BRANCH_OPTIONS } from '../mocks/form-options';
+import { USER_ROLE_OPTIONS, USER_STATUS_OPTIONS, BRANCH_OPTIONS } from '../constants/form-options';
 import type { UserFormData, UserFormErrors } from '../types';
 import { EMPTY_USER_FORM } from '../types';
 
@@ -34,7 +34,7 @@ export function UserFormDrawer({
     isEditMode ? userId : null,
   );
   const { save, isSaving, validate } = useUserSave();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
 
   const [form, setForm] = useState<UserFormData>(EMPTY_USER_FORM);
   const [initialData, setInitialData] = useState<UserFormData>(EMPTY_USER_FORM);
@@ -89,12 +89,14 @@ export function UserFormDrawer({
       setErrors(validationErrors);
       return;
     }
-    const success = await save(form, userId ?? undefined);
-    if (success) {
+    const result = await save(form, userId ?? undefined);
+    if (result.success) {
       showSuccess(isEditMode ? 'Usuário atualizado com sucesso' : 'Usuário criado com sucesso');
       onSaved();
+    } else {
+      showError(result.error ?? 'Failed to save');
     }
-  }, [isEditMode, form, validate, save, userId, showSuccess, onSaved]);
+  }, [isEditMode, form, validate, save, userId, showSuccess, showError, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {
