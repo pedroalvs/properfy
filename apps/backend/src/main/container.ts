@@ -164,6 +164,7 @@ import { ListNotificationTemplatesUseCase } from '../modules/notification/applic
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
 
 // Dashboard module
+import { PrismaDashboardRepository } from '../modules/dashboard/infrastructure/prisma-dashboard.repository';
 import { GetDashboardStatsUseCase } from '../modules/dashboard/application/use-cases/get-dashboard-stats.use-case';
 import type { DashboardRouteContainer } from '../modules/dashboard/interfaces/dashboard.routes';
 
@@ -404,8 +405,9 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo);
 
-  // Dashboard use cases
-  const getDashboardStatsUseCase = new GetDashboardStatsUseCase();
+  // Dashboard repositories and use cases
+  const dashboardRepo = new PrismaDashboardRepository(prisma);
+  const getDashboardStatsUseCase = new GetDashboardStatsUseCase(dashboardRepo);
 
   return {
     prisma,
