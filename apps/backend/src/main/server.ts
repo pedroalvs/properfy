@@ -8,7 +8,7 @@ import { registerErrorHandler } from '../shared/interfaces/error-handler';
 const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
 const LOG_LEVEL = process.env['LOG_LEVEL'] ?? 'info';
 
-export async function buildApp() {
+async function createApp() {
   const app = Fastify({
     logger: {
       level: LOG_LEVEL,
@@ -33,11 +33,24 @@ export async function buildApp() {
   const container = createContainer(app.log);
   await registerRoutes(app, container);
 
+  return { app, container };
+}
+
+export async function buildApp() {
+  const { app } = await createApp();
   return app;
 }
 
 async function start() {
-  const app = await buildApp();
+  const { app, container } = await createApp();
+
+  if (process.env['ENABLE_JOB_QUEUE'] === 'true') {
+    const { registerWorkers } = await import('./workers.js');
+    await registerWorkers(
+      container.report.processReportJobUseCase,
+      app.log,
+    );
+  }
 
   try {
     await app.listen({ port: PORT, host: '0.0.0.0' });
