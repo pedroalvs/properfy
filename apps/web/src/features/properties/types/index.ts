@@ -35,3 +35,31 @@ export const DEFAULT_FILTERS: PropertyFiltersState = {
   type: '',
   branchId: '',
 };
+
+export interface PropertyFormData {
+  propertyCode: string;
+  type: string;
+  branchId: string;
+  street: string;
+  addressLine2: string;
+  suburb: string;
+  postcode: string;
+  state: string;
+  country: string;
+  notes: string;
+}
+
+export type PropertyFormErrors = Partial<Record<keyof PropertyFormData, string>>;
+
+export const EMPTY_PROPERTY_FORM: PropertyFormData = {
+  propertyCode: '',
+  type: '',
+  branchId: '',
+  street: '',
+  addressLine2: '',
+  suburb: '',
+  postcode: '',
+  state: '',
+  country: 'BR',
+  notes: '',
+};
