@@ -52,6 +52,11 @@ export const updateAvailabilitySlotSchema = z.object({
 });
 export type UpdateAvailabilitySlotInput = z.infer<typeof updateAvailabilitySlotSchema>;
 
+export const linkInspectorToUserSchema = z.object({
+  userId: z.string().uuid(),
+});
+export type LinkInspectorToUserInput = z.infer<typeof linkInspectorToUserSchema>;
+
 export const listAvailabilitySlotsQuerySchema = paginationSchema.extend({
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),

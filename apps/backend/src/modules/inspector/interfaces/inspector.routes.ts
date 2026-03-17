@@ -7,6 +7,7 @@ import {
   createAvailabilitySlotSchema,
   updateAvailabilitySlotSchema,
   listAvailabilitySlotsQuerySchema,
+  linkInspectorToUserSchema,
   inspectorResponseSchema,
   availabilitySlotResponseSchema,
   successResponseSchema,
@@ -22,6 +23,7 @@ import type { UpdateInspectorUseCase } from '../application/use-cases/update-ins
 import type { CreateAvailabilitySlotUseCase } from '../application/use-cases/create-availability-slot.use-case';
 import type { ListAvailabilitySlotsUseCase } from '../application/use-cases/list-availability-slots.use-case';
 import type { UpdateAvailabilitySlotUseCase } from '../application/use-cases/update-availability-slot.use-case';
+import type { LinkInspectorToUserUseCase } from '../application/use-cases/link-inspector-to-user.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface InspectorRouteContainer {
@@ -32,6 +34,7 @@ export interface InspectorRouteContainer {
   createAvailabilitySlotUseCase: CreateAvailabilitySlotUseCase;
   listAvailabilitySlotsUseCase: ListAvailabilitySlotsUseCase;
   updateAvailabilitySlotUseCase: UpdateAvailabilitySlotUseCase;
+  linkInspectorToUserUseCase: LinkInspectorToUserUseCase;
   jwtService: JwtService;
 }
 
@@ -238,6 +241,32 @@ export async function registerInspectorRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspectors/:inspectorId/link-user
+  app.post(
+    '/v1/inspectors/:inspectorId/link-user',
+    { preHandler: authenticate, schema: { params: z.object({ inspectorId: z.string().uuid() }), body: linkInspectorToUserSchema } },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid inspector ID',
+          params.error.errors,
+        );
+      const parsed = linkInspectorToUserSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      await container.linkInspectorToUserUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        userId: parsed.data.userId,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
     },
   );
 }
