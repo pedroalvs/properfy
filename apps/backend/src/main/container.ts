@@ -17,7 +17,7 @@ import type { AuthRouteContainer } from '../modules/auth/interfaces/auth.routes'
 // Tenant module
 import { PrismaTenantRepository } from '../modules/tenant/infrastructure/prisma-tenant.repository';
 import { PrismaBranchRepository } from '../modules/tenant/infrastructure/prisma-branch.repository';
-import { StubAppointmentChecker } from '../modules/tenant/domain/appointment-checker';
+import { PrismaAppointmentChecker } from '../modules/tenant/infrastructure/prisma-appointment-checker';
 import { CreateTenantUseCase } from '../modules/tenant/application/use-cases/create-tenant.use-case';
 import { GetTenantUseCase } from '../modules/tenant/application/use-cases/get-tenant.use-case';
 import { ListTenantsUseCase } from '../modules/tenant/application/use-cases/list-tenants.use-case';
@@ -140,6 +140,7 @@ import { StubReportStorageService } from '../modules/report/infrastructure/stub-
 import { ExcelJsXlsxGenerator } from '../modules/report/infrastructure/exceljs-xlsx-generator';
 import { PrismaReportDataReader } from '../modules/report/infrastructure/prisma-report-data-reader';
 import { StubJobQueue } from '../modules/report/infrastructure/stub-job-queue';
+import { PgBossJobQueue } from '../modules/report/infrastructure/pgboss-job-queue';
 import { RequestReportUseCase } from '../modules/report/application/use-cases/request-report.use-case';
 import { GetReportStatusUseCase } from '../modules/report/application/use-cases/get-report-status.use-case';
 import { DownloadReportUseCase } from '../modules/report/application/use-cases/download-report.use-case';
@@ -211,8 +212,7 @@ export function createContainer(logger: Logger): AppContainer {
   const branchRepo = new PrismaBranchRepository(prisma);
   const userManagementRepo = new PrismaUserManagementRepository(prisma);
 
-  // Stubs (to be replaced when appointment module is built)
-  const appointmentChecker = new StubAppointmentChecker();
+  const appointmentChecker = new PrismaAppointmentChecker(prisma);
 
   // Services
   const jwtPrivateKey = process.env['JWT_PRIVATE_KEY'];
@@ -261,7 +261,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, auditService);
-  const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, auditService);
+  const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
 
   // Service type repositories and use cases
   const serviceTypeRepo = new PrismaServiceTypeRepository(prisma);
@@ -375,7 +375,9 @@ export function createContainer(logger: Logger): AppContainer {
   const reportStorageService = new StubReportStorageService();
   const xlsxGenerator = new ExcelJsXlsxGenerator();
   const reportDataReader = new PrismaReportDataReader(prisma);
-  const reportJobQueue = new StubJobQueue();
+  const reportJobQueue = process.env['ENABLE_JOB_QUEUE'] === 'true'
+    ? new PgBossJobQueue()
+    : new StubJobQueue();
   const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService);
   const getReportStatusUseCase = new GetReportStatusUseCase(reportRepo);
   const downloadReportUseCase = new DownloadReportUseCase(reportRepo, reportStorageService);
