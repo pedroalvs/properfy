@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PgBossJobQueue } from '../../../src/modules/report/infrastructure/pgboss-job-queue';
+import { PgBossJobQueue } from '../../../src/shared/infrastructure/pgboss-job-queue';
 
 vi.mock('../../../src/shared/infrastructure/queue', () => ({
   sendJob: vi.fn().mockResolvedValue('job-id-123'),
