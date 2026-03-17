@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { AvailabilitySlotStatus as PrismaAvailabilitySlotStatus, Prisma } from '@prisma/client';
 import { AvailabilitySlotEntity } from '../domain/availability-slot.entity';
 import type {
   IAvailabilitySlotRepository,
@@ -95,9 +96,9 @@ export class PrismaAvailabilitySlotRepository
         date: slot.date,
         start_time: slot.startTime,
         end_time: slot.endTime,
-        region_json: slot.regionJson ?? undefined,
+        region_json: (slot.regionJson as Prisma.InputJsonValue) ?? undefined,
         capacity: slot.capacity,
-        status: slot.status as string,
+        status: slot.status as PrismaAvailabilitySlotStatus,
       },
     });
   }

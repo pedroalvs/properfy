@@ -1,6 +1,6 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
-import type { PersistentAuditService } from '../../../audit/application/services/persistent-audit.service';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
 import { PortalAppointmentInactiveError } from '../../domain/tenant-portal.errors';
@@ -26,7 +26,7 @@ export class ReportUnavailabilityUseCase {
   constructor(
     private readonly activityRepo: ITenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
-    private readonly auditService: PersistentAuditService,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(input: ReportUnavailabilityInput) {

@@ -52,6 +52,7 @@ export class CreateInspectorUseCase {
 
     const inspector = new InspectorEntity({
       id,
+      userId: null,
       name,
       email,
       phone: phone ?? null,

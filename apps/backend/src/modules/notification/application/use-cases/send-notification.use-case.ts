@@ -95,7 +95,7 @@ export class SendNotificationUseCase {
           error instanceof Error ? error.message : 'Unknown provider error';
       } else {
         const delayIndex = Math.min(notification.retryCount - 1, RETRY_DELAYS.length - 1);
-        const baseDelay = RETRY_DELAYS[delayIndex];
+        const baseDelay = RETRY_DELAYS[delayIndex] ?? RETRY_DELAYS[0]!;
         const jitter = baseDelay * JITTER_FACTOR * (2 * Math.random() - 1);
         const delayMs = baseDelay + jitter;
         notification.nextRetryAt = new Date(Date.now() + delayMs);

@@ -73,7 +73,7 @@ export class GetPortalDataUseCase {
           }
         : null,
       restrictions:
-        restrictions.length > 0
+        restrictions[0]
           ? {
               isHome: restrictions[0].isHome,
               unavailableDaysJson: restrictions[0].unavailableDaysJson,

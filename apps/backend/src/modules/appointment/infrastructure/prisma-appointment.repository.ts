@@ -1,4 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
+import {
+  AppointmentStatus as PrismaAppointmentStatus,
+  TenantConfirmationStatus as PrismaTenantConfirmationStatus,
+  RestrictionSource as PrismaRestrictionSource,
+  Prisma,
+} from '@prisma/client';
 import { AppointmentEntity } from '../domain/appointment.entity';
 import { AppointmentContactEntity } from '../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../domain/appointment-restriction.entity';
@@ -130,18 +136,18 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         property_id: appointment.propertyId,
         service_type_id: appointment.serviceTypeId,
         inspector_id: appointment.inspectorId,
-        status: appointment.status as string,
+        status: appointment.status as PrismaAppointmentStatus,
         scheduled_date: appointment.scheduledDate,
         time_slot: appointment.timeSlot,
         key_required: appointment.keyRequired,
         meeting_location: appointment.meetingLocation,
         key_location: appointment.keyLocation,
-        tenant_confirmation_status: appointment.tenantConfirmationStatus as string,
+        tenant_confirmation_status: appointment.tenantConfirmationStatus as PrismaTenantConfirmationStatus,
         price_amount: appointment.priceAmount,
         payout_amount: appointment.payoutAmount,
-        pricing_rule_snapshot_json: appointment.pricingRuleSnapshotJson,
+        pricing_rule_snapshot_json: appointment.pricingRuleSnapshotJson as Prisma.InputJsonValue,
         notes: appointment.notes,
-        custom_fields_json: appointment.customFieldsJson ?? undefined,
+        custom_fields_json: (appointment.customFieldsJson as Prisma.InputJsonValue) ?? undefined,
         reason: appointment.reason,
         created_by_user_id: appointment.createdByUserId,
         done_checked_by_user_id: appointment.doneCheckedByUserId,
@@ -244,7 +250,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         unavailable_days_json: restriction.unavailableDaysJson ?? undefined,
         unavailable_hours_json: restriction.unavailableHoursJson ?? undefined,
         notes: restriction.notes,
-        source: restriction.source as string,
+        source: restriction.source as PrismaRestrictionSource,
       },
     });
   }

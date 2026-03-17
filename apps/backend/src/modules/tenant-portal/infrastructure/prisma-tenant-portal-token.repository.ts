@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { TenantPortalTokenStatus as PrismaTenantPortalTokenStatus } from '@prisma/client';
 import { TenantPortalTokenEntity } from '../domain/tenant-portal-token.entity';
 import type { ITenantPortalTokenRepository } from '../domain/tenant-portal-token.repository';
 import type { TenantPortalTokenStatus } from '@properfy/shared';
@@ -38,14 +39,14 @@ export class PrismaTenantPortalTokenRepository implements ITenantPortalTokenRepo
         appointment_id: token.appointmentId,
         token_hash: token.tokenHash,
         expires_at: token.expiresAt,
-        status: token.status as string,
+        status: token.status as PrismaTenantPortalTokenStatus,
         last_accessed_at: token.lastAccessedAt,
       },
     });
   }
 
   async updateStatus(id: string, status: string): Promise<void> {
-    await this.prisma.tenantPortalToken.update({ where: { id }, data: { status: status as any } });
+    await this.prisma.tenantPortalToken.update({ where: { id }, data: { status: status as PrismaTenantPortalTokenStatus } });
   }
 
   async updateLastAccessedAt(id: string, date: Date): Promise<void> {

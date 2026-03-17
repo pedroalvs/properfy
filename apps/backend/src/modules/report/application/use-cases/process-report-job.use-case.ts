@@ -25,7 +25,7 @@ export class ProcessReportJobUseCase {
       await this.reportRepo.update(report);
 
       // 3. Build data filters from filtersJson
-      const filters = report.filtersJson as ReportDataFilters;
+      const filters = report.filtersJson as unknown as ReportDataFilters;
 
       // 4. Dispatch to correct data reader based on reportType
       let rows: Record<string, unknown>[];

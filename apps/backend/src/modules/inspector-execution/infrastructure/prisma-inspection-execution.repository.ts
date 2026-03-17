@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import { type PrismaClient, Prisma } from '@prisma/client';
 import { InspectionExecutionEntity } from '../domain/inspection-execution.entity';
 import type { IInspectionExecutionRepository } from '../domain/inspection-execution.repository';
 
@@ -50,7 +50,9 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
         start_longitude: execution.startLongitude,
         finish_latitude: execution.finishLatitude,
         finish_longitude: execution.finishLongitude,
-        checklist_json: execution.checklistJson ?? undefined,
+        checklist_json: execution.checklistJson !== null
+          ? (execution.checklistJson as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
         notes: execution.notes,
       },
     });

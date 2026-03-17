@@ -32,7 +32,7 @@ export class HandleProviderWebhookUseCase {
     const currentPriority = STATUS_PRIORITY[notification.status] ?? 0;
 
     if (input.event === 'delivered') {
-      if (currentPriority < STATUS_PRIORITY['DELIVERED']) {
+      if (currentPriority < (STATUS_PRIORITY['DELIVERED'] ?? 2)) {
         notification.status = 'DELIVERED' as NotificationStatus;
         notification.deliveredAt = new Date(input.occurredAt);
       } else {

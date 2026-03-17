@@ -12,7 +12,10 @@ export class TokenService {
   computeExpiresAt(scheduledDate: string, timezone: string): Date {
     // scheduledDate is YYYY-MM-DD format
     // Returns 7PM on the day before in the given timezone, converted to UTC
-    const [year, month, day] = scheduledDate.split('-').map(Number);
+    const dateParts = scheduledDate.split('-').map(Number);
+    const year = dateParts[0]!;
+    const month = dateParts[1]!;
+    const day = dateParts[2]!;
 
     // Compute the day before using Date to handle month/year boundaries correctly
     const dayBeforeLocal = new Date(Date.UTC(year, month - 1, day - 1, 12, 0, 0));

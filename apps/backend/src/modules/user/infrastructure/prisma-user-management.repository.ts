@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from '@prisma/client';
 import { UserEntity } from '../../auth/domain/user.entity';
 import type {
   IUserManagementRepository,
@@ -106,11 +107,11 @@ export class PrismaUserManagementRepository
         id: user.id,
         tenant_id: user.tenantId,
         branch_id: user.branchId,
-        role: user.role,
+        role: user.role as PrismaUserRole,
         name: user.name,
         email: user.email,
         phone: user.phone,
-        status: user.status,
+        status: user.status as PrismaUserStatus,
         password_hash: user.passwordHash,
         totp_secret: user.totpSecret,
         totp_enabled: user.totpEnabled,

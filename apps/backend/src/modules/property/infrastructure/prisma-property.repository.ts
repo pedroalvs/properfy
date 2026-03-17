@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { PropertyType as PrismaPropertyType, GeocodingStatus as PrismaGeocodingStatus, Prisma } from '@prisma/client';
 import { PropertyEntity } from '../domain/property.entity';
 import type {
   IPropertyRepository,
@@ -106,7 +107,7 @@ export class PrismaPropertyRepository implements IPropertyRepository {
         tenant_id: property.tenantId,
         branch_id: property.branchId,
         property_code: property.propertyCode,
-        type: property.type as string,
+        type: property.type as PrismaPropertyType,
         street: property.street,
         address_line_2: property.addressLine2,
         suburb: property.suburb,
@@ -115,9 +116,9 @@ export class PrismaPropertyRepository implements IPropertyRepository {
         country: property.country,
         lat: property.lat,
         lng: property.lng,
-        geocoding_status: property.geocodingStatus as string,
+        geocoding_status: property.geocodingStatus as PrismaGeocodingStatus,
         notes: property.notes,
-        rules_json: property.rulesJson,
+        rules_json: property.rulesJson as Prisma.InputJsonValue,
       },
     });
   }

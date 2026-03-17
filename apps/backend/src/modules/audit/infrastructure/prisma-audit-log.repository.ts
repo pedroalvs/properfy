@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { AuditActorType as PrismaAuditActorType } from '@prisma/client';
 import { AuditLogEntity } from '../domain/audit-log.entity';
 import type {
   IAuditLogRepository,
@@ -33,7 +34,7 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
       data: {
         id: entry.id,
         tenant_id: entry.tenantId,
-        actor_type: entry.actorType as string,
+        actor_type: entry.actorType as PrismaAuditActorType,
         actor_id: entry.actorId,
         entity_type: entry.entityType,
         entity_id: entry.entityId,
@@ -53,7 +54,7 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
       data: entries.map((e) => ({
         id: e.id,
         tenant_id: e.tenantId,
-        actor_type: e.actorType as string,
+        actor_type: e.actorType as PrismaAuditActorType,
         actor_id: e.actorId,
         entity_type: e.entityType,
         entity_id: e.entityId,

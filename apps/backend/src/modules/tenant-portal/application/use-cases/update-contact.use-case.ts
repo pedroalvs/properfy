@@ -1,6 +1,6 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
-import type { PersistentAuditService } from '../../../audit/application/services/persistent-audit.service';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import {
   PortalAppointmentInactiveError,
@@ -24,7 +24,7 @@ export class UpdateContactUseCase {
   constructor(
     private readonly activityRepo: ITenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
-    private readonly auditService: PersistentAuditService,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(input: UpdateContactInput) {
@@ -49,7 +49,7 @@ export class UpdateContactUseCase {
     const newValues: Record<string, unknown> = {};
 
     for (const [field, value] of fieldsToUpdate) {
-      previousValues[field] = contact ? (contact as Record<string, unknown>)[field] : null;
+      previousValues[field] = contact ? (contact as unknown as Record<string, unknown>)[field] : null;
       newValues[field] = value;
     }
 

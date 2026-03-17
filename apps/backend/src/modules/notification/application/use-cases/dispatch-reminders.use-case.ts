@@ -54,7 +54,7 @@ export class DispatchRemindersUseCase {
           templateCode,
           payloadJson: {
             tenantName: contact.tenantName,
-            scheduledDate: appointment.scheduledDate.toISOString().split('T')[0],
+            scheduledDate: appointment.scheduledDate.toISOString().split('T')[0] ?? '',
             timeSlot: appointment.timeSlot,
             appointmentReference: appointment.id,
           },

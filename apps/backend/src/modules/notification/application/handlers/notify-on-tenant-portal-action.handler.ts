@@ -25,7 +25,10 @@ export class NotifyOnTenantPortalActionHandler {
     if (!result?.contact?.primaryEmail) return;
 
     const { appointment, contact } = result;
+    if (!contact?.primaryEmail) return;
+
     const property = await this.propertyRepo.findById(appointment.propertyId, appointment.tenantId);
+    const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0] ?? '';
 
     await this.createNotification.execute({
       tenantId: appointment.tenantId,
@@ -35,7 +38,7 @@ export class NotifyOnTenantPortalActionHandler {
       templateCode,
       payloadJson: {
         tenantName: contact.tenantName,
-        scheduledDate: appointment.scheduledDate.toISOString().split('T')[0],
+        scheduledDate: scheduledDateStr,
         timeSlot: appointment.timeSlot,
         propertyAddress: property?.fullAddress ?? '',
         appointmentReference: appointment.id,

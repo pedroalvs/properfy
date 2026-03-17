@@ -1,7 +1,7 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
-import type { PersistentAuditService } from '../../../audit/application/services/persistent-audit.service';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
 import {
@@ -37,7 +37,7 @@ export class RescheduleRequestUseCase {
     private readonly activityRepo: ITenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly serviceTypeRepo: IServiceTypeRepository,
-    private readonly auditService: PersistentAuditService,
+    private readonly auditService: AuditService,
     private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
   ) {}
 

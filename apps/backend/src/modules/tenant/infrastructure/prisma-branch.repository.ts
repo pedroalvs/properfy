@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { BranchStatus as PrismaBranchStatus, Prisma } from '@prisma/client';
 import { BranchEntity } from '../domain/branch.entity';
 import type {
   IBranchRepository,
@@ -79,9 +80,9 @@ export class PrismaBranchRepository implements IBranchRepository {
         id: branch.id,
         tenant_id: branch.tenantId,
         name: branch.name,
-        address_json: branch.addressJson,
+        address_json: (branch.addressJson as Prisma.InputJsonValue) ?? undefined,
         contact_email: branch.contactEmail,
-        status: branch.status as string,
+        status: branch.status as PrismaBranchStatus,
       },
     });
   }
@@ -91,6 +92,7 @@ export class PrismaBranchRepository implements IBranchRepository {
     data: Partial<{
       name: string;
       addressJson: Record<string, unknown> | null;
+      contactEmail: string | null;
       status: string;
       deletedAt: Date | null;
     }>,

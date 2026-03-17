@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { ServiceGroupStatus as PrismaServiceGroupStatus, PriorityMode as PrismaPriorityMode } from '@prisma/client';
 import { ServiceGroupEntity } from '../domain/service-group.entity';
 import type {
   IServiceGroupRepository,
@@ -99,13 +100,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         id: group.id,
         tenant_id: group.tenantId,
         service_type_id: group.serviceTypeId,
-        status: group.status as string,
+        status: group.status as PrismaServiceGroupStatus,
         group_size: group.groupSize,
         offered_count: group.offeredCount,
         confirmed_count: group.confirmedCount,
         scheduled_date: group.scheduledDate,
         time_window: group.timeWindow,
-        priority_mode: group.priorityMode as string,
+        priority_mode: group.priorityMode as PrismaPriorityMode,
         priority_expires_at: group.priorityExpiresAt,
         assigned_inspector_id: group.assignedInspectorId,
         published_at: group.publishedAt,

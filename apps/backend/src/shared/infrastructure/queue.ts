@@ -36,7 +36,10 @@ export async function sendJob<T extends object>(
   options?: PgBoss.SendOptions,
 ): Promise<string | null> {
   const q = await getQueue();
-  return q.send(name, data, options);
+  if (options) {
+    return q.send(name, data, options);
+  }
+  return q.send(name, data);
 }
 
 export async function scheduleJob(

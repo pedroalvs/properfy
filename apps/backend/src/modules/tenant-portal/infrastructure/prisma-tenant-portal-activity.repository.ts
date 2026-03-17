@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { TenantPortalAction as PrismaTenantPortalAction, Prisma } from '@prisma/client';
 import { TenantPortalActivityEntity } from '../domain/tenant-portal-activity.entity';
 import type { ITenantPortalActivityRepository } from '../domain/tenant-portal-activity.repository';
 import type { TenantPortalAction } from '@properfy/shared';
@@ -26,9 +27,9 @@ export class PrismaTenantPortalActivityRepository implements ITenantPortalActivi
         id: activity.id,
         appointment_id: activity.appointmentId,
         tenant_portal_token_id: activity.tenantPortalTokenId,
-        action: activity.action as string,
-        previous_values_json: activity.previousValuesJson ?? undefined,
-        new_values_json: activity.newValuesJson ?? undefined,
+        action: activity.action as PrismaTenantPortalAction,
+        previous_values_json: (activity.previousValuesJson as Prisma.InputJsonValue) ?? undefined,
+        new_values_json: (activity.newValuesJson as Prisma.InputJsonValue) ?? undefined,
         ip_address: activity.ipAddress,
         user_agent: activity.userAgent,
       },

@@ -1,4 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
+import {
+  ReportStatus as PrismaReportStatus,
+  ReportType as PrismaReportType,
+  ReportFormat as PrismaReportFormat,
+  Prisma,
+} from '@prisma/client';
 import type { IReportRepository, ReportFilters } from '../domain/report.repository';
 import type { ReportStatus } from '@properfy/shared';
 import { ReportEntity } from '../domain/report.entity';
@@ -31,7 +37,7 @@ export class PrismaReportRepository implements IReportRepository {
     return this.prisma.report.count({
       where: {
         requested_by_user_id: userId,
-        status: { in: statuses },
+        status: { in: statuses as PrismaReportStatus[] },
       },
     });
   }
@@ -41,10 +47,10 @@ export class PrismaReportRepository implements IReportRepository {
       data: {
         id: entity.id,
         tenant_id: entity.tenantId,
-        report_type: entity.reportType,
-        filters_json: entity.filtersJson,
-        format: entity.format,
-        status: entity.status,
+        report_type: entity.reportType as PrismaReportType,
+        filters_json: entity.filtersJson as Prisma.InputJsonValue,
+        format: entity.format as PrismaReportFormat,
+        status: entity.status as PrismaReportStatus,
         file_key: entity.fileKey,
         requested_by_user_id: entity.requestedByUserId,
         started_at: entity.startedAt,
@@ -62,10 +68,10 @@ export class PrismaReportRepository implements IReportRepository {
       where: { id: entity.id },
       data: {
         tenant_id: entity.tenantId,
-        report_type: entity.reportType,
-        filters_json: entity.filtersJson,
-        format: entity.format,
-        status: entity.status,
+        report_type: entity.reportType as PrismaReportType,
+        filters_json: entity.filtersJson as Prisma.InputJsonValue,
+        format: entity.format as PrismaReportFormat,
+        status: entity.status as PrismaReportStatus,
         file_key: entity.fileKey,
         started_at: entity.startedAt,
         completed_at: entity.completedAt,

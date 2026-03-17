@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { PayoutType as PrismaPayoutType, PriceRuleStatus as PrismaPriceRuleStatus, Prisma } from '@prisma/client';
 import { PricingRuleEntity } from '../domain/pricing-rule.entity';
 import type {
   IPricingRuleRepository,
@@ -92,10 +93,10 @@ export class PrismaPricingRuleRepository implements IPricingRuleRepository {
         service_type_id: rule.serviceTypeId,
         branch_id: rule.branchId,
         price_amount: rule.priceAmount,
-        payout_type: rule.payoutType as string,
+        payout_type: rule.payoutType as PrismaPayoutType,
         payout_value: rule.payoutValue,
-        bonus_rule_json: rule.bonusRuleJson ?? undefined,
-        status: rule.status as string,
+        bonus_rule_json: (rule.bonusRuleJson as Prisma.InputJsonValue) ?? undefined,
+        status: rule.status as PrismaPriceRuleStatus,
       },
     });
   }

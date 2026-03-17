@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RequestReportUseCase } from '../../../src/modules/report/application/use-cases/request-report.use-case';
 import type { IReportRepository } from '../../../src/modules/report/domain/report.repository';
 import type { IJobQueue } from '../../../src/modules/report/domain/job-queue';
-import type { IAuditService } from '../../../src/modules/audit/domain/audit.service';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { ReportEntity } from '../../../src/modules/report/domain/report.entity';
 import {
   ReportTypeForbiddenError,
@@ -26,7 +26,7 @@ function makeSut() {
     enqueue: vi.fn(),
   };
 
-  const auditService: IAuditService = {
+  const auditService: AuditService = {
     log: vi.fn(),
   };
 
@@ -60,7 +60,7 @@ function makeAuth(overrides: Partial<AuthContext> = {}): AuthContext {
 describe('RequestReportUseCase', () => {
   let reportRepo: IReportRepository;
   let jobQueue: IJobQueue;
-  let auditService: IAuditService;
+  let auditService: AuditService;
   let useCase: RequestReportUseCase;
 
   beforeEach(() => {
@@ -117,7 +117,7 @@ describe('RequestReportUseCase', () => {
         entityType: 'Report',
         entityId: result.reportId,
         action: 'reportRequested',
-        metadataJson: expect.objectContaining({
+        metadata: expect.objectContaining({
           reportType: 'INSPECTIONS_SCHEDULED',
           format: 'XLSX',
         }),

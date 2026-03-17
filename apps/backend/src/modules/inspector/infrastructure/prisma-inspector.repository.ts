@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { InspectorStatus as PrismaInspectorStatus, Prisma } from '@prisma/client';
 import { InspectorEntity } from '../domain/inspector.entity';
 import type {
   IInspectorRepository,
@@ -119,8 +120,8 @@ export class PrismaInspectorRepository implements IInspectorRepository {
         name: inspector.name,
         email: inspector.email,
         phone: inspector.phone,
-        status: inspector.status as string,
-        payment_settings_json: inspector.paymentSettingsJson,
+        status: inspector.status as PrismaInspectorStatus,
+        payment_settings_json: inspector.paymentSettingsJson as Prisma.InputJsonValue,
         regions_json: inspector.regionsJson,
         service_types_json: inspector.serviceTypesJson,
         client_eligibility_json: inspector.clientEligibilityJson,

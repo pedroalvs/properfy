@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IReportRepository } from '../../domain/report.repository';
 import type { IJobQueue } from '../../domain/job-queue';
-import type { IAuditService } from '../../../audit/domain/audit.service';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { ReportEntity } from '../../domain/report.entity';
 import {
   ReportTenantScopeViolationError,
@@ -50,7 +50,7 @@ export class RequestReportUseCase {
   constructor(
     private readonly reportRepo: IReportRepository,
     private readonly jobQueue: IJobQueue,
-    private readonly auditService: IAuditService,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(input: RequestReportInput, auth: AuthContext): Promise<RequestReportOutput> {
@@ -123,14 +123,14 @@ export class RequestReportUseCase {
     });
 
     // 7. Audit log
-    await this.auditService.log({
-      tenantId: effectiveTenantId,
+    this.auditService.log({
+      tenantId: effectiveTenantId ?? undefined,
       actorType: 'USER',
       actorId: userId,
       entityType: 'Report',
       entityId: reportId,
       action: 'reportRequested',
-      metadataJson: { reportType, filters: { ...filters, tenantId: effectiveTenantId }, format },
+      metadata: { reportType, filters: { ...filters, tenantId: effectiveTenantId }, format },
     });
 
     return {

@@ -1,7 +1,7 @@
 import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
-import type { PersistentAuditService } from '../../../audit/application/services/persistent-audit.service';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { TokenService } from '../../domain/token.service';
 import { TenantPortalTokenEntity } from '../../domain/tenant-portal-token.entity';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
@@ -26,7 +26,7 @@ export class GeneratePortalTokenUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly tenantRepo: ITenantRepository,
     private readonly tokenService: TokenService,
-    private readonly auditService: PersistentAuditService,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(input: GeneratePortalTokenInput) {
@@ -58,7 +58,7 @@ export class GeneratePortalTokenUseCase {
     const tokenHash = this.tokenService.hashToken(rawToken);
 
     // 6. Compute expiry based on scheduled date and tenant timezone
-    const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0];
+    const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0]!;
     const expiresAt = this.tokenService.computeExpiresAt(scheduledDateStr, tenant.timezone);
 
     // 7. Create and save token entity

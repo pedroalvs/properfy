@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { TenantStatus as PrismaTenantStatus, Prisma } from '@prisma/client';
 import { TenantEntity } from '../domain/tenant.entity';
 import type {
   ITenantRepository,
@@ -77,10 +78,10 @@ export class PrismaTenantRepository implements ITenantRepository {
         id: tenant.id,
         name: tenant.name,
         legal_name: tenant.legalName,
-        status: tenant.status as string,
+        status: tenant.status as PrismaTenantStatus,
         timezone: tenant.timezone,
         currency: tenant.currency,
-        settings_json: tenant.settingsJson,
+        settings_json: tenant.settingsJson as Prisma.InputJsonValue,
       },
     });
   }

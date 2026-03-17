@@ -1,8 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "outDir": "./dist",
-    "rootDir": "./src",
     "paths": {
       "@properfy/shared": ["../../packages/shared/src/index.ts"]
     }

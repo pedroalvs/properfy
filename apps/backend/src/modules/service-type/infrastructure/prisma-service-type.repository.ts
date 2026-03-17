@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { ServiceTypeFlowType as PrismaServiceTypeFlowType, ServiceTypeStatus as PrismaServiceTypeStatus } from '@prisma/client';
 import { ServiceTypeEntity } from '../domain/service-type.entity';
 import type {
   IServiceTypeRepository,
@@ -71,9 +72,9 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
         id: serviceType.id,
         code: serviceType.code,
         name: serviceType.name,
-        flow_type: serviceType.flowType as string,
+        flow_type: serviceType.flowType as PrismaServiceTypeFlowType,
         requires_tenant_confirmation: serviceType.requiresTenantConfirmation,
-        status: serviceType.status as string,
+        status: serviceType.status as PrismaServiceTypeStatus,
       },
     });
   }
