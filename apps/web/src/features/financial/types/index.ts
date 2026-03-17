@@ -33,3 +33,25 @@ export const DEFAULT_FILTERS: FinancialFiltersState = {
   entryType: '',
   status: '',
 };
+
+export interface FinancialEntryFormData {
+  entryType: string;
+  amount: string;
+  description: string;
+  relatedEntityName: string;
+  effectiveAt: string;
+  referenceNumber: string;
+  notes: string;
+}
+
+export type FinancialEntryFormErrors = Partial<Record<keyof FinancialEntryFormData, string>>;
+
+export const EMPTY_FINANCIAL_ENTRY_FORM: FinancialEntryFormData = {
+  entryType: '',
+  amount: '',
+  description: '',
+  relatedEntityName: '',
+  effectiveAt: '',
+  referenceNumber: '',
+  notes: '',
+};
