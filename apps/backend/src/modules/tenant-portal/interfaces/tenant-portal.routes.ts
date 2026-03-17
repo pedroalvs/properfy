@@ -6,6 +6,10 @@ import {
   rescheduleRequestPortalSchema,
   updateContactPortalSchema,
   reportUnavailabilityPortalSchema,
+  portalDataResponseSchema,
+  portalTokenResponseSchema,
+  appointmentResponseSchema,
+  successResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { createPortalTokenMiddleware } from './portal-token-middleware';
@@ -48,7 +52,7 @@ export async function registerTenantPortalRoutes(
   // GET /v1/tenant-portal/:token
   app.get(
     '/v1/tenant-portal/:token',
-    { preHandler: portalAuth },
+    { preHandler: portalAuth, schema: { params: z.object({ token: z.string() }), response: { 200: portalDataResponseSchema } } },
     async (request, reply) => {
       const ctx = request.portalContext!;
       const ipAddress =
@@ -72,7 +76,7 @@ export async function registerTenantPortalRoutes(
   // POST /v1/tenant-portal/:token/confirm
   app.post(
     '/v1/tenant-portal/:token/confirm',
-    { preHandler: portalAuth },
+    { preHandler: portalAuth, schema: { params: z.object({ token: z.string() }), body: confirmAppointmentPortalSchema, response: { 200: appointmentResponseSchema } } },
     async (request, reply) => {
       const ctx = request.portalContext!;
       const parsed = confirmAppointmentPortalSchema.safeParse(request.body);
@@ -110,7 +114,7 @@ export async function registerTenantPortalRoutes(
   // POST /v1/tenant-portal/:token/reschedule
   app.post(
     '/v1/tenant-portal/:token/reschedule',
-    { preHandler: portalAuth },
+    { preHandler: portalAuth, schema: { params: z.object({ token: z.string() }), body: rescheduleRequestPortalSchema, response: { 200: appointmentResponseSchema } } },
     async (request, reply) => {
       const ctx = request.portalContext!;
       const parsed = rescheduleRequestPortalSchema.safeParse(request.body);
@@ -150,7 +154,7 @@ export async function registerTenantPortalRoutes(
   // PATCH /v1/tenant-portal/:token/contact
   app.patch(
     '/v1/tenant-portal/:token/contact',
-    { preHandler: portalAuth },
+    { preHandler: portalAuth, schema: { params: z.object({ token: z.string() }), body: updateContactPortalSchema, response: { 200: z.object({ contact: z.unknown() }) } } },
     async (request, reply) => {
       const ctx = request.portalContext!;
       const parsed = updateContactPortalSchema.safeParse(request.body);
@@ -178,7 +182,7 @@ export async function registerTenantPortalRoutes(
   // POST /v1/tenant-portal/:token/unavailable
   app.post(
     '/v1/tenant-portal/:token/unavailable',
-    { preHandler: portalAuth },
+    { preHandler: portalAuth, schema: { params: z.object({ token: z.string() }), body: reportUnavailabilityPortalSchema, response: { 200: z.object({ restrictions: z.unknown() }) } } },
     async (request, reply) => {
       const ctx = request.portalContext!;
       const parsed = reportUnavailabilityPortalSchema.safeParse(request.body);
@@ -218,7 +222,7 @@ export async function registerTenantPortalRoutes(
   // POST /v1/appointments/:appointmentId/portal-token
   app.post(
     '/v1/appointments/:appointmentId/portal-token',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 201: portalTokenResponseSchema } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {

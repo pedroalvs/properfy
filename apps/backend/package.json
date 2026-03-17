@@ -17,7 +17,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "generate:openapi": "NODE_ENV=test tsx src/scripts/generate-openapi.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -33,6 +34,7 @@
     "bcryptjs": "^2.4.3",
     "exceljs": "^4.4.0",
     "fastify": "^4.28.1",
+    "fastify-type-provider-zod": "^2.1.0",
     "jose": "^5.9.6",
     "otplib": "^12.0.1",
     "pg-boss": "^9.0.3",

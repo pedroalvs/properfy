@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { registerPlugins } from './plugins';
 import { registerRoutes } from './routes';
 import { createContainer } from './container';
@@ -24,7 +25,7 @@ export async function buildApp() {
     },
     requestIdHeader: 'x-request-id',
     genReqId: () => crypto.randomUUID(),
-  });
+  }).withTypeProvider<ZodTypeProvider>();
 
   await registerPlugins(app);
   registerErrorHandler(app);

@@ -7,6 +7,10 @@ import {
   createAvailabilitySlotSchema,
   updateAvailabilitySlotSchema,
   listAvailabilitySlotsQuerySchema,
+  inspectorResponseSchema,
+  availabilitySlotResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -48,7 +52,7 @@ export async function registerInspectorRoutes(
   // POST /v1/inspectors
   app.post(
     '/v1/inspectors',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { body: createInspectorSchema, response: { 201: successResponseSchema(inspectorResponseSchema) } } },
     async (request, reply) => {
       const parsed = createInspectorSchema.safeParse(request.body);
       if (!parsed.success)
@@ -71,7 +75,7 @@ export async function registerInspectorRoutes(
   // GET /v1/inspectors
   app.get(
     '/v1/inspectors',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { querystring: listInspectorsQuerySchema, response: { 200: paginatedResponseSchema(inspectorResponseSchema) } } },
     async (request, reply) => {
       const parsed = listInspectorsQuerySchema.safeParse(request.query);
       if (!parsed.success)
@@ -94,7 +98,7 @@ export async function registerInspectorRoutes(
   // GET /v1/inspectors/:inspectorId
   app.get(
     '/v1/inspectors/:inspectorId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ inspectorId: z.string().uuid() }), response: { 200: successResponseSchema(inspectorResponseSchema) } } },
     async (request, reply) => {
       const params = inspectorIdParam.safeParse(request.params);
       if (!params.success)
@@ -113,7 +117,7 @@ export async function registerInspectorRoutes(
   // PATCH /v1/inspectors/:inspectorId
   app.patch(
     '/v1/inspectors/:inspectorId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ inspectorId: z.string().uuid() }), body: updateInspectorSchema, response: { 200: successResponseSchema(inspectorResponseSchema) } } },
     async (request, reply) => {
       const params = inspectorIdParam.safeParse(request.params);
       if (!params.success)
@@ -145,7 +149,7 @@ export async function registerInspectorRoutes(
   // POST /v1/inspectors/:inspectorId/availability-slots
   app.post(
     '/v1/inspectors/:inspectorId/availability-slots',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ inspectorId: z.string().uuid() }), body: createAvailabilitySlotSchema, response: { 201: successResponseSchema(availabilitySlotResponseSchema) } } },
     async (request, reply) => {
       const params = inspectorIdParam.safeParse(request.params);
       if (!params.success)
@@ -175,7 +179,7 @@ export async function registerInspectorRoutes(
   // GET /v1/inspectors/:inspectorId/availability-slots
   app.get(
     '/v1/inspectors/:inspectorId/availability-slots',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ inspectorId: z.string().uuid() }), querystring: listAvailabilitySlotsQuerySchema, response: { 200: paginatedResponseSchema(availabilitySlotResponseSchema) } } },
     async (request, reply) => {
       const params = inspectorIdParam.safeParse(request.params);
       if (!params.success)
@@ -207,7 +211,7 @@ export async function registerInspectorRoutes(
   // PATCH /v1/inspectors/:inspectorId/availability-slots/:slotId
   app.patch(
     '/v1/inspectors/:inspectorId/availability-slots/:slotId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ inspectorId: z.string().uuid(), slotId: z.string().uuid() }), body: updateAvailabilitySlotSchema, response: { 200: successResponseSchema(availabilitySlotResponseSchema) } } },
     async (request, reply) => {
       const params = slotIdParam.safeParse(request.params);
       if (!params.success)

@@ -6,6 +6,11 @@ import {
   createRefundSchema,
   generateInvoiceSchema,
   listInvoicesQuerySchema,
+  financialEntryResponseSchema,
+  invoiceResponseSchema,
+  invoiceDownloadResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -50,7 +55,7 @@ export async function registerBillingRoutes(
   // GET /v1/financial/entries
   app.get(
     '/v1/financial/entries',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { querystring: listFinancialEntriesQuerySchema, response: { 200: paginatedResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const parsed = listFinancialEntriesQuerySchema.safeParse(request.query);
       if (!parsed.success) {
@@ -67,7 +72,7 @@ export async function registerBillingRoutes(
   // GET /v1/financial/entries/:entryId
   app.get(
     '/v1/financial/entries/:entryId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
@@ -84,7 +89,7 @@ export async function registerBillingRoutes(
   // POST /v1/financial/entries/:entryId/approve
   app.post(
     '/v1/financial/entries/:entryId/approve',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
@@ -101,7 +106,7 @@ export async function registerBillingRoutes(
   // POST /v1/financial/entries/adjust
   app.post(
     '/v1/financial/entries/adjust',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { body: createManualAdjustmentSchema, response: { 201: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const parsed = createManualAdjustmentSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -119,7 +124,7 @@ export async function registerBillingRoutes(
   // POST /v1/financial/entries/:entryId/refund
   app.post(
     '/v1/financial/entries/:entryId/refund',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), body: createRefundSchema, response: { 201: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
@@ -141,7 +146,7 @@ export async function registerBillingRoutes(
   // GET /v1/invoices
   app.get(
     '/v1/invoices',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { querystring: listInvoicesQuerySchema, response: { 200: paginatedResponseSchema(invoiceResponseSchema) } } },
     async (request, reply) => {
       const parsed = listInvoicesQuerySchema.safeParse(request.query);
       if (!parsed.success) {
@@ -158,7 +163,7 @@ export async function registerBillingRoutes(
   // POST /v1/invoices/generate
   app.post(
     '/v1/invoices/generate',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { body: generateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
     async (request, reply) => {
       const parsed = generateInvoiceSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -175,7 +180,7 @@ export async function registerBillingRoutes(
   // GET /v1/invoices/:invoiceId
   app.get(
     '/v1/invoices/:invoiceId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceResponseSchema) } } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);
       if (!params.success) {
@@ -192,7 +197,7 @@ export async function registerBillingRoutes(
   // GET /v1/invoices/:invoiceId/download
   app.get(
     '/v1/invoices/:invoiceId/download',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceDownloadResponseSchema) } } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);
       if (!params.success) {

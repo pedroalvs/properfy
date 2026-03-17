@@ -5,6 +5,11 @@ import {
   startInspectionSchema,
   finishInspectionSchema,
   requestAssetUploadSchema,
+  inspectorScheduleItemSchema,
+  inspectionExecutionResponseSchema,
+  inspectionAssetResponseSchema,
+  appointmentResponseSchema,
+  successResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -42,7 +47,7 @@ export async function registerInspectorExecutionRoutes(
   // GET /v1/inspector/schedule
   app.get(
     '/v1/inspector/schedule',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { querystring: inspectorScheduleQuerySchema, response: { 200: z.array(inspectorScheduleItemSchema) } } },
     async (request, reply) => {
       const parsed = inspectorScheduleQuerySchema.safeParse(request.query);
       if (!parsed.success) {
@@ -59,7 +64,7 @@ export async function registerInspectorExecutionRoutes(
   // GET /v1/inspector/appointments/:appointmentId
   app.get(
     '/v1/inspector/appointments/:appointmentId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 200: successResponseSchema(appointmentResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
@@ -76,7 +81,7 @@ export async function registerInspectorExecutionRoutes(
   // POST /v1/inspector/appointments/:appointmentId/start
   app.post(
     '/v1/inspector/appointments/:appointmentId/start',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: startInspectionSchema, response: { 201: successResponseSchema(inspectionExecutionResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
@@ -102,7 +107,7 @@ export async function registerInspectorExecutionRoutes(
   // POST /v1/inspector/appointments/:appointmentId/finish
   app.post(
     '/v1/inspector/appointments/:appointmentId/finish',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: finishInspectionSchema, response: { 200: successResponseSchema(inspectionExecutionResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
@@ -128,7 +133,7 @@ export async function registerInspectorExecutionRoutes(
   // POST /v1/inspector/appointments/:appointmentId/assets
   app.post(
     '/v1/inspector/appointments/:appointmentId/assets',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: requestAssetUploadSchema, response: { 201: successResponseSchema(inspectionAssetResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
@@ -150,7 +155,7 @@ export async function registerInspectorExecutionRoutes(
   // PATCH /v1/inspector/appointments/:appointmentId/assets/:assetId/confirm
   app.patch(
     '/v1/inspector/appointments/:appointmentId/assets/:assetId/confirm',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid(), assetId: z.string().uuid() }), response: { 200: successResponseSchema(inspectionAssetResponseSchema) } } },
     async (request, reply) => {
       const params = assetIdParam.safeParse(request.params);
       if (!params.success) {

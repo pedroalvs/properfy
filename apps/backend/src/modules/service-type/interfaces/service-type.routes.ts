@@ -4,6 +4,9 @@ import {
   createServiceTypeSchema,
   updateServiceTypeSchema,
   listServiceTypesQuerySchema,
+  serviceTypeResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -35,7 +38,7 @@ export async function registerServiceTypeRoutes(
   // POST /v1/service-types
   app.post(
     '/v1/service-types',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { body: createServiceTypeSchema, response: { 201: successResponseSchema(serviceTypeResponseSchema) } } },
     async (request, reply) => {
       const parsed = createServiceTypeSchema.safeParse(request.body);
       if (!parsed.success)
@@ -54,7 +57,7 @@ export async function registerServiceTypeRoutes(
   // GET /v1/service-types
   app.get(
     '/v1/service-types',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { querystring: listServiceTypesQuerySchema, response: { 200: paginatedResponseSchema(serviceTypeResponseSchema) } } },
     async (request, reply) => {
       const parsed = listServiceTypesQuerySchema.safeParse(request.query);
       if (!parsed.success)
@@ -77,7 +80,7 @@ export async function registerServiceTypeRoutes(
   // GET /v1/service-types/:serviceTypeId
   app.get(
     '/v1/service-types/:serviceTypeId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ serviceTypeId: z.string().uuid() }), response: { 200: successResponseSchema(serviceTypeResponseSchema) } } },
     async (request, reply) => {
       const params = serviceTypeIdParam.safeParse(request.params);
       if (!params.success)
@@ -96,7 +99,7 @@ export async function registerServiceTypeRoutes(
   // PATCH /v1/service-types/:serviceTypeId
   app.patch(
     '/v1/service-types/:serviceTypeId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ serviceTypeId: z.string().uuid() }), body: updateServiceTypeSchema, response: { 200: successResponseSchema(serviceTypeResponseSchema) } } },
     async (request, reply) => {
       const params = serviceTypeIdParam.safeParse(request.params);
       if (!params.success)

@@ -5,6 +5,9 @@ import {
   updateUserSchema,
   listUsersQuerySchema,
   deactivateSchema,
+  userResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -42,7 +45,14 @@ export async function registerUserRoutes(
   // POST /v1/tenants/:tenantId/users
   app.post(
     '/v1/tenants/:tenantId/users',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        body: createUserSchema,
+        response: { 201: successResponseSchema(userResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = tenantIdParam.safeParse(request.params);
       if (!params.success)
@@ -68,7 +78,14 @@ export async function registerUserRoutes(
   // GET /v1/tenants/:tenantId/users
   app.get(
     '/v1/tenants/:tenantId/users',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        querystring: listUsersQuerySchema,
+        response: { 200: paginatedResponseSchema(userResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = tenantIdParam.safeParse(request.params);
       if (!params.success)
@@ -98,7 +115,13 @@ export async function registerUserRoutes(
   // GET /v1/tenants/:tenantId/users/:userId
   app.get(
     '/v1/tenants/:tenantId/users/:userId',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: userIdParam,
+        response: { 200: successResponseSchema(userResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = userIdParam.safeParse(request.params);
       if (!params.success)
@@ -118,7 +141,14 @@ export async function registerUserRoutes(
   // PATCH /v1/tenants/:tenantId/users/:userId
   app.patch(
     '/v1/tenants/:tenantId/users/:userId',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: userIdParam,
+        body: updateUserSchema,
+        response: { 200: successResponseSchema(userResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = userIdParam.safeParse(request.params);
       if (!params.success)
@@ -145,7 +175,14 @@ export async function registerUserRoutes(
   // POST /v1/tenants/:tenantId/users/:userId/deactivate
   app.post(
     '/v1/tenants/:tenantId/users/:userId/deactivate',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: userIdParam,
+        body: deactivateSchema,
+        response: { 204: z.null() },
+      },
+    },
     async (request, reply) => {
       const params = userIdParam.safeParse(request.params);
       if (!params.success)

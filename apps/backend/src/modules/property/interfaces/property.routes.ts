@@ -4,6 +4,9 @@ import {
   createPropertySchema,
   updatePropertySchema,
   listPropertiesQuerySchema,
+  propertyResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -37,7 +40,7 @@ export async function registerPropertyRoutes(
   // POST /v1/properties
   app.post(
     '/v1/properties',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { body: createPropertySchema, response: { 201: successResponseSchema(propertyResponseSchema) } } },
     async (request, reply) => {
       const parsed = createPropertySchema.safeParse(request.body);
       if (!parsed.success)
@@ -56,7 +59,7 @@ export async function registerPropertyRoutes(
   // GET /v1/properties
   app.get(
     '/v1/properties',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { querystring: listPropertiesQuerySchema, response: { 200: paginatedResponseSchema(propertyResponseSchema) } } },
     async (request, reply) => {
       const parsed = listPropertiesQuerySchema.safeParse(request.query);
       if (!parsed.success)
@@ -79,7 +82,7 @@ export async function registerPropertyRoutes(
   // GET /v1/properties/:propertyId
   app.get(
     '/v1/properties/:propertyId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ propertyId: z.string().uuid() }), response: { 200: successResponseSchema(propertyResponseSchema) } } },
     async (request, reply) => {
       const params = propertyIdParam.safeParse(request.params);
       if (!params.success)
@@ -98,7 +101,7 @@ export async function registerPropertyRoutes(
   // PATCH /v1/properties/:propertyId
   app.patch(
     '/v1/properties/:propertyId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ propertyId: z.string().uuid() }), body: updatePropertySchema, response: { 200: successResponseSchema(propertyResponseSchema) } } },
     async (request, reply) => {
       const params = propertyIdParam.safeParse(request.params);
       if (!params.success)
@@ -124,7 +127,7 @@ export async function registerPropertyRoutes(
   // DELETE /v1/properties/:propertyId
   app.delete(
     '/v1/properties/:propertyId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ propertyId: z.string().uuid() }), response: { 204: z.null() } } },
     async (request, reply) => {
       const params = propertyIdParam.safeParse(request.params);
       if (!params.success)

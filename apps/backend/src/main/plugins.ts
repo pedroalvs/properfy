@@ -2,8 +2,19 @@ import type { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUI from '@fastify/swagger-ui';
+import {
+  jsonSchemaTransform,
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod';
 
 export async function registerPlugins(app: FastifyInstance): Promise<void> {
+  // Zod type provider compilers
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+
   // Security headers
   await app.register(helmet, {
     contentSecurityPolicy: false, // API only, no HTML
@@ -30,6 +41,39 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
       },
     }),
   });
+
+  // OpenAPI spec generation
+  await app.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: 'Properfy API',
+        description: 'Property inspection platform API',
+        version: '1.0.0',
+      },
+      servers: [
+        { url: 'http://localhost:3000', description: 'Development' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
+      },
+      security: [{ bearerAuth: [] }],
+    },
+    transform: jsonSchemaTransform,
+  });
+
+  // Swagger UI (dev/staging only)
+  const env = process.env['NODE_ENV'] ?? 'development';
+  if (env !== 'production') {
+    await app.register(fastifySwaggerUI, {
+      routePrefix: '/docs',
+    });
+  }
 
   // Request ID is handled by Fastify's built-in genReqId
 }

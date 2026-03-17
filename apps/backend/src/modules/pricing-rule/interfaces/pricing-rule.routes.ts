@@ -4,6 +4,9 @@ import {
   createPricingRuleSchema,
   updatePricingRuleSchema,
   listPricingRulesQuerySchema,
+  pricingRuleResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -33,7 +36,7 @@ export async function registerPricingRuleRoutes(
   // POST /v1/pricing-rules
   app.post(
     '/v1/pricing-rules',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { body: createPricingRuleSchema, response: { 201: successResponseSchema(pricingRuleResponseSchema) } } },
     async (request, reply) => {
       const parsed = createPricingRuleSchema.safeParse(request.body);
       if (!parsed.success)
@@ -52,7 +55,7 @@ export async function registerPricingRuleRoutes(
   // GET /v1/pricing-rules
   app.get(
     '/v1/pricing-rules',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { querystring: listPricingRulesQuerySchema, response: { 200: paginatedResponseSchema(pricingRuleResponseSchema) } } },
     async (request, reply) => {
       const parsed = listPricingRulesQuerySchema.safeParse(request.query);
       if (!parsed.success)
@@ -75,7 +78,7 @@ export async function registerPricingRuleRoutes(
   // PATCH /v1/pricing-rules/:pricingRuleId
   app.patch(
     '/v1/pricing-rules/:pricingRuleId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ pricingRuleId: z.string().uuid() }), body: updatePricingRuleSchema, response: { 200: successResponseSchema(pricingRuleResponseSchema) } } },
     async (request, reply) => {
       const params = pricingRuleIdParam.safeParse(request.params);
       if (!params.success)

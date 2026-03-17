@@ -6,6 +6,9 @@ import {
   statusTransitionSchema,
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
+  appointmentResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -41,7 +44,13 @@ export async function registerAppointmentRoutes(
   // POST /v1/appointments — 201
   app.post(
     '/v1/appointments',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        body: createAppointmentSchema,
+        response: { 201: successResponseSchema(appointmentResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const parsed = createAppointmentSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -59,7 +68,13 @@ export async function registerAppointmentRoutes(
   // GET /v1/appointments — paginated 200
   app.get(
     '/v1/appointments',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: listAppointmentsQuerySchema,
+        response: { 200: paginatedResponseSchema(appointmentResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const parsed = listAppointmentsQuerySchema.safeParse(request.query);
       if (!parsed.success) {
@@ -78,7 +93,13 @@ export async function registerAppointmentRoutes(
   // GET /v1/appointments/:appointmentId — 200
   app.get(
     '/v1/appointments/:appointmentId',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ appointmentId: z.string().uuid() }),
+        response: { 200: successResponseSchema(appointmentResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
@@ -95,7 +116,14 @@ export async function registerAppointmentRoutes(
   // PATCH /v1/appointments/:appointmentId — 200
   app.patch(
     '/v1/appointments/:appointmentId',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ appointmentId: z.string().uuid() }),
+        body: updateAppointmentSchema,
+        response: { 200: successResponseSchema(appointmentResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
@@ -117,7 +145,14 @@ export async function registerAppointmentRoutes(
   // POST /v1/appointments/:appointmentId/status-transitions — 200
   app.post(
     '/v1/appointments/:appointmentId/status-transitions',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ appointmentId: z.string().uuid() }),
+        body: statusTransitionSchema,
+        response: { 200: successResponseSchema(appointmentResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
@@ -139,7 +174,14 @@ export async function registerAppointmentRoutes(
   // POST /v1/appointments/:appointmentId/force-confirmation — 200
   app.post(
     '/v1/appointments/:appointmentId/force-confirmation',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ appointmentId: z.string().uuid() }),
+        body: forceManualConfirmationSchema,
+        response: { 200: successResponseSchema(appointmentResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {

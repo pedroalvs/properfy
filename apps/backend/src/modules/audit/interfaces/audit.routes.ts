@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { listAuditLogsQuerySchema } from '@properfy/shared';
+import { listAuditLogsQuerySchema, auditLogResponseSchema, paginatedResponseSchema } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
 import { paginated } from '../../../shared/interfaces/response';
@@ -22,7 +22,7 @@ export async function registerAuditRoutes(
   // GET /v1/audit-logs — paginated 200
   app.get(
     '/v1/audit-logs',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { querystring: listAuditLogsQuerySchema, response: { 200: paginatedResponseSchema(auditLogResponseSchema) } } },
     async (request, reply) => {
       const parsed = listAuditLogsQuerySchema.safeParse(request.query);
       if (!parsed.success) {

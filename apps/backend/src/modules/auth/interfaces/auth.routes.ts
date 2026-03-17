@@ -5,7 +5,14 @@ import type { LogoutUseCase } from '../application/use-cases/logout.use-case';
 import type { GetMeUseCase } from '../application/use-cases/get-me.use-case';
 import type { ChangePasswordUseCase } from '../application/use-cases/change-password.use-case';
 import type { RevokeSessionUseCase } from '../application/use-cases/revoke-session.use-case';
-import { loginSchema, refreshSchema, changePasswordSchema } from '@properfy/shared';
+import {
+  loginSchema,
+  refreshSchema,
+  changePasswordSchema,
+  loginResponseSchema,
+  refreshResponseSchema,
+  meResponseSchema,
+} from '@properfy/shared';
 import { z } from 'zod';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import type { JwtService } from '../application/services/jwt.service';
@@ -28,7 +35,12 @@ export async function registerAuthRoutes(
   const authenticate = createAuthMiddleware((token) => container.jwtService.verify(token));
 
   // POST /v1/auth/login
-  app.post('/v1/auth/login', async (request, reply) => {
+  app.post('/v1/auth/login', {
+    schema: {
+      body: loginSchema,
+      response: { 200: loginResponseSchema },
+    },
+  }, async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ValidationError('Request payload is invalid', parsed.error.errors);
@@ -44,7 +56,12 @@ export async function registerAuthRoutes(
   });
 
   // POST /v1/auth/refresh
-  app.post('/v1/auth/refresh', async (request, reply) => {
+  app.post('/v1/auth/refresh', {
+    schema: {
+      body: refreshSchema,
+      response: { 200: refreshResponseSchema },
+    },
+  }, async (request, reply) => {
     const parsed = refreshSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ValidationError('Request payload is invalid', parsed.error.errors);
@@ -58,7 +75,7 @@ export async function registerAuthRoutes(
   // POST /v1/auth/logout
   app.post(
     '/v1/auth/logout',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { response: { 204: z.null() } } },
     async (request, reply) => {
       await container.logoutUseCase.execute({
         userId: request.authContext!.userId,
@@ -70,7 +87,7 @@ export async function registerAuthRoutes(
   // GET /v1/me
   app.get(
     '/v1/me',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { response: { 200: meResponseSchema } } },
     async (request, reply) => {
       const result = await container.getMeUseCase.execute(request.authContext!.userId);
       return reply.status(200).send(result);
@@ -80,7 +97,13 @@ export async function registerAuthRoutes(
   // POST /v1/auth/change-password
   app.post(
     '/v1/auth/change-password',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        body: changePasswordSchema,
+        response: { 204: z.null() },
+      },
+    },
     async (request, reply) => {
       const parsed = changePasswordSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -98,7 +121,13 @@ export async function registerAuthRoutes(
   // DELETE /v1/auth/sessions/:sessionId
   app.delete(
     '/v1/auth/sessions/:sessionId',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ sessionId: z.string().uuid() }),
+        response: { 204: z.null() },
+      },
+    },
     async (request, reply) => {
       const paramsParsed = z.object({ sessionId: z.string().uuid() }).safeParse(request.params);
       if (!paramsParsed.success) {

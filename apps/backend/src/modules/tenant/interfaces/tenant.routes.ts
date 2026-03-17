@@ -8,6 +8,10 @@ import {
   updateBranchSchema,
   listTenantsQuerySchema,
   listBranchesQuerySchema,
+  tenantResponseSchema,
+  branchResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -53,7 +57,13 @@ export async function registerTenantRoutes(
   // POST /v1/tenants
   app.post(
     '/v1/tenants',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        body: createTenantSchema,
+        response: { 201: successResponseSchema(tenantResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const parsed = createTenantSchema.safeParse(request.body);
       if (!parsed.success)
@@ -72,7 +82,13 @@ export async function registerTenantRoutes(
   // GET /v1/tenants
   app.get(
     '/v1/tenants',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: listTenantsQuerySchema,
+        response: { 200: paginatedResponseSchema(tenantResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const parsed = listTenantsQuerySchema.safeParse(request.query);
       if (!parsed.success)
@@ -95,7 +111,13 @@ export async function registerTenantRoutes(
   // GET /v1/tenants/:tenantId
   app.get(
     '/v1/tenants/:tenantId',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        response: { 200: successResponseSchema(tenantResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = tenantIdParam.safeParse(request.params);
       if (!params.success)
@@ -114,7 +136,14 @@ export async function registerTenantRoutes(
   // PATCH /v1/tenants/:tenantId
   app.patch(
     '/v1/tenants/:tenantId',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        body: updateTenantSchema,
+        response: { 200: successResponseSchema(tenantResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = tenantIdParam.safeParse(request.params);
       if (!params.success)
@@ -140,7 +169,14 @@ export async function registerTenantRoutes(
   // POST /v1/tenants/:tenantId/deactivate
   app.post(
     '/v1/tenants/:tenantId/deactivate',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        body: deactivateSchema,
+        response: { 204: z.null() },
+      },
+    },
     async (request, reply) => {
       const params = tenantIdParam.safeParse(request.params);
       if (!params.success)
@@ -166,7 +202,14 @@ export async function registerTenantRoutes(
   // POST /v1/tenants/:tenantId/branches
   app.post(
     '/v1/tenants/:tenantId/branches',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        body: createBranchSchema,
+        response: { 201: successResponseSchema(branchResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = tenantIdParam.safeParse(request.params);
       if (!params.success)
@@ -192,7 +235,14 @@ export async function registerTenantRoutes(
   // GET /v1/tenants/:tenantId/branches
   app.get(
     '/v1/tenants/:tenantId/branches',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        querystring: listBranchesQuerySchema,
+        response: { 200: paginatedResponseSchema(branchResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = tenantIdParam.safeParse(request.params);
       if (!params.success)
@@ -222,7 +272,14 @@ export async function registerTenantRoutes(
   // PATCH /v1/tenants/:tenantId/branches/:branchId
   app.patch(
     '/v1/tenants/:tenantId/branches/:branchId',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: branchIdParam,
+        body: updateBranchSchema,
+        response: { 200: successResponseSchema(branchResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = branchIdParam.safeParse(request.params);
       if (!params.success)
@@ -249,7 +306,14 @@ export async function registerTenantRoutes(
   // POST /v1/tenants/:tenantId/branches/:branchId/deactivate
   app.post(
     '/v1/tenants/:tenantId/branches/:branchId/deactivate',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: branchIdParam,
+        body: deactivateSchema,
+        response: { 204: z.null() },
+      },
+    },
     async (request, reply) => {
       const params = branchIdParam.safeParse(request.params);
       if (!params.success)

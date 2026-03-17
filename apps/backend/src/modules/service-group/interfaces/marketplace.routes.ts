@@ -1,6 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { listMarketplaceOffersQuerySchema } from '@properfy/shared';
+import {
+  listMarketplaceOffersQuerySchema,
+  marketplaceOfferResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
+} from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
@@ -27,7 +32,13 @@ export async function registerMarketplaceRoutes(
   // GET /v1/marketplace/offers — paginated 200
   app.get(
     '/v1/marketplace/offers',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: listMarketplaceOffersQuerySchema,
+        response: { 200: paginatedResponseSchema(marketplaceOfferResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const parsed = listMarketplaceOffersQuerySchema.safeParse(request.query);
       if (!parsed.success) {
@@ -46,7 +57,13 @@ export async function registerMarketplaceRoutes(
   // POST /v1/marketplace/offers/:groupId/accept — 200
   app.post(
     '/v1/marketplace/offers/:groupId/accept',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        response: { 200: successResponseSchema(marketplaceOfferResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = groupIdParam.safeParse(request.params);
       if (!params.success) {

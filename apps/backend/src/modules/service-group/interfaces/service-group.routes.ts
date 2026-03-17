@@ -5,6 +5,9 @@ import {
   assignInspectorSchema,
   cancelServiceGroupSchema,
   listServiceGroupsQuerySchema,
+  serviceGroupResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -40,7 +43,13 @@ export async function registerServiceGroupRoutes(
   // POST /v1/service-groups — 201
   app.post(
     '/v1/service-groups',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        body: createServiceGroupSchema,
+        response: { 201: successResponseSchema(serviceGroupResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const parsed = createServiceGroupSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -57,7 +66,13 @@ export async function registerServiceGroupRoutes(
   // GET /v1/service-groups — paginated 200
   app.get(
     '/v1/service-groups',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: listServiceGroupsQuerySchema,
+        response: { 200: paginatedResponseSchema(serviceGroupResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const parsed = listServiceGroupsQuerySchema.safeParse(request.query);
       if (!parsed.success) {
@@ -76,7 +91,13 @@ export async function registerServiceGroupRoutes(
   // GET /v1/service-groups/:groupId — 200
   app.get(
     '/v1/service-groups/:groupId',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        response: { 200: successResponseSchema(serviceGroupResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = groupIdParam.safeParse(request.params);
       if (!params.success) {
@@ -93,7 +114,13 @@ export async function registerServiceGroupRoutes(
   // POST /v1/service-groups/:groupId/publish — 200
   app.post(
     '/v1/service-groups/:groupId/publish',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        response: { 200: successResponseSchema(serviceGroupResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = groupIdParam.safeParse(request.params);
       if (!params.success) {
@@ -110,7 +137,14 @@ export async function registerServiceGroupRoutes(
   // POST /v1/service-groups/:groupId/assign — 200
   app.post(
     '/v1/service-groups/:groupId/assign',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: assignInspectorSchema,
+        response: { 200: successResponseSchema(serviceGroupResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = groupIdParam.safeParse(request.params);
       if (!params.success) {
@@ -132,7 +166,14 @@ export async function registerServiceGroupRoutes(
   // POST /v1/service-groups/:groupId/cancel — 200
   app.post(
     '/v1/service-groups/:groupId/cancel',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: cancelServiceGroupSchema,
+        response: { 200: successResponseSchema(serviceGroupResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = groupIdParam.safeParse(request.params);
       if (!params.success) {

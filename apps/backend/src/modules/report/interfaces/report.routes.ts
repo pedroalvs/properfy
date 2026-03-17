@@ -1,6 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { requestReportSchema, listReportsQuerySchema } from '@properfy/shared';
+import {
+  requestReportSchema,
+  listReportsQuerySchema,
+  reportResponseSchema,
+  reportRequestedResponseSchema,
+  reportDownloadResponseSchema,
+  successResponseSchema,
+  paginatedResponseSchema,
+} from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
 import { success } from '../../../shared/interfaces/response';
@@ -33,7 +41,7 @@ export async function registerReportRoutes(
   // POST /v1/reports
   app.post(
     '/v1/reports',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { body: requestReportSchema, response: { 202: reportRequestedResponseSchema } } },
     async (request, reply) => {
       const parsed = requestReportSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -58,7 +66,7 @@ export async function registerReportRoutes(
   // GET /v1/reports
   app.get(
     '/v1/reports',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { querystring: listReportsQuerySchema, response: { 200: paginatedResponseSchema(reportResponseSchema) } } },
     async (request, reply) => {
       const parsed = listReportsQuerySchema.safeParse(request.query);
       if (!parsed.success) {
@@ -75,7 +83,7 @@ export async function registerReportRoutes(
   // GET /v1/reports/:reportId
   app.get(
     '/v1/reports/:reportId',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ reportId: z.string().uuid() }), response: { 200: successResponseSchema(reportResponseSchema) } } },
     async (request, reply) => {
       const params = reportIdParam.safeParse(request.params);
       if (!params.success) {
@@ -92,7 +100,7 @@ export async function registerReportRoutes(
   // GET /v1/reports/:reportId/download
   app.get(
     '/v1/reports/:reportId/download',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { params: z.object({ reportId: z.string().uuid() }), response: { 200: successResponseSchema(reportDownloadResponseSchema) } } },
     async (request, reply) => {
       const params = reportIdParam.safeParse(request.params);
       if (!params.success) {
