@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+projeto-consolidado/
 
 # Build outputs
 dist/
@@ -41,3 +42,9 @@ pnpm-debug.log*
 tmp/
 temp/
 .worktrees/
+
+#AI Prompts
+*.AGENT.md
+*.PROMPT.md
+*.CLAUDE.md
+
