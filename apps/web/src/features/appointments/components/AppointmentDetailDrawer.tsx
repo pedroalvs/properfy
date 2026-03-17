@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useAuth } from '@/hooks/useAuth';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { api } from '@/services/api';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { getAvailableTransitions } from '../lib/transitions';
 import { AppointmentDetailSections } from './AppointmentDetailSections';
@@ -27,7 +28,7 @@ export function AppointmentDetailDrawer({
 }: AppointmentDetailDrawerProps) {
   const { appointment, isLoading, refetch } = useAppointmentDetail(appointmentId);
   const { user } = useAuth();
-  const { showSuccess, showInfo } = useSnackbar();
+  const { showSuccess, showError, showInfo } = useSnackbar();
   const [transitionLoading, setTransitionLoading] = useState(false);
 
   const transitions =
@@ -36,14 +37,26 @@ export function AppointmentDetailDrawer({
       : [];
 
   const handleTransition = useCallback(
-    async (_targetStatus: AppointmentStatus, _reason?: string) => {
+    async (targetStatus: AppointmentStatus, reason?: string) => {
+      if (!appointmentId) return;
       setTransitionLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setTransitionLoading(false);
-      showSuccess('Transition completed');
-      refetch();
+      try {
+        const { error } = await api.POST(
+          `/v1/appointments/${appointmentId}/status-transitions` as any,
+          { body: { targetStatus, reason } as any },
+        );
+        if (error) {
+          throw new Error((error as any)?.error?.message ?? 'Transition failed');
+        }
+        showSuccess('Transition completed');
+        refetch();
+      } catch (err) {
+        showError(err instanceof Error ? err.message : 'Transition failed');
+      } finally {
+        setTransitionLoading(false);
+      }
     },
-    [showSuccess, refetch],
+    [appointmentId, showSuccess, showError, refetch],
   );
 
   const handleEdit = useCallback(() => {
