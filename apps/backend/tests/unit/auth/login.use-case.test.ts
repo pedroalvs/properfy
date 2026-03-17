@@ -5,6 +5,7 @@ import type { ISessionRepository } from '../../../src/modules/auth/domain/sessio
 import type { JwtService } from '../../../src/modules/auth/application/services/jwt.service';
 import type { TotpService } from '../../../src/modules/auth/application/services/totp.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { SessionEntity } from '../../../src/modules/auth/domain/session.entity';
 import {
@@ -59,6 +60,7 @@ describe('LoginUseCase', () => {
   let jwtService: JwtService;
   let totpService: TotpService;
   let auditService: AuditService;
+  let inspectorRepo: IInspectorRepository;
   let useCase: LoginUseCase;
 
   beforeEach(() => {
@@ -92,7 +94,17 @@ describe('LoginUseCase', () => {
     auditService = {
       log: vi.fn(),
     } as unknown as AuditService;
-    useCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService);
+    inspectorRepo = {
+      findById: vi.fn(),
+      findByEmail: vi.fn(),
+      findByUserId: vi.fn(),
+      linkUserId: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    } as unknown as IInspectorRepository;
+    useCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo);
   });
 
   it('should return tokens and user profile on valid credentials', async () => {
@@ -228,5 +240,29 @@ describe('LoginUseCase', () => {
     const result = await useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' });
     expect((result.user as Record<string, unknown>)['passwordHash']).toBeUndefined();
     expect((result.user as Record<string, unknown>)['password_hash']).toBeUndefined();
+  });
+
+  it('should resolve inspector_id for INSP user with linked inspector', async () => {
+    const user = makeUser({ role: 'INSP' });
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(user);
+    vi.mocked(inspectorRepo.findByUserId).mockResolvedValue({ id: 'insp-1' } as any);
+
+    await useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' });
+
+    expect(jwtService.signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({ inspector_id: 'insp-1' }),
+    );
+  });
+
+  it('should pass null inspector_id for INSP user without linked inspector', async () => {
+    const user = makeUser({ role: 'INSP' });
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(user);
+    vi.mocked(inspectorRepo.findByUserId).mockResolvedValue(null);
+
+    await useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' });
+
+    expect(jwtService.signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({ inspector_id: null }),
+    );
   });
 });

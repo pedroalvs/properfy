@@ -4,6 +4,7 @@ import type { IUserRepository } from '../../../src/modules/auth/domain/user.repo
 import type { ISessionRepository } from '../../../src/modules/auth/domain/session.repository';
 import type { JwtService } from '../../../src/modules/auth/application/services/jwt.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { SessionEntity } from '../../../src/modules/auth/domain/session.entity';
 import { InvalidRefreshTokenError, SessionInvalidError } from '../../../src/modules/auth/domain/auth.errors';
@@ -36,6 +37,7 @@ describe('RefreshTokenUseCase', () => {
   let sessionRepo: ISessionRepository;
   let jwtService: JwtService;
   let auditService: AuditService;
+  let inspectorRepo: IInspectorRepository;
   let useCase: RefreshTokenUseCase;
 
   beforeEach(() => {
@@ -43,7 +45,17 @@ describe('RefreshTokenUseCase', () => {
     sessionRepo = { create: vi.fn(), findByRefreshTokenHash: vi.fn(), findById: vi.fn(), findActiveByUserId: vi.fn(), updateRefreshToken: vi.fn(), revoke: vi.fn(), revokeAllForUser: vi.fn() };
     jwtService = { signAccessToken: vi.fn().mockResolvedValue('new-access-token'), verify: vi.fn() } as unknown as JwtService;
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService);
+    inspectorRepo = {
+      findById: vi.fn(),
+      findByEmail: vi.fn(),
+      findByUserId: vi.fn(),
+      linkUserId: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    } as unknown as IInspectorRepository;
+    useCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   });
 
   it('should return new token pair for valid refresh token', async () => {
@@ -91,5 +103,29 @@ describe('RefreshTokenUseCase', () => {
     vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(makeSession());
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ deletedAt: new Date() }));
     await expect(useCase.execute({ refreshToken: 'valid-token' })).rejects.toThrow(SessionInvalidError);
+  });
+
+  it('should resolve inspector_id for INSP user with linked inspector', async () => {
+    vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(makeSession());
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ role: 'INSP' }));
+    vi.mocked(inspectorRepo.findByUserId).mockResolvedValue({ id: 'insp-1' } as any);
+
+    await useCase.execute({ refreshToken: 'valid-token' });
+
+    expect(jwtService.signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({ inspector_id: 'insp-1' }),
+    );
+  });
+
+  it('should pass null inspector_id for INSP user without linked inspector', async () => {
+    vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(makeSession());
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ role: 'INSP' }));
+    vi.mocked(inspectorRepo.findByUserId).mockResolvedValue(null);
+
+    await useCase.execute({ refreshToken: 'valid-token' });
+
+    expect(jwtService.signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({ inspector_id: null }),
+    );
   });
 });

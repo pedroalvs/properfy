@@ -24,6 +24,7 @@ describe('JwtService', () => {
       tenant_id: 'tenant-1',
       role: 'CL_ADMIN',
       branch_id: null,
+      inspector_id: null,
     });
     expect(token).toBeDefined();
     expect(token.split('.').length).toBe(3); // JWT has 3 parts
@@ -35,7 +36,7 @@ describe('JwtService', () => {
   });
 
   it('should reject a tampered token', async () => {
-    const token = await jwtService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null });
+    const token = await jwtService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null });
     const parts = token.split('.');
     const tamperedToken = parts[0] + '.' + parts[1] + 'X' + '.' + parts[2];
     await expect(jwtService.verify(tamperedToken)).rejects.toThrow();
@@ -51,14 +52,38 @@ describe('JwtService', () => {
     const pem2 = p2.export({ type: 'pkcs8', format: 'pem' }) as string;
     const pub2Pem = pub2.export({ type: 'spki', format: 'pem' }) as string;
     const wrongKeyService = new JwtService({ privateKeyPem: pem2, publicKeyPem: pub2Pem, keyId: 'test-key-v1' });
-    const tokenFromWrongKey = await wrongKeyService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null });
+    const tokenFromWrongKey = await wrongKeyService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null });
     await expect(jwtService.verify(tokenFromWrongKey)).rejects.toThrow();
   });
 
   it('should handle null tenantId and branchId', async () => {
-    const token = await jwtService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null });
+    const token = await jwtService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null });
     const ctx = await jwtService.verify(token);
     expect(ctx.tenantId).toBeNull();
     expect(ctx.branchId).toBeNull();
+  });
+
+  it('should include inspector_id in token payload and return it on verify', async () => {
+    const token = await jwtService.signAccessToken({
+      sub: 'user-1',
+      tenant_id: 'tenant-1',
+      role: 'INSP',
+      branch_id: null,
+      inspector_id: 'insp-1',
+    });
+    const ctx = await jwtService.verify(token);
+    expect(ctx.inspectorId).toBe('insp-1');
+  });
+
+  it('should return null inspectorId when inspector_id claim is null', async () => {
+    const token = await jwtService.signAccessToken({
+      sub: 'user-1',
+      tenant_id: 'tenant-1',
+      role: 'CL_ADMIN',
+      branch_id: null,
+      inspector_id: null,
+    });
+    const ctx = await jwtService.verify(token);
+    expect(ctx.inspectorId).toBeNull();
   });
 });
