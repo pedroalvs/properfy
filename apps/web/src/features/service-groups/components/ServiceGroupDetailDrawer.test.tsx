@@ -23,13 +23,14 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function renderDrawer(props: { serviceGroupId: string | null; open: boolean; onClose?: () => void }) {
+function renderDrawer(props: { serviceGroupId: string | null; open: boolean; onClose?: () => void; onEdit?: (id: string) => void }) {
   return render(
     <Wrapper>
       <ServiceGroupDetailDrawer
         serviceGroupId={props.serviceGroupId}
         open={props.open}
         onClose={props.onClose ?? vi.fn()}
+        onEdit={props.onEdit}
       />
     </Wrapper>,
   );
@@ -99,5 +100,23 @@ describe('ServiceGroupDetailDrawer', () => {
     act(() => { vi.advanceTimersByTime(200); });
     fireEvent.click(screen.getByLabelText('Fechar'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('edit button calls onEdit with service group id when onEdit prop is provided', () => {
+    const onEdit = vi.fn();
+    renderDrawer({ serviceGroupId: 'sg-01', open: true, onEdit });
+    act(() => { vi.advanceTimersByTime(200); });
+    const editButton = screen.getByLabelText('Editar');
+    fireEvent.click(editButton);
+    expect(onEdit).toHaveBeenCalledWith('sg-01');
+  });
+
+  it('edit button falls back to snackbar when onEdit prop is not provided', () => {
+    renderDrawer({ serviceGroupId: 'sg-01', open: true });
+    act(() => { vi.advanceTimersByTime(200); });
+    const editButton = screen.getByLabelText('Editar');
+    fireEvent.click(editButton);
+    act(() => { vi.advanceTimersByTime(0); });
+    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
   });
 });

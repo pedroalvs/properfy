@@ -12,15 +12,20 @@ interface ServiceGroupDetailDrawerProps {
   serviceGroupId: string | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: (id: string) => void;
 }
 
-export function ServiceGroupDetailDrawer({ serviceGroupId, open, onClose }: ServiceGroupDetailDrawerProps) {
+export function ServiceGroupDetailDrawer({ serviceGroupId, open, onClose, onEdit }: ServiceGroupDetailDrawerProps) {
   const { serviceGroup, isLoading } = useServiceGroupDetail(serviceGroupId);
   const { showInfo } = useSnackbar();
 
   const handleEdit = useCallback(() => {
-    showInfo('Edição em breve');
-  }, [showInfo]);
+    if (onEdit && serviceGroupId) {
+      onEdit(serviceGroupId);
+    } else {
+      showInfo('Edição em breve');
+    }
+  }, [onEdit, serviceGroupId, showInfo]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">
