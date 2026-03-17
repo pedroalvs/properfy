@@ -56,7 +56,7 @@ export function AppointmentFormDrawer({
         branchId: appointment.branchId,
         propertyId: appointment.propertyId,
         serviceTypeId: appointment.serviceTypeId,
-        scheduledDate: appointment.scheduledDate.split('T')[0],
+        scheduledDate: (appointment.scheduledDate ?? '').split('T')[0] ?? '',
         timeSlot: appointment.timeSlot,
         contactName: appointment.contactName,
         contactPhone: appointment.contactPhone ?? '',

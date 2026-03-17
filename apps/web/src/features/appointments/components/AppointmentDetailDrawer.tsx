@@ -16,12 +16,14 @@ interface AppointmentDetailDrawerProps {
   appointmentId: string | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: (id: string) => void;
 }
 
 export function AppointmentDetailDrawer({
   appointmentId,
   open,
   onClose,
+  onEdit,
 }: AppointmentDetailDrawerProps) {
   const { appointment, isLoading, refetch } = useAppointmentDetail(appointmentId);
   const { user } = useAuth();
@@ -45,8 +47,12 @@ export function AppointmentDetailDrawer({
   );
 
   const handleEdit = useCallback(() => {
-    showInfo('Edição em breve');
-  }, [showInfo]);
+    if (onEdit && appointmentId) {
+      onEdit(appointmentId);
+    } else {
+      showInfo('Edição em breve');
+    }
+  }, [onEdit, appointmentId, showInfo]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">

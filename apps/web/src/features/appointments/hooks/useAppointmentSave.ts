@@ -65,10 +65,11 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
     if (appointmentId) {
       const idx = MOCK_APPOINTMENTS.findIndex((a) => a.id === appointmentId);
       if (idx !== -1) {
+        const existing = MOCK_APPOINTMENTS[idx]!;
         MOCK_APPOINTMENTS[idx] = {
-          ...MOCK_APPOINTMENTS[idx],
-          scheduledDate: data.scheduledDate || MOCK_APPOINTMENTS[idx].scheduledDate,
-          timeSlot: data.timeSlot || MOCK_APPOINTMENTS[idx].timeSlot,
+          ...existing,
+          scheduledDate: data.scheduledDate || existing.scheduledDate,
+          timeSlot: data.timeSlot || existing.timeSlot,
           contactName: data.contactName,
           contactPhone: data.contactPhone || null,
           contactEmail: data.contactEmail || null,
