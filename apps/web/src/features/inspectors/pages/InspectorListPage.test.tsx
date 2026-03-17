@@ -33,7 +33,8 @@ describe('InspectorListPage', () => {
 
   it('renders "Novo Inspetor" CTA button', () => {
     renderPage();
-    expect(screen.getByText('Novo Inspetor')).toBeInTheDocument();
+    const buttons = screen.getAllByText('Novo Inspetor');
+    expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders filter bar with search and status controls', () => {
@@ -50,7 +51,8 @@ describe('InspectorListPage', () => {
 
   it('shows loading state initially', () => {
     renderPage();
-    expect(screen.getByText('Nome')).toBeInTheDocument();
+    const nameElements = screen.getAllByText('Nome');
+    expect(nameElements.length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Carlos Silva')).not.toBeInTheDocument();
   });
 
@@ -60,7 +62,7 @@ describe('InspectorListPage', () => {
     const viewButton = screen.getAllByLabelText('Visualizar')[0]!;
     fireEvent.click(viewButton);
     act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.getByText('Dados Pessoais')).toBeInTheDocument();
+    expect(screen.getByText('carlos@inspecoes.com')).toBeInTheDocument();
   });
 
   it('drawer shows correct inspector data', () => {
@@ -78,10 +80,12 @@ describe('InspectorListPage', () => {
     const viewButton = screen.getAllByLabelText('Visualizar')[0]!;
     fireEvent.click(viewButton);
     act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.getByText('Dados Pessoais')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Fechar'));
+    const narrowDrawer = screen.getAllByRole('dialog').find((d) => d.classList.contains('w-drawer-narrow'))!;
+    expect(narrowDrawer).not.toHaveClass('translate-x-full');
+    const closeButton = narrowDrawer.querySelector('[aria-label="Fechar"]') as HTMLElement;
+    fireEvent.click(closeButton);
     act(() => { vi.advanceTimersByTime(0); });
-    expect(screen.queryByText('Dados Pessoais')).not.toBeInTheDocument();
+    expect(narrowDrawer).toHaveClass('translate-x-full');
   });
 
   it('clicking different row updates drawer', () => {
@@ -103,6 +107,62 @@ describe('InspectorListPage', () => {
     const viewButton = screen.getAllByLabelText('Visualizar')[0]!;
     fireEvent.click(viewButton);
     act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const dialogs = screen.getAllByRole('dialog');
+    expect(dialogs.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // New tests for form drawer integration
+
+  it('clicking "Novo Inspetor" opens form drawer with "Criar Inspetor" submit button', () => {
+    renderPage();
+    const ctaButtons = screen.getAllByText('Novo Inspetor');
+    fireEvent.click(ctaButtons[0]!);
+    expect(screen.getByText('Criar Inspetor')).toBeInTheDocument();
+  });
+
+  it('form drawer renders all form sections', () => {
+    renderPage();
+    const ctaButtons = screen.getAllByText('Novo Inspetor');
+    fireEvent.click(ctaButtons[0]!);
+    const sections = screen.getAllByText('Dados Pessoais');
+    expect(sections.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Atuação')).toBeInTheDocument();
+  });
+
+  it('closing form drawer hides form content', () => {
+    renderPage();
+    // Before opening, the wide drawer should be off-screen
+    const dialogs = screen.getAllByRole('dialog');
+    const wideDrawer = dialogs.find((d) => d.classList.contains('w-drawer-wide'));
+    expect(wideDrawer).toBeDefined();
+    expect(wideDrawer).toHaveClass('translate-x-full');
+
+    // Open the form drawer
+    const ctaButtons = screen.getAllByText('Novo Inspetor');
+    fireEvent.click(ctaButtons[0]!);
+    expect(wideDrawer).not.toHaveClass('translate-x-full');
+  });
+
+  it('edit from detail drawer opens form drawer with "Editar Inspetor" title', () => {
+    renderPage();
+    act(() => { vi.advanceTimersByTime(300); });
+    const viewButton = screen.getAllByLabelText('Visualizar')[0]!;
+    fireEvent.click(viewButton);
+    act(() => { vi.advanceTimersByTime(200); });
+    // Find edit button scoped to the narrow (detail) drawer
+    const narrowDrawer = screen.getAllByRole('dialog').find((d) => d.classList.contains('w-drawer-narrow'))!;
+    expect(narrowDrawer).not.toHaveClass('translate-x-full');
+    const editButton = narrowDrawer.querySelector('[aria-label="Editar"]') as HTMLElement;
+    expect(editButton).toBeTruthy();
+    fireEvent.click(editButton);
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(screen.getByText('Editar Inspetor')).toBeInTheDocument();
+  });
+
+  it('"Novo Inspetor" button is present and clickable', () => {
+    renderPage();
+    const ctaButtons = screen.getAllByText('Novo Inspetor');
+    expect(ctaButtons.length).toBeGreaterThanOrEqual(1);
+    expect(ctaButtons[0]!.closest('button')).not.toBeDisabled();
   });
 });

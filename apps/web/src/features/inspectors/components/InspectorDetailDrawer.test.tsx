@@ -23,13 +23,14 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function renderDrawer(props: { inspectorId: string | null; open: boolean; onClose?: () => void }) {
+function renderDrawer(props: { inspectorId: string | null; open: boolean; onClose?: () => void; onEdit?: (id: string) => void }) {
   return render(
     <Wrapper>
       <InspectorDetailDrawer
         inspectorId={props.inspectorId}
         open={props.open}
         onClose={props.onClose ?? vi.fn()}
+        onEdit={props.onEdit}
       />
     </Wrapper>,
   );
@@ -98,5 +99,21 @@ describe('InspectorDetailDrawer', () => {
     act(() => { vi.advanceTimersByTime(200); });
     fireEvent.click(screen.getByLabelText('Fechar'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('edit button calls onEdit with inspector id when onEdit prop is provided', () => {
+    const onEdit = vi.fn();
+    renderDrawer({ inspectorId: 'insp-01', open: true, onEdit });
+    act(() => { vi.advanceTimersByTime(200); });
+    fireEvent.click(screen.getByLabelText('Editar'));
+    expect(onEdit).toHaveBeenCalledWith('insp-01');
+  });
+
+  it('edit button falls back to snackbar when onEdit prop is not provided', () => {
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    act(() => { vi.advanceTimersByTime(200); });
+    fireEvent.click(screen.getByLabelText('Editar'));
+    act(() => { vi.advanceTimersByTime(0); });
+    expect(screen.getByText('Edição em breve')).toBeInTheDocument();
   });
 });

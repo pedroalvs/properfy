@@ -12,19 +12,25 @@ interface InspectorDetailDrawerProps {
   inspectorId: string | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: (id: string) => void;
 }
 
 export function InspectorDetailDrawer({
   inspectorId,
   open,
   onClose,
+  onEdit,
 }: InspectorDetailDrawerProps) {
   const { inspector, isLoading } = useInspectorDetail(inspectorId);
   const { showInfo } = useSnackbar();
 
   const handleEdit = useCallback(() => {
-    showInfo('Edição em breve');
-  }, [showInfo]);
+    if (onEdit && inspectorId) {
+      onEdit(inspectorId);
+    } else {
+      showInfo('Edição em breve');
+    }
+  }, [onEdit, inspectorId, showInfo]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">
