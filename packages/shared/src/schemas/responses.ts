@@ -436,6 +436,34 @@ export const reportRequestedResponseSchema = z.object({
   message: z.string(),
 });
 
+// ─── Dashboard ────────────────────────────────────────────────────────────
+
+export const dashboardStatsResponseSchema = z.object({
+  appointmentsByStatus: z.object({
+    draft: z.number(),
+    awaitingInspector: z.number(),
+    scheduled: z.number(),
+    doneThisMonth: z.number(),
+  }),
+  recentAppointments: z.array(z.object({
+    id: z.string().uuid(),
+    code: z.string(),
+    propertyAddress: z.string(),
+    status: z.string(),
+    scheduledDate: z.string(),
+  })),
+  pendingActions: z.object({
+    noResponseTenants: z.number(),
+    pendingFinancialEntries: z.number(),
+    processingReports: z.number(),
+  }),
+  quickStats: z.object({
+    totalProperties: z.number(),
+    activeInspectors: z.number(),
+    activeServiceGroups: z.number(),
+  }),
+});
+
 // ─── Webhook ───────────────────────────────────────────────────────────────
 
 export const webhookAckResponseSchema = z.object({
@@ -465,3 +493,4 @@ export type NotificationTemplateResponse = z.infer<typeof notificationTemplateRe
 export type ReportResponse = z.infer<typeof reportResponseSchema>;
 export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;
 export type InspectionAssetResponse = z.infer<typeof inspectionAssetResponseSchema>;
+export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;

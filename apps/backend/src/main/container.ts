@@ -163,6 +163,10 @@ import { UpsertNotificationTemplateUseCase } from '../modules/notification/appli
 import { ListNotificationTemplatesUseCase } from '../modules/notification/application/use-cases/list-notification-templates.use-case';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
 
+// Dashboard module
+import { GetDashboardStatsUseCase } from '../modules/dashboard/application/use-cases/get-dashboard-stats.use-case';
+import type { DashboardRouteContainer } from '../modules/dashboard/interfaces/dashboard.routes';
+
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
@@ -192,6 +196,7 @@ export interface AppContainer {
   billing: BillingRouteContainer;
   report: ReportRouteContainer;
   notification: NotificationRouteContainer;
+  dashboard: DashboardRouteContainer;
 }
 
 export function createContainer(logger: Logger): AppContainer {
@@ -399,6 +404,9 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo);
 
+  // Dashboard use cases
+  const getDashboardStatsUseCase = new GetDashboardStatsUseCase();
+
   return {
     prisma,
     auditService,
@@ -538,6 +546,10 @@ export function createContainer(logger: Logger): AppContainer {
       getNotificationUseCase,
       upsertNotificationTemplateUseCase,
       listNotificationTemplatesUseCase,
+      jwtService,
+    },
+    dashboard: {
+      getDashboardStatsUseCase,
       jwtService,
     },
   };

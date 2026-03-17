@@ -189,6 +189,10 @@ export function createMockContainer(
       listNotificationTemplatesUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
     } as AppContainer['notification'],
+    dashboard: {
+      getDashboardStatsUseCase: { execute: vi.fn() },
+      jwtService: { ...defaultJwt },
+    } as AppContainer['dashboard'],
   };
 
   return deepMerge(base, overrides as DeepPartial<Record<string, unknown>>) as unknown as AppContainer;

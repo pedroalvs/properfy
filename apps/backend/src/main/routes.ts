@@ -16,6 +16,7 @@ import { registerInspectorExecutionRoutes } from '../modules/inspector-execution
 import { registerBillingRoutes } from '../modules/billing/interfaces/billing.routes';
 import { registerReportRoutes } from '../modules/report/interfaces/report.routes';
 import { registerNotificationRoutes } from '../modules/notification/interfaces/notification.routes';
+import { registerDashboardRoutes } from '../modules/dashboard/interfaces/dashboard.routes';
 
 export async function registerRoutes(
   app: FastifyInstance,
@@ -38,4 +39,5 @@ export async function registerRoutes(
   await registerBillingRoutes(app, container.billing);
   await registerReportRoutes(app, container.report);
   await registerNotificationRoutes(app, container.notification);
+  await registerDashboardRoutes(app, container.dashboard);
 }
