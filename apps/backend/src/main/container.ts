@@ -156,7 +156,9 @@ import type { ReportRouteContainer } from '../modules/report/interfaces/report.r
 import { PrismaNotificationRepository } from '../modules/notification/infrastructure/prisma-notification.repository';
 import { PrismaNotificationTemplateRepository } from '../modules/notification/infrastructure/prisma-notification-template.repository';
 import { StubEmailProvider } from '../modules/notification/infrastructure/stub-email.provider';
+import { ResendEmailProvider } from '../modules/notification/infrastructure/resend-email.provider';
 import { StubSmsProvider } from '../modules/notification/infrastructure/stub-sms.provider';
+import { TwilioSmsProvider } from '../modules/notification/infrastructure/twilio-sms.provider';
 import { StubWhatsAppProvider } from '../modules/notification/infrastructure/stub-whatsapp.provider';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
@@ -413,8 +415,20 @@ export function createContainer(logger: Logger): AppContainer {
   // Notification repositories, providers, and services
   const notificationRepo = new PrismaNotificationRepository(prisma);
   const notificationTemplateRepo = new PrismaNotificationTemplateRepository(prisma);
-  const emailProvider = new StubEmailProvider();
-  const smsProvider = new StubSmsProvider();
+  const resendApiKey = process.env['RESEND_API_KEY'];
+  const resendFromEmail = process.env['RESEND_FROM_EMAIL'];
+  const emailProvider = resendApiKey && resendFromEmail
+    ? new ResendEmailProvider(resendApiKey, resendFromEmail)
+    : new StubEmailProvider();
+
+  const twilioSid = process.env['TWILIO_ACCOUNT_SID'];
+  const twilioToken = process.env['TWILIO_AUTH_TOKEN'];
+  const twilioPhone = process.env['TWILIO_PHONE_NUMBER'];
+  const smsProvider = twilioSid && twilioToken && twilioPhone
+    ? new TwilioSmsProvider(twilioSid, twilioToken, twilioPhone)
+    : new StubSmsProvider();
+
+  // WhatsApp stays stub until provider is configured
   const whatsAppProvider = new StubWhatsAppProvider();
   const templateRenderer = new TemplateRendererService();
 
