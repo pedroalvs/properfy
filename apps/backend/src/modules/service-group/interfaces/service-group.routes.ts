@@ -28,6 +28,7 @@ export interface ServiceGroupRouteContainer {
   assignInspectorManuallyUseCase: AssignInspectorManuallyUseCase;
   cancelServiceGroupUseCase: CancelServiceGroupUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const groupIdParam = z.object({ groupId: z.string().uuid() });
@@ -36,8 +37,12 @@ export async function registerServiceGroupRoutes(
   app: FastifyInstance,
   container: ServiceGroupRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // POST /v1/service-groups — 201

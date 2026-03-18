@@ -27,6 +27,20 @@ export class SupabaseReportStorageService implements IReportStorageService {
     await this.s3Client.send(command);
   }
 
+  async download(key: string): Promise<Buffer> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+    const response = await this.s3Client.send(command);
+    const stream = response.Body as NodeJS.ReadableStream;
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.from(chunk as Uint8Array));
+    }
+    return Buffer.concat(chunks);
+  }
+
   async generatePresignedGetUrl(
     key: string,
     ttlSeconds: number,

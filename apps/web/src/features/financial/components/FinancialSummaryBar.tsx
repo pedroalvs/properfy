@@ -1,7 +1,7 @@
 import { useFinancialSummary } from '../hooks/useFinancialSummary';
 
 function formatCurrency(value: number): string {
-  return value.toLocaleString('en-AU', { style: 'currency', currency: 'BRL' });
+  return value.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' });
 }
 
 interface StatCardProps {

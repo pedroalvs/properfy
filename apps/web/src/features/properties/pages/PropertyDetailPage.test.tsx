@@ -36,6 +36,22 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { role: 'AM' }, isAuthenticated: true }),
+}));
+
+vi.mock('@/hooks/useSnackbar', () => ({
+  useSnackbar: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
+  SnackbarProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+vi.mock('@/hooks/useApiQuery', () => ({
+  useActionMutation: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
+}));
+
 const mockRefetch = vi.fn();
 
 vi.mock('../hooks/usePropertyDetail', () => ({

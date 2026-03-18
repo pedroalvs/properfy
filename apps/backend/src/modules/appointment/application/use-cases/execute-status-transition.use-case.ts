@@ -1,16 +1,24 @@
 import type { AuthContext, AppointmentStatus } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
+import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
 import { AppointmentStateMachine } from '../../domain/appointment-state-machine';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, DomainError } from '../../../../shared/domain/errors';
+import { assertClUserPermission } from '../../../../shared/domain/cl-user-permissions';
 import {
   AppointmentNotFoundError,
   AppointmentAccessDeniedError,
   AppointmentInvalidTransitionError,
   AppointmentTransitionNotPermittedError,
   AppointmentReasonRequiredError,
+  AppointmentDoneCheckRequiredError,
   AppointmentDoneCheckerInvalidRoleError,
+  AppointmentDoneCheckerSelfCheckError,
   AppointmentInspectorRequiredError,
+  AppointmentTenantConfirmationRequiredError,
 } from '../../domain/appointment.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
@@ -18,8 +26,11 @@ export interface ExecuteStatusTransitionInput {
   appointmentId: string;
   targetStatus: AppointmentStatus;
   reason?: string;
+  cancellationReasonCode?: string;
+  rejectionReasonCode?: string;
   doneCheckedByUserId?: string;
   inspectorId?: string;
+  idempotencyKey?: string;
   actor: AuthContext;
 }
 
@@ -48,13 +59,26 @@ export class ExecuteStatusTransitionUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly userRepo: IUserManagementRepository,
+    private readonly inspectorRepo: IInspectorRepository,
+    private readonly idempotencyService: IIdempotencyService,
     private readonly auditService: AuditService,
     private readonly onDoneHandler?: OnDoneHandler,
     private readonly onTransitionHandler?: OnTransitionHandler,
+    private readonly tenantRepo?: ITenantRepository,
+    private readonly serviceTypeRepo?: IServiceTypeRepository,
   ) {}
 
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
-    const { appointmentId, targetStatus, reason, doneCheckedByUserId, inspectorId, actor } = input;
+    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, inspectorId, idempotencyKey, actor } = input;
+
+    // 0. Idempotency check
+    if (idempotencyKey) {
+      const cached = await this.idempotencyService.get<ExecuteStatusTransitionOutput>(
+        idempotencyKey,
+        'status-transition',
+      );
+      if (cached) return cached;
+    }
 
     // 1. Find appointment (AM/OP: tenantId=null for global access, CL roles: own tenant, INSP: any but validated after)
     const tenantId = actor.role === 'AM' || actor.role === 'OP' ? null : actor.tenantId;
@@ -89,23 +113,55 @@ export class ExecuteStatusTransitionUseCase {
 
     const rule = validation.rule!;
 
+    // 3b. CL_USER permission check — configurable permissions per tenant
+    if (actor.role === 'CL_USER' && this.tenantRepo) {
+      if (targetStatus === 'CANCELLED') {
+        await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'cancel_appointments');
+      }
+      if (targetStatus === 'REJECTED') {
+        await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'reject_appointments');
+      }
+    }
+
     // 4. Check reason requirement
     if (rule.requiresReason && !reason) {
       throw new AppointmentReasonRequiredError();
     }
 
-    // 5. Validate doneCheckedByUserId when provided (optional — not required by INSP)
+    // 5. Validate doneCheckedByUserId (required for AM/OP when transition has requiresDoneCheckedBy;
+    // INSP triggers DONE via finish inspection — cross-check by operator happens separately)
+    if (rule.requiresDoneCheckedBy && !doneCheckedByUserId && actor.role !== 'INSP') {
+      throw new AppointmentDoneCheckRequiredError();
+    }
     if (doneCheckedByUserId) {
       // Validate the checker is AM or OP
       const checker = await this.userRepo.findById(doneCheckedByUserId);
       if (!checker || (checker.role !== 'AM' && checker.role !== 'OP')) {
         throw new AppointmentDoneCheckerInvalidRoleError();
       }
+      // Inspector cannot cross-check their own work (compare user IDs)
+      if (appointment.inspectorId) {
+        const inspector = await this.inspectorRepo.findById(appointment.inspectorId);
+        if (inspector?.userId && inspector.userId === doneCheckedByUserId) {
+          throw new AppointmentDoneCheckerSelfCheckError();
+        }
+      }
     }
 
     // 6. Check inspectorId for SCHEDULED transition
     if (targetStatus === 'SCHEDULED' && !appointment.inspectorId && !inspectorId) {
       throw new AppointmentInspectorRequiredError();
+    }
+
+    // 6b. Service type confirmation rules for AWAITING_INSPECTOR → SCHEDULED
+    if (appointment.status === 'AWAITING_INSPECTOR' && targetStatus === 'SCHEDULED' && this.serviceTypeRepo) {
+      const serviceType = await this.serviceTypeRepo.findById(appointment.serviceTypeId);
+      if (serviceType && serviceType.flowType === 'ROUTINE' && serviceType.requiresTenantConfirmation) {
+        if (appointment.tenantConfirmationStatus !== 'CONFIRMED') {
+          throw new AppointmentTenantConfirmationRequiredError();
+        }
+      }
+      // Ingoing/Outgoing: no tenant confirmation needed — proceed directly
     }
 
     // 7. Build update data
@@ -120,6 +176,14 @@ export class ExecuteStatusTransitionUseCase {
     } else if (targetStatus === 'DRAFT') {
       // Reopening — clear reason
       updateData.reason = null;
+    }
+
+    // Set typed reason codes based on target status
+    if (targetStatus === 'CANCELLED' && cancellationReasonCode) {
+      updateData.cancellationReasonCode = cancellationReasonCode;
+    }
+    if (targetStatus === 'REJECTED' && rejectionReasonCode) {
+      updateData.rejectionReasonCode = rejectionReasonCode;
     }
 
     // Set inspector for SCHEDULED
@@ -155,7 +219,22 @@ export class ExecuteStatusTransitionUseCase {
       reason: reason ?? undefined,
     });
 
-    // 9b. Side effect: create financial entries on DONE
+    // 9b. Side effect: INSP marked DONE without operator cross-check — flag pending review
+    if (targetStatus === 'DONE' && actor.role === 'INSP' && !doneCheckedByUserId) {
+      this.auditService.log({
+        action: 'appointment.done_pending_crosscheck',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'Appointment',
+        entityId: appointmentId,
+        tenantId: appointment.tenantId,
+        before: { status: appointment.status },
+        after: { status: 'DONE' },
+        metadata: { pendingOperatorCrossCheck: true },
+      });
+    }
+
+    // 9d. Side effect: create financial entries on DONE
     if (targetStatus === 'DONE' && this.onDoneHandler) {
       try {
         await this.onDoneHandler.execute({ appointmentId });
@@ -165,7 +244,23 @@ export class ExecuteStatusTransitionUseCase {
       }
     }
 
-    // 9c. Side effect: notifications on transition
+    // 9e. Side effect: DONE → REJECTED — flag for financial review
+    if (appointment.status === 'DONE' && targetStatus === 'REJECTED') {
+      this.auditService.log({
+        action: 'appointment.done_rejected',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'Appointment',
+        entityId: appointmentId,
+        tenantId: appointment.tenantId,
+        before: { status: 'DONE' },
+        after: { status: 'REJECTED' },
+        reason: reason ?? undefined,
+        metadata: { requiresFinancialReview: true },
+      });
+    }
+
+    // 9f. Side effect: notifications on transition
     if (this.onTransitionHandler) {
       try {
         await this.onTransitionHandler.execute({
@@ -178,8 +273,8 @@ export class ExecuteStatusTransitionUseCase {
       }
     }
 
-    // 10. Return result
-    return {
+    // 10. Build result
+    const output: ExecuteStatusTransitionOutput = {
       id: appointmentId,
       status: targetStatus,
       previousStatus: appointment.status,
@@ -197,5 +292,12 @@ export class ExecuteStatusTransitionUseCase {
         : appointment.doneCheckedAt,
       updatedAt: now,
     };
+
+    // 11. Cache idempotency result
+    if (idempotencyKey) {
+      await this.idempotencyService.set(idempotencyKey, 'status-transition', output, 24);
+    }
+
+    return output;
   }
 }

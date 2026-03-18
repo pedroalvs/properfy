@@ -24,6 +24,7 @@ vi.mock('../../../src/main/container', () => ({
       listPropertiesUseCase: { execute: mockListPropertiesExecute },
       updatePropertyUseCase: { execute: mockUpdatePropertyExecute },
       deletePropertyUseCase: { execute: mockDeletePropertyExecute },
+      geocodePropertyUseCase: { execute: vi.fn() },
       jwtService: { verify: mockJwtVerify },
     },
     serviceType: { jwtService: { verify: mockJwtVerify } },
@@ -104,7 +105,7 @@ describe('POST /v1/properties', () => {
     expect(res.body.data.propertyCode).toBe('PROP-001');
   });
 
-  it('should return 422 with invalid payload (missing propertyCode)', async () => {
+  it('should return 400 with invalid payload (missing propertyCode)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -118,7 +119,7 @@ describe('POST /v1/properties', () => {
         state: 'NSW',
       });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
@@ -186,14 +187,14 @@ describe('GET /v1/properties/:propertyId', () => {
     expect(res.status).toBe(404);
   });
 
-  it('should return 422 with invalid property ID format', async () => {
+  it('should return 400 with invalid property ID format', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
       .get('/v1/properties/not-a-uuid')
       .set('Authorization', 'Bearer valid-token');
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 });
 

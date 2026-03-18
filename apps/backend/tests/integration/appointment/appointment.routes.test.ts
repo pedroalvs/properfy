@@ -132,7 +132,7 @@ describe('POST /v1/appointments', () => {
     expect(res.body.data.status).toBe('DRAFT');
   });
 
-  it('should return 422 with invalid payload (missing branchId)', async () => {
+  it('should return 400 with invalid payload (missing branchId)', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
     const res = await supertest(app.server)
@@ -146,7 +146,7 @@ describe('POST /v1/appointments', () => {
         contact: { tenantName: 'John Doe' },
       });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
@@ -178,14 +178,14 @@ describe('GET /v1/appointments', () => {
     expect(res.body.data[0].id).toBe(APPOINTMENT_ID);
   });
 
-  it('should return 422 with invalid query params (invalid status)', async () => {
+  it('should return 400 with invalid query params (invalid status)', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
     const res = await supertest(app.server)
       .get('/v1/appointments?status=INVALID_STATUS')
       .set('Authorization', 'Bearer valid-token');
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
@@ -204,14 +204,14 @@ describe('GET /v1/appointments/:appointmentId', () => {
     expect(res.body.data.status).toBe('DRAFT');
   });
 
-  it('should return 422 with invalid UUID', async () => {
+  it('should return 400 with invalid UUID', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
     const res = await supertest(app.server)
       .get('/v1/appointments/not-a-uuid')
       .set('Authorization', 'Bearer valid-token');
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
@@ -233,7 +233,7 @@ describe('PATCH /v1/appointments/:appointmentId', () => {
     expect(res.body.data.notes).toBe('Updated notes');
   });
 
-  it('should return 422 with invalid payload (timeSlot wrong format)', async () => {
+  it('should return 400 with invalid payload (timeSlot wrong format)', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
     const res = await supertest(app.server)
@@ -241,7 +241,7 @@ describe('PATCH /v1/appointments/:appointmentId', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ timeSlot: 'not-a-valid-timeslot' });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
@@ -263,7 +263,7 @@ describe('POST /v1/appointments/:appointmentId/status-transitions', () => {
     expect(res.body.data.status).toBe('AWAITING_INSPECTOR');
   });
 
-  it('should return 422 with invalid targetStatus', async () => {
+  it('should return 400 with invalid targetStatus', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
     const res = await supertest(app.server)
@@ -271,11 +271,11 @@ describe('POST /v1/appointments/:appointmentId/status-transitions', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ targetStatus: 'INVALID_STATUS' });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('should return 422 with missing body', async () => {
+  it('should return 400 with missing body', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
     const res = await supertest(app.server)
@@ -283,7 +283,7 @@ describe('POST /v1/appointments/:appointmentId/status-transitions', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({});
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
@@ -305,7 +305,7 @@ describe('POST /v1/appointments/:appointmentId/force-confirmation', () => {
     expect(res.body.data.tenantConfirmationStatus).toBe('CONFIRMED');
   });
 
-  it('should return 422 with missing reason', async () => {
+  it('should return 400 with missing reason', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -313,11 +313,11 @@ describe('POST /v1/appointments/:appointmentId/force-confirmation', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ tenantConfirmationStatus: 'CONFIRMED' });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('should return 422 with invalid tenantConfirmationStatus (not CONFIRMED)', async () => {
+  it('should return 400 with invalid tenantConfirmationStatus (not CONFIRMED)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -325,7 +325,7 @@ describe('POST /v1/appointments/:appointmentId/force-confirmation', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ tenantConfirmationStatus: 'PENDING', reason: 'Some reason' });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

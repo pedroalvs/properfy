@@ -195,7 +195,7 @@ describe('POST /v1/inspector/appointments/:appointmentId/start', () => {
     expect(res.status).toBe(401);
   });
 
-  it('should return 422 with invalid body (latitude > 90)', async () => {
+  it('should return 400 with invalid body (latitude > 90)', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
 
     const res = await supertest(app.server)
@@ -204,7 +204,7 @@ describe('POST /v1/inspector/appointments/:appointmentId/start', () => {
       .set('Idempotency-Key', 'idem-key-2')
       .send({ latitude: 100, longitude: 151.2093 });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
@@ -281,7 +281,7 @@ describe('POST /v1/inspector/appointments/:appointmentId/assets', () => {
     expect(res.body.data).toHaveProperty('uploadUrl');
   });
 
-  it('should return 422 with invalid body (missing kind)', async () => {
+  it('should return 400 with invalid body (missing kind)', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
 
     const res = await supertest(app.server)
@@ -289,7 +289,7 @@ describe('POST /v1/inspector/appointments/:appointmentId/assets', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ mimeType: 'image/jpeg', fileName: 'photo.jpg' });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

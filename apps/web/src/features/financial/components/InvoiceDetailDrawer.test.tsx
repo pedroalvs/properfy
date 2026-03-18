@@ -40,7 +40,7 @@ describe('InvoiceDetailDrawer', () => {
         periodEnd: '2026-03-15T00:00:00Z',
         frequency: 'BIWEEKLY',
         totalAmount: 1800,
-        currency: 'BRL',
+        currency: 'AUD',
         status: 'DRAFT',
         entryCount: 5,
         entries: [],

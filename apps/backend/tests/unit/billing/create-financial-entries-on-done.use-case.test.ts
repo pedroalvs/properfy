@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateFinancialEntriesOnDoneUseCase } from '../../../src/modules/billing/application/use-cases/create-financial-entries-on-done.use-case';
 import { FinancialEntryEntity } from '../../../src/modules/billing/domain/financial-entry.entity';
+import { FinancialEntryDoneCheckRequiredError } from '../../../src/modules/billing/domain/billing.errors';
 
 const appointmentRepo = {
   findById: vi.fn(),
@@ -22,6 +23,7 @@ const financialEntryRepo = {
   count: vi.fn(),
   save: vi.fn(),
   updateStatus: vi.fn(),
+  transitionStatus: vi.fn(),
   sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
 };
 
@@ -30,6 +32,15 @@ const auditService = { log: vi.fn() };
 const idempotencyService = {
   get: vi.fn().mockResolvedValue(null),
   set: vi.fn().mockResolvedValue(undefined),
+};
+
+const tenantRepo = {
+  findById: vi.fn(),
+  findByLegalName: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
 };
 
 function makeAppointment(overrides = {}) {
@@ -74,6 +85,7 @@ function makeSut() {
     financialEntryRepo,
     auditService as any,
     idempotencyService,
+    tenantRepo,
   );
 }
 
@@ -84,6 +96,11 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
     financialEntryRepo.findByAppointmentAndType.mockResolvedValue(null);
     financialEntryRepo.save.mockResolvedValue(undefined);
     idempotencyService.get.mockResolvedValue(null);
+    tenantRepo.findById.mockResolvedValue({
+      id: 'tenant-1',
+      currency: 'AUD',
+      isActive: () => true,
+    });
   });
 
   it('should return cached result on duplicate call (idempotency)', async () => {
@@ -115,7 +132,7 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
     );
   });
 
-  it('should create TENANT_DEBIT (APPROVED) and INSPECTOR_PAYOUT (PENDING) for a DONE appointment', async () => {
+  it('should create TENANT_DEBIT (PENDING) and INSPECTOR_PAYOUT (PENDING) for a DONE appointment', async () => {
     const sut = makeSut();
 
     const result = await sut.execute({ appointmentId: 'appt-1' });
@@ -130,12 +147,13 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
     const debitEntry = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
     expect(debitEntry.entryType).toBe('TENANT_DEBIT');
     expect(debitEntry.amount).toBe(200);
-    expect(debitEntry.status).toBe('APPROVED');
+    expect(debitEntry.status).toBe('PENDING');
     expect(debitEntry.currency).toBe('AUD');
     expect(debitEntry.tenantId).toBe('tenant-1');
     expect(debitEntry.appointmentId).toBe('appt-1');
     expect(debitEntry.inspectorId).toBeNull();
     expect(debitEntry.initiatedByUserId).toBe('SYSTEM');
+    expect(debitEntry.approvedByUserId).toBe('op-1');
     expect(debitEntry.description).toBe('Inspection service debit');
 
     const payoutEntry = financialEntryRepo.save.mock.calls[1][0] as FinancialEntryEntity;
@@ -175,7 +193,7 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
       entryType: 'TENANT_DEBIT',
       amount: 200,
       currency: 'AUD',
-      status: 'APPROVED',
+      status: 'PENDING',
       description: 'Inspection service debit',
       effectiveAt: new Date(),
       initiatedByUserId: 'SYSTEM',
@@ -206,7 +224,7 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
       entryType: 'TENANT_DEBIT',
       amount: 200,
       currency: 'AUD',
-      status: 'APPROVED',
+      status: 'PENDING',
       description: 'Inspection service debit',
       effectiveAt: new Date(),
       initiatedByUserId: 'SYSTEM',
@@ -230,6 +248,18 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
 
     const payoutEntry = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
     expect(payoutEntry.entryType).toBe('INSPECTOR_PAYOUT');
+  });
+
+  it('should throw FinancialEntryDoneCheckRequiredError when doneCheckedByUserId is not set', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointment({ doneCheckedByUserId: null, doneCheckedAt: null }),
+    );
+
+    await expect(sut.execute({ appointmentId: 'appt-1' })).rejects.toThrow(
+      FinancialEntryDoneCheckRequiredError,
+    );
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
   });
 
   it('should return nulls silently if appointment is not DONE', async () => {
@@ -266,7 +296,7 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
         actorType: 'SYSTEM',
         entityType: 'FinancialEntry',
         tenantId: 'tenant-1',
-        after: expect.objectContaining({ entryType: 'TENANT_DEBIT' }),
+        after: expect.objectContaining({ entryType: 'TENANT_DEBIT', status: 'PENDING' }),
       }),
     );
     expect(auditService.log).toHaveBeenCalledWith(
@@ -278,5 +308,25 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
         after: expect.objectContaining({ entryType: 'INSPECTOR_PAYOUT' }),
       }),
     );
+  });
+
+  it('should use tenant currency instead of hardcoded AUD', async () => {
+    tenantRepo.findById.mockResolvedValue({ id: 'tenant-1', currency: 'NZD', isActive: () => true });
+    const sut = makeSut();
+    await sut.execute({ appointmentId: 'appt-1' });
+
+    const debitEntry = financialEntryRepo.save.mock.calls[0][0];
+    expect(debitEntry.currency).toBe('NZD');
+    const payoutEntry = financialEntryRepo.save.mock.calls[1][0];
+    expect(payoutEntry.currency).toBe('NZD');
+  });
+
+  it('should default to AUD when tenant not found', async () => {
+    tenantRepo.findById.mockResolvedValue(null);
+    const sut = makeSut();
+    await sut.execute({ appointmentId: 'appt-1' });
+
+    const debitEntry = financialEntryRepo.save.mock.calls[0][0];
+    expect(debitEntry.currency).toBe('AUD');
   });
 });

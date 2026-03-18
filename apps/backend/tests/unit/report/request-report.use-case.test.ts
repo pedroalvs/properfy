@@ -10,6 +10,8 @@ import {
   ReportDateRangeExceededError,
   ReportConcurrentLimitExceededError,
 } from '../../../src/modules/report/domain/report.errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { RequestReportInput, AuthContext } from '../../../src/modules/report/application/use-cases/request-report.use-case';
 
 function makeSut() {
@@ -284,5 +286,121 @@ describe('RequestReportUseCase', () => {
 
     expect(result.status).toBe('PENDING');
     expect(reportRepo.countByUserAndStatuses).toHaveBeenCalledWith('user-1', ['PENDING', 'PROCESSING']);
+  });
+
+  // --- CL_USER export_reports permission tests ---
+
+  describe('CL_USER export_reports permission', () => {
+    function makeSutWithTenantRepo(settingsJson: Record<string, unknown> = {}) {
+      const reportRepo: IReportRepository = {
+        findById: vi.fn(),
+        findAll: vi.fn(),
+        count: vi.fn(),
+        countByUserAndStatuses: vi.fn().mockResolvedValue(0),
+        save: vi.fn(),
+        update: vi.fn(),
+      };
+      const jobQueue: IJobQueue = { enqueue: vi.fn() };
+      const auditService: AuditService = { log: vi.fn() };
+      const tenantRepo: ITenantRepository = {
+        findById: vi.fn().mockResolvedValue({
+          id: 'tenant-1',
+          name: 'Test Tenant',
+          legalName: 'Test Tenant Pty Ltd',
+          status: 'ACTIVE',
+          timezone: 'Australia/Sydney',
+          currency: 'AUD',
+          settingsJson,
+          deletedAt: null,
+        }),
+        findByLegalName: vi.fn(),
+        findAll: vi.fn(),
+        count: vi.fn(),
+        save: vi.fn(),
+        update: vi.fn(),
+      };
+      const uc = new RequestReportUseCase(reportRepo, jobQueue, auditService, tenantRepo);
+      return { reportRepo, jobQueue, auditService, tenantRepo, useCase: uc };
+    }
+
+    it('should allow CL_USER with export_reports permission', async () => {
+      const { useCase: uc } = makeSutWithTenantRepo({
+        clUserPermissions: ['export_reports', 'view_appointments'],
+      });
+      const input = makeInput();
+      const auth = makeAuth({ role: 'CL_USER', tenantId: 'tenant-1' });
+
+      const result = await uc.execute(input, auth);
+
+      expect(result.status).toBe('PENDING');
+    });
+
+    it('should throw ForbiddenError for CL_USER without export_reports permission', async () => {
+      const { useCase: uc } = makeSutWithTenantRepo({
+        clUserPermissions: ['view_appointments'],
+      });
+      const input = makeInput();
+      const auth = makeAuth({ role: 'CL_USER', tenantId: 'tenant-1' });
+
+      await expect(uc.execute(input, auth)).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should throw ForbiddenError for CL_USER when clUserPermissions is empty', async () => {
+      const { useCase: uc } = makeSutWithTenantRepo({
+        clUserPermissions: [],
+      });
+      const input = makeInput();
+      const auth = makeAuth({ role: 'CL_USER', tenantId: 'tenant-1' });
+
+      await expect(uc.execute(input, auth)).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should throw ForbiddenError for CL_USER when clUserPermissions is not set', async () => {
+      const { useCase: uc } = makeSutWithTenantRepo({});
+      const input = makeInput();
+      const auth = makeAuth({ role: 'CL_USER', tenantId: 'tenant-1' });
+
+      await expect(uc.execute(input, auth)).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should throw ForbiddenError for CL_USER without tenant context', async () => {
+      const { useCase: uc } = makeSutWithTenantRepo({
+        clUserPermissions: ['export_reports'],
+      });
+      const input = makeInput();
+      const auth = makeAuth({ role: 'CL_USER', tenantId: null });
+
+      await expect(uc.execute(input, auth)).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should allow CL_ADMIN without checking export_reports permission', async () => {
+      const { useCase: uc } = makeSutWithTenantRepo({});
+      const input = makeInput();
+      const auth = makeAuth({ role: 'CL_ADMIN', tenantId: 'tenant-1' });
+
+      const result = await uc.execute(input, auth);
+
+      expect(result.status).toBe('PENDING');
+    });
+
+    it('should allow AM without checking export_reports permission', async () => {
+      const { useCase: uc } = makeSutWithTenantRepo({});
+      const input = makeInput();
+      const auth = makeAuth({ role: 'AM', tenantId: null });
+
+      const result = await uc.execute(input, auth);
+
+      expect(result.status).toBe('PENDING');
+    });
+
+    it('should allow OP without checking export_reports permission', async () => {
+      const { useCase: uc } = makeSutWithTenantRepo({});
+      const input = makeInput();
+      const auth = makeAuth({ role: 'OP', tenantId: null });
+
+      const result = await uc.execute(input, auth);
+
+      expect(result.status).toBe('PENDING');
+    });
   });
 });

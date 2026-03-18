@@ -12,7 +12,7 @@ function makeEntry(overrides: Partial<FinancialEntry> = {}): FinancialEntry {
     appointmentCode: 'VIST-001',
     entryType: FinancialEntryType.TENANT_DEBIT,
     amount: -350,
-    currency: 'BRL',
+    currency: 'AUD',
     status: FinancialEntryStatus.APPROVED,
     description: 'Inspection debit',
     relatedEntityName: 'Imobiliária Centro',
@@ -68,7 +68,7 @@ describe('FinancialTable', () => {
     expect(amountEl.style.color).toBe('var(--color-money-negative)');
   });
 
-  it('renders formatted BRL currency', () => {
+  it('renders formatted AUD currency', () => {
     const entry = makeEntry({ amount: -350 });
     render(<FinancialTable data={[entry]} />);
     expect(screen.getByText(/350\.00/)).toBeInTheDocument();

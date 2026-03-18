@@ -11,7 +11,7 @@ import {
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
-import { success } from '../../../shared/interfaces/response';
+import { success, paginated } from '../../../shared/interfaces/response';
 import type { RequestReportUseCase } from '../application/use-cases/request-report.use-case';
 import type { GetReportStatusUseCase } from '../application/use-cases/get-report-status.use-case';
 import type { DownloadReportUseCase } from '../application/use-cases/download-report.use-case';
@@ -26,6 +26,7 @@ export interface ReportRouteContainer {
   listReportsUseCase: ListReportsUseCase;
   processReportJobUseCase: ProcessReportJobUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const reportIdParam = z.object({ reportId: z.string().uuid() });
@@ -34,8 +35,12 @@ export async function registerReportRoutes(
   app: FastifyInstance,
   container: ReportRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // POST /v1/reports
@@ -72,11 +77,12 @@ export async function registerReportRoutes(
       if (!parsed.success) {
         throw new ValidationError('Invalid query parameters', parsed.error.errors);
       }
+      const { page, pageSize } = parsed.data;
       const result = await container.listReportsUseCase.execute(
         parsed.data,
         request.authContext!,
       );
-      return reply.status(200).send(result);
+      return reply.status(200).send(paginated(result.data, result.meta.total, page, pageSize));
     },
   );
 

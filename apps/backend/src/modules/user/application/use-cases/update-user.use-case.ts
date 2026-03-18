@@ -109,7 +109,7 @@ export class UpdateUserUseCase {
       role: user.role,
     };
 
-    await this.userManagementRepo.update(userId, updateData as Parameters<IUserManagementRepository['update']>[1]);
+    await this.userManagementRepo.update(userId, tenantId, updateData as Parameters<IUserManagementRepository['update']>[2]);
 
     // Audit log
     this.auditService.log({

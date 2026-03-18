@@ -90,17 +90,17 @@ async function main() {
 
   // --- Users ---
   const users = [
-    { id: IDS.userAM, tenant_id: null, branch_id: null, role: 'AM' as const, name: 'Admin Master', email: 'admin@properfy.com' },
-    { id: IDS.userOP, tenant_id: null, branch_id: null, role: 'OP' as const, name: 'Sarah Operator', email: 'sarah.op@properfy.com' },
-    { id: IDS.userCLAdmin, tenant_id: IDS.tenant, branch_id: IDS.branchCity, role: 'CL_ADMIN' as const, name: 'James Chen', email: 'james@sydneypropservices.com.au' },
-    { id: IDS.userCLUser, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, role: 'CL_USER' as const, name: 'Emily Park', email: 'emily@sydneypropservices.com.au' },
-    { id: IDS.userINSP, tenant_id: null, branch_id: null, role: 'INSP' as const, name: 'Mike Inspector', email: 'mike@inspectors.com.au' },
+    { id: IDS.userAM, tenant_id: null, branch_id: null, role: 'AM' as const, name: 'Admin Master', email: 'admin@pedroalvs.com' },
+    { id: IDS.userOP, tenant_id: null, branch_id: null, role: 'OP' as const, name: 'Sarah Operator', email: 'op@pedroalvs.com' },
+    { id: IDS.userCLAdmin, tenant_id: IDS.tenant, branch_id: IDS.branchCity, role: 'CL_ADMIN' as const, name: 'James Chen', email: 'cl.admin@pedroalvs.com' },
+    { id: IDS.userCLUser, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, role: 'CL_USER' as const, name: 'Emily Park', email: 'cl.user@pedroalvs.com' },
+    { id: IDS.userINSP, tenant_id: null, branch_id: null, role: 'INSP' as const, name: 'Mike Inspector', email: 'insp@pedroalvs.com' },
   ];
 
   for (const u of users) {
     await prisma.user.upsert({
-      where: { email: u.email },
-      update: {},
+      where: { id: u.id },
+      update: { email: u.email },
       create: {
         id: u.id,
         tenant_id: u.tenant_id,
@@ -124,7 +124,7 @@ async function main() {
       id: IDS.inspectorLinked,
       user_id: IDS.userINSP,
       name: 'Mike Inspector',
-      email: 'mike@inspectors.com.au',
+      email: 'insp@pedroalvs.com',
       phone: '+61400111222',
       status: 'ACTIVE',
       regions_json: ['Sydney CBD', 'North Shore', 'Inner West'],

@@ -66,6 +66,7 @@ describe('createPortalTokenMiddleware', () => {
       appointmentId: 'appt-1',
       isReadOnly: false,
       tokenStatus: 'ACTIVE',
+      expiresAt: '2026-12-31T00:00:00.000Z',
     });
   });
 
@@ -107,6 +108,7 @@ describe('createPortalTokenMiddleware', () => {
       appointmentId: 'appt-1',
       isReadOnly: true,
       tokenStatus: 'EXPIRED',
+      expiresAt: '2025-01-01T00:00:00.000Z',
     });
   });
 
@@ -123,12 +125,13 @@ describe('createPortalTokenMiddleware', () => {
 
     await middleware(request, reply);
 
-    expect(repo.updateStatus).toHaveBeenCalledWith('token-1', 'EXPIRED');
+    expect(repo.updateStatus).toHaveBeenCalledWith('token-1', 'appt-1', 'EXPIRED');
     expect(request.portalContext).toEqual({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
       isReadOnly: true,
       tokenStatus: 'EXPIRED',
+      expiresAt: '2025-01-01T00:00:00.000Z',
     });
   });
 

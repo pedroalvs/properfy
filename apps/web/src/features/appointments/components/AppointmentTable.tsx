@@ -2,6 +2,7 @@ import { DataTable, type DataTableColumn, type DataTablePagination, type DataTab
 import { RowActions } from '@/components/data/RowActions';
 import { formatDate } from '@/lib/format-date';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
+import { TenantConfirmationChip } from './TenantConfirmationChip';
 import type { Appointment } from '../types';
 
 interface AppointmentTableProps {
@@ -48,6 +49,13 @@ export function AppointmentTable({
       width: '160px',
       sortable: true,
       render: (row) => <AppointmentStatusChip status={row.status} />,
+    },
+    {
+      key: 'tenantConfirmationStatus',
+      label: 'Confirmation',
+      width: '140px',
+      sortable: true,
+      render: (row) => <TenantConfirmationChip status={row.tenantConfirmationStatus} />,
     },
     {
       key: 'inspectorName',

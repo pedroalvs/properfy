@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -62,6 +62,9 @@ describe('useCreateAdjustment', () => {
         effectiveAt: '2026-03-15T00:00:00.000Z',
         notes: 'Test adjustment note',
         entryType: 'MANUAL_ADJUSTMENT',
+      },
+      headers: {
+        'Idempotency-Key': expect.any(String),
       },
     });
   });

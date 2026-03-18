@@ -136,6 +136,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       postcode: string;
       state: string;
       country: string;
+      lat: number | null;
+      lng: number | null;
       geocodingStatus: string;
       notes: string | null;
       rulesJson: Record<string, unknown>;
@@ -154,6 +156,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     if (data.postcode !== undefined) updateData['postcode'] = data.postcode;
     if (data.state !== undefined) updateData['state'] = data.state;
     if (data.country !== undefined) updateData['country'] = data.country;
+    if (data.lat !== undefined) updateData['lat'] = data.lat;
+    if (data.lng !== undefined) updateData['lng'] = data.lng;
     if (data.geocodingStatus !== undefined)
       updateData['geocoding_status'] = data.geocodingStatus;
     if (data.notes !== undefined) updateData['notes'] = data.notes;
@@ -161,8 +165,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       updateData['rules_json'] = data.rulesJson;
     if (data.deletedAt !== undefined)
       updateData['deleted_at'] = data.deletedAt;
-    await this.prisma.property.update({
-      where: { id },
+    await this.prisma.property.updateMany({
+      where: { id, tenant_id: tenantId },
       data: updateData,
     });
   }

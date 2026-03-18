@@ -10,6 +10,7 @@ export interface PortalContext {
   appointmentId: string;
   isReadOnly: boolean;
   tokenStatus: string;
+  expiresAt: string; // ISO 8601
 }
 
 declare module 'fastify' {
@@ -49,7 +50,7 @@ export function createPortalTokenMiddleware(
 
     if (tokenEntity.isActive() && tokenEntity.isExpired(now)) {
       tokenEntity.markExpired();
-      await tokenRepo.updateStatus(tokenEntity.id, 'EXPIRED');
+      await tokenRepo.updateStatus(tokenEntity.id, tokenEntity.appointmentId, 'EXPIRED');
       isReadOnly = true;
     } else if (tokenEntity.status === 'EXPIRED') {
       isReadOnly = true;
@@ -60,6 +61,7 @@ export function createPortalTokenMiddleware(
       appointmentId: tokenEntity.appointmentId,
       isReadOnly,
       tokenStatus: tokenEntity.status,
+      expiresAt: tokenEntity.expiresAt.toISOString(),
     };
   };
 }

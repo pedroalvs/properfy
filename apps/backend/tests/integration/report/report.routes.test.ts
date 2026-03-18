@@ -204,7 +204,7 @@ describe('GET /v1/reports', () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockListReportsExecute.mockResolvedValueOnce({
       data: [fullReport],
-      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+      meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
     });
 
     const res = await supertest(app.server)

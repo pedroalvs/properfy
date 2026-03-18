@@ -89,6 +89,7 @@ export class PrismaBranchRepository implements IBranchRepository {
 
   async update(
     id: string,
+    tenantId: string,
     data: Partial<{
       name: string;
       addressJson: Record<string, unknown> | null;
@@ -105,7 +106,7 @@ export class PrismaBranchRepository implements IBranchRepository {
       updateData['contact_email'] = data.contactEmail;
     if (data.status !== undefined) updateData['status'] = data.status;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
-    await this.prisma.branch.update({ where: { id }, data: updateData });
+    await this.prisma.branch.updateMany({ where: { id, tenant_id: tenantId }, data: updateData });
   }
 
   private buildWhere(tenantId: string, filters: BranchFilters) {

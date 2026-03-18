@@ -49,6 +49,9 @@ export class PrismaReportDataReader implements IReportDataReader {
             ...baseWhere,
             deleted_at: null,
           },
+          include: {
+            execution: true,
+          },
         },
       },
     });
@@ -63,6 +66,17 @@ export class PrismaReportDataReader implements IReportDataReader {
         const scheduled = i.appointments.filter((a) => a.status === 'SCHEDULED').length;
         const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
 
+        // Calculate average duration from inspection executions
+        const durations = i.appointments
+          .filter((a) => a.execution?.finished_at && a.execution?.started_at)
+          .map((a) => {
+            const exec = a.execution!;
+            return (exec.finished_at!.getTime() - exec.started_at.getTime()) / 60000;
+          });
+        const avgDurationMin = durations.length > 0
+          ? Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length)
+          : 0;
+
         return {
           inspectorName: i.name,
           inspectorEmail: i.email,
@@ -71,7 +85,7 @@ export class PrismaReportDataReader implements IReportDataReader {
           totalCancelled: cancelled,
           totalRejected: rejected,
           completionRate,
-          avgDurationMin: 0,
+          avgDurationMin,
           period: `${filters.fromDate} to ${filters.toDate}`,
         };
       });
@@ -169,6 +183,15 @@ export class PrismaReportDataReader implements IReportDataReader {
         { contact: { primary_email: { contains: filters.search, mode: 'insensitive' } } },
       ];
     }
+    if (filters.emailNotificationStatus) {
+      if (filters.emailNotificationStatus === 'DELIVERED') {
+        where.notifications = { some: { status: 'DELIVERED' } };
+      } else if (filters.emailNotificationStatus === 'FAILED') {
+        where.notifications = { some: { status: 'FAILED' } };
+      } else if (filters.emailNotificationStatus === 'NOT_SENT') {
+        where.notifications = { none: {} };
+      }
+    }
     return where;
   }
 
@@ -183,6 +206,15 @@ export class PrismaReportDataReader implements IReportDataReader {
     if (filters.serviceTypeId) where.service_type_id = filters.serviceTypeId;
     if (filters.branchId) where.branch_id = filters.branchId;
     if (filters.inspectorId) where.inspector_id = filters.inspectorId;
+    if (filters.emailNotificationStatus) {
+      if (filters.emailNotificationStatus === 'DELIVERED') {
+        where.notifications = { some: { status: 'DELIVERED' } };
+      } else if (filters.emailNotificationStatus === 'FAILED') {
+        where.notifications = { some: { status: 'FAILED' } };
+      } else if (filters.emailNotificationStatus === 'NOT_SENT') {
+        where.notifications = { none: {} };
+      }
+    }
     return where;
   }
 }

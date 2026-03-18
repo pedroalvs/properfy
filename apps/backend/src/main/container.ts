@@ -14,6 +14,9 @@ import { LogoutUseCase } from '../modules/auth/application/use-cases/logout.use-
 import { GetMeUseCase } from '../modules/auth/application/use-cases/get-me.use-case';
 import { ChangePasswordUseCase } from '../modules/auth/application/use-cases/change-password.use-case';
 import { RevokeSessionUseCase } from '../modules/auth/application/use-cases/revoke-session.use-case';
+import { SetupTotpUseCase } from '../modules/auth/application/use-cases/setup-totp.use-case';
+import { ConfirmTotpUseCase } from '../modules/auth/application/use-cases/confirm-totp.use-case';
+import { TotpEncryptionService } from '../modules/auth/infrastructure/totp-encryption.service';
 import type { AuthRouteContainer } from '../modules/auth/interfaces/auth.routes';
 
 // Tenant module
@@ -47,6 +50,14 @@ import { GetPropertyUseCase } from '../modules/property/application/use-cases/ge
 import { ListPropertiesUseCase } from '../modules/property/application/use-cases/list-properties.use-case';
 import { UpdatePropertyUseCase } from '../modules/property/application/use-cases/update-property.use-case';
 import { DeletePropertyUseCase } from '../modules/property/application/use-cases/delete-property.use-case';
+import { GeocodePropertyUseCase } from '../modules/property/application/use-cases/geocode-property.use-case';
+import { ImportPropertiesUseCase } from '../modules/property/application/use-cases/import-properties.use-case';
+import { GetPropertyImportStatusUseCase } from '../modules/property/application/use-cases/get-property-import-status.use-case';
+import { MapboxGeocodingService } from '../modules/property/infrastructure/mapbox-geocoding.service';
+import { StubGeocodingService } from '../modules/property/infrastructure/stub-geocoding.service';
+import { PrismaPropertyImportRepository } from '../modules/property/infrastructure/prisma-property-import.repository';
+import { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
+import { ImportPropertyWorker } from '../modules/property/infrastructure/workers/import-property.worker';
 import type { PropertyRouteContainer } from '../modules/property/interfaces/property.routes';
 
 // Service type module
@@ -161,6 +172,7 @@ import { ResendEmailProvider } from '../modules/notification/infrastructure/rese
 import { StubSmsProvider } from '../modules/notification/infrastructure/stub-sms.provider';
 import { TwilioSmsProvider } from '../modules/notification/infrastructure/twilio-sms.provider';
 import { StubWhatsAppProvider } from '../modules/notification/infrastructure/stub-whatsapp.provider';
+import { ZenviaWhatsAppProvider } from '../modules/notification/infrastructure/zenvia-whatsapp.provider';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import { RetryNotificationUseCase } from '../modules/notification/application/use-cases/retry-notification.use-case';
@@ -179,6 +191,14 @@ import type { NotificationRouteContainer } from '../modules/notification/interfa
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
 import { NotifyOnTenantPortalActionHandler } from '../modules/notification/application/handlers/notify-on-tenant-portal-action.handler';
 
+// Workers
+import { CleanupSessionsWorker } from '../modules/auth/infrastructure/workers/cleanup-sessions.worker';
+import { ExpireFilesWorker } from '../modules/report/infrastructure/workers/expire-files.worker';
+import { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
+import { ExpireTokensWorker } from '../modules/tenant-portal/infrastructure/workers/expire-tokens.worker';
+import { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
+import { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
+
 // Dashboard module
 import { PrismaDashboardRepository } from '../modules/dashboard/infrastructure/prisma-dashboard.repository';
 import { GetDashboardStatsUseCase } from '../modules/dashboard/application/use-cases/get-dashboard-stats.use-case';
@@ -192,6 +212,10 @@ import { ListAppointmentsUseCase } from '../modules/appointment/application/use-
 import { UpdateAppointmentUseCase } from '../modules/appointment/application/use-cases/update-appointment.use-case';
 import { ExecuteStatusTransitionUseCase } from '../modules/appointment/application/use-cases/execute-status-transition.use-case';
 import { ForceManualTenantConfirmationUseCase } from '../modules/appointment/application/use-cases/force-manual-confirmation.use-case';
+import { ImportAppointmentsUseCase } from '../modules/appointment/application/use-cases/import-appointments.use-case';
+import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
+import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
+import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
 export interface AppContainer {
@@ -214,6 +238,15 @@ export interface AppContainer {
   report: ReportRouteContainer;
   notification: NotificationRouteContainer;
   dashboard: DashboardRouteContainer;
+  geocodeWorker: GeocodeWorker;
+  propertyImportWorker: ImportPropertyWorker;
+  cleanupSessionsWorker: CleanupSessionsWorker;
+  expireFilesWorker: ExpireFilesWorker;
+  appointmentImportWorker: AppointmentImportWorker;
+  generateInvoiceFileWorker: GenerateInvoiceFileWorker;
+  expireTokensWorker: ExpireTokensWorker;
+  expireAssetsWorker: ExpireAssetsWorker;
+  notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
 }
 
 export function createContainer(logger: Logger): AppContainer {
@@ -248,16 +281,26 @@ export function createContainer(logger: Logger): AppContainer {
     keyId: env.JWT_KEY_ID,
     previousPublicKeyPem: env.JWT_PREVIOUS_PUBLIC_KEY?.replace(/\\n/g, '\n'),
     previousKeyId: env.JWT_PREVIOUS_KEY_ID,
+    previousKeyExpiresAt: env.JWT_PREVIOUS_KEY_EXPIRES_AT
+      ? new Date(env.JWT_PREVIOUS_KEY_EXPIRES_AT)
+      : undefined,
   });
   const totpService = new TotpService();
+  // In dev/test, use a deterministic fallback key (32 bytes hex-encoded) when TOTP_ENCRYPTION_KEY is not set.
+  // In staging/production, TOTP_ENCRYPTION_KEY is enforced by validateEnv().
+  const totpEncryptionKey = env.TOTP_ENCRYPTION_KEY
+    ?? '0000000000000000000000000000000000000000000000000000000000000000';
+  const totpEncryptionService = new TotpEncryptionService(totpEncryptionKey);
 
   // Auth use cases
-  const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo);
+  const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo, totpEncryptionService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
   const getMeUseCase = new GetMeUseCase(userRepo);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
+  const setupTotpUseCase = new SetupTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
+  const confirmTotpUseCase = new ConfirmTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
 
   // Tenant use cases
   const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService);
@@ -279,11 +322,19 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
-  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService);
+  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo);
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
-  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, auditService);
+  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
+  const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo);
+  const geocodingService = env.MAPBOX_ACCESS_TOKEN
+    ? new MapboxGeocodingService(env.MAPBOX_ACCESS_TOKEN)
+    : new StubGeocodingService();
+  const geocodeWorker = new GeocodeWorker(propertyRepo, geocodingService, logger);
+
+  // Property import
+  const propertyImportRepo = new PrismaPropertyImportRepository(prisma);
 
   // Service type repositories and use cases
   const serviceTypeRepo = new PrismaServiceTypeRepository(prisma);
@@ -326,15 +377,15 @@ export function createContainer(logger: Logger): AppContainer {
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
   const createFinancialEntriesOnDoneUseCase = new CreateFinancialEntriesOnDoneUseCase(
-    appointmentRepo, financialEntryRepo, auditService, idempotencyService,
+    appointmentRepo, financialEntryRepo, auditService, idempotencyService, tenantRepo,
   );
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
-    createPropertyUseCase, auditService,
+    createPropertyUseCase, auditService, tenantRepo,
   );
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo);
-  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService);
+  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepo);
   // Notification handlers (depend on appointmentRepo, propertyRepo, createNotificationUseCase)
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
     appointmentRepo, propertyRepo, createNotificationUseCase,
@@ -344,22 +395,24 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(
-    appointmentRepo, userManagementRepo, auditService,
+    appointmentRepo, userManagementRepo, inspectorRepo, idempotencyService, auditService,
     createFinancialEntriesOnDoneUseCase,
     notifyOnStatusTransitionHandler,
+    tenantRepo,
+    serviceTypeRepo,
   );
-  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService);
+  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, tenantRepo);
 
   // Tenant portal repositories and use cases
   const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
   const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
   const tokenService = new TokenService();
-  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo);
+  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
   const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler);
   const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, appointmentRepo, serviceTypeRepo, auditService, notifyOnTenantPortalActionHandler);
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
   const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
-  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, tokenService, auditService);
+  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, tokenService, auditService, createNotificationUseCase);
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
@@ -381,7 +434,7 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, inspectionAssetRepo, idempotencyService,
-    executeStatusTransitionUseCase, auditService,
+    executeStatusTransitionUseCase, auditService, serviceTypeReaderForExec,
   );
   const requestAssetUploadUseCase = new RequestAssetUploadUseCase(
     inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo,
@@ -405,12 +458,15 @@ export function createContainer(logger: Logger): AppContainer {
   const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService);
 
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
-  const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo);
+  const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
   const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
   const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService);
-  const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(financialEntryRepo, auditService, idempotencyService);
-  const createRefundUseCase = new CreateRefundUseCase(financialEntryRepo, auditService);
-  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService);
+  const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(financialEntryRepo, auditService, idempotencyService, tenantRepo);
+  const createRefundUseCase = new CreateRefundUseCase(financialEntryRepo, auditService, idempotencyService);
+  const billingJobQueue = env.ENABLE_JOB_QUEUE === 'true'
+    ? new PgBossJobQueue()
+    : new StubJobQueue();
+  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
   const listInvoicesUseCase = new ListInvoicesUseCase(inspectorInvoiceRepo);
   const getInvoiceUseCase = new GetInvoiceUseCase(inspectorInvoiceRepo);
   const downloadInvoiceUseCase = new DownloadInvoiceUseCase(inspectorInvoiceRepo);
@@ -425,10 +481,10 @@ export function createContainer(logger: Logger): AppContainer {
   const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
-  const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService);
-  const getReportStatusUseCase = new GetReportStatusUseCase(reportRepo);
+  const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService, tenantRepo);
+  const getReportStatusUseCase = new GetReportStatusUseCase(reportRepo, userManagementRepo);
   const downloadReportUseCase = new DownloadReportUseCase(reportRepo, reportStorageService);
-  const listReportsUseCase = new ListReportsUseCase(reportRepo);
+  const listReportsUseCase = new ListReportsUseCase(reportRepo, userManagementRepo);
   const processReportJobUseCase = new ProcessReportJobUseCase(
     reportRepo, reportStorageService, xlsxGenerator, reportDataReader,
   );
@@ -443,8 +499,10 @@ export function createContainer(logger: Logger): AppContainer {
     ? new TwilioSmsProvider(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.TWILIO_PHONE_NUMBER)
     : new StubSmsProvider();
 
-  // WhatsApp stays stub until provider is configured
-  const whatsAppProvider = new StubWhatsAppProvider();
+  // WhatsApp: use Zenvia when configured, otherwise stub
+  const whatsAppProvider = env.WHATSAPP_API_KEY && env.WHATSAPP_API_URL
+    ? new ZenviaWhatsAppProvider(env.WHATSAPP_API_KEY, env.WHATSAPP_API_URL)
+    : new StubWhatsAppProvider();
   const templateRenderer = new TemplateRendererService();
 
   // Notification use cases
@@ -468,6 +526,47 @@ export function createContainer(logger: Logger): AppContainer {
   const dashboardRepo = new PrismaDashboardRepository(prisma);
   const getDashboardStatsUseCase = new GetDashboardStatsUseCase(dashboardRepo);
 
+  // Appointment import (depends on reportStorageService and job queue)
+  const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
+  const importJobQueue = env.ENABLE_JOB_QUEUE === 'true'
+    ? new PgBossJobQueue()
+    : new StubJobQueue();
+  const importAppointmentsUseCase = new ImportAppointmentsUseCase(
+    appointmentImportRepo, reportStorageService, importJobQueue, idempotencyService,
+  );
+  const getImportStatusUseCase = new GetImportStatusUseCase(appointmentImportRepo);
+
+  // Workers
+  const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
+  const expireFilesWorker = new ExpireFilesWorker(reportRepo, reportStorageService, logger);
+  const generateInvoiceFileWorker = new GenerateInvoiceFileWorker(
+    inspectorInvoiceRepo, financialEntryRepo, xlsxGenerator, reportStorageService, logger,
+  );
+  const expireTokensWorker = new ExpireTokensWorker(tenantPortalTokenRepo, logger);
+  const expireAssetsWorker = new ExpireAssetsWorker(inspectionAssetRepo, logger);
+  const notifyStuckInspectionsWorker = new NotifyStuckInspectionsWorker(
+    inspectionExecutionRepo, createNotificationUseCase, logger,
+  );
+
+  const appointmentImportWorker = new AppointmentImportWorker(
+    appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger,
+  );
+
+  // Property import (depends on reportStorageService and job queue)
+  const propertyImportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
+    ? new PgBossJobQueue()
+    : new StubJobQueue();
+  const importPropertiesUseCase = new ImportPropertiesUseCase(
+    propertyImportRepo, reportStorageService, propertyImportJobQueue, idempotencyService,
+  );
+  const getPropertyImportStatusUseCase = new GetPropertyImportStatusUseCase(propertyImportRepo);
+  const geocodeJobQueue = env.ENABLE_JOB_QUEUE === 'true'
+    ? new PgBossJobQueue()
+    : new StubJobQueue();
+  const propertyImportWorker = new ImportPropertyWorker(
+    propertyImportRepo, reportStorageService, propertyRepo, logger, geocodeJobQueue,
+  );
+
   return {
     prisma,
     auditService,
@@ -478,7 +577,10 @@ export function createContainer(logger: Logger): AppContainer {
       getMeUseCase,
       changePasswordUseCase,
       revokeSessionUseCase,
+      setupTotpUseCase,
+      confirmTotpUseCase,
       jwtService,
+      tenantRepo,
     },
     tenant: {
       createTenantUseCase,
@@ -491,6 +593,7 @@ export function createContainer(logger: Logger): AppContainer {
       updateBranchUseCase,
       deactivateBranchUseCase,
       jwtService,
+      tenantRepo,
     },
     user: {
       createUserUseCase,
@@ -499,6 +602,7 @@ export function createContainer(logger: Logger): AppContainer {
       updateUserUseCase,
       deactivateUserUseCase,
       jwtService,
+      tenantRepo,
     },
     property: {
       createPropertyUseCase,
@@ -506,7 +610,11 @@ export function createContainer(logger: Logger): AppContainer {
       listPropertiesUseCase,
       updatePropertyUseCase,
       deletePropertyUseCase,
+      geocodePropertyUseCase,
+      importPropertiesUseCase,
+      getPropertyImportStatusUseCase,
       jwtService,
+      tenantRepo,
     },
     serviceType: {
       createServiceTypeUseCase,
@@ -514,12 +622,14 @@ export function createContainer(logger: Logger): AppContainer {
       listServiceTypesUseCase,
       updateServiceTypeUseCase,
       jwtService,
+      tenantRepo,
     },
     pricingRule: {
       createPricingRuleUseCase,
       listPricingRulesUseCase,
       updatePricingRuleUseCase,
       jwtService,
+      tenantRepo,
     },
     inspector: {
       createInspectorUseCase,
@@ -531,6 +641,7 @@ export function createContainer(logger: Logger): AppContainer {
       updateAvailabilitySlotUseCase,
       linkInspectorToUserUseCase,
       jwtService,
+      tenantRepo,
     },
     appointment: {
       createAppointmentUseCase,
@@ -539,11 +650,15 @@ export function createContainer(logger: Logger): AppContainer {
       updateAppointmentUseCase,
       executeStatusTransitionUseCase,
       forceManualConfirmationUseCase,
+      importAppointmentsUseCase,
+      getImportStatusUseCase,
       jwtService,
+      tenantRepo,
     },
     audit: {
       listAuditLogsUseCase,
       jwtService,
+      tenantRepo,
     },
     serviceGroup: {
       createServiceGroupUseCase,
@@ -553,11 +668,13 @@ export function createContainer(logger: Logger): AppContainer {
       assignInspectorManuallyUseCase,
       cancelServiceGroupUseCase,
       jwtService,
+      tenantRepo,
     },
     marketplace: {
       getMarketplaceOffersUseCase,
       acceptOfferUseCase,
       jwtService,
+      tenantRepo,
     },
     tenantPortal: {
       getPortalDataUseCase,
@@ -569,6 +686,7 @@ export function createContainer(logger: Logger): AppContainer {
       tokenRepo: tenantPortalTokenRepo,
       tokenService,
       jwtService,
+      tenantRepo,
     },
     inspectorExecution: {
       getInspectorScheduleUseCase,
@@ -577,7 +695,9 @@ export function createContainer(logger: Logger): AppContainer {
       finishInspectionUseCase,
       requestAssetUploadUseCase,
       confirmAssetUploadUseCase,
+      getMarketplaceOffersUseCase,
       jwtService,
+      tenantRepo,
     },
     billing: {
       createFinancialEntriesOnDoneUseCase,
@@ -591,6 +711,7 @@ export function createContainer(logger: Logger): AppContainer {
       getInvoiceUseCase,
       downloadInvoiceUseCase,
       jwtService,
+      tenantRepo,
     },
     report: {
       requestReportUseCase,
@@ -599,6 +720,7 @@ export function createContainer(logger: Logger): AppContainer {
       listReportsUseCase,
       processReportJobUseCase,
       jwtService,
+      tenantRepo,
     },
     notification: {
       sendNotificationUseCase,
@@ -613,10 +735,21 @@ export function createContainer(logger: Logger): AppContainer {
       dispatchRemindersUseCase,
       dispatchEscalationsUseCase,
       jwtService,
+      tenantRepo,
     },
     dashboard: {
       getDashboardStatsUseCase,
       jwtService,
+      tenantRepo,
     },
+    cleanupSessionsWorker,
+    expireFilesWorker,
+    geocodeWorker,
+    propertyImportWorker,
+    appointmentImportWorker,
+    generateInvoiceFileWorker,
+    expireTokensWorker,
+    expireAssetsWorker,
+    notifyStuckInspectionsWorker,
   };
 }

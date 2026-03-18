@@ -1,4 +1,5 @@
 import { StatusChip } from '@/components/ui/StatusChip';
+import { formatDate } from '@/lib/format-date';
 import { TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { useCountdown } from '../hooks/useCountdown';
 import type { PortalAppointment } from '../types';
@@ -6,12 +7,13 @@ import type { PortalAppointment } from '../types';
 interface AppointmentInfoCardProps {
   appointment: PortalAppointment;
   deadline?: string;
+  onDeadlineExpire?: () => void;
 }
 
-export function AppointmentInfoCard({ appointment, deadline }: AppointmentInfoCardProps) {
+export function AppointmentInfoCard({ appointment, deadline, onDeadlineExpire }: AppointmentInfoCardProps) {
   const confirmationStyle =
     TENANT_CONFIRMATION_STATUS_MAP[appointment.tenantConfirmationStatus];
-  const countdown = useCountdown(deadline);
+  const countdown = useCountdown(deadline, onDeadlineExpire);
 
   return (
     <div className="rounded bg-card-bg p-6 shadow-sm">
@@ -64,12 +66,16 @@ export function AppointmentInfoCard({ appointment, deadline }: AppointmentInfoCa
 
       {deadline && countdown.isUrgent && !countdown.isExpired && (
         <div
-          className="mt-4 flex items-center gap-2 rounded bg-warning/10 px-3 py-2 text-sm font-semibold text-warning"
+          className={`mt-4 flex items-center gap-2 rounded px-3 py-2 text-sm font-semibold ${
+            countdown.isCritical
+              ? 'bg-error/10 text-error'
+              : 'bg-warning/10 text-warning'
+          }`}
           role="status"
           aria-label="Countdown timer"
         >
           <i className="mdi mdi-clock-alert-outline text-base" />
-          Less than {countdown.hours}h {countdown.minutes}m remaining to respond
+          {countdown.label}
         </div>
       )}
     </div>
@@ -91,16 +97,3 @@ function InfoRow({
   );
 }
 
-function formatDate(dateStr: string): string {
-  try {
-    const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('en-AU', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
-}

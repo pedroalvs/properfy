@@ -12,7 +12,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePropertySave } from '../hooks/usePropertySave';
-import { PROPERTY_TYPE_OPTIONS } from '../constants/form-options';
+import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 
@@ -166,9 +166,11 @@ export function PropertyCreatePage() {
                 />
               </FormField>
               <FormField label="State" required error={errors.state}>
-                <TextInput
+                <SelectInput
                   value={form.state}
                   onChange={(v) => updateField('state', v)}
+                  options={STATE_OPTIONS}
+                  placeholder="Select state"
                   error={!!errors.state}
                   aria-label="State"
                 />

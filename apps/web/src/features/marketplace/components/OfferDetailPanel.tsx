@@ -2,6 +2,7 @@ import { PriorityMode } from '@properfy/shared';
 import type { MarketplaceOffer } from '../types';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { formatDate } from '@/lib/format-date';
 
 interface OfferDetailPanelProps {
   offer: MarketplaceOffer | null;
@@ -31,11 +32,7 @@ export function OfferDetailPanel({ offer, onAccept, isAccepting }: OfferDetailPa
     currency: 'AUD',
   }).format(offer.totalPayout);
 
-  const expiresDate = new Date(offer.expiresAt).toLocaleDateString('en-AU', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  const expiresDate = formatDate(offer.expiresAt);
 
   return (
     <div className="border-t border-gray-200 p-4" data-testid="offer-detail-panel">
@@ -84,10 +81,7 @@ export function OfferDetailPanel({ offer, onAccept, isAccepting }: OfferDetailPa
                       <span className="line-clamp-1">{apt.address}</span>
                     </td>
                     <td className="px-2 py-1.5 text-text-primary">
-                      {new Date(apt.scheduledDate).toLocaleDateString('en-AU', {
-                        day: '2-digit',
-                        month: 'short',
-                      })}
+                      {formatDate(apt.scheduledDate)}
                     </td>
                     <td className="px-2 py-1.5 text-text-primary">{apt.timeSlot}</td>
                   </tr>

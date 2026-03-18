@@ -18,6 +18,14 @@ export interface DeactivateBranchInput {
   actor: AuthContext;
 }
 
+export interface DeactivateBranchOutput {
+  id: string;
+  tenantId: string;
+  name: string;
+  status: string;
+  deactivatedAt: Date;
+}
+
 export class DeactivateBranchUseCase {
   constructor(
     private readonly tenantRepo: ITenantRepository,
@@ -26,7 +34,7 @@ export class DeactivateBranchUseCase {
     private readonly auditService: AuditService,
   ) {}
 
-  async execute(input: DeactivateBranchInput): Promise<void> {
+  async execute(input: DeactivateBranchInput): Promise<DeactivateBranchOutput> {
     const { tenantId, branchId, reason, actor } = input;
 
     if (actor.role !== 'AM') {
@@ -54,9 +62,8 @@ export class DeactivateBranchUseCase {
     }
 
     const now = new Date();
-    await this.branchRepo.update(branchId, {
+    await this.branchRepo.update(branchId, tenantId, {
       status: 'INACTIVE',
-      deletedAt: now,
     });
 
     this.auditService.log({
@@ -70,5 +77,13 @@ export class DeactivateBranchUseCase {
       after: { status: 'INACTIVE' },
       reason,
     });
+
+    return {
+      id: branchId,
+      tenantId,
+      name: branch.name,
+      status: 'INACTIVE',
+      deactivatedAt: now,
+    };
   }
 }

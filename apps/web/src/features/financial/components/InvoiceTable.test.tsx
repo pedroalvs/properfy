@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { InvoiceTable } from './InvoiceTable';
 import type { Invoice } from '../types';
 
@@ -13,7 +13,7 @@ const MOCK_INVOICES: Invoice[] = [
     periodEnd: '2026-03-15',
     frequency: 'BIWEEKLY',
     totalAmount: 1800,
-    currency: 'BRL',
+    currency: 'AUD',
     status: 'DRAFT',
     entryCount: 5,
     createdAt: '2026-03-16T10:00:00Z',
@@ -28,7 +28,7 @@ const MOCK_INVOICES: Invoice[] = [
     periodEnd: '2026-03-31',
     frequency: 'MONTHLY',
     totalAmount: 3200,
-    currency: 'BRL',
+    currency: 'AUD',
     status: 'SENT',
     entryCount: 12,
     createdAt: '2026-03-16T10:00:00Z',

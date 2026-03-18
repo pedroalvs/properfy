@@ -50,8 +50,9 @@ The Property module manages real estate properties (imoveis) that are the subjec
 ```prisma
 enum PropertyType {
   RESIDENTIAL   // Houses, apartments, townhouses, units
-  COMMERCIAL    // Offices, retail, industrial, warehouse
-  LAND          // Vacant land / subdivision lots
+  COMMERCIAL    // Offices, retail, commercial premises
+  INDUSTRIAL    // Industrial/warehouse properties
+  RURAL         // Rural/agricultural properties
 }
 ```
 
@@ -132,7 +133,8 @@ interface PropertyRules {
 enum PropertyType {
   RESIDENTIAL
   COMMERCIAL
-  LAND
+  INDUSTRIAL
+  RURAL
 }
 
 enum GeocodingStatus {
@@ -665,7 +667,7 @@ const UpdatePropertyInputSchema = z.object({
 | sortBy | string | "street" | street, suburb, postcode, type, createdAt, propertyCode |
 | sortOrder | string | "asc" | asc, desc |
 | branchId | string | — | UUID filter |
-| type | PropertyType | — | RESIDENTIAL, COMMERCIAL, LAND |
+| type | PropertyType | — | RESIDENTIAL, COMMERCIAL, INDUSTRIAL, RURAL |
 | geocodingStatus | GeocodingStatus | — | PENDING, GEOCODED, FAILED, MANUAL |
 | search | string | — | searches street, suburb, postcode, propertyCode, addressLine2 |
 

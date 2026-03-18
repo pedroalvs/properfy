@@ -1,15 +1,20 @@
+import { Link } from 'react-router-dom';
+
 interface StatCardProps {
   icon: string;
   value: number;
   label: string;
   colorClass: string;
   iconColorClass: string;
+  href?: string;
 }
 
-export function StatCard({ icon, value, label, colorClass, iconColorClass }: StatCardProps) {
-  return (
+export function StatCard({ icon, value, label, colorClass, iconColorClass, href }: StatCardProps) {
+  const content = (
     <div
-      className={`rounded bg-card-bg shadow-sm border-l-4 ${colorClass} p-4 flex items-start gap-3`}
+      className={`rounded bg-card-bg shadow-sm border-l-4 ${colorClass} p-4 flex items-start gap-3 ${
+        href ? 'cursor-pointer transition hover:shadow-md' : ''
+      }`}
       data-testid="stat-card"
     >
       <i className={`mdi ${icon} text-2xl ${iconColorClass}`} />
@@ -19,4 +24,10 @@ export function StatCard({ icon, value, label, colorClass, iconColorClass }: Sta
       </div>
     </div>
   );
+
+  if (href) {
+    return <Link to={href} className="no-underline">{content}</Link>;
+  }
+
+  return content;
 }

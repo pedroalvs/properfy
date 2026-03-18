@@ -49,6 +49,7 @@ function makeSut() {
     count: vi.fn(),
     save: vi.fn(),
     updateStatus: vi.fn(),
+    transitionStatus: vi.fn(),
     sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
   };
   const useCase = new GetFinancialEntryUseCase(entryRepo);
@@ -76,9 +77,9 @@ describe('GetFinancialEntryUseCase', () => {
 
     expect(result.id).toBe('entry-1');
     expect(result.tenantId).toBe('tenant-1');
-    expect(result.amount).toBe('200');
-    expect(typeof result.amount).toBe('string');
-    expect(entryRepo.findById).toHaveBeenCalledWith('entry-1');
+    expect(result.amount).toBe(200);
+    expect(typeof result.amount).toBe('number');
+    expect(entryRepo.findById).toHaveBeenCalledWith('entry-1', undefined);
   });
 
   it('should return entry for OP', async () => {
@@ -102,6 +103,7 @@ describe('GetFinancialEntryUseCase', () => {
 
     expect(result.id).toBe('entry-1');
     expect(result.tenantId).toBe('tenant-1');
+    expect(entryRepo.findById).toHaveBeenCalledWith('entry-1', 'tenant-1');
   });
 
   it('should throw EntryNotFoundError for CL_ADMIN when tenantId does not match', async () => {
@@ -203,6 +205,39 @@ describe('GetFinancialEntryUseCase', () => {
     expect(result.effectiveAt).toBe('2026-03-15T10:00:00.000Z');
     expect(result.approvedAt).toBe('2026-03-15T12:00:00.000Z');
     expect(result.createdAt).toBe('2026-03-15T09:00:00.000Z');
+  });
+
+  it('should pass tenantId to findById for CL_ADMIN (defense-in-depth)', async () => {
+    vi.mocked(entryRepo.findById).mockResolvedValue(makeEntry({ tenantId: 'tenant-1' }));
+
+    await useCase.execute({
+      entryId: 'entry-1',
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(entryRepo.findById).toHaveBeenCalledWith('entry-1', 'tenant-1');
+  });
+
+  it('should pass tenantId to findById for CL_USER (defense-in-depth)', async () => {
+    vi.mocked(entryRepo.findById).mockResolvedValue(makeEntry({ tenantId: 'tenant-1' }));
+
+    await useCase.execute({
+      entryId: 'entry-1',
+      actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+    });
+
+    expect(entryRepo.findById).toHaveBeenCalledWith('entry-1', 'tenant-1');
+  });
+
+  it('should not pass tenantId to findById for AM', async () => {
+    vi.mocked(entryRepo.findById).mockResolvedValue(makeEntry());
+
+    await useCase.execute({
+      entryId: 'entry-1',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(entryRepo.findById).toHaveBeenCalledWith('entry-1', undefined);
   });
 
   it('should return null for approvedAt when not approved', async () => {

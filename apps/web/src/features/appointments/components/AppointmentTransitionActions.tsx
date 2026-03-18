@@ -6,7 +6,7 @@ import type { AppointmentTransition } from '../types';
 
 interface AppointmentTransitionActionsProps {
   transitions: AppointmentTransition[];
-  onTransition: (targetStatus: AppointmentStatus, reason?: string) => void;
+  onTransition: (targetStatus: AppointmentStatus, reason?: string, reasonCode?: string) => void;
   loading?: boolean;
 }
 
@@ -40,9 +40,9 @@ export function AppointmentTransitionActions({
     }
   };
 
-  const handleConfirm = (reason: string) => {
+  const handleConfirm = (reason: string, reasonCode?: string) => {
     if (dialogTransition) {
-      onTransition(dialogTransition.targetStatus, reason);
+      onTransition(dialogTransition.targetStatus, reason, reasonCode);
       setDialogTransition(null);
     }
   };
@@ -77,6 +77,7 @@ export function AppointmentTransitionActions({
           title={dialogTransition.label}
           message={`Are you sure you want to transition to "${dialogTransition.label}"?`}
           variant={dialogTransition.variant === 'danger' ? 'danger' : 'warning'}
+          targetStatus={dialogTransition.targetStatus}
           loading={loading}
         />
       )}

@@ -7,8 +7,12 @@ import { UnauthorizedError } from '../domain/errors';
 // provides the Fastify preHandler hook factory.
 
 export type JwtVerifier = (token: string) => Promise<AuthContext>;
+export type TenantActiveChecker = (tenantId: string) => Promise<boolean>;
 
-export function createAuthMiddleware(verifyJwt: JwtVerifier) {
+export function createAuthMiddleware(
+  verifyJwt: JwtVerifier,
+  checkTenantActive?: TenantActiveChecker,
+) {
   return async function authenticate(
     request: FastifyRequest,
     _reply: FastifyReply,
@@ -19,6 +23,15 @@ export function createAuthMiddleware(verifyJwt: JwtVerifier) {
     }
     const token = authHeader.slice(7);
     const ctx = await verifyJwt(token);
+
+    // Check tenant status for client roles
+    if (checkTenantActive && ctx.tenantId && (ctx.role === 'CL_ADMIN' || ctx.role === 'CL_USER')) {
+      const isActive = await checkTenantActive(ctx.tenantId);
+      if (!isActive) {
+        throw new UnauthorizedError('AUTH_TENANT_INACTIVE', 'Tenant account is not active');
+      }
+    }
+
     request.authContext = ctx;
   };
 }

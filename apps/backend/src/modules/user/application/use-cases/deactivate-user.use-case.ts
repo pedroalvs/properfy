@@ -63,7 +63,7 @@ export class DeactivateUserUseCase {
     const now = new Date();
 
     // Set status to INACTIVE and deletedAt
-    await this.userManagementRepo.update(userId, {
+    await this.userManagementRepo.update(userId, tenantId, {
       status: 'INACTIVE',
       deletedAt: now,
     });

@@ -327,4 +327,63 @@ describe('UpdateAppointmentUseCase', () => {
       }),
     ).rejects.toThrow(AppointmentNotFoundError);
   });
+
+  // H6: CL_USER reschedule permission
+  describe('CL_USER reschedule_appointments permission', () => {
+    const tenantRepoMock = {
+      findById: vi.fn(),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+
+    beforeEach(() => {
+      tenantRepoMock.findById.mockReset();
+    });
+
+    it('should allow CL_USER to reschedule with permission', async () => {
+      const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepoMock as any);
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+      tenantRepoMock.findById.mockResolvedValue({
+        settingsJson: { clUserPermissions: ['reschedule_appointments'] },
+      });
+
+      const result = await uc.execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2026-04-15' },
+        actor: makeActor({ role: 'CL_USER' }),
+      });
+      expect(result.id).toBe('appt-1');
+    });
+
+    it('should throw ForbiddenError for CL_USER without reschedule_appointments permission', async () => {
+      const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepoMock as any);
+      tenantRepoMock.findById.mockResolvedValue({
+        settingsJson: { clUserPermissions: [] },
+      });
+
+      await expect(
+        uc.execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2026-04-15' },
+          actor: makeActor({ role: 'CL_USER' }),
+        }),
+      ).rejects.toThrow('CL_USER does not have reschedule_appointments permission');
+    });
+
+    it('should allow CL_USER to update non-schedule fields without permission', async () => {
+      const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepoMock as any);
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const result = await uc.execute({
+        appointmentId: 'appt-1',
+        data: { notes: 'Just a note' },
+        actor: makeActor({ role: 'CL_USER' }),
+      });
+      expect(result.id).toBe('appt-1');
+      expect(tenantRepoMock.findById).not.toHaveBeenCalled();
+    });
+  });
 });

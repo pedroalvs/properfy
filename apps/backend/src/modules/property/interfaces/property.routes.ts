@@ -16,7 +16,12 @@ import type { GetPropertyUseCase } from '../application/use-cases/get-property.u
 import type { ListPropertiesUseCase } from '../application/use-cases/list-properties.use-case';
 import type { UpdatePropertyUseCase } from '../application/use-cases/update-property.use-case';
 import type { DeletePropertyUseCase } from '../application/use-cases/delete-property.use-case';
+import type { GeocodePropertyUseCase } from '../application/use-cases/geocode-property.use-case';
+import type { ImportPropertiesUseCase } from '../application/use-cases/import-properties.use-case';
+import type { GetPropertyImportStatusUseCase } from '../application/use-cases/get-property-import-status.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
+
+const importIdParam = z.object({ importId: z.string().uuid() });
 
 export interface PropertyRouteContainer {
   createPropertyUseCase: CreatePropertyUseCase;
@@ -24,7 +29,11 @@ export interface PropertyRouteContainer {
   listPropertiesUseCase: ListPropertiesUseCase;
   updatePropertyUseCase: UpdatePropertyUseCase;
   deletePropertyUseCase: DeletePropertyUseCase;
+  geocodePropertyUseCase: GeocodePropertyUseCase;
+  importPropertiesUseCase: ImportPropertiesUseCase;
+  getPropertyImportStatusUseCase: GetPropertyImportStatusUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const propertyIdParam = z.object({ propertyId: z.string().uuid() });
@@ -33,8 +42,12 @@ export async function registerPropertyRoutes(
   app: FastifyInstance,
   container: PropertyRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // POST /v1/properties
@@ -90,8 +103,10 @@ export async function registerPropertyRoutes(
           'Invalid property ID',
           params.error.errors,
         );
+      const query = request.query as Record<string, string>;
       const result = await container.getPropertyUseCase.execute({
         propertyId: params.data.propertyId,
+        tenantId: query.tenantId || undefined,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -140,6 +155,81 @@ export async function registerPropertyRoutes(
         actor: request.authContext!,
       });
       return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/properties/:propertyId/geocode — enqueue async geocoding
+  app.post(
+    '/v1/properties/:propertyId/geocode',
+    { preHandler: authenticate, schema: { params: z.object({ propertyId: z.string().uuid() }) } },
+    async (request, reply) => {
+      const params = propertyIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid property ID',
+          params.error.errors,
+        );
+      const result = await container.geocodePropertyUseCase.execute({
+        propertyId: params.data.propertyId,
+        actor: request.authContext!,
+      });
+      return reply.status(202).send(success(result));
+    },
+  );
+
+  // POST /v1/properties/import — 202 (multipart file upload)
+  app.post(
+    '/v1/properties/import',
+    {
+      preHandler: authenticate,
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    async (request, reply) => {
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+      if (!idempotencyKey) {
+        throw new ValidationError('Idempotency-Key header is required for import');
+      }
+
+      const data = await request.file();
+      if (!data) {
+        throw new ValidationError('File upload is required');
+      }
+
+      const fileBuffer = await data.toBuffer();
+      const result = await container.importPropertiesUseCase.execute({
+        fileBuffer,
+        filename: data.filename,
+        idempotencyKey,
+        actor: request.authContext!,
+      });
+      return reply.status(202).send(success(result));
+    },
+  );
+
+  // GET /v1/properties/import/:importId — 200
+  app.get(
+    '/v1/properties/import/:importId',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: importIdParam,
+      },
+    },
+    async (request, reply) => {
+      const params = importIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid import ID', params.error.errors);
+      }
+      const result = await container.getPropertyImportStatusUseCase.execute({
+        importId: params.data.importId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 }

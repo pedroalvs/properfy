@@ -1,6 +1,7 @@
 import { PriorityMode } from '@properfy/shared';
 import type { MarketplaceOffer } from '../types';
 import { Button } from '@/components/ui/Button';
+import { formatDate } from '@/lib/format-date';
 
 interface OfferCardProps {
   offer: MarketplaceOffer;
@@ -26,11 +27,7 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
     currency: 'AUD',
   }).format(offer.totalPayout);
 
-  const expiresDate = new Date(offer.expiresAt).toLocaleDateString('en-AU', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  const expiresDate = formatDate(offer.expiresAt);
 
   return (
     <div

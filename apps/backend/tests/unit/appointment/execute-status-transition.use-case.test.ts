@@ -9,6 +9,7 @@ import {
   AppointmentReasonRequiredError,
   AppointmentDoneCheckerInvalidRoleError,
   AppointmentInspectorRequiredError,
+  AppointmentTenantConfirmationRequiredError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import type { AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
@@ -128,13 +129,51 @@ const onTransitionHandler = {
   execute: vi.fn().mockResolvedValue(undefined),
 };
 
-function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean } = {}) {
+const inspectorRepo = {
+  findById: vi.fn(),
+  findByEmail: vi.fn(),
+  findByUserId: vi.fn(),
+  linkUserId: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+};
+
+const idempotencyService = {
+  get: vi.fn().mockResolvedValue(null),
+  set: vi.fn().mockResolvedValue(undefined),
+};
+
+const tenantRepo = {
+  findById: vi.fn(),
+  findByLegalName: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+};
+
+const serviceTypeRepo = {
+  findById: vi.fn(),
+  findByCode: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+};
+
+function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean; withTenantRepo?: boolean; withServiceTypeRepo?: boolean } = {}) {
   return new ExecuteStatusTransitionUseCase(
     appointmentRepo as any,
     userRepo as any,
+    inspectorRepo as any,
+    idempotencyService as any,
     auditService as any,
     opts.withOnDoneHandler ? onDoneHandler : undefined,
     opts.withOnTransitionHandler ? onTransitionHandler : undefined,
+    opts.withTenantRepo ? (tenantRepo as any) : undefined,
+    opts.withServiceTypeRepo ? (serviceTypeRepo as any) : undefined,
   );
 }
 
@@ -151,13 +190,13 @@ beforeEach(() => {
 // =============================================================================
 
 describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
-  it('DRAFT → AWAITING_INSPECTOR (AM actor)', async () => {
+  it('DRAFT → AWAITING_INSPECTOR (OP actor)', async () => {
     appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT' }));
     const uc = makeUseCase();
     const result = await uc.execute({
       appointmentId: 'appt-1',
       targetStatus: 'AWAITING_INSPECTOR',
-      actor: makeActor('AM'),
+      actor: makeActor('OP'),
     });
     expect(result.status).toBe('AWAITING_INSPECTOR');
     expect(result.previousStatus).toBe('DRAFT');
@@ -293,7 +332,7 @@ describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
     expect(result.previousStatus).toBe('REJECTED');
   });
 
-  it('REJECTED → AWAITING_INSPECTOR (OP actor)', async () => {
+  it('REJECTED → AWAITING_INSPECTOR with reason (OP actor)', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'REJECTED' }),
     );
@@ -301,6 +340,7 @@ describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
     const result = await uc.execute({
       appointmentId: 'appt-1',
       targetStatus: 'AWAITING_INSPECTOR',
+      reason: 'Reopening for reassignment',
       actor: makeActor('OP'),
     });
     expect(result.status).toBe('AWAITING_INSPECTOR');
@@ -551,7 +591,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
     expect(result.reason).toBeNull();
   });
 
-  it('clears reason on REJECTED → AWAITING_INSPECTOR (no requiresReason, targetStatus is not DRAFT)', async () => {
+  it('sets reason on REJECTED → AWAITING_INSPECTOR (requiresReason is true)', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'REJECTED', reason: 'previous reason', inspectorId: 'insp-1' }),
     );
@@ -559,11 +599,10 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
     const result = await uc.execute({
       appointmentId: 'appt-1',
       targetStatus: 'AWAITING_INSPECTOR',
+      reason: 'Reopening for reassignment',
       actor: makeActor('OP'),
     });
-    // No updateData.reason set (neither requiresReason nor targetStatus=DRAFT)
-    // Fallback to appointment.reason = 'previous reason'
-    expect(result.reason).toBe('previous reason');
+    expect(result.reason).toBe('Reopening for reassignment');
   });
 
   it('clears reason on DRAFT → AWAITING_INSPECTOR (no requiresReason, targetStatus is not DRAFT)', async () => {
@@ -574,7 +613,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
     const result = await uc.execute({
       appointmentId: 'appt-1',
       targetStatus: 'AWAITING_INSPECTOR',
-      actor: makeActor('AM'),
+      actor: makeActor('OP'),
     });
     expect(result.reason).toBeNull();
   });
@@ -655,13 +694,13 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
     await uc.execute({
       appointmentId: 'appt-1',
       targetStatus: 'AWAITING_INSPECTOR',
-      actor: makeActor('AM', { userId: 'user-am' }),
+      actor: makeActor('OP', { userId: 'user-op' }),
     });
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'appointment.status_transition',
         actorType: 'USER',
-        actorId: 'user-am',
+        actorId: 'user-op',
         entityType: 'Appointment',
         entityId: 'appt-1',
         tenantId: 'tenant-1',
@@ -849,5 +888,315 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
     });
 
     expect(onTransitionHandler.execute).not.toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// CL_USER permission checks (H5)
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – CL_USER cancel permission', () => {
+  it('allows CL_USER to cancel when cancel_appointments permission is granted', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR' }),
+    );
+    tenantRepo.findById.mockResolvedValue({
+      settingsJson: { clUserPermissions: ['cancel_appointments'] },
+    });
+    const uc = makeUseCase({ withTenantRepo: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'No longer needed',
+      actor: makeActor('CL_USER'),
+    });
+    expect(result.status).toBe('CANCELLED');
+  });
+
+  it('throws ForbiddenError when CL_USER lacks cancel_appointments permission', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR' }),
+    );
+    tenantRepo.findById.mockResolvedValue({
+      settingsJson: { clUserPermissions: [] },
+    });
+    const uc = makeUseCase({ withTenantRepo: true });
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'CANCELLED',
+        reason: 'No longer needed',
+        actor: makeActor('CL_USER'),
+      }),
+    ).rejects.toThrow('CL_USER does not have cancel_appointments permission');
+  });
+
+  // M1: DONE → REJECTED financial audit
+  it('emits audit log with requiresFinancialReview on DONE → REJECTED', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DONE', doneCheckedByUserId: 'checker-1' }),
+    );
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Fraud detected',
+      actor: makeActor('AM'),
+    });
+    // Two audit calls: one for status_transition, one for done_rejected
+    const donRejectedCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.done_rejected',
+    );
+    expect(donRejectedCall).toBeDefined();
+    expect(donRejectedCall[0].metadata).toEqual({ requiresFinancialReview: true });
+  });
+
+  it('allows CL_ADMIN to cancel without permission check', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DRAFT' }),
+    );
+    const uc = makeUseCase({ withTenantRepo: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      actor: makeActor('CL_ADMIN'),
+    });
+    expect(result.status).toBe('CANCELLED');
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// AM restricted transitions (H1)
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – AM restricted from operational transitions', () => {
+  it('throws AppointmentTransitionNotPermittedError when AM tries DRAFT → AWAITING_INSPECTOR', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT' }));
+    const uc = makeUseCase();
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'AWAITING_INSPECTOR',
+        actor: makeActor('AM'),
+      }),
+    ).rejects.toThrow(AppointmentTransitionNotPermittedError);
+  });
+
+  it('throws AppointmentTransitionNotPermittedError when AM tries AWAITING_INSPECTOR → SCHEDULED', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'SCHEDULED',
+        inspectorId: 'insp-1',
+        actor: makeActor('AM'),
+      }),
+    ).rejects.toThrow(AppointmentTransitionNotPermittedError);
+  });
+
+  it('throws AppointmentTransitionNotPermittedError when AM tries SCHEDULED → DONE', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'DONE',
+        doneCheckedByUserId: 'checker-1',
+        actor: makeActor('AM'),
+      }),
+    ).rejects.toThrow(AppointmentTransitionNotPermittedError);
+  });
+
+  it('throws AppointmentTransitionNotPermittedError when AM tries SCHEDULED → REJECTED', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'REJECTED',
+        reason: 'Some reason',
+        actor: makeActor('AM'),
+      }),
+    ).rejects.toThrow(AppointmentTransitionNotPermittedError);
+  });
+});
+
+// =============================================================================
+// M1: INSP DONE pending cross-check audit
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – INSP DONE pending cross-check', () => {
+  it('emits audit log with pendingOperatorCrossCheck when INSP marks DONE without checker', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    const pendingCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.done_pending_crosscheck',
+    );
+    expect(pendingCall).toBeDefined();
+    expect(pendingCall[0].metadata).toEqual({ pendingOperatorCrossCheck: true });
+  });
+
+  it('does not emit pending cross-check audit when INSP provides doneCheckedByUserId', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    userRepo.findById.mockResolvedValue(makeUserEntity('OP'));
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      doneCheckedByUserId: 'checker-1',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    const pendingCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.done_pending_crosscheck',
+    );
+    expect(pendingCall).toBeUndefined();
+  });
+
+  it('does not emit pending cross-check audit when OP marks DONE', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    userRepo.findById.mockResolvedValue(makeUserEntity('OP'));
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      doneCheckedByUserId: 'checker-1',
+      actor: makeActor('OP'),
+    });
+
+    const pendingCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.done_pending_crosscheck',
+    );
+    expect(pendingCall).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// M3: Service type confirmation rules
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – service type confirmation rules', () => {
+  it('throws AppointmentTenantConfirmationRequiredError for ROUTINE inspection without confirmation', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+    );
+    serviceTypeRepo.findById.mockResolvedValue({
+      id: 'st-1',
+      code: 'ROUTINE_INSP',
+      name: 'Routine Inspection',
+      flowType: 'ROUTINE',
+      requiresTenantConfirmation: true,
+      status: 'ACTIVE',
+    });
+    const uc = makeUseCase({ withServiceTypeRepo: true });
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'SCHEDULED',
+        inspectorId: 'insp-1',
+        actor: makeActor('OP'),
+      }),
+    ).rejects.toThrow(AppointmentTenantConfirmationRequiredError);
+  });
+
+  it('allows ROUTINE inspection to proceed when tenant is confirmed', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'CONFIRMED' }),
+    );
+    serviceTypeRepo.findById.mockResolvedValue({
+      id: 'st-1',
+      code: 'ROUTINE_INSP',
+      name: 'Routine Inspection',
+      flowType: 'ROUTINE',
+      requiresTenantConfirmation: true,
+      status: 'ACTIVE',
+    });
+    const uc = makeUseCase({ withServiceTypeRepo: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+    expect(result.status).toBe('SCHEDULED');
+  });
+
+  it('allows INGOING inspection without tenant confirmation', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+    );
+    serviceTypeRepo.findById.mockResolvedValue({
+      id: 'st-2',
+      code: 'INGOING_INSP',
+      name: 'Ingoing Inspection',
+      flowType: 'INGOING',
+      requiresTenantConfirmation: false,
+      status: 'ACTIVE',
+    });
+    const uc = makeUseCase({ withServiceTypeRepo: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+    expect(result.status).toBe('SCHEDULED');
+  });
+
+  it('allows OUTGOING inspection without tenant confirmation', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+    );
+    serviceTypeRepo.findById.mockResolvedValue({
+      id: 'st-3',
+      code: 'OUTGOING_INSP',
+      name: 'Outgoing Inspection',
+      flowType: 'OUTGOING',
+      requiresTenantConfirmation: false,
+      status: 'ACTIVE',
+    });
+    const uc = makeUseCase({ withServiceTypeRepo: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+    expect(result.status).toBe('SCHEDULED');
+  });
+
+  it('allows scheduling without service type repo (backward compatibility)', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+    );
+    const uc = makeUseCase();
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+    expect(result.status).toBe('SCHEDULED');
   });
 });

@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +15,15 @@ export function TotpSetupCard() {
   const [totpData, setTotpData] = useState<TotpSetupData | null>(null);
   const [totpCode, setTotpCode] = useState('');
   const [codeError, setCodeError] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (totpData?.totpUri) {
+      QRCode.toDataURL(totpData.totpUri, { width: 200, margin: 2 }).then(setQrDataUrl);
+    } else {
+      setQrDataUrl(null);
+    }
+  }, [totpData?.totpUri]);
 
   const handleSetup = useCallback(async () => {
     const data = await setupTotp();
@@ -58,8 +68,14 @@ export function TotpSetupCard() {
       ) : (
         <div className="flex max-w-md flex-col gap-4">
           <p className="text-sm text-text-secondary">
-            Scan the URI below with your authenticator app, or enter the secret manually.
+            Scan the QR code with your authenticator app, or enter the secret manually.
           </p>
+          {qrDataUrl && (
+            <div className="flex flex-col items-center gap-2">
+              <img src={qrDataUrl} alt="Scan with authenticator app" className="rounded" data-testid="totp-qr" />
+              <p className="text-xs text-text-muted">Scan this QR code with your authenticator app</p>
+            </div>
+          )}
           <div className="rounded border border-black/10 bg-app-bg p-3">
             <p className="break-all text-xs font-mono text-text-secondary" data-testid="totp-uri">
               {totpData.totpUri}

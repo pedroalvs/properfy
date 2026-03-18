@@ -1,6 +1,7 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { FinancialEntryTypeChip } from '@/features/financial/components/FinancialEntryTypeChip';
 import { FinancialStatusChip } from '@/features/financial/components/FinancialStatusChip';
+import { formatDate } from '@/lib/format-date';
 import { useAppointmentFinancialEntries, type AppointmentFinancialEntry } from '../hooks/useAppointmentFinancialEntries';
 import type { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
 
@@ -9,18 +10,10 @@ interface AppointmentFinancialTabProps {
 }
 
 function formatCurrency(amount: number, currency: string): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-AU', {
     style: 'currency',
     currency,
   }).format(amount);
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 const columns: DataTableColumn<AppointmentFinancialEntry>[] = [

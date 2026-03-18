@@ -1,4 +1,4 @@
-import { DomainError, NotFoundError, ForbiddenError, UnauthorizedError, TooManyRequestsError } from '../../../shared/domain/errors';
+import { DomainError, NotFoundError, ForbiddenError, UnauthorizedError, ConflictError, TooManyRequestsError } from '../../../shared/domain/errors';
 
 export class InvalidCredentialsError extends UnauthorizedError {
   constructor() {
@@ -32,6 +32,20 @@ export class TotpInvalidError extends UnauthorizedError {
   constructor() {
     super('AUTH_TOTP_INVALID', 'Invalid two-factor authentication code');
     this.name = 'TotpInvalidError';
+  }
+}
+
+export class TotpAlreadyEnabledError extends ConflictError {
+  constructor() {
+    super('AUTH_TOTP_ALREADY_ENABLED', 'Two-factor authentication is already enabled');
+    this.name = 'TotpAlreadyEnabledError';
+  }
+}
+
+export class TotpNotConfiguredError extends DomainError {
+  constructor() {
+    super('AUTH_TOTP_NOT_CONFIGURED', 'Two-factor authentication has not been set up yet', 400);
+    this.name = 'TotpNotConfiguredError';
   }
 }
 

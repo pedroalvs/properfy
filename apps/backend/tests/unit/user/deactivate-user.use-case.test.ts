@@ -83,7 +83,7 @@ describe('DeactivateUserUseCase', () => {
       actor: amActor,
     });
 
-    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', {
+    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       status: 'INACTIVE',
       deletedAt: expect.any(Date),
     });
@@ -104,7 +104,7 @@ describe('DeactivateUserUseCase', () => {
       actor: clAdminActor,
     });
 
-    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', {
+    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       status: 'INACTIVE',
       deletedAt: expect.any(Date),
     });

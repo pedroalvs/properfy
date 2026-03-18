@@ -81,7 +81,7 @@ describe('GetReportStatusUseCase', () => {
     const result = await useCase.execute('report-1', auth);
 
     expect(result.id).toBe('report-1');
-    expect(result.requestedByUserId).toBe('cl-admin-1');
+    expect(result.requestedBy).toEqual({ id: 'cl-admin-1', name: 'Unknown' });
     expect(result.errorMessage).toBeNull();
   });
 
@@ -135,7 +135,7 @@ describe('GetReportStatusUseCase', () => {
       format: 'XLSX',
       filters: { fromDate: '2026-03-01', toDate: '2026-03-15' },
       rowCount: 42,
-      requestedByUserId: 'user-1',
+      requestedBy: { id: 'user-1', name: 'Unknown' },
       createdAt: new Date('2026-03-16T07:00:00Z'),
       startedAt: new Date('2026-03-16T07:00:02Z'),
       completedAt: new Date('2026-03-16T07:00:45Z'),

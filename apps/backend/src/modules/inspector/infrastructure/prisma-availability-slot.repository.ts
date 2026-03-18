@@ -124,8 +124,8 @@ export class PrismaAvailabilitySlotRepository
       updateData['region_json'] = data.regionJson;
     if (data.capacity !== undefined) updateData['capacity'] = data.capacity;
     if (data.status !== undefined) updateData['status'] = data.status;
-    await this.prisma.inspectorAvailabilitySlot.update({
-      where: { id },
+    await this.prisma.inspectorAvailabilitySlot.updateMany({
+      where: { id, inspector_id: inspectorId },
       data: updateData,
     });
   }

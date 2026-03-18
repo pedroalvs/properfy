@@ -1,19 +1,14 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
+import { formatDateTime } from '@/lib/format-date';
 import { useAppointmentNotifications, type AppointmentNotification } from '../hooks/useAppointmentNotifications';
 
 interface AppointmentNotificationsTabProps {
   appointmentId: string;
 }
 
-function formatDateTime(iso: string | null): string {
+function formatDateTimeOrDash(iso: string | null): string {
   if (!iso) return '\u2014';
-  return new Date(iso).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDateTime(iso);
 }
 
 const NOTIFICATION_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -46,7 +41,7 @@ const columns: DataTableColumn<AppointmentNotification>[] = [
     key: 'sentAt',
     label: 'Sent At',
     width: '180px',
-    render: (row) => formatDateTime(row.sentAt),
+    render: (row) => formatDateTimeOrDash(row.sentAt),
   },
 ];
 

@@ -14,7 +14,7 @@ import {
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
-import { success } from '../../../shared/interfaces/response';
+import { success, paginated } from '../../../shared/interfaces/response';
 import type { ListFinancialEntriesUseCase } from '../application/use-cases/list-financial-entries.use-case';
 import type { GetFinancialEntryUseCase } from '../application/use-cases/get-financial-entry.use-case';
 import type { ApproveFinancialEntryUseCase } from '../application/use-cases/approve-financial-entry.use-case';
@@ -39,6 +39,7 @@ export interface BillingRouteContainer {
   getInvoiceUseCase: GetInvoiceUseCase;
   downloadInvoiceUseCase: DownloadInvoiceUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const entryIdParam = z.object({ entryId: z.string().uuid() });
@@ -48,8 +49,12 @@ export async function registerBillingRoutes(
   app: FastifyInstance,
   container: BillingRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // GET /v1/financial/entries
@@ -61,11 +66,12 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Invalid query parameters', parsed.error.errors);
       }
+      const { page, pageSize } = parsed.data;
       const result = await container.listFinancialEntriesUseCase.execute({
         ...parsed.data,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
     },
   );
 
@@ -136,9 +142,11 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
       const result = await container.createRefundUseCase.execute({
         entryId: params.data.entryId,
         ...parsed.data,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(201).send(success(result));
@@ -154,11 +162,12 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Invalid query parameters', parsed.error.errors);
       }
+      const { page, pageSize } = parsed.data;
       const result = await container.listInvoicesUseCase.execute({
         ...parsed.data,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
     },
   );
 

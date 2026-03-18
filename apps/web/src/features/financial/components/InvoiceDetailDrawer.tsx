@@ -7,6 +7,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { useInvoiceDetail } from '../hooks/useInvoiceDetail';
 import { useInvoiceDownload } from '../hooks/useInvoiceDownload';
+import { formatDateTime } from '@/lib/format-date';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
 import { FinancialEntryTypeChip } from './FinancialEntryTypeChip';
 import { FinancialStatusChip } from './FinancialStatusChip';
@@ -16,10 +17,6 @@ const FREQUENCY_LABELS: Record<string, string> = {
   BIWEEKLY: 'Biweekly',
   MONTHLY: 'Monthly',
 };
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('en-AU');
-}
 
 function formatCurrency(amount: number, currency: string): string {
   return amount.toLocaleString('en-AU', { style: 'currency', currency });

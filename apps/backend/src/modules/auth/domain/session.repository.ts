@@ -8,4 +8,5 @@ export interface ISessionRepository {
   updateRefreshToken(sessionId: string, newHash: string, expiresAt: Date): Promise<void>;
   revoke(sessionId: string, revokedAt: Date): Promise<void>;
   revokeAllForUser(userId: string, revokedAt: Date): Promise<void>;
+  deleteExpiredBefore(date: Date): Promise<number>;
 }

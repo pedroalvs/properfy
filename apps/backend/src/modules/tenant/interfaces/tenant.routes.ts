@@ -38,6 +38,7 @@ export interface TenantRouteContainer {
   updateBranchUseCase: UpdateBranchUseCase;
   deactivateBranchUseCase: DeactivateBranchUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const tenantIdParam = z.object({ tenantId: z.string().uuid() });
@@ -50,8 +51,12 @@ export async function registerTenantRoutes(
   app: FastifyInstance,
   container: TenantRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // POST /v1/tenants
@@ -174,7 +179,6 @@ export async function registerTenantRoutes(
       schema: {
         params: tenantIdParam,
         body: deactivateSchema,
-        response: { 204: z.null() },
       },
     },
     async (request, reply) => {
@@ -190,12 +194,12 @@ export async function registerTenantRoutes(
           'Request payload is invalid',
           parsed.error.errors,
         );
-      await container.deactivateTenantUseCase.execute({
+      const result = await container.deactivateTenantUseCase.execute({
         tenantId: params.data.tenantId,
         reason: parsed.data.reason,
         actor: request.authContext!,
       });
-      return reply.status(204).send();
+      return reply.status(200).send(success(result));
     },
   );
 
@@ -311,7 +315,6 @@ export async function registerTenantRoutes(
       schema: {
         params: branchIdParam,
         body: deactivateSchema,
-        response: { 204: z.null() },
       },
     },
     async (request, reply) => {
@@ -327,13 +330,13 @@ export async function registerTenantRoutes(
           'Request payload is invalid',
           parsed.error.errors,
         );
-      await container.deactivateBranchUseCase.execute({
+      const result = await container.deactivateBranchUseCase.execute({
         tenantId: params.data.tenantId,
         branchId: params.data.branchId,
         reason: parsed.data.reason,
         actor: request.authContext!,
       });
-      return reply.status(204).send();
+      return reply.status(200).send(success(result));
     },
   );
 }

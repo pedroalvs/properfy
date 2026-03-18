@@ -12,4 +12,5 @@ export interface IInspectionAssetRepository {
       sizeBytes: number | null;
     }>,
   ): Promise<void>;
+  expirePendingAssets(): Promise<number>;
 }

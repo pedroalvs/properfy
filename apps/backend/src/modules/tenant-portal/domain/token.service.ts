@@ -27,7 +27,7 @@ export class TokenService {
     // between UTC and the target timezone at that instant, and adjust.
     const guessUtc = new Date(Date.UTC(dbYear, dbMonth, dbDay, 19, 0, 0));
 
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    const formatter = new Intl.DateTimeFormat('en-AU', {
       timeZone: timezone,
       year: 'numeric',
       month: '2-digit',

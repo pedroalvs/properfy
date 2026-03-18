@@ -1,5 +1,6 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
+import { formatDateTime } from '@/lib/format-date';
 import { FinancialEntryTypeChip } from './FinancialEntryTypeChip';
 import { FinancialStatusChip } from './FinancialStatusChip';
 import type { FinancialEntryDetail } from '../types';
@@ -8,12 +9,8 @@ interface FinancialEntryDetailSectionsProps {
   entry: FinancialEntryDetail;
 }
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('en-AU');
-}
-
 function formatCurrency(amount: number): string {
-  return amount.toLocaleString('en-AU', { style: 'currency', currency: 'BRL' });
+  return amount.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' });
 }
 
 export function FinancialEntryDetailSections({ entry }: FinancialEntryDetailSectionsProps) {

@@ -10,7 +10,7 @@ const baseEntry: FinancialEntryDetail = {
   appointmentCode: 'VIST-001',
   entryType: FinancialEntryType.TENANT_DEBIT,
   amount: -350,
-  currency: 'BRL',
+  currency: 'AUD',
   status: FinancialEntryStatus.APPROVED,
   description: 'Débito vistoria residencial Centro',
   relatedEntityName: 'Imobiliária Centro',
@@ -44,11 +44,10 @@ describe('FinancialEntryDetailSections', () => {
     expect(screen.getByText('Approved')).toBeInTheDocument();
   });
 
-  it('shows amount formatted as BRL currency', () => {
+  it('shows amount formatted as AUD currency', () => {
     render(<FinancialEntryDetailSections entry={baseEntry} />);
-    const formatted = (-350).toLocaleString('en-AU', { style: 'currency', currency: 'BRL' });
     const matches = screen.getAllByText((_content, element) => {
-      return element?.textContent?.includes('350') && (element?.textContent?.includes('R$') || element?.textContent?.includes('BRL')) || false;
+      return element?.textContent?.includes('350') && (element?.textContent?.includes('A$') || element?.textContent?.includes('AUD')) || false;
     });
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });

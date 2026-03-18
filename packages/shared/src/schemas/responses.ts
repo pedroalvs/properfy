@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+/** Accepts Date objects or ISO strings, coerces to string */
+const dateStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
+const dateStrNullable = () => dateStr().nullable();
+
 // ─── Common ────────────────────────────────────────────────────────────────
 
 export const paginationMetaSchema = z.object({
@@ -31,6 +35,7 @@ export const messageResponseSchema = z.object({
 export const loginResponseSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),
+  totpSetupRequired: z.boolean().optional(),
   user: z.object({
     id: z.string().uuid(),
     name: z.string(),
@@ -55,8 +60,8 @@ export const meResponseSchema = z.object({
   totpEnabled: z.boolean(),
   phone: z.string().nullable(),
   status: z.string(),
-  lastLoginAt: z.string().nullable(),
-  createdAt: z.string(),
+  lastLoginAt: dateStrNullable(),
+  createdAt: dateStr(),
 });
 
 // ─── Tenant ────────────────────────────────────────────────────────────────
@@ -69,8 +74,8 @@ export const tenantResponseSchema = z.object({
   timezone: z.string(),
   currency: z.string(),
   settingsJson: z.unknown(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
 });
 
 export const branchResponseSchema = z.object({
@@ -80,8 +85,8 @@ export const branchResponseSchema = z.object({
   addressJson: z.unknown().nullable(),
   contactEmail: z.string().nullable(),
   status: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
 });
 
 // ─── User ──────────────────────────────────────────────────────────────────
@@ -95,10 +100,10 @@ export const userResponseSchema = z.object({
   email: z.string(),
   phone: z.string().nullable(),
   status: z.string(),
-  totpEnabled: z.boolean(),
-  lastLoginAt: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  totpEnabled: z.boolean().optional(),
+  lastLoginAt: dateStrNullable().optional(),
+  createdAt: dateStr(),
+  updatedAt: dateStr().optional(),
 });
 
 // ─── Property ──────────────────────────────────────────────────────────────
@@ -115,13 +120,13 @@ export const propertyResponseSchema = z.object({
   postcode: z.string(),
   state: z.string(),
   country: z.string(),
-  lat: z.number().nullable(),
-  lng: z.number().nullable(),
+  lat: z.number().nullable().optional(),
+  lng: z.number().nullable().optional(),
   geocodingStatus: z.string(),
   notes: z.string().nullable(),
-  rulesJson: z.unknown(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  rulesJson: z.unknown().optional(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
 });
 
 // ─── Service Type ──────────────────────────────────────────────────────────
@@ -133,8 +138,8 @@ export const serviceTypeResponseSchema = z.object({
   flowType: z.string(),
   requiresTenantConfirmation: z.boolean(),
   status: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
 });
 
 // ─── Pricing Rule ──────────────────────────────────────────────────────────
@@ -149,8 +154,8 @@ export const pricingRuleResponseSchema = z.object({
   payoutValue: z.number(),
   bonusRuleJson: z.unknown().nullable(),
   status: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
 });
 
 // ─── Inspector ─────────────────────────────────────────────────────────────
@@ -165,8 +170,8 @@ export const inspectorResponseSchema = z.object({
   regionsJson: z.unknown(),
   serviceTypesJson: z.unknown(),
   clientEligibilityJson: z.unknown(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
 });
 
 export const availabilitySlotResponseSchema = z.object({
@@ -178,8 +183,8 @@ export const availabilitySlotResponseSchema = z.object({
   regionJson: z.unknown().nullable(),
   capacity: z.number(),
   status: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
 });
 
 // ─── Appointment ───────────────────────────────────────────────────────────
@@ -191,25 +196,27 @@ export const appointmentResponseSchema = z.object({
   propertyId: z.string().uuid(),
   serviceTypeId: z.string().uuid(),
   inspectorId: z.string().uuid().nullable(),
-  serviceGroupId: z.string().uuid().nullable(),
+  serviceGroupId: z.string().uuid().nullable().optional(),
   status: z.string(),
-  scheduledDate: z.string(),
+  scheduledDate: dateStr(),
   timeSlot: z.string(),
-  keyRequired: z.boolean(),
-  meetingLocation: z.string().nullable(),
-  keyLocation: z.string().nullable(),
+  keyRequired: z.boolean().optional(),
+  meetingLocation: z.string().nullable().optional(),
+  keyLocation: z.string().nullable().optional(),
   tenantConfirmationStatus: z.string(),
   priceAmount: z.number(),
   payoutAmount: z.number(),
-  pricingRuleSnapshotJson: z.unknown(),
+  pricingRuleSnapshotJson: z.unknown().optional(),
   notes: z.string().nullable(),
-  customFieldsJson: z.unknown().nullable(),
-  reason: z.string().nullable(),
+  customFieldsJson: z.unknown().nullable().optional(),
+  reason: z.string().nullable().optional(),
+  cancellationReasonCode: z.string().nullable().optional(),
+  rejectionReasonCode: z.string().nullable().optional(),
   createdByUserId: z.string().uuid(),
-  doneCheckedByUserId: z.string().uuid().nullable(),
-  doneCheckedAt: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  doneCheckedByUserId: z.string().uuid().nullable().optional(),
+  doneCheckedAt: dateStrNullable().optional(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
   contact: z.unknown().nullable().optional(),
   restrictions: z.array(z.unknown()).optional(),
   property: z.unknown().optional(),
@@ -228,16 +235,16 @@ export const serviceGroupResponseSchema = z.object({
   groupSize: z.number(),
   offeredCount: z.number(),
   confirmedCount: z.number(),
-  scheduledDate: z.string(),
+  scheduledDate: dateStr(),
   timeWindow: z.string(),
   priorityMode: z.string(),
-  priorityExpiresAt: z.string().nullable(),
+  priorityExpiresAt: dateStrNullable(),
   assignedInspectorId: z.string().uuid().nullable(),
-  publishedAt: z.string().nullable(),
-  assignedAt: z.string().nullable(),
-  createdByUserId: z.string().uuid(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  publishedAt: dateStrNullable(),
+  assignedAt: dateStrNullable().optional(),
+  createdByUserId: z.string().uuid().optional(),
+  createdAt: dateStr(),
+  updatedAt: dateStr().optional(),
   appointments: z.array(z.unknown()).optional(),
   assignedInspector: z.unknown().nullable().optional(),
 });
@@ -262,7 +269,7 @@ export const auditLogResponseSchema = z.object({
   requestId: z.string().nullable(),
   ipAddress: z.string().nullable(),
   metadataJson: z.unknown().nullable(),
-  createdAt: z.string(),
+  createdAt: dateStr(),
 });
 
 // ─── Tenant Portal ─────────────────────────────────────────────────────────
@@ -275,7 +282,7 @@ export const portalDataResponseSchema = z.object({
 
 export const portalTokenResponseSchema = z.object({
   token: z.string(),
-  expiresAt: z.string(),
+  expiresAt: dateStr(),
 });
 
 // ─── Inspector Execution ───────────────────────────────────────────────────
@@ -284,7 +291,7 @@ export const inspectorScheduleItemSchema = z.object({
   id: z.string().uuid(),
   appointmentId: z.string().uuid().optional(),
   status: z.string(),
-  scheduledDate: z.string(),
+  scheduledDate: dateStr(),
   timeSlot: z.string(),
   property: z.unknown(),
   serviceType: z.unknown(),
@@ -294,16 +301,16 @@ export const inspectionExecutionResponseSchema = z.object({
   id: z.string().uuid(),
   appointmentId: z.string().uuid(),
   inspectorId: z.string().uuid(),
-  startedAt: z.string(),
-  finishedAt: z.string().nullable(),
+  startedAt: dateStr(),
+  finishedAt: dateStrNullable(),
   startLatitude: z.number(),
   startLongitude: z.number(),
   finishLatitude: z.number().nullable(),
   finishLongitude: z.number().nullable(),
   checklistJson: z.unknown().nullable(),
   notes: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
 });
 
 export const inspectionAssetResponseSchema = z.object({
@@ -317,7 +324,7 @@ export const inspectionAssetResponseSchema = z.object({
   status: z.string(),
   uploadedBy: z.string(),
   uploadUrl: z.string().optional(),
-  createdAt: z.string(),
+  createdAt: dateStr(),
 });
 
 // ─── Financial Entry ───────────────────────────────────────────────────────
@@ -332,14 +339,14 @@ export const financialEntryResponseSchema = z.object({
   currency: z.string(),
   status: z.string(),
   description: z.string(),
-  effectiveAt: z.string(),
+  effectiveAt: dateStr(),
   initiatedByUserId: z.string().uuid(),
   approvedByUserId: z.string().uuid().nullable(),
-  approvedAt: z.string().nullable(),
+  approvedAt: dateStrNullable(),
   referenceEntryId: z.string().uuid().nullable(),
   reason: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: dateStr(),
+  updatedAt: dateStr().optional(),
 });
 
 // ─── Invoice ───────────────────────────────────────────────────────────────
@@ -347,24 +354,24 @@ export const financialEntryResponseSchema = z.object({
 export const invoiceResponseSchema = z.object({
   id: z.string().uuid(),
   inspectorId: z.string().uuid(),
-  periodStart: z.string(),
-  periodEnd: z.string(),
+  periodStart: dateStr(),
+  periodEnd: dateStr(),
   periodType: z.string(),
   status: z.string(),
   totalAmount: z.number(),
   currency: z.string(),
-  fileKey: z.string().nullable(),
-  generatedByUserId: z.string().uuid().nullable(),
-  generatedAt: z.string().nullable(),
-  paidAt: z.string().nullable(),
-  notes: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  fileKey: z.string().nullable().optional(),
+  generatedByUserId: z.string().uuid().nullable().optional(),
+  generatedAt: dateStrNullable(),
+  paidAt: dateStrNullable(),
+  notes: z.string().nullable().optional(),
+  createdAt: dateStr(),
+  updatedAt: dateStr().optional(),
 });
 
 export const invoiceDownloadResponseSchema = z.object({
   downloadUrl: z.string(),
-  expiresAt: z.string(),
+  expiresAt: dateStr(),
 });
 
 // ─── Notification ──────────────────────────────────────────────────────────
@@ -378,15 +385,15 @@ export const notificationResponseSchema = z.object({
   templateCode: z.string(),
   status: z.string(),
   providerName: z.string().nullable(),
-  providerMessageId: z.string().nullable(),
-  sentAt: z.string().nullable(),
-  deliveredAt: z.string().nullable(),
-  failedAt: z.string().nullable(),
+  providerMessageId: z.string().nullable().optional(),
+  sentAt: dateStrNullable(),
+  deliveredAt: dateStrNullable(),
+  failedAt: dateStrNullable(),
   failureReason: z.string().nullable(),
   retryCount: z.number(),
-  nextRetryAt: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  nextRetryAt: dateStrNullable().optional(),
+  createdAt: dateStr(),
+  updatedAt: dateStr().optional(),
 });
 
 export const notificationTemplateResponseSchema = z.object({
@@ -395,38 +402,41 @@ export const notificationTemplateResponseSchema = z.object({
   templateCode: z.string(),
   channel: z.string(),
   subject: z.string().nullable(),
-  bodyHtml: z.string().nullable(),
+  bodyHtml: z.string().nullable().optional(),
   bodyText: z.string(),
-  variablesJson: z.unknown(),
+  variablesJson: z.unknown().optional(),
+  variables: z.unknown().optional(),
   isActive: z.boolean(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
 });
 
 // ─── Report ────────────────────────────────────────────────────────────────
 
 export const reportResponseSchema = z.object({
   id: z.string().uuid(),
-  tenantId: z.string().uuid().nullable(),
+  tenantId: z.string().uuid().nullable().optional(),
   reportType: z.string(),
-  filtersJson: z.unknown(),
+  filtersJson: z.unknown().optional(),
+  filters: z.unknown().optional(),
   format: z.string(),
   status: z.string(),
-  fileKey: z.string().nullable(),
-  requestedByUserId: z.string().uuid(),
-  startedAt: z.string().nullable(),
-  completedAt: z.string().nullable(),
-  failedAt: z.string().nullable(),
-  errorMessage: z.string().nullable(),
-  rowCount: z.number().nullable(),
-  expiresAt: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  fileKey: z.string().nullable().optional(),
+  requestedByUserId: z.string().uuid().optional(),
+  requestedBy: z.unknown().optional(),
+  startedAt: dateStrNullable().optional(),
+  completedAt: dateStrNullable(),
+  failedAt: dateStrNullable().optional(),
+  errorMessage: z.string().nullable().optional(),
+  rowCount: z.number().nullable().optional(),
+  expiresAt: dateStrNullable().optional(),
+  createdAt: dateStr(),
+  updatedAt: dateStr().optional(),
 });
 
 export const reportDownloadResponseSchema = z.object({
   downloadUrl: z.string(),
-  expiresAt: z.string(),
+  expiresAt: dateStr(),
 });
 
 export const reportRequestedResponseSchema = z.object({
@@ -434,7 +444,7 @@ export const reportRequestedResponseSchema = z.object({
     reportId: z.string().uuid(),
     status: z.string(),
     reportType: z.string(),
-    createdAt: z.string(),
+    createdAt: dateStr(),
   }),
   message: z.string(),
 });
@@ -453,7 +463,7 @@ export const dashboardStatsResponseSchema = z.object({
     code: z.string(),
     propertyAddress: z.string(),
     status: z.string(),
-    scheduledDate: z.string(),
+    scheduledDate: dateStr(),
   })),
   pendingActions: z.object({
     noResponseTenants: z.number(),

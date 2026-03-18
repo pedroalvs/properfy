@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AvailabilitySlotStatus } from '@properfy/shared';
+import { formatDate } from '@/lib/format-date';
 import type { AvailabilitySlot } from '../types';
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 06:00 to 22:00
@@ -258,7 +259,7 @@ export function SlotCalendarView({
         >
           <div className="text-sm font-semibold text-text-primary">{tooltip.slot.inspectorName}</div>
           <div className="text-xs text-text-secondary">
-            {new Date(tooltip.slot.date).toLocaleDateString('en-AU')} | {tooltip.slot.startTime} - {tooltip.slot.endTime}
+            {formatDate(tooltip.slot.date)} | {tooltip.slot.startTime} - {tooltip.slot.endTime}
           </div>
           <div className="text-xs text-text-secondary">
             Region: {tooltip.slot.region}

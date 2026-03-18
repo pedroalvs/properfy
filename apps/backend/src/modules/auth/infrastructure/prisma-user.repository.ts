@@ -140,4 +140,18 @@ export class PrismaUserRepository implements IUserRepository {
       data: { password_hash: passwordHash },
     });
   }
+
+  async updateTotpSecret(userId: string, totpSecret: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totp_secret: totpSecret },
+    });
+  }
+
+  async updateTotpEnabled(userId: string, totpEnabled: boolean): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totp_enabled: totpEnabled },
+    });
+  }
 }

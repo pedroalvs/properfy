@@ -98,4 +98,13 @@ export class PrismaSessionRepository implements ISessionRepository {
       data: { revoked_at: revokedAt },
     });
   }
+
+  async deleteExpiredBefore(date: Date): Promise<number> {
+    const result = await this.prisma.session.deleteMany({
+      where: {
+        expires_at: { lt: date },
+      },
+    });
+    return result.count;
+  }
 }

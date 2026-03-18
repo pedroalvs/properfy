@@ -5,6 +5,8 @@ import type { LogoutUseCase } from '../application/use-cases/logout.use-case';
 import type { GetMeUseCase } from '../application/use-cases/get-me.use-case';
 import type { ChangePasswordUseCase } from '../application/use-cases/change-password.use-case';
 import type { RevokeSessionUseCase } from '../application/use-cases/revoke-session.use-case';
+import type { SetupTotpUseCase } from '../application/use-cases/setup-totp.use-case';
+import type { ConfirmTotpUseCase } from '../application/use-cases/confirm-totp.use-case';
 import {
   loginSchema,
   refreshSchema,
@@ -25,14 +27,23 @@ export interface AuthRouteContainer {
   getMeUseCase: GetMeUseCase;
   changePasswordUseCase: ChangePasswordUseCase;
   revokeSessionUseCase: RevokeSessionUseCase;
+  setupTotpUseCase: SetupTotpUseCase;
+  confirmTotpUseCase: ConfirmTotpUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 export async function registerAuthRoutes(
   app: FastifyInstance,
   container: AuthRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) => container.jwtService.verify(token));
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
+  );
 
   // POST /v1/auth/login
   app.post('/v1/auth/login', {
@@ -125,6 +136,41 @@ export async function registerAuthRoutes(
         userId: request.authContext!.userId,
         currentPassword: parsed.data.currentPassword,
         newPassword: parsed.data.newPassword,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/auth/2fa/setup
+  app.post(
+    '/v1/auth/2fa/setup',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const result = await container.setupTotpUseCase.execute({
+        userId: request.authContext!.userId,
+      });
+      return reply.status(200).send(result);
+    },
+  );
+
+  // POST /v1/auth/2fa/confirm
+  app.post(
+    '/v1/auth/2fa/confirm',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: z.object({ totpCode: z.string().length(6) }),
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const parsed = z.object({ totpCode: z.string().length(6) }).safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      await container.confirmTotpUseCase.execute({
+        userId: request.authContext!.userId,
+        totpCode: parsed.data.totpCode,
       });
       return reply.status(204).send();
     },

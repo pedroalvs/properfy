@@ -6,6 +6,7 @@ import type {
   FinancialEntryFilters,
   FinancialEntryPagination,
 } from '../domain/financial-entry.repository';
+import { InvalidEntryStatusTransitionError } from '../domain/billing.errors';
 
 function mapToEntity(row: any): FinancialEntryEntity {
   return new FinancialEntryEntity({
@@ -57,8 +58,10 @@ function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknow
 export class PrismaFinancialEntryRepository implements IFinancialEntryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findById(id: string): Promise<FinancialEntryEntity | null> {
-    const row = await this.prisma.financialEntry.findUnique({ where: { id } });
+  async findById(id: string, tenantId?: string): Promise<FinancialEntryEntity | null> {
+    const where: Record<string, unknown> = { id };
+    if (tenantId) where.tenant_id = tenantId;
+    const row = await this.prisma.financialEntry.findFirst({ where });
     return row ? mapToEntity(row) : null;
   }
 
@@ -128,18 +131,50 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
 
   async updateStatus(
     id: string,
+    tenantId: string,
     status: FinancialEntryStatus,
     approvedByUserId?: string,
     approvedAt?: Date,
   ): Promise<void> {
-    await this.prisma.financialEntry.update({
-      where: { id },
+    await this.prisma.financialEntry.updateMany({
+      where: { id, tenant_id: tenantId },
       data: {
         status,
         approved_by_user_id: approvedByUserId,
         approved_at: approvedAt,
       },
     });
+  }
+
+  async transitionStatus(
+    id: string,
+    tenantId: string,
+    fromStatus: FinancialEntryStatus,
+    toStatus: FinancialEntryStatus,
+    approvedByUserId?: string,
+    approvedAt?: Date,
+  ): Promise<void> {
+    const allowedTransitions: Record<string, string[]> = {
+      PENDING: ['APPROVED', 'CANCELLED'],
+    };
+
+    const allowed = allowedTransitions[fromStatus];
+    if (!allowed || !allowed.includes(toStatus)) {
+      throw new InvalidEntryStatusTransitionError(fromStatus, toStatus);
+    }
+
+    const updated = await this.prisma.financialEntry.updateMany({
+      where: { id, tenant_id: tenantId, status: fromStatus },
+      data: {
+        status: toStatus,
+        approved_by_user_id: approvedByUserId,
+        approved_at: approvedAt,
+      },
+    });
+
+    if (updated.count === 0) {
+      throw new InvalidEntryStatusTransitionError(fromStatus, toStatus);
+    }
   }
 
   async sumApprovedPayoutsForInspectorInPeriod(

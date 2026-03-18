@@ -465,4 +465,53 @@ describe('CreateAppointmentUseCase', () => {
       }),
     ).rejects.toThrow(ValidationError);
   });
+
+  // H4: CL_USER permission check
+  describe('CL_USER create_appointments permission', () => {
+    const tenantRepoMock = {
+      findById: vi.fn(),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+
+    it('should allow CL_USER with create_appointments permission', async () => {
+      const uc = new CreateAppointmentUseCase(
+        appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo,
+        pricingRuleRepo, createPropertyUseCase, auditService, tenantRepoMock as any,
+      );
+      tenantRepoMock.findById.mockResolvedValue({
+        settingsJson: { clUserPermissions: ['create_appointments'] },
+      });
+      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+      vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+
+      const result = await uc.execute({
+        ...baseInput,
+        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+      });
+      expect(result.status).toBe('DRAFT');
+    });
+
+    it('should throw ForbiddenError for CL_USER without create_appointments permission', async () => {
+      const uc = new CreateAppointmentUseCase(
+        appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo,
+        pricingRuleRepo, createPropertyUseCase, auditService, tenantRepoMock as any,
+      );
+      tenantRepoMock.findById.mockResolvedValue({
+        settingsJson: { clUserPermissions: [] },
+      });
+
+      await expect(
+        uc.execute({
+          ...baseInput,
+          actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+        }),
+      ).rejects.toThrow('CL_USER does not have create_appointments permission');
+    });
+  });
 });

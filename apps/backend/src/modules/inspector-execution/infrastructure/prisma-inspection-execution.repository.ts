@@ -76,4 +76,16 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
     if (data.notes !== undefined) updateData.notes = data.notes;
     await this.prisma.inspectionExecution.update({ where: { id }, data: updateData });
   }
+
+  // Cross-tenant: background job processes all tenants to detect stuck inspections
+  async findStuckExecutions(olderThanHours: number): Promise<InspectionExecutionEntity[]> {
+    const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
+    const rows = await this.prisma.inspectionExecution.findMany({
+      where: {
+        started_at: { lt: cutoff },
+        finished_at: null,
+      },
+    });
+    return rows.map(mapToEntity);
+  }
 }

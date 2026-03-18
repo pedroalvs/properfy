@@ -45,12 +45,18 @@ export class PrismaTenantPortalTokenRepository implements ITenantPortalTokenRepo
     });
   }
 
-  async updateStatus(id: string, status: string): Promise<void> {
-    await this.prisma.tenantPortalToken.update({ where: { id }, data: { status: status as PrismaTenantPortalTokenStatus } });
+  async updateStatus(id: string, appointmentId: string, status: string): Promise<void> {
+    await this.prisma.tenantPortalToken.updateMany({
+      where: { id, appointment_id: appointmentId },
+      data: { status: status as PrismaTenantPortalTokenStatus },
+    });
   }
 
-  async updateLastAccessedAt(id: string, date: Date): Promise<void> {
-    await this.prisma.tenantPortalToken.update({ where: { id }, data: { last_accessed_at: date } });
+  async updateLastAccessedAt(id: string, appointmentId: string, date: Date): Promise<void> {
+    await this.prisma.tenantPortalToken.updateMany({
+      where: { id, appointment_id: appointmentId },
+      data: { last_accessed_at: date },
+    });
   }
 
   async revokeAllForAppointment(appointmentId: string): Promise<void> {
@@ -58,5 +64,17 @@ export class PrismaTenantPortalTokenRepository implements ITenantPortalTokenRepo
       where: { appointment_id: appointmentId, status: 'ACTIVE' },
       data: { status: 'REVOKED' },
     });
+  }
+
+  // Cross-tenant: background job processes all tenants to expire stale portal tokens
+  async expireActiveTokens(): Promise<number> {
+    const result = await this.prisma.tenantPortalToken.updateMany({
+      where: {
+        status: 'ACTIVE',
+        expires_at: { lt: new Date() },
+      },
+      data: { status: 'EXPIRED' as PrismaTenantPortalTokenStatus },
+    });
+    return result.count;
   }
 }

@@ -60,6 +60,6 @@ export const EMPTY_PROPERTY_FORM: PropertyFormData = {
   suburb: '',
   postcode: '',
   state: '',
-  country: 'BR',
+  country: 'AU',
   notes: '',
 };

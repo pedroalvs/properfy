@@ -1,32 +1,50 @@
 import { useState, useCallback } from 'react';
+import { createPropertySchema, updatePropertySchema } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 
-const REQUIRED_FIELD_MESSAGE = 'Required field';
+/** Map form data to the shape expected by the shared Zod schema. */
+function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit') {
+  if (mode === 'create') {
+    return {
+      propertyCode: data.propertyCode.trim() || undefined,
+      type: data.type || undefined,
+      street: data.street.trim() || undefined,
+      ...(data.addressLine2.trim() ? { addressLine2: data.addressLine2.trim() } : {}),
+      suburb: data.suburb.trim() || undefined,
+      postcode: data.postcode.trim() || undefined,
+      state: data.state || undefined,
+      country: data.country.trim() || 'AU',
+      ...(data.branchId ? { branchId: data.branchId } : {}),
+      ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
+    };
+  }
 
-const CREATE_REQUIRED_FIELDS: (keyof PropertyFormData)[] = [
-  'propertyCode',
-  'type',
-  'street',
-  'suburb',
-  'postcode',
-  'state',
-];
+  return {
+    ...(data.propertyCode.trim() ? { propertyCode: data.propertyCode.trim() } : {}),
+    ...(data.type ? { type: data.type } : {}),
+    ...(data.street.trim() ? { street: data.street.trim() } : {}),
+    addressLine2: data.addressLine2.trim() || null,
+    ...(data.suburb.trim() ? { suburb: data.suburb.trim() } : {}),
+    ...(data.postcode.trim() ? { postcode: data.postcode.trim() } : {}),
+    ...(data.state ? { state: data.state } : {}),
+    ...(data.country.trim() ? { country: data.country.trim() } : {}),
+    branchId: data.branchId || null,
+    notes: data.notes.trim() || null,
+  };
+}
 
-const EDIT_REQUIRED_FIELDS: (keyof PropertyFormData)[] = [
-  'street',
-  'suburb',
-  'postcode',
-  'state',
-];
+function isRequiredError(issue: { code?: string; message: string }): boolean {
+  return issue.code === 'invalid_type' || issue.message === 'Required';
+}
 
-function validateRequired(data: PropertyFormData, fields: (keyof PropertyFormData)[]): PropertyFormErrors {
+function zodErrorsToFormErrors(issues: { path: (string | number)[]; message: string; code?: string }[]): PropertyFormErrors {
   const errors: PropertyFormErrors = {};
-  for (const field of fields) {
-    const value = data[field];
-    if (typeof value === 'string' && !value.trim()) {
-      errors[field] = REQUIRED_FIELD_MESSAGE;
+  for (const issue of issues) {
+    const field = issue.path.join('.') as keyof PropertyFormData;
+    if (field && !errors[field]) {
+      errors[field] = isRequiredError(issue) ? 'Required field' : issue.message;
     }
   }
   return errors;
@@ -49,14 +67,21 @@ export function usePropertySave(): UsePropertySaveReturn {
   const queryClient = useQueryClient();
 
   const validate = useCallback((data: PropertyFormData, mode: 'create' | 'edit'): PropertyFormErrors => {
+    const payload = toSchemaPayload(data, mode);
+    const schema = mode === 'create' ? createPropertySchema : updatePropertySchema;
+    const result = schema.safeParse(payload);
     const errors: PropertyFormErrors = {};
-
-    if (mode === 'create') {
-      Object.assign(errors, validateRequired(data, CREATE_REQUIRED_FIELDS));
-    } else {
-      Object.assign(errors, validateRequired(data, EDIT_REQUIRED_FIELDS));
+    if (!result.success) {
+      Object.assign(errors, zodErrorsToFormErrors(result.error.issues));
     }
-
+    // The API update schema has all fields optional for partial updates,
+    // but the form always requires address fields.
+    if (mode === 'edit') {
+      if (!data.street.trim()) errors.street = errors.street ?? 'Required field';
+      if (!data.suburb.trim()) errors.suburb = errors.suburb ?? 'Required field';
+      if (!data.postcode.trim()) errors.postcode = errors.postcode ?? 'Required field';
+      if (!data.state) errors.state = errors.state ?? 'Required field';
+    }
     return errors;
   }, []);
 
@@ -70,7 +95,7 @@ export function usePropertySave(): UsePropertySaveReturn {
       } else {
         const { data: responseData, error } = await api.POST('/v1/properties' as any, { body: data as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
-        newId = (responseData as any)?.id;
+        newId = (responseData as any)?.data?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['properties'] });
       return { success: true, id: newId };

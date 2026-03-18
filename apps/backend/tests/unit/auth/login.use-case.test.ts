@@ -6,6 +6,7 @@ import type { JwtService } from '../../../src/modules/auth/application/services/
 import type { TotpService } from '../../../src/modules/auth/application/services/totp.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
+import type { TotpEncryptionService } from '../../../src/modules/auth/infrastructure/totp-encryption.service';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { SessionEntity } from '../../../src/modules/auth/domain/session.entity';
 import {
@@ -14,7 +15,6 @@ import {
   UserInactiveError,
   TotpRequiredError,
   TotpInvalidError,
-  TotpSetupRequiredError,
 } from '../../../src/modules/auth/domain/auth.errors';
 import bcrypt from 'bcryptjs';
 
@@ -61,6 +61,7 @@ describe('LoginUseCase', () => {
   let totpService: TotpService;
   let auditService: AuditService;
   let inspectorRepo: IInspectorRepository;
+  let totpEncryptionService: TotpEncryptionService;
   let useCase: LoginUseCase;
 
   beforeEach(() => {
@@ -104,7 +105,11 @@ describe('LoginUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     } as unknown as IInspectorRepository;
-    useCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo);
+    totpEncryptionService = {
+      encrypt: vi.fn((s: string) => `encrypted:${s}`),
+      decrypt: vi.fn((s: string) => s.replace('encrypted:', '')),
+    } as unknown as TotpEncryptionService;
+    useCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo, totpEncryptionService);
   });
 
   it('should return tokens and user profile on valid credentials', async () => {
@@ -200,13 +205,15 @@ describe('LoginUseCase', () => {
     ).rejects.toThrow(TotpInvalidError);
   });
 
-  it('should return AUTH_TOTP_SETUP_REQUIRED for AM user with totp_enabled=false', async () => {
+  it('should return limited session with totpSetupRequired=true for AM user with totp_enabled=false', async () => {
     vi.mocked(userRepo.findByEmail).mockResolvedValue(
       makeUser({ role: 'AM', totpEnabled: false, tenantId: null })
     );
-    await expect(
-      useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' })
-    ).rejects.toThrow(TotpSetupRequiredError);
+    const result = await useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' });
+    expect(result.totpSetupRequired).toBe(true);
+    expect(result.accessToken).toBeDefined();
+    expect(result.refreshToken).toBeDefined();
+    expect(result.user.role).toBe('AM');
   });
 
   it('should reset failed_login_count on successful login', async () => {

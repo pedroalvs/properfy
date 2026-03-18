@@ -11,6 +11,7 @@ export interface LoginInput {
 export interface LoginOutput {
   accessToken: string;
   refreshToken: string;
+  totpSetupRequired?: boolean;
   user: {
     id: string;
     name: string;

@@ -1,4 +1,5 @@
 import PgBoss from 'pg-boss';
+import { getRequestId } from './request-context';
 
 let bossPromise: Promise<PgBoss> | null = null;
 
@@ -36,10 +37,12 @@ export async function sendJob<T extends object>(
   options?: PgBoss.SendOptions,
 ): Promise<string | null> {
   const q = await getQueue();
+  const requestId = getRequestId();
+  const enrichedData = requestId ? { ...data, _requestId: requestId } : data;
   if (options) {
-    return q.send(name, data, options);
+    return q.send(name, enrichedData, options);
   }
-  return q.send(name, data);
+  return q.send(name, enrichedData);
 }
 
 export async function scheduleJob(

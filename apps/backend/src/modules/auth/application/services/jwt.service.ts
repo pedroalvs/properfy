@@ -16,6 +16,8 @@ export interface JwtConfig {
   keyId: string;
   previousPublicKeyPem?: string;
   previousKeyId?: string;
+  /** When the previous key expires (default: 30 days from service creation). Tokens signed with the previous key are rejected after this date. */
+  previousKeyExpiresAt?: Date;
 }
 
 export class JwtService {
@@ -74,6 +76,19 @@ export class JwtService {
     const key = targetKid ? this.publicKeys.get(targetKid) : undefined;
     if (!key) {
       throw new UnauthorizedError('AUTH_UNAUTHORIZED', 'Authentication required');
+    }
+
+    // Reject tokens signed with the previous key if it has expired
+    if (
+      targetKid &&
+      this.config.previousKeyId &&
+      targetKid === this.config.previousKeyId
+    ) {
+      const expiresAt = this.config.previousKeyExpiresAt
+        ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // default 30 days
+      if (new Date() > expiresAt) {
+        throw new UnauthorizedError('AUTH_UNAUTHORIZED', 'Authentication required');
+      }
     }
 
     try {

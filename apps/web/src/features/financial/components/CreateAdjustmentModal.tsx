@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { createManualAdjustmentSchema } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
@@ -37,14 +38,37 @@ const EMPTY_FORM: AdjustmentFormData = {
 
 function validate(data: AdjustmentFormData): AdjustmentFormErrors {
   const errors: AdjustmentFormErrors = {};
-  if (!data.amount.trim()) errors.amount = 'Required field';
+
+  if (!data.entryType) errors.entryType = 'Required field';
   if (!data.effectiveAt.trim()) errors.effectiveAt = 'Required field';
-  if (!data.notes.trim()) {
-    errors.notes = 'Required field';
-  } else if (data.notes.trim().length < 10) {
+
+  // Validate amount and description/reason using the shared Zod schema (partial)
+  const schemaPayload = {
+    tenantId: '00000000-0000-0000-0000-000000000000', // placeholder, injected server-side
+    amount: data.amount.trim() ? Number(data.amount) : undefined,
+    description: data.notes.trim() || undefined,
+    reason: data.notes.trim() || undefined,
+    ...(data.effectiveAt.trim() ? { effectiveAt: new Date(data.effectiveAt).toISOString() } : {}),
+  };
+
+  const result = createManualAdjustmentSchema.safeParse(schemaPayload);
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const path = issue.path.join('.');
+      if (path === 'amount' && !errors.amount) {
+        errors.amount = 'Required field';
+      }
+      if ((path === 'description' || path === 'reason') && !errors.notes) {
+        errors.notes = 'Required field';
+      }
+    }
+  }
+
+  // Form requires minimum 10 characters for notes (stricter than API schema)
+  if (data.notes.trim() && data.notes.trim().length < 10) {
     errors.notes = 'Notes must be at least 10 characters';
   }
-  if (!data.entryType) errors.entryType = 'Required field';
+
   return errors;
 }
 

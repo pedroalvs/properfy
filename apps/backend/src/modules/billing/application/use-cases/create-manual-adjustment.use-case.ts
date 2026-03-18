@@ -5,6 +5,7 @@ import { FinancialEntryEntity } from '../../domain/financial-entry.entity';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 
 export interface CreateManualAdjustmentInput {
   tenantId: string;
@@ -41,6 +42,7 @@ export class CreateManualAdjustmentUseCase {
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
     private readonly idempotencyService: IIdempotencyService,
+    private readonly tenantRepo: ITenantRepository,
   ) {}
 
   async execute(input: CreateManualAdjustmentInput): Promise<CreateManualAdjustmentOutput> {
@@ -59,7 +61,11 @@ export class CreateManualAdjustmentUseCase {
       }
     }
 
-    // 2. Create entry
+    // 2. Resolve tenant currency
+    const tenant = await this.tenantRepo.findById(input.tenantId);
+    const currency = tenant?.currency ?? 'AUD';
+
+    // 3. Create entry
     const now = new Date();
     const id = randomUUID();
     const effectiveAt = input.effectiveAt ?? now;
@@ -71,7 +77,7 @@ export class CreateManualAdjustmentUseCase {
       inspectorId: input.inspectorId ?? null,
       entryType: 'MANUAL_ADJUSTMENT',
       amount: input.amount,
-      currency: 'AUD',
+      currency,
       status: 'PENDING',
       description: input.description,
       effectiveAt,
@@ -84,10 +90,10 @@ export class CreateManualAdjustmentUseCase {
       updatedAt: now,
     });
 
-    // 3. Persist
+    // 4. Persist
     await this.financialEntryRepo.save(entry);
 
-    // 4. Audit log
+    // 5. Audit log
     this.auditService.log({
       action: 'financial_entry.manual_adjustment_created',
       actorType: 'USER',
@@ -112,7 +118,7 @@ export class CreateManualAdjustmentUseCase {
       inspectorId: input.inspectorId ?? null,
       entryType: 'MANUAL_ADJUSTMENT',
       amount: input.amount,
-      currency: 'AUD',
+      currency,
       status: 'PENDING',
       description: input.description,
       reason: input.reason,

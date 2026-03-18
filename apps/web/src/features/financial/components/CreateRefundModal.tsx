@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { createRefundSchema } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
@@ -35,8 +36,24 @@ function validate(data: RefundFormData): RefundFormErrors {
   const errors: RefundFormErrors = {};
   if (!data.appointmentId.trim()) errors.appointmentId = 'Required field';
   if (!data.amount.trim()) errors.amount = 'Required field';
-  if (!data.reason.trim()) errors.reason = 'Required field';
   if (!data.effectiveAt.trim()) errors.effectiveAt = 'Required field';
+
+  // Validate description/reason fields using the shared Zod schema
+  const schemaPayload = {
+    description: data.reason.trim() || undefined,
+    reason: data.reason.trim() || undefined,
+  };
+
+  const result = createRefundSchema.safeParse(schemaPayload);
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const path = issue.path.join('.');
+      if ((path === 'description' || path === 'reason') && !errors.reason) {
+        errors.reason = issue.message;
+      }
+    }
+  }
+
   return errors;
 }
 

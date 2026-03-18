@@ -124,11 +124,11 @@ describe('FinancialEntriesPage', () => {
     });
   });
 
-  it('shows batch select bar when data loaded', async () => {
+  it('renders selection checkboxes in the table when data loaded', async () => {
     renderPage();
     await waitFor(() => {
       expect(screen.getAllByText('VIST-001').length).toBeGreaterThanOrEqual(1);
     });
-    expect(screen.getByTestId('batch-select-bar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Select all pending entries')).toBeInTheDocument();
   });
 });

@@ -14,7 +14,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
-import { AppointmentStatus } from '@properfy/shared';
+import type { AppointmentStatus } from '@properfy/shared';
 import { useAppointmentMapData, type AppointmentMapItem } from '../hooks/useAppointmentMapData';
 
 const STATUS_OPTIONS = [

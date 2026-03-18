@@ -15,7 +15,7 @@ export interface GetInvoiceOutput {
   periodEnd: string;
   periodType: string;
   status: string;
-  totalAmount: string;
+  totalAmount: number;
   currency: string;
   fileKey: string | null;
   generatedByUserId: string | null;
@@ -59,7 +59,7 @@ export class GetInvoiceUseCase {
       periodEnd: invoice.periodEnd.toISOString().slice(0, 10),
       periodType: invoice.periodType,
       status: invoice.status,
-      totalAmount: invoice.totalAmount.toString(),
+      totalAmount: Number(invoice.totalAmount),
       currency: invoice.currency,
       fileKey: invoice.fileKey,
       generatedByUserId: invoice.generatedByUserId,

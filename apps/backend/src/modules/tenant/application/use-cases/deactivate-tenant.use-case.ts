@@ -15,6 +15,13 @@ export interface DeactivateTenantInput {
   actor: AuthContext;
 }
 
+export interface DeactivateTenantOutput {
+  id: string;
+  name: string;
+  status: string;
+  deactivatedAt: Date;
+}
+
 export class DeactivateTenantUseCase {
   constructor(
     private readonly tenantRepo: ITenantRepository,
@@ -22,7 +29,7 @@ export class DeactivateTenantUseCase {
     private readonly auditService: AuditService,
   ) {}
 
-  async execute(input: DeactivateTenantInput): Promise<void> {
+  async execute(input: DeactivateTenantInput): Promise<DeactivateTenantOutput> {
     const { tenantId, reason, actor } = input;
 
     if (actor.role !== 'AM') {
@@ -47,7 +54,6 @@ export class DeactivateTenantUseCase {
     const now = new Date();
     await this.tenantRepo.update(tenantId, {
       status: 'INACTIVE',
-      deletedAt: now,
     });
 
     this.auditService.log({
@@ -61,5 +67,12 @@ export class DeactivateTenantUseCase {
       after: { status: 'INACTIVE' },
       reason,
     });
+
+    return {
+      id: tenantId,
+      name: tenant.name,
+      status: 'INACTIVE',
+      deactivatedAt: now,
+    };
   }
 }

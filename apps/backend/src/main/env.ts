@@ -17,6 +17,8 @@ const envSchema = z.object({
   // Optional JWT rotation
   JWT_PREVIOUS_PUBLIC_KEY: z.string().optional(),
   JWT_PREVIOUS_KEY_ID: z.string().optional(),
+  /** ISO-8601 date after which the previous key is rejected (default: 30 days from startup) */
+  JWT_PREVIOUS_KEY_EXPIRES_AT: z.string().optional(),
 
   // Optional Supabase S3
   SUPABASE_S3_ENDPOINT: z.string().optional(),
@@ -33,8 +35,15 @@ const envSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),
 
+  // Optional WhatsApp (Zenvia)
+  WHATSAPP_API_KEY: z.string().optional(),
+  WHATSAPP_API_URL: z.string().optional(),
+
   // Optional Mapbox
   MAPBOX_ACCESS_TOKEN: z.string().optional(),
+
+  // Optional TOTP encryption
+  TOTP_ENCRYPTION_KEY: z.string().optional(),
 
   // Optional direct DB URL (migrations)
   DIRECT_URL: z.string().optional(),
@@ -59,6 +68,13 @@ export function validateEnv(source: Record<string, string | undefined> = process
   if (!result.data.CORS_ORIGIN && result.data.NODE_ENV !== 'development' && result.data.NODE_ENV !== 'test') {
     throw new Error(
       'Environment validation failed:\n  - CORS_ORIGIN: Required in non-development environments',
+    );
+  }
+
+  // TOTP_ENCRYPTION_KEY is required in non-development/test environments
+  if (!result.data.TOTP_ENCRYPTION_KEY && result.data.NODE_ENV !== 'development' && result.data.NODE_ENV !== 'test') {
+    throw new Error(
+      'Environment validation failed:\n  - TOTP_ENCRYPTION_KEY: Required in non-development environments (32 bytes, hex or base64 encoded)',
     );
   }
 

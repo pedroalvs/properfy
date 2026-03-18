@@ -28,11 +28,10 @@ const TIMEZONE_OPTIONS = [
 ];
 
 const CURRENCY_OPTIONS = [
-  { value: 'BRL', label: 'BRL - Brazilian Real' },
+  { value: 'AUD', label: 'AUD - Australian Dollar' },
   { value: 'USD', label: 'USD - US Dollar' },
   { value: 'EUR', label: 'EUR - Euro' },
   { value: 'GBP', label: 'GBP - British Pound' },
-  { value: 'AUD', label: 'AUD - Australian Dollar' },
 ];
 
 interface TenantFormDrawerProps {

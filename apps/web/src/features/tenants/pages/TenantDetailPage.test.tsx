@@ -49,7 +49,7 @@ const MOCK_TENANT = {
   status: 'ACTIVE',
   branchCount: 3,
   timezone: 'America/Sao_Paulo',
-  currency: 'BRL',
+  currency: 'AUD',
   settings: {},
   notes: 'Some notes',
   createdAt: '2026-01-15T10:00:00Z',
@@ -126,7 +126,7 @@ describe('TenantDetailPage', () => {
       expect(screen.getAllByText('Timezone').length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getAllByText('America/Sao_Paulo').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('BRL').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('AUD').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Some notes').length).toBeGreaterThanOrEqual(1);
   });
 

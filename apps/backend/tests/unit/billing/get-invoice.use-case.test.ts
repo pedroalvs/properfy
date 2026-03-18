@@ -77,7 +77,7 @@ describe('GetInvoiceUseCase', () => {
     expect(result.inspectorId).toBe('insp-1');
     expect(result.periodStart).toBe('2026-03-01');
     expect(result.periodEnd).toBe('2026-03-15');
-    expect(result.totalAmount).toBe('1400');
+    expect(result.totalAmount).toBe(1400);
     expect(result.currency).toBe('AUD');
     expect(result.status).toBe('CLOSED');
   });

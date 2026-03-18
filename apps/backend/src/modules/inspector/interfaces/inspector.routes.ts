@@ -36,6 +36,7 @@ export interface InspectorRouteContainer {
   updateAvailabilitySlotUseCase: UpdateAvailabilitySlotUseCase;
   linkInspectorToUserUseCase: LinkInspectorToUserUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const inspectorIdParam = z.object({ inspectorId: z.string().uuid() });
@@ -48,8 +49,12 @@ export async function registerInspectorRoutes(
   app: FastifyInstance,
   container: InspectorRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // POST /v1/inspectors

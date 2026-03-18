@@ -41,7 +41,7 @@ export class ConflictError extends DomainError {
 
 export class ValidationError extends DomainError {
   constructor(message: string, details?: unknown) {
-    super('VALIDATION_ERROR', message, 422, details);
+    super('VALIDATION_ERROR', message, 400, details);
     this.name = 'ValidationError';
   }
 }

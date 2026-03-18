@@ -6,7 +6,11 @@ import { TabsNav } from '@/components/layout/TabsNav';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { Button } from '@/components/ui/Button';
 import { MapboxPreview } from '@/components/map/MapboxPreview';
+import { useAuth } from '@/hooks/useAuth';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import { useActionMutation } from '@/hooks/useApiQuery';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { PropertyTypeChip } from '../components/PropertyTypeChip';
 import { PropertyDetailSections } from '../components/PropertyDetailSections';
@@ -20,8 +24,29 @@ const TABS = [
 export function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { property, isLoading, isError, refetch } = usePropertyDetail(id ?? null);
+  const { user } = useAuth();
+  const { showSuccess, showError } = useSnackbar();
+  const { property, isLoading, isError, isGeocodingTimeout, refetch } = usePropertyDetail(id ?? null);
   const [activeTab, setActiveTab] = useState('overview');
+
+  const canRetryGeocode = user?.role === 'AM' || user?.role === 'OP';
+
+  const retryGeocodeMutation = useActionMutation(
+    `/v1/properties/${id}/geocode`,
+    [['properties', id]],
+  );
+
+  const handleRetryGeocode = useCallback(() => {
+    retryGeocodeMutation.mutate(undefined, {
+      onSuccess: () => {
+        showSuccess('Geocoding retry initiated.');
+        refetch();
+      },
+      onError: () => {
+        showError('Failed to retry geocoding.');
+      },
+    });
+  }, [retryGeocodeMutation, showSuccess, showError, refetch]);
 
   const handleEdit = useCallback(() => {
     navigate('/properties');
@@ -108,8 +133,10 @@ export function PropertyDetailPage() {
 
               {property.geocodingStatus === GeocodingStatus.PENDING && (
                 <div className="mt-6">
-                  <InfoBanner>
-                    Geocoding is in progress. The map will appear once coordinates are available.
+                  <InfoBanner className={isGeocodingTimeout ? 'bg-warning/10 text-warning' : undefined}>
+                    {isGeocodingTimeout
+                      ? 'Geocoding is taking longer than expected. Please check the address or retry later.'
+                      : 'Geocoding is in progress. The map will appear once coordinates are available.'}
                   </InfoBanner>
                 </div>
               )}
@@ -119,6 +146,18 @@ export function PropertyDetailPage() {
                   <InfoBanner className="bg-error/10 text-error">
                     Geocoding failed. Please verify the address or retry.
                   </InfoBanner>
+                  {canRetryGeocode && (
+                    <div className="mt-3">
+                      <Button
+                        variant="secondary"
+                        loading={retryGeocodeMutation.isPending}
+                        onClick={handleRetryGeocode}
+                      >
+                        <i className="mdi mdi-refresh mr-1" aria-hidden="true" />
+                        Retry Geocoding
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </>

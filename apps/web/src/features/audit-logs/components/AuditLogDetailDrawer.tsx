@@ -1,5 +1,6 @@
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
+import { formatDateTime } from '@/lib/format-date';
 import type { AuditLog } from '../types';
 
 interface AuditLogDetailDrawerProps {
@@ -32,7 +33,7 @@ export function AuditLogDetailDrawer({ log, open, onClose }: AuditLogDetailDrawe
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-text-muted">Timestamp</p>
-                  <p className="text-sm font-medium">{new Date(log.createdAt).toLocaleString('en-AU')}</p>
+                  <p className="text-sm font-medium">{formatDateTime(log.createdAt)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Actor</p>

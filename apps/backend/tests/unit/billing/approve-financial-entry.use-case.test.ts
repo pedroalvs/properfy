@@ -16,6 +16,7 @@ const financialEntryRepo = {
   count: vi.fn(),
   save: vi.fn(),
   updateStatus: vi.fn(),
+  transitionStatus: vi.fn(),
   sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
 };
 
@@ -68,7 +69,7 @@ describe('ApproveFinancialEntryUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     financialEntryRepo.findById.mockResolvedValue(makePendingEntry());
-    financialEntryRepo.updateStatus.mockResolvedValue(undefined);
+    financialEntryRepo.transitionStatus.mockResolvedValue(undefined);
   });
 
   it('should set status to APPROVED with approvedByUserId and approvedAt', async () => {
@@ -81,8 +82,10 @@ describe('ApproveFinancialEntryUseCase', () => {
     expect(result.approvedBy).toBe('op-1');
     expect(result.approvedAt).toBeInstanceOf(Date);
 
-    expect(financialEntryRepo.updateStatus).toHaveBeenCalledWith(
+    expect(financialEntryRepo.transitionStatus).toHaveBeenCalledWith(
       'entry-1',
+      'tenant-1',
+      'PENDING',
       'APPROVED',
       'op-1',
       expect.any(Date),

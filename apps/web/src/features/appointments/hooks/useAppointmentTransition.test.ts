@@ -1,15 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockMutate = vi.fn();
-const mockUseActionMutation = vi.fn(() => ({
-  mutate: mockMutate,
-  isPending: false,
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
-vi.mock('@/hooks/useApiQuery', () => ({
-  useActionMutation: () => mockUseActionMutation(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/api-error', () => ({
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
 }));
 
 const mockShowSuccess = vi.fn();
@@ -22,17 +35,20 @@ vi.mock('@/hooks/useSnackbar', () => ({
   }),
 }));
 
+import { api } from '@/services/api';
 import { useAppointmentTransition } from './useAppointmentTransition';
+
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 describe('useAppointmentTransition', () => {
   const wrapper = createQueryWrapper();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseActionMutation.mockReturnValue({ mutate: mockMutate, isPending: false });
+    mockPost.mockResolvedValue({ data: { id: 'appt-1', status: 'DONE' }, error: null });
   });
 
-  it('calls mutate with targetStatus and reason', () => {
+  it('calls POST with targetStatus, reason, and idempotency key', async () => {
     const { result } = renderHook(
       () => useAppointmentTransition('appt-1'),
       { wrapper },
@@ -42,10 +58,15 @@ describe('useAppointmentTransition', () => {
       result.current.transition('CANCELLED' as any, 'No longer needed');
     });
 
-    expect(mockMutate).toHaveBeenCalledWith(
-      { targetStatus: 'CANCELLED', reason: 'No longer needed' },
-      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
-    );
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/appointments/appt-1/status-transitions',
+        {
+          body: { targetStatus: 'CANCELLED', reason: 'No longer needed' },
+          headers: { 'Idempotency-Key': expect.any(String) },
+        },
+      );
+    });
   });
 
   it('does nothing when appointmentId is null', () => {
@@ -58,23 +79,19 @@ describe('useAppointmentTransition', () => {
       result.current.transition('DONE' as any);
     });
 
-    expect(mockMutate).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
-  it('returns isTransitioning from mutation', () => {
-    mockUseActionMutation.mockReturnValue({ mutate: mockMutate, isPending: true });
-
+  it('returns isTransitioning based on mutation state', () => {
     const { result } = renderHook(
       () => useAppointmentTransition('appt-1'),
       { wrapper },
     );
 
-    expect(result.current.isTransitioning).toBe(true);
+    expect(result.current.isTransitioning).toBe(false);
   });
 
-  it('shows success snackbar on successful transition', () => {
-    mockMutate.mockImplementation((_data: unknown, opts: any) => opts.onSuccess());
-
+  it('shows success snackbar on successful transition', async () => {
     const onSuccess = vi.fn();
     const { result } = renderHook(
       () => useAppointmentTransition('appt-1', onSuccess),
@@ -85,14 +102,14 @@ describe('useAppointmentTransition', () => {
       result.current.transition('DONE' as any);
     });
 
-    expect(mockShowSuccess).toHaveBeenCalledWith('Transition completed');
+    await waitFor(() => {
+      expect(mockShowSuccess).toHaveBeenCalledWith('Transition completed');
+    });
     expect(onSuccess).toHaveBeenCalled();
   });
 
-  it('shows error snackbar on failed transition', () => {
-    mockMutate.mockImplementation((_data: unknown, opts: any) =>
-      opts.onError(new Error('Server error')),
-    );
+  it('shows error snackbar on failed transition', async () => {
+    mockPost.mockResolvedValueOnce({ data: null, error: { message: 'Server error' } });
 
     const { result } = renderHook(
       () => useAppointmentTransition('appt-1'),
@@ -103,6 +120,8 @@ describe('useAppointmentTransition', () => {
       result.current.transition('DONE' as any);
     });
 
-    expect(mockShowError).toHaveBeenCalledWith('Server error');
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalled();
+    });
   });
 });

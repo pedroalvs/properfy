@@ -42,7 +42,7 @@ export function MapContainer({
       data-longitude={initialViewState.longitude}
       data-latitude={initialViewState.latitude}
       data-zoom={initialViewState.zoom}
-      onClick={(e) => {
+      onClick={(_e) => {
         if (onMapClick) {
           const rect = containerRef.current?.getBoundingClientRect();
           if (rect) {

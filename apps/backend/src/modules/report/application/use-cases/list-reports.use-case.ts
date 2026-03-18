@@ -17,6 +17,10 @@ export interface AuthContext {
   role: string;
 }
 
+interface UserReader {
+  findById(id: string): Promise<{ id: string; name: string } | null>;
+}
+
 export interface ListReportsOutput {
   data: Array<{
     id: string;
@@ -25,7 +29,7 @@ export interface ListReportsOutput {
     format: string;
     filters: Record<string, unknown>;
     rowCount: number | null;
-    requestedByUserId: string;
+    requestedBy: { id: string; name: string };
     createdAt: Date;
     completedAt: Date | null;
     expiresAt: Date | null;
@@ -40,7 +44,10 @@ export interface ListReportsOutput {
 }
 
 export class ListReportsUseCase {
-  constructor(private readonly reportRepo: IReportRepository) {}
+  constructor(
+    private readonly reportRepo: IReportRepository,
+    private readonly userReader?: UserReader,
+  ) {}
 
   async execute(input: ListReportsInput, auth: AuthContext): Promise<ListReportsOutput> {
     const { reportType, status, fromDate, toDate, page, pageSize } = input;
@@ -65,6 +72,18 @@ export class ListReportsUseCase {
 
     const isOperator = role === 'AM' || role === 'OP';
 
+    // Batch-fetch user names for requestedBy
+    const userIds = [...new Set(data.map((r) => r.requestedByUserId))];
+    const userMap = new Map<string, string>();
+    if (this.userReader) {
+      await Promise.all(
+        userIds.map(async (uid) => {
+          const user = await this.userReader!.findById(uid);
+          if (user) userMap.set(uid, user.name);
+        }),
+      );
+    }
+
     return {
       data: data.map((r: ReportEntity) => ({
         id: r.id,
@@ -73,7 +92,10 @@ export class ListReportsUseCase {
         format: r.format,
         filters: r.filtersJson,
         rowCount: r.rowCount,
-        requestedByUserId: r.requestedByUserId,
+        requestedBy: {
+          id: r.requestedByUserId,
+          name: userMap.get(r.requestedByUserId) ?? 'Unknown',
+        },
         createdAt: r.createdAt,
         completedAt: r.completedAt,
         expiresAt: r.expiresAt,

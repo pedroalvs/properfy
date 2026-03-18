@@ -238,7 +238,7 @@ describe('ListReportsUseCase', () => {
         status: 'READY',
         format: 'XLSX',
         rowCount: 100,
-        requestedByUserId: 'user-5',
+        requestedBy: { id: 'user-5', name: 'Unknown' },
       }),
     );
   });

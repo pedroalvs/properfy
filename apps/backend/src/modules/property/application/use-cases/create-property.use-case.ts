@@ -5,10 +5,12 @@ import {
 } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IPropertyRepository } from '../../domain/property.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import { PropertyEntity } from '../../domain/property.entity';
-import { PropertyCodeConflictError } from '../../domain/property.errors';
-import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
+import { PropertyCodeConflictError, TenantInactiveError, BranchInactiveError } from '../../domain/property.errors';
+import { BranchNotFoundError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
+import { sendJob } from '../../../../shared/infrastructure/queue';
 
 export interface CreatePropertyInput {
   tenantId?: string;
@@ -49,6 +51,7 @@ export class CreatePropertyUseCase {
     private readonly propertyRepo: IPropertyRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
+    private readonly tenantRepo?: ITenantRepository,
   ) {}
 
   async execute(input: CreatePropertyInput): Promise<CreatePropertyOutput> {
@@ -67,11 +70,25 @@ export class CreatePropertyUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
+    // Validate tenant is ACTIVE
+    if (this.tenantRepo) {
+      const tenant = await this.tenantRepo.findById(tenantId);
+      if (!tenant) {
+        throw new TenantNotFoundError();
+      }
+      if (!tenant.isActive()) {
+        throw new TenantInactiveError();
+      }
+    }
+
     // Validate branch if provided
     if (input.branchId) {
       const branch = await this.branchRepo.findById(input.branchId, tenantId);
       if (!branch) {
         throw new BranchNotFoundError();
+      }
+      if (!branch.isActive()) {
+        throw new BranchInactiveError();
       }
     }
 
@@ -110,6 +127,8 @@ export class CreatePropertyUseCase {
     });
 
     await this.propertyRepo.save(property);
+
+    await sendJob('property.geocode', { propertyId: id });
 
     this.auditService.log({
       action: 'property.created',

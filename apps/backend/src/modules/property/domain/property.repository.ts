@@ -39,6 +39,8 @@ export interface IPropertyRepository {
       postcode: string;
       state: string;
       country: string;
+      lat: number | null;
+      lng: number | null;
       geocodingStatus: string;
       notes: string | null;
       rulesJson: Record<string, unknown>;

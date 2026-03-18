@@ -26,6 +26,7 @@ export interface UserRouteContainer {
   updateUserUseCase: UpdateUserUseCase;
   deactivateUserUseCase: DeactivateUserUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const tenantIdParam = z.object({ tenantId: z.string().uuid() });
@@ -38,8 +39,12 @@ export async function registerUserRoutes(
   app: FastifyInstance,
   container: UserRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // POST /v1/tenants/:tenantId/users

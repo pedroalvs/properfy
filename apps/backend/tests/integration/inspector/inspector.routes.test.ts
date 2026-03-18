@@ -107,7 +107,7 @@ describe('POST /v1/inspectors', () => {
     expect(res.body.data.name).toBe('John Inspector');
   });
 
-  it('should return 422 with invalid payload (missing email)', async () => {
+  it('should return 400 with invalid payload (missing email)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -115,7 +115,7 @@ describe('POST /v1/inspectors', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ name: 'John Inspector' });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

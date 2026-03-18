@@ -37,7 +37,7 @@ const MOCK_INVOICE = {
   periodEnd: '2026-03-15',
   frequency: 'BIWEEKLY',
   totalAmount: 1800,
-  currency: 'BRL',
+  currency: 'AUD',
   status: 'DRAFT',
   entryCount: 5,
   entries: [],

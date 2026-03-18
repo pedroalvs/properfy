@@ -17,6 +17,8 @@ describe('useCountdown', () => {
     expect(result.current.isExpired).toBe(true);
     expect(result.current.hours).toBe(0);
     expect(result.current.minutes).toBe(0);
+    expect(result.current.isCritical).toBe(true);
+    expect(result.current.label).toBe('');
   });
 
   it('returns expired state when deadline is in the past', () => {
@@ -37,6 +39,8 @@ describe('useCountdown', () => {
     expect(result.current.minutes).toBe(30);
     expect(result.current.isExpired).toBe(false);
     expect(result.current.isUrgent).toBe(true);
+    expect(result.current.isCritical).toBe(false);
+    expect(result.current.label).toBe('Respond within 5 hours 30 minutes');
   });
 
   it('marks as urgent when less than 24h remaining', () => {
@@ -53,6 +57,38 @@ describe('useCountdown', () => {
 
     expect(result.current.isUrgent).toBe(false);
     expect(result.current.isExpired).toBe(false);
+    expect(result.current.isCritical).toBe(false);
+  });
+
+  it('marks as critical when less than 2h remaining', () => {
+    const deadline = new Date(Date.now() + 1 * 60 * 60 * 1000 + 15 * 60 * 1000).toISOString();
+    const { result } = renderHook(() => useCountdown(deadline));
+
+    expect(result.current.isCritical).toBe(true);
+    expect(result.current.isUrgent).toBe(true);
+    expect(result.current.label).toBe('Respond within 1 hour 15 minutes');
+  });
+
+  it('formats label without hours when less than 1h', () => {
+    const deadline = new Date(Date.now() + 45 * 60 * 1000).toISOString();
+    const { result } = renderHook(() => useCountdown(deadline));
+
+    expect(result.current.label).toBe('Respond within 45 minutes');
+    expect(result.current.isCritical).toBe(true);
+  });
+
+  it('uses singular form for 1 hour 1 minute', () => {
+    const deadline = new Date(Date.now() + 1 * 60 * 60 * 1000 + 1 * 60 * 1000).toISOString();
+    const { result } = renderHook(() => useCountdown(deadline));
+
+    expect(result.current.label).toBe('Respond within 1 hour 1 minute');
+  });
+
+  it('uses singular form for 1 minute', () => {
+    const deadline = new Date(Date.now() + 1 * 60 * 1000).toISOString();
+    const { result } = renderHook(() => useCountdown(deadline));
+
+    expect(result.current.label).toBe('Respond within 1 minute');
   });
 
   it('updates every minute', () => {

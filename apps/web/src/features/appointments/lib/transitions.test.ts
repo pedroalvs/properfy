@@ -23,17 +23,19 @@ describe('getAvailableTransitions', () => {
     ]);
   });
 
-  it('AM from DONE sees 1 transition (DRAFT/reopen)', () => {
+  it('AM from DONE sees 2 transitions (DRAFT/reopen and REJECTED)', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.DONE, 'AM');
-    expect(transitions).toHaveLength(1);
+    expect(transitions).toHaveLength(2);
     expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.DRAFT);
     expect(transitions[0]!.label).toBe('Reopen as Draft');
     expect(transitions[0]!.requiresReason).toBe(true);
+    expect(transitions[1]!.targetStatus).toBe(AppointmentStatus.REJECTED);
   });
 
-  it('OP from DONE sees no transitions (reopen restricted to AM)', () => {
+  it('OP from DONE sees REJECTED only (reopen restricted to AM)', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.DONE, 'OP');
-    expect(transitions).toHaveLength(0);
+    expect(transitions).toHaveLength(1);
+    expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.REJECTED);
   });
 
   it('OP from SCHEDULED sees 3 transitions', () => {

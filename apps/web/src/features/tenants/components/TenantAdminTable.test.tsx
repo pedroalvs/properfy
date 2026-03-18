@@ -12,7 +12,7 @@ function makeTenant(overrides: Partial<TenantAdmin> = {}): TenantAdmin {
     status: 'ACTIVE',
     branchCount: 3,
     timezone: 'America/Sao_Paulo',
-    currency: 'BRL',
+    currency: 'AUD',
     createdAt: '2026-01-15T10:00:00Z',
     updatedAt: '2026-01-15T10:00:00Z',
     ...overrides,

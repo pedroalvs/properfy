@@ -22,6 +22,8 @@ export interface AppointmentProps {
   notes: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
+  cancellationReasonCode: string | null;
+  rejectionReasonCode: string | null;
   createdByUserId: string;
   doneCheckedByUserId: string | null;
   doneCheckedAt: Date | null;
@@ -50,6 +52,8 @@ export class AppointmentEntity extends BaseEntity {
   readonly notes: string | null;
   readonly customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
+  cancellationReasonCode: string | null;
+  rejectionReasonCode: string | null;
   readonly createdByUserId: string;
   doneCheckedByUserId: string | null;
   doneCheckedAt: Date | null;
@@ -76,6 +80,8 @@ export class AppointmentEntity extends BaseEntity {
     this.notes = props.notes;
     this.customFieldsJson = props.customFieldsJson;
     this.reason = props.reason;
+    this.cancellationReasonCode = props.cancellationReasonCode;
+    this.rejectionReasonCode = props.rejectionReasonCode;
     this.createdByUserId = props.createdByUserId;
     this.doneCheckedByUserId = props.doneCheckedByUserId;
     this.doneCheckedAt = props.doneCheckedAt;

@@ -4,6 +4,7 @@ import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import type { AppointmentStatus } from '@properfy/shared';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { formatDate } from '@/lib/format-date';
 import { usePropertyAppointments, type PropertyAppointment } from '../hooks/usePropertyAppointments';
 
 interface PropertyAppointmentsTabProps {
@@ -46,7 +47,7 @@ export function PropertyAppointmentsTab({ propertyId }: PropertyAppointmentsTabP
       label: 'Date',
       width: '120px',
       sortable: true,
-      render: (row) => <>{new Date(row.scheduledDate).toLocaleDateString('en-AU')}</>,
+      render: (row) => <>{formatDate(row.scheduledDate)}</>,
     },
     {
       key: 'timeSlot',

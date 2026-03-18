@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/hooks/useAuth';
 import { Sidebar } from './Sidebar';
 
 vi.mock('@/config/env', () => ({
@@ -37,17 +36,27 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: 'AM', tenantId: 'tenant-1' },
+    token: 'mock-token',
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 function renderSidebar(route = '/appointments') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <MemoryRouter initialEntries={[route]}>
-          <Sidebar />
-        </MemoryRouter>
-      </AuthProvider>
+      <MemoryRouter initialEntries={[route]}>
+        <Sidebar />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }

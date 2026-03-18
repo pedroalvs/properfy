@@ -20,6 +20,7 @@ import {
 import { resolvePricingRule } from '../../../pricing-rule/domain/resolve-pricing-rule';
 import {
   AppointmentBranchNotFoundError,
+  AppointmentBranchInactiveError,
   AppointmentPropertyNotFoundError,
   AppointmentPropertyTenantMismatchError,
   AppointmentServiceTypeNotFoundError,
@@ -27,6 +28,8 @@ import {
   AppointmentNoPriceRuleError,
 } from '../../domain/appointment.errors';
 import type { RestrictionSource } from '@properfy/shared';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { assertClUserPermission } from '../../../../shared/domain/cl-user-permissions';
 
 export interface CreateAppointmentInput {
   branchId: string;
@@ -117,6 +120,7 @@ export class CreateAppointmentUseCase {
     private readonly pricingRuleRepo: IPricingRuleRepository,
     private readonly createPropertyUseCase: CreatePropertyUseCase,
     private readonly auditService: AuditService,
+    private readonly tenantRepo?: ITenantRepository,
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<CreateAppointmentOutput> {
@@ -132,6 +136,11 @@ export class CreateAppointmentUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
+    // 1b. CL_USER must have create_appointments permission
+    if (actor.role === 'CL_USER' && this.tenantRepo) {
+      await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'create_appointments');
+    }
+
     // 2. Resolve tenantId and validate branch
     let tenantId: string;
     if (actor.role === 'AM' || actor.role === 'OP') {
@@ -140,6 +149,9 @@ export class CreateAppointmentUseCase {
       if (!branch) {
         throw new AppointmentBranchNotFoundError();
       }
+      if (!branch.isActive()) {
+        throw new AppointmentBranchInactiveError();
+      }
       tenantId = branch.tenantId;
     } else {
       // CL_ADMIN/CL_USER: use tenantId from JWT, validate branch in scope
@@ -147,6 +159,9 @@ export class CreateAppointmentUseCase {
       const branch = await this.branchRepo.findById(input.branchId, tenantId);
       if (!branch) {
         throw new AppointmentBranchNotFoundError();
+      }
+      if (!branch.isActive()) {
+        throw new AppointmentBranchInactiveError();
       }
     }
 
@@ -233,6 +248,8 @@ export class CreateAppointmentUseCase {
       notes: input.notes ?? null,
       customFieldsJson: input.customFields ?? null,
       reason: null,
+      cancellationReasonCode: null,
+      rejectionReasonCode: null,
       createdByUserId: actor.userId,
       doneCheckedByUserId: null,
       doneCheckedAt: null,

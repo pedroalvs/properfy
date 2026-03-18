@@ -34,13 +34,13 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findById(id: string): Promise<ServiceTypeEntity | null> {
-    const row = await this.prisma.serviceType.findFirst({ where: { id } });
+    const row = await this.prisma.serviceType.findFirst({ where: { id, status: 'ACTIVE' } });
     return row ? mapToEntity(row) : null;
   }
 
   async findByCode(code: string): Promise<ServiceTypeEntity | null> {
     const row = await this.prisma.serviceType.findFirst({
-      where: { code },
+      where: { code, status: 'ACTIVE' },
     });
     return row ? mapToEntity(row) : null;
   }

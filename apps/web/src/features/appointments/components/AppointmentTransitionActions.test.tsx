@@ -39,25 +39,28 @@ describe('AppointmentTransitionActions', () => {
     expect(onTransition).toHaveBeenCalledWith(AppointmentStatus.DONE);
   });
 
-  it('click with reason opens dialog', () => {
+  it('click with reason opens dialog with reason code dropdown', () => {
     render(
       <AppointmentTransitionActions transitions={mockTransitions} onTransition={() => {}} />,
     );
     fireEvent.click(screen.getByText('Cancel'));
-    expect(screen.getByPlaceholderText('Enter the reason...')).toBeInTheDocument();
+    expect(screen.getByLabelText('Reason Code')).toBeInTheDocument();
   });
 
-  it('confirm in dialog calls onTransition with reason', () => {
+  it('confirm in dialog calls onTransition with reason code', () => {
     const onTransition = vi.fn();
     render(
       <AppointmentTransitionActions transitions={mockTransitions} onTransition={onTransition} />,
     );
-    fireEvent.click(screen.getByText('Cancel'));
-    fireEvent.change(screen.getByPlaceholderText('Enter the reason...'), {
-      target: { value: 'Test reason' },
-    });
+    // Click the "Cancel" transition button (not the dialog Cancel)
+    fireEvent.click(screen.getAllByText('Cancel')[0]!);
+    // Open the custom dropdown
+    fireEvent.click(screen.getByLabelText('Reason Code'));
+    // Select first available reason code option
+    fireEvent.click(screen.getAllByRole('option')[0]!);
+    // Confirm
     fireEvent.click(screen.getByText('Confirm'));
-    expect(onTransition).toHaveBeenCalledWith(AppointmentStatus.CANCELLED, 'Test reason');
+    expect(onTransition).toHaveBeenCalledWith(AppointmentStatus.CANCELLED, '', 'CLIENT_REQUEST');
   });
 
   it('no buttons when transitions is empty', () => {

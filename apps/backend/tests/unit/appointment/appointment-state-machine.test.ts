@@ -29,17 +29,13 @@ describe('AppointmentStateMachine', () => {
     });
   });
 
-  describe('validateTransition() — all 14 valid transitions with AM actor', () => {
-    const validPairs: [AppointmentStatus, AppointmentStatus][] = [
-      ['DRAFT', 'AWAITING_INSPECTOR'],
+  describe('validateTransition() — transitions valid for AM actor', () => {
+    const validForAM: [AppointmentStatus, AppointmentStatus][] = [
       ['DRAFT', 'REJECTED'],
       ['DRAFT', 'CANCELLED'],
-      ['AWAITING_INSPECTOR', 'SCHEDULED'],
       ['AWAITING_INSPECTOR', 'CANCELLED'],
       ['AWAITING_INSPECTOR', 'REJECTED'],
-      ['SCHEDULED', 'DONE'],
       ['SCHEDULED', 'CANCELLED'],
-      ['SCHEDULED', 'REJECTED'],
       ['REJECTED', 'DRAFT'],
       ['REJECTED', 'AWAITING_INSPECTOR'],
       ['CANCELLED', 'DRAFT'],
@@ -47,7 +43,7 @@ describe('AppointmentStateMachine', () => {
       ['DONE', 'REJECTED'],
     ];
 
-    for (const [from, to] of validPairs) {
+    for (const [from, to] of validForAM) {
       it(`${from} → ${to} is valid for AM`, () => {
         const result = machine.validateTransition(from, to, 'AM');
         expect(result.valid).toBe(true);
@@ -55,6 +51,39 @@ describe('AppointmentStateMachine', () => {
         expect(result.error).toBeUndefined();
       });
     }
+
+    const invalidForAM: [AppointmentStatus, AppointmentStatus][] = [
+      ['DRAFT', 'AWAITING_INSPECTOR'],
+      ['AWAITING_INSPECTOR', 'SCHEDULED'],
+      ['SCHEDULED', 'DONE'],
+      ['SCHEDULED', 'REJECTED'],
+    ];
+
+    for (const [from, to] of invalidForAM) {
+      it(`${from} → ${to} is NOT valid for AM`, () => {
+        const result = machine.validateTransition(from, to, 'AM');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('not permitted');
+      });
+    }
+  });
+
+  describe('validateTransition() — RBAC: SYS role', () => {
+    it('SYS can do DRAFT → AWAITING_INSPECTOR', () => {
+      expect(machine.validateTransition('DRAFT', 'AWAITING_INSPECTOR', 'SYS').valid).toBe(true);
+    });
+
+    it('SYS can do AWAITING_INSPECTOR → SCHEDULED', () => {
+      expect(machine.validateTransition('AWAITING_INSPECTOR', 'SCHEDULED', 'SYS').valid).toBe(true);
+    });
+
+    it('SYS can do SCHEDULED → REJECTED', () => {
+      expect(machine.validateTransition('SCHEDULED', 'REJECTED', 'SYS').valid).toBe(true);
+    });
+
+    it('SYS cannot do SCHEDULED → DONE', () => {
+      expect(machine.validateTransition('SCHEDULED', 'DONE', 'SYS').valid).toBe(false);
+    });
   });
 
   describe('validateTransition() — RBAC: OP role', () => {
@@ -213,9 +242,9 @@ describe('AppointmentStateMachine', () => {
       expect(rule?.requiresReason).toBe(true);
     });
 
-    it('REJECTED → AWAITING_INSPECTOR does not require reason', () => {
+    it('REJECTED → AWAITING_INSPECTOR requires reason', () => {
       const rule = machine.getTransitionRule('REJECTED', 'AWAITING_INSPECTOR');
-      expect(rule?.requiresReason).toBe(false);
+      expect(rule?.requiresReason).toBe(true);
     });
 
     it('CANCELLED → DRAFT requires reason', () => {
@@ -235,12 +264,12 @@ describe('AppointmentStateMachine', () => {
   });
 
   describe('requiresDoneCheckedBy', () => {
-    it('no transition requires doneCheckedBy (inspector finishes without cross-check)', () => {
-      const transitionsRequiringCheck = TRANSITION_RULES.filter((r) => r.requiresDoneCheckedBy);
-      expect(transitionsRequiringCheck).toHaveLength(0);
+    it('SCHEDULED → DONE requires doneCheckedBy', () => {
+      const rule = machine.getTransitionRule('SCHEDULED', 'DONE');
+      expect(rule?.requiresDoneCheckedBy).toBe(true);
     });
 
-    it('all transitions do not require doneCheckedBy', () => {
+    it('only SCHEDULED → DONE requires doneCheckedBy', () => {
       const otherTransitions = TRANSITION_RULES.filter(
         (r) => !(r.from === 'SCHEDULED' && r.to === 'DONE'),
       );

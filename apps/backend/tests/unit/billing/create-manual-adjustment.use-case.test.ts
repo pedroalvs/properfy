@@ -11,6 +11,7 @@ const financialEntryRepo = {
   count: vi.fn(),
   save: vi.fn(),
   updateStatus: vi.fn(),
+  transitionStatus: vi.fn(),
   sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
 };
 
@@ -19,6 +20,15 @@ const auditService = { log: vi.fn() };
 const idempotencyService = {
   get: vi.fn().mockResolvedValue(null),
   set: vi.fn().mockResolvedValue(undefined),
+};
+
+const tenantRepo = {
+  findById: vi.fn(),
+  findByLegalName: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
 };
 
 const opActor = {
@@ -38,7 +48,7 @@ const amActor = {
 };
 
 function makeSut() {
-  return new CreateManualAdjustmentUseCase(financialEntryRepo, auditService as any, idempotencyService);
+  return new CreateManualAdjustmentUseCase(financialEntryRepo, auditService as any, idempotencyService, tenantRepo);
 }
 
 describe('CreateManualAdjustmentUseCase', () => {
@@ -46,6 +56,11 @@ describe('CreateManualAdjustmentUseCase', () => {
     vi.clearAllMocks();
     financialEntryRepo.save.mockResolvedValue(undefined);
     idempotencyService.get.mockResolvedValue(null);
+    tenantRepo.findById.mockResolvedValue({
+      id: 'tenant-1',
+      currency: 'AUD',
+      isActive: () => true,
+    });
   });
 
   it('should return cached result on duplicate call when idempotencyKey is provided', async () => {
@@ -240,6 +255,38 @@ describe('CreateManualAdjustmentUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
 
     expect(financialEntryRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should use tenant currency instead of hardcoded AUD', async () => {
+    tenantRepo.findById.mockResolvedValue({ id: 'tenant-1', currency: 'NZD', isActive: () => true });
+    const sut = makeSut();
+
+    const result = await sut.execute({
+      tenantId: 'tenant-1',
+      amount: 50,
+      description: 'Test',
+      reason: 'Test',
+      actor: opActor,
+    });
+
+    expect(result.currency).toBe('NZD');
+    const savedEntry = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
+    expect(savedEntry.currency).toBe('NZD');
+  });
+
+  it('should default to AUD when tenant not found', async () => {
+    tenantRepo.findById.mockResolvedValue(null);
+    const sut = makeSut();
+
+    const result = await sut.execute({
+      tenantId: 'tenant-1',
+      amount: 50,
+      description: 'Test',
+      reason: 'Test',
+      actor: opActor,
+    });
+
+    expect(result.currency).toBe('AUD');
   });
 
   it('should audit log the manual adjustment creation', async () => {

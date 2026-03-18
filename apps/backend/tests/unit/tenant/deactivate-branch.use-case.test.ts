@@ -110,7 +110,8 @@ describe('DeactivateBranchUseCase', () => {
 
     expect(branchRepo.update).toHaveBeenCalledWith(
       'branch-1',
-      expect.objectContaining({ status: 'INACTIVE', deletedAt: expect.any(Date) }),
+      'tenant-1',
+      { status: 'INACTIVE' },
     );
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({

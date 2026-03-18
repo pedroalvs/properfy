@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { formatDateTime } from '@/lib/format-date';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useSessionList } from '../hooks/useSessionList';
 import { useSessionRevoke } from '../hooks/useSessionRevoke';
@@ -10,7 +11,7 @@ import { useState } from 'react';
 
 export function SessionTable() {
   const { sessions, isLoading, isError, refetch } = useSessionList();
-  const { revoke, isRevoking } = useSessionRevoke();
+  const { revoke } = useSessionRevoke();
   const { showSuccess, showError } = useSnackbar();
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
 
@@ -43,7 +44,7 @@ export function SessionTable() {
       key: 'lastActiveAt',
       label: 'Last Active',
       width: '160px',
-      render: (row) => <>{new Date(row.lastActiveAt).toLocaleString('en-AU')}</>,
+      render: (row) => <>{formatDateTime(row.lastActiveAt)}</>,
     },
     {
       key: 'isCurrent',

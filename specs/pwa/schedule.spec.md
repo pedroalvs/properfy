@@ -91,7 +91,7 @@ interface InspectorProperty {
   state: string;
   latitude: number | null;
   longitude: number | null;
-  type: 'RESIDENTIAL' | 'COMMERCIAL' | 'LAND';
+  type: 'RESIDENTIAL' | 'COMMERCIAL' | 'INDUSTRIAL' | 'RURAL';
 }
 
 // Tenant contact (read-only for inspector)
@@ -268,7 +268,7 @@ Displays:
 - Full address: `streetAddress`, `addressLine2 || ''`, `suburb`, `state`, `postcode`
 - "Open in Maps" button → opens `https://maps.google.com/?q={streetAddress},{suburb},{state},{postcode}` in new tab (or native Maps app on mobile via deep link: `maps://...`)
 - If latitude/longitude available: shows static map thumbnail (Mapbox static image API)
-- Property type badge (Residential / Commercial / Land)
+- Property type badge (Residential / Commercial / Industrial / Rural)
 - Property code (small, gray)
 
 ---

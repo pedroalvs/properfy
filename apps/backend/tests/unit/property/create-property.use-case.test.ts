@@ -9,6 +9,11 @@ import { PropertyCodeConflictError } from '../../../src/modules/property/domain/
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
+import { sendJob } from '../../../src/shared/infrastructure/queue';
+
+vi.mock('../../../src/shared/infrastructure/queue', () => ({
+  sendJob: vi.fn().mockResolvedValue('job-id'),
+}));
 
 function makeProperty(
   overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {},
@@ -201,6 +206,26 @@ describe('CreatePropertyUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(ValidationError);
+  });
+
+  it('should enqueue geocoding job after successful creation', async () => {
+    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      propertyCode: 'PROP-GEO',
+      type: 'RESIDENTIAL',
+      street: '123 Main St',
+      suburb: 'Sydney',
+      postcode: '2000',
+      state: 'NSW',
+      country: 'AU',
+      actor: makeActor(),
+    });
+
+    expect(sendJob).toHaveBeenCalledWith('property.geocode', {
+      propertyId: result.id,
+    });
   });
 
   it('should validate branch and create property with branchId', async () => {

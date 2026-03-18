@@ -9,6 +9,22 @@ vi.mock('../../src/shared/infrastructure/queue', () => ({
   getQueue: vi.fn().mockResolvedValue({ work: mockWork, schedule: mockSchedule }),
 }));
 
+vi.mock('../../src/shared/infrastructure/prisma', () => ({
+  prisma: {
+    $queryRawUnsafe: vi.fn().mockResolvedValue([]),
+  },
+}));
+
+vi.mock('../../src/shared/infrastructure/metrics', () => ({
+  metrics: {
+    jobExecuted: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/shared/infrastructure/request-context', () => ({
+  runWithRequestContext: vi.fn((_ctx: any, fn: () => any) => fn()),
+}));
+
 import { registerWorkers } from '../../src/main/workers';
 
 describe('registerWorkers', () => {
@@ -17,11 +33,29 @@ describe('registerWorkers', () => {
   const mockPollRetryExecute = vi.fn().mockResolvedValue({ enqueuedCount: 0 });
   const mockDispatchRemindersExecute = vi.fn().mockResolvedValue({ dispatched: 0, skipped: 0 });
   const mockDispatchEscalationsExecute = vi.fn().mockResolvedValue({ pmEscalations: 0, smsAlerts: 0, skipped: 0 });
+  const mockCleanupSessionsExecute = vi.fn().mockResolvedValue({ deletedCount: 0 });
+  const mockExpireFilesExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
+  const mockGeocodeExecute = vi.fn().mockResolvedValue(undefined);
+  const mockImportExecute = vi.fn().mockResolvedValue(undefined);
+  const mockPropertyImportExecute = vi.fn().mockResolvedValue(undefined);
+  const mockGenerateInvoiceFileExecute = vi.fn().mockResolvedValue(undefined);
+  const mockExpireTokensExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
+  const mockExpireAssetsExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
+  const mockNotifyStuckExecute = vi.fn().mockResolvedValue({ notifiedCount: 0 });
   const mockProcessReportJobUseCase = { execute: mockReportExecute } as any;
   const mockSendNotificationUseCase = { execute: mockNotificationExecute } as any;
   const mockPollRetryableNotificationsUseCase = { execute: mockPollRetryExecute } as any;
   const mockDispatchRemindersUseCase = { execute: mockDispatchRemindersExecute } as any;
   const mockDispatchEscalationsUseCase = { execute: mockDispatchEscalationsExecute } as any;
+  const mockCleanupSessionsWorker = { execute: mockCleanupSessionsExecute } as any;
+  const mockExpireFilesWorker = { execute: mockExpireFilesExecute } as any;
+  const mockGeocodeWorker = { execute: mockGeocodeExecute } as any;
+  const mockImportWorker = { execute: mockImportExecute } as any;
+  const mockPropertyImportWorker = { execute: mockPropertyImportExecute } as any;
+  const mockGenerateInvoiceFileWorker = { execute: mockGenerateInvoiceFileExecute } as any;
+  const mockExpireTokensWorker = { execute: mockExpireTokensExecute } as any;
+  const mockExpireAssetsWorker = { execute: mockExpireAssetsExecute } as any;
+  const mockNotifyStuckWorker = { execute: mockNotifyStuckExecute } as any;
   const mockLogger = {
     info: vi.fn(),
     error: vi.fn(),
@@ -32,46 +66,65 @@ describe('registerWorkers', () => {
     child: vi.fn(),
   } as any;
 
+  function callRegister() {
+    return registerWorkers(
+      mockProcessReportJobUseCase,
+      mockSendNotificationUseCase,
+      mockPollRetryableNotificationsUseCase,
+      mockDispatchRemindersUseCase,
+      mockDispatchEscalationsUseCase,
+      mockCleanupSessionsWorker,
+      mockExpireFilesWorker,
+      mockGeocodeWorker,
+      mockPropertyImportWorker,
+      mockImportWorker,
+      mockGenerateInvoiceFileWorker,
+      mockExpireTokensWorker,
+      mockExpireAssetsWorker,
+      mockNotifyStuckWorker,
+      mockLogger,
+    );
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('registers all workers and schedules', async () => {
-    await registerWorkers(
-      mockProcessReportJobUseCase,
-      mockSendNotificationUseCase,
-      mockPollRetryableNotificationsUseCase,
-      mockDispatchRemindersUseCase,
-      mockDispatchEscalationsUseCase,
-      mockLogger,
-    );
+    await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(5);
+    expect(mockWork).toHaveBeenCalledTimes(15);
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.dispatch-reminders', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.dispatch-escalations', expect.any(Function));
-    expect(mockSchedule).toHaveBeenCalledTimes(3);
+    expect(mockWork).toHaveBeenCalledWith('auth.cleanup-sessions', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('report.expire-files', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('property.geocode', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('appointment.import', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('property.import', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('billing.generate-invoice-file', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('tenant-portal.expire-tokens', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('inspection-execution.notify-not-started', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
+    expect(mockSchedule).toHaveBeenCalledTimes(9);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 8 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 8 * * *', {});
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      'pg-boss workers registered: report.generate, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations',
-    );
+    expect(mockSchedule).toHaveBeenCalledWith('auth.cleanup-sessions', '0 2 * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('tenant-portal.expire-tokens', '*/15 * * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', '*/5 * * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('system.dlq-monitor', '*/5 * * * *', {});
   });
 
   it('report.generate handler calls processReportJobUseCase.execute with correct reportId', async () => {
-    await registerWorkers(
-      mockProcessReportJobUseCase,
-      mockSendNotificationUseCase,
-      mockPollRetryableNotificationsUseCase,
-      mockDispatchRemindersUseCase,
-      mockDispatchEscalationsUseCase,
-      mockLogger,
-    );
+    await callRegister();
 
-    const handler = mockWork.mock.calls[0][1];
+    const handler = mockWork.mock.calls.find((c: any) => c[0] === 'report.generate')![1];
     const fakeJob = { id: 'job-456', data: { reportId: 'report-123' } };
     await handler(fakeJob);
 
@@ -84,16 +137,9 @@ describe('registerWorkers', () => {
   });
 
   it('notification.send handler calls sendNotificationUseCase.execute with correct notificationId', async () => {
-    await registerWorkers(
-      mockProcessReportJobUseCase,
-      mockSendNotificationUseCase,
-      mockPollRetryableNotificationsUseCase,
-      mockDispatchRemindersUseCase,
-      mockDispatchEscalationsUseCase,
-      mockLogger,
-    );
+    await callRegister();
 
-    const handler = mockWork.mock.calls[1][1];
+    const handler = mockWork.mock.calls.find((c: any) => c[0] === 'notification.send')![1];
     const fakeJob = { id: 'job-789', data: { notificationId: 'notif-123' } };
     await handler(fakeJob);
 
@@ -108,16 +154,9 @@ describe('registerWorkers', () => {
   it('notification.retry-poll handler calls pollRetryableNotificationsUseCase.execute', async () => {
     mockPollRetryExecute.mockResolvedValueOnce({ enqueuedCount: 5 });
 
-    await registerWorkers(
-      mockProcessReportJobUseCase,
-      mockSendNotificationUseCase,
-      mockPollRetryableNotificationsUseCase,
-      mockDispatchRemindersUseCase,
-      mockDispatchEscalationsUseCase,
-      mockLogger,
-    );
+    await callRegister();
 
-    const handler = mockWork.mock.calls[2][1];
+    const handler = mockWork.mock.calls.find((c: any) => c[0] === 'notification.retry-poll')![1];
     const fakeJob = { id: 'job-poll' };
     await handler(fakeJob);
 
@@ -135,16 +174,9 @@ describe('registerWorkers', () => {
   it('notification.dispatch-reminders handler calls dispatchRemindersUseCase.execute and logs result', async () => {
     mockDispatchRemindersExecute.mockResolvedValueOnce({ dispatched: 3, skipped: 2 });
 
-    await registerWorkers(
-      mockProcessReportJobUseCase,
-      mockSendNotificationUseCase,
-      mockPollRetryableNotificationsUseCase,
-      mockDispatchRemindersUseCase,
-      mockDispatchEscalationsUseCase,
-      mockLogger,
-    );
+    await callRegister();
 
-    const handler = mockWork.mock.calls[3][1];
+    const handler = mockWork.mock.calls.find((c: any) => c[0] === 'notification.dispatch-reminders')![1];
     const fakeJob = { id: 'job-reminders' };
     await handler(fakeJob);
 
@@ -162,16 +194,9 @@ describe('registerWorkers', () => {
   it('notification.dispatch-escalations handler calls dispatchEscalationsUseCase.execute and logs result', async () => {
     mockDispatchEscalationsExecute.mockResolvedValueOnce({ pmEscalations: 2, smsAlerts: 1, skipped: 3 });
 
-    await registerWorkers(
-      mockProcessReportJobUseCase,
-      mockSendNotificationUseCase,
-      mockPollRetryableNotificationsUseCase,
-      mockDispatchRemindersUseCase,
-      mockDispatchEscalationsUseCase,
-      mockLogger,
-    );
+    await callRegister();
 
-    const handler = mockWork.mock.calls[4][1];
+    const handler = mockWork.mock.calls.find((c: any) => c[0] === 'notification.dispatch-escalations')![1];
     const fakeJob = { id: 'job-escalations' };
     await handler(fakeJob);
 
@@ -190,16 +215,9 @@ describe('registerWorkers', () => {
     const error = new Error('Report generation failed');
     mockReportExecute.mockRejectedValueOnce(error);
 
-    await registerWorkers(
-      mockProcessReportJobUseCase,
-      mockSendNotificationUseCase,
-      mockPollRetryableNotificationsUseCase,
-      mockDispatchRemindersUseCase,
-      mockDispatchEscalationsUseCase,
-      mockLogger,
-    );
+    await callRegister();
 
-    const handler = mockWork.mock.calls[0][1];
+    const handler = mockWork.mock.calls.find((c: any) => c[0] === 'report.generate')![1];
     const fakeJob = { id: 'job-err', data: { reportId: 'report-fail' } };
 
     await expect(handler(fakeJob)).rejects.toThrow('Report generation failed');
@@ -209,16 +227,9 @@ describe('registerWorkers', () => {
     const error = new Error('Notification send failed');
     mockNotificationExecute.mockRejectedValueOnce(error);
 
-    await registerWorkers(
-      mockProcessReportJobUseCase,
-      mockSendNotificationUseCase,
-      mockPollRetryableNotificationsUseCase,
-      mockDispatchRemindersUseCase,
-      mockDispatchEscalationsUseCase,
-      mockLogger,
-    );
+    await callRegister();
 
-    const handler = mockWork.mock.calls[1][1];
+    const handler = mockWork.mock.calls.find((c: any) => c[0] === 'notification.send')![1];
     const fakeJob = { id: 'job-err', data: { notificationId: 'notif-fail' } };
 
     await expect(handler(fakeJob)).rejects.toThrow('Notification send failed');

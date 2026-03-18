@@ -79,7 +79,7 @@ describe('DeactivateTenantUseCase', () => {
 
     expect(tenantRepo.update).toHaveBeenCalledWith(
       'tenant-1',
-      expect.objectContaining({ status: 'INACTIVE', deletedAt: expect.any(Date) }),
+      { status: 'INACTIVE' },
     );
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({

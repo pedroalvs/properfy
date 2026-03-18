@@ -42,7 +42,7 @@ Route access:
 
 ```typescript
 // Property type enum
-type PropertyType = 'RESIDENTIAL' | 'COMMERCIAL' | 'LAND';
+type PropertyType = 'RESIDENTIAL' | 'COMMERCIAL' | 'INDUSTRIAL' | 'RURAL';
 
 // Geocoding status
 type GeocodingStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
@@ -202,14 +202,14 @@ GET /v1/properties?branchId=&type=&geocodingStatus=&search=&page=&pageSize=&sort
 |---|---|---|
 | Property Code | Y | Link to detail page |
 | Address | N | streetAddress + suburb + postcode |
-| Type | N | Badge: Residential / Commercial / Land |
+| Type | N | Badge: Residential / Commercial / Industrial / Rural |
 | Branch | N | branch.name |
 | Geocoding | N | `GeocodingStatusBadge` |
 | Actions | N | View button |
 
 **Filter bar:**
 - Branch select (scoped to user's tenant for CL roles; all for AM/OP)
-- Property type select (Residential / Commercial / Land / All)
+- Property type select (Residential / Commercial / Industrial / Rural / All)
 - Geocoding status select (All / Pending / Success / Failed)
 - Text search (debounced 300ms, min 2 chars) – matches street address, suburb, postcode, property code
 
@@ -254,7 +254,7 @@ POST /v1/properties → Property
 |---|---|---|
 | Branch | Yes | Valid branch ID, scoped to tenant |
 | Property Code | Yes | 1–50 chars, alphanumeric + hyphens; unique within tenant (server-side) |
-| Type | Yes | One of RESIDENTIAL, COMMERCIAL, LAND |
+| Type | Yes | One of RESIDENTIAL, COMMERCIAL, INDUSTRIAL, RURAL |
 | Street Address | Yes | 5–200 chars |
 | Address Line 2 | No | Max 100 chars |
 | Suburb | Yes | 2–100 chars |
@@ -360,7 +360,7 @@ interface PropertyTypeSelectProps {
 }
 ```
 
-Options: "Residential", "Commercial", "Land"
+Options: "Residential", "Commercial", "Industrial", "Rural"
 
 ---
 

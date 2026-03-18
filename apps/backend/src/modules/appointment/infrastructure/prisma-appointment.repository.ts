@@ -41,6 +41,8 @@ function mapToEntity(row: any): AppointmentEntity {
     notes: row.notes,
     customFieldsJson: row.custom_fields_json as Record<string, unknown> | null,
     reason: row.reason,
+    cancellationReasonCode: row.cancellation_reason_code ?? null,
+    rejectionReasonCode: row.rejection_reason_code ?? null,
     createdByUserId: row.created_by_user_id,
     doneCheckedByUserId: row.done_checked_by_user_id,
     doneCheckedAt: row.done_checked_at,
@@ -171,6 +173,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       notes: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
+      cancellationReasonCode: string | null;
+      rejectionReasonCode: string | null;
       doneCheckedByUserId: string | null;
       doneCheckedAt: Date | null;
       serviceGroupId: string | null;
@@ -191,6 +195,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.notes !== undefined) updateData['notes'] = data.notes;
     if (data.customFieldsJson !== undefined) updateData['custom_fields_json'] = data.customFieldsJson;
     if (data.reason !== undefined) updateData['reason'] = data.reason;
+    if (data.cancellationReasonCode !== undefined) updateData['cancellation_reason_code'] = data.cancellationReasonCode;
+    if (data.rejectionReasonCode !== undefined) updateData['rejection_reason_code'] = data.rejectionReasonCode;
     if (data.doneCheckedByUserId !== undefined) {
       updateData['done_checked_by_user_id'] = data.doneCheckedByUserId;
     }
@@ -255,6 +261,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
   }
 
+  // Cross-tenant: background job processes all tenants for reminders/escalation
   async findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]> {
     const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
     const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
@@ -304,5 +311,25 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where['scheduled_date'] = dateFilter;
     }
     return where;
+  }
+
+  async findDuplicateForImport(
+    propertyId: string,
+    serviceTypeId: string,
+    tenantId: string,
+    sinceDate: Date,
+  ): Promise<AppointmentEntity | null> {
+    const row = await this.prisma.appointment.findFirst({
+      where: {
+        property_id: propertyId,
+        service_type_id: serviceTypeId,
+        tenant_id: tenantId,
+        created_at: { gte: sinceDate },
+        deleted_at: null,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return row ? mapToEntity(row) : null;
   }
 }

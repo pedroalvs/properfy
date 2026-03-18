@@ -64,7 +64,14 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
-          { path: 'appointments', element: <AppointmentListPage /> },
+          {
+            path: 'appointments',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <AppointmentListPage />
+              </AuthGuard>
+            ),
+          },
           {
             path: 'appointments/new',
             element: (
@@ -76,7 +83,7 @@ export const router = createBrowserRouter([
           {
             path: 'appointments/import',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <AppointmentImportPage />
               </AuthGuard>
             ),
@@ -97,7 +104,14 @@ export const router = createBrowserRouter([
               </AuthGuard>
             ),
           },
-          { path: 'properties', element: <PropertyListPage /> },
+          {
+            path: 'properties',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <PropertyListPage />
+              </AuthGuard>
+            ),
+          },
           {
             path: 'properties/new',
             element: (
@@ -109,7 +123,7 @@ export const router = createBrowserRouter([
           {
             path: 'properties/import',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <PropertyImportPage />
               </AuthGuard>
             ),
@@ -130,7 +144,14 @@ export const router = createBrowserRouter([
               </AuthGuard>
             ),
           },
-          { path: 'service-groups', element: <ServiceGroupListPage /> },
+          {
+            path: 'service-groups',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <ServiceGroupListPage />
+              </AuthGuard>
+            ),
+          },
           {
             path: 'service-groups/new',
             element: (
@@ -158,7 +179,7 @@ export const router = createBrowserRouter([
           {
             path: 'marketplace',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.INSP]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <MarketplacePage />
               </AuthGuard>
             ),
@@ -180,8 +201,22 @@ export const router = createBrowserRouter([
               { path: 'invoices', element: <InvoicesPage /> },
             ],
           },
-          { path: 'inspectors', element: <InspectorListPage /> },
-          { path: 'tenant-contacts', element: <TenantContactListPage /> },
+          {
+            path: 'inspectors',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <InspectorListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'tenant-contacts',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
+                <TenantContactListPage />
+              </AuthGuard>
+            ),
+          },
           {
             path: 'tenants',
             element: (
@@ -198,8 +233,22 @@ export const router = createBrowserRouter([
               </AuthGuard>
             ),
           },
-          { path: 'users', element: <UserListPage /> },
-          { path: 'reports', element: <ReportListPage /> },
+          {
+            path: 'users',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <UserListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'reports',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <ReportListPage />
+              </AuthGuard>
+            ),
+          },
           {
             path: 'service-types',
             element: (

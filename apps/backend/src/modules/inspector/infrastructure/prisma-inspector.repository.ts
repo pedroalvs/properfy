@@ -129,6 +129,7 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     });
   }
 
+  // Inspectors are global entities (not tenant-scoped); scoped by unique id only
   async update(
     id: string,
     data: Partial<{

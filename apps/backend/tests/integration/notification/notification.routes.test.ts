@@ -107,7 +107,9 @@ describe('GET /v1/notifications', () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockListNotificationsExecute.mockResolvedValueOnce({
       data: [fullNotification],
-      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+      total: 1,
+      page: 1,
+      pageSize: 20,
     });
 
     const res = await supertest(app.server)

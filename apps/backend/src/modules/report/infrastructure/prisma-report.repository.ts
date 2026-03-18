@@ -42,6 +42,17 @@ export class PrismaReportRepository implements IReportRepository {
     });
   }
 
+  async findExpiredWithFileKey(): Promise<ReportEntity[]> {
+    const rows = await this.prisma.report.findMany({
+      where: {
+        status: 'READY' as PrismaReportStatus,
+        expires_at: { lt: new Date() },
+        file_key: { not: null },
+      },
+    });
+    return rows.map((r) => this.toEntity(r));
+  }
+
   async save(entity: ReportEntity): Promise<void> {
     await this.prisma.report.create({
       data: {

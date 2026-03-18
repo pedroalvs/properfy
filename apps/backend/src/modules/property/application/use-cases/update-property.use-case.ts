@@ -2,10 +2,14 @@ import type { AuthContext, PropertyType } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IPropertyRepository } from '../../domain/property.repository';
+import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import {
   PropertyNotFoundError,
   PropertyCodeConflictError,
+  BranchInactiveError,
 } from '../../domain/property.errors';
+import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
+import { sendJob } from '../../../../shared/infrastructure/queue';
 
 export interface UpdatePropertyInput {
   propertyId: string;
@@ -19,6 +23,8 @@ export interface UpdatePropertyInput {
     postcode?: string;
     state?: string;
     country?: string;
+    latitude?: number | null;
+    longitude?: number | null;
     notes?: string | null;
     rulesJson?: Record<string, unknown> | null;
   };
@@ -38,6 +44,8 @@ export interface UpdatePropertyOutput {
   state: string;
   country: string;
   geocodingStatus: string;
+  latitude: number | null;
+  longitude: number | null;
   notes: string | null;
   rulesJson: Record<string, unknown>;
   createdAt: Date;
@@ -49,6 +57,7 @@ const ADDRESS_FIELDS = ['street', 'suburb', 'postcode', 'state', 'country'];
 export class UpdatePropertyUseCase {
   constructor(
     private readonly propertyRepo: IPropertyRepository,
+    private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
   ) {}
 
@@ -105,6 +114,13 @@ export class UpdatePropertyUseCase {
       }
     }
 
+    // Validate branch if changing
+    if (data.branchId !== undefined && data.branchId !== null) {
+      const branch = await this.branchRepo.findById(data.branchId, property.tenantId);
+      if (!branch) throw new BranchNotFoundError();
+      if (!branch.isActive()) throw new BranchInactiveError();
+    }
+
     // Build update payload
     const updateData: Record<string, unknown> = {};
     if (data.branchId !== undefined) updateData.branchId = data.branchId;
@@ -121,11 +137,17 @@ export class UpdatePropertyUseCase {
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.rulesJson !== undefined) updateData.rulesJson = data.rulesJson;
 
-    // Reset geocodingStatus if address fields changed
+    // Check if address fields changed
     const addressChanged = ADDRESS_FIELDS.some(
       (field) => (data as Record<string, unknown>)[field] !== undefined,
     );
-    if (addressChanged) {
+
+    // Manual coordinate override: if lat/lng explicitly provided, set MANUAL status
+    if (data.latitude !== undefined && data.longitude !== undefined) {
+      updateData.lat = data.latitude;
+      updateData.lng = data.longitude;
+      updateData.geocodingStatus = 'MANUAL';
+    } else if (addressChanged) {
       updateData.geocodingStatus = 'PENDING';
     }
 
@@ -144,6 +166,11 @@ export class UpdatePropertyUseCase {
       property.tenantId,
       updateData as Parameters<IPropertyRepository['update']>[2],
     );
+
+    // Enqueue geocoding job on address change (skip if manual coordinates provided)
+    if (addressChanged && !(data.latitude !== undefined && data.longitude !== undefined)) {
+      await sendJob('property.geocode', { propertyId });
+    }
 
     const after = {
       propertyCode:
@@ -187,6 +214,8 @@ export class UpdatePropertyUseCase {
       country: (updateData.country as string) ?? property.country,
       geocodingStatus:
         (updateData.geocodingStatus as string) ?? property.geocodingStatus,
+      latitude: data.latitude !== undefined ? (data.latitude ?? null) : (property.lat ?? null),
+      longitude: data.longitude !== undefined ? (data.longitude ?? null) : (property.lng ?? null),
       notes: data.notes !== undefined ? data.notes ?? null : property.notes,
       rulesJson:
         (updateData.rulesJson as Record<string, unknown>) ?? property.rulesJson,

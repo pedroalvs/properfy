@@ -1,23 +1,26 @@
 import { randomUUID } from 'crypto';
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, BillingPeriodType } from '@properfy/shared';
 import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice.repository';
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import { InspectorInvoiceEntity } from '../../domain/inspector-invoice.entity';
 import { InvoicePeriodOverlapError } from '../../domain/billing.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
 export interface GenerateInvoiceInput {
   inspectorId: string;
   periodStart: string; // YYYY-MM-DD
   periodEnd: string; // YYYY-MM-DD
+  periodType?: BillingPeriodType; // defaults to 'BIWEEKLY'
+  currency?: string; // defaults to 'AUD'
   actor: AuthContext;
 }
 
 export interface GenerateInvoiceOutput {
   invoiceId: string;
   status: 'CLOSED';
-  totalAmount: string;
+  totalAmount: number;
   currency: string;
   message: string;
 }
@@ -27,6 +30,7 @@ export class GenerateInvoiceUseCase {
     private readonly invoiceRepo: IInspectorInvoiceRepository,
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
+    private readonly jobQueue?: IJobQueue,
   ) {}
 
   async execute(input: GenerateInvoiceInput): Promise<GenerateInvoiceOutput> {
@@ -46,7 +50,7 @@ export class GenerateInvoiceUseCase {
       return {
         invoiceId: existing.id,
         status: 'CLOSED',
-        totalAmount: existing.totalAmount.toString(),
+        totalAmount: Number(existing.totalAmount),
         currency: existing.currency,
         message: 'Invoice generation queued. File will be available shortly.',
       };
@@ -73,10 +77,10 @@ export class GenerateInvoiceUseCase {
       inspectorId,
       periodStart: startDate,
       periodEnd: endDate,
-      periodType: 'BIWEEKLY',
+      periodType: input.periodType ?? 'BIWEEKLY',
       status: 'CLOSED',
       totalAmount,
-      currency: 'AUD',
+      currency: input.currency ?? 'AUD',
       fileKey: null,
       generatedByUserId: actor.userId,
       generatedAt: now,
@@ -101,16 +105,21 @@ export class GenerateInvoiceUseCase {
         periodStart,
         periodEnd,
         status: 'CLOSED',
-        totalAmount: totalAmount.toString(),
-        currency: 'AUD',
+        totalAmount: Number(totalAmount),
+        currency: input.currency ?? 'AUD',
       },
     });
+
+    // Enqueue file generation job
+    if (this.jobQueue) {
+      await this.jobQueue.enqueue('billing.generate-invoice-file', { invoiceId });
+    }
 
     return {
       invoiceId,
       status: 'CLOSED',
-      totalAmount: totalAmount.toString(),
-      currency: 'AUD',
+      totalAmount: Number(totalAmount),
+      currency: input.currency ?? 'AUD',
       message: 'Invoice generation queued. File will be available shortly.',
     };
   }

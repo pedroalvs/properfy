@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { AppContainer } from './container';
+import { metrics } from '../shared/infrastructure/metrics';
 import { registerAuthRoutes } from '../modules/auth/interfaces/auth.routes';
 import { registerTenantRoutes } from '../modules/tenant/interfaces/tenant.routes';
 import { registerUserRoutes } from '../modules/user/interfaces/user.routes';
@@ -72,6 +73,11 @@ export async function registerRoutes(
       timestamp,
     });
   });
+  // Metrics endpoint — no auth, intended for internal scraping
+  app.get('/metrics', async (_request, reply) => {
+    return reply.status(200).send(metrics.getSnapshot());
+  });
+
   await registerAuthRoutes(app, container.auth);
   await registerTenantRoutes(app, container.tenant);
   await registerUserRoutes(app, container.user);

@@ -87,7 +87,7 @@ describe('POST /v1/service-types', () => {
     expect(res.body.data.code).toBe('ROUTINE');
   });
 
-  it('should return 422 with invalid payload (missing code)', async () => {
+  it('should return 400 with invalid payload (missing code)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -98,7 +98,7 @@ describe('POST /v1/service-types', () => {
         flowType: 'ROUTINE',
       });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

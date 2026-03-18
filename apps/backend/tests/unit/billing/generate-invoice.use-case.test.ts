@@ -60,6 +60,7 @@ function makeSut() {
     count: vi.fn(),
     save: vi.fn(),
     updateStatus: vi.fn(),
+    transitionStatus: vi.fn(),
     sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
   } as unknown as IFinancialEntryRepository;
 
@@ -96,7 +97,7 @@ describe('GenerateInvoiceUseCase', () => {
     });
 
     expect(result.status).toBe('CLOSED');
-    expect(result.totalAmount).toBe('2500');
+    expect(result.totalAmount).toBe(2500);
     expect(result.currency).toBe('AUD');
     expect(result.invoiceId).toBeDefined();
     expect(result.message).toBe('Invoice generation queued. File will be available shortly.');
@@ -133,7 +134,7 @@ describe('GenerateInvoiceUseCase', () => {
     });
 
     expect(result.invoiceId).toBe('existing-inv');
-    expect(result.totalAmount).toBe('1400');
+    expect(result.totalAmount).toBe(1400);
     expect(invoiceRepo.save).not.toHaveBeenCalled();
     expect(financialEntryRepo.sumApprovedPayoutsForInspectorInPeriod).not.toHaveBeenCalled();
   });
@@ -191,10 +192,32 @@ describe('GenerateInvoiceUseCase', () => {
       actor: makeActor({ role: 'AM' }),
     });
 
-    expect(result.totalAmount).toBe('0');
+    expect(result.totalAmount).toBe(0);
     expect(result.status).toBe('CLOSED');
     expect(invoiceRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ totalAmount: 0 }),
+    );
+  });
+
+  it('should use provided periodType and currency', async () => {
+    const { useCase, invoiceRepo, financialEntryRepo } = sut;
+    vi.mocked(invoiceRepo.findByInspectorAndPeriod).mockResolvedValue(null);
+    vi.mocked(invoiceRepo.findOverlapping).mockResolvedValue(null);
+    vi.mocked(financialEntryRepo.sumApprovedPayoutsForInspectorInPeriod).mockResolvedValue(1000);
+    vi.mocked(invoiceRepo.save).mockResolvedValue(undefined);
+
+    const result = await useCase.execute({
+      inspectorId: 'insp-1',
+      periodStart: '2026-03-01',
+      periodEnd: '2026-03-31',
+      periodType: 'MONTHLY',
+      currency: 'NZD',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.currency).toBe('NZD');
+    expect(invoiceRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ periodType: 'MONTHLY', currency: 'NZD' }),
     );
   });
 

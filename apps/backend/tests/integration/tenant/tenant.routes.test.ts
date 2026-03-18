@@ -108,7 +108,7 @@ describe('POST /v1/tenants', () => {
     expect(res.body.data.name).toBe('Acme Realty');
   });
 
-  it('should return 422 with invalid payload (missing name)', async () => {
+  it('should return 400 with invalid payload (missing name)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -116,7 +116,7 @@ describe('POST /v1/tenants', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ legalName: 'Acme Realty Pty Ltd' });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
@@ -225,14 +225,14 @@ describe('GET /v1/tenants/:tenantId', () => {
     expect(res.status).toBe(404);
   });
 
-  it('should return 422 with invalid tenant ID format', async () => {
+  it('should return 400 with invalid tenant ID format', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
       .get('/v1/tenants/not-a-uuid')
       .set('Authorization', 'Bearer valid-token');
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 });
 
@@ -260,7 +260,7 @@ describe('PATCH /v1/tenants/:tenantId', () => {
     expect(res.body.data.name).toBe('Updated Realty');
   });
 
-  it('should return 422 with invalid payload', async () => {
+  it('should return 400 with invalid payload', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -268,24 +268,30 @@ describe('PATCH /v1/tenants/:tenantId', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ name: '' }); // min 1 char
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 });
 
 describe('POST /v1/tenants/:tenantId/deactivate', () => {
-  it('should return 204 on success', async () => {
+  it('should return 200 with updated entity on success', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockDeactivateTenantExecute.mockResolvedValueOnce(undefined);
+    mockDeactivateTenantExecute.mockResolvedValueOnce({
+      id: TENANT_ID,
+      name: 'Test Tenant',
+      status: 'INACTIVE',
+      deactivatedAt: new Date(),
+    });
 
     const res = await supertest(app.server)
       .post(`/v1/tenants/${TENANT_ID}/deactivate`)
       .set('Authorization', 'Bearer valid-token')
       .send({ reason: 'No longer active' });
 
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('INACTIVE');
   });
 
-  it('should return 422 when reason is missing', async () => {
+  it('should return 400 when reason is missing', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -293,7 +299,7 @@ describe('POST /v1/tenants/:tenantId/deactivate', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({});
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
@@ -323,7 +329,7 @@ describe('POST /v1/tenants/:tenantId/branches', () => {
     expect(res.body.data.name).toBe('Main Branch');
   });
 
-  it('should return 422 with invalid payload (missing name)', async () => {
+  it('should return 400 with invalid payload (missing name)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -331,7 +337,7 @@ describe('POST /v1/tenants/:tenantId/branches', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({});
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 });
 
@@ -389,7 +395,7 @@ describe('PATCH /v1/tenants/:tenantId/branches/:branchId', () => {
     expect(res.body.data.name).toBe('Updated Branch');
   });
 
-  it('should return 422 with invalid branch ID format', async () => {
+  it('should return 400 with invalid branch ID format', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -397,24 +403,31 @@ describe('PATCH /v1/tenants/:tenantId/branches/:branchId', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ name: 'Updated Branch' });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 });
 
 describe('POST /v1/tenants/:tenantId/branches/:branchId/deactivate', () => {
-  it('should return 204 on success', async () => {
+  it('should return 200 with updated entity on success', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockDeactivateBranchExecute.mockResolvedValueOnce(undefined);
+    mockDeactivateBranchExecute.mockResolvedValueOnce({
+      id: BRANCH_ID,
+      tenantId: TENANT_ID,
+      name: 'Test Branch',
+      status: 'INACTIVE',
+      deactivatedAt: new Date(),
+    });
 
     const res = await supertest(app.server)
       .post(`/v1/tenants/${TENANT_ID}/branches/${BRANCH_ID}/deactivate`)
       .set('Authorization', 'Bearer valid-token')
       .send({ reason: 'Branch closed' });
 
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('INACTIVE');
   });
 
-  it('should return 422 when reason is missing', async () => {
+  it('should return 400 when reason is missing', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -422,7 +435,7 @@ describe('POST /v1/tenants/:tenantId/branches/:branchId/deactivate', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({});
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 
   it('should return 401 without auth token', async () => {

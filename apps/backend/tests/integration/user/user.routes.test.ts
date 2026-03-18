@@ -104,7 +104,7 @@ describe('POST /v1/tenants/:tenantId/users', () => {
     expect(res.body.data.name).toBe('John Doe');
   });
 
-  it('should return 422 with invalid payload (missing email)', async () => {
+  it('should return 400 with invalid payload (missing email)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -116,11 +116,11 @@ describe('POST /v1/tenants/:tenantId/users', () => {
         role: 'CL_ADMIN',
       });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('should return 422 with weak password', async () => {
+  it('should return 400 with weak password', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -133,7 +133,7 @@ describe('POST /v1/tenants/:tenantId/users', () => {
         role: 'CL_ADMIN',
       });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 
   it('should return 401 without auth token', async () => {
@@ -235,14 +235,14 @@ describe('GET /v1/tenants/:tenantId/users/:userId', () => {
     expect(res.status).toBe(404);
   });
 
-  it('should return 422 with invalid user ID format', async () => {
+  it('should return 400 with invalid user ID format', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
       .get(`/v1/tenants/${TENANT_ID}/users/not-a-uuid`)
       .set('Authorization', 'Bearer valid-token');
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 });
 
@@ -274,7 +274,7 @@ describe('PATCH /v1/tenants/:tenantId/users/:userId', () => {
     expect(res.body.data.name).toBe('Jane Doe');
   });
 
-  it('should return 422 with invalid payload', async () => {
+  it('should return 400 with invalid payload', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -282,7 +282,7 @@ describe('PATCH /v1/tenants/:tenantId/users/:userId', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ name: '' }); // min 1 char
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 });
 
@@ -299,7 +299,7 @@ describe('POST /v1/tenants/:tenantId/users/:userId/deactivate', () => {
     expect(res.status).toBe(204);
   });
 
-  it('should return 422 when reason is missing', async () => {
+  it('should return 400 when reason is missing', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -307,7 +307,7 @@ describe('POST /v1/tenants/:tenantId/users/:userId/deactivate', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({});
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 

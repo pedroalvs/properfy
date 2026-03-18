@@ -41,6 +41,10 @@ export function createMockContainer(
     signAccessToken: vi.fn(),
   };
 
+  const defaultTenantRepo = {
+    findById: vi.fn().mockResolvedValue({ isActive: () => true }),
+  };
+
   const base: AppContainer = {
     prisma: {} as AppContainer['prisma'],
     auditService: { log: vi.fn() } as unknown as AppContainer['auditService'],
@@ -51,7 +55,10 @@ export function createMockContainer(
       getMeUseCase: { execute: vi.fn() },
       changePasswordUseCase: { execute: vi.fn() },
       revokeSessionUseCase: { execute: vi.fn() },
+      setupTotpUseCase: { execute: vi.fn() },
+      confirmTotpUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['auth'],
     tenant: {
       createTenantUseCase: { execute: vi.fn() },
@@ -64,6 +71,7 @@ export function createMockContainer(
       updateBranchUseCase: { execute: vi.fn() },
       deactivateBranchUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['tenant'],
     user: {
       createUserUseCase: { execute: vi.fn() },
@@ -72,6 +80,7 @@ export function createMockContainer(
       updateUserUseCase: { execute: vi.fn() },
       deactivateUserUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['user'],
     property: {
       createPropertyUseCase: { execute: vi.fn() },
@@ -79,7 +88,11 @@ export function createMockContainer(
       listPropertiesUseCase: { execute: vi.fn() },
       updatePropertyUseCase: { execute: vi.fn() },
       deletePropertyUseCase: { execute: vi.fn() },
+      geocodePropertyUseCase: { execute: vi.fn() },
+      importPropertiesUseCase: { execute: vi.fn() },
+      getPropertyImportStatusUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['property'],
     serviceType: {
       createServiceTypeUseCase: { execute: vi.fn() },
@@ -87,12 +100,14 @@ export function createMockContainer(
       listServiceTypesUseCase: { execute: vi.fn() },
       updateServiceTypeUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['serviceType'],
     pricingRule: {
       createPricingRuleUseCase: { execute: vi.fn() },
       listPricingRulesUseCase: { execute: vi.fn() },
       updatePricingRuleUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['pricingRule'],
     inspector: {
       createInspectorUseCase: { execute: vi.fn() },
@@ -103,6 +118,7 @@ export function createMockContainer(
       listAvailabilitySlotsUseCase: { execute: vi.fn() },
       updateAvailabilitySlotUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['inspector'],
     appointment: {
       createAppointmentUseCase: { execute: vi.fn() },
@@ -111,11 +127,15 @@ export function createMockContainer(
       updateAppointmentUseCase: { execute: vi.fn() },
       executeStatusTransitionUseCase: { execute: vi.fn() },
       forceManualConfirmationUseCase: { execute: vi.fn() },
+      importAppointmentsUseCase: { execute: vi.fn() },
+      getImportStatusUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['appointment'],
     audit: {
       listAuditLogsUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['audit'],
     serviceGroup: {
       createServiceGroupUseCase: { execute: vi.fn() },
@@ -125,11 +145,13 @@ export function createMockContainer(
       assignInspectorManuallyUseCase: { execute: vi.fn() },
       cancelServiceGroupUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['serviceGroup'],
     marketplace: {
       getMarketplaceOffersUseCase: { execute: vi.fn() },
       acceptOfferUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['marketplace'],
     tenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
@@ -148,6 +170,7 @@ export function createMockContainer(
       },
       tokenService: { generateRawToken: vi.fn(), hashToken: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['tenantPortal'],
     inspectorExecution: {
       getInspectorScheduleUseCase: { execute: vi.fn() },
@@ -157,6 +180,7 @@ export function createMockContainer(
       requestAssetUploadUseCase: { execute: vi.fn() },
       confirmAssetUploadUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['inspectorExecution'],
     billing: {
       createFinancialEntriesOnDoneUseCase: { execute: vi.fn() },
@@ -170,6 +194,7 @@ export function createMockContainer(
       getInvoiceUseCase: { execute: vi.fn() },
       downloadInvoiceUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['billing'],
     report: {
       requestReportUseCase: { execute: vi.fn() },
@@ -178,6 +203,7 @@ export function createMockContainer(
       listReportsUseCase: { execute: vi.fn() },
       processReportJobUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['report'],
     notification: {
       sendNotificationUseCase: { execute: vi.fn() },
@@ -188,11 +214,22 @@ export function createMockContainer(
       upsertNotificationTemplateUseCase: { execute: vi.fn() },
       listNotificationTemplatesUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['notification'],
     dashboard: {
       getDashboardStatsUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['dashboard'],
+    cleanupSessionsWorker: { execute: vi.fn() } as AppContainer['cleanupSessionsWorker'],
+    expireFilesWorker: { execute: vi.fn() } as AppContainer['expireFilesWorker'],
+    geocodeWorker: { execute: vi.fn() } as AppContainer['geocodeWorker'],
+    propertyImportWorker: { execute: vi.fn() } as AppContainer['propertyImportWorker'],
+    appointmentImportWorker: { execute: vi.fn() } as AppContainer['appointmentImportWorker'],
+    generateInvoiceFileWorker: { execute: vi.fn() } as AppContainer['generateInvoiceFileWorker'],
+    expireTokensWorker: { execute: vi.fn() } as AppContainer['expireTokensWorker'],
+    expireAssetsWorker: { execute: vi.fn() } as AppContainer['expireAssetsWorker'],
+    notifyStuckInspectionsWorker: { execute: vi.fn() } as AppContainer['notifyStuckInspectionsWorker'],
   };
 
   return deepMerge(base, overrides as DeepPartial<Record<string, unknown>>) as unknown as AppContainer;

@@ -79,7 +79,7 @@ describe('ListInvoicesUseCase', () => {
     expect(result.page).toBe(1);
     expect(result.pageSize).toBe(10);
     expect(result.data[0].id).toBe('invoice-1');
-    expect(result.data[0].totalAmount).toBe('1400');
+    expect(result.data[0].totalAmount).toBe(1400);
     expect(result.data[0].periodStart).toBe('2026-03-01');
     expect(result.data[0].periodEnd).toBe('2026-03-15');
   });

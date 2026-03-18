@@ -5,6 +5,8 @@ import { registerRoutes } from './routes';
 import { createContainer } from './container';
 import { registerErrorHandler } from '../shared/interfaces/error-handler';
 import { validateEnv, getEnv } from './env';
+import { runWithRequestContext } from '../shared/infrastructure/request-context';
+import { checkMandatoryTemplates } from '../shared/infrastructure/template-startup-check';
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 
@@ -70,6 +72,14 @@ async function createApp() {
   await registerPlugins(app);
   registerErrorHandler(app);
 
+  // Propagate requestId via AsyncLocalStorage for use cases and workers
+  app.addHook('onRequest', (request, _reply, done) => {
+    const requestId = request.id as string;
+    runWithRequestContext({ requestId }, () => {
+      done();
+    });
+  });
+
   const container = createContainer(app.log);
   await registerRoutes(app, container);
 
@@ -95,9 +105,21 @@ async function start() {
       container.notification.pollRetryableNotificationsUseCase,
       container.notification.dispatchRemindersUseCase,
       container.notification.dispatchEscalationsUseCase,
+      container.cleanupSessionsWorker,
+      container.expireFilesWorker,
+      container.geocodeWorker,
+      container.propertyImportWorker,
+      container.appointmentImportWorker,
+      container.generateInvoiceFileWorker,
+      container.expireTokensWorker,
+      container.expireAssetsWorker,
+      container.notifyStuckInspectionsWorker,
       app.log,
     );
   }
+
+  // Check mandatory notification templates at startup (non-blocking)
+  await checkMandatoryTemplates(app.log);
 
   try {
     await app.listen({ port: env.PORT, host: '0.0.0.0' });

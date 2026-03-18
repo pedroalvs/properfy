@@ -9,6 +9,8 @@ import {
   ReportConcurrentLimitExceededError,
   ReportTypeForbiddenError,
 } from '../../domain/report.errors';
+import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import {
   MAX_DATE_RANGE_MONTHS,
   MAX_CONCURRENT_REPORTS,
@@ -51,6 +53,7 @@ export class RequestReportUseCase {
     private readonly reportRepo: IReportRepository,
     private readonly jobQueue: IJobQueue,
     private readonly auditService: AuditService,
+    private readonly tenantRepo?: ITenantRepository,
   ) {}
 
   async execute(input: RequestReportInput, auth: AuthContext): Promise<RequestReportOutput> {
@@ -60,6 +63,20 @@ export class RequestReportUseCase {
     // 1. Check restricted report types
     if (RESTRICTED_REPORT_TYPES.includes(reportType) && role !== 'AM' && role !== 'OP') {
       throw new ReportTypeForbiddenError();
+    }
+
+    // 1b. Check CL_USER export_reports permission
+    if (role === 'CL_USER') {
+      if (!tenantId) {
+        throw new ForbiddenError('FORBIDDEN', 'Missing tenant context');
+      }
+      if (this.tenantRepo) {
+        const tenant = await this.tenantRepo.findById(tenantId);
+        const clUserPermissions = (tenant?.settingsJson?.clUserPermissions as string[]) ?? [];
+        if (!clUserPermissions.includes('export_reports')) {
+          throw new ForbiddenError('FORBIDDEN', 'CL_USER does not have export_reports permission');
+        }
+      }
     }
 
     // 2. Validate date range

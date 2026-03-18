@@ -7,7 +7,7 @@ const mockEntries = [
     id: 'fin-01',
     entryType: 'TENANT_DEBIT',
     amount: 150.0,
-    currency: 'BRL',
+    currency: 'AUD',
     status: 'PENDING',
     description: 'Inspection fee',
     relatedEntityName: 'Branch Centro',

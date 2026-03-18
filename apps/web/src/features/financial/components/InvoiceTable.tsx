@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { formatDate } from '@/lib/format-date';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
 import type { Invoice } from '../types';
 
@@ -44,7 +45,7 @@ export function InvoiceTable({
       sortable: true,
       render: (row) => (
         <>
-          {new Date(row.periodStart).toLocaleDateString('en-AU')} - {new Date(row.periodEnd).toLocaleDateString('en-AU')}
+          {formatDate(row.periodStart)} - {formatDate(row.periodEnd)}
         </>
       ),
     },

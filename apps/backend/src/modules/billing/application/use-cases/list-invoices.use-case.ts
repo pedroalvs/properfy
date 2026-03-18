@@ -23,7 +23,7 @@ export interface InvoiceOutputItem {
   periodEnd: string;
   periodType: string;
   status: string;
-  totalAmount: string;
+  totalAmount: number;
   currency: string;
   generatedAt: string | null;
   paidAt: string | null;
@@ -79,7 +79,7 @@ export class ListInvoicesUseCase {
         periodEnd: formatDate(invoice.periodEnd),
         periodType: invoice.periodType,
         status: invoice.status,
-        totalAmount: invoice.totalAmount.toString(),
+        totalAmount: Number(invoice.totalAmount),
         currency: invoice.currency,
         generatedAt: invoice.generatedAt ? invoice.generatedAt.toISOString() : null,
         paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : null,

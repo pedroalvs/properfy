@@ -18,6 +18,7 @@ export interface AcceptOfferInput {
   groupId: string;
   inspectorId: string;
   actor: AuthContext;
+  idempotencyKey?: string;
 }
 
 export interface AcceptOfferOutput {
@@ -39,7 +40,7 @@ export class AcceptOfferUseCase {
   async execute(input: AcceptOfferInput): Promise<AcceptOfferOutput> {
     const { actor, groupId, inspectorId } = input;
 
-    const idempotencyKey = `accept-offer:${groupId}:${inspectorId}`;
+    const idempotencyKey = input.idempotencyKey ?? `accept-offer:${groupId}:${inspectorId}`;
     const cached = await this.idempotencyService.get<AcceptOfferOutput>(idempotencyKey, 'accept-offer');
     if (cached) {
       return cached;

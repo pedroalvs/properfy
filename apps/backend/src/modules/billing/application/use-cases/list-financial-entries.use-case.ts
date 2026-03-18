@@ -5,6 +5,7 @@ import type {
   FinancialEntryPagination,
 } from '../../domain/financial-entry.repository';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 
 export interface ListFinancialEntriesInput {
   type?: string;
@@ -26,7 +27,7 @@ export interface FinancialEntryOutputItem {
   appointmentId: string | null;
   inspectorId: string | null;
   entryType: string;
-  amount: string;
+  amount: number;
   currency: string;
   status: string;
   description: string;
@@ -47,7 +48,10 @@ export interface ListFinancialEntriesOutput {
 }
 
 export class ListFinancialEntriesUseCase {
-  constructor(private readonly entryRepo: IFinancialEntryRepository) {}
+  constructor(
+    private readonly entryRepo: IFinancialEntryRepository,
+    private readonly auditService: AuditService,
+  ) {}
 
   async execute(input: ListFinancialEntriesInput): Promise<ListFinancialEntriesOutput> {
     const { actor } = input;
@@ -66,6 +70,23 @@ export class ListFinancialEntriesUseCase {
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
       if (input.type) filters.entryType = input.type as FinancialEntryFilters['entryType'];
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
+
+      // Audit cross-tenant access
+      const isCrossTenant = input.tenantId && input.tenantId !== actor.tenantId;
+      if (isCrossTenant) {
+        this.auditService.log({
+          action: 'financial_entry.cross_tenant_list',
+          actorType: 'USER',
+          actorId: actor.userId,
+          entityType: 'FinancialEntry',
+          tenantId: input.tenantId,
+          metadata: {
+            actorRole: actor.role,
+            actorTenantId: actor.tenantId,
+            targetTenantId: input.tenantId,
+          },
+        });
+      }
     } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       // Client roles: forced tenantId from JWT, ignore query param
       filters.tenantId = actor.tenantId!;
@@ -98,7 +119,7 @@ export class ListFinancialEntriesUseCase {
         appointmentId: entry.appointmentId,
         inspectorId: entry.inspectorId,
         entryType: entry.entryType,
-        amount: entry.amount.toString(),
+        amount: Number(entry.amount),
         currency: entry.currency,
         status: entry.status,
         description: entry.description,

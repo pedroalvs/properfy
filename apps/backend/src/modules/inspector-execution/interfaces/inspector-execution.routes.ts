@@ -10,17 +10,21 @@ import {
   inspectionAssetResponseSchema,
   appointmentResponseSchema,
   successResponseSchema,
+  listMarketplaceOffersQuerySchema,
+  marketplaceOfferResponseSchema,
+  paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
 import { IdempotencyKeyMissingError } from '../domain/inspection-execution.errors';
-import { success } from '../../../shared/interfaces/response';
+import { success, paginated } from '../../../shared/interfaces/response';
 import type { GetInspectorScheduleUseCase } from '../application/use-cases/get-inspector-schedule.use-case';
 import type { GetAppointmentDetailUseCase } from '../application/use-cases/get-appointment-detail.use-case';
 import type { StartInspectionUseCase } from '../application/use-cases/start-inspection.use-case';
 import type { FinishInspectionUseCase } from '../application/use-cases/finish-inspection.use-case';
 import type { RequestAssetUploadUseCase } from '../application/use-cases/request-asset-upload.use-case';
 import type { ConfirmAssetUploadUseCase } from '../application/use-cases/confirm-asset-upload.use-case';
+import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface InspectorExecutionRouteContainer {
@@ -30,7 +34,9 @@ export interface InspectorExecutionRouteContainer {
   finishInspectionUseCase: FinishInspectionUseCase;
   requestAssetUploadUseCase: RequestAssetUploadUseCase;
   confirmAssetUploadUseCase: ConfirmAssetUploadUseCase;
+  getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const appointmentIdParam = z.object({ appointmentId: z.string().uuid() });
@@ -40,8 +46,12 @@ export async function registerInspectorExecutionRoutes(
   app: FastifyInstance,
   container: InspectorExecutionRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // GET /v1/inspector/schedule
@@ -167,6 +177,31 @@ export async function registerInspectorExecutionRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/inspector/offers — paginated 200
+  app.get(
+    '/v1/inspector/offers',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: listMarketplaceOffersQuerySchema,
+        response: { 200: paginatedResponseSchema(marketplaceOfferResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = listMarketplaceOffersQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const { page, pageSize, sortBy, sortOrder } = parsed.data;
+      const result = await container.getMarketplaceOffersUseCase.execute({
+        inspectorId: request.authContext!.inspectorId!,
+        pagination: { page, pageSize, sortBy, sortOrder },
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
     },
   );
 }

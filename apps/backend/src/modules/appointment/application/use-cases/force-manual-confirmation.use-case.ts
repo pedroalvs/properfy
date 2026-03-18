@@ -3,6 +3,8 @@ import type { IAppointmentRepository } from '../../domain/appointment.repository
 import { AppointmentNotFoundError } from '../../domain/appointment.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { assertClUserPermission } from '../../../../shared/domain/cl-user-permissions';
 
 export interface ForceManualConfirmationInput {
   appointmentId: string;
@@ -20,14 +22,19 @@ export class ForceManualTenantConfirmationUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly tenantRepo?: ITenantRepository,
   ) {}
 
   async execute(input: ForceManualConfirmationInput): Promise<ForceManualConfirmationOutput> {
     const { appointmentId, tenantConfirmationStatus, reason, actor } = input;
 
-    // 1. RBAC: AM/OP only
+    // 1. RBAC: AM/OP allowed, CL_USER with force_confirmation permission
     if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Only AM and OP can force tenant confirmation');
+      if (actor.role === 'CL_USER' && this.tenantRepo) {
+        await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'force_confirmation');
+      } else {
+        throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+      }
     }
 
     // 2. Find appointment (AM/OP have global access)

@@ -48,10 +48,12 @@ function makeSut() {
     count: vi.fn(),
     save: vi.fn(),
     updateStatus: vi.fn(),
+    transitionStatus: vi.fn(),
     sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
   };
-  const useCase = new ListFinancialEntriesUseCase(entryRepo);
-  return { entryRepo, useCase };
+  const auditService = { log: vi.fn() };
+  const useCase = new ListFinancialEntriesUseCase(entryRepo, auditService as any);
+  return { entryRepo, auditService, useCase };
 }
 
 const defaultInput = {
@@ -63,12 +65,14 @@ const defaultInput = {
 
 describe('ListFinancialEntriesUseCase', () => {
   let entryRepo: IFinancialEntryRepository;
+  let auditService: { log: ReturnType<typeof vi.fn> };
   let useCase: ListFinancialEntriesUseCase;
 
   beforeEach(() => {
     vi.clearAllMocks();
     const sut = makeSut();
     entryRepo = sut.entryRepo;
+    auditService = sut.auditService;
     useCase = sut.useCase;
   });
 
@@ -204,8 +208,8 @@ describe('ListFinancialEntriesUseCase', () => {
       actor: makeActor({ role: 'AM' }),
     });
 
-    expect(result.data[0].amount).toBe('199.5');
-    expect(typeof result.data[0].amount).toBe('string');
+    expect(result.data[0].amount).toBe(199.5);
+    expect(typeof result.data[0].amount).toBe('number');
   });
 
   it('should format dates as ISO strings in output', async () => {
@@ -259,5 +263,62 @@ describe('ListFinancialEntriesUseCase', () => {
       expect.objectContaining({ tenantId: 'tenant-5' }),
       expect.any(Object),
     );
+  });
+
+  it('should audit log when AM accesses cross-tenant financial data', async () => {
+    vi.mocked(entryRepo.findAll).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      tenantId: 'tenant-other',
+      actor: makeActor({ role: 'AM', tenantId: null, userId: 'am-1' }),
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'financial_entry.cross_tenant_list',
+        actorType: 'USER',
+        actorId: 'am-1',
+        entityType: 'FinancialEntry',
+        tenantId: 'tenant-other',
+        metadata: expect.objectContaining({
+          actorRole: 'AM',
+          targetTenantId: 'tenant-other',
+        }),
+      }),
+    );
+  });
+
+  it('should audit log when OP accesses cross-tenant financial data', async () => {
+    vi.mocked(entryRepo.findAll).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      tenantId: 'tenant-5',
+      actor: makeActor({ role: 'OP', tenantId: 'tenant-1', userId: 'op-1' }),
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'financial_entry.cross_tenant_list',
+        actorType: 'USER',
+        actorId: 'op-1',
+        tenantId: 'tenant-5',
+      }),
+    );
+  });
+
+  it('should not audit log when AM lists without tenant filter', async () => {
+    vi.mocked(entryRepo.findAll).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 });

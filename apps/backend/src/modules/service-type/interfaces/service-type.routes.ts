@@ -23,6 +23,7 @@ export interface ServiceTypeRouteContainer {
   listServiceTypesUseCase: ListServiceTypesUseCase;
   updateServiceTypeUseCase: UpdateServiceTypeUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const serviceTypeIdParam = z.object({ serviceTypeId: z.string().uuid() });
@@ -31,8 +32,12 @@ export async function registerServiceTypeRoutes(
   app: FastifyInstance,
   container: ServiceTypeRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // POST /v1/service-types

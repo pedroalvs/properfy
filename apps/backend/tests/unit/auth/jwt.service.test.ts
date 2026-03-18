@@ -86,4 +86,49 @@ describe('JwtService', () => {
     const ctx = await jwtService.verify(token);
     expect(ctx.inspectorId).toBeNull();
   });
+
+  describe('key rotation with expiration', () => {
+    it('should verify token signed with previous key when not expired', async () => {
+      const { privateKey: prevPriv, publicKey: prevPub } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+      const prevPrivPem = prevPriv.export({ type: 'pkcs8', format: 'pem' }) as string;
+      const prevPubPem = prevPub.export({ type: 'spki', format: 'pem' }) as string;
+
+      // Sign token with previous key
+      const prevService = new JwtService({ privateKeyPem: prevPrivPem, publicKeyPem: prevPubPem, keyId: 'prev-key-v1' });
+      const token = await prevService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null });
+
+      // Create new service that knows about previous key (not expired)
+      const rotatedService = new JwtService({
+        privateKeyPem,
+        publicKeyPem,
+        keyId: 'test-key-v2',
+        previousPublicKeyPem: prevPubPem,
+        previousKeyId: 'prev-key-v1',
+        previousKeyExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      });
+      const ctx = await rotatedService.verify(token);
+      expect(ctx.userId).toBe('user-1');
+    });
+
+    it('should reject token signed with previous key when expired', async () => {
+      const { privateKey: prevPriv, publicKey: prevPub } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+      const prevPrivPem = prevPriv.export({ type: 'pkcs8', format: 'pem' }) as string;
+      const prevPubPem = prevPub.export({ type: 'spki', format: 'pem' }) as string;
+
+      // Sign token with previous key
+      const prevService = new JwtService({ privateKeyPem: prevPrivPem, publicKeyPem: prevPubPem, keyId: 'prev-key-v1' });
+      const token = await prevService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null });
+
+      // Create new service with expired previous key
+      const rotatedService = new JwtService({
+        privateKeyPem,
+        publicKeyPem,
+        keyId: 'test-key-v2',
+        previousPublicKeyPem: prevPubPem,
+        previousKeyId: 'prev-key-v1',
+        previousKeyExpiresAt: new Date(Date.now() - 1000), // already expired
+      });
+      await expect(rotatedService.verify(token)).rejects.toThrow();
+    });
+  });
 });

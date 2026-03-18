@@ -9,11 +9,13 @@ import {
 } from '../../domain/billing.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 
 export interface CreateRefundInput {
   entryId: string;
   description: string;
   reason: string;
+  idempotencyKey?: string;
   actor: AuthContext;
 }
 
@@ -36,6 +38,7 @@ export class CreateRefundUseCase {
   constructor(
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
+    private readonly idempotencyService: IIdempotencyService,
   ) {}
 
   async execute(input: CreateRefundInput): Promise<CreateRefundOutput> {
@@ -44,6 +47,14 @@ export class CreateRefundUseCase {
     // 1. Validate actor role
     if (actor.role !== 'AM' && actor.role !== 'OP') {
       throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can create refunds');
+    }
+
+    // 1.5 Idempotency check
+    if (input.idempotencyKey) {
+      const cached = await this.idempotencyService.get<CreateRefundOutput>(input.idempotencyKey, 'refund');
+      if (cached) {
+        return cached;
+      }
     }
 
     // 2. Load original entry
@@ -110,7 +121,7 @@ export class CreateRefundUseCase {
       },
     });
 
-    return {
+    const result: CreateRefundOutput = {
       id,
       tenantId: original.tenantId,
       appointmentId: original.appointmentId,
@@ -124,5 +135,11 @@ export class CreateRefundUseCase {
       initiatedByUserId: actor.userId,
       createdAt: now,
     };
+
+    if (input.idempotencyKey) {
+      await this.idempotencyService.set(input.idempotencyKey, 'refund', result, 24);
+    }
+
+    return result;
   }
 }

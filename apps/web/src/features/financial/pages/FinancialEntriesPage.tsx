@@ -30,7 +30,7 @@ export function FinancialEntriesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
 
@@ -45,16 +45,23 @@ export function FinancialEntriesPage() {
   }, []);
 
   const handleToggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
-    );
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }, []);
 
-  const handleToggleSelectAll = useCallback(() => {
-    setSelectedIds((prev) =>
-      prev.length === data.length ? [] : data.map((e) => e.id),
-    );
-  }, [data]);
+  const pendingIds = data.filter((e) => e.status === 'PENDING').map((e) => e.id);
+
+  const handleSelectAllPending = useCallback(() => {
+    setSelectedIds((prev) => {
+      const allSelected = pendingIds.length > 0 && pendingIds.every((id) => prev.has(id));
+      if (allSelected) return new Set();
+      return new Set(pendingIds);
+    });
+  }, [pendingIds]);
 
   const handleApproveComplete = useCallback((result: { success: boolean; failedCount: number }) => {
     if (result.success) {
@@ -106,37 +113,6 @@ export function FinancialEntriesPage() {
           onFiltersChange={setFilters}
         />
         <div className="mt-2">
-          {!isLoading && data.length > 0 && (
-            <div className="mb-2 flex flex-wrap items-center gap-3 rounded bg-app-bg px-3 py-2" data-testid="batch-select-bar">
-              <label className="flex items-center gap-2 text-sm text-text-secondary">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.length === data.length && data.length > 0}
-                  onChange={handleToggleSelectAll}
-                  className="accent-primary"
-                  aria-label="Select all entries"
-                />
-                Select all
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {data.map((entry) => (
-                  <label
-                    key={entry.id}
-                    className="flex items-center gap-1 rounded border border-black/10 bg-card-bg px-2 py-1 text-xs text-text-primary"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(entry.id)}
-                      onChange={() => handleToggleSelect(entry.id)}
-                      className="accent-primary"
-                      aria-label={`Select ${entry.appointmentCode}`}
-                    />
-                    {entry.appointmentCode}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
           <FinancialTable
             data={data}
             loading={isLoading}
@@ -146,13 +122,16 @@ export function FinancialEntriesPage() {
             sorting={sorting}
             onView={handleView}
             onEdit={handleView}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            onSelectAllPending={handleSelectAllPending}
           />
         </div>
       </ListFilterTableTemplate>
 
       <FinancialBatchActions
-        selectedIds={selectedIds}
-        onClearSelection={() => setSelectedIds([])}
+        selectedIds={Array.from(selectedIds)}
+        onClearSelection={() => setSelectedIds(new Set())}
         onApproveComplete={handleApproveComplete}
       />
 

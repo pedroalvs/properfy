@@ -7,6 +7,10 @@ export interface AuthContext {
   role: string;
 }
 
+interface UserReader {
+  findById(id: string): Promise<{ id: string; name: string } | null>;
+}
+
 export interface GetReportStatusOutput {
   id: string;
   reportType: string;
@@ -14,7 +18,7 @@ export interface GetReportStatusOutput {
   format: string;
   filters: Record<string, unknown>;
   rowCount: number | null;
-  requestedByUserId: string;
+  requestedBy: { id: string; name: string };
   createdAt: Date;
   startedAt: Date | null;
   completedAt: Date | null;
@@ -24,7 +28,10 @@ export interface GetReportStatusOutput {
 }
 
 export class GetReportStatusUseCase {
-  constructor(private readonly reportRepo: IReportRepository) {}
+  constructor(
+    private readonly reportRepo: IReportRepository,
+    private readonly userReader?: UserReader,
+  ) {}
 
   async execute(reportId: string, auth: AuthContext): Promise<GetReportStatusOutput> {
     const report = await this.reportRepo.findById(reportId);
@@ -42,6 +49,13 @@ export class GetReportStatusUseCase {
 
     const isOperator = auth.role === 'AM' || auth.role === 'OP';
 
+    // Resolve user name for requestedBy
+    let userName = 'Unknown';
+    if (this.userReader) {
+      const user = await this.userReader.findById(report.requestedByUserId);
+      if (user) userName = user.name;
+    }
+
     return {
       id: report.id,
       reportType: report.reportType,
@@ -49,7 +63,7 @@ export class GetReportStatusUseCase {
       format: report.format,
       filters: report.filtersJson,
       rowCount: report.rowCount,
-      requestedByUserId: report.requestedByUserId,
+      requestedBy: { id: report.requestedByUserId, name: userName },
       createdAt: report.createdAt,
       startedAt: report.startedAt,
       completedAt: report.completedAt,

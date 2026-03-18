@@ -9,6 +9,7 @@ export interface DataTableColumn<T> {
   width?: string;
   align?: 'left' | 'center' | 'right';
   render?: (row: T, index: number) => ReactNode;
+  headerRender?: () => ReactNode;
   sortable?: boolean;
 }
 
@@ -134,7 +135,7 @@ export function DataTable<T>({
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
                 >
                   <span className="inline-flex items-center gap-1">
-                    {col.label}
+                    {col.headerRender ? col.headerRender() : col.label}
                     {col.sortable && sorting?.sortBy === col.key && (
                       <i
                         className={`mdi ${

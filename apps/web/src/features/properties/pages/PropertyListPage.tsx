@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { UserRole } from '@properfy/shared';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
+import { useAuth } from '@/hooks/useAuth';
 import type { FilterSelectOption } from '@/components/filters/FilterSelect';
 import { PropertyFilters } from '../components/PropertyFilters';
 import { PropertyTable } from '../components/PropertyTable';
@@ -14,8 +16,12 @@ const BRANCH_OPTIONS: FilterSelectOption[] = [
   { label: 'Filial Norte', value: 'branch-2' },
 ];
 
+const CAN_CREATE_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
+
 export function PropertyListPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canCreate = user ? CAN_CREATE_ROLES.includes(user.role) : false;
   const {
     data,
     isLoading,
@@ -37,11 +43,11 @@ export function PropertyListPage() {
     <>
       <ListFilterTableTemplate
         title="Properties"
-        primaryAction={{
+        primaryAction={canCreate ? {
           label: 'New Property',
           icon: 'mdi-plus',
           onClick: () => navigate('/properties/new'),
-        }}
+        } : undefined}
         secondaryActions={[
           { label: 'Map', icon: 'mdi-map-outline', onClick: () => navigate('/properties/map') },
           { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/properties/import') },

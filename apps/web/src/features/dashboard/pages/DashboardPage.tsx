@@ -32,6 +32,7 @@ export function DashboardPage() {
               label="Registered Properties"
               colorClass="border-l-[#21566E]"
               iconColorClass="text-secondary"
+              href="/properties"
             />
             <StatCard
               icon="mdi-badge-account-outline"
@@ -39,6 +40,7 @@ export function DashboardPage() {
               label="Active Inspectors"
               colorClass="border-l-[#21566E]"
               iconColorClass="text-secondary"
+              href="/inspectors"
             />
             <StatCard
               icon="mdi-office-building-marker"
@@ -46,6 +48,7 @@ export function DashboardPage() {
               label="Active Service Groups"
               colorClass="border-l-[#21566E]"
               iconColorClass="text-secondary"
+              href="/service-groups"
             />
           </div>
         </>

@@ -418,12 +418,14 @@ export type TenantPortalTokenStatus = (typeof TenantPortalTokenStatus)[keyof typ
 /**
  * RESIDENTIAL - Residential dwelling (house, apartment, unit).
  * COMMERCIAL  - Commercial premises (office, shop, warehouse).
- * LAND        - Vacant land (no structure).
+ * INDUSTRIAL  - Industrial/warehouse properties.
+ * RURAL       - Rural/agricultural properties.
  */
 export const PropertyType = {
   RESIDENTIAL: 'RESIDENTIAL',
   COMMERCIAL: 'COMMERCIAL',
-  LAND: 'LAND',
+  INDUSTRIAL: 'INDUSTRIAL',
+  RURAL: 'RURAL',
 } as const;
 
 export type PropertyType = (typeof PropertyType)[keyof typeof PropertyType];
@@ -907,7 +909,7 @@ export const CreateAppointmentBodySchema = z.object({
   propertyData: z
     .object({
       propertyCode: z.string().trim().max(100).optional(),
-      type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'LAND']),
+      type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']),
       address: AddressSchema,
       notes: z.string().trim().max(2000).optional(),
     })
@@ -1041,7 +1043,7 @@ export const CreatePropertyBodySchema = z.object({
     .max(100)
     .optional(),
 
-  type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'LAND']),
+  type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']),
 
   address: AddressSchema,
 
@@ -1066,7 +1068,7 @@ export type UpdatePropertyBody = z.infer<typeof UpdatePropertyBodySchema>;
  */
 export const ListPropertiesQuerySchema = PaginationSchema.extend({
   branchId: z.string().cuid().optional(),
-  type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'LAND']).optional(),
+  type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']).optional(),
   search: z.string().trim().max(200).optional(),
 });
 
@@ -1436,7 +1438,7 @@ Located at: `packages/shared/src/__tests__/`
 [ ] ServiceGroupStatus has all 4 values: DRAFT, PUBLISHED, ACCEPTED, CANCELLED
 [ ] PriorityMode has both values: STANDARD, PRIORITY_24H
 [ ] BillingPeriod has all 3 values: WEEKLY, BIWEEKLY, MONTHLY
-[ ] PropertyType has all 3 values: RESIDENTIAL, COMMERCIAL, LAND
+[ ] PropertyType has all 4 values: RESIDENTIAL, COMMERCIAL, INDUSTRIAL, RURAL
 [ ] RestrictionSource has all 3 values: TENANT_PORTAL, OPERATOR, IMPORT
 [ ] TenantPortalTokenStatus has all 3 values: ACTIVE, EXPIRED, REVOKED
 [ ] UserStatus has all 3 values: ACTIVE, INACTIVE, LOCKED

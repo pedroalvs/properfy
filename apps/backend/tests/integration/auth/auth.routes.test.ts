@@ -84,12 +84,12 @@ describe('POST /v1/auth/login', () => {
     expect(res.body).toHaveProperty('accessToken');
   });
 
-  it('should return 422 with invalid payload (missing password)', async () => {
+  it('should return 400 with invalid payload (missing password)', async () => {
     const res = await supertest(app.server)
       .post('/v1/auth/login')
       .send({ email: 'test@example.com' });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
@@ -206,6 +206,10 @@ describe('GET /v1/me', () => {
       branchId: null,
       inspectorId: null,
       totpEnabled: false,
+      phone: null,
+      status: 'ACTIVE',
+      lastLoginAt: '2026-03-17T10:00:00.000Z',
+      createdAt: '2026-01-01T00:00:00.000Z',
     });
 
     const res = await supertest(app.server)
@@ -249,7 +253,7 @@ describe('POST /v1/auth/change-password', () => {
     expect(res.status).toBe(204);
   });
 
-  it('should return 422 with invalid payload', async () => {
+  it('should return 400 with invalid payload', async () => {
     mockJwtVerify.mockResolvedValueOnce({
       userId: 'user-1',
       tenantId: 'tenant-1',
@@ -263,7 +267,7 @@ describe('POST /v1/auth/change-password', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ currentPassword: 'OldPass1!' }); // missing newPassword
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 });
 

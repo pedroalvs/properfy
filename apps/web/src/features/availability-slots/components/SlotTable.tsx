@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { formatDate } from '@/lib/format-date';
 import { SlotStatusChip } from './SlotStatusChip';
 import type { AvailabilitySlot } from '../types';
 
@@ -34,7 +35,7 @@ export function SlotTable({
       label: 'Date',
       width: '130px',
       sortable: true,
-      render: (row) => <>{new Date(row.date).toLocaleDateString('en-AU')}</>,
+      render: (row) => <>{formatDate(row.date)}</>,
     },
     {
       key: 'startTime',

@@ -92,6 +92,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
     return this.prisma.notification.count({ where });
   }
 
+  // Cross-tenant: background job processes all tenants to retry failed notifications
   async findRetryable(now: Date, limit = 100): Promise<NotificationEntity[]> {
     const rows = await this.prisma.notification.findMany({
       where: {

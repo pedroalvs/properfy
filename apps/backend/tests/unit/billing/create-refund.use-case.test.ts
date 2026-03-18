@@ -16,10 +16,16 @@ const financialEntryRepo = {
   count: vi.fn(),
   save: vi.fn(),
   updateStatus: vi.fn(),
+  transitionStatus: vi.fn(),
   sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
 };
 
 const auditService = { log: vi.fn() };
+
+const idempotencyService = {
+  get: vi.fn().mockResolvedValue(null),
+  set: vi.fn().mockResolvedValue(undefined),
+};
 
 function makeApprovedDebit(overrides = {}) {
   return new FinancialEntryEntity({
@@ -61,7 +67,7 @@ const amActor = {
 };
 
 function makeSut() {
-  return new CreateRefundUseCase(financialEntryRepo, auditService as any);
+  return new CreateRefundUseCase(financialEntryRepo, auditService as any, idempotencyService);
 }
 
 describe('CreateRefundUseCase', () => {
@@ -70,6 +76,7 @@ describe('CreateRefundUseCase', () => {
     financialEntryRepo.findById.mockResolvedValue(makeApprovedDebit());
     financialEntryRepo.findByReferenceEntryIdAndType.mockResolvedValue(null);
     financialEntryRepo.save.mockResolvedValue(undefined);
+    idempotencyService.get.mockResolvedValue(null);
   });
 
   it('should create a REFUND entry with full amount from original', async () => {
@@ -242,5 +249,72 @@ describe('CreateRefundUseCase', () => {
         }),
       }),
     );
+  });
+
+  it('should return cached result on duplicate call when idempotencyKey is provided', async () => {
+    const cachedResult = {
+      id: 'cached-id',
+      tenantId: 'tenant-1',
+      appointmentId: 'appt-1',
+      entryType: 'REFUND' as const,
+      amount: 200,
+      currency: 'AUD',
+      status: 'PENDING' as const,
+      description: 'Cached refund',
+      reason: 'Cached reason',
+      referenceEntryId: 'debit-1',
+      initiatedByUserId: 'op-1',
+      createdAt: new Date(),
+    };
+    idempotencyService.get.mockResolvedValue(cachedResult);
+
+    const sut = makeSut();
+    const result = await sut.execute({
+      entryId: 'debit-1',
+      description: 'Service not executed',
+      reason: 'Inspector did not show up',
+      idempotencyKey: 'refund-idem-key',
+      actor: opActor,
+    });
+
+    expect(result).toEqual(cachedResult);
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+    expect(idempotencyService.get).toHaveBeenCalledWith('refund-idem-key', 'refund');
+  });
+
+  it('should cache result after successful refund when idempotencyKey is provided', async () => {
+    const sut = makeSut();
+
+    await sut.execute({
+      entryId: 'debit-1',
+      description: 'Service not executed',
+      reason: 'Inspector did not show up',
+      idempotencyKey: 'refund-idem-key',
+      actor: opActor,
+    });
+
+    expect(idempotencyService.set).toHaveBeenCalledWith(
+      'refund-idem-key',
+      'refund',
+      expect.objectContaining({
+        entryType: 'REFUND',
+        amount: 200,
+      }),
+      24,
+    );
+  });
+
+  it('should not check idempotency when idempotencyKey is not provided', async () => {
+    const sut = makeSut();
+
+    await sut.execute({
+      entryId: 'debit-1',
+      description: 'Service not executed',
+      reason: 'Inspector did not show up',
+      actor: opActor,
+    });
+
+    expect(idempotencyService.get).not.toHaveBeenCalled();
+    expect(idempotencyService.set).not.toHaveBeenCalled();
   });
 });

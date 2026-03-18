@@ -37,7 +37,7 @@ const VALID_DATA: TenantAdminFormData = {
   name: 'Imob Alpha',
   legalName: 'Alpha LTDA',
   timezone: 'America/Sao_Paulo',
-  currency: 'BRL',
+  currency: 'AUD',
   notes: '',
 };
 

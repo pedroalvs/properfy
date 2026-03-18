@@ -7,4 +7,6 @@ export interface IUserRepository {
   updateLoginSuccess(userId: string, lastLoginAt: Date): Promise<void>;
   updateFailedLogin(userId: string, failedLoginCount: number, lockedUntil: Date | null, status: string): Promise<void>;
   updatePassword(userId: string, passwordHash: string): Promise<void>;
+  updateTotpSecret(userId: string, totpSecret: string): Promise<void>;
+  updateTotpEnabled(userId: string, totpEnabled: boolean): Promise<void>;
 }

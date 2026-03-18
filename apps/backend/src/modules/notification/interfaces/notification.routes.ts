@@ -12,7 +12,7 @@ import {
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
-import { success } from '../../../shared/interfaces/response';
+import { success, paginated } from '../../../shared/interfaces/response';
 import type { SendNotificationUseCase } from '../application/use-cases/send-notification.use-case';
 import type { RetryNotificationUseCase } from '../application/use-cases/retry-notification.use-case';
 import type { HandleProviderWebhookUseCase } from '../application/use-cases/handle-provider-webhook.use-case';
@@ -39,6 +39,7 @@ export interface NotificationRouteContainer {
   dispatchRemindersUseCase: DispatchRemindersUseCase;
   dispatchEscalationsUseCase: DispatchEscalationsUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const notificationIdParam = z.object({ notificationId: z.string().uuid() });
@@ -48,8 +49,12 @@ export async function registerNotificationRoutes(
   app: FastifyInstance,
   container: NotificationRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // GET /v1/notifications
@@ -61,11 +66,12 @@ export async function registerNotificationRoutes(
       if (!parsed.success) {
         throw new ValidationError('Invalid query parameters', parsed.error.errors);
       }
+      const { page, pageSize } = parsed.data;
       const result = await container.listNotificationsUseCase.execute({
         ...parsed.data,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
     },
   );
 
@@ -204,7 +210,7 @@ export async function registerNotificationRoutes(
         ...parsed.data,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(paginated(result.data, result.data.length, 1, result.data.length || 10));
     },
   );
 

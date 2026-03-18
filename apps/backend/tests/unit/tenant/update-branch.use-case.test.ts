@@ -160,7 +160,7 @@ describe('UpdateBranchUseCase', () => {
     });
 
     expect(result.contactEmail).toBe('pm@agency.com');
-    expect(branchRepo.update).toHaveBeenCalledWith('branch-1', { contactEmail: 'pm@agency.com' });
+    expect(branchRepo.update).toHaveBeenCalledWith('branch-1', 'tenant-1', { contactEmail: 'pm@agency.com' });
   });
 
   it('should clear branch contactEmail (set to null)', async () => {
@@ -177,7 +177,7 @@ describe('UpdateBranchUseCase', () => {
     });
 
     expect(result.contactEmail).toBeNull();
-    expect(branchRepo.update).toHaveBeenCalledWith('branch-1', { contactEmail: null });
+    expect(branchRepo.update).toHaveBeenCalledWith('branch-1', 'tenant-1', { contactEmail: null });
   });
 
   it('should throw BRANCH_NOT_FOUND when branch does not exist', async () => {

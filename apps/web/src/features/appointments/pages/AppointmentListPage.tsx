@@ -1,21 +1,43 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { UserRole } from '@properfy/shared';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
-import type { FilterSelectOption } from '@/components/filters/FilterSelect';
+import { useAuth } from '@/hooks/useAuth';
+import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentTable } from '../components/AppointmentTable';
 import { AppointmentDetailDrawer } from '../components/AppointmentDetailDrawer';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { useAppointmentList } from '../hooks/useAppointmentList';
 
-const BRANCH_OPTIONS: FilterSelectOption[] = [
-  { label: 'All', value: '' },
-  { label: 'Filial Centro', value: 'branch-1' },
-  { label: 'Filial Norte', value: 'branch-2' },
-];
+interface BranchItem {
+  id: string;
+  name: string;
+}
+
+function useBranchFilterOptions() {
+  const { data: response, isLoading } = usePaginatedQuery<BranchItem>(
+    ['branches'],
+    '/v1/branches',
+    { pageSize: 100 },
+  );
+
+  const options = useMemo(
+    () => [
+      { label: 'All', value: '' },
+      ...(response?.data ?? []).map((b) => ({ label: b.name, value: b.id })),
+    ],
+    [response],
+  );
+
+  return { options, isLoading };
+}
+
+const CAN_CREATE_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 
 export function AppointmentListPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     data,
     isLoading,
@@ -28,16 +50,20 @@ export function AppointmentListPage() {
     sorting,
   } = useAppointmentList();
 
+  const { options: branchOptions } = useBranchFilterOptions();
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
+  const canCreate = user ? CAN_CREATE_ROLES.includes(user.role) : false;
+
   return (
     <>
       <ListFilterTableTemplate
         title="Appointments"
-        primaryAction={{ label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } }}
+        primaryAction={canCreate ? { label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } } : undefined}
         secondaryActions={[
           { label: 'Map', icon: 'mdi-map-outline', onClick: () => navigate('/appointments/map') },
           { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/appointments/import') },
@@ -46,7 +72,7 @@ export function AppointmentListPage() {
         <AppointmentFilters
           filters={filters}
           onFiltersChange={setFilters}
-          branchOptions={BRANCH_OPTIONS}
+          branchOptions={branchOptions}
         />
         <AppointmentTable
           data={data}

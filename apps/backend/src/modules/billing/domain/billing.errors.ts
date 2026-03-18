@@ -59,3 +59,15 @@ export class InspectorNotFoundError extends NotFoundError {
     super('INSPECTOR_NOT_FOUND', 'Inspector not found');
   }
 }
+
+export class FinancialEntryDoneCheckRequiredError extends DomainError {
+  constructor() {
+    super('DONE_CHECK_REQUIRED', 'Appointment must have doneCheckedByUserId set before financial entries can be created', 422);
+  }
+}
+
+export class InvalidEntryStatusTransitionError extends ConflictError {
+  constructor(fromStatus: string, toStatus: string) {
+    super('INVALID_ENTRY_STATUS_TRANSITION', `Cannot transition financial entry from ${fromStatus} to ${toStatus}`);
+  }
+}

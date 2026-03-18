@@ -36,13 +36,13 @@ const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 const VALID_CREATE_DATA: PropertyFormData = {
   propertyCode: 'IMV-100',
   type: 'RESIDENTIAL',
-  branchId: 'branch-1',
-  street: 'Rua das Flores, 123',
-  addressLine2: 'Apto 42',
-  suburb: 'Centro',
-  postcode: '01001-000',
-  state: 'SP',
-  country: 'BR',
+  branchId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+  street: '123 Smith Street',
+  addressLine2: 'Unit 42',
+  suburb: 'Melbourne',
+  postcode: '3000',
+  state: 'VIC',
+  country: 'AU',
   notes: '',
 };
 
@@ -93,16 +93,17 @@ describe('usePropertySave', () => {
     expect(errors.state).toBeDefined();
   });
 
-  it('save returns success on create', async () => {
+  it('save returns success and id on create', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => usePropertySave(), { wrapper });
 
-    let saveResult: { success: boolean } | undefined;
+    let saveResult: { success: boolean; id?: string } | undefined;
     await act(async () => {
       saveResult = await result.current.save(VALID_CREATE_DATA);
     });
 
     expect(saveResult?.success).toBe(true);
+    expect(saveResult?.id).toBe('new-prop');
     expect(mockPost).toHaveBeenCalledWith('/v1/properties', { body: VALID_CREATE_DATA });
   });
 

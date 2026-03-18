@@ -50,9 +50,9 @@ export class ApproveFinancialEntryUseCase {
       throw new EntrySelfApprovalNotAllowedError();
     }
 
-    // 5. Approve
+    // 5. Approve (validate PENDING -> APPROVED transition)
     const approvedAt = new Date();
-    await this.financialEntryRepo.updateStatus(entryId, 'APPROVED', actor.userId, approvedAt);
+    await this.financialEntryRepo.transitionStatus(entryId, entry.tenantId, 'PENDING', 'APPROVED', actor.userId, approvedAt);
 
     // 6. Audit log
     this.auditService.log({

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act , waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
 import { FinancialEntryDetailDrawer } from './FinancialEntryDetailDrawer';
@@ -55,7 +55,7 @@ vi.mock('../hooks/useFinancialEntryDetail', () => ({
     return {
       entry: {
         id: 'fin-01', entryType: 'TENANT_DEBIT', appointmentCode: 'VIST-001',
-        description: 'Débito vistoria residencial Centro', amount: 350, currency: 'BRL',
+        description: 'Débito vistoria residencial Centro', amount: 350, currency: 'AUD',
         status: 'APPROVED', effectiveAt: '2026-03-15', relatedEntityName: 'Imob Centro',
         tenantId: 'tenant-1', approvedByName: null, notes: null, approvedAt: null,
         referenceNumber: null,

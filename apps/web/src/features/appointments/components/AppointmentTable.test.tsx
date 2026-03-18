@@ -40,6 +40,7 @@ describe('AppointmentTable', () => {
     expect(screen.getByText('Address')).toBeInTheDocument();
     expect(screen.getByText('Tenant')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation')).toBeInTheDocument();
     expect(screen.getByText('Inspector')).toBeInTheDocument();
     expect(screen.getByText('Scheduled Date')).toBeInTheDocument();
   });

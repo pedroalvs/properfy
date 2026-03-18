@@ -3,9 +3,13 @@ import { GetPortalDataUseCase } from '../../../src/modules/tenant-portal/applica
 import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.repository';
 import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
+import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
+import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
+import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
+import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { PortalAppointmentInactiveError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
 
 function makeAppointmentEntity(
@@ -70,6 +74,43 @@ function makeRestriction(): AppointmentRestrictionEntity {
   });
 }
 
+function makeProperty(): PropertyEntity {
+  return new PropertyEntity({
+    id: 'property-1',
+    tenantId: 'tenant-1',
+    branchId: 'branch-1',
+    propertyCode: 'PROP-001',
+    type: 'HOUSE',
+    street: '123 Main St',
+    addressLine2: null,
+    suburb: 'Sydney',
+    postcode: '2000',
+    state: 'NSW',
+    country: 'AU',
+    lat: null,
+    lng: null,
+    geocodingStatus: 'PENDING',
+    notes: null,
+    rulesJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  });
+}
+
+function makeServiceType(): ServiceTypeEntity {
+  return new ServiceTypeEntity({
+    id: 'svc-type-1',
+    code: 'ROUTINE',
+    name: 'Routine Inspection',
+    flowType: 'ROUTINE',
+    requiresTenantConfirmation: true,
+    status: 'ACTIVE',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+}
+
 function makeAppointmentWithRelations(
   appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
   withContact = true,
@@ -88,6 +129,7 @@ function makeInput(overrides: Partial<Parameters<GetPortalDataUseCase['execute']
     appointmentId: 'appt-1',
     isReadOnly: false,
     tokenStatus: 'ACTIVE',
+    expiresAt: '2026-04-01T00:00:00.000Z',
     ipAddress: '192.168.1.1',
     userAgent: 'Mozilla/5.0',
     ...overrides,
@@ -98,6 +140,8 @@ describe('GetPortalDataUseCase', () => {
   let tokenRepo: ITenantPortalTokenRepository;
   let activityRepo: ITenantPortalActivityRepository;
   let appointmentRepo: IAppointmentRepository;
+  let propertyRepo: IPropertyRepository;
+  let serviceTypeRepo: IServiceTypeRepository;
   let useCase: GetPortalDataUseCase;
 
   beforeEach(() => {
@@ -124,26 +168,59 @@ describe('GetPortalDataUseCase', () => {
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
     };
-    useCase = new GetPortalDataUseCase(tokenRepo, activityRepo, appointmentRepo);
+    propertyRepo = {
+      findById: vi.fn(),
+      findByPropertyCode: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    serviceTypeRepo = {
+      findById: vi.fn(),
+      findByCode: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    useCase = new GetPortalDataUseCase(tokenRepo, activityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
   });
 
   it('should return full portal data for valid token', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({}, true, true),
     );
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
 
     const result = await useCase.execute(makeInput());
 
-    expect(result.token).toEqual({ status: 'ACTIVE', isReadOnly: false });
+    expect(result.token).toEqual({ status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' });
     expect(result.appointment.id).toBe('appt-1');
     expect(result.appointment.status).toBe('DRAFT');
     expect(result.appointment.scheduledDate).toEqual(new Date('2026-04-01'));
     expect(result.appointment.timeSlot).toBe('09:00-10:00');
-    expect(result.appointment.serviceTypeId).toBe('svc-type-1');
     expect(result.appointment.tenantConfirmationStatus).toBe('PENDING');
     expect(result.appointment.keyRequired).toBe(false);
     expect(result.appointment.meetingLocation).toBeNull();
     expect(result.appointment.notes).toBe('Some notes');
+    expect(result.appointment.serviceType).toEqual({
+      id: 'svc-type-1',
+      name: 'Routine Inspection',
+      code: 'ROUTINE',
+    });
+    expect(result.appointment.property).toEqual({
+      id: 'property-1',
+      propertyCode: 'PROP-001',
+      type: 'HOUSE',
+      street: '123 Main St',
+      addressLine2: null,
+      suburb: 'Sydney',
+      postcode: '2000',
+      state: 'NSW',
+      country: 'AU',
+    });
     expect(result.contact).toEqual({
       tenantName: 'John Smith',
       primaryEmail: 'john@example.com',
@@ -164,6 +241,8 @@ describe('GetPortalDataUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({}, false, false),
     );
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
 
     const result = await useCase.execute(makeInput());
 
@@ -173,6 +252,8 @@ describe('GetPortalDataUseCase', () => {
 
   it('should record VIEW activity', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
 
     await useCase.execute(makeInput());
 
@@ -189,11 +270,13 @@ describe('GetPortalDataUseCase', () => {
 
   it('should update lastAccessedAt on the token', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
 
     await useCase.execute(makeInput());
 
     expect(tokenRepo.updateLastAccessedAt).toHaveBeenCalledOnce();
-    expect(tokenRepo.updateLastAccessedAt).toHaveBeenCalledWith('token-1', expect.any(Date));
+    expect(tokenRepo.updateLastAccessedAt).toHaveBeenCalledWith('token-1', 'appt-1', expect.any(Date));
   });
 
   it('should throw PortalAppointmentInactiveError when appointment not found', async () => {
@@ -204,19 +287,64 @@ describe('GetPortalDataUseCase', () => {
 
   it('should pass null tenantId to findById', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
 
     await useCase.execute(makeInput());
 
     expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
   });
 
+  it('should return only the first restriction as single object (portal API contract)', async () => {
+    const restriction2 = new AppointmentRestrictionEntity({
+      id: 'restriction-2',
+      appointmentId: 'appt-1',
+      isHome: false,
+      unavailableDaysJson: ['Friday'],
+      unavailableHoursJson: ['14:00-16:00'],
+      notes: 'Away in afternoon',
+      source: 'OPERATOR',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(appointmentRepo.findById).mockResolvedValue({
+      appointment: makeAppointmentEntity(),
+      contact: makeContact(),
+      restrictions: [makeRestriction(), restriction2],
+    });
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+
+    const result = await useCase.execute(makeInput());
+
+    // Portal API returns single restriction object, not array
+    expect(result.restrictions).toEqual({
+      isHome: true,
+      unavailableDaysJson: ['Monday'],
+      unavailableHoursJson: ['08:00-09:00'],
+      notes: 'Dog at home',
+      source: 'TENANT_PORTAL',
+    });
+  });
+
+  it('should include expiresAt in token response', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+
+    const result = await useCase.execute(makeInput({ expiresAt: '2026-05-01T12:00:00.000Z' }));
+    expect(result.token.expiresAt).toBe('2026-05-01T12:00:00.000Z');
+  });
+
   it('should return token status from input for read-only tokens', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
 
     const result = await useCase.execute(
       makeInput({ isReadOnly: true, tokenStatus: 'EXPIRED' }),
     );
 
-    expect(result.token).toEqual({ status: 'EXPIRED', isReadOnly: true });
+    expect(result.token).toEqual({ status: 'EXPIRED', isReadOnly: true, expiresAt: '2026-04-01T00:00:00.000Z' });
   });
 });

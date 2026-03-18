@@ -46,6 +46,12 @@ export class AppointmentDoneCheckerInvalidRoleError extends DomainError {
   }
 }
 
+export class AppointmentDoneCheckerSelfCheckError extends DomainError {
+  constructor() {
+    super('APPOINTMENT_DONE_CHECKER_SELF_CHECK', 'Inspector cannot cross-check their own work', 422);
+  }
+}
+
 export class AppointmentInspectorRequiredError extends DomainError {
   constructor() {
     super(
@@ -94,6 +100,12 @@ export class AppointmentBranchNotFoundError extends NotFoundError {
   }
 }
 
+export class AppointmentBranchInactiveError extends DomainError {
+  constructor() {
+    super('APPOINTMENT_BRANCH_INACTIVE', 'Cannot create appointment for an inactive branch', 422);
+  }
+}
+
 export class AppointmentPropertyNotFoundError extends NotFoundError {
   constructor() {
     super('APPOINTMENT_PROPERTY_NOT_FOUND', 'Property not found');
@@ -103,5 +115,15 @@ export class AppointmentPropertyNotFoundError extends NotFoundError {
 export class AppointmentPropertyTenantMismatchError extends ForbiddenError {
   constructor() {
     super('APPOINTMENT_PROPERTY_TENANT_MISMATCH', 'Property belongs to a different tenant');
+  }
+}
+
+export class AppointmentTenantConfirmationRequiredError extends DomainError {
+  constructor() {
+    super(
+      'APPOINTMENT_TENANT_CONFIRMATION_REQUIRED',
+      'Tenant confirmation is required for routine inspections before scheduling',
+      422,
+    );
   }
 }

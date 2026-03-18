@@ -25,7 +25,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
       }
 
       if (error instanceof ZodError) {
-        return reply.status(422).send({
+        return reply.status(400).send({
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Request payload is invalid',
@@ -39,7 +39,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
 
       // Fastify validation errors
       if ('validation' in error && error.validation) {
-        return reply.status(422).send({
+        return reply.status(400).send({
           error: {
             code: 'VALIDATION_ERROR',
             message: error.message,

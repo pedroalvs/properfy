@@ -42,8 +42,8 @@ import { InvoicesPage } from './InvoicesPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_INVOICES = [
-  { id: 'inv-01', inspectorName: 'Diego', periodStart: '2026-03-01', periodEnd: '2026-03-15', frequency: 'BIWEEKLY', totalAmount: 1800, currency: 'BRL', status: 'DRAFT', entryCount: 5 },
-  { id: 'inv-02', inspectorName: 'Carlos', periodStart: '2026-03-01', periodEnd: '2026-03-31', frequency: 'MONTHLY', totalAmount: 3200, currency: 'BRL', status: 'SENT', entryCount: 12 },
+  { id: 'inv-01', inspectorName: 'Diego', periodStart: '2026-03-01', periodEnd: '2026-03-15', frequency: 'BIWEEKLY', totalAmount: 1800, currency: 'AUD', status: 'DRAFT', entryCount: 5 },
+  { id: 'inv-02', inspectorName: 'Carlos', periodStart: '2026-03-01', periodEnd: '2026-03-31', frequency: 'MONTHLY', totalAmount: 3200, currency: 'AUD', status: 'SENT', entryCount: 12 },
 ];
 
 function createWrapper() {

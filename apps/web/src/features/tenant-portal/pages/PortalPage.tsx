@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
@@ -21,6 +22,7 @@ const INVALID_CODES = new Set(['PORTAL_TOKEN_INVALID', 'PORTAL_TOKEN_NOT_FOUND']
 export function PortalPage() {
   const { token } = useParams<{ token: string }>();
   const { data, isLoading, isError, error, refetch } = usePortalData(token ?? '');
+  const handleDeadlineExpire = useCallback(() => { refetch(); }, [refetch]);
 
   if (!token) {
     return (
@@ -146,7 +148,7 @@ export function PortalPage() {
           </InfoBanner>
         )}
 
-        <AppointmentInfoCard appointment={appointment} deadline={data.deadline} />
+        <AppointmentInfoCard appointment={appointment} deadline={data.deadline} onDeadlineExpire={handleDeadlineExpire} />
 
         {data.existingResponse && (
           <ResponseConfirmationCard

@@ -77,7 +77,7 @@ interface PropertySummary {
   suburb: string;
   postcode: string;
   state: string;
-  type: 'RESIDENTIAL' | 'COMMERCIAL' | 'LAND';
+  type: 'RESIDENTIAL' | 'COMMERCIAL' | 'INDUSTRIAL' | 'RURAL';
 }
 
 // Branch summary (nested)

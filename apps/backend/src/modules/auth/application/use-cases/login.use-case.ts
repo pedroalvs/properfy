@@ -6,6 +6,7 @@ import type { JwtService } from '../services/jwt.service';
 import type { TotpService } from '../services/totp.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
+import type { TotpEncryptionService } from '../../infrastructure/totp-encryption.service';
 import type { LoginInput, LoginOutput } from '../dtos/login.dto';
 import {
   InvalidCredentialsError,
@@ -13,7 +14,6 @@ import {
   AccountLockedError,
   TotpRequiredError,
   TotpInvalidError,
-  TotpSetupRequiredError,
 } from '../../domain/auth.errors';
 
 // Dummy hash for constant-time comparison when user is not found (prevents email enumeration)
@@ -27,6 +27,7 @@ export class LoginUseCase {
     private readonly totpService: TotpService,
     private readonly auditService: AuditService,
     private readonly inspectorRepo: IInspectorRepository,
+    private readonly totpEncryptionService: TotpEncryptionService,
   ) {}
 
   async execute(input: LoginInput): Promise<LoginOutput> {
@@ -96,14 +97,67 @@ export class LoginUseCase {
 
     // TOTP checks for AM
     if (user.requiresTotpSetup()) {
-      throw new TotpSetupRequiredError();
+      // Issue a limited session so the user can access 2FA setup endpoints
+      await this.userRepo.updateLoginSuccess(user.id, new Date());
+
+      const rawRefreshToken = randomBytes(48).toString('hex');
+      const refreshTokenHash = createHash('sha256').update(rawRefreshToken).digest('hex');
+
+      const session = await this.sessionRepo.create({
+        id: crypto.randomUUID(),
+        userId: user.id,
+        refreshTokenHash,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes for setup only
+        revokedAt: null,
+        createdAt: new Date(),
+      });
+
+      const accessToken = await this.jwtService.signAccessToken({
+        sub: user.id,
+        tenant_id: user.tenantId,
+        role: user.role,
+        branch_id: user.branchId,
+        inspector_id: null,
+      });
+
+      this.auditService.log({
+        action: 'auth.login_totp_setup',
+        actorType: 'USER',
+        actorId: user.id,
+        entityType: 'USER',
+        entityId: user.id,
+        tenantId: user.tenantId ?? undefined,
+        ipAddress: input.ipAddress,
+        metadata: { sessionId: session.id, totpSetupRequired: true },
+      });
+
+      return {
+        accessToken,
+        refreshToken: rawRefreshToken,
+        totpSetupRequired: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
+          branchId: user.branchId,
+          totpEnabled: user.totpEnabled,
+        },
+      };
     }
 
     if (user.requiresTotpCode()) {
       if (!input.totpCode) {
         throw new TotpRequiredError();
       }
-      if (!user.totpSecret || !this.totpService.verify(input.totpCode, user.totpSecret)) {
+      if (!user.totpSecret) {
+        throw new TotpInvalidError();
+      }
+      const decryptedSecret = this.totpEncryptionService.decrypt(user.totpSecret);
+      if (!this.totpService.verify(input.totpCode, decryptedSecret)) {
         throw new TotpInvalidError();
       }
     }

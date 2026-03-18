@@ -2,6 +2,8 @@ import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { assertClUserPermission } from '../../../../shared/domain/cl-user-permissions';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../domain/appointment-restriction.entity';
 import {
@@ -67,6 +69,7 @@ export class UpdateAppointmentUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly tenantRepo?: ITenantRepository,
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
@@ -80,6 +83,15 @@ export class UpdateAppointmentUseCase {
       actor.role !== 'CL_USER'
     ) {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+    }
+
+    // CL_USER must have reschedule_appointments permission when changing date/time
+    if (
+      actor.role === 'CL_USER' &&
+      (data.scheduledDate !== undefined || data.timeSlot !== undefined) &&
+      this.tenantRepo
+    ) {
+      await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'reschedule_appointments');
     }
 
     // Resolve tenantId for lookup (null = global access for AM/OP)

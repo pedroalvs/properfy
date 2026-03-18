@@ -91,7 +91,7 @@ describe('POST /v1/pricing-rules', () => {
     expect(res.body.data.priceAmount).toBe(150.0);
   });
 
-  it('should return 422 with invalid payload (missing serviceTypeId)', async () => {
+  it('should return 400 with invalid payload (missing serviceTypeId)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -103,7 +103,7 @@ describe('POST /v1/pricing-rules', () => {
         payoutValue: 100.0,
       });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

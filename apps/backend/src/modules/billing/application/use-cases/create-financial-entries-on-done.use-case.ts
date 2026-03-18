@@ -4,6 +4,9 @@ import type { IFinancialEntryRepository } from '../../domain/financial-entry.rep
 import { FinancialEntryEntity } from '../../domain/financial-entry.entity';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { SYSTEM_USER_ID } from '../../../../shared/domain/constants';
+import { FinancialEntryDoneCheckRequiredError } from '../../domain/billing.errors';
 
 export interface CreateFinancialEntriesOnDoneInput {
   appointmentId: string;
@@ -20,6 +23,7 @@ export class CreateFinancialEntriesOnDoneUseCase {
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
     private readonly idempotencyService: IIdempotencyService,
+    private readonly tenantRepo: ITenantRepository,
   ) {}
 
   async execute(input: CreateFinancialEntriesOnDoneInput): Promise<CreateFinancialEntriesOnDoneOutput> {
@@ -44,12 +48,19 @@ export class CreateFinancialEntriesOnDoneUseCase {
       return { debitEntryId: null, payoutEntryId: null };
     }
 
+    // 3. Validate that appointment has been cross-checked
+    if (!appointment.doneCheckedByUserId) {
+      throw new FinancialEntryDoneCheckRequiredError();
+    }
+
+    const tenant = await this.tenantRepo.findById(appointment.tenantId);
+    const currency = tenant?.currency ?? 'AUD';
+
     const now = new Date();
-    const currency = 'AUD';
     let debitEntryId: string | null = null;
     let payoutEntryId: string | null = null;
 
-    // 3. Create TENANT_DEBIT if not exists
+    // 4. Create TENANT_DEBIT if not exists
     const existingDebit = await this.financialEntryRepo.findByAppointmentAndType(
       appointmentId,
       'TENANT_DEBIT',
@@ -65,11 +76,11 @@ export class CreateFinancialEntriesOnDoneUseCase {
         entryType: 'TENANT_DEBIT',
         amount: appointment.priceAmount,
         currency,
-        status: 'APPROVED',
+        status: 'PENDING',
         description: 'Inspection service debit',
         effectiveAt: now,
-        initiatedByUserId: 'SYSTEM',
-        approvedByUserId: null,
+        initiatedByUserId: SYSTEM_USER_ID,
+        approvedByUserId: appointment.doneCheckedByUserId,
         approvedAt: null,
         referenceEntryId: null,
         reason: null,
@@ -88,13 +99,13 @@ export class CreateFinancialEntriesOnDoneUseCase {
         after: {
           entryType: 'TENANT_DEBIT',
           amount: appointment.priceAmount,
-          status: 'APPROVED',
+          status: 'PENDING',
           appointmentId,
         },
       });
     }
 
-    // 4. Create INSPECTOR_PAYOUT if not exists
+    // 5. Create INSPECTOR_PAYOUT if not exists
     const existingPayout = await this.financialEntryRepo.findByAppointmentAndType(
       appointmentId,
       'INSPECTOR_PAYOUT',
@@ -113,7 +124,7 @@ export class CreateFinancialEntriesOnDoneUseCase {
         status: 'PENDING',
         description: 'Inspector payout',
         effectiveAt: now,
-        initiatedByUserId: 'SYSTEM',
+        initiatedByUserId: SYSTEM_USER_ID,
         approvedByUserId: null,
         approvedAt: null,
         referenceEntryId: null,

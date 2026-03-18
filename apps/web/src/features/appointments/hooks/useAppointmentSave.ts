@@ -1,36 +1,74 @@
 import { useState, useCallback } from 'react';
-import { contactSchema } from '@properfy/shared';
+import { createAppointmentSchema, updateAppointmentSchema } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 
-const REQUIRED_FIELD_MESSAGE = 'Required field';
+/** Map flat form fields to the nested shape expected by the shared Zod schema. */
+function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
+  const contact = {
+    tenantName: data.contactName.trim(),
+    ...(data.contactEmail.trim() ? { primaryEmail: data.contactEmail.trim() } : {}),
+    ...(data.contactPhone.trim() ? { primaryPhone: data.contactPhone.trim() } : {}),
+  };
 
-const CREATE_REQUIRED_FIELDS: (keyof AppointmentFormData)[] = [
-  'branchId',
-  'propertyId',
-  'serviceTypeId',
-  'scheduledDate',
-  'timeSlot',
-  'contactName',
-];
+  if (mode === 'create') {
+    return {
+      branchId: data.branchId || undefined,
+      propertyId: data.propertyId || undefined,
+      serviceTypeId: data.serviceTypeId || undefined,
+      scheduledDate: data.scheduledDate || undefined,
+      timeSlot: data.timeSlot || undefined,
+      contact,
+      keyRequired: data.keyRequired,
+      ...(data.meetingLocation.trim() ? { meetingLocation: data.meetingLocation.trim() } : {}),
+      ...(data.keyLocation.trim() ? { keyLocation: data.keyLocation.trim() } : {}),
+      ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
+    };
+  }
 
-function validateRequired(data: AppointmentFormData, fields: (keyof AppointmentFormData)[]): AppointmentFormErrors {
+  return {
+    ...(data.scheduledDate ? { scheduledDate: data.scheduledDate } : {}),
+    ...(data.timeSlot ? { timeSlot: data.timeSlot } : {}),
+    keyRequired: data.keyRequired,
+    meetingLocation: data.meetingLocation.trim() || null,
+    keyLocation: data.keyLocation.trim() || null,
+    notes: data.notes.trim() || null,
+    contact,
+  };
+}
+
+/** Path-to-field mapping: Zod issue paths use schema field names, but the
+ *  form state uses flat field names. */
+const SCHEMA_PATH_TO_FORM_FIELD: Record<string, keyof AppointmentFormData> = {
+  branchId: 'branchId',
+  propertyId: 'propertyId',
+  serviceTypeId: 'serviceTypeId',
+  scheduledDate: 'scheduledDate',
+  timeSlot: 'timeSlot',
+  'contact.tenantName': 'contactName',
+  'contact.primaryEmail': 'contactEmail',
+  'contact.primaryPhone': 'contactPhone',
+  keyRequired: 'keyRequired',
+  meetingLocation: 'meetingLocation',
+  keyLocation: 'keyLocation',
+  notes: 'notes',
+};
+
+function isRequiredError(issue: { code?: string; message: string }): boolean {
+  return issue.code === 'invalid_type' || issue.message === 'Required';
+}
+
+function zodErrorsToFormErrors(issues: { path: (string | number)[]; message: string; code?: string }[]): AppointmentFormErrors {
   const errors: AppointmentFormErrors = {};
-  for (const field of fields) {
-    const value = data[field];
-    if (typeof value === 'string' && !value.trim()) {
-      errors[field] = REQUIRED_FIELD_MESSAGE;
+  for (const issue of issues) {
+    const path = issue.path.join('.');
+    const formField = SCHEMA_PATH_TO_FORM_FIELD[path];
+    if (formField && !errors[formField]) {
+      errors[formField] = isRequiredError(issue) ? 'Required field' : issue.message;
     }
   }
   return errors;
-}
-
-function validateEmail(email: string): string | undefined {
-  if (!email) return undefined;
-  const result = contactSchema.shape.primaryEmail.safeParse(email);
-  if (!result.success) return 'Invalid email';
-  return undefined;
 }
 
 export interface SaveResult {
@@ -50,17 +88,18 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
   const queryClient = useQueryClient();
 
   const validate = useCallback((data: AppointmentFormData, mode: 'create' | 'edit'): AppointmentFormErrors => {
+    const payload = toSchemaPayload(data, mode);
+    const schema = mode === 'create' ? createAppointmentSchema : updateAppointmentSchema;
+    const result = schema.safeParse(payload);
     const errors: AppointmentFormErrors = {};
-
-    if (mode === 'create') {
-      Object.assign(errors, validateRequired(data, CREATE_REQUIRED_FIELDS));
-    } else {
-      Object.assign(errors, validateRequired(data, ['contactName']));
+    if (!result.success) {
+      Object.assign(errors, zodErrorsToFormErrors(result.error.issues));
     }
-
-    const emailError = validateEmail(data.contactEmail);
-    if (emailError) errors.contactEmail = emailError;
-
+    // propertyId is optional in the API schema (inline creation is an alternative),
+    // but the form always requires selecting an existing property.
+    if (mode === 'create' && !data.propertyId?.trim()) {
+      errors.propertyId = errors.propertyId ?? 'Required field';
+    }
     return errors;
   }, []);
 

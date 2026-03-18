@@ -78,7 +78,7 @@ export class UpdateBranchUseCase {
     if (data.address !== undefined) updateData.addressJson = data.address;
     if (data.contactEmail !== undefined) updateData.contactEmail = data.contactEmail;
 
-    await this.branchRepo.update(branchId, updateData);
+    await this.branchRepo.update(branchId, tenantId, updateData);
 
     const after = {
       name: (updateData.name as string) ?? branch.name,

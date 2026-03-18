@@ -14,4 +14,5 @@ export interface IInspectionExecutionRepository {
       notes: string | null;
     }>,
   ): Promise<void>;
+  findStuckExecutions(olderThanHours: number): Promise<InspectionExecutionEntity[]>;
 }

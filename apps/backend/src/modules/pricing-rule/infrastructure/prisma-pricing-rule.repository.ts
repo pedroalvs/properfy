@@ -122,8 +122,8 @@ export class PrismaPricingRuleRepository implements IPricingRuleRepository {
     if (data.bonusRuleJson !== undefined)
       updateData['bonus_rule_json'] = data.bonusRuleJson;
     if (data.status !== undefined) updateData['status'] = data.status;
-    await this.prisma.servicePriceRule.update({
-      where: { id },
+    await this.prisma.servicePriceRule.updateMany({
+      where: { id, tenant_id: tenantId },
       data: updateData,
     });
   }

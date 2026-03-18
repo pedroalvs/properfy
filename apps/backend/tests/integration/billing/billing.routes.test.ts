@@ -113,7 +113,9 @@ describe('GET /v1/financial/entries', () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockListFinancialEntriesExecute.mockResolvedValueOnce({
       data: [fullFinancialEntry],
-      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+      total: 1,
+      page: 1,
+      pageSize: 20,
     });
 
     const res = await supertest(app.server)
@@ -201,7 +203,7 @@ describe('POST /v1/financial/entries/adjust', () => {
     expect(res.body.data.entryType).toBe('MANUAL_ADJUSTMENT');
   });
 
-  it('should return 422 with invalid body (missing reason)', async () => {
+  it('should return 400 with invalid body (missing reason)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -213,7 +215,7 @@ describe('POST /v1/financial/entries/adjust', () => {
         description: 'Correction',
       });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
@@ -255,7 +257,7 @@ describe('POST /v1/financial/entries/:entryId/refund', () => {
     expect(res.body.data.entryType).toBe('REFUND');
   });
 
-  it('should return 422 with invalid body (empty description)', async () => {
+  it('should return 400 with invalid body (empty description)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -266,7 +268,7 @@ describe('POST /v1/financial/entries/:entryId/refund', () => {
         reason: 'Inspector did not show up',
       });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
@@ -288,7 +290,9 @@ describe('GET /v1/invoices', () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockListInvoicesExecute.mockResolvedValueOnce({
       data: [fullInvoice],
-      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+      total: 1,
+      page: 1,
+      pageSize: 20,
     });
 
     const res = await supertest(app.server)
@@ -324,7 +328,7 @@ describe('POST /v1/invoices/generate', () => {
     expect(res.body.data.status).toBe('CLOSED');
   });
 
-  it('should return 422 with invalid body (periodEnd < periodStart)', async () => {
+  it('should return 400 with invalid body (periodEnd < periodStart)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
@@ -336,7 +340,7 @@ describe('POST /v1/invoices/generate', () => {
         periodEnd: '2026-03-01',
       });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 

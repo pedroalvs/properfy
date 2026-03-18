@@ -32,7 +32,6 @@ describe('RowActions', () => {
     const parentClick = vi.fn();
     const actionClick = vi.fn();
     render(
-      // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
       <div onClick={parentClick}>
         <RowActions actions={[{ icon: 'mdi-pencil', label: 'Editar', onClick: actionClick }]} />
       </div>,

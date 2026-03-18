@@ -17,7 +17,9 @@ export class GetFinancialEntryUseCase {
   async execute(input: GetFinancialEntryInput): Promise<GetFinancialEntryOutput> {
     const { entryId, actor } = input;
 
-    const entry = await this.entryRepo.findById(entryId);
+    // For CL roles, scope at repo level (defense-in-depth)
+    const repoTenantId = (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') ? actor.tenantId ?? undefined : undefined;
+    const entry = await this.entryRepo.findById(entryId, repoTenantId);
     if (!entry) {
       throw new EntryNotFoundError();
     }
@@ -43,7 +45,7 @@ export class GetFinancialEntryUseCase {
       appointmentId: entry.appointmentId,
       inspectorId: entry.inspectorId,
       entryType: entry.entryType,
-      amount: entry.amount.toString(),
+      amount: Number(entry.amount),
       currency: entry.currency,
       status: entry.status,
       description: entry.description,

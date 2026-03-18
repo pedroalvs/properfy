@@ -15,6 +15,7 @@ export interface IReportRepository {
   findAll(filters: ReportFilters, page: number, pageSize: number): Promise<ReportEntity[]>;
   count(filters: ReportFilters): Promise<number>;
   countByUserAndStatuses(userId: string, statuses: ReportStatus[]): Promise<number>;
+  findExpiredWithFileKey(): Promise<ReportEntity[]>;
   save(entity: ReportEntity): Promise<void>;
   update(entity: ReportEntity): Promise<void>;
 }

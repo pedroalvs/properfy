@@ -117,7 +117,7 @@ describe('UpdateUserUseCase', () => {
 
     expect(result.name).toBe('Updated Name');
     expect(result.role).toBe('CL_ADMIN');
-    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', {
+    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       name: 'Updated Name',
       role: 'CL_ADMIN',
     });
@@ -142,7 +142,7 @@ describe('UpdateUserUseCase', () => {
 
     expect(result.name).toBe('Updated Name');
     // CL_ADMIN update should not include role in the repo call
-    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', {
+    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       name: 'Updated Name',
       phone: '+5511999999999',
     });

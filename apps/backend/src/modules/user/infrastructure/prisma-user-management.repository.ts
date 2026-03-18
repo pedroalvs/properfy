@@ -124,6 +124,7 @@ export class PrismaUserManagementRepository
 
   async update(
     userId: string,
+    tenantId: string,
     data: Partial<{
       name: string;
       phone: string | null;
@@ -140,7 +141,7 @@ export class PrismaUserManagementRepository
     if (data.role !== undefined) updateData['role'] = data.role;
     if (data.status !== undefined) updateData['status'] = data.status;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
-    await this.prisma.user.update({ where: { id: userId }, data: updateData });
+    await this.prisma.user.updateMany({ where: { id: userId, tenant_id: tenantId }, data: updateData });
   }
 
   async revokeAllSessions(userId: string): Promise<void> {

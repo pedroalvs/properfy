@@ -47,6 +47,8 @@ export interface IAppointmentRepository {
       notes: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
+      cancellationReasonCode: string | null;
+      rejectionReasonCode: string | null;
       doneCheckedByUserId: string | null;
       doneCheckedAt: Date | null;
       serviceGroupId: string | null;
@@ -67,4 +69,10 @@ export interface IAppointmentRepository {
   saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void>;
   deleteRestrictionsByAppointmentId(appointmentId: string): Promise<void>;
   findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]>;
+  findDuplicateForImport(
+    propertyId: string,
+    serviceTypeId: string,
+    tenantId: string,
+    sinceDate: Date,
+  ): Promise<AppointmentEntity | null>;
 }

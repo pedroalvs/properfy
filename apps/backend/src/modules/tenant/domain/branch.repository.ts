@@ -24,6 +24,7 @@ export interface IBranchRepository {
   save(branch: BranchEntity): Promise<void>;
   update(
     id: string,
+    tenantId: string,
     data: Partial<{
       name: string;
       addressJson: Record<string, unknown> | null;

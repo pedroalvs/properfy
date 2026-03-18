@@ -32,6 +32,7 @@ export interface IUserManagementRepository {
   save(user: UserEntity): Promise<void>;
   update(
     userId: string,
+    tenantId: string,
     data: Partial<{
       name: string;
       phone: string | null;

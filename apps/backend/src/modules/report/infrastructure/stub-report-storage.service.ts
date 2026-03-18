@@ -7,6 +7,10 @@ export class StubReportStorageService implements IReportStorageService {
     this.store.set(key, buffer);
   }
 
+  async download(key: string): Promise<Buffer> {
+    return this.store.get(key) ?? Buffer.alloc(0);
+  }
+
   async generatePresignedGetUrl(key: string, _ttlSeconds: number): Promise<string> {
     return `https://storage.example.com/signed/${key}?token=stub-token`;
   }

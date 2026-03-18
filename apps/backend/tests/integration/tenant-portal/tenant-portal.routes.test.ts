@@ -216,15 +216,15 @@ describe('POST /v1/tenant-portal/:token/reschedule', () => {
 describe('PATCH /v1/tenant-portal/:token/contact', () => {
   it('should return 200 on successful contact update', async () => {
     setupPortalAuth();
-    const mockResult = { contact: { primaryEmail: 'new@email.com' } };
-    mockUpdateContactExecute.mockResolvedValueOnce(mockResult);
+    const useCaseResult = { primaryEmail: 'new@email.com' };
+    mockUpdateContactExecute.mockResolvedValueOnce(useCaseResult);
 
     const res = await supertest(app.server)
       .patch('/v1/tenant-portal/valid-raw-token/contact')
       .send({ primaryEmail: 'new@email.com' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(mockResult);
+    expect(res.body).toEqual({ contact: useCaseResult });
     expect(mockUpdateContactExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         tokenId: TOKEN_ID,

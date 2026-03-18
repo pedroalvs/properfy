@@ -43,8 +43,8 @@ import { TenantListPage } from './TenantListPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_TENANTS = [
-  { id: 'ten-01', name: 'Imob Alpha', legalName: 'Alpha LTDA', status: 'ACTIVE', branchCount: 3, timezone: 'America/Sao_Paulo', currency: 'BRL', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
-  { id: 'ten-02', name: 'Imob Beta', legalName: null, status: 'PENDING', branchCount: 0, timezone: 'America/Sao_Paulo', currency: 'BRL', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+  { id: 'ten-01', name: 'Imob Alpha', legalName: 'Alpha LTDA', status: 'ACTIVE', branchCount: 3, timezone: 'America/Sao_Paulo', currency: 'AUD', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  { id: 'ten-02', name: 'Imob Beta', legalName: null, status: 'PENDING', branchCount: 0, timezone: 'America/Sao_Paulo', currency: 'AUD', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
 ];
 
 function createWrapper() {

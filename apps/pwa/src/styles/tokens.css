@@ -1,0 +1,97 @@
+:root {
+  /* Brand colors */
+  --color-primary: #009DD9;
+  --color-secondary: #21566E;
+  --color-accent: #41A69D;
+  --color-error: #FF5252;
+  --color-info: #00CAE3;
+  --color-success: #4CAF50;
+  --color-warning: #FB8C00;
+  --color-realty: #215676;
+  --color-real-estate: #F37A76;
+
+  /* Snackbar */
+  --color-snackbar-error: #B71C1C;
+
+  /* Surfaces */
+  --color-app-bg: #F5F5F5;
+  --color-card-bg: #FFFFFF;
+
+  /* Text */
+  --color-text-primary: rgba(0, 0, 0, 0.87);
+  --color-text-secondary: rgba(0, 0, 0, 0.6);
+  --color-text-muted: rgb(158, 158, 158);
+  --color-text-disabled: rgba(0, 0, 0, 0.38);
+
+  /* Disabled */
+  --color-disabled-bg: rgba(0, 0, 0, 0.12);
+  --color-disabled-text: rgba(0, 0, 0, 0.26);
+
+  /* Status backgrounds */
+  --color-status-draft: #E1BEE7;
+  --color-status-awaiting-inspector: #FFE0B2;
+  --color-status-scheduled: #B3E5FC;
+  --color-status-done: #C8E6C9;
+  --color-status-cancelled: #FFCDD2;
+  --color-status-rejected: #FFAB91;
+
+  /* Property type backgrounds */
+  --color-type-residential: #B3E5FC;
+  --color-type-commercial: #FFE0B2;
+  --color-type-industrial: #D7CCC8;
+  --color-type-rural: #DCEDC8;
+
+  /* Service group status backgrounds */
+  --color-sg-draft: #E1BEE7;
+  --color-sg-published: #FFE0B2;
+  --color-sg-accepted: #C8E6C9;
+  --color-sg-cancelled: #FFCDD2;
+
+  /* Tenant confirmation status backgrounds */
+  --color-confirmation-pending: #FFE0B2;
+  --color-confirmation-confirmed: #C8E6C9;
+  --color-confirmation-unavailable: #FFCDD2;
+  --color-confirmation-no-response: #D7CCC8;
+
+  /* Flow type backgrounds */
+  --color-flow-routine: #B3E5FC;
+  --color-flow-ingoing: #C8E6C9;
+  --color-flow-outgoing: #FFE0B2;
+
+  /* UI component tokens */
+  --color-shimmer-from: #F5F5F5;
+  --color-shimmer-via: #E0E0E0;
+  --color-shimmer-to: #F5F5F5;
+  --color-border-subtle: #E0E0E0;
+  --color-border-light: #F0F0F0;
+  --color-hover-row: #FAFAFA;
+  --color-text-inactive: #999999;
+  --color-btn-secondary-bg: #F5F5F5;
+  --color-btn-secondary-hover: #EEEEEE;
+  --color-btn-secondary-active: #E0E0E0;
+
+  /* Typography */
+  --font-family: 'Nunito', sans-serif;
+  --font-size-body: 16px;
+  --font-weight-body: 500;
+  --line-height-body: 24px;
+  --letter-spacing-body: 0.5px;
+
+  --font-size-page-title: 24px;
+  --font-weight-page-title: 700;
+  --font-size-page-title-mobile: 20px;
+
+  --font-size-dialog-title: 20px;
+  --font-weight-dialog-title: 500;
+
+  --font-size-caption: 12px;
+  --font-weight-caption: 400;
+
+  /* Spacing (mobile-first) */
+  --page-padding-x: 16px;
+  --page-padding-y: 16px;
+
+  /* Border radius */
+  --radius-default: 4px;
+  --radius-modal: 8px;
+}

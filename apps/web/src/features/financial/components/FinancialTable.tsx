@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { formatDate } from '@/lib/format-date';
 import { FinancialEntryTypeChip } from './FinancialEntryTypeChip';
 import { FinancialStatusChip } from './FinancialStatusChip';
 import type { FinancialEntry } from '../types';
@@ -13,6 +14,9 @@ interface FinancialTableProps {
   sorting?: DataTableSorting;
   onView?: (entry: FinancialEntry) => void;
   onEdit?: (entry: FinancialEntry) => void;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onSelectAllPending?: () => void;
 }
 
 export function FinancialTable({
@@ -24,8 +28,51 @@ export function FinancialTable({
   sorting,
   onView,
   onEdit,
+  selectedIds,
+  onToggleSelect,
+  onSelectAllPending,
 }: FinancialTableProps) {
+  const pendingIds = data.filter((e) => e.status === 'PENDING').map((e) => e.id);
+  const allPendingSelected = selectedIds && pendingIds.length > 0 && pendingIds.every((id) => selectedIds.has(id));
+
+  const selectionColumn: DataTableColumn<FinancialEntry>[] =
+    selectedIds && onToggleSelect
+      ? [
+          {
+            key: 'select',
+            label: '',
+            width: '48px',
+            render: (row) => {
+              const isPending = row.status === 'PENDING';
+              return (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(row.id)}
+                  disabled={!isPending}
+                  onChange={() => onToggleSelect(row.id)}
+                  className="accent-primary"
+                  aria-label={isPending ? `Select ${row.appointmentCode}` : undefined}
+                />
+              );
+            },
+            headerRender: onSelectAllPending
+              ? () => (
+                  <input
+                    type="checkbox"
+                    checked={!!allPendingSelected}
+                    onChange={onSelectAllPending}
+                    className="accent-primary"
+                    aria-label="Select all pending entries"
+                    disabled={pendingIds.length === 0}
+                  />
+                )
+              : undefined,
+          },
+        ]
+      : [];
+
   const columns: DataTableColumn<FinancialEntry>[] = [
+    ...selectionColumn,
     {
       key: 'appointmentCode',
       label: 'Inspection',
@@ -51,7 +98,7 @@ export function FinancialTable({
             fontWeight: 600,
           }}
         >
-          {row.amount.toLocaleString('en-AU', { style: 'currency', currency: 'BRL' })}
+          {row.amount.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })}
         </span>
       ),
     },
@@ -72,7 +119,7 @@ export function FinancialTable({
       label: 'Effective Date',
       width: '140px',
       sortable: true,
-      render: (row) => <>{new Date(row.effectiveAt).toLocaleDateString('en-AU')}</>,
+      render: (row) => <>{formatDate(row.effectiveAt)}</>,
     },
     {
       key: 'actions',

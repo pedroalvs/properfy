@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/format-date';
 import { AppointmentInfoCard } from './AppointmentInfoCard';
 import type { PortalAppointment } from '../types';
 
@@ -70,7 +71,7 @@ export function TenantPortalExpiredView({
 
 function formatResponseDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleString('en-AU');
+    return formatDateTime(iso);
   } catch {
     return iso;
   }

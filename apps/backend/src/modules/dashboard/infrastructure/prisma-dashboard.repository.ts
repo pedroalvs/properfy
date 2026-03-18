@@ -89,13 +89,20 @@ export class PrismaDashboardRepository implements DashboardRepository {
         },
       }),
 
-      // Quick stats: active inspectors
-      this.prisma.inspector.count({
-        where: {
-          status: 'ACTIVE',
-          deleted_at: null,
-        },
-      }),
+      // Quick stats: active inspectors eligible for this tenant (or all if no tenant scope)
+      tenantId
+        ? this.prisma.inspector.findMany({
+            where: { status: 'ACTIVE', deleted_at: null },
+            select: { client_eligibility_json: true },
+          }).then((rows) =>
+            rows.filter((r) => {
+              const eligibility = (r.client_eligibility_json as string[]) ?? [];
+              return eligibility.includes(tenantId);
+            }).length,
+          )
+        : this.prisma.inspector.count({
+            where: { status: 'ACTIVE', deleted_at: null },
+          }),
 
       // Quick stats: active service groups
       this.prisma.serviceGroup.count({

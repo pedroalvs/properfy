@@ -12,7 +12,7 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'DRAFT',
     to: 'AWAITING_INSPECTOR',
-    allowedActors: ['AM', 'OP'],
+    allowedActors: ['OP', 'SYS'],
     requiresReason: false,
     requiresDoneCheckedBy: false,
   },
@@ -33,7 +33,7 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'AWAITING_INSPECTOR',
     to: 'SCHEDULED',
-    allowedActors: ['AM', 'OP'],
+    allowedActors: ['SYS', 'OP'],
     requiresReason: false,
     requiresDoneCheckedBy: false,
   },
@@ -54,9 +54,9 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'SCHEDULED',
     to: 'DONE',
-    allowedActors: ['AM', 'OP', 'INSP'],
+    allowedActors: ['INSP', 'OP'],
     requiresReason: false,
-    requiresDoneCheckedBy: false,  // Inspectors don't set this; OP cross-checks later
+    requiresDoneCheckedBy: true,
   },
   {
     from: 'SCHEDULED',
@@ -68,7 +68,7 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'SCHEDULED',
     to: 'REJECTED',
-    allowedActors: ['AM', 'OP'],
+    allowedActors: ['OP', 'SYS'],
     requiresReason: true,
     requiresDoneCheckedBy: false,
   },
@@ -83,7 +83,7 @@ export const TRANSITION_RULES: TransitionRule[] = [
     from: 'REJECTED',
     to: 'AWAITING_INSPECTOR',
     allowedActors: ['AM', 'OP'],
-    requiresReason: false,
+    requiresReason: true,
     requiresDoneCheckedBy: false,
   },
   {

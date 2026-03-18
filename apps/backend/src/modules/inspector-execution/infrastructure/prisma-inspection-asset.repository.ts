@@ -74,4 +74,16 @@ export class PrismaInspectionAssetRepository implements IInspectionAssetReposito
     if (data.sizeBytes !== undefined) updateData.size_bytes = data.sizeBytes;
     await this.prisma.inspectionAsset.update({ where: { id }, data: updateData });
   }
+
+  // Cross-tenant: background job processes all tenants to expire stale upload slots
+  async expirePendingAssets(): Promise<number> {
+    const result = await this.prisma.inspectionAsset.updateMany({
+      where: {
+        status: 'PENDING',
+        upload_expires_at: { lt: new Date() },
+      },
+      data: { status: 'UPLOAD_FAILED' },
+    });
+    return result.count;
+  }
 }

@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { formatDateTime } from '@/lib/format-date';
 import type { AuditLog } from '../types';
 
 interface AuditLogTableProps {
@@ -27,7 +28,7 @@ export function AuditLogTable({
       label: 'Timestamp',
       width: '180px',
       sortable: true,
-      render: (row) => <>{new Date(row.createdAt).toLocaleString('en-AU')}</>,
+      render: (row) => <>{formatDateTime(row.createdAt)}</>,
     },
     {
       key: 'actorType',

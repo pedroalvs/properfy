@@ -3,6 +3,7 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { TokenService } from '../../domain/token.service';
+import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import { TenantPortalTokenEntity } from '../../domain/tenant-portal-token.entity';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 
@@ -27,6 +28,7 @@ export class GeneratePortalTokenUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly tokenService: TokenService,
     private readonly auditService: AuditService,
+    private readonly createNotificationUseCase?: CreateNotificationUseCase,
   ) {}
 
   async execute(input: GeneratePortalTokenInput) {
@@ -88,6 +90,39 @@ export class GeneratePortalTokenUseCase {
         expiresAt: expiresAt.toISOString(),
       },
     });
+
+    // 9. Send portal link notification
+    if (this.createNotificationUseCase && result.contact) {
+      const payloadJson = {
+        portalToken: rawToken,
+        scheduledDate: scheduledDateStr,
+        tenantName: result.contact.tenantName,
+      };
+
+      // Send EMAIL notification if email available
+      if (result.contact.primaryEmail) {
+        await this.createNotificationUseCase.execute({
+          tenantId: appointment.tenantId,
+          appointmentId: input.appointmentId,
+          recipient: result.contact.primaryEmail,
+          channel: 'EMAIL',
+          templateCode: 'TENANT_PORTAL_LINK',
+          payloadJson,
+        });
+      }
+
+      // Send SMS notification if phone available
+      if (result.contact.primaryPhone) {
+        await this.createNotificationUseCase.execute({
+          tenantId: appointment.tenantId,
+          appointmentId: input.appointmentId,
+          recipient: result.contact.primaryPhone,
+          channel: 'SMS',
+          templateCode: 'TENANT_PORTAL_LINK',
+          payloadJson,
+        });
+      }
+    }
 
     return {
       rawToken,

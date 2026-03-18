@@ -17,6 +17,7 @@ export interface MarketplaceRouteContainer {
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
   acceptOfferUseCase: AcceptOfferUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const groupIdParam = z.object({ groupId: z.string().uuid() });
@@ -25,8 +26,12 @@ export async function registerMarketplaceRoutes(
   app: FastifyInstance,
   container: MarketplaceRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // GET /v1/marketplace/offers — paginated 200
@@ -69,10 +74,12 @@ export async function registerMarketplaceRoutes(
       if (!params.success) {
         throw new ValidationError('Invalid group ID', params.error.errors);
       }
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
       const result = await container.acceptOfferUseCase.execute({
         groupId: params.data.groupId,
         inspectorId: request.authContext!.inspectorId!,
         actor: request.authContext!,
+        idempotencyKey,
       });
       return reply.status(200).send(success(result));
     },

@@ -8,14 +8,19 @@ import type { JwtService } from '../../auth/application/services/jwt.service';
 export interface DashboardRouteContainer {
   getDashboardStatsUseCase: GetDashboardStatsUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 export async function registerDashboardRoutes(
   app: FastifyInstance,
   container: DashboardRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // GET /v1/dashboard/stats — 200

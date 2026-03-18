@@ -21,6 +21,7 @@ export interface PricingRuleRouteContainer {
   listPricingRulesUseCase: ListPricingRulesUseCase;
   updatePricingRuleUseCase: UpdatePricingRuleUseCase;
   jwtService: JwtService;
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const pricingRuleIdParam = z.object({ pricingRuleId: z.string().uuid() });
@@ -29,8 +30,12 @@ export async function registerPricingRuleRoutes(
   app: FastifyInstance,
   container: PricingRuleRouteContainer,
 ): Promise<void> {
-  const authenticate = createAuthMiddleware((token) =>
-    container.jwtService.verify(token),
+  const authenticate = createAuthMiddleware(
+    (token) => container.jwtService.verify(token),
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return tenant?.isActive() ?? false;
+    },
   );
 
   // POST /v1/pricing-rules
