@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +22,7 @@ export function PropertyDetailDrawer({
   onClose,
   onEdit,
 }: PropertyDetailDrawerProps) {
+  const navigate = useNavigate();
   const { property, isLoading } = usePropertyDetail(propertyId);
   const { showInfo } = useSnackbar();
 
@@ -31,6 +33,13 @@ export function PropertyDetailDrawer({
       showInfo('Editing coming soon');
     }
   }, [onEdit, propertyId, showInfo]);
+
+  const handleOpenFullDetail = useCallback(() => {
+    if (propertyId) {
+      onClose();
+      navigate(`/properties/${propertyId}`);
+    }
+  }, [propertyId, onClose, navigate]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">
@@ -58,6 +67,16 @@ export function PropertyDetailDrawer({
             />
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <PropertyDetailSections property={property} />
+              <div className="mt-4">
+                <Button
+                  variant="outlined"
+                  onClick={handleOpenFullDetail}
+                  aria-label="Open full detail"
+                >
+                  <i className="mdi mdi-open-in-new text-base" aria-hidden="true" />
+                  Open full detail
+                </Button>
+              </div>
             </div>
           </>
         ) : null}

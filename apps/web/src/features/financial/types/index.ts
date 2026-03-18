@@ -1,4 +1,5 @@
 import type { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
+import type { InvoiceStatus } from '@/lib/status-colors';
 
 export interface FinancialEntry {
   id: string;
@@ -45,6 +46,50 @@ export interface FinancialEntryFormData {
 }
 
 export type FinancialEntryFormErrors = Partial<Record<keyof FinancialEntryFormData, string>>;
+
+export interface FinancialSummary {
+  totalDebits: number;
+  totalPayouts: number;
+  totalAdjustments: number;
+  totalRefunds: number;
+  pendingCount: number;
+}
+
+export interface Invoice {
+  id: string;
+  tenantId: string;
+  inspectorId: string;
+  inspectorName: string;
+  periodStart: string;
+  periodEnd: string;
+  frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+  totalAmount: number;
+  currency: string;
+  status: InvoiceStatus;
+  entryCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceDetail extends Invoice {
+  entries: FinancialEntry[];
+  downloadUrl: string | null;
+  notes: string | null;
+}
+
+export interface InvoiceFiltersState {
+  search: string;
+  status: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
+export const DEFAULT_INVOICE_FILTERS: InvoiceFiltersState = {
+  search: '',
+  status: '',
+  periodStart: '',
+  periodEnd: '',
+};
 
 export const EMPTY_FINANCIAL_ENTRY_FORM: FinancialEntryFormData = {
   entryType: '',

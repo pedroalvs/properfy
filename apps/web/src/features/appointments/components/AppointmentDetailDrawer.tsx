@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
@@ -6,12 +7,11 @@ import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useAuth } from '@/hooks/useAuth';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { api } from '@/services/api';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
+import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { getAvailableTransitions } from '../lib/transitions';
 import { AppointmentDetailSections } from './AppointmentDetailSections';
 import { AppointmentTransitionActions } from './AppointmentTransitionActions';
-import type { AppointmentStatus } from '@properfy/shared';
 
 interface AppointmentDetailDrawerProps {
   appointmentId: string | null;
@@ -26,38 +26,16 @@ export function AppointmentDetailDrawer({
   onClose,
   onEdit,
 }: AppointmentDetailDrawerProps) {
+  const navigate = useNavigate();
   const { appointment, isLoading, refetch } = useAppointmentDetail(appointmentId);
   const { user } = useAuth();
-  const { showSuccess, showError, showInfo } = useSnackbar();
-  const [transitionLoading, setTransitionLoading] = useState(false);
+  const { showInfo } = useSnackbar();
+  const { transition, isTransitioning } = useAppointmentTransition(appointmentId, refetch);
 
   const transitions =
     appointment && user
       ? getAvailableTransitions(appointment.status, user.role)
       : [];
-
-  const handleTransition = useCallback(
-    async (targetStatus: AppointmentStatus, reason?: string) => {
-      if (!appointmentId) return;
-      setTransitionLoading(true);
-      try {
-        const { error } = await api.POST(
-          `/v1/appointments/${appointmentId}/status-transitions` as any,
-          { body: { targetStatus, reason } as any },
-        );
-        if (error) {
-          throw new Error((error as any)?.error?.message ?? 'Transition failed');
-        }
-        showSuccess('Transition completed');
-        refetch();
-      } catch (err) {
-        showError(err instanceof Error ? err.message : 'Transition failed');
-      } finally {
-        setTransitionLoading(false);
-      }
-    },
-    [appointmentId, showSuccess, showError, refetch],
-  );
 
   const handleEdit = useCallback(() => {
     if (onEdit && appointmentId) {
@@ -66,6 +44,13 @@ export function AppointmentDetailDrawer({
       showInfo('Editing coming soon');
     }
   }, [onEdit, appointmentId, showInfo]);
+
+  const handleOpenFullDetail = useCallback(() => {
+    if (appointmentId) {
+      onClose();
+      navigate(`/appointments/${appointmentId}`);
+    }
+  }, [appointmentId, onClose, navigate]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">
@@ -93,13 +78,23 @@ export function AppointmentDetailDrawer({
             />
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <AppointmentDetailSections appointment={appointment} />
+              <div className="mt-4">
+                <Button
+                  variant="outlined"
+                  onClick={handleOpenFullDetail}
+                  aria-label="Open full detail"
+                >
+                  <i className="mdi mdi-open-in-new text-base" aria-hidden="true" />
+                  Open full detail
+                </Button>
+              </div>
             </div>
             {transitions.length > 0 && (
               <div className="border-t border-black/10 px-6 py-4">
                 <AppointmentTransitionActions
                   transitions={transitions}
-                  onTransition={handleTransition}
-                  loading={transitionLoading}
+                  onTransition={transition}
+                  loading={isTransitioning}
                 />
               </div>
             )}

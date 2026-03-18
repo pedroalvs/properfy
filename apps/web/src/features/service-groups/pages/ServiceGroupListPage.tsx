@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { ServiceGroupFilters } from '../components/ServiceGroupFilters';
 import { ServiceGroupTable } from '../components/ServiceGroupTable';
@@ -7,6 +8,7 @@ import { ServiceGroupFormDrawer } from '../components/ServiceGroupFormDrawer';
 import { useServiceGroupList } from '../hooks/useServiceGroupList';
 
 export function ServiceGroupListPage() {
+  const navigate = useNavigate();
   const {
     data,
     isLoading,
@@ -31,11 +33,11 @@ export function ServiceGroupListPage() {
         primaryAction={{
           label: 'New Group',
           icon: 'mdi-plus',
-          onClick: () => {
-            setEditId(null);
-            setFormOpen(true);
-          },
+          onClick: () => navigate('/service-groups/new'),
         }}
+        secondaryActions={[
+          { label: 'Map', icon: 'mdi-map-outline', onClick: () => navigate('/service-groups/map') },
+        ]}
       >
         <ServiceGroupFilters
           filters={filters}
@@ -48,10 +50,7 @@ export function ServiceGroupListPage() {
           onRetryError={refetch}
           pagination={pagination}
           sorting={sorting}
-          onView={(sg) => {
-            setSelectedId(sg.id);
-            setDrawerOpen(true);
-          }}
+          onView={(sg) => navigate(`/service-groups/${sg.id}`)}
           onEdit={(sg) => {
             setSelectedId(sg.id);
             setDrawerOpen(true);

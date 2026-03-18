@@ -1,0 +1,223 @@
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { FormSection } from '@/components/forms/FormSection';
+import { FormField } from '@/components/forms/FormField';
+import { FormActions } from '@/components/forms/FormActions';
+import { TextInput } from '@/components/forms/TextInput';
+import { SelectInput } from '@/components/forms/SelectInput';
+import { Textarea } from '@/components/forms/Textarea';
+import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import { useFormOptions } from '@/hooks/useFormOptions';
+import { usePropertySave } from '../hooks/usePropertySave';
+import { PROPERTY_TYPE_OPTIONS } from '../constants/form-options';
+import type { PropertyFormData, PropertyFormErrors } from '../types';
+import { EMPTY_PROPERTY_FORM } from '../types';
+
+export function PropertyCreatePage() {
+  const navigate = useNavigate();
+  const { showSuccess, showError } = useSnackbar();
+  const { save, isSaving, validate } = usePropertySave();
+
+  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+    ['branches', 'form-options'],
+    '/v1/branches',
+    (item) => ({ value: item.id, label: item.name }),
+  );
+
+  const [form, setForm] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
+  const [initialData] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
+  const [errors, setErrors] = useState<PropertyFormErrors>({});
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
+
+  const updateField = useCallback(
+    <K extends keyof PropertyFormData>(field: K, value: PropertyFormData[K]) => {
+      setForm((prev) => ({ ...prev, [field]: value }));
+      setErrors((prev) => {
+        if (prev[field]) {
+          const next = { ...prev };
+          delete next[field];
+          return next;
+        }
+        return prev;
+      });
+    },
+    [],
+  );
+
+  const handleSubmit = useCallback(async () => {
+    const validationErrors = validate(form, 'create');
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    const result = await save(form);
+    if (result.success) {
+      showSuccess('Property created. Geocoding in progress.');
+      if (result.id) {
+        navigate(`/properties/${result.id}`);
+      } else {
+        navigate('/properties');
+      }
+    } else {
+      showError(result.error ?? 'Failed to create property');
+    }
+  }, [form, validate, save, showSuccess, showError, navigate]);
+
+  const handleBack = useCallback(() => {
+    if (isDirty) {
+      setShowConfirm(true);
+    } else {
+      navigate(-1);
+    }
+  }, [isDirty, navigate]);
+
+  const forceBack = useCallback(() => {
+    setShowConfirm(false);
+    navigate(-1);
+  }, [navigate]);
+
+  const cancelDiscard = useCallback(() => {
+    setShowConfirm(false);
+  }, []);
+
+  return (
+    <>
+      <PageHeader
+        title="New Property"
+        secondaryActions={[
+          {
+            label: 'Back',
+            icon: 'mdi-arrow-left',
+            onClick: handleBack,
+          },
+        ]}
+      />
+
+      <div className="mx-auto max-w-[640px]">
+        <div className="rounded bg-card-bg p-6 shadow-sm">
+          <div className="flex flex-col gap-6">
+            <FormSection title="Identification" columns={2}>
+              <FormField label="Property Code" required error={errors.propertyCode}>
+                <TextInput
+                  value={form.propertyCode}
+                  onChange={(v) => updateField('propertyCode', v)}
+                  placeholder="e.g. PROP-001"
+                  error={!!errors.propertyCode}
+                  aria-label="Property Code"
+                />
+              </FormField>
+              <FormField label="Type" required error={errors.type}>
+                <SelectInput
+                  value={form.type}
+                  onChange={(v) => updateField('type', v)}
+                  options={PROPERTY_TYPE_OPTIONS}
+                  placeholder="Select type"
+                  error={!!errors.type}
+                  aria-label="Type"
+                />
+              </FormField>
+              <FormField label="Branch" error={errors.branchId}>
+                <SelectInput
+                  value={form.branchId}
+                  onChange={(v) => updateField('branchId', v)}
+                  options={branchOptions}
+                  placeholder="Select branch"
+                  aria-label="Branch"
+                />
+              </FormField>
+            </FormSection>
+
+            <FormSection title="Address" columns={2}>
+              <FormField label="Street" required error={errors.street}>
+                <TextInput
+                  value={form.street}
+                  onChange={(v) => updateField('street', v)}
+                  error={!!errors.street}
+                  aria-label="Street"
+                />
+              </FormField>
+              <FormField label="Address Line 2" error={errors.addressLine2}>
+                <TextInput
+                  value={form.addressLine2}
+                  onChange={(v) => updateField('addressLine2', v)}
+                  aria-label="Address Line 2"
+                />
+              </FormField>
+              <FormField label="Suburb" required error={errors.suburb}>
+                <TextInput
+                  value={form.suburb}
+                  onChange={(v) => updateField('suburb', v)}
+                  error={!!errors.suburb}
+                  aria-label="Suburb"
+                />
+              </FormField>
+              <FormField label="Postcode" required error={errors.postcode}>
+                <TextInput
+                  value={form.postcode}
+                  onChange={(v) => updateField('postcode', v)}
+                  error={!!errors.postcode}
+                  aria-label="Postcode"
+                />
+              </FormField>
+              <FormField label="State" required error={errors.state}>
+                <TextInput
+                  value={form.state}
+                  onChange={(v) => updateField('state', v)}
+                  error={!!errors.state}
+                  aria-label="State"
+                />
+              </FormField>
+              <FormField label="Country" error={errors.country}>
+                <TextInput
+                  value={form.country}
+                  onChange={(v) => updateField('country', v)}
+                  aria-label="Country"
+                />
+              </FormField>
+            </FormSection>
+
+            <FormSection title="Notes">
+              <FormField label="Notes" error={errors.notes}>
+                <Textarea
+                  value={form.notes}
+                  onChange={(v) => updateField('notes', v)}
+                  rows={4}
+                  placeholder="Additional information"
+                  aria-label="Notes"
+                />
+              </FormField>
+            </FormSection>
+          </div>
+
+          <div className="mt-6">
+            <FormActions>
+              <Button variant="secondary" onClick={handleBack}>
+                Cancel
+              </Button>
+              <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
+                Create Property
+              </Button>
+            </FormActions>
+          </div>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={showConfirm}
+        title="Discard changes?"
+        message="You have unsaved changes. Do you want to discard them?"
+        confirmLabel="Discard"
+        cancelLabel="Continue editing"
+        variant="warning"
+        onConfirm={forceBack}
+        onClose={cancelDiscard}
+      />
+    </>
+  );
+}

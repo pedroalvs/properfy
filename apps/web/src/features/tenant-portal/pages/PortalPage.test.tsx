@@ -118,7 +118,7 @@ describe('PortalPage', () => {
     });
   });
 
-  it('shows read-only banner when token is expired', async () => {
+  it('shows expired view when token status is EXPIRED', async () => {
     mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
@@ -127,7 +127,7 @@ describe('PortalPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/The confirmation deadline has passed/),
+        screen.getByText('The confirmation deadline has passed.'),
       ).toBeInTheDocument();
     });
   });
@@ -145,13 +145,45 @@ describe('PortalPage', () => {
     });
   });
 
-  it('shows error state when API fails', async () => {
+  it('shows invalid view when API returns PORTAL_TOKEN_NOT_FOUND', async () => {
     mockGet.mockResolvedValue({ data: undefined, error: new ApiError(404, 'Not found', 'PORTAL_TOKEN_NOT_FOUND') });
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid Link')).toBeInTheDocument();
+      expect(screen.getByText('This link is no longer valid')).toBeInTheDocument();
     });
+  });
+
+  it('shows invalid view when API returns PORTAL_TOKEN_INVALID', async () => {
+    mockGet.mockResolvedValue({ data: undefined, error: new ApiError(400, 'Invalid', 'PORTAL_TOKEN_INVALID') });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByText('This link is no longer valid')).toBeInTheDocument();
+    });
+  });
+
+  it('shows expired view when API returns PORTAL_TOKEN_EXPIRED error', async () => {
+    mockGet.mockResolvedValue({ data: undefined, error: new ApiError(410, 'Expired', 'PORTAL_TOKEN_EXPIRED') });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByText('The confirmation deadline has passed.')).toBeInTheDocument();
+    });
+  });
+
+  it('shows cancelled view when appointment is CANCELLED', async () => {
+    mockGet.mockResolvedValue({ data: {
+      ...MOCK_PORTAL_DATA,
+      appointment: { ...MOCK_PORTAL_DATA.appointment, status: 'CANCELLED' },
+      agencyPhone: '+61 2 1234 5678',
+    } });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByText('This inspection has been cancelled')).toBeInTheDocument();
+    });
+    expect(screen.getByText('+61 2 1234 5678')).toBeInTheDocument();
   });
 
   it('renders contact form with pre-filled data', async () => {
@@ -173,7 +205,7 @@ describe('PortalPage', () => {
     });
   });
 
-  it('hides reschedule form when read-only', async () => {
+  it('hides reschedule form when expired (shows expired view)', async () => {
     mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
@@ -181,7 +213,7 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getByText('Appointment Details')).toBeInTheDocument();
+      expect(screen.getByText('The confirmation deadline has passed.')).toBeInTheDocument();
     });
     expect(screen.queryByText('Request Reschedule')).not.toBeInTheDocument();
   });
@@ -209,5 +241,31 @@ describe('PortalPage', () => {
       expect(screen.getByText('Attendance Confirmed')).toBeInTheDocument();
     });
     expect(screen.queryByText('Confirm Your Attendance')).not.toBeInTheDocument();
+  });
+
+  it('shows ResponseConfirmationCard when existingResponse is present', async () => {
+    mockGet.mockResolvedValue({ data: {
+      ...MOCK_PORTAL_DATA,
+      existingResponse: {
+        type: 'CONFIRMED',
+        createdAt: '2026-04-10T10:00:00Z',
+        summary: 'Confirmed by tenant',
+      },
+    } });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByText('Confirmed')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Confirmed by tenant')).toBeInTheDocument();
+  });
+
+  it('shows generic error state for unknown API errors', async () => {
+    mockGet.mockResolvedValue({ data: undefined, error: new ApiError(500, 'Server error') });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByText('Server Error')).toBeInTheDocument();
+    });
   });
 });

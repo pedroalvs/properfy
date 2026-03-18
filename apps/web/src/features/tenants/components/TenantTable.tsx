@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { formatDate } from '@/lib/format-date';
 import { TenantConfirmationStatusChip } from './TenantConfirmationStatusChip';
 import type { TenantContact } from '../types';
 
@@ -56,7 +57,7 @@ export function TenantTable({
       label: 'Appointment Date',
       width: '140px',
       sortable: true,
-      render: (row) => <>{new Date(row.appointmentDate).toLocaleDateString('pt-BR')}</>,
+      render: (row) => <>{formatDate(row.appointmentDate)}</>,
     },
     {
       key: 'lastActivityAt',
@@ -66,7 +67,7 @@ export function TenantTable({
       render: (row) => (
         <>
           {row.lastActivityAt
-            ? new Date(row.lastActivityAt).toLocaleDateString('pt-BR')
+            ? formatDate(row.lastActivityAt)
             : '—'}
         </>
       ),

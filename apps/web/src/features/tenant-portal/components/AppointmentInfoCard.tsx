@@ -1,15 +1,17 @@
 import { StatusChip } from '@/components/ui/StatusChip';
 import { TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
-import type { TenantConfirmationStatus } from '@properfy/shared';
+import { useCountdown } from '../hooks/useCountdown';
 import type { PortalAppointment } from '../types';
 
 interface AppointmentInfoCardProps {
   appointment: PortalAppointment;
+  deadline?: string;
 }
 
-export function AppointmentInfoCard({ appointment }: AppointmentInfoCardProps) {
+export function AppointmentInfoCard({ appointment, deadline }: AppointmentInfoCardProps) {
   const confirmationStyle =
     TENANT_CONFIRMATION_STATUS_MAP[appointment.tenantConfirmationStatus];
+  const countdown = useCountdown(deadline);
 
   return (
     <div className="rounded bg-card-bg p-6 shadow-sm">
@@ -59,6 +61,17 @@ export function AppointmentInfoCard({ appointment }: AppointmentInfoCardProps) {
           <InfoRow label="Notes">{appointment.notes}</InfoRow>
         )}
       </div>
+
+      {deadline && countdown.isUrgent && !countdown.isExpired && (
+        <div
+          className="mt-4 flex items-center gap-2 rounded bg-warning/10 px-3 py-2 text-sm font-semibold text-warning"
+          role="status"
+          aria-label="Countdown timer"
+        >
+          <i className="mdi mdi-clock-alert-outline text-base" />
+          Less than {countdown.hours}h {countdown.minutes}m remaining to respond
+        </div>
+      )}
     </div>
   );
 }

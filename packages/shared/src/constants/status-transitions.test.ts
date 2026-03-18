@@ -28,8 +28,10 @@ describe('VALID_TRANSITIONS', () => {
     expect(VALID_TRANSITIONS.SCHEDULED).toContain('REJECTED');
   });
 
-  it('DONE can only transition back to DRAFT', () => {
-    expect(VALID_TRANSITIONS.DONE).toEqual(['DRAFT']);
+  it('DONE can transition to DRAFT or REJECTED', () => {
+    expect(VALID_TRANSITIONS.DONE).toContain('DRAFT');
+    expect(VALID_TRANSITIONS.DONE).toContain('REJECTED');
+    expect(VALID_TRANSITIONS.DONE).toHaveLength(2);
   });
 
   it('CANCELLED can only transition back to DRAFT', () => {

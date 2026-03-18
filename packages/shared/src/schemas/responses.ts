@@ -31,7 +31,6 @@ export const messageResponseSchema = z.object({
 export const loginResponseSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),
-  expiresIn: z.number(),
   user: z.object({
     id: z.string().uuid(),
     name: z.string(),
@@ -44,7 +43,6 @@ export const loginResponseSchema = z.object({
 export const refreshResponseSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),
-  expiresIn: z.number(),
 });
 
 export const meResponseSchema = z.object({
@@ -55,6 +53,10 @@ export const meResponseSchema = z.object({
   tenantId: z.string().uuid().nullable(),
   branchId: z.string().uuid().nullable(),
   totpEnabled: z.boolean(),
+  phone: z.string().nullable(),
+  status: z.string(),
+  lastLoginAt: z.string().nullable(),
+  createdAt: z.string(),
 });
 
 // ─── Tenant ────────────────────────────────────────────────────────────────
@@ -268,7 +270,7 @@ export const auditLogResponseSchema = z.object({
 export const portalDataResponseSchema = z.object({
   appointment: z.unknown(),
   contact: z.unknown().nullable(),
-  restrictions: z.array(z.unknown()),
+  restrictions: z.unknown().nullable(),
 });
 
 export const portalTokenResponseSchema = z.object({

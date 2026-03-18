@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import type { FilterSelectOption } from '@/components/filters/FilterSelect';
 import { AppointmentFilters } from '../components/AppointmentFilters';
@@ -14,6 +15,7 @@ const BRANCH_OPTIONS: FilterSelectOption[] = [
 ];
 
 export function AppointmentListPage() {
+  const navigate = useNavigate();
   const {
     data,
     isLoading,
@@ -36,6 +38,10 @@ export function AppointmentListPage() {
       <ListFilterTableTemplate
         title="Appointments"
         primaryAction={{ label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } }}
+        secondaryActions={[
+          { label: 'Map', icon: 'mdi-map-outline', onClick: () => navigate('/appointments/map') },
+          { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/appointments/import') },
+        ]}
       >
         <AppointmentFilters
           filters={filters}

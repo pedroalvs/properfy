@@ -17,7 +17,7 @@ describe('Button', () => {
 
   it('applies secondary variant', () => {
     render(<Button variant="secondary">Cancelar</Button>);
-    expect(screen.getByRole('button').className).toContain('bg-[#F5F5F5]');
+    expect(screen.getByRole('button').className).toContain('bg-btn-secondary-bg');
   });
 
   it('applies outlined variant', () => {

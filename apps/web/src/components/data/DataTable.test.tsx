@@ -46,7 +46,7 @@ describe('DataTable', () => {
   it('shows loading state when loading', () => {
     render(<DataTable columns={columns} data={[]} loading />);
     expect(screen.getByRole('status')).toBeInTheDocument();
-    expect(screen.getByText('Carregando...')).toBeInTheDocument();
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows empty state when data is empty', () => {
@@ -64,7 +64,7 @@ describe('DataTable', () => {
     const onRetry = vi.fn();
     render(<DataTable columns={columns} data={[]} error="Falha na conexão" onRetryError={onRetry} />);
     expect(screen.getByText('Falha na conexão')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
@@ -146,6 +146,6 @@ describe('DataTable', () => {
     render(<DataTable columns={columns} data={data} onRowClick={() => {}} />);
     const row = screen.getByText('Item A').closest('tr')!;
     expect(row.className).toContain('cursor-pointer');
-    expect(row.className).toContain('hover:bg-[#FAFAFA]');
+    expect(row.className).toContain('hover:bg-hover-row');
   });
 });

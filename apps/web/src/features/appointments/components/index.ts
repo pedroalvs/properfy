@@ -2,3 +2,8 @@ export { AppointmentStatusChip } from './AppointmentStatusChip';
 export { AppointmentFilters } from './AppointmentFilters';
 export { AppointmentTable } from './AppointmentTable';
 export { AppointmentFormDrawer } from './AppointmentFormDrawer';
+export { AppointmentContactTab } from './AppointmentContactTab';
+export { AppointmentTimelineTab } from './AppointmentTimelineTab';
+export { AppointmentNotificationsTab } from './AppointmentNotificationsTab';
+export { AppointmentFinancialTab } from './AppointmentFinancialTab';
+export { AuditTimeline } from './AuditTimeline';

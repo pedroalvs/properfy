@@ -10,12 +10,16 @@ describe('UserRole', () => {
     expect(UserRole.INSP).toBe('INSP');
   });
 
-  it('should have exactly 6 roles', () => {
-    expect(Object.keys(UserRole)).toHaveLength(6);
+  it('should have exactly 7 roles', () => {
+    expect(Object.keys(UserRole)).toHaveLength(7);
   });
 
   it('should include TNT role', () => {
     expect(UserRole.TNT).toBe('TNT');
+  });
+
+  it('should include SYS role', () => {
+    expect(UserRole.SYS).toBe('SYS');
   });
 });
 

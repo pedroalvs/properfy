@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import type { FilterSelectOption } from '@/components/filters/FilterSelect';
 import { PropertyFilters } from '../components/PropertyFilters';
@@ -14,6 +15,7 @@ const BRANCH_OPTIONS: FilterSelectOption[] = [
 ];
 
 export function PropertyListPage() {
+  const navigate = useNavigate();
   const {
     data,
     isLoading,
@@ -38,11 +40,12 @@ export function PropertyListPage() {
         primaryAction={{
           label: 'New Property',
           icon: 'mdi-plus',
-          onClick: () => {
-            setEditId(null);
-            setFormOpen(true);
-          },
+          onClick: () => navigate('/properties/new'),
         }}
+        secondaryActions={[
+          { label: 'Map', icon: 'mdi-map-outline', onClick: () => navigate('/properties/map') },
+          { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/properties/import') },
+        ]}
       >
         <PropertyFilters
           filters={filters}
@@ -57,8 +60,7 @@ export function PropertyListPage() {
           pagination={pagination}
           sorting={sorting}
           onView={(prop) => {
-            setSelectedId(prop.id);
-            setDrawerOpen(true);
+            navigate(`/properties/${prop.id}`);
           }}
           onEdit={(prop) => {
             setSelectedId(prop.id);

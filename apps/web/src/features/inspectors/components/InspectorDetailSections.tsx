@@ -1,13 +1,10 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
+import { formatDateTime } from '@/lib/format-date';
 import type { InspectorDetail } from '../types';
 
 interface InspectorDetailSectionsProps {
   inspector: InspectorDetail;
-}
-
-function formatDateTimeBR(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR');
 }
 
 function formatList(items: string[]): string | null {
@@ -35,8 +32,8 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
       </FormSection>
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTimeBR(inspector.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTimeBR(inspector.updatedAt)} />
+        <DetailRow label="Created At" value={formatDateTime(inspector.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTime(inspector.updatedAt)} />
       </FormSection>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 interface DialogProps {
   open: boolean;
@@ -18,6 +18,7 @@ export function Dialog({
   maxWidth = '500px',
 }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -40,7 +41,7 @@ export function Dialog({
       className="fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
-      aria-label={title}
+      aria-labelledby={titleId}
     >
       {/* Backdrop */}
       <div
@@ -58,7 +59,7 @@ export function Dialog({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-0">
-          <h2 className="text-dialog-title text-text-primary">{title}</h2>
+          <h2 id={titleId} className="text-dialog-title text-text-primary">{title}</h2>
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-black/5"

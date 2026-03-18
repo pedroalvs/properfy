@@ -36,6 +36,7 @@ function validateEmail(email: string): string | undefined {
 export interface SaveResult {
   success: boolean;
   error?: string;
+  id?: string;
 }
 
 export interface UseAppointmentSaveReturn {
@@ -69,12 +70,15 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
       if (appointmentId) {
         const { error } = await api.PATCH(`/v1/appointments/${appointmentId}` as any, { body: data as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        return { success: true, id: appointmentId };
       } else {
-        const { error } = await api.POST('/v1/appointments' as any, { body: data as any });
+        const { data: responseData, error } = await api.POST('/v1/appointments' as any, { body: data as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const createdId = (responseData as any)?.data?.id;
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        return { success: true, id: createdId };
       }
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save';
       return { success: false, error: message };

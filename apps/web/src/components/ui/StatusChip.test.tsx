@@ -31,4 +31,17 @@ describe('StatusChip', () => {
     );
     expect(container.querySelectorAll('span')).toHaveLength(6);
   });
+
+  it('renders with custom label and bg props', () => {
+    render(<StatusChip label="Custom Status" bg="#FF0000" />);
+    const chip = screen.getByText('Custom Status');
+    expect(chip).toBeInTheDocument();
+    expect(chip.style.backgroundColor).toBeTruthy();
+  });
+
+  it('applies text-primary color for custom chips', () => {
+    render(<StatusChip label="Test" bg="#00FF00" />);
+    const chip = screen.getByText('Test');
+    expect(chip.style.color).toBe('var(--color-text-primary)');
+  });
 });

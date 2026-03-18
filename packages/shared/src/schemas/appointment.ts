@@ -55,6 +55,8 @@ export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 export const statusTransitionSchema = z.object({
   targetStatus: z.nativeEnum(AppointmentStatus),
   reason: z.string().max(1000).optional(),
+  cancellationReasonCode: z.string().max(50).optional(),
+  rejectionReasonCode: z.string().max(50).optional(),
   doneCheckedByUserId: z.string().uuid().optional(),
   inspectorId: z.string().uuid().optional(),
 });

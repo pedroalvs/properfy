@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act , waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
 import { AppointmentDetailDrawer } from './AppointmentDetailDrawer';
 
@@ -48,9 +49,6 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// AuthProvider is mocked above; define a local reference for use in Wrapper JSX
-const AuthProvider = ({ children }: { children: React.ReactNode }) => <>{children}</>;
-
 vi.mock('../hooks/useAppointmentDetail', () => ({
   useAppointmentDetail: (id: string | null) => {
     if (!id) return { appointment: null, isLoading: false, isError: false, refetch: vi.fn() };
@@ -71,6 +69,12 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
   },
 }));
 
+vi.mock('../hooks/useAppointmentTransition', () => ({
+  useAppointmentTransition: () => ({
+    transition: vi.fn(),
+    isTransitioning: false,
+  }),
+}));
 
 function SnackbarDisplay() {
   const { messages } = useSnackbar();
@@ -91,10 +95,10 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={testQueryClient}>
       <SnackbarProvider>
-      <AuthProvider>
-        {children}
-        <SnackbarDisplay />
-      </AuthProvider>
+        <MemoryRouter>
+          {children}
+          <SnackbarDisplay />
+        </MemoryRouter>
       </SnackbarProvider>
     </QueryClientProvider>
   );
@@ -130,24 +134,21 @@ describe('AppointmentDetailDrawer', () => {
     expect(screen.getByText('Contact')).toBeInTheDocument();
   });
 
-  it('shows transition buttons for AM user', async () => {
+  it('shows "Open full detail" button', () => {
     renderDrawer({ appointmentId: 'apt-01', open: true });
-    // Need to login first to have AM role
-    // The AuthProvider stub starts with null user, so transitions won't show
-    // Let's test with apt-03 (SCHEDULED) after login
+    expect(screen.getByText('Open full detail')).toBeInTheDocument();
   });
 
-  it('click transition without reason shows success snackbar', async () => {
-    renderDrawer({ appointmentId: 'apt-01', open: true });
-    // Without logged-in user, no transitions are shown
-    // This is expected since the stub AuthProvider starts with null user
+  it('edit button calls onEdit with appointment id when onEdit prop is provided', () => {
+    const onEdit = vi.fn();
+    renderDrawer({ appointmentId: 'apt-01', open: true, onEdit });
+    fireEvent.click(screen.getByLabelText('Edit'));
+    expect(onEdit).toHaveBeenCalledWith('apt-01');
   });
 
-  it('edit button calls showInfo snackbar', () => {
+  it('edit button falls back to snackbar when onEdit prop is not provided', () => {
     renderDrawer({ appointmentId: 'apt-01', open: true });
-    const editButton = screen.getByLabelText('Edit');
-    fireEvent.click(editButton);
-    // Snackbar renders the info message
+    fireEvent.click(screen.getByLabelText('Edit'));
     expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
@@ -159,7 +160,6 @@ describe('AppointmentDetailDrawer', () => {
 
   it('drawer panel is hidden when closed', () => {
     renderDrawer({ appointmentId: 'apt-01', open: false });
-    // DrawerPanel renders children but translates off-screen when closed
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveClass('translate-x-full');
   });
@@ -175,18 +175,5 @@ describe('AppointmentDetailDrawer', () => {
     renderDrawer({ appointmentId: 'apt-01', open: true, onClose });
     fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
-  });
-
-  it('edit button calls onEdit with appointment id when onEdit prop is provided', () => {
-    const onEdit = vi.fn();
-    renderDrawer({ appointmentId: 'apt-01', open: true, onEdit });
-    fireEvent.click(screen.getByLabelText('Edit'));
-    expect(onEdit).toHaveBeenCalledWith('apt-01');
-  });
-
-  it('edit button falls back to snackbar when onEdit prop is not provided', () => {
-    renderDrawer({ appointmentId: 'apt-01', open: true });
-    fireEvent.click(screen.getByLabelText('Edit'));
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 });

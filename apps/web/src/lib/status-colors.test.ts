@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus } from '@properfy/shared';
-import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP, SERVICE_GROUP_STATUS_MAP, PRIORITY_MODE_MAP, USER_ROLE_MAP, USER_STATUS_MAP, FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP, TENANT_CONFIRMATION_STATUS_MAP, REPORT_TYPE_MAP, REPORT_STATUS_MAP } from './status-colors';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus } from '@properfy/shared';
+import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP, SERVICE_GROUP_STATUS_MAP, PRIORITY_MODE_MAP, USER_ROLE_MAP, USER_STATUS_MAP, FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP, TENANT_CONFIRMATION_STATUS_MAP, REPORT_TYPE_MAP, REPORT_STATUS_MAP, FLOW_TYPE_MAP, SERVICE_TYPE_STATUS_MAP, SLOT_STATUS_MAP } from './status-colors';
 
 describe('APPOINTMENT_STATUS_MAP', () => {
   const allStatuses: AppointmentStatus[] = [
@@ -162,10 +162,11 @@ describe('USER_ROLE_MAP', () => {
     UserRole.CL_USER,
     UserRole.INSP,
     UserRole.TNT,
+    UserRole.SYS,
   ];
 
-  it('maps all 6 user roles', () => {
-    expect(Object.keys(USER_ROLE_MAP)).toHaveLength(6);
+  it('maps all 7 user roles', () => {
+    expect(Object.keys(USER_ROLE_MAP)).toHaveLength(7);
     for (const role of allRoles) {
       expect(USER_ROLE_MAP[role]).toBeDefined();
     }
@@ -367,5 +368,87 @@ describe('REPORT_STATUS_MAP', () => {
     expect(REPORT_STATUS_MAP[ReportStatus.PROCESSING].label).toBe('Processing');
     expect(REPORT_STATUS_MAP[ReportStatus.READY].label).toBe('Ready');
     expect(REPORT_STATUS_MAP[ReportStatus.FAILED].label).toBe('Failed');
+  });
+});
+
+describe('FLOW_TYPE_MAP', () => {
+  const allTypes: ServiceTypeFlowType[] = [
+    ServiceTypeFlowType.ROUTINE,
+    ServiceTypeFlowType.INGOING,
+    ServiceTypeFlowType.OUTGOING,
+  ];
+
+  it('maps all 3 flow types', () => {
+    expect(Object.keys(FLOW_TYPE_MAP)).toHaveLength(3);
+    for (const type of allTypes) {
+      expect(FLOW_TYPE_MAP[type]).toBeDefined();
+    }
+  });
+
+  it.each(allTypes)('type %s has bg, text, and label', (type) => {
+    const style = FLOW_TYPE_MAP[type];
+    expect(style.bg).toBeTruthy();
+    expect(style.text).toBeTruthy();
+    expect(style.label).toBeTruthy();
+  });
+
+  it('returns correct labels', () => {
+    expect(FLOW_TYPE_MAP[ServiceTypeFlowType.ROUTINE].label).toBe('Routine');
+    expect(FLOW_TYPE_MAP[ServiceTypeFlowType.INGOING].label).toBe('Ingoing');
+    expect(FLOW_TYPE_MAP[ServiceTypeFlowType.OUTGOING].label).toBe('Outgoing');
+  });
+});
+
+describe('SERVICE_TYPE_STATUS_MAP', () => {
+  const allStatuses: ServiceTypeStatus[] = [
+    ServiceTypeStatus.ACTIVE,
+    ServiceTypeStatus.INACTIVE,
+  ];
+
+  it('maps both service type statuses', () => {
+    expect(Object.keys(SERVICE_TYPE_STATUS_MAP)).toHaveLength(2);
+    for (const status of allStatuses) {
+      expect(SERVICE_TYPE_STATUS_MAP[status]).toBeDefined();
+    }
+  });
+
+  it.each(allStatuses)('status %s has bg, text, and label', (status) => {
+    const style = SERVICE_TYPE_STATUS_MAP[status];
+    expect(style.bg).toBeTruthy();
+    expect(style.text).toBeTruthy();
+    expect(style.label).toBeTruthy();
+  });
+
+  it('returns correct labels', () => {
+    expect(SERVICE_TYPE_STATUS_MAP[ServiceTypeStatus.ACTIVE].label).toBe('Active');
+    expect(SERVICE_TYPE_STATUS_MAP[ServiceTypeStatus.INACTIVE].label).toBe('Inactive');
+  });
+});
+
+describe('SLOT_STATUS_MAP', () => {
+  const allStatuses: AvailabilitySlotStatus[] = [
+    AvailabilitySlotStatus.AVAILABLE,
+    AvailabilitySlotStatus.BOOKED,
+    AvailabilitySlotStatus.CANCELLED,
+  ];
+
+  it('maps all 3 slot statuses', () => {
+    expect(Object.keys(SLOT_STATUS_MAP)).toHaveLength(3);
+    for (const status of allStatuses) {
+      expect(SLOT_STATUS_MAP[status]).toBeDefined();
+    }
+  });
+
+  it.each(allStatuses)('status %s has bg, text, and label', (status) => {
+    const style = SLOT_STATUS_MAP[status];
+    expect(style.bg).toBeTruthy();
+    expect(style.text).toBeTruthy();
+    expect(style.label).toBeTruthy();
+  });
+
+  it('returns correct labels', () => {
+    expect(SLOT_STATUS_MAP[AvailabilitySlotStatus.AVAILABLE].label).toBe('Available');
+    expect(SLOT_STATUS_MAP[AvailabilitySlotStatus.BOOKED].label).toBe('Booked');
+    expect(SLOT_STATUS_MAP[AvailabilitySlotStatus.CANCELLED].label).toBe('Cancelled');
   });
 });

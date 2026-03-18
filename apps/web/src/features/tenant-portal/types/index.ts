@@ -33,11 +33,20 @@ export interface PortalRestrictions {
   source: string;
 }
 
+export interface PortalExistingResponse {
+  type: string;
+  createdAt: string;
+  summary?: string;
+}
+
 export interface PortalData {
   token: PortalTokenInfo;
   appointment: PortalAppointment;
   contact: PortalContact | null;
   restrictions: PortalRestrictions | null;
+  existingResponse?: PortalExistingResponse;
+  agencyPhone?: string;
+  deadline?: string;
 }
 
 export interface ConfirmInput {

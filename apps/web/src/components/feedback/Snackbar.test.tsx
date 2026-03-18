@@ -48,7 +48,7 @@ describe('Snackbar', () => {
     await user.click(screen.getByText('Error'));
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Erro!');
-    expect(alert.className).toContain('bg-[#B71C1C]');
+    expect(alert.className).toContain('bg-snackbar-error');
   });
 
   it('dismisses message on close click', async () => {

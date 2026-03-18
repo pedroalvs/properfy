@@ -6,6 +6,7 @@ interface DrawerPanelProps {
   open: boolean;
   onClose: () => void;
   size?: DrawerSize;
+  ariaLabel?: string;
   children: ReactNode;
 }
 
@@ -14,7 +15,7 @@ const sizeClasses: Record<DrawerSize, string> = {
   wide: 'w-drawer-wide max-w-[90vw]',
 };
 
-export function DrawerPanel({ open, onClose, size = 'narrow', children }: DrawerPanelProps) {
+export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, children }: DrawerPanelProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -43,6 +44,7 @@ export function DrawerPanel({ open, onClose, size = 'narrow', children }: Drawer
         } ${open ? 'translate-x-0' : 'translate-x-full'}`}
         role="dialog"
         aria-modal={open}
+        aria-label={ariaLabel}
       >
         {children}
       </div>

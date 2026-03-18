@@ -27,6 +27,8 @@ export const updatePropertySchema = z.object({
   postcode: z.string().min(1).max(20).trim().optional(),
   state: z.string().min(1).max(100).trim().optional(),
   country: z.string().min(2).max(100).trim().optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   rulesJson: z.record(z.unknown()).nullable().optional(),
 });

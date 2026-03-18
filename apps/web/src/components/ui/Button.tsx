@@ -12,7 +12,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'bg-real-estate text-white hover:brightness-95 active:brightness-90 h-9 px-4 rounded',
   secondary:
-    'bg-[#F5F5F5] text-text-primary hover:bg-[#EEEEEE] active:bg-[#E0E0E0] h-9 px-4 rounded',
+    'bg-btn-secondary-bg text-text-primary hover:bg-btn-secondary-hover active:bg-btn-secondary-active h-9 px-4 rounded',
   outlined:
     'border border-primary text-primary bg-transparent hover:bg-primary/5 active:bg-primary/10 h-9 px-4 rounded',
   icon:

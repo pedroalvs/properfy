@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -54,7 +55,9 @@ function createWrapper() {
     return (
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <SnackbarProvider>{children}</SnackbarProvider>
+          <SnackbarProvider>
+            <MemoryRouter>{children}</MemoryRouter>
+          </SnackbarProvider>
         </AuthProvider>
       </QueryClientProvider>
     );

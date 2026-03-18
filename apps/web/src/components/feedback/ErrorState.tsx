@@ -16,7 +16,7 @@ export function ErrorState({ message, onRetry, detail }: ErrorStateProps) {
       )}
       <div className="mt-4">
         <Button variant="outlined" onClick={onRetry}>
-          Tentar novamente
+          Try Again
         </Button>
       </div>
     </div>

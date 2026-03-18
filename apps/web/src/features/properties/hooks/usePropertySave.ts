@@ -35,6 +35,7 @@ function validateRequired(data: PropertyFormData, fields: (keyof PropertyFormDat
 export interface SaveResult {
   success: boolean;
   error?: string;
+  id?: string;
 }
 
 export interface UsePropertySaveReturn {
@@ -62,15 +63,17 @@ export function usePropertySave(): UsePropertySaveReturn {
   const save = useCallback(async (data: PropertyFormData, propertyId?: string): Promise<SaveResult> => {
     setIsSaving(true);
     try {
+      let newId: string | undefined;
       if (propertyId) {
         const { error } = await api.PATCH(`/v1/properties/${propertyId}` as any, { body: data as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        const { error } = await api.POST('/v1/properties' as any, { body: data as any });
+        const { data: responseData, error } = await api.POST('/v1/properties' as any, { body: data as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        newId = (responseData as any)?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['properties'] });
-      return { success: true };
+      return { success: true, id: newId };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save';
       return { success: false, error: message };

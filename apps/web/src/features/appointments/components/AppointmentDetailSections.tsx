@@ -2,18 +2,11 @@ import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
+import { formatDate, formatDateTime } from '@/lib/format-date';
 import type { AppointmentDetail } from '../types';
 
 interface AppointmentDetailSectionsProps {
   appointment: AppointmentDetail;
-}
-
-function formatDateBR(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR');
-}
-
-function formatDateTimeBR(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR');
 }
 
 export function AppointmentDetailSections({ appointment }: AppointmentDetailSectionsProps) {
@@ -25,7 +18,7 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
         <DetailRow label="Service Type" value={appointment.serviceTypeName} />
         <DetailRow label="Address" value={appointment.propertyAddress} />
         <DetailRow label="Branch" value={appointment.branchName} />
-        <DetailRow label="Scheduled Date" value={formatDateBR(appointment.scheduledDate)} />
+        <DetailRow label="Scheduled Date" value={formatDate(appointment.scheduledDate)} />
         <DetailRow label="Time Slot" value={appointment.timeSlot} />
         <DetailRow label="Inspector" value={appointment.inspectorName} />
       </FormSection>
@@ -66,8 +59,8 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
       )}
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTimeBR(appointment.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTimeBR(appointment.updatedAt)} />
+        <DetailRow label="Created At" value={formatDateTime(appointment.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTime(appointment.updatedAt)} />
         {appointment.cancellationReason && (
           <DetailRow label="Cancellation/Rejection Reason" value={appointment.cancellationReason} />
         )}

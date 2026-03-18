@@ -64,7 +64,7 @@ describe('TenantContactDetailSections', () => {
 
   it('shows lastActivityAt when present, em-dash when null', () => {
     render(<TenantContactDetailSections contact={baseContact} />);
-    const dateText = new Date('2026-03-16T08:00:00Z').toLocaleString('pt-BR');
+    const dateText = new Date('2026-03-16T08:00:00Z').toLocaleString('en-AU');
     expect(screen.getByText(dateText)).toBeInTheDocument();
 
     const noActivity = { ...baseContact, lastActivityAt: null };

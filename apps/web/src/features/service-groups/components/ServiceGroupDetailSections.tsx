@@ -1,15 +1,12 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { PRIORITY_MODE_MAP } from '@/lib/status-colors';
+import { formatDateTime } from '@/lib/format-date';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
 import type { ServiceGroupDetail } from '../types';
 
 interface ServiceGroupDetailSectionsProps {
   serviceGroup: ServiceGroupDetail;
-}
-
-function formatDateTimeBR(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR');
 }
 
 export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailSectionsProps) {
@@ -50,8 +47,8 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
       )}
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTimeBR(serviceGroup.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTimeBR(serviceGroup.updatedAt)} />
+        <DetailRow label="Created At" value={formatDateTime(serviceGroup.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTime(serviceGroup.updatedAt)} />
       </FormSection>
     </div>
   );

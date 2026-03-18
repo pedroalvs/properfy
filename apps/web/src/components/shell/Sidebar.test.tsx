@@ -81,6 +81,6 @@ describe('Sidebar', () => {
 
   it('renders user section at the bottom', () => {
     renderSidebar();
-    expect(screen.getByLabelText('Perfil')).toBeInTheDocument();
+    expect(screen.getByLabelText('Log out')).toBeInTheDocument();
   });
 });

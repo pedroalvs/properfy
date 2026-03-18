@@ -4,3 +4,4 @@ export { PropertyTable } from './PropertyTable';
 export { PropertyDetailSections } from './PropertyDetailSections';
 export { PropertyDetailDrawer } from './PropertyDetailDrawer';
 export { PropertyFormDrawer } from './PropertyFormDrawer';
+export { GeocodingStatusBadge } from './GeocodingStatusBadge';

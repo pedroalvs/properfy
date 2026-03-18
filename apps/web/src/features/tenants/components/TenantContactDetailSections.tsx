@@ -1,14 +1,11 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
+import { formatDateTime } from '@/lib/format-date';
 import { TenantConfirmationStatusChip } from './TenantConfirmationStatusChip';
 import type { TenantContactDetail } from '../types';
 
 interface TenantContactDetailSectionsProps {
   contact: TenantContactDetail;
-}
-
-function formatDateTimeBR(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR');
 }
 
 export function TenantContactDetailSections({ contact }: TenantContactDetailSectionsProps) {
@@ -24,12 +21,12 @@ export function TenantContactDetailSections({ contact }: TenantContactDetailSect
       <FormSection title="Appointment">
         <DetailRow label="Code" value={contact.appointmentCode} />
         <DetailRow label="Address" value={contact.propertyAddress} />
-        <DetailRow label="Appointment Date" value={formatDateTimeBR(contact.appointmentDate)} />
+        <DetailRow label="Appointment Date" value={formatDateTime(contact.appointmentDate)} />
       </FormSection>
 
       <FormSection title="Confirmation">
         <DetailRow label="Status" value={<TenantConfirmationStatusChip status={contact.confirmationStatus} />} />
-        <DetailRow label="Last Activity" value={contact.lastActivityAt ? formatDateTimeBR(contact.lastActivityAt) : null} />
+        <DetailRow label="Last Activity" value={contact.lastActivityAt ? formatDateTime(contact.lastActivityAt) : null} />
       </FormSection>
 
       {contact.notes && (
@@ -39,8 +36,8 @@ export function TenantContactDetailSections({ contact }: TenantContactDetailSect
       )}
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTimeBR(contact.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTimeBR(contact.updatedAt)} />
+        <DetailRow label="Created At" value={formatDateTime(contact.createdAt)} />
+        <DetailRow label="Updated At" value={formatDateTime(contact.updatedAt)} />
       </FormSection>
     </div>
   );

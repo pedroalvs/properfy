@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -74,6 +74,7 @@ export const USER_ROLE_MAP: Record<UserRole, StatusStyle> = {
   [UserRole.CL_USER]:  { bg: 'var(--color-role-cl-user)',  text: 'var(--color-text-primary)', label: 'Client User' },
   [UserRole.INSP]:     { bg: 'var(--color-role-insp)',     text: 'var(--color-text-primary)', label: 'Inspector' },
   [UserRole.TNT]:      { bg: 'var(--color-role-tnt)',      text: 'var(--color-text-primary)', label: 'Tenant' },
+  [UserRole.SYS]:      { bg: 'var(--color-role-sys)',      text: 'var(--color-text-primary)', label: 'System' },
 };
 
 export const USER_STATUS_MAP: Record<UserStatus, StatusStyle> = {
@@ -109,6 +110,33 @@ export const GEOCODING_STATUS_MAP: Record<GeocodingStatus, StatusStyle> = {
   [GeocodingStatus.MANUAL]:   { bg: 'var(--color-geocoding-manual)',   text: 'var(--color-text-primary)', label: 'Manual' },
 };
 
+export const FLOW_TYPE_MAP: Record<ServiceTypeFlowType, StatusStyle> = {
+  [ServiceTypeFlowType.ROUTINE]:  { bg: 'var(--color-flow-routine)',  text: 'var(--color-text-primary)', label: 'Routine' },
+  [ServiceTypeFlowType.INGOING]:  { bg: 'var(--color-flow-ingoing)',  text: 'var(--color-text-primary)', label: 'Ingoing' },
+  [ServiceTypeFlowType.OUTGOING]: { bg: 'var(--color-flow-outgoing)', text: 'var(--color-text-primary)', label: 'Outgoing' },
+};
+
+export const SERVICE_TYPE_STATUS_MAP: Record<ServiceTypeStatus, StatusStyle> = {
+  [ServiceTypeStatus.ACTIVE]:   { bg: 'var(--color-st-status-active)',   text: 'var(--color-text-primary)', label: 'Active' },
+  [ServiceTypeStatus.INACTIVE]: { bg: 'var(--color-st-status-inactive)', text: 'var(--color-text-primary)', label: 'Inactive' },
+};
+
+export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+
+export const INVOICE_STATUS_MAP: Record<InvoiceStatus, StatusStyle> = {
+  DRAFT:     { bg: 'var(--color-status-draft)',      text: 'var(--color-text-primary)', label: 'Draft' },
+  SENT:      { bg: 'var(--color-invoice-sent)',       text: 'var(--color-text-primary)', label: 'Sent' },
+  PAID:      { bg: 'var(--color-status-done)',        text: 'var(--color-text-primary)', label: 'Paid' },
+  OVERDUE:   { bg: 'var(--color-invoice-overdue)',    text: 'var(--color-text-primary)', label: 'Overdue' },
+  CANCELLED: { bg: 'var(--color-status-cancelled)',   text: 'var(--color-text-primary)', label: 'Cancelled' },
+};
+
+export const TENANT_ADMIN_STATUS_MAP: Record<string, StatusStyle> = {
+  ACTIVE:   { bg: 'var(--color-user-active)',   text: 'var(--color-text-primary)', label: 'Active' },
+  INACTIVE: { bg: 'var(--color-user-inactive)', text: 'var(--color-text-primary)', label: 'Inactive' },
+  PENDING:  { bg: 'var(--color-status-draft)',   text: 'var(--color-text-primary)', label: 'Pending' },
+};
+
 export const REPORT_TYPE_MAP: Record<ReportType, StatusStyle> = {
   [ReportType.INSPECTIONS_SCHEDULED]: { bg: 'var(--color-report-type-scheduled)',    text: 'var(--color-text-primary)', label: 'Scheduled Inspections' },
   [ReportType.INSPECTIONS_DONE]:      { bg: 'var(--color-report-type-done)',         text: 'var(--color-text-primary)', label: 'Completed Inspections' },
@@ -124,4 +152,10 @@ export const REPORT_STATUS_MAP: Record<ReportStatus, StatusStyle> = {
   [ReportStatus.PROCESSING]: { bg: 'var(--color-report-status-processing)', text: 'var(--color-text-primary)', label: 'Processing' },
   [ReportStatus.READY]:      { bg: 'var(--color-report-status-ready)',      text: 'var(--color-text-primary)', label: 'Ready' },
   [ReportStatus.FAILED]:     { bg: 'var(--color-report-status-failed)',     text: 'var(--color-text-primary)', label: 'Failed' },
+};
+
+export const SLOT_STATUS_MAP: Record<AvailabilitySlotStatus, StatusStyle> = {
+  [AvailabilitySlotStatus.AVAILABLE]: { bg: 'var(--color-slot-available)', text: 'var(--color-text-primary)', label: 'Available' },
+  [AvailabilitySlotStatus.BOOKED]:    { bg: 'var(--color-slot-booked)',    text: 'var(--color-text-primary)', label: 'Booked' },
+  [AvailabilitySlotStatus.CANCELLED]: { bg: 'var(--color-slot-cancelled)', text: 'var(--color-text-primary)', label: 'Cancelled' },
 };

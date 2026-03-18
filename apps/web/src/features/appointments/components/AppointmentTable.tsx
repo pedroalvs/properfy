@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { formatDate } from '@/lib/format-date';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
 import type { Appointment } from '../types';
 
@@ -59,7 +60,7 @@ export function AppointmentTable({
       label: 'Scheduled Date',
       width: '140px',
       sortable: true,
-      render: (row) => <>{new Date(row.scheduledDate).toLocaleDateString('pt-BR')}</>,
+      render: (row) => <>{formatDate(row.scheduledDate)}</>,
     },
     {
       key: 'actions',

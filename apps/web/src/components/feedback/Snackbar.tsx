@@ -2,7 +2,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 
 const typeStyles: Record<string, string> = {
   success: 'bg-success text-white',
-  error: 'bg-[#B71C1C] text-white',
+  error: 'bg-snackbar-error text-white',
   info: 'bg-info text-white',
 };
 

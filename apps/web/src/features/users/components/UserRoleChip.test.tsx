@@ -10,6 +10,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   CL_USER: 'Client User',
   INSP: 'Inspector',
   TNT: 'Tenant',
+  SYS: 'System',
 };
 
 describe('UserRoleChip', () => {

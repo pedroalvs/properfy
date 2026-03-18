@@ -10,6 +10,9 @@
   --color-realty: #215676;
   --color-real-estate: #F37A76;
 
+  /* Snackbar */
+  --color-snackbar-error: #B71C1C;
+
   /* Surfaces */
   --color-app-bg: #F5F5F5;
   --color-card-bg: #FFFFFF;
@@ -59,6 +62,7 @@
   --color-role-cl-user: #FFF9C4;
   --color-role-insp: #DCEDC8;
   --color-role-tnt: #D7CCC8;
+  --color-role-sys: #CFD8DC;
 
   /* User status backgrounds */
   --color-user-active: #C8E6C9;
@@ -97,6 +101,15 @@
   --color-geocoding-failed: #FFCDD2;
   --color-geocoding-manual: #B3E5FC;
 
+  /* Flow type backgrounds */
+  --color-flow-routine: #B3E5FC;
+  --color-flow-ingoing: #C8E6C9;
+  --color-flow-outgoing: #FFE0B2;
+
+  /* Service type status backgrounds */
+  --color-st-status-active: #C8E6C9;
+  --color-st-status-inactive: #FFCDD2;
+
   /* Report status backgrounds */
   --color-report-status-pending: #FFE0B2;
   --color-report-status-processing: #B3E5FC;
@@ -106,6 +119,27 @@
   /* Financial */
   --color-money-positive: rgb(102, 187, 106);
   --color-money-negative: rgb(239, 83, 80);
+
+  /* Invoice status backgrounds */
+  --color-invoice-sent: #B3E5FC;
+  --color-invoice-overdue: #FFCCBC;
+
+  /* Availability slot status backgrounds */
+  --color-slot-available: #C8E6C9;
+  --color-slot-booked: #B3E5FC;
+  --color-slot-cancelled: #FFCDD2;
+
+  /* UI component tokens */
+  --color-shimmer-from: #F5F5F5;
+  --color-shimmer-via: #E0E0E0;
+  --color-shimmer-to: #F5F5F5;
+  --color-border-subtle: #E0E0E0;
+  --color-border-light: #F0F0F0;
+  --color-hover-row: #FAFAFA;
+  --color-text-inactive: #999999;
+  --color-btn-secondary-bg: #F5F5F5;
+  --color-btn-secondary-hover: #EEEEEE;
+  --color-btn-secondary-active: #E0E0E0;
 
   /* Typography */
   --font-family: 'Nunito', sans-serif;

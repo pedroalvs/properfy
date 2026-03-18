@@ -80,7 +80,7 @@ export function DataTable<T>({
     const totalPages = Math.ceil(total / pageSize);
 
     return (
-      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#E0E0E0] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-4 py-3">
         <span className="text-sm text-text-secondary">
           {`Showing ${start}–${end} of ${total}`}
         </span>
@@ -88,7 +88,7 @@ export function DataTable<T>({
           <select
             value={pageSize}
             onChange={(e) => pagination.onChange(1, Number(e.target.value))}
-            className="rounded border border-[#E0E0E0] bg-white px-2 py-1 text-sm text-text-primary"
+            className="rounded border border-border-subtle bg-white px-2 py-1 text-sm text-text-primary"
             aria-label="Items per page"
           >
             {PAGE_SIZE_OPTIONS.map((size) => (
@@ -123,7 +123,7 @@ export function DataTable<T>({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-[#E0E0E0]">
+            <tr className="border-b border-border-subtle">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -175,8 +175,8 @@ export function DataTable<T>({
               data.map((row, index) => (
                 <tr
                   key={keyExtractor ? keyExtractor(row, index) : index}
-                  className={`border-b border-[#F0F0F0] text-table-body text-text-primary ${
-                    onRowClick ? 'cursor-pointer hover:bg-[#FAFAFA]' : ''
+                  className={`border-b border-border-light text-table-body text-text-primary ${
+                    onRowClick ? 'cursor-pointer hover:bg-hover-row' : ''
                   }`}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >

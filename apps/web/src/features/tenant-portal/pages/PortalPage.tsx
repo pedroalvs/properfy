@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { ApiError } from '@/lib/api-error';
 import { PortalLayout } from '../components/PortalLayout';
 import { PortalErrorState } from '../components/PortalErrorState';
 import { AppointmentInfoCard } from '../components/AppointmentInfoCard';
@@ -8,13 +9,14 @@ import { ConfirmSection } from '../components/ConfirmSection';
 import { RescheduleForm } from '../components/RescheduleForm';
 import { ContactForm } from '../components/ContactForm';
 import { UnavailableSection } from '../components/UnavailableSection';
+import { TenantPortalExpiredView } from '../components/TenantPortalExpiredView';
+import { TenantPortalInvalidView } from '../components/TenantPortalInvalidView';
+import { TenantPortalCancelledView } from '../components/TenantPortalCancelledView';
+import { ResponseConfirmationCard } from '../components/ResponseConfirmationCard';
 import { usePortalData } from '../hooks/usePortalData';
 
-const TERMINAL_STATUSES = new Set<string>([
-  AppointmentStatus.DONE,
-  AppointmentStatus.CANCELLED,
-  AppointmentStatus.REJECTED,
-]);
+const EXPIRED_CODES = new Set(['PORTAL_TOKEN_EXPIRED']);
+const INVALID_CODES = new Set(['PORTAL_TOKEN_INVALID', 'PORTAL_TOKEN_NOT_FOUND']);
 
 export function PortalPage() {
   const { token } = useParams<{ token: string }>();
@@ -47,6 +49,37 @@ export function PortalPage() {
   }
 
   if (isError || !data) {
+    const apiError = error instanceof ApiError ? error : null;
+    const errorCode = apiError?.code ?? '';
+
+    if (EXPIRED_CODES.has(errorCode)) {
+      return (
+        <PortalLayout>
+          <TenantPortalExpiredView
+            appointment={{
+              id: '',
+              status: AppointmentStatus.SCHEDULED,
+              scheduledDate: '',
+              timeSlot: '',
+              serviceTypeId: '',
+              tenantConfirmationStatus: TenantConfirmationStatus.PENDING,
+              keyRequired: false,
+              meetingLocation: null,
+              notes: null,
+            }}
+          />
+        </PortalLayout>
+      );
+    }
+
+    if (INVALID_CODES.has(errorCode)) {
+      return (
+        <PortalLayout>
+          <TenantPortalInvalidView />
+        </PortalLayout>
+      );
+    }
+
     return (
       <PortalLayout>
         <PortalErrorState
@@ -57,9 +90,36 @@ export function PortalPage() {
     );
   }
 
-  const { appointment, contact, restrictions } = data;
+  const { appointment, contact } = data;
+
+  // Token is expired but we have data (API returned read-only data)
+  if (data.token.status === 'EXPIRED' || data.token.isReadOnly) {
+    // If the token is expired, show the dedicated expired view with data
+    if (data.token.status === 'EXPIRED') {
+      return (
+        <PortalLayout>
+          <TenantPortalExpiredView
+            appointment={appointment}
+            existingResponse={data.existingResponse}
+            agencyPhone={data.agencyPhone}
+          />
+        </PortalLayout>
+      );
+    }
+  }
+
+  // Appointment is cancelled
+  if (appointment.status === AppointmentStatus.CANCELLED) {
+    return (
+      <PortalLayout>
+        <TenantPortalCancelledView agencyPhone={data.agencyPhone} />
+      </PortalLayout>
+    );
+  }
+
   const isReadOnly = data.token.isReadOnly;
-  const isTerminal = TERMINAL_STATUSES.has(appointment.status);
+  const isTerminal = appointment.status === AppointmentStatus.DONE ||
+    appointment.status === AppointmentStatus.REJECTED;
   const showConfirm =
     !isTerminal &&
     appointment.tenantConfirmationStatus !== TenantConfirmationStatus.UNAVAILABLE;
@@ -86,7 +146,14 @@ export function PortalPage() {
           </InfoBanner>
         )}
 
-        <AppointmentInfoCard appointment={appointment} />
+        <AppointmentInfoCard appointment={appointment} deadline={data.deadline} />
+
+        {data.existingResponse && (
+          <ResponseConfirmationCard
+            response={data.existingResponse}
+            isExpired={isReadOnly}
+          />
+        )}
 
         {showConfirm && (
           <ConfirmSection

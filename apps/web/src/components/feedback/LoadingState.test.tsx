@@ -11,7 +11,7 @@ describe('LoadingState', () => {
 
   it('has hidden loading label', () => {
     render(<LoadingState />);
-    expect(screen.getByText('Carregando...')).toHaveClass('sr-only');
+    expect(screen.getByText('Loading...')).toHaveClass('sr-only');
   });
 
   it('renders default 5 skeleton rows', () => {

@@ -40,7 +40,7 @@ export function TabsNav({ tabs, activeTab, onChange }: TabsNavProps) {
   }, [updateSlider]);
 
   return (
-    <div className="relative border-b border-[#E0E0E0]" role="tablist">
+    <div className="relative border-b border-border-subtle" role="tablist">
       <div className="flex">
         {tabs.map((tab, index) => {
           const isActive = tab.id === activeTab;
@@ -54,7 +54,7 @@ export function TabsNav({ tabs, activeTab, onChange }: TabsNavProps) {
               aria-selected={isActive}
               onClick={() => onChange(tab.id)}
               className={`relative px-4 py-3 text-tabs font-bold transition-colors duration-150 ${
-                isActive ? 'text-secondary' : 'text-[#999999]'
+                isActive ? 'text-secondary' : 'text-text-inactive'
               }`}
             >
               {tab.label}

@@ -5,6 +5,7 @@ export const UserRole = {
   CL_USER: 'CL_USER',
   INSP: 'INSP',
   TNT: 'TNT',
+  SYS: 'SYS',
 } as const;
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 

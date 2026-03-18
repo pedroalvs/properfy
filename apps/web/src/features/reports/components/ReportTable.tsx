@@ -1,6 +1,7 @@
 import { ReportStatus } from '@properfy/shared';
 import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
 import { RowActions, type RowAction } from '@/components/data/RowActions';
+import { formatDate } from '@/lib/format-date';
 import { ReportTypeChip } from './ReportTypeChip';
 import { ReportStatusChip } from './ReportStatusChip';
 import type { Report } from '../types';
@@ -94,7 +95,7 @@ export function ReportTable({
       label: 'Created At',
       width: '140px',
       sortable: true,
-      render: (row) => <>{new Date(row.createdAt).toLocaleDateString('pt-BR')}</>,
+      render: (row) => <>{formatDate(row.createdAt)}</>,
     },
     {
       key: 'actions',

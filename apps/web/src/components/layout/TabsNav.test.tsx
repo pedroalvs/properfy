@@ -58,6 +58,6 @@ describe('TabsNav', () => {
   it('applies inactive text color to inactive tabs', () => {
     render(<TabsNav tabs={tabs} activeTab="geral" onChange={() => {}} />);
     const inactiveTab = screen.getByRole('tab', { name: 'Histórico' });
-    expect(inactiveTab.className).toContain('text-[#999999]');
+    expect(inactiveTab.className).toContain('text-text-inactive');
   });
 });

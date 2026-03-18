@@ -81,12 +81,16 @@ const testQueryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
 });
 
+import { MemoryRouter } from 'react-router-dom';
+
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={testQueryClient}>
       <SnackbarProvider>
-      {children}
-      <SnackbarDisplay />
+        <MemoryRouter>
+          {children}
+          <SnackbarDisplay />
+        </MemoryRouter>
       </SnackbarProvider>
     </QueryClientProvider>
   );

@@ -103,6 +103,32 @@ describe('updatePropertySchema', () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it('should accept valid latitude and longitude', () => {
+    const result = updatePropertySchema.safeParse({
+      latitude: -33.8688,
+      longitude: 151.2093,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept null latitude and longitude', () => {
+    const result = updatePropertySchema.safeParse({
+      latitude: null,
+      longitude: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject latitude out of range', () => {
+    const result = updatePropertySchema.safeParse({ latitude: -91 });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject longitude out of range', () => {
+    const result = updatePropertySchema.safeParse({ longitude: 181 });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('listPropertiesQuerySchema', () => {
