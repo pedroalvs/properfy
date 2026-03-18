@@ -1,5 +1,5 @@
-app = 'properfy-api'
-primary_region = 'gru'
+app = 'properfy'
+primary_region = 'iad'
 
 [build]
   dockerfile = 'apps/backend/Dockerfile'
