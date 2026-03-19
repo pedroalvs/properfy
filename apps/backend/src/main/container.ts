@@ -104,6 +104,7 @@ import { AssignInspectorManuallyUseCase } from '../modules/service-group/applica
 import { AcceptOfferUseCase } from '../modules/service-group/application/use-cases/accept-offer.use-case';
 import { GetMarketplaceOffersUseCase } from '../modules/service-group/application/use-cases/get-marketplace-offers.use-case';
 import { CancelServiceGroupUseCase } from '../modules/service-group/application/use-cases/cancel-service-group.use-case';
+import { UpdateServiceGroupUseCase } from '../modules/service-group/application/use-cases/update-service-group.use-case';
 import type { ServiceGroupRouteContainer } from '../modules/service-group/interfaces/service-group.routes';
 import type { MarketplaceRouteContainer } from '../modules/service-group/interfaces/marketplace.routes';
 
@@ -457,6 +458,7 @@ export function createContainer(logger: Logger): AppContainer {
   const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService);
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
   const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService);
+  const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService);
 
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
@@ -669,6 +671,7 @@ export function createContainer(logger: Logger): AppContainer {
       publishServiceGroupUseCase,
       assignInspectorManuallyUseCase,
       cancelServiceGroupUseCase,
+      updateServiceGroupUseCase,
       jwtService,
       tenantRepo,
     },

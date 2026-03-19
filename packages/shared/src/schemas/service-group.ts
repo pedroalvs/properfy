@@ -12,6 +12,14 @@ export const createServiceGroupSchema = z.object({
 });
 export type CreateServiceGroupInput = z.infer<typeof createServiceGroupSchema>;
 
+export const updateServiceGroupSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  regionName: z.string().max(255).optional(),
+  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
+  description: z.string().max(5000).optional(),
+});
+export type UpdateServiceGroupInput = z.infer<typeof updateServiceGroupSchema>;
+
 export const publishServiceGroupSchema = z.object({});
 export type PublishServiceGroupInput = z.infer<typeof publishServiceGroupSchema>;
 

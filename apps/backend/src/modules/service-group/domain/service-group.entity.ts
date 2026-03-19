@@ -11,6 +11,9 @@ export interface ServiceGroupProps {
   confirmedCount: number;
   scheduledDate: Date;
   timeWindow: string;
+  name: string | null;
+  regionName: string | null;
+  description: string | null;
   priorityMode: PriorityMode;
   priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
@@ -30,6 +33,9 @@ export class ServiceGroupEntity extends BaseEntity {
   confirmedCount: number;
   readonly scheduledDate: Date;
   readonly timeWindow: string;
+  name: string | null;
+  regionName: string | null;
+  description: string | null;
   readonly priorityMode: PriorityMode;
   priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
@@ -47,6 +53,9 @@ export class ServiceGroupEntity extends BaseEntity {
     this.confirmedCount = props.confirmedCount;
     this.scheduledDate = props.scheduledDate;
     this.timeWindow = props.timeWindow;
+    this.name = props.name ?? null;
+    this.regionName = props.regionName ?? null;
+    this.description = props.description ?? null;
     this.priorityMode = props.priorityMode;
     this.priorityExpiresAt = props.priorityExpiresAt;
     this.assignedInspectorId = props.assignedInspectorId;

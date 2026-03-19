@@ -21,6 +21,9 @@ function mapToEntity(row: any): ServiceGroupEntity {
     confirmedCount: row.confirmed_count,
     scheduledDate: row.scheduled_date,
     timeWindow: row.time_window,
+    name: row.name ?? null,
+    regionName: row.region_name ?? null,
+    description: row.description ?? null,
     priorityMode: row.priority_mode as PriorityMode,
     priorityExpiresAt: row.priority_expires_at,
     assignedInspectorId: row.assigned_inspector_id,
@@ -126,6 +129,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       publishedAt: Date | null;
       assignedAt: Date | null;
       priorityExpiresAt: Date | null;
+      name: string | null;
+      regionName: string | null;
+      description: string | null;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
@@ -142,6 +148,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       updateData['assigned_at'] = data.assignedAt;
     if (data.priorityExpiresAt !== undefined)
       updateData['priority_expires_at'] = data.priorityExpiresAt;
+    if (data.name !== undefined) updateData['name'] = data.name;
+    if (data.regionName !== undefined) updateData['region_name'] = data.regionName;
+    if (data.description !== undefined) updateData['description'] = data.description;
 
     await this.prisma.serviceGroup.update({
       where: { id },

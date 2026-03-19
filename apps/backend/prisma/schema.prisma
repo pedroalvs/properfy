@@ -428,6 +428,9 @@ model ServiceGroup {
   confirmed_count       Int                @default(0)
   scheduled_date        DateTime           @db.Date
   time_window           String             @db.VarChar(11)
+  name                  String?            @db.VarChar(255)
+  region_name           String?            @db.VarChar(255)
+  description           String?            @db.Text
   priority_mode         PriorityMode       @default(STANDARD)
   priority_expires_at   DateTime?
   assigned_inspector_id String?

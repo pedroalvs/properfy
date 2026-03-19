@@ -59,6 +59,9 @@ export interface IServiceGroupRepository {
       publishedAt: Date | null;
       assignedAt: Date | null;
       priorityExpiresAt: Date | null;
+      name: string | null;
+      regionName: string | null;
+      description: string | null;
     }>,
   ): Promise<void>;
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
