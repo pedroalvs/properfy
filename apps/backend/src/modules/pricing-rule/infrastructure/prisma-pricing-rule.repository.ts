@@ -8,6 +8,10 @@ import type {
 } from '../domain/pricing-rule.repository';
 import type { PayoutType, PriceRuleStatus } from '@properfy/shared';
 
+function toSnakeCase(s: string): string {
+  return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
 function mapToEntity(row: {
   id: string;
   tenant_id: string;
@@ -74,7 +78,7 @@ export class PrismaPricingRuleRepository implements IPricingRuleRepository {
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: {
-        [pagination.sortBy ?? 'created_at']: pagination.sortOrder,
+        [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
     });
     return rows.map(mapToEntity);

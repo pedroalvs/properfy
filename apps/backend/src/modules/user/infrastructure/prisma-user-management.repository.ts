@@ -7,6 +7,10 @@ import type {
   PaginationParams,
 } from '../domain/user-management.repository';
 
+function toSnakeCase(s: string): string {
+  return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
 function mapToEntity(row: {
   id: string;
   tenant_id: string | null;
@@ -87,7 +91,7 @@ export class PrismaUserManagementRepository
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: {
-        [pagination.sortBy ?? 'created_at']: pagination.sortOrder,
+        [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
     });
     return rows.map(mapToEntity);

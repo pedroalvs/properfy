@@ -8,6 +8,10 @@ import type {
 } from '../domain/service-type.repository';
 import type { ServiceTypeFlowType, ServiceTypeStatus } from '@properfy/shared';
 
+function toSnakeCase(s: string): string {
+  return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
 function mapToEntity(row: {
   id: string;
   code: string;
@@ -55,7 +59,7 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: {
-        [pagination.sortBy ?? 'created_at']: pagination.sortOrder,
+        [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
     });
     return rows.map(mapToEntity);

@@ -255,8 +255,9 @@ export async function registerTenantRoutes(
       const resolvedTenantId = (actor.role === 'AM' || actor.role === 'OP')
         ? queryTenantId
         : actor.tenantId ?? undefined;
+      // AM/OP without tenantId context: return empty list (no tenant selected)
       if (!resolvedTenantId)
-        throw new ValidationError('tenantId is required', []);
+        return reply.status(200).send(paginated([], 0, page, pageSize));
       const result = await container.listBranchesUseCase.execute({
         tenantId: resolvedTenantId,
         filters,

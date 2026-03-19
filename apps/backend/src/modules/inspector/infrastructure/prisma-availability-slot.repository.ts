@@ -8,6 +8,10 @@ import type {
 } from '../domain/availability-slot.repository';
 import type { AvailabilitySlotStatus } from '@properfy/shared';
 
+function toSnakeCase(s: string): string {
+  return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
 function mapToEntity(row: {
   id: string;
   inspector_id: string;
@@ -77,7 +81,7 @@ export class PrismaAvailabilitySlotRepository
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: {
-        [pagination.sortBy ?? 'created_at']: pagination.sortOrder,
+        [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
     });
     return rows.map(mapToEntity);

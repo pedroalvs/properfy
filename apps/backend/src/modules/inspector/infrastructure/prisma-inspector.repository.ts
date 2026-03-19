@@ -8,6 +8,10 @@ import type {
 } from '../domain/inspector.repository';
 import type { InspectorStatus } from '@properfy/shared';
 
+function toSnakeCase(s: string): string {
+  return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
 function mapToEntity(row: {
   id: string;
   user_id: string | null;
@@ -82,7 +86,7 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: {
-        [pagination.sortBy ?? 'created_at']: pagination.sortOrder,
+        [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
     });
 
