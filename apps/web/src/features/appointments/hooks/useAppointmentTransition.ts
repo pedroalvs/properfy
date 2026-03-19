@@ -5,7 +5,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import type { AppointmentStatus } from '@properfy/shared';
 
 export interface UseAppointmentTransitionReturn {
-  transition: (targetStatus: AppointmentStatus, reason?: string) => void;
+  transition: (targetStatus: AppointmentStatus, reason?: string, reasonCode?: string) => void;
   isTransitioning: boolean;
 }
 
@@ -17,7 +17,7 @@ export function useAppointmentTransition(
   const { showSuccess, showError } = useSnackbar();
 
   const mutation = useMutation({
-    mutationFn: async (body: { targetStatus: AppointmentStatus; reason?: string }) => {
+    mutationFn: async (body: { targetStatus: AppointmentStatus; reason?: string; cancellationReasonCode?: string; rejectionReasonCode?: string }) => {
       const { data, error } = await api.POST(
         `/v1/appointments/${appointmentId}/status-transitions` as any,
         {
@@ -39,10 +39,15 @@ export function useAppointmentTransition(
     },
   });
 
-  const transition = (targetStatus: AppointmentStatus, reason?: string) => {
+  const transition = (targetStatus: AppointmentStatus, reason?: string, reasonCode?: string) => {
     if (!appointmentId) return;
+    const body: Parameters<typeof mutation.mutate>[0] = { targetStatus, reason };
+    if (reasonCode) {
+      if (targetStatus === 'CANCELLED') body.cancellationReasonCode = reasonCode;
+      if (targetStatus === 'REJECTED') body.rejectionReasonCode = reasonCode;
+    }
     mutation.mutate(
-      { targetStatus, reason },
+      body,
       {
         onSuccess: () => {
           showSuccess('Transition completed');

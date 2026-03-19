@@ -161,7 +161,18 @@ export async function registerAppointmentRoutes(
       schema: {
         params: z.object({ appointmentId: z.string().uuid() }),
         body: statusTransitionSchema,
-        response: { 200: successResponseSchema(appointmentResponseSchema) },
+        response: {
+          200: successResponseSchema(z.object({
+            id: z.string().uuid(),
+            status: z.string(),
+            previousStatus: z.string(),
+            reason: z.string().nullable(),
+            inspectorId: z.string().uuid().nullable(),
+            doneCheckedByUserId: z.string().uuid().nullable(),
+            doneCheckedAt: z.unknown().nullable(),
+            updatedAt: z.unknown(),
+          })),
+        },
       },
     },
     async (request, reply) => {
