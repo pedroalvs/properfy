@@ -72,7 +72,7 @@ function createWrapper() {
           <SnackbarProvider>
             <MemoryRouter initialEntries={['/tenants/ten-01']}>
               <Routes>
-                <Route path="/tenants/:id" element={children} />
+                <Route path="/tenants/:tenantId" element={children} />
               </Routes>
             </MemoryRouter>
           </SnackbarProvider>

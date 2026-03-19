@@ -10,7 +10,7 @@ import type { Session } from '../types';
 import { useState } from 'react';
 
 export function SessionTable() {
-  const { sessions, isLoading, isError, refetch } = useSessionList();
+  const { sessions, isLoading, isError, isNotFound, refetch } = useSessionList();
   const { revoke } = useSessionRevoke();
   const { showSuccess, showError } = useSnackbar();
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
@@ -79,14 +79,20 @@ export function SessionTable() {
   return (
     <div className="rounded bg-card-bg p-6 shadow-sm">
       <h3 className="mb-4 text-lg font-semibold text-secondary">Active Sessions</h3>
-      <DataTable<Session>
-        columns={columns}
-        data={sessions}
-        loading={isLoading}
-        error={isError ? 'Failed to load sessions' : undefined}
-        onRetryError={refetch}
-        keyExtractor={(row) => row.id}
-      />
+      {isNotFound ? (
+        <p className="py-6 text-center text-sm text-text-secondary">
+          Session management is not available yet.
+        </p>
+      ) : (
+        <DataTable<Session>
+          columns={columns}
+          data={sessions}
+          loading={isLoading}
+          error={isError ? 'Failed to load sessions' : undefined}
+          onRetryError={refetch}
+          keyExtractor={(row) => row.id}
+        />
+      )}
 
       <ConfirmDialog
         open={!!confirmRevokeId}

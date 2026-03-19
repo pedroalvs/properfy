@@ -90,6 +90,6 @@ describe('Sidebar', () => {
 
   it('renders user section at the bottom', () => {
     renderSidebar();
-    expect(screen.getByLabelText('Log out')).toBeInTheDocument();
+    expect(screen.getByLabelText('User menu')).toBeInTheDocument();
   });
 });

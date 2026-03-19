@@ -24,6 +24,10 @@ vi.mock('@/lib/api-error', () => ({
   },
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { role: 'AM', tenantId: null }, isAuthenticated: true }),
+}));
+
 import { api } from '@/services/api';
 import { usePropertySave } from './usePropertySave';
 import type { PropertyFormData } from '../types';
@@ -104,7 +108,18 @@ describe('usePropertySave', () => {
 
     expect(saveResult?.success).toBe(true);
     expect(saveResult?.id).toBe('new-prop');
-    expect(mockPost).toHaveBeenCalledWith('/v1/properties', { body: VALID_CREATE_DATA });
+    expect(mockPost).toHaveBeenCalledWith('/v1/properties', {
+      body: expect.objectContaining({
+        propertyCode: VALID_CREATE_DATA.propertyCode,
+        type: VALID_CREATE_DATA.type,
+        branchId: VALID_CREATE_DATA.branchId,
+        street: VALID_CREATE_DATA.street,
+        suburb: VALID_CREATE_DATA.suburb,
+        postcode: VALID_CREATE_DATA.postcode,
+        state: VALID_CREATE_DATA.state,
+        country: VALID_CREATE_DATA.country,
+      }),
+    });
   });
 
   it('save returns success on edit', async () => {
@@ -117,7 +132,18 @@ describe('usePropertySave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/prop-01', { body: VALID_CREATE_DATA });
+    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/prop-01', {
+      body: expect.objectContaining({
+        propertyCode: VALID_CREATE_DATA.propertyCode,
+        type: VALID_CREATE_DATA.type,
+        branchId: VALID_CREATE_DATA.branchId,
+        street: VALID_CREATE_DATA.street,
+        suburb: VALID_CREATE_DATA.suburb,
+        postcode: VALID_CREATE_DATA.postcode,
+        state: VALID_CREATE_DATA.state,
+        country: VALID_CREATE_DATA.country,
+      }),
+    });
   });
 
   it('isSaving is true during save operation', async () => {

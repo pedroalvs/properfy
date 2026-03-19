@@ -60,7 +60,7 @@ describe('AppointmentTransitionActions', () => {
     fireEvent.click(screen.getAllByRole('option')[0]!);
     // Confirm
     fireEvent.click(screen.getByText('Confirm'));
-    expect(onTransition).toHaveBeenCalledWith(AppointmentStatus.CANCELLED, '', 'CLIENT_REQUEST');
+    expect(onTransition).toHaveBeenCalledWith(AppointmentStatus.CANCELLED, 'CLIENT REQUEST', 'CLIENT_REQUEST');
   });
 
   it('no buttons when transitions is empty', () => {

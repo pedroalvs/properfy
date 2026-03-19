@@ -105,7 +105,21 @@ describe('useAppointmentSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/appointments', { body: VALID_CREATE_DATA });
+    expect(mockPost).toHaveBeenCalledWith('/v1/appointments', {
+      body: {
+        branchId: VALID_CREATE_DATA.branchId,
+        propertyId: VALID_CREATE_DATA.propertyId,
+        serviceTypeId: VALID_CREATE_DATA.serviceTypeId,
+        scheduledDate: VALID_CREATE_DATA.scheduledDate,
+        timeSlot: VALID_CREATE_DATA.timeSlot,
+        keyRequired: VALID_CREATE_DATA.keyRequired,
+        contact: {
+          tenantName: VALID_CREATE_DATA.contactName,
+          primaryEmail: VALID_CREATE_DATA.contactEmail,
+          primaryPhone: VALID_CREATE_DATA.contactPhone,
+        },
+      },
+    });
   });
 
   it('save returns success on edit', async () => {
@@ -118,7 +132,21 @@ describe('useAppointmentSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', { body: VALID_CREATE_DATA });
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+      body: {
+        scheduledDate: VALID_CREATE_DATA.scheduledDate,
+        timeSlot: VALID_CREATE_DATA.timeSlot,
+        keyRequired: VALID_CREATE_DATA.keyRequired,
+        meetingLocation: null,
+        keyLocation: null,
+        notes: null,
+        contact: {
+          tenantName: VALID_CREATE_DATA.contactName,
+          primaryEmail: VALID_CREATE_DATA.contactEmail,
+          primaryPhone: VALID_CREATE_DATA.contactPhone,
+        },
+      },
+    });
   });
 
   it('save returns failure on API error', async () => {

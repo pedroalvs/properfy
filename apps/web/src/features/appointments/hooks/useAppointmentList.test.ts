@@ -26,7 +26,7 @@ vi.mock('@/lib/api-error', () => ({
 
 import { api } from '@/services/api';
 import { useAppointmentList } from './useAppointmentList';
-import { createQueryWrapper } from '@/test-utils/test-wrappers';
+import { createRouterQueryWrapper } from '@/test-utils/test-wrappers';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
@@ -51,7 +51,7 @@ beforeEach(() => {
 
 describe('useAppointmentList', () => {
   it('returns data after loading resolves', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useAppointmentList(), { wrapper });
 
     expect(result.current.isLoading).toBe(true);
@@ -66,7 +66,7 @@ describe('useAppointmentList', () => {
   });
 
   it('initially shows loading then resolves', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useAppointmentList(), { wrapper });
 
     expect(result.current.isLoading).toBe(true);
@@ -77,7 +77,7 @@ describe('useAppointmentList', () => {
   });
 
   it('calls API with correct path', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useAppointmentList(), { wrapper });
 
     await waitFor(() => {
@@ -88,7 +88,7 @@ describe('useAppointmentList', () => {
   });
 
   it('pagination total reflects API response', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useAppointmentList(), { wrapper });
 
     await waitFor(() => {
@@ -99,7 +99,7 @@ describe('useAppointmentList', () => {
   });
 
   it('exposes filters and setFilters', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useAppointmentList(), { wrapper });
 
     await waitFor(() => {
@@ -112,7 +112,7 @@ describe('useAppointmentList', () => {
 
   it('handles API error gracefully', async () => {
     mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Network error' } });
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useAppointmentList(), { wrapper });
 
     await waitFor(() => {

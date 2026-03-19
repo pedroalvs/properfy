@@ -50,6 +50,12 @@ vi.mock('@/hooks/useApiQuery', () => ({
     mutate: vi.fn(),
     isPending: false,
   }),
+  usePaginatedQuery: () => ({
+    data: null,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
 }));
 
 const mockRefetch = vi.fn();

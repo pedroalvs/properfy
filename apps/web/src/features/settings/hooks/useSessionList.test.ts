@@ -62,5 +62,20 @@ describe('useSessionList', () => {
     });
 
     expect(result.current.isError).toBe(true);
+    expect(result.current.isNotFound).toBe(false);
+  });
+
+  it('sets isNotFound when endpoint returns 404', async () => {
+    const { ApiError } = await import('@/lib/api-error');
+    mockGet.mockRejectedValueOnce(new ApiError(404, 'Not Found'));
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useSessionList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isNotFound).toBe(true);
+    expect(result.current.isError).toBe(false);
   });
 });

@@ -45,12 +45,11 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const MOCK_PROPERTIES = [
   {
     id: 'prop-1',
-    address: '123 Main St',
+    street: '123 Main St',
     suburb: 'Bondi',
-    city: 'Sydney',
     state: 'NSW',
     postcode: '2026',
-    propertyType: 'RESIDENTIAL',
+    type: 'RESIDENTIAL',
     latitude: -33.89,
     longitude: 151.27,
     branchName: 'Central',
