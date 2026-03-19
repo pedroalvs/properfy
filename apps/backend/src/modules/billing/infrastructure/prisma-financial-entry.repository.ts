@@ -5,6 +5,7 @@ import type {
   IFinancialEntryRepository,
   FinancialEntryFilters,
   FinancialEntryPagination,
+  FinancialEntrySummary,
 } from '../domain/financial-entry.repository';
 import { InvalidEntryStatusTransitionError } from '../domain/billing.errors';
 
@@ -57,6 +58,40 @@ function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknow
 
 export class PrismaFinancialEntryRepository implements IFinancialEntryRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  async getSummary(tenantId?: string): Promise<FinancialEntrySummary> {
+    const where: Record<string, unknown> = {};
+    if (tenantId) where.tenant_id = tenantId;
+
+    const [grouped, pendingCount] = await Promise.all([
+      this.prisma.financialEntry.groupBy({
+        by: ['entry_type'],
+        where,
+        _sum: { amount: true },
+      }),
+      this.prisma.financialEntry.count({ where: { ...where, status: 'PENDING' } }),
+    ]);
+
+    const summary: FinancialEntrySummary = {
+      totalDebits: 0,
+      totalPayouts: 0,
+      totalAdjustments: 0,
+      totalRefunds: 0,
+      pendingCount,
+    };
+
+    for (const row of grouped) {
+      const amount = Number(row._sum.amount ?? 0);
+      switch (row.entry_type) {
+        case 'TENANT_DEBIT': summary.totalDebits = amount; break;
+        case 'INSPECTOR_PAYOUT': summary.totalPayouts = amount; break;
+        case 'MANUAL_ADJUSTMENT': summary.totalAdjustments = amount; break;
+        case 'REFUND': summary.totalRefunds = amount; break;
+      }
+    }
+
+    return summary;
+  }
 
   async findById(id: string, tenantId?: string): Promise<FinancialEntryEntity | null> {
     const where: Record<string, unknown> = { id };

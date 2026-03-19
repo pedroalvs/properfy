@@ -39,5 +39,6 @@ export const listPropertiesQuerySchema = paginationSchema.extend({
   branchId: z.string().uuid().optional(),
   type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']).optional(),
   search: z.string().max(200).optional(),
+  hasCoordinates: z.coerce.boolean().optional(),
 });
 export type ListPropertiesQueryInput = z.infer<typeof listPropertiesQuerySchema>;

@@ -154,6 +154,51 @@ export async function registerInspectorRoutes(
     },
   );
 
+  // GET /v1/availability-slots — flat route (inspectorId optional query param)
+  app.get(
+    '/v1/availability-slots',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: listAvailabilitySlotsQuerySchema.extend({
+          inspectorId: z.string().uuid().optional(),
+        }),
+        response: { 200: paginatedResponseSchema(availabilitySlotResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = listAvailabilitySlotsQuerySchema.extend({
+        inspectorId: z.string().uuid().optional(),
+      }).safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const { page, pageSize, sortBy, sortOrder, inspectorId: queryInspectorId, ...filters } = parsed.data;
+      const actor = request.authContext!;
+
+      let resolvedInspectorId: string | undefined;
+      if (actor.role === 'INSP') {
+        resolvedInspectorId = actor.inspectorId ?? undefined;
+      } else if (actor.role === 'AM' || actor.role === 'OP') {
+        resolvedInspectorId = queryInspectorId;
+      } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+        resolvedInspectorId = queryInspectorId;
+      }
+
+      if (!resolvedInspectorId) {
+        return reply.status(200).send(paginated([], 0, page, pageSize));
+      }
+
+      const result = await container.listAvailabilitySlotsUseCase.execute({
+        inspectorId: resolvedInspectorId,
+        filters,
+        pagination: { page, pageSize, sortBy, sortOrder },
+        actor,
+      });
+      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
   // POST /v1/inspectors/:inspectorId/availability-slots
   app.post(
     '/v1/inspectors/:inspectorId/availability-slots',

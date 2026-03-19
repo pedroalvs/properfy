@@ -5,6 +5,7 @@ export interface PropertyFilters {
   branchId?: string;
   type?: string;
   search?: string;
+  hasCoordinates?: boolean;
 }
 
 export interface PaginationParams {

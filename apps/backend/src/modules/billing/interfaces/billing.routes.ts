@@ -15,6 +15,7 @@ import {
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
+import type { GetFinancialSummaryUseCase } from '../application/use-cases/get-financial-summary.use-case';
 import type { ListFinancialEntriesUseCase } from '../application/use-cases/list-financial-entries.use-case';
 import type { GetFinancialEntryUseCase } from '../application/use-cases/get-financial-entry.use-case';
 import type { ApproveFinancialEntryUseCase } from '../application/use-cases/approve-financial-entry.use-case';
@@ -29,6 +30,7 @@ import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface BillingRouteContainer {
   createFinancialEntriesOnDoneUseCase: CreateFinancialEntriesOnDoneUseCase;
+  getFinancialSummaryUseCase: GetFinancialSummaryUseCase;
   listFinancialEntriesUseCase: ListFinancialEntriesUseCase;
   getFinancialEntryUseCase: GetFinancialEntryUseCase;
   approveFinancialEntryUseCase: ApproveFinancialEntryUseCase;
@@ -54,6 +56,36 @@ export async function registerBillingRoutes(
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
+    },
+  );
+
+  // GET /v1/financial/entries/summary
+  app.get(
+    '/v1/financial/entries/summary',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: z.object({ tenantId: z.string().uuid().optional() }),
+        response: {
+          200: successResponseSchema(
+            z.object({
+              totalDebits: z.number(),
+              totalPayouts: z.number(),
+              totalAdjustments: z.number(),
+              totalRefunds: z.number(),
+              pendingCount: z.number(),
+            }),
+          ),
+        },
+      },
+    },
+    async (request, reply) => {
+      const query = request.query as { tenantId?: string };
+      const result = await container.getFinancialSummaryUseCase.execute({
+        tenantId: query.tenantId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 

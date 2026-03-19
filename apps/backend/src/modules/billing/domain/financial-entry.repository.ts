@@ -18,8 +18,17 @@ export interface FinancialEntryPagination {
   sortOrder: 'asc' | 'desc';
 }
 
+export interface FinancialEntrySummary {
+  totalDebits: number;
+  totalPayouts: number;
+  totalAdjustments: number;
+  totalRefunds: number;
+  pendingCount: number;
+}
+
 export interface IFinancialEntryRepository {
   findById(id: string, tenantId?: string): Promise<FinancialEntryEntity | null>;
+  getSummary(tenantId?: string): Promise<FinancialEntrySummary>;
   findByAppointmentAndType(appointmentId: string, entryType: FinancialEntryType): Promise<FinancialEntryEntity | null>;
   findByReferenceEntryIdAndType(referenceEntryId: string, entryType: FinancialEntryType): Promise<FinancialEntryEntity | null>;
   findAll(filters: FinancialEntryFilters, pagination: FinancialEntryPagination): Promise<FinancialEntryEntity[]>;

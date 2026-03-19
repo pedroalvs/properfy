@@ -140,6 +140,7 @@ import { PrismaInspectorInvoiceRepository } from '../modules/billing/infrastruct
 import { CreateFinancialEntriesOnDoneUseCase } from '../modules/billing/application/use-cases/create-financial-entries-on-done.use-case';
 import { ListFinancialEntriesUseCase } from '../modules/billing/application/use-cases/list-financial-entries.use-case';
 import { GetFinancialEntryUseCase } from '../modules/billing/application/use-cases/get-financial-entry.use-case';
+import { GetFinancialSummaryUseCase } from '../modules/billing/application/use-cases/get-financial-summary.use-case';
 import { ApproveFinancialEntryUseCase } from '../modules/billing/application/use-cases/approve-financial-entry.use-case';
 import { CreateManualAdjustmentUseCase } from '../modules/billing/application/use-cases/create-manual-adjustment.use-case';
 import { CreateRefundUseCase } from '../modules/billing/application/use-cases/create-refund.use-case';
@@ -459,6 +460,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
+  const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialEntryRepo);
   const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
   const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService);
   const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(financialEntryRepo, auditService, idempotencyService, tenantRepo);
@@ -701,6 +703,7 @@ export function createContainer(logger: Logger): AppContainer {
     },
     billing: {
       createFinancialEntriesOnDoneUseCase,
+      getFinancialSummaryUseCase,
       listFinancialEntriesUseCase,
       getFinancialEntryUseCase,
       approveFinancialEntryUseCase,

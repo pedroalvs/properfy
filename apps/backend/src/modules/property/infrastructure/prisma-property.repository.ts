@@ -180,16 +180,21 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
     if (filters.branchId) where['branch_id'] = filters.branchId;
     if (filters.type) where['type'] = filters.type;
+    if (filters.hasCoordinates === true) {
+      where['lat'] = { not: null };
+      where['lng'] = { not: null };
+    } else if (filters.hasCoordinates === false) {
+      where['OR'] = [{ lat: null }, { lng: null }];
+    }
     if (filters.search) {
-      where['OR'] = [
+      where['AND'] = [
         {
-          property_code: {
-            contains: filters.search,
-            mode: 'insensitive',
-          },
+          OR: [
+            { property_code: { contains: filters.search, mode: 'insensitive' } },
+            { street: { contains: filters.search, mode: 'insensitive' } },
+            { suburb: { contains: filters.search, mode: 'insensitive' } },
+          ],
         },
-        { street: { contains: filters.search, mode: 'insensitive' } },
-        { suburb: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
     return where;

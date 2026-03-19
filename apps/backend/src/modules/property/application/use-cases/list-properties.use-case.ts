@@ -12,6 +12,7 @@ export interface ListPropertiesInput {
     branchId?: string;
     type?: string;
     search?: string;
+    hasCoordinates?: boolean;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -61,6 +62,7 @@ export class ListPropertiesUseCase {
       branchId: filters.branchId,
       type: filters.type,
       search: filters.search,
+      hasCoordinates: filters.hasCoordinates,
     };
 
     const [data, total] = await Promise.all([
