@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type Appointment, type AppointmentFiltersState } from '../types';
@@ -16,7 +17,13 @@ export interface UseAppointmentListReturn {
 }
 
 export function useAppointmentList(): UseAppointmentListReturn {
-  const [filters, setFilters] = useState<AppointmentFiltersState>(DEFAULT_FILTERS);
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState<AppointmentFiltersState>({
+    ...DEFAULT_FILTERS,
+    status: searchParams.get('status') ?? '',
+    startDate: searchParams.get('fromDate') ?? '',
+    endDate: searchParams.get('toDate') ?? '',
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState('scheduledDate');
