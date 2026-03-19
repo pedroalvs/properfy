@@ -29,9 +29,12 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
     },
   });
 
-  // CORS
+  // CORS — supports comma-separated origins in CORS_ORIGIN
+  const allowedOrigins = (env.CORS_ORIGIN ?? 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim());
   await app.register(cors, {
-    origin: env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
     credentials: true,
   });
 
