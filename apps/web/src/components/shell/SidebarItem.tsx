@@ -26,7 +26,7 @@ export function SidebarItem({ icon, label, to }: SidebarItemProps) {
             }`}
           />
           <i
-            className={`${icon} text-2xl transition-opacity ${
+            className={`mdi ${icon} text-2xl transition-opacity ${
               isActive ? 'text-realty opacity-100' : 'opacity-65 group-hover:opacity-100 group-hover:text-realty'
             }`}
           />

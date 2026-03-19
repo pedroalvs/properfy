@@ -1,8 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import {
-  ForbiddenError,
-  ValidationError,
-} from '../../../../shared/domain/errors';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 import type {
   IAppointmentRepository,
   AppointmentFilters,
@@ -72,17 +69,11 @@ export class ListAppointmentsUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Resolve tenantId
-    let tenantId: string;
-    if (actor.role === 'AM' || actor.role === 'OP') {
-      if (!filters.tenantId) {
-        throw new ValidationError('tenantId filter is required for AM/OP roles');
-      }
-      tenantId = filters.tenantId;
-    } else {
-      // CL_ADMIN/CL_USER: always use JWT tenantId
-      tenantId = actor.tenantId!;
-    }
+    // Resolve tenantId — AM/OP can omit to see all tenants
+    const tenantId =
+      actor.role === 'AM' || actor.role === 'OP'
+        ? filters.tenantId
+        : actor.tenantId!;
 
     const repoFilters: AppointmentFilters = {
       tenantId,

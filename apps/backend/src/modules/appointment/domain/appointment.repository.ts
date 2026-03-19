@@ -3,7 +3,7 @@ import type { AppointmentContactEntity } from './appointment-contact.entity';
 import type { AppointmentRestrictionEntity } from './appointment-restriction.entity';
 
 export interface AppointmentFilters {
-  tenantId: string;
+  tenantId?: string;
   status?: string;
   serviceTypeId?: string;
   branchId?: string;

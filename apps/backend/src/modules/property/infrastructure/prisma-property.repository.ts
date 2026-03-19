@@ -172,10 +172,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
   }
 
   private buildWhere(filters: PropertyFilters) {
-    const where: Record<string, unknown> = {
-      tenant_id: filters.tenantId,
-      deleted_at: null,
-    };
+    const where: Record<string, unknown> = { deleted_at: null };
+    if (filters.tenantId) where['tenant_id'] = filters.tenantId;
     if (filters.branchId) where['branch_id'] = filters.branchId;
     if (filters.type) where['type'] = filters.type;
     if (filters.search) {

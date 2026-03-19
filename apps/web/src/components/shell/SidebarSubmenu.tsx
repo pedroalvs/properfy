@@ -26,7 +26,7 @@ export function SidebarSubmenu({ icon, label, items }: SidebarSubmenuProps) {
       />
 
       <i
-        className={`${icon} text-2xl transition-opacity ${
+        className={`mdi ${icon} text-2xl transition-opacity ${
           isActive ? 'text-realty opacity-100' : 'opacity-65 group-hover:opacity-100 group-hover:text-realty'
         }`}
       />
@@ -54,7 +54,7 @@ export function SidebarSubmenu({ icon, label, items }: SidebarSubmenuProps) {
                 {linkActive && (
                   <span className="absolute -left-5 top-[5px] h-[30px] w-1 rounded-r bg-realty" />
                 )}
-                <i className={`${item.icon} mr-2 text-base`} />
+                <i className={`mdi ${item.icon} mr-2 text-base`} />
                 {item.label}
               </>
             )}

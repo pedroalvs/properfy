@@ -236,6 +236,37 @@ export async function registerTenantRoutes(
     },
   );
 
+  // GET /v1/branches — flat route; tenantId from JWT (CL roles) or query param (AM/OP)
+  app.get(
+    '/v1/branches',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: listBranchesQuerySchema.extend({ tenantId: z.string().uuid().optional() }),
+        response: { 200: paginatedResponseSchema(branchResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = listBranchesQuerySchema.extend({ tenantId: z.string().uuid().optional() }).safeParse(request.query);
+      if (!parsed.success)
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      const { page, pageSize, sortBy, sortOrder, tenantId: queryTenantId, ...filters } = parsed.data;
+      const actor = request.authContext!;
+      const resolvedTenantId = (actor.role === 'AM' || actor.role === 'OP')
+        ? queryTenantId
+        : actor.tenantId ?? undefined;
+      if (!resolvedTenantId)
+        throw new ValidationError('tenantId is required', []);
+      const result = await container.listBranchesUseCase.execute({
+        tenantId: resolvedTenantId,
+        filters,
+        pagination: { page, pageSize, sortBy, sortOrder },
+        actor,
+      });
+      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
   // GET /v1/tenants/:tenantId/branches
   app.get(
     '/v1/tenants/:tenantId/branches',

@@ -1,8 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import {
-  ForbiddenError,
-  ValidationError,
-} from '../../../../shared/domain/errors';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 import type {
   IPropertyRepository,
   PropertyFilters,
@@ -49,14 +46,9 @@ export class ListPropertiesUseCase {
   async execute(input: ListPropertiesInput): Promise<ListPropertiesOutput> {
     const { filters, pagination, actor } = input;
 
-    // Resolve tenantId
-    let tenantId: string;
+    // Resolve tenantId — AM/OP can omit to see all tenants
+    let tenantId: string | undefined;
     if (actor.role === 'AM' || actor.role === 'OP') {
-      if (!filters.tenantId) {
-        throw new ValidationError(
-          'tenantId filter is required for AM/OP roles',
-        );
-      }
       tenantId = filters.tenantId;
     } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       tenantId = actor.tenantId!;

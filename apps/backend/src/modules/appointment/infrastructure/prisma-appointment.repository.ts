@@ -290,10 +290,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   }
 
   private buildWhere(filters: AppointmentFilters) {
-    const where: Record<string, unknown> = {
-      tenant_id: filters.tenantId,
-      deleted_at: null,
-    };
+    const where: Record<string, unknown> = { deleted_at: null };
+    if (filters.tenantId) where['tenant_id'] = filters.tenantId;
     if (filters.status) where['status'] = filters.status;
     if (filters.serviceTypeId) where['service_type_id'] = filters.serviceTypeId;
     if (filters.branchId) where['branch_id'] = filters.branchId;

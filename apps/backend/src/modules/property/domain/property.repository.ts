@@ -1,7 +1,7 @@
 import type { PropertyEntity } from './property.entity';
 
 export interface PropertyFilters {
-  tenantId: string;
+  tenantId?: string;
   branchId?: string;
   type?: string;
   search?: string;
