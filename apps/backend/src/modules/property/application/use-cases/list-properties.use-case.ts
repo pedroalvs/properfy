@@ -23,6 +23,7 @@ export interface ListPropertiesOutput {
     id: string;
     tenantId: string;
     branchId: string | null;
+    branchName: string | null;
     propertyCode: string;
     type: string;
     street: string;
@@ -31,6 +32,8 @@ export interface ListPropertiesOutput {
     postcode: string;
     state: string;
     country: string;
+    latitude: number | null;
+    longitude: number | null;
     geocodingStatus: string;
     notes: string | null;
     createdAt: Date;
@@ -66,27 +69,30 @@ export class ListPropertiesUseCase {
     };
 
     const [data, total] = await Promise.all([
-      this.propertyRepo.findAll(repoFilters, pagination),
+      this.propertyRepo.findAllWithBranch(repoFilters, pagination),
       this.propertyRepo.count(repoFilters),
     ]);
 
     return {
-      data: data.map((p) => ({
-        id: p.id,
-        tenantId: p.tenantId,
-        branchId: p.branchId,
-        propertyCode: p.propertyCode,
-        type: p.type,
-        street: p.street,
-        addressLine2: p.addressLine2,
-        suburb: p.suburb,
-        postcode: p.postcode,
-        state: p.state,
-        country: p.country,
-        geocodingStatus: p.geocodingStatus,
-        notes: p.notes,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
+      data: data.map((item) => ({
+        id: item.property.id,
+        tenantId: item.property.tenantId,
+        branchId: item.property.branchId,
+        branchName: item.branchName,
+        propertyCode: item.property.propertyCode,
+        type: item.property.type,
+        street: item.property.street,
+        addressLine2: item.property.addressLine2,
+        suburb: item.property.suburb,
+        postcode: item.property.postcode,
+        state: item.property.state,
+        country: item.property.country,
+        latitude: item.property.lat,
+        longitude: item.property.lng,
+        geocodingStatus: item.property.geocodingStatus,
+        notes: item.property.notes,
+        createdAt: item.property.createdAt,
+        updatedAt: item.property.updatedAt,
       })),
       total,
       page: pagination.page,

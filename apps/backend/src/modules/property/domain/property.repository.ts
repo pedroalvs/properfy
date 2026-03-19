@@ -1,5 +1,10 @@
 import type { PropertyEntity } from './property.entity';
 
+export interface PropertyWithBranch {
+  property: PropertyEntity;
+  branchName: string | null;
+}
+
 export interface PropertyFilters {
   tenantId?: string;
   branchId?: string;
@@ -17,6 +22,7 @@ export interface PaginationParams {
 
 export interface IPropertyRepository {
   findById(id: string, tenantId?: string): Promise<PropertyEntity | null>;
+  findByIdWithBranch(id: string, tenantId?: string): Promise<PropertyWithBranch | null>;
   findByPropertyCode(
     propertyCode: string,
     tenantId: string,
@@ -25,6 +31,7 @@ export interface IPropertyRepository {
     filters: PropertyFilters,
     pagination: PaginationParams,
   ): Promise<PropertyEntity[]>;
+  findAllWithBranch(filters: PropertyFilters, pagination: PaginationParams): Promise<PropertyWithBranch[]>;
   count(filters: PropertyFilters): Promise<number>;
   save(property: PropertyEntity): Promise<void>;
   update(

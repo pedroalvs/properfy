@@ -5,6 +5,7 @@ import type {
   IPropertyRepository,
   PropertyFilters,
   PaginationParams,
+  PropertyWithBranch,
 } from '../domain/property.repository';
 import type { PropertyType, GeocodingStatus } from '@properfy/shared';
 
@@ -69,6 +70,20 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     return row ? mapToEntity(row) : null;
   }
 
+  async findByIdWithBranch(
+    id: string,
+    tenantId?: string,
+  ): Promise<PropertyWithBranch | null> {
+    const where: Record<string, unknown> = { id, deleted_at: null };
+    if (tenantId) where['tenant_id'] = tenantId;
+    const row = await this.prisma.property.findFirst({
+      where,
+      include: { branch: { select: { name: true } } },
+    });
+    if (!row) return null;
+    return { property: mapToEntity(row), branchName: row.branch?.name ?? null };
+  }
+
   async findByPropertyCode(
     propertyCode: string,
     tenantId: string,
@@ -97,6 +112,24 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       },
     });
     return rows.map(mapToEntity);
+  }
+
+  async findAllWithBranch(
+    filters: PropertyFilters,
+    pagination: PaginationParams,
+  ): Promise<PropertyWithBranch[]> {
+    const where = this.buildWhere(filters);
+    const rows = await this.prisma.property.findMany({
+      where,
+      skip: (pagination.page - 1) * pagination.pageSize,
+      take: pagination.pageSize,
+      orderBy: { [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder },
+      include: { branch: { select: { name: true } } },
+    });
+    return rows.map((row) => ({
+      property: mapToEntity(row),
+      branchName: row.branch?.name ?? null,
+    }));
   }
 
   async count(filters: PropertyFilters): Promise<number> {

@@ -6,6 +6,15 @@ import { PropertyEntity } from '../../../src/modules/property/domain/property.en
 import { PropertyNotFoundError } from '../../../src/modules/property/domain/property.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
+import type { PropertyWithBranch } from '../../../src/modules/property/domain/property.repository';
+
+function makePropertyWithBranch(
+  overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {},
+  branchName: string | null = null,
+): PropertyWithBranch {
+  return { property: makeProperty(overrides), branchName };
+}
+
 function makeProperty(
   overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {},
 ): PropertyEntity {
@@ -51,8 +60,10 @@ describe('GetPropertyUseCase', () => {
   beforeEach(() => {
     propertyRepo = {
       findById: vi.fn(),
+      findByIdWithBranch: vi.fn(),
       findByPropertyCode: vi.fn(),
       findAll: vi.fn(),
+      findAllWithBranch: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
@@ -61,7 +72,7 @@ describe('GetPropertyUseCase', () => {
   });
 
   it('should return property for AM', async () => {
-    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(propertyRepo.findByIdWithBranch).mockResolvedValue(makePropertyWithBranch({}, 'Main Branch'));
 
     const result = await useCase.execute({
       propertyId: 'prop-1',
@@ -72,10 +83,11 @@ describe('GetPropertyUseCase', () => {
     expect(result.id).toBe('prop-1');
     expect(result.propertyCode).toBe('PROP-001');
     expect(result.tenantId).toBe('tenant-1');
+    expect(result.branchName).toBe('Main Branch');
   });
 
   it('should return property for CL_ADMIN with matching tenantId', async () => {
-    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(propertyRepo.findByIdWithBranch).mockResolvedValue(makePropertyWithBranch());
 
     const result = await useCase.execute({
       propertyId: 'prop-1',
@@ -87,7 +99,7 @@ describe('GetPropertyUseCase', () => {
   });
 
   it('should throw PROPERTY_NOT_FOUND when not found', async () => {
-    vi.mocked(propertyRepo.findById).mockResolvedValue(null);
+    vi.mocked(propertyRepo.findByIdWithBranch).mockResolvedValue(null);
 
     await expect(
       useCase.execute({
@@ -99,8 +111,8 @@ describe('GetPropertyUseCase', () => {
   });
 
   it('should throw PROPERTY_NOT_FOUND for deleted property', async () => {
-    vi.mocked(propertyRepo.findById).mockResolvedValue(
-      makeProperty({ deletedAt: new Date() }),
+    vi.mocked(propertyRepo.findByIdWithBranch).mockResolvedValue(
+      makePropertyWithBranch({ deletedAt: new Date() }),
     );
 
     await expect(
@@ -113,8 +125,8 @@ describe('GetPropertyUseCase', () => {
   });
 
   it('should throw AUTH_FORBIDDEN for CL_ADMIN accessing other tenant property', async () => {
-    vi.mocked(propertyRepo.findById).mockResolvedValue(
-      makeProperty({ tenantId: 'tenant-2' }),
+    vi.mocked(propertyRepo.findByIdWithBranch).mockResolvedValue(
+      makePropertyWithBranch({ tenantId: 'tenant-2' }),
     );
 
     await expect(

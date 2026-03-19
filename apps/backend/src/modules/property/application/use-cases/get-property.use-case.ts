@@ -13,6 +13,7 @@ export interface GetPropertyOutput {
   id: string;
   tenantId: string;
   branchId: string | null;
+  branchName: string | null;
   propertyCode: string;
   type: string;
   street: string;
@@ -21,8 +22,8 @@ export interface GetPropertyOutput {
   postcode: string;
   state: string;
   country: string;
-  lat: number | null;
-  lng: number | null;
+  latitude: number | null;
+  longitude: number | null;
   geocodingStatus: string;
   notes: string | null;
   rulesJson: Record<string, unknown>;
@@ -46,15 +47,15 @@ export class GetPropertyUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    const property = await this.propertyRepo.findById(propertyId, tenantId);
-    if (!property || property.isDeleted()) {
+    const found = await this.propertyRepo.findByIdWithBranch(propertyId, tenantId);
+    if (!found || found.property.isDeleted()) {
       throw new PropertyNotFoundError();
     }
 
     // For CL roles, verify tenant scope
     if (
       (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') &&
-      property.tenantId !== actor.tenantId
+      found.property.tenantId !== actor.tenantId
     ) {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
@@ -63,24 +64,25 @@ export class GetPropertyUseCase {
     }
 
     return {
-      id: property.id,
-      tenantId: property.tenantId,
-      branchId: property.branchId,
-      propertyCode: property.propertyCode,
-      type: property.type,
-      street: property.street,
-      addressLine2: property.addressLine2,
-      suburb: property.suburb,
-      postcode: property.postcode,
-      state: property.state,
-      country: property.country,
-      lat: property.lat,
-      lng: property.lng,
-      geocodingStatus: property.geocodingStatus,
-      notes: property.notes,
-      rulesJson: property.rulesJson,
-      createdAt: property.createdAt,
-      updatedAt: property.updatedAt,
+      id: found.property.id,
+      tenantId: found.property.tenantId,
+      branchId: found.property.branchId,
+      branchName: found.branchName,
+      propertyCode: found.property.propertyCode,
+      type: found.property.type,
+      street: found.property.street,
+      addressLine2: found.property.addressLine2,
+      suburb: found.property.suburb,
+      postcode: found.property.postcode,
+      state: found.property.state,
+      country: found.property.country,
+      latitude: found.property.lat,
+      longitude: found.property.lng,
+      geocodingStatus: found.property.geocodingStatus,
+      notes: found.property.notes,
+      rulesJson: found.property.rulesJson,
+      createdAt: found.property.createdAt,
+      updatedAt: found.property.updatedAt,
     };
   }
 }

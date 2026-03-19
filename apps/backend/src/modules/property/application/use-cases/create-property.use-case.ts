@@ -41,8 +41,8 @@ export interface CreatePropertyOutput {
   state: string;
   country: string;
   geocodingStatus: string;
-  lat: number | null;
-  lng: number | null;
+  latitude: number | null;
+  longitude: number | null;
   notes: string | null;
   rulesJson: Record<string, unknown>;
   createdAt: Date;
@@ -167,8 +167,8 @@ export class CreatePropertyUseCase {
       state: property.state,
       country: property.country,
       geocodingStatus: property.geocodingStatus,
-      lat: property.lat,
-      lng: property.lng,
+      latitude: property.lat,
+      longitude: property.lng,
       notes: property.notes,
       rulesJson: property.rulesJson,
       createdAt: property.createdAt,

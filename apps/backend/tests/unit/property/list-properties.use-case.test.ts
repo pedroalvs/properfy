@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ListPropertiesUseCase } from '../../../src/modules/property/application/use-cases/list-properties.use-case';
-import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
+import type { IPropertyRepository, PropertyWithBranch } from '../../../src/modules/property/domain/property.repository';
 import type { AuthContext } from '@properfy/shared';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+
+function makePropertyWithBranch(
+  overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {},
+  branchName: string | null = null,
+): PropertyWithBranch {
+  return { property: makeProperty(overrides), branchName };
+}
 
 function makeProperty(
   overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {},
@@ -50,8 +57,10 @@ describe('ListPropertiesUseCase', () => {
   beforeEach(() => {
     propertyRepo = {
       findById: vi.fn(),
+      findByIdWithBranch: vi.fn(),
       findByPropertyCode: vi.fn(),
       findAll: vi.fn(),
+      findAllWithBranch: vi.fn().mockResolvedValue([]),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
@@ -60,8 +69,8 @@ describe('ListPropertiesUseCase', () => {
   });
 
   it('should return paginated list for AM with tenantId filter', async () => {
-    const properties = [makeProperty(), makeProperty({ id: 'prop-2', propertyCode: 'PROP-002' })];
-    vi.mocked(propertyRepo.findAll).mockResolvedValue(properties);
+    const properties = [makePropertyWithBranch(), makePropertyWithBranch({ id: 'prop-2', propertyCode: 'PROP-002' })];
+    vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue(properties);
     vi.mocked(propertyRepo.count).mockResolvedValue(2);
 
     const result = await useCase.execute({
@@ -74,14 +83,14 @@ describe('ListPropertiesUseCase', () => {
     expect(result.total).toBe(2);
     expect(result.page).toBe(1);
     expect(result.pageSize).toBe(10);
-    expect(propertyRepo.findAll).toHaveBeenCalledWith(
+    expect(propertyRepo.findAllWithBranch).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
       expect.objectContaining({ page: 1, pageSize: 10 }),
     );
   });
 
   it('should use actor.tenantId for CL_ADMIN', async () => {
-    vi.mocked(propertyRepo.findAll).mockResolvedValue([makeProperty()]);
+    vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue([makePropertyWithBranch()]);
     vi.mocked(propertyRepo.count).mockResolvedValue(1);
 
     const result = await useCase.execute({
@@ -91,14 +100,14 @@ describe('ListPropertiesUseCase', () => {
     });
 
     expect(result.data).toHaveLength(1);
-    expect(propertyRepo.findAll).toHaveBeenCalledWith(
+    expect(propertyRepo.findAllWithBranch).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
       expect.any(Object),
     );
   });
 
   it('should return all properties for AM without tenantId', async () => {
-    vi.mocked(propertyRepo.findAll).mockResolvedValue([makeProperty()]);
+    vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue([makePropertyWithBranch()]);
     vi.mocked(propertyRepo.count).mockResolvedValue(1);
 
     const result = await useCase.execute({
@@ -110,7 +119,7 @@ describe('ListPropertiesUseCase', () => {
     expect(result.data).toHaveLength(1);
     expect(result.total).toBe(1);
     // tenantId is undefined — repository receives no tenant scope
-    expect(propertyRepo.findAll).toHaveBeenCalledWith(
+    expect(propertyRepo.findAllWithBranch).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: undefined }),
       expect.any(Object),
     );
