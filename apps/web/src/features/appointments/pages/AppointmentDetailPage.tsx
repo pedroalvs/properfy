@@ -19,17 +19,13 @@ import { AppointmentTransitionActions } from '../components/AppointmentTransitio
 const BASE_TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'contact', label: 'Contact' },
-  { id: 'notifications', label: 'Notifications' },
 ];
 
+const NOTIFICATIONS_TAB = { id: 'notifications', label: 'Notifications' };
 const TIMELINE_TAB = { id: 'timeline', label: 'Timeline' };
 const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
 
-function isAuditVisible(role: string): boolean {
-  return role === 'AM' || role === 'OP';
-}
-
-function isFinancialVisible(role: string): boolean {
+function isPrivilegedRole(role: string): boolean {
   return role === 'AM' || role === 'OP';
 }
 
@@ -41,12 +37,12 @@ export function AppointmentDetailPage() {
   const { transition, isTransitioning } = useAppointmentTransition(id ?? null, refetch);
   const [activeTab, setActiveTab] = useState('overview');
 
-  const showAudit = user ? isAuditVisible(user.role) : false;
-  const showFinancial = user ? isFinancialVisible(user.role) : false;
+  const isPrivileged = user ? isPrivilegedRole(user.role) : false;
   const tabs = [
     ...BASE_TABS,
-    ...(showAudit ? [TIMELINE_TAB] : []),
-    ...(showFinancial ? [FINANCIAL_TAB] : []),
+    ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
+    ...(isPrivileged ? [TIMELINE_TAB] : []),
+    ...(isPrivileged ? [FINANCIAL_TAB] : []),
   ];
 
   const transitions =
@@ -128,13 +124,13 @@ export function AppointmentDetailPage() {
           {activeTab === 'contact' && (
             <AppointmentContactTab appointment={appointment} />
           )}
-          {activeTab === 'timeline' && showAudit && (
+          {activeTab === 'timeline' && isPrivileged && (
             <AppointmentTimelineTab appointmentId={appointment.id} />
           )}
-          {activeTab === 'notifications' && (
+          {activeTab === 'notifications' && isPrivileged && (
             <AppointmentNotificationsTab appointmentId={appointment.id} />
           )}
-          {activeTab === 'financial' && showFinancial && (
+          {activeTab === 'financial' && isPrivileged && (
             <AppointmentFinancialTab appointmentId={appointment.id} />
           )}
         </div>
