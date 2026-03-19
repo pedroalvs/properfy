@@ -36,24 +36,10 @@ export class GetPropertyUseCase {
   async execute(input: GetPropertyInput): Promise<GetPropertyOutput> {
     const { propertyId, actor } = input;
 
-    // Resolve tenantId based on role
-    let tenantId: string;
+    // Resolve tenantId for scoping
+    let tenantId: string | undefined;
     if (actor.role === 'AM' || actor.role === 'OP') {
-      // AM/OP: use provided tenantId or search across tenants
-      // For scoped lookup we need a tenantId; if not provided we cannot scope
-      if (input.tenantId) {
-        tenantId = input.tenantId;
-      } else {
-        // AM/OP can view any property - we need to find it without tenant scoping
-        // Since repo requires tenantId, AM/OP must provide it or we iterate
-        // For simplicity, require tenantId for AM/OP as well in the interface
-        // but allow a fallback: try to find across all tenants is not supported
-        // by the repo interface, so tenantId is effectively required
-        throw new ForbiddenError(
-          'AUTH_FORBIDDEN',
-          'tenantId is required to look up a property',
-        );
-      }
+      tenantId = input.tenantId; // optional — AM/OP can look up any property
     } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       tenantId = actor.tenantId!;
     } else {

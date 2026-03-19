@@ -16,7 +16,7 @@ export interface PaginationParams {
 }
 
 export interface IPropertyRepository {
-  findById(id: string, tenantId: string): Promise<PropertyEntity | null>;
+  findById(id: string, tenantId?: string): Promise<PropertyEntity | null>;
   findByPropertyCode(
     propertyCode: string,
     tenantId: string,

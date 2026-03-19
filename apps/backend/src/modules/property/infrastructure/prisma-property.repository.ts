@@ -61,7 +61,7 @@ export class PrismaPropertyRepository implements IPropertyRepository {
 
   async findById(
     id: string,
-    tenantId: string,
+    tenantId?: string,
   ): Promise<PropertyEntity | null> {
     const where: Record<string, unknown> = { id, deleted_at: null };
     if (tenantId) where['tenant_id'] = tenantId;

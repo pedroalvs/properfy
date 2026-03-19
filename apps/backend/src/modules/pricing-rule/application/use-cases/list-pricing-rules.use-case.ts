@@ -1,8 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import {
-  ForbiddenError,
-  ValidationError,
-} from '../../../../shared/domain/errors';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 import type {
   IPricingRuleRepository,
   PricingRuleFilters,
@@ -61,7 +58,7 @@ export class ListPricingRulesUseCase {
         : actor.tenantId;
 
     if (!resolvedTenantId) {
-      throw new ValidationError('tenantId is required');
+      return { data: [], total: 0, page: pagination.page, pageSize: pagination.pageSize };
     }
 
     const resolvedFilters: PricingRuleFilters = {

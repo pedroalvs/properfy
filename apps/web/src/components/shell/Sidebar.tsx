@@ -36,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { icon: 'mdi-office-building-marker', label: 'Service Groups', to: '/service-groups', roles: [UserRole.AM, UserRole.OP] },
-  { icon: 'mdi-store-outline', label: 'Marketplace', to: '/marketplace', roles: [UserRole.AM, UserRole.OP, UserRole.INSP] },
+  { icon: 'mdi-store-outline', label: 'Marketplace', to: '/marketplace', roles: [UserRole.INSP] },
   { icon: 'mdi-calendar-clock-outline', label: 'Availability', to: '/availability-slots', roles: [UserRole.AM, UserRole.OP] },
   { icon: 'mdi-bank-outline', label: 'Financial', to: '/financial', roles: [UserRole.AM, UserRole.OP] },
   { icon: 'mdi-chart-bar', label: 'Reports', to: '/reports', roles: [UserRole.AM, UserRole.OP] },
@@ -80,7 +80,7 @@ export function Sidebar() {
         <span className="text-xl font-bold text-secondary">P</span>
       </div>
 
-      <nav className="flex flex-1 flex-col items-center gap-4 py-4">
+      <nav className="flex flex-1 flex-col items-center gap-1 py-4">
         {visibleItems.map((item) =>
           item.submenu ? (
             <SidebarSubmenu

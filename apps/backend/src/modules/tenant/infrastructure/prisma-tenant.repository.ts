@@ -59,14 +59,15 @@ export class PrismaTenantRepository implements ITenantRepository {
     filters: TenantFilters,
     pagination: PaginationParams,
   ): Promise<TenantEntity[]> {
+    const VALID_SORT_FIELDS = new Set(['name', 'legal_name', 'status', 'created_at', 'updated_at']);
+    const rawSort = toSnakeCase(pagination.sortBy ?? 'created_at');
+    const sortField = VALID_SORT_FIELDS.has(rawSort) ? rawSort : 'created_at';
     const where = this.buildWhere(filters);
     const rows = await this.prisma.tenant.findMany({
       where,
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
-      orderBy: {
-        [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
-      },
+      orderBy: { [sortField]: pagination.sortOrder },
     });
     return rows.map(mapToEntity);
   }

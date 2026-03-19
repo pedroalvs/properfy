@@ -179,7 +179,7 @@ export const router = createBrowserRouter([
           {
             path: 'marketplace',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+              <AuthGuard roles={[UserRole.INSP]}>
                 <MarketplacePage />
               </AuthGuard>
             ),
