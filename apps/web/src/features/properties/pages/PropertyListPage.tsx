@@ -97,7 +97,6 @@ export function PropertyListPage() {
         propertyId={editId}
         onSaved={() => {
           setFormOpen(false);
-          setEditId(null);
           refetch();
         }}
       />

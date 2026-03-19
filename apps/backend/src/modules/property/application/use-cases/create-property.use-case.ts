@@ -41,9 +41,12 @@ export interface CreatePropertyOutput {
   state: string;
   country: string;
   geocodingStatus: string;
+  lat: number | null;
+  lng: number | null;
   notes: string | null;
   rulesJson: Record<string, unknown>;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class CreatePropertyUseCase {
@@ -128,7 +131,10 @@ export class CreatePropertyUseCase {
 
     await this.propertyRepo.save(property);
 
-    await sendJob('property.geocode', { propertyId: id });
+    sendJob('property.geocode', { propertyId: id }).catch(() => {
+      // Geocoding is async — queue failure does not fail property creation.
+      // The property stays PENDING and can be re-queued later.
+    });
 
     this.auditService.log({
       action: 'property.created',
@@ -161,9 +167,12 @@ export class CreatePropertyUseCase {
       state: property.state,
       country: property.country,
       geocodingStatus: property.geocodingStatus,
+      lat: property.lat,
+      lng: property.lng,
       notes: property.notes,
       rulesJson: property.rulesJson,
       createdAt: property.createdAt,
+      updatedAt: property.updatedAt,
     };
   }
 }

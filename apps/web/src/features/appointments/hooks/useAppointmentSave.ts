@@ -107,12 +107,14 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
     setIsSaving(true);
     try {
       if (appointmentId) {
-        const { error } = await api.PATCH(`/v1/appointments/${appointmentId}` as any, { body: data as any });
+        const payload = toSchemaPayload(data, 'edit');
+        const { error } = await api.PATCH(`/v1/appointments/${appointmentId}` as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         return { success: true, id: appointmentId };
       } else {
-        const { data: responseData, error } = await api.POST('/v1/appointments' as any, { body: data as any });
+        const payload = toSchemaPayload(data, 'create');
+        const { data: responseData, error } = await api.POST('/v1/appointments' as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
         const createdId = (responseData as any)?.data?.id;
         queryClient.invalidateQueries({ queryKey: ['appointments'] });

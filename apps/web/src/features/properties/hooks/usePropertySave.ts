@@ -2,10 +2,11 @@ import { useState, useCallback } from 'react';
 import { createPropertySchema, updatePropertySchema } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 
 /** Map form data to the shape expected by the shared Zod schema. */
-function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit') {
+function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenantId?: string | null) {
   if (mode === 'create') {
     return {
       propertyCode: data.propertyCode.trim() || undefined,
@@ -18,6 +19,7 @@ function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit') {
       country: data.country.trim() || 'AU',
       ...(data.branchId ? { branchId: data.branchId } : {}),
       ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
+      ...(tenantId ? { tenantId } : {}),
     };
   }
 
@@ -65,6 +67,7 @@ export interface UsePropertySaveReturn {
 export function usePropertySave(): UsePropertySaveReturn {
   const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const validate = useCallback((data: PropertyFormData, mode: 'create' | 'edit'): PropertyFormErrors => {
     const payload = toSchemaPayload(data, mode);
@@ -90,10 +93,12 @@ export function usePropertySave(): UsePropertySaveReturn {
     try {
       let newId: string | undefined;
       if (propertyId) {
-        const { error } = await api.PATCH(`/v1/properties/${propertyId}` as any, { body: data as any });
+        const payload = toSchemaPayload(data, 'edit');
+        const { error } = await api.PATCH(`/v1/properties/${propertyId}` as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        const { data: responseData, error } = await api.POST('/v1/properties' as any, { body: data as any });
+        const payload = toSchemaPayload(data, 'create', user?.tenantId);
+        const { data: responseData, error } = await api.POST('/v1/properties' as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
         newId = (responseData as any)?.data?.id;
       }

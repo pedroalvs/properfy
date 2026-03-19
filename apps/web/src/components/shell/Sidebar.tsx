@@ -27,10 +27,10 @@ const NAV_ITEMS: NavItem[] = [
   {
     icon: 'mdi-account-group-outline',
     label: 'Users',
-    roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN],
+    roles: [UserRole.AM, UserRole.OP],
     submenu: [
-      { icon: 'mdi-domain', label: 'Agencies', to: '/tenants', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN] },
-      { icon: 'mdi-account-multiple-outline', label: 'Contacts', to: '/tenant-contacts', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN] },
+      { icon: 'mdi-domain', label: 'Agencies', to: '/tenants', roles: [UserRole.AM, UserRole.OP] },
+      { icon: 'mdi-account-multiple-outline', label: 'Contacts', to: '/tenant-contacts', roles: [UserRole.AM, UserRole.OP] },
       { icon: 'mdi-badge-account-outline', label: 'Inspectors', to: '/inspectors', roles: [UserRole.AM, UserRole.OP] },
       { icon: 'mdi-shield-account-outline', label: 'Users', to: '/users', roles: [UserRole.AM, UserRole.OP] },
     ],

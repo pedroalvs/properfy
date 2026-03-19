@@ -15,6 +15,7 @@ import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { PropertyTypeChip } from '../components/PropertyTypeChip';
 import { PropertyDetailSections } from '../components/PropertyDetailSections';
 import { PropertyAppointmentsTab } from '../components/PropertyAppointmentsTab';
+import { PropertyFormDrawer } from '../components/PropertyFormDrawer';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -28,6 +29,7 @@ export function PropertyDetailPage() {
   const { showSuccess, showError } = useSnackbar();
   const { property, isLoading, isError, isGeocodingTimeout, refetch } = usePropertyDetail(id ?? null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showEdit, setShowEdit] = useState(false);
 
   const canRetryGeocode = user?.role === 'AM' || user?.role === 'OP';
 
@@ -49,8 +51,8 @@ export function PropertyDetailPage() {
   }, [retryGeocodeMutation, showSuccess, showError, refetch]);
 
   const handleEdit = useCallback(() => {
-    navigate('/properties');
-  }, [navigate]);
+    setShowEdit(true);
+  }, []);
 
   if (isLoading) {
     return (
@@ -167,6 +169,13 @@ export function PropertyDetailPage() {
           )}
         </div>
       </div>
+
+      <PropertyFormDrawer
+        open={showEdit}
+        propertyId={property.id}
+        onClose={() => setShowEdit(false)}
+        onSaved={() => { setShowEdit(false); refetch(); }}
+      />
     </div>
   );
 }
