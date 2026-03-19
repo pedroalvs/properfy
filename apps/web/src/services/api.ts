@@ -44,6 +44,10 @@ api.use({
   async onResponse({ response, request }) {
     if (response.status !== 401) return response;
 
+    // Never intercept 401 on auth endpoints — let the caller handle it directly
+    const pathname = new URL(request.url).pathname;
+    if (pathname.startsWith('/v1/auth/')) return response;
+
     if (!isRefreshing) {
       isRefreshing = true;
       refreshPromise = refreshAccessToken().finally(() => {

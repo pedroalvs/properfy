@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { api } from '@/services/api';
 import { authStorage } from '@/lib/auth-storage';
+import { ApiError } from '@/lib/api-error';
 
 export interface AuthUser {
   id: string;
@@ -49,11 +50,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { data, error } = await api.POST('/v1/auth/login', {
+    const { data, error, response } = await api.POST('/v1/auth/login', {
       body: { email, password },
-    });
+    }) as { data: any; error: any; response: Response };
     if (error || !data) {
-      throw new Error('Login failed');
+      throw new ApiError(
+        response.status,
+        error?.error?.message ?? 'Login failed',
+        error?.error?.code,
+      );
     }
     authStorage.setTokens(data.accessToken, data.refreshToken);
     setToken(data.accessToken);

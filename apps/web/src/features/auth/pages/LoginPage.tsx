@@ -12,6 +12,10 @@ function getErrorMessage(error: unknown): string {
         return 'Account locked. Please try again later.';
       case 'AUTH_USER_INACTIVE':
         return 'Account is inactive. Contact your administrator.';
+      case 'AUTH_TOTP_REQUIRED':
+        return 'Two-factor authentication code required.';
+      case 'VALIDATION_ERROR':
+        return 'Invalid email or password format. Please check and try again.';
       default:
         break;
     }
