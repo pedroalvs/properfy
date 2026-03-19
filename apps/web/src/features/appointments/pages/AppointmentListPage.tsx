@@ -34,6 +34,7 @@ function useBranchFilterOptions() {
 }
 
 const CAN_CREATE_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
+const CAN_MAP_IMPORT_ROLES: string[] = [UserRole.AM, UserRole.OP];
 
 export function AppointmentListPage() {
   const navigate = useNavigate();
@@ -58,16 +59,17 @@ export function AppointmentListPage() {
   const [editId, setEditId] = useState<string | null>(null);
 
   const canCreate = user ? CAN_CREATE_ROLES.includes(user.role) : false;
+  const canMapImport = user ? CAN_MAP_IMPORT_ROLES.includes(user.role) : false;
 
   return (
     <>
       <ListFilterTableTemplate
         title="Appointments"
         primaryAction={canCreate ? { label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } } : undefined}
-        secondaryActions={[
+        secondaryActions={canMapImport ? [
           { label: 'Map', icon: 'mdi-map-outline', onClick: () => navigate('/appointments/map') },
           { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/appointments/import') },
-        ]}
+        ] : []}
       >
         <AppointmentFilters
           filters={filters}
