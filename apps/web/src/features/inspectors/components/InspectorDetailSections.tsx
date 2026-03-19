@@ -8,12 +8,12 @@ interface InspectorDetailSectionsProps {
   inspector: InspectorDetail;
 }
 
-function formatList(items: string[]): string | null {
-  return items.length > 0 ? items.join(', ') : null;
+function formatList(items: string[] | undefined | null): string | null {
+  return items && items.length > 0 ? items.join(', ') : null;
 }
 
-function formatRating(rating: number | null): string | null {
-  return rating !== null ? `${rating.toFixed(1)} / 5.0` : null;
+function formatRating(rating: number | null | undefined): string | null {
+  return rating != null ? `${rating.toFixed(1)} / 5.0` : null;
 }
 
 function useInspectorWorkload(inspectorId: string) {

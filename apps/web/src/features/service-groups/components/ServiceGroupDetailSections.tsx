@@ -10,7 +10,7 @@ interface ServiceGroupDetailSectionsProps {
 }
 
 export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailSectionsProps) {
-  const priorityStyle = PRIORITY_MODE_MAP[serviceGroup.priorityMode];
+  const priorityStyle = serviceGroup.priorityMode ? PRIORITY_MODE_MAP[serviceGroup.priorityMode] : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,12 +21,14 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
         <DetailRow
           label="Priority"
           value={
-            <span
-              className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
-              style={{ backgroundColor: priorityStyle.bg, color: priorityStyle.text }}
-            >
-              {priorityStyle.label}
-            </span>
+            priorityStyle ? (
+              <span
+                className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
+                style={{ backgroundColor: priorityStyle.bg, color: priorityStyle.text }}
+              >
+                {priorityStyle.label}
+              </span>
+            ) : null
           }
         />
       </FormSection>
@@ -36,8 +38,8 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
       </FormSection>
 
       <FormSection title="Appointments">
-        <DetailRow label="Count" value={serviceGroup.appointmentsCount.toString()} />
-        <DetailRow label="Codes" value={serviceGroup.appointmentCodes.length > 0 ? serviceGroup.appointmentCodes.join(', ') : null} />
+        <DetailRow label="Count" value={serviceGroup.appointmentsCount != null ? serviceGroup.appointmentsCount.toString() : null} />
+        <DetailRow label="Codes" value={(serviceGroup.appointmentCodes ?? []).length > 0 ? serviceGroup.appointmentCodes.join(', ') : null} />
       </FormSection>
 
       {serviceGroup.description && (

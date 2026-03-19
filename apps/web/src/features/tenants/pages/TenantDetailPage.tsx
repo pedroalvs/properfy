@@ -20,7 +20,7 @@ const TABS = [
 ];
 
 export function TenantDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { tenantId: id } = useParams<{ tenantId: string }>();
   const navigate = useNavigate();
   const { tenant, isLoading, isError, refetch } = useTenantAdminDetail(id ?? null);
 

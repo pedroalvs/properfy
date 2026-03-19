@@ -4,10 +4,12 @@ import { QueryProvider } from '@/app/QueryProvider';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { Snackbar } from '@/components/feedback/Snackbar';
 import { ErrorBoundary } from '@/app/ErrorBoundary';
+import { LocaleProvider } from '@/hooks/useLocale';
 import { router } from '@/app/router';
 
 export function App() {
   return (
+    <LocaleProvider>
     <ErrorBoundary>
       <QueryProvider>
         <SnackbarProvider>
@@ -18,5 +20,6 @@ export function App() {
         </SnackbarProvider>
       </QueryProvider>
     </ErrorBoundary>
+    </LocaleProvider>
   );
 }

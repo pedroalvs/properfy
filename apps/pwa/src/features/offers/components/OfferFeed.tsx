@@ -8,7 +8,7 @@ import type { MarketplaceOffer } from '../types';
 import { useAcceptOffer } from '../hooks/useAcceptOffer';
 
 interface OfferFeedProps {
-  offers: MarketplaceOffer[];
+  offers: MarketplaceOffer[] | undefined;
   onRefresh: () => void;
 }
 
@@ -18,7 +18,7 @@ export function OfferFeed({ offers, onRefresh }: OfferFeedProps) {
   const isOnline = useIsOnline();
   const { showError } = useSnackbar();
 
-  if (offers.length === 0) {
+  if (!offers || offers.length === 0) {
     return (
       <EmptyState
         title="No offers available"
@@ -29,7 +29,7 @@ export function OfferFeed({ offers, onRefresh }: OfferFeedProps) {
     );
   }
 
-  const sorted = [...offers].sort((a, b) => {
+  const sorted = [...(offers ?? [])].sort((a, b) => {
     const aState = getState(a.groupId);
     const bState = getState(b.groupId);
     const aResolved = ['ACCEPTED', 'CONFLICT', 'GONE'].includes(aState);

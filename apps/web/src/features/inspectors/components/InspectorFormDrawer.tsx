@@ -50,8 +50,8 @@ export function InspectorFormDrawer({
         phone: inspector.phone ?? '',
         document: inspector.document ?? '',
         status: inspector.status,
-        regions: inspector.regions.join(', '),
-        serviceTypes: inspector.serviceTypes.join(', '),
+        regions: (inspector.regions ?? []).join(', '),
+        serviceTypes: (inspector.serviceTypes ?? []).join(', '),
       };
       setForm(data);
       setInitialData(data);
