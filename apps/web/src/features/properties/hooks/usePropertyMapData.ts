@@ -40,7 +40,7 @@ export function usePropertyMapData(): UsePropertyMapDataReturn {
 
   const params: ListParams = {
     page: 1,
-    pageSize: 200,
+    pageSize: 100,
     sortBy: 'street',
     sortOrder: 'asc',
     type: filters.propertyType || undefined,
