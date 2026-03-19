@@ -25,11 +25,27 @@ export interface AppointmentWithRelations {
   appointment: AppointmentEntity;
   contact: AppointmentContactEntity | null;
   restrictions: AppointmentRestrictionEntity[];
+  // Enriched join fields (populated by findById)
+  propertyCode?: string;
+  propertyAddress?: string;
+  branchName?: string;
+  serviceTypeName?: string;
+  inspectorName?: string | null;
+}
+
+export interface AppointmentListItem {
+  appointment: AppointmentEntity;
+  contact: AppointmentContactEntity | null;
+  propertyCode: string;
+  propertyAddress: string;
+  branchName: string;
+  serviceTypeName: string;
+  inspectorName: string | null;
 }
 
 export interface IAppointmentRepository {
   findById(id: string, tenantId: string | null): Promise<AppointmentWithRelations | null>;
-  findAll(filters: AppointmentFilters, pagination: PaginationParams): Promise<AppointmentEntity[]>;
+  findAll(filters: AppointmentFilters, pagination: PaginationParams): Promise<AppointmentListItem[]>;
   count(filters: AppointmentFilters): Promise<number>;
   save(appointment: AppointmentEntity): Promise<void>;
   update(

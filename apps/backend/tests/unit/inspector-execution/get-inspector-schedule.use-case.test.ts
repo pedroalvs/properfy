@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GetInspectorScheduleUseCase } from '../../../src/modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case';
-import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
+import type { IAppointmentRepository, AppointmentListItem } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
 import type { IServiceTypeReader } from '../../../src/modules/inspector-execution/domain/service-type-reader';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
@@ -10,36 +10,44 @@ import type { AuthContext } from '@properfy/shared';
 
 function makeAppointment(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
-): AppointmentEntity {
-  return new AppointmentEntity({
-    id: 'appt-1',
-    tenantId: 'tenant-1',
-    branchId: 'branch-1',
-    propertyId: 'prop-1',
-    serviceTypeId: 'st-1',
-    inspectorId: 'insp-1',
-    status: 'SCHEDULED',
-    scheduledDate: new Date('2026-03-21'),
-    timeSlot: '09:00-11:00',
-    keyRequired: false,
-    meetingLocation: null,
-    keyLocation: null,
-    tenantConfirmationStatus: 'CONFIRMED',
-    priceAmount: 200,
-    payoutAmount: 140,
-    pricingRuleSnapshotJson: {},
-    notes: null,
-    customFieldsJson: null,
-    reason: null,
-    createdByUserId: 'user-1',
-    doneCheckedByUserId: null,
-    doneCheckedAt: null,
-    serviceGroupId: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deletedAt: null,
-    ...overrides,
-  });
+): AppointmentListItem {
+  return {
+    appointment: new AppointmentEntity({
+      id: 'appt-1',
+      tenantId: 'tenant-1',
+      branchId: 'branch-1',
+      propertyId: 'prop-1',
+      serviceTypeId: 'st-1',
+      inspectorId: 'insp-1',
+      status: 'SCHEDULED',
+      scheduledDate: new Date('2026-03-21'),
+      timeSlot: '09:00-11:00',
+      keyRequired: false,
+      meetingLocation: null,
+      keyLocation: null,
+      tenantConfirmationStatus: 'CONFIRMED',
+      priceAmount: 200,
+      payoutAmount: 140,
+      pricingRuleSnapshotJson: {},
+      notes: null,
+      customFieldsJson: null,
+      reason: null,
+      createdByUserId: 'user-1',
+      doneCheckedByUserId: null,
+      doneCheckedAt: null,
+      serviceGroupId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      ...overrides,
+    }),
+    contact: null,
+    propertyCode: 'PROP-001',
+    propertyAddress: '1 Test St, Suburb NSW 2000',
+    branchName: 'Main Branch',
+    serviceTypeName: 'Routine Inspection',
+    inspectorName: 'Test Inspector',
+  };
 }
 
 function makeExecution(
@@ -88,6 +96,8 @@ describe('GetInspectorScheduleUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      findScheduledOnDate: vi.fn(),
+      findDuplicateForImport: vi.fn(),
     };
 
     executionRepo = {

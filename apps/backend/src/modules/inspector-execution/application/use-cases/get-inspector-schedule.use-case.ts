@@ -63,33 +63,34 @@ export class GetInspectorScheduleUseCase {
     );
 
     // Load service types for T-1 filtering
-    const serviceTypeIds = [...new Set(appointments.map((a) => a.serviceTypeId))];
+    const serviceTypeIds = [...new Set(appointments.map((a) => a.appointment.serviceTypeId))];
     const serviceTypes =
       serviceTypeIds.length > 0 ? await this.serviceTypeReader.findByIds(serviceTypeIds) : [];
     const serviceTypeMap = new Map(serviceTypes.map((st) => [st.id, st]));
 
     // Apply T-1 visibility filter
-    const visibleAppointments = appointments.filter((appt) => {
-      const st = serviceTypeMap.get(appt.serviceTypeId);
+    const visibleAppointments = appointments.filter((item) => {
+      const st = serviceTypeMap.get(item.appointment.serviceTypeId);
       const flowType = st?.flowType ?? 'ROUTINE';
       return this.t1Service.isVisibleForInspector(
         flowType,
-        appt.tenantConfirmationStatus,
-        appt.keyRequired,
-        appt.scheduledDate,
+        item.appointment.tenantConfirmationStatus,
+        item.appointment.keyRequired,
+        item.appointment.scheduledDate,
         today,
       );
     });
 
     // Load execution statuses for visible appointments
-    const appointmentIds = visibleAppointments.map((a) => a.id);
+    const appointmentIds = visibleAppointments.map((a) => a.appointment.id);
     const executions =
       appointmentIds.length > 0
         ? await this.executionRepo.findByAppointmentIds(appointmentIds)
         : [];
     const executionMap = new Map(executions.map((e) => [e.appointmentId, e]));
 
-    const items: ScheduleAppointmentItem[] = visibleAppointments.map((appt) => {
+    const items: ScheduleAppointmentItem[] = visibleAppointments.map((item) => {
+      const appt = item.appointment;
       const exec = executionMap.get(appt.id);
       let executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
       if (exec) {

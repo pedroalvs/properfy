@@ -19,11 +19,15 @@ import { AppointmentTransitionActions } from '../components/AppointmentTransitio
 const BASE_TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'contact', label: 'Contact' },
-  { id: 'timeline', label: 'Timeline' },
   { id: 'notifications', label: 'Notifications' },
 ];
 
+const TIMELINE_TAB = { id: 'timeline', label: 'Timeline' };
 const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
+
+function isAuditVisible(role: string): boolean {
+  return role === 'AM' || role === 'OP';
+}
 
 function isFinancialVisible(role: string): boolean {
   return role === 'AM' || role === 'OP';
@@ -37,8 +41,13 @@ export function AppointmentDetailPage() {
   const { transition, isTransitioning } = useAppointmentTransition(id ?? null, refetch);
   const [activeTab, setActiveTab] = useState('overview');
 
+  const showAudit = user ? isAuditVisible(user.role) : false;
   const showFinancial = user ? isFinancialVisible(user.role) : false;
-  const tabs = showFinancial ? [...BASE_TABS, FINANCIAL_TAB] : BASE_TABS;
+  const tabs = [
+    ...BASE_TABS,
+    ...(showAudit ? [TIMELINE_TAB] : []),
+    ...(showFinancial ? [FINANCIAL_TAB] : []),
+  ];
 
   const transitions =
     appointment && user
@@ -119,7 +128,7 @@ export function AppointmentDetailPage() {
           {activeTab === 'contact' && (
             <AppointmentContactTab appointment={appointment} />
           )}
-          {activeTab === 'timeline' && (
+          {activeTab === 'timeline' && showAudit && (
             <AppointmentTimelineTab appointmentId={appointment.id} />
           )}
           {activeTab === 'notifications' && (

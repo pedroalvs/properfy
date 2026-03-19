@@ -36,6 +36,16 @@ export interface GetAppointmentOutput {
   doneCheckedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  // Enriched flat fields
+  code: string;
+  propertyAddress: string;
+  contactName: string;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  inspectorName: string | null;
+  branchName: string;
+  serviceTypeName: string;
+  cancellationReason: string | null;
   contact: {
     id: string;
     tenantName: string;
@@ -81,6 +91,16 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     doneCheckedAt: appointment.doneCheckedAt,
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
+    // Enriched fields from joins
+    code: found.propertyCode ?? '',
+    propertyAddress: found.propertyAddress ?? '',
+    contactName: contact?.tenantName ?? '',
+    contactPhone: contact?.primaryPhone ?? null,
+    contactEmail: contact?.primaryEmail ?? null,
+    inspectorName: found.inspectorName ?? null,
+    branchName: found.branchName ?? '',
+    serviceTypeName: found.serviceTypeName ?? '',
+    cancellationReason: appointment.reason,
     contact: contact
       ? {
           id: contact.id,

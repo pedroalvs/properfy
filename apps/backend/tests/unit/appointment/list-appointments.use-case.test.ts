@@ -1,40 +1,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ListAppointmentsUseCase } from '../../../src/modules/appointment/application/use-cases/list-appointments.use-case';
-import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
+import type { IAppointmentRepository, AppointmentListItem } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuthContext } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
-function makeAppointmentEntity(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}): AppointmentEntity {
-  return new AppointmentEntity({
-    id: 'appt-1',
-    tenantId: 'tenant-1',
-    branchId: 'branch-1',
-    propertyId: 'property-1',
-    serviceTypeId: 'svc-type-1',
-    inspectorId: null,
-    status: 'DRAFT',
-    scheduledDate: new Date('2026-04-01'),
-    timeSlot: '09:00-10:00',
-    keyRequired: false,
-    meetingLocation: null,
-    keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
-    priceAmount: 150,
-    payoutAmount: 80,
-    pricingRuleSnapshotJson: {},
-    notes: null,
-    customFieldsJson: null,
-    reason: null,
-    createdByUserId: 'user-1',
-    doneCheckedByUserId: null,
-    doneCheckedAt: null,
-    serviceGroupId: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deletedAt: null,
-    ...overrides,
-  });
+function makeAppointmentListItem(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}): AppointmentListItem {
+  return {
+    appointment: new AppointmentEntity({
+      id: 'appt-1',
+      tenantId: 'tenant-1',
+      branchId: 'branch-1',
+      propertyId: 'property-1',
+      serviceTypeId: 'svc-type-1',
+      inspectorId: null,
+      status: 'DRAFT',
+      scheduledDate: new Date('2026-04-01'),
+      timeSlot: '09:00-10:00',
+      keyRequired: false,
+      meetingLocation: null,
+      keyLocation: null,
+      tenantConfirmationStatus: 'PENDING',
+      priceAmount: 150,
+      payoutAmount: 80,
+      pricingRuleSnapshotJson: {},
+      notes: null,
+      customFieldsJson: null,
+      reason: null,
+      createdByUserId: 'user-1',
+      doneCheckedByUserId: null,
+      doneCheckedAt: null,
+      serviceGroupId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      ...overrides,
+    }),
+    contact: null,
+    propertyCode: 'PROP-001',
+    propertyAddress: '123 Test St, Suburb NSW 2000',
+    branchName: 'Main Branch',
+    serviceTypeName: 'Routine Inspection',
+    inspectorName: null,
+  };
 }
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
@@ -69,12 +77,14 @@ describe('ListAppointmentsUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      findScheduledOnDate: vi.fn(),
+      findDuplicateForImport: vi.fn(),
     };
     useCase = new ListAppointmentsUseCase(appointmentRepo);
   });
 
   it('should allow AM to list appointments with tenant filter', async () => {
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentEntity()]);
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
     vi.mocked(appointmentRepo.count).mockResolvedValue(1);
 
     const result = await useCase.execute({
@@ -92,7 +102,7 @@ describe('ListAppointmentsUseCase', () => {
   });
 
   it('should return all appointments for AM without tenantId filter', async () => {
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentEntity()]);
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
     vi.mocked(appointmentRepo.count).mockResolvedValue(1);
 
     const result = await useCase.execute({
@@ -111,7 +121,7 @@ describe('ListAppointmentsUseCase', () => {
   });
 
   it('should allow CL_ADMIN to list their own tenant appointments', async () => {
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentEntity()]);
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
     vi.mocked(appointmentRepo.count).mockResolvedValue(1);
 
     const result = await useCase.execute({
@@ -146,7 +156,7 @@ describe('ListAppointmentsUseCase', () => {
   });
 
   it('should return correct pagination metadata', async () => {
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentEntity()]);
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
     vi.mocked(appointmentRepo.count).mockResolvedValue(25);
 
     const result = await useCase.execute({

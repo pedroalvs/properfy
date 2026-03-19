@@ -13,6 +13,7 @@ import type {
   AppointmentFilters,
   PaginationParams,
   AppointmentWithRelations,
+  AppointmentListItem,
 } from '../domain/appointment.repository';
 import type {
   AppointmentStatus,
@@ -100,6 +101,10 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       include: {
         contact: true,
         restrictions: true,
+        property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true } },
+        branch: { select: { name: true } },
+        service_type: { select: { name: true } },
+        inspector: { select: { name: true } },
       },
     });
 
@@ -109,13 +114,26 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const contact = row.contact ? mapContactToEntity(row.contact) : null;
     const restrictions = row.restrictions.map(mapRestrictionToEntity);
 
-    return { appointment, contact, restrictions };
+    const propertyAddress = row.property
+      ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
+      : '';
+
+    return {
+      appointment,
+      contact,
+      restrictions,
+      propertyCode: row.property?.property_code ?? '',
+      propertyAddress,
+      branchName: row.branch?.name ?? '',
+      serviceTypeName: row.service_type?.name ?? '',
+      inspectorName: row.inspector?.name ?? null,
+    };
   }
 
   async findAll(
     filters: AppointmentFilters,
     pagination: PaginationParams,
-  ): Promise<AppointmentEntity[]> {
+  ): Promise<AppointmentListItem[]> {
     const where = this.buildWhere(filters);
     const rows = await this.prisma.appointment.findMany({
       where,
@@ -124,8 +142,30 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       orderBy: {
         [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
+      include: {
+        contact: { select: { tenant_name: true, primary_phone: true, primary_email: true } },
+        property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true } },
+        branch: { select: { name: true } },
+        service_type: { select: { name: true } },
+        inspector: { select: { name: true } },
+      },
     });
-    return rows.map(mapToEntity);
+    return rows.map((row) => {
+      const appointment = mapToEntity(row);
+      const contact = row.contact ? mapContactToEntity(row.contact) : null;
+      const propertyAddress = row.property
+        ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
+        : '';
+      return {
+        appointment,
+        contact,
+        propertyCode: row.property?.property_code ?? '',
+        propertyAddress,
+        branchName: row.branch?.name ?? '',
+        serviceTypeName: row.service_type?.name ?? '',
+        inspectorName: row.inspector?.name ?? null,
+      };
+    });
   }
 
   async count(filters: AppointmentFilters): Promise<number> {

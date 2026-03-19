@@ -4,6 +4,7 @@ import type {
   IAppointmentRepository,
   AppointmentFilters,
   PaginationParams,
+  AppointmentListItem,
 } from '../../domain/appointment.repository';
 
 export interface ListAppointmentsInput {
@@ -43,6 +44,15 @@ export interface ListAppointmentsOutput {
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
+    // Enriched fields
+    code: string;
+    propertyAddress: string;
+    contactName: string;
+    contactPhone: string | null;
+    contactEmail: string | null;
+    inspectorName: string | null;
+    branchName: string;
+    serviceTypeName: string;
   }>;
   total: number;
   page: number;
@@ -93,26 +103,34 @@ export class ListAppointmentsUseCase {
     ]);
 
     return {
-      data: data.map((a) => ({
-        id: a.id,
-        tenantId: a.tenantId,
-        branchId: a.branchId,
-        propertyId: a.propertyId,
-        serviceTypeId: a.serviceTypeId,
-        inspectorId: a.inspectorId,
-        status: a.status,
-        scheduledDate: a.scheduledDate,
-        timeSlot: a.timeSlot,
-        keyRequired: a.keyRequired,
-        meetingLocation: a.meetingLocation,
-        keyLocation: a.keyLocation,
-        tenantConfirmationStatus: a.tenantConfirmationStatus,
-        priceAmount: a.priceAmount,
-        payoutAmount: a.payoutAmount,
-        notes: a.notes,
-        createdByUserId: a.createdByUserId,
-        createdAt: a.createdAt,
-        updatedAt: a.updatedAt,
+      data: data.map((item: AppointmentListItem) => ({
+        id: item.appointment.id,
+        tenantId: item.appointment.tenantId,
+        branchId: item.appointment.branchId,
+        propertyId: item.appointment.propertyId,
+        serviceTypeId: item.appointment.serviceTypeId,
+        inspectorId: item.appointment.inspectorId,
+        status: item.appointment.status,
+        scheduledDate: item.appointment.scheduledDate,
+        timeSlot: item.appointment.timeSlot,
+        keyRequired: item.appointment.keyRequired,
+        meetingLocation: item.appointment.meetingLocation,
+        keyLocation: item.appointment.keyLocation,
+        tenantConfirmationStatus: item.appointment.tenantConfirmationStatus,
+        priceAmount: item.appointment.priceAmount,
+        payoutAmount: item.appointment.payoutAmount,
+        notes: item.appointment.notes,
+        createdByUserId: item.appointment.createdByUserId,
+        createdAt: item.appointment.createdAt,
+        updatedAt: item.appointment.updatedAt,
+        code: item.propertyCode,
+        propertyAddress: item.propertyAddress,
+        contactName: item.contact?.tenantName ?? '',
+        contactPhone: item.contact?.primaryPhone ?? null,
+        contactEmail: item.contact?.primaryEmail ?? null,
+        inspectorName: item.inspectorName,
+        branchName: item.branchName,
+        serviceTypeName: item.serviceTypeName,
       })),
       total,
       page: pagination.page,
