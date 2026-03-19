@@ -8,6 +8,7 @@ interface PropertyTypeChipProps {
 
 export function PropertyTypeChip({ type, className = '' }: PropertyTypeChipProps) {
   const style = PROPERTY_TYPE_MAP[type];
+  if (!style) return null;
 
   return (
     <span

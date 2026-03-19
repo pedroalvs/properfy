@@ -8,6 +8,7 @@ interface FinancialStatusChipProps {
 
 export function FinancialStatusChip({ status, className = '' }: FinancialStatusChipProps) {
   const style = FINANCIAL_ENTRY_STATUS_MAP[status];
+  if (!style) return null;
 
   return (
     <span

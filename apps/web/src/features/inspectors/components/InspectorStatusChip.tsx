@@ -8,6 +8,7 @@ interface InspectorStatusChipProps {
 
 export function InspectorStatusChip({ status, className = '' }: InspectorStatusChipProps) {
   const style = INSPECTOR_STATUS_MAP[status];
+  if (!style) return null;
 
   return (
     <span

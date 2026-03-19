@@ -8,6 +8,7 @@ interface ServiceGroupStatusChipProps {
 
 export function ServiceGroupStatusChip({ status, className = '' }: ServiceGroupStatusChipProps) {
   const style = SERVICE_GROUP_STATUS_MAP[status];
+  if (!style) return null;
 
   return (
     <span

@@ -8,6 +8,7 @@ interface ReportTypeChipProps {
 
 export function ReportTypeChip({ reportType, className = '' }: ReportTypeChipProps) {
   const style = REPORT_TYPE_MAP[reportType];
+  if (!style) return null;
 
   return (
     <span

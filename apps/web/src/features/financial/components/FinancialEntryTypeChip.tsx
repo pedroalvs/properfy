@@ -8,6 +8,7 @@ interface FinancialEntryTypeChipProps {
 
 export function FinancialEntryTypeChip({ entryType, className = '' }: FinancialEntryTypeChipProps) {
   const style = FINANCIAL_ENTRY_TYPE_MAP[entryType];
+  if (!style) return null;
 
   return (
     <span

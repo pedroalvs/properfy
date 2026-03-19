@@ -8,6 +8,7 @@ interface InvoiceStatusChipProps {
 
 export function InvoiceStatusChip({ status, className = '' }: InvoiceStatusChipProps) {
   const style = INVOICE_STATUS_MAP[status];
+  if (!style) return null;
 
   return (
     <span

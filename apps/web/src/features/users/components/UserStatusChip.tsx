@@ -8,6 +8,7 @@ interface UserStatusChipProps {
 
 export function UserStatusChip({ status, className = '' }: UserStatusChipProps) {
   const style = USER_STATUS_MAP[status];
+  if (!style) return null;
 
   return (
     <span

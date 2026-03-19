@@ -26,6 +26,7 @@ export function StatusChip(props: StatusChipProps) {
 
   if ('status' in props && props.status) {
     const style = APPOINTMENT_STATUS_MAP[props.status];
+    if (!style) return null;
     label = style.label;
     bg = style.bg;
     text = style.text;

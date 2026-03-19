@@ -8,6 +8,7 @@ interface ReportStatusChipProps {
 
 export function ReportStatusChip({ status, className = '' }: ReportStatusChipProps) {
   const style = REPORT_STATUS_MAP[status];
+  if (!style) return null;
 
   return (
     <span

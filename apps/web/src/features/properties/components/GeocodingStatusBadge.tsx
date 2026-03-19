@@ -8,6 +8,7 @@ interface GeocodingStatusBadgeProps {
 
 export function GeocodingStatusBadge({ status, size = 'md' }: GeocodingStatusBadgeProps) {
   const style = GEOCODING_STATUS_MAP[status];
+  if (!style) return null;
 
   const iconMap: Record<GeocodingStatus, { icon: string; animate?: boolean }> = {
     [GeocodingStatus.PENDING]: { icon: 'mdi-loading', animate: true },

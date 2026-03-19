@@ -8,6 +8,7 @@ interface UserRoleChipProps {
 
 export function UserRoleChip({ role, className = '' }: UserRoleChipProps) {
   const style = USER_ROLE_MAP[role];
+  if (!style) return null;
 
   return (
     <span

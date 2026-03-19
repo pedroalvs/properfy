@@ -8,6 +8,7 @@ interface TenantConfirmationStatusChipProps {
 
 export function TenantConfirmationStatusChip({ status, className = '' }: TenantConfirmationStatusChipProps) {
   const style = TENANT_CONFIRMATION_STATUS_MAP[status];
+  if (!style) return null;
 
   return (
     <span
