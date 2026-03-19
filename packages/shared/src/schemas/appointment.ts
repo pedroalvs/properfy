@@ -67,6 +67,7 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   serviceTypeId: z.string().uuid().optional(),
   branchId: z.string().uuid().optional(),
   inspectorId: z.string().uuid().optional(),
+  propertyId: z.string().uuid().optional(),
   tenantId: z.string().uuid().optional(),
   search: z.string().max(200).optional(),
   fromDate: z.string().date().optional(),

@@ -8,6 +8,7 @@ export interface AppointmentFilters {
   serviceTypeId?: string;
   branchId?: string;
   inspectorId?: string;
+  propertyId?: string;
   search?: string;
   fromDate?: string;
   toDate?: string;

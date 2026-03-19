@@ -340,6 +340,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (filters.serviceTypeId) where['service_type_id'] = filters.serviceTypeId;
     if (filters.branchId) where['branch_id'] = filters.branchId;
     if (filters.inspectorId) where['inspector_id'] = filters.inspectorId;
+    if (filters.propertyId) where['property_id'] = filters.propertyId;
     if (filters.tenantConfirmationStatus) {
       where['tenant_confirmation_status'] = filters.tenantConfirmationStatus;
     }

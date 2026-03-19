@@ -14,6 +14,7 @@ export interface ListAppointmentsInput {
     serviceTypeId?: string;
     branchId?: string;
     inspectorId?: string;
+    propertyId?: string;
     search?: string;
     fromDate?: string;
     toDate?: string;
@@ -91,6 +92,7 @@ export class ListAppointmentsUseCase {
       serviceTypeId: filters.serviceTypeId,
       branchId: filters.branchId,
       inspectorId: filters.inspectorId,
+      propertyId: filters.propertyId,
       search: filters.search,
       fromDate: filters.fromDate,
       toDate: filters.toDate,
