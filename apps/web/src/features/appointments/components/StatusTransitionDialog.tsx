@@ -64,8 +64,11 @@ export function StatusTransitionDialog({
       : 'bg-warning text-white hover:brightness-95 active:brightness-90 h-9 px-4 rounded';
 
   const handleConfirm = () => {
-    const finalReason = reasonCode === 'OTHER' ? reason.trim() : reason.trim() || undefined;
-    onConfirm(finalReason ?? '', reasonCode || undefined);
+    const codeLabel = reasonCode && reasonCode !== 'OTHER'
+      ? reasonCode.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+      : '';
+    const finalReason = reason.trim() || codeLabel;
+    onConfirm(finalReason, reasonCode || undefined);
   };
 
   return (
