@@ -3,10 +3,7 @@ import { ListAppointmentsUseCase } from '../../../src/modules/appointment/applic
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuthContext } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
-import {
-  ForbiddenError,
-  ValidationError,
-} from '../../../src/shared/domain/errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 function makeAppointmentEntity(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}): AppointmentEntity {
   return new AppointmentEntity({
@@ -94,14 +91,23 @@ describe('ListAppointmentsUseCase', () => {
     );
   });
 
-  it('should fail for AM without tenantId filter', async () => {
-    await expect(
-      useCase.execute({
-        filters: {},
-        pagination: defaultPagination,
-        actor: makeActor({ role: 'AM' }),
-      }),
-    ).rejects.toThrow(ValidationError);
+  it('should return all appointments for AM without tenantId filter', async () => {
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentEntity()]);
+    vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+    const result = await useCase.execute({
+      filters: {},
+      pagination: defaultPagination,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.total).toBe(1);
+    // tenantId is undefined — repository receives no tenant scope
+    expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: undefined }),
+      defaultPagination,
+    );
   });
 
   it('should allow CL_ADMIN to list their own tenant appointments', async () => {

@@ -3,7 +3,7 @@ import { ListPropertiesUseCase } from '../../../src/modules/property/application
 import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
 import type { AuthContext } from '@properfy/shared';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
-import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 function makeProperty(
   overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {},
@@ -97,14 +97,23 @@ describe('ListPropertiesUseCase', () => {
     );
   });
 
-  it('should throw VALIDATION_ERROR when AM does not provide tenantId', async () => {
-    await expect(
-      useCase.execute({
-        filters: {},
-        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(ValidationError);
+  it('should return all properties for AM without tenantId', async () => {
+    vi.mocked(propertyRepo.findAll).mockResolvedValue([makeProperty()]);
+    vi.mocked(propertyRepo.count).mockResolvedValue(1);
+
+    const result = await useCase.execute({
+      filters: {},
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor(),
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.total).toBe(1);
+    // tenantId is undefined — repository receives no tenant scope
+    expect(propertyRepo.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: undefined }),
+      expect.any(Object),
+    );
   });
 
   it('should throw AUTH_FORBIDDEN for INSP role', async () => {
