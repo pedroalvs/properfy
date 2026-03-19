@@ -3,12 +3,11 @@ import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 
 export interface PropertyMapItem {
   id: string;
-  address: string;
+  street: string;
   suburb: string;
-  city: string;
   state: string;
   postcode: string;
-  propertyType: string;
+  type: string;
   latitude: number;
   longitude: number;
   branchName: string;
@@ -42,9 +41,9 @@ export function usePropertyMapData(): UsePropertyMapDataReturn {
   const params: ListParams = {
     page: 1,
     pageSize: 200,
-    sortBy: 'address',
+    sortBy: 'street',
     sortOrder: 'asc',
-    propertyType: filters.propertyType || undefined,
+    type: filters.propertyType || undefined,
     search: filters.search || undefined,
     branchId: filters.branchId || undefined,
     hasCoordinates: true,

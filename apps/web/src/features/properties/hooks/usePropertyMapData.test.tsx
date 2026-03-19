@@ -44,12 +44,11 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const MOCK_DATA = [
   {
     id: 'prop-1',
-    address: '123 Main St',
+    street: '123 Main St',
     suburb: 'Bondi',
-    city: 'Sydney',
     state: 'NSW',
     postcode: '2026',
-    propertyType: 'RESIDENTIAL',
+    type: 'RESIDENTIAL',
     latitude: -33.8918,
     longitude: 151.2726,
     branchName: 'Central',
@@ -97,7 +96,7 @@ describe('usePropertyMapData', () => {
     await waitFor(() => {
       expect(result.current.data).toHaveLength(1);
     });
-    expect(result.current.data[0]!.address).toBe('123 Main St');
+    expect(result.current.data[0]!.street).toBe('123 Main St');
   });
 
   it('returns error state on failure', async () => {

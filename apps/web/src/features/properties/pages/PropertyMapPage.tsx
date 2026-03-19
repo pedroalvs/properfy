@@ -93,14 +93,14 @@ export function PropertyMapPage() {
             onClick={() => handleMarkerClick(item)}
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-secondary">{item.address}</span>
+              <span className="text-sm font-semibold text-secondary">{item.street}</span>
               <StatusChip
-                label={PROPERTY_TYPE_MAP[item.propertyType as PropertyType]?.label ?? item.propertyType}
-                bg={PROPERTY_TYPE_MAP[item.propertyType as PropertyType]?.bg ?? '#E0E0E0'}
+                label={PROPERTY_TYPE_MAP[item.type as PropertyType]?.label ?? item.type}
+                bg={PROPERTY_TYPE_MAP[item.type as PropertyType]?.bg ?? '#E0E0E0'}
               />
             </div>
             <p className="mt-1 text-xs text-text-secondary">
-              {item.suburb}, {item.city} {item.state} {item.postcode}
+              {item.suburb} {item.state} {item.postcode}
             </p>
             <p className="text-xs text-text-muted">{item.branchName}</p>
           </button>
@@ -117,7 +117,7 @@ export function PropertyMapPage() {
             key={item.id}
             longitude={item.longitude}
             latitude={item.latitude}
-            color={TYPE_COLORS[item.propertyType] ?? '#9E9E9E'}
+            color={TYPE_COLORS[item.type] ?? '#9E9E9E'}
             active={selectedItem?.id === item.id}
             onClick={() => handleMarkerClick(item)}
           />
@@ -127,7 +127,7 @@ export function PropertyMapPage() {
       {selectedItem && (
         <div className="absolute left-1/2 top-1/3 -translate-x-1/2">
           <MapPopup
-            title={selectedItem.address}
+            title={selectedItem.street}
             onClose={() => setSelectedItem(null)}
             actions={[
               { label: 'View Details', onClick: () => handleViewDetail(selectedItem.id) },
@@ -136,11 +136,11 @@ export function PropertyMapPage() {
             <div className="space-y-1">
               <p>
                 <span className="text-text-muted">Type:</span>{' '}
-                {PROPERTY_TYPE_MAP[selectedItem.propertyType as PropertyType]?.label ?? selectedItem.propertyType}
+                {PROPERTY_TYPE_MAP[selectedItem.type as PropertyType]?.label ?? selectedItem.type}
               </p>
               <p>
                 <span className="text-text-muted">Location:</span>{' '}
-                {selectedItem.suburb}, {selectedItem.city} {selectedItem.state}
+                {selectedItem.suburb} {selectedItem.state}
               </p>
               <p>
                 <span className="text-text-muted">Branch:</span> {selectedItem.branchName}
