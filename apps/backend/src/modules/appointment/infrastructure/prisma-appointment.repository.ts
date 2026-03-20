@@ -11,9 +11,12 @@ import { AppointmentRestrictionEntity } from '../domain/appointment-restriction.
 import type {
   IAppointmentRepository,
   AppointmentFilters,
+  ContactFilters,
   PaginationParams,
   AppointmentWithRelations,
   AppointmentListItem,
+  ContactListItem,
+  ContactDetail,
 } from '../domain/appointment.repository';
 import type {
   AppointmentStatus,
@@ -336,7 +339,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   private buildWhere(filters: AppointmentFilters) {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
-    if (filters.status) where['status'] = filters.status;
+    if (filters.status) {
+      where['status'] = filters.status;
+    } else if (!filters.showCancelled) {
+      where['status'] = { notIn: ['CANCELLED', 'REJECTED'] };
+    }
     if (filters.serviceTypeId) where['service_type_id'] = filters.serviceTypeId;
     if (filters.branchId) where['branch_id'] = filters.branchId;
     if (filters.inspectorId) where['inspector_id'] = filters.inspectorId;
@@ -352,6 +359,104 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       if (filters.fromDate) dateFilter['gte'] = new Date(filters.fromDate);
       if (filters.toDate) dateFilter['lte'] = new Date(filters.toDate);
       where['scheduled_date'] = dateFilter;
+    }
+    return where;
+  }
+
+  async findAllContacts(filters: ContactFilters, pagination: PaginationParams): Promise<ContactListItem[]> {
+    const where = this.buildContactWhere(filters);
+    const rows = await this.prisma.appointmentContact.findMany({
+      where,
+      include: {
+        appointment: {
+          include: {
+            property: true,
+            portal_activities: { orderBy: { created_at: 'desc' }, take: 1 },
+          },
+        },
+      },
+      skip: (pagination.page - 1) * pagination.pageSize,
+      take: pagination.pageSize,
+      orderBy: { appointment: { scheduled_date: pagination.sortOrder } },
+    });
+
+    return rows.map((row) => {
+      const appt = row.appointment;
+      const prop = appt.property;
+      const propertyAddress = [prop.street, prop.suburb, prop.state, prop.postcode]
+        .filter(Boolean)
+        .join(', ');
+      const lastActivity = appt.portal_activities[0]?.created_at ?? null;
+      return {
+        id: row.id,
+        appointmentId: appt.id,
+        name: row.tenant_name,
+        primaryEmail: row.primary_email,
+        primaryPhone: row.primary_phone,
+        confirmationStatus: appt.tenant_confirmation_status,
+        propertyAddress,
+        appointmentDate: appt.scheduled_date,
+        lastActivityAt: lastActivity,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
+  }
+
+  async countContacts(filters: ContactFilters): Promise<number> {
+    const where = this.buildContactWhere(filters);
+    return this.prisma.appointmentContact.count({ where });
+  }
+
+  async findContactById(id: string): Promise<ContactDetail | null> {
+    const row = await this.prisma.appointmentContact.findUnique({
+      where: { id },
+      include: {
+        appointment: {
+          include: {
+            property: true,
+            portal_activities: { orderBy: { created_at: 'desc' }, take: 1 },
+          },
+        },
+      },
+    });
+
+    if (!row) return null;
+
+    const appt = row.appointment;
+    const prop = appt.property;
+    const propertyAddress = [prop.street, prop.suburb, prop.state, prop.postcode]
+      .filter(Boolean)
+      .join(', ');
+    const lastActivity = appt.portal_activities[0]?.created_at ?? null;
+
+    return {
+      id: row.id,
+      appointmentId: appt.id,
+      name: row.tenant_name,
+      primaryEmail: row.primary_email,
+      primaryPhone: row.primary_phone,
+      alternativePhone: row.secondary_phone,
+      confirmationStatus: appt.tenant_confirmation_status,
+      propertyAddress,
+      appointmentDate: appt.scheduled_date,
+      lastActivityAt: lastActivity,
+      notes: appt.notes,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private buildContactWhere(filters: ContactFilters) {
+    const where: Record<string, unknown> = { appointment: { deleted_at: null } };
+    if (filters.tenantId) {
+      (where['appointment'] as Record<string, unknown>)['tenant_id'] = filters.tenantId;
+    }
+    if (filters.confirmationStatus) {
+      (where['appointment'] as Record<string, unknown>)['tenant_confirmation_status'] = filters.confirmationStatus;
+    }
+    if (filters.search) {
+      where['tenant_name'] = { contains: filters.search, mode: 'insensitive' };
     }
     return where;
   }

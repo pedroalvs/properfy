@@ -38,6 +38,11 @@ export interface FinancialEntryOutputItem {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  updatedAt: string;
+  // Enriched fields
+  appointmentCode: string | null;
+  relatedEntityName: string | null;
+  approvedByName: string | null;
 }
 
 export interface ListFinancialEntriesOutput {
@@ -107,13 +112,13 @@ export class ListFinancialEntriesUseCase {
     if (input.fromDate) filters.fromDate = input.fromDate;
     if (input.toDate) filters.toDate = input.toDate;
 
-    const [data, total] = await Promise.all([
-      this.entryRepo.findAll(filters, pagination),
+    const [enriched, total] = await Promise.all([
+      this.entryRepo.findAllEnriched(filters, pagination),
       this.entryRepo.count(filters),
     ]);
 
     return {
-      data: data.map((entry) => ({
+      data: enriched.map(({ entity: entry, appointmentCode, relatedEntityName, approvedByName }) => ({
         id: entry.id,
         tenantId: entry.tenantId,
         appointmentId: entry.appointmentId,
@@ -130,6 +135,10 @@ export class ListFinancialEntriesUseCase {
         approvedByUserId: entry.approvedByUserId,
         approvedAt: entry.approvedAt ? entry.approvedAt.toISOString() : null,
         createdAt: entry.createdAt.toISOString(),
+        updatedAt: entry.updatedAt.toISOString(),
+        appointmentCode,
+        relatedEntityName,
+        approvedByName,
       })),
       total,
       page: input.page,

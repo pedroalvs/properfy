@@ -3,24 +3,19 @@ import { AppointmentStatus } from '@properfy/shared';
 import { getAvailableTransitions } from './transitions';
 
 describe('getAvailableTransitions', () => {
-  it('AM from DRAFT sees 3 transitions (AWAITING_INSPECTOR, REJECTED, CANCELLED)', () => {
+  it('AM from DRAFT sees 2 transitions (REJECTED, CANCELLED) — release is OP/SYS only', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.DRAFT, 'AM');
-    expect(transitions).toHaveLength(3);
+    expect(transitions).toHaveLength(2);
     expect(transitions.map((t) => t.targetStatus)).toEqual([
-      AppointmentStatus.AWAITING_INSPECTOR,
       AppointmentStatus.REJECTED,
       AppointmentStatus.CANCELLED,
     ]);
   });
 
-  it('AM from SCHEDULED sees 3 transitions (DONE, CANCELLED, REJECTED)', () => {
+  it('AM from SCHEDULED sees 1 transition (CANCELLED) — done/reject are OP/SYS/INSP only', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'AM');
-    expect(transitions).toHaveLength(3);
-    expect(transitions.map((t) => t.targetStatus)).toEqual([
-      AppointmentStatus.DONE,
-      AppointmentStatus.CANCELLED,
-      AppointmentStatus.REJECTED,
-    ]);
+    expect(transitions).toHaveLength(1);
+    expect(transitions.map((t) => t.targetStatus)).toEqual([AppointmentStatus.CANCELLED]);
   });
 
   it('AM from DONE sees 2 transitions (DRAFT/reopen and REJECTED)', () => {
@@ -71,7 +66,7 @@ describe('getAvailableTransitions', () => {
   });
 
   it('CANCELLED transitions require reason, DONE does not', () => {
-    const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'AM');
+    const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'OP');
     const cancelled = transitions.find((t) => t.targetStatus === AppointmentStatus.CANCELLED);
     const done = transitions.find((t) => t.targetStatus === AppointmentStatus.DONE);
     expect(cancelled?.requiresReason).toBe(true);

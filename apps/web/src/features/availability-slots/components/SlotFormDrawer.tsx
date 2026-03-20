@@ -7,8 +7,10 @@ import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
+import { SelectInput } from '@/components/forms/SelectInput';
 import { NumberInput } from '@/components/forms/NumberInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import { useSlotSave } from '../hooks/useSlotSave';
 import type { SlotFormData, SlotFormErrors, AvailabilitySlot } from '../types';
 import { DEFAULT_SLOT_FORM } from '../types';
@@ -31,6 +33,11 @@ export function SlotFormDrawer({
   const isEditMode = !!slotId;
   const { save, isSaving, validate } = useSlotSave();
   const { showSuccess, showError } = useSnackbar();
+  const { options: inspectorOptions, isLoading: isLoadingInspectors } = useFormOptions(
+    ['inspectors-options'],
+    '/v1/inspectors',
+    (item: { id: string; name: string | null }) => ({ value: item.id, label: item.name ?? item.id }),
+  );
 
   const [form, setForm] = useState<SlotFormData>(DEFAULT_SLOT_FORM);
   const [savedForm, setSavedForm] = useState<SlotFormData>(DEFAULT_SLOT_FORM);
@@ -123,13 +130,13 @@ export function SlotFormDrawer({
           <div className="flex-1 overflow-y-auto px-6 py-4">
             <div className="flex flex-col gap-6">
               <FormSection title="Slot Details" columns={2}>
-                <FormField label="Inspector ID" required error={errors.inspectorId}>
-                  <TextInput
+                <FormField label="Inspector" required error={errors.inspectorId}>
+                  <SelectInput
                     value={form.inspectorId}
                     onChange={(v) => updateField('inspectorId', v)}
-                    placeholder="Inspector identifier"
-                    error={!!errors.inspectorId}
-                    aria-label="Inspector ID"
+                    options={inspectorOptions}
+                    placeholder={isLoadingInspectors ? 'Loading...' : 'Select inspector'}
+                    aria-label="Inspector"
                   />
                 </FormField>
                 <FormField label="Date" required error={errors.date}>

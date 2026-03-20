@@ -35,6 +35,7 @@ export interface CreatePricingRuleOutput {
   bonusRuleJson: Record<string, unknown> | null;
   status: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class CreatePricingRuleUseCase {
@@ -140,6 +141,7 @@ export class CreatePricingRuleUseCase {
       bonusRuleJson: rule.bonusRuleJson,
       status: rule.status,
       createdAt: rule.createdAt,
+      updatedAt: rule.updatedAt,
     };
   }
 }

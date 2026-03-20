@@ -8,6 +8,7 @@ import type { UserFormData, UserFormErrors } from '../types';
 const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const REQUIRED_FIELDS: (keyof UserFormData)[] = ['name', 'email', 'role'];
+const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,128}$/;
 
 function validateRequired(data: UserFormData, fields: (keyof UserFormData)[]): UserFormErrors {
   const errors: UserFormErrors = {};
@@ -27,6 +28,20 @@ function validateEmail(email: string): string | undefined {
   return undefined;
 }
 
+function validatePassword(data: UserFormData, mode: 'create' | 'edit'): UserFormErrors {
+  const errors: UserFormErrors = {};
+  if (mode === 'create') {
+    if (!data.password) {
+      errors.password = REQUIRED_FIELD_MESSAGE;
+    } else if (!PASSWORD_REGEX.test(data.password)) {
+      errors.password = 'Min 8 chars, uppercase, lowercase, number and special character';
+    } else if (data.password !== data.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+  }
+  return errors;
+}
+
 export interface SaveResult {
   success: boolean;
   error?: string;
@@ -38,19 +53,21 @@ export interface UseUserSaveReturn {
   validate: (data: UserFormData, mode: 'create' | 'edit') => UserFormErrors;
 }
 
-export function useUserSave(): UseUserSaveReturn {
+export function useUserSave(overrideTenantId?: string): UseUserSaveReturn {
   const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
   const { user: authUser } = useAuth();
-  const tenantId = authUser?.tenantId;
+  const tenantId = overrideTenantId ?? authUser?.tenantId;
 
-  const validate = useCallback((data: UserFormData, _mode: 'create' | 'edit'): UserFormErrors => {
+  const validate = useCallback((data: UserFormData, mode: 'create' | 'edit'): UserFormErrors => {
     const errors: UserFormErrors = {};
 
     Object.assign(errors, validateRequired(data, REQUIRED_FIELDS));
 
     const emailError = validateEmail(data.email);
     if (emailError) errors.email = emailError;
+
+    Object.assign(errors, validatePassword(data, mode));
 
     return errors;
   }, []);
@@ -60,19 +77,24 @@ export function useUserSave(): UseUserSaveReturn {
 
     setIsSaving(true);
     try {
-      const payload = {
-        name: data.name,
-        email: data.email,
-        phone: data.phone || undefined,
-        role: data.role || undefined,
-        status: data.status || undefined,
-        branchId: data.branchId || undefined,
-      };
-
       if (userId) {
+        const payload = {
+          name: data.name,
+          phone: data.phone || undefined,
+          role: data.role || undefined,
+          branchId: data.branchId || undefined,
+        };
         const { error } = await api.PATCH(`/v1/tenants/${tenantId}/users/${userId}` as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
+        const payload = {
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          phone: data.phone || undefined,
+          role: data.role || undefined,
+          branchId: data.branchId || undefined,
+        };
         const { error } = await api.POST(`/v1/tenants/${tenantId}/users` as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }

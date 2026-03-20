@@ -26,8 +26,17 @@ export interface FinancialEntrySummary {
   pendingCount: number;
 }
 
+export interface FinancialEntryEnriched {
+  entity: FinancialEntryEntity;
+  appointmentCode: string | null;
+  relatedEntityName: string | null;
+  approvedByName: string | null;
+}
+
 export interface IFinancialEntryRepository {
   findById(id: string, tenantId?: string): Promise<FinancialEntryEntity | null>;
+  findByIdEnriched(id: string, tenantId?: string): Promise<FinancialEntryEnriched | null>;
+  findAllEnriched(filters: FinancialEntryFilters, pagination: FinancialEntryPagination): Promise<FinancialEntryEnriched[]>;
   getSummary(tenantId?: string): Promise<FinancialEntrySummary>;
   findByAppointmentAndType(appointmentId: string, entryType: FinancialEntryType): Promise<FinancialEntryEntity | null>;
   findByReferenceEntryIdAndType(referenceEntryId: string, entryType: FinancialEntryType): Promise<FinancialEntryEntity | null>;

@@ -13,10 +13,11 @@ interface UserDetailDrawerProps {
   open: boolean;
   onClose: () => void;
   onEdit?: (id: string) => void;
+  tenantId?: string;
 }
 
-export function UserDetailDrawer({ userId, open, onClose, onEdit }: UserDetailDrawerProps) {
-  const { user, isLoading } = useUserDetail(userId);
+export function UserDetailDrawer({ userId, open, onClose, onEdit, tenantId }: UserDetailDrawerProps) {
+  const { user, isLoading } = useUserDetail(userId, tenantId);
   const { showInfo } = useSnackbar();
 
   const handleEdit = useCallback(() => {

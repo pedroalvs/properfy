@@ -38,7 +38,7 @@ export function ServiceGroupFormDrawer({ open, onClose, serviceGroupId, onSaved 
   useEffect(() => {
     if (isEditMode && serviceGroup) {
       const data: ServiceGroupFormData = {
-        name: serviceGroup.name,
+        name: serviceGroup.name ?? '',
         regionName: serviceGroup.regionName ?? '',
         priorityMode: serviceGroup.priorityMode,
         description: serviceGroup.description ?? '',

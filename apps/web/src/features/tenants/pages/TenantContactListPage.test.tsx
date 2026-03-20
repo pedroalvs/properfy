@@ -75,9 +75,9 @@ function renderPage() {
 }
 
 describe('TenantContactListPage', () => {
-  it('renders page title "Inquilinos"', () => {
+  it('renders page title "Contacts"', () => {
     renderPage();
-    expect(screen.getByText('Tenants')).toBeInTheDocument();
+    expect(screen.getByText('Contacts')).toBeInTheDocument();
   });
 
   it('renders filter bar with search and status controls', () => {

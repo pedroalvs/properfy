@@ -62,10 +62,24 @@ function createWrapper() {
 
 beforeEach(() => {
   mockGet.mockReset();
-  mockGet.mockResolvedValue({ data: {
-    data: MOCK_RULES,
-    pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
-  } });
+  mockGet.mockImplementation((path: string) => {
+    if (path === '/v1/tenants') {
+      return Promise.resolve({ data: {
+        data: [{ id: 'ten-1', name: 'Imob Alpha' }],
+        pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+      } });
+    }
+    if (path === '/v1/service-types') {
+      return Promise.resolve({ data: {
+        data: [{ id: 'st-1', name: 'Routine' }],
+        pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+      } });
+    }
+    return Promise.resolve({ data: {
+      data: MOCK_RULES,
+      pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
+    } });
+  });
 });
 
 function renderPage() {

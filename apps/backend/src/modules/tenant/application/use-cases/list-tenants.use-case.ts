@@ -5,6 +5,7 @@ import type {
   TenantFilters,
   PaginationParams,
 } from '../../domain/tenant.repository';
+import type { IBranchRepository } from '../../domain/branch.repository';
 
 export interface ListTenantsInput {
   filters: TenantFilters;
@@ -20,6 +21,7 @@ export interface ListTenantsOutput {
     status: string;
     timezone: string;
     currency: string;
+    branchCount: number;
     createdAt: Date;
     updatedAt: Date;
   }>;
@@ -29,7 +31,10 @@ export interface ListTenantsOutput {
 }
 
 export class ListTenantsUseCase {
-  constructor(private readonly tenantRepo: ITenantRepository) {}
+  constructor(
+    private readonly tenantRepo: ITenantRepository,
+    private readonly branchRepo: IBranchRepository,
+  ) {}
 
   async execute(input: ListTenantsInput): Promise<ListTenantsOutput> {
     const { filters, pagination, actor } = input;
@@ -43,6 +48,9 @@ export class ListTenantsUseCase {
       this.tenantRepo.count(filters),
     ]);
 
+    const tenantIds = data.map((t) => t.id);
+    const branchCounts = await this.branchRepo.countByTenantIds(tenantIds);
+
     return {
       data: data.map((t) => ({
         id: t.id,
@@ -51,6 +59,7 @@ export class ListTenantsUseCase {
         status: t.status,
         timezone: t.timezone,
         currency: t.currency,
+        branchCount: branchCounts[t.id] ?? 0,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
       })),

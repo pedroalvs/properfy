@@ -52,12 +52,10 @@ export class ListPricingRulesUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    const resolvedTenantId =
-      actor.role === 'AM' || actor.role === 'OP'
-        ? filters.tenantId
-        : actor.tenantId;
+    const isGlobal = actor.role === 'AM' || actor.role === 'OP';
+    const resolvedTenantId = isGlobal ? filters.tenantId : actor.tenantId;
 
-    if (!resolvedTenantId) {
+    if (!isGlobal && !resolvedTenantId) {
       return { data: [], total: 0, page: pagination.page, pageSize: pagination.pageSize };
     }
 

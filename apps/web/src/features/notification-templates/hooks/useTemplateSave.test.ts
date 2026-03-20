@@ -32,8 +32,8 @@ import { createQueryWrapper } from '@/test-utils/test-wrappers';
 const mockPut = api.PUT as ReturnType<typeof vi.fn>;
 
 const VALID_DATA: TemplateFormData = {
-  subject: 'Inspection at {{property_address}}',
-  body: 'Hello {{tenant_name}}, your inspection is on {{scheduled_date}}.',
+  subject: 'Inspection at {{propertyAddress}}',
+  body: 'Hello {{tenantName}}, your inspection is on {{scheduledDate}}.',
   active: true,
 };
 
@@ -55,7 +55,7 @@ describe('useTemplateSave', () => {
     expect(saveResult?.success).toBe(true);
     expect(mockPut).toHaveBeenCalledWith(
       '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
-      { body: VALID_DATA },
+      { body: { subject: VALID_DATA.subject, bodyText: VALID_DATA.body, isActive: VALID_DATA.active } },
     );
   });
 
@@ -122,7 +122,7 @@ describe('useTemplateSave', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateSave(), { wrapper });
 
-    const errors = result.current.validate(VALID_DATA, ['tenant_name', 'scheduled_date']);
+    const errors = result.current.validate(VALID_DATA, ['tenantName', 'scheduledDate']);
     expect(Object.keys(errors)).toHaveLength(0);
   });
 

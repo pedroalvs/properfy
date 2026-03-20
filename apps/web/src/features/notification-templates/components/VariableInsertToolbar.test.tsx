@@ -17,8 +17,8 @@ describe('VariableInsertToolbar', () => {
     const onInsert = vi.fn();
     render(<VariableInsertToolbar onInsert={onInsert} />);
 
-    await user.click(screen.getByLabelText('Insert tenant_name'));
-    expect(onInsert).toHaveBeenCalledWith('{{tenant_name}}');
+    await user.click(screen.getByLabelText('Insert tenantName'));
+    expect(onInsert).toHaveBeenCalledWith('{{tenantName}}');
   });
 
   it('calls onInsert for different variables', async () => {
@@ -26,11 +26,11 @@ describe('VariableInsertToolbar', () => {
     const onInsert = vi.fn();
     render(<VariableInsertToolbar onInsert={onInsert} />);
 
-    await user.click(screen.getByLabelText('Insert property_address'));
-    expect(onInsert).toHaveBeenCalledWith('{{property_address}}');
+    await user.click(screen.getByLabelText('Insert propertyAddress'));
+    expect(onInsert).toHaveBeenCalledWith('{{propertyAddress}}');
 
-    await user.click(screen.getByLabelText('Insert scheduled_date'));
-    expect(onInsert).toHaveBeenCalledWith('{{scheduled_date}}');
+    await user.click(screen.getByLabelText('Insert scheduledDate'));
+    expect(onInsert).toHaveBeenCalledWith('{{scheduledDate}}');
   });
 
   it('respects disabled state', async () => {
@@ -38,7 +38,7 @@ describe('VariableInsertToolbar', () => {
     const onInsert = vi.fn();
     render(<VariableInsertToolbar onInsert={onInsert} disabled />);
 
-    const button = screen.getByLabelText('Insert tenant_name');
+    const button = screen.getByLabelText('Insert tenantName');
     expect(button).toBeDisabled();
 
     await user.click(button);

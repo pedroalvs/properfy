@@ -3,6 +3,7 @@ import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilte
 import { ReportFilters } from '../components/ReportFilters';
 import { ReportTable } from '../components/ReportTable';
 import { ReportDetailDrawer } from '../components/ReportDetailDrawer';
+import { GenerateReportDialog } from '../components/GenerateReportDialog';
 import { useReportList } from '../hooks/useReportList';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
@@ -24,6 +25,8 @@ export function ReportListPage() {
   const { showSuccess, showError } = useSnackbar();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleView = useCallback((report: { id: string }) => {
     setSelectedId(report.id);
@@ -35,18 +38,22 @@ export function ReportListPage() {
     setSelectedId(null);
   }, []);
 
-  const handleGenerate = useCallback(async () => {
+  const handleGenerateSubmit = useCallback(async (reportType: string, fromDate: string, toDate: string) => {
+    setIsGenerating(true);
     try {
       const { error } = await api.POST('/v1/reports' as any, {
-        body: {} as any,
+        body: { reportType, filters: { fromDate, toDate }, format: 'XLSX' } as any,
       });
       if (error) {
         throw new Error((error as any)?.error?.message ?? 'Failed to generate report');
       }
       showSuccess('Report generation started');
+      setGenerateOpen(false);
       refetch();
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to generate report');
+    } finally {
+      setIsGenerating(false);
     }
   }, [refetch, showSuccess, showError]);
 
@@ -94,7 +101,7 @@ export function ReportListPage() {
   return (
     <ListFilterTableTemplate
       title="Reports"
-      primaryAction={{ label: 'Generate Report', icon: 'mdi-plus', onClick: handleGenerate }}
+      primaryAction={{ label: 'Generate Report', icon: 'mdi-plus', onClick: () => setGenerateOpen(true) }}
     >
       <ReportFilters
         filters={filters}
@@ -115,6 +122,12 @@ export function ReportListPage() {
         reportId={selectedId}
         open={drawerOpen}
         onClose={handleCloseDrawer}
+      />
+      <GenerateReportDialog
+        open={generateOpen}
+        onClose={() => setGenerateOpen(false)}
+        onSubmit={handleGenerateSubmit}
+        isSubmitting={isGenerating}
       />
     </ListFilterTableTemplate>
   );

@@ -6,6 +6,7 @@ import type {
   FinancialEntryFilters,
   FinancialEntryPagination,
   FinancialEntrySummary,
+  FinancialEntryEnriched,
 } from '../domain/financial-entry.repository';
 import { InvalidEntryStatusTransitionError } from '../domain/billing.errors';
 
@@ -100,6 +101,28 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     return row ? mapToEntity(row) : null;
   }
 
+  async findByIdEnriched(id: string, tenantId?: string): Promise<FinancialEntryEnriched | null> {
+    const where: Record<string, unknown> = { id };
+    if (tenantId) where.tenant_id = tenantId;
+    const row = await this.prisma.financialEntry.findFirst({
+      where,
+      include: {
+        appointment: { select: { id: true, property: { select: { property_code: true } } } },
+        inspector: { select: { name: true } },
+        tenant: { select: { name: true } },
+        approvedBy: { select: { name: true } },
+      },
+    });
+    if (!row) return null;
+    const entity = mapToEntity(row);
+    return {
+      entity,
+      appointmentCode: (row as any).appointment?.property?.property_code ?? null,
+      relatedEntityName: (row as any).inspector?.name ?? (row as any).tenant?.name ?? null,
+      approvedByName: (row as any).approvedBy?.name ?? null,
+    };
+  }
+
   async findByAppointmentAndType(
     appointmentId: string,
     entryType: FinancialEntryType,
@@ -135,6 +158,38 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     });
 
     return rows.map(mapToEntity);
+  }
+
+  async findAllEnriched(
+    filters: FinancialEntryFilters,
+    pagination: FinancialEntryPagination,
+  ): Promise<FinancialEntryEnriched[]> {
+    const where = buildWhereClause(filters);
+    const sortField = SORT_FIELD_MAP[pagination.sortBy] ?? 'effective_at';
+
+    const rows = await this.prisma.financialEntry.findMany({
+      where,
+      skip: (pagination.page - 1) * pagination.pageSize,
+      take: pagination.pageSize,
+      orderBy: { [sortField]: pagination.sortOrder },
+      include: {
+        appointment: { select: { id: true, property: { select: { property_code: true } } } },
+        inspector: { select: { name: true } },
+        tenant: { select: { name: true } },
+        approvedBy: { select: { name: true } },
+      },
+    });
+
+    return rows.map((row) => {
+      const entity = mapToEntity(row);
+      const relatedEntityName = (row as any).inspector?.name ?? (row as any).tenant?.name ?? null;
+      return {
+        entity,
+        appointmentCode: (row as any).appointment?.property?.property_code ?? null,
+        relatedEntityName,
+        approvedByName: (row as any).approvedBy?.name ?? null,
+      };
+    });
   }
 
   async count(filters: FinancialEntryFilters): Promise<number> {

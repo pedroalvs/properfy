@@ -48,9 +48,11 @@ const VALID_CREATE_DATA: UserFormData = {
   name: 'Teste Usuário',
   email: 'teste@properfy.com',
   phone: '11999999999',
-  role: 'AM',
+  role: 'CL_USER',
   status: '',
   branchId: '',
+  password: 'Test@1234',
+  confirmPassword: 'Test@1234',
 };
 
 beforeEach(() => {

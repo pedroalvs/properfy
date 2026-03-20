@@ -21,6 +21,7 @@ export interface IBranchRepository {
     pagination: PaginationParams,
   ): Promise<BranchEntity[]>;
   count(tenantId: string, filters: BranchFilters): Promise<number>;
+  countByTenantIds(tenantIds: string[]): Promise<Record<string, number>>;
   save(branch: BranchEntity): Promise<void>;
   update(
     id: string,

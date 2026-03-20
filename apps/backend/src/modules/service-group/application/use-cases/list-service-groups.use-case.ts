@@ -29,11 +29,15 @@ export interface ServiceGroupSummary {
   confirmedCount: number;
   scheduledDate: Date;
   timeWindow: string;
+  name: string | null;
+  regionName: string | null;
+  description: string | null;
   priorityMode: string;
   priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
   publishedAt: Date | null;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ListServiceGroupsOutput {
@@ -74,11 +78,15 @@ export class ListServiceGroupsUseCase {
         confirmedCount: g.confirmedCount,
         scheduledDate: g.scheduledDate,
         timeWindow: g.timeWindow,
+        name: g.name,
+        regionName: g.regionName,
+        description: g.description,
         priorityMode: g.priorityMode,
         priorityExpiresAt: g.priorityExpiresAt,
         assignedInspectorId: g.assignedInspectorId,
         publishedAt: g.publishedAt,
         createdAt: g.createdAt,
+        updatedAt: g.updatedAt,
       })),
       total,
     };

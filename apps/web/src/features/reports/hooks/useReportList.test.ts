@@ -31,8 +31,8 @@ import { createQueryWrapper } from '@/test-utils/test-wrappers';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_REPORTS = [
-  { id: 'rpt-01', reportType: 'APPOINTMENTS', status: 'COMPLETED', requestedByName: 'Admin Principal' },
-  { id: 'rpt-02', reportType: 'FINANCIAL_SERVICES', status: 'PROCESSING', requestedByName: 'Admin Principal' },
+  { id: 'rpt-01', reportType: 'APPOINTMENTS', status: 'COMPLETED', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
+  { id: 'rpt-02', reportType: 'FINANCIAL_SERVICES', status: 'PROCESSING', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
 ];
 
 beforeEach(() => {

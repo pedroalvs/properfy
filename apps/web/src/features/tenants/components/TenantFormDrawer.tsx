@@ -25,6 +25,10 @@ const TIMEZONE_OPTIONS = [
   { value: 'Europe/London', label: 'Europe/London (GMT)' },
   { value: 'Europe/Berlin', label: 'Europe/Berlin (CET)' },
   { value: 'Australia/Sydney', label: 'Australia/Sydney (AEST)' },
+  { value: 'Australia/Melbourne', label: 'Australia/Melbourne (AEST)' },
+  { value: 'Australia/Brisbane', label: 'Australia/Brisbane (AEST)' },
+  { value: 'Australia/Adelaide', label: 'Australia/Adelaide (ACST)' },
+  { value: 'Australia/Perth', label: 'Australia/Perth (AWST)' },
 ];
 
 const CURRENCY_OPTIONS = [

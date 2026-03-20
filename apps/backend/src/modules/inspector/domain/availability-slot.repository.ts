@@ -1,7 +1,7 @@
 import type { AvailabilitySlotEntity } from './availability-slot.entity';
 
 export interface AvailabilitySlotFilters {
-  inspectorId: string;
+  inspectorId?: string;
   dateFrom?: string;
   dateTo?: string;
   status?: string;
@@ -14,11 +14,16 @@ export interface PaginationParams {
   sortOrder: 'asc' | 'desc';
 }
 
+export interface AvailabilitySlotWithInspector extends AvailabilitySlotEntity {
+  inspectorName: string | null;
+}
+
 export interface IAvailabilitySlotRepository {
   findById(
     id: string,
     inspectorId: string,
   ): Promise<AvailabilitySlotEntity | null>;
+  findByIdAny(id: string): Promise<AvailabilitySlotEntity | null>;
   findByDateRange(
     inspectorId: string,
     date: Date,
@@ -28,7 +33,7 @@ export interface IAvailabilitySlotRepository {
   findAll(
     filters: AvailabilitySlotFilters,
     pagination: PaginationParams,
-  ): Promise<AvailabilitySlotEntity[]>;
+  ): Promise<AvailabilitySlotWithInspector[]>;
   count(filters: AvailabilitySlotFilters): Promise<number>;
   save(slot: AvailabilitySlotEntity): Promise<void>;
   update(

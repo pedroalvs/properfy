@@ -42,8 +42,8 @@ import { ReportListPage } from './ReportListPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_REPORTS = [
-  { id: 'rpt-01', reportType: 'INSPECTIONS_SCHEDULED', status: 'PENDING', requestedByName: 'Admin Principal', createdAt: '2026-03-15' },
-  { id: 'rpt-02', reportType: 'FINANCIAL_SERVICES', status: 'PROCESSING', requestedByName: 'Admin Principal', createdAt: '2026-03-16' },
+  { id: 'rpt-01', reportType: 'INSPECTIONS_SCHEDULED', status: 'PENDING', requestedBy: { id: 'u-1', name: 'Admin Principal' }, createdAt: '2026-03-15' },
+  { id: 'rpt-02', reportType: 'FINANCIAL_SERVICES', status: 'PROCESSING', requestedBy: { id: 'u-1', name: 'Admin Principal' }, createdAt: '2026-03-16' },
 ];
 
 function createWrapper() {

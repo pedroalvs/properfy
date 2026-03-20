@@ -24,7 +24,10 @@ export interface UpsertNotificationTemplateOutput {
   tenantId: string | null;
   templateCode: string;
   channel: string;
+  subject: string | null;
+  bodyText: string;
   isActive: boolean;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -115,7 +118,10 @@ export class UpsertNotificationTemplateUseCase {
       tenantId: template.tenantId,
       templateCode: template.templateCode,
       channel: template.channel,
+      subject: template.subject,
+      bodyText: template.bodyText,
       isActive: template.active,
+      createdAt: template.createdAt.toISOString(),
       updatedAt: template.updatedAt.toISOString(),
     };
   }

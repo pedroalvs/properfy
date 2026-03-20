@@ -4,6 +4,7 @@ import { AvailabilitySlotEntity } from '../domain/availability-slot.entity';
 import type {
   IAvailabilitySlotRepository,
   AvailabilitySlotFilters,
+  AvailabilitySlotWithInspector,
   PaginationParams,
 } from '../domain/availability-slot.repository';
 import type { AvailabilitySlotStatus } from '@properfy/shared';
@@ -38,6 +39,23 @@ function mapToEntity(row: {
   });
 }
 
+function mapToEntityWithInspector(row: {
+  id: string;
+  inspector_id: string;
+  date: Date;
+  start_time: string;
+  end_time: string;
+  region_json: unknown;
+  capacity: number;
+  status: string;
+  created_at: Date;
+  updated_at: Date;
+  inspector: { name: string } | null;
+}): AvailabilitySlotWithInspector {
+  const entity = mapToEntity(row);
+  return Object.assign(entity, { inspectorName: row.inspector?.name ?? null });
+}
+
 export class PrismaAvailabilitySlotRepository
   implements IAvailabilitySlotRepository
 {
@@ -49,6 +67,13 @@ export class PrismaAvailabilitySlotRepository
   ): Promise<AvailabilitySlotEntity | null> {
     const row = await this.prisma.inspectorAvailabilitySlot.findFirst({
       where: { id, inspector_id: inspectorId },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  async findByIdAny(id: string): Promise<AvailabilitySlotEntity | null> {
+    const row = await this.prisma.inspectorAvailabilitySlot.findFirst({
+      where: { id },
     });
     return row ? mapToEntity(row) : null;
   }
@@ -74,7 +99,7 @@ export class PrismaAvailabilitySlotRepository
   async findAll(
     filters: AvailabilitySlotFilters,
     pagination: PaginationParams,
-  ): Promise<AvailabilitySlotEntity[]> {
+  ): Promise<AvailabilitySlotWithInspector[]> {
     const where = this.buildWhere(filters);
     const rows = await this.prisma.inspectorAvailabilitySlot.findMany({
       where,
@@ -83,8 +108,11 @@ export class PrismaAvailabilitySlotRepository
       orderBy: {
         [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
+      include: {
+        inspector: { select: { name: true } },
+      },
     });
-    return rows.map(mapToEntity);
+    return rows.map(mapToEntityWithInspector);
   }
 
   async count(filters: AvailabilitySlotFilters): Promise<number> {
@@ -135,9 +163,8 @@ export class PrismaAvailabilitySlotRepository
   }
 
   private buildWhere(filters: AvailabilitySlotFilters) {
-    const where: Record<string, unknown> = {
-      inspector_id: filters.inspectorId,
-    };
+    const where: Record<string, unknown> = {};
+    if (filters.inspectorId) where['inspector_id'] = filters.inspectorId;
     if (filters.status) where['status'] = filters.status;
     if (filters.dateFrom || filters.dateTo) {
       const dateFilter: Record<string, unknown> = {};

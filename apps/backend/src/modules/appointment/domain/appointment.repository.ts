@@ -13,6 +13,7 @@ export interface AppointmentFilters {
   fromDate?: string;
   toDate?: string;
   tenantConfirmationStatus?: string;
+  showCancelled?: boolean;
 }
 
 export interface PaginationParams {
@@ -42,6 +43,31 @@ export interface AppointmentListItem {
   branchName: string;
   serviceTypeName: string;
   inspectorName: string | null;
+}
+
+export interface ContactFilters {
+  tenantId?: string;
+  confirmationStatus?: string;
+  search?: string;
+}
+
+export interface ContactListItem {
+  id: string;
+  appointmentId: string;
+  name: string;
+  primaryEmail: string | null;
+  primaryPhone: string | null;
+  confirmationStatus: string;
+  propertyAddress: string;
+  appointmentDate: Date;
+  lastActivityAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ContactDetail extends ContactListItem {
+  alternativePhone: string | null;
+  notes: string | null;
 }
 
 export interface IAppointmentRepository {
@@ -86,6 +112,9 @@ export interface IAppointmentRepository {
   saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void>;
   deleteRestrictionsByAppointmentId(appointmentId: string): Promise<void>;
   findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]>;
+  findAllContacts(filters: ContactFilters, pagination: PaginationParams): Promise<ContactListItem[]>;
+  countContacts(filters: ContactFilters): Promise<number>;
+  findContactById(id: string): Promise<ContactDetail | null>;
   findDuplicateForImport(
     propertyId: string,
     serviceTypeId: string,

@@ -10,8 +10,8 @@ export interface UseTenantContactDetailReturn {
 
 export function useTenantContactDetail(id: string | null): UseTenantContactDetailReturn {
   const { data: response, isLoading, isError, refetch } = useDetailQuery<TenantContactDetail>(
-    ['tenants', id],
-    `/v1/tenants/${id}`,
+    ['appointment-contacts', id],
+    `/v1/appointment-contacts/${id}`,
     { enabled: !!id },
   );
 

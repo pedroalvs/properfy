@@ -15,8 +15,21 @@ export function useInspectorDetail(id: string | null): UseInspectorDetailReturn 
     { enabled: !!id },
   );
 
+  const raw: any = query.data?.data ?? null;
+  const inspector: InspectorDetail | null = raw
+    ? {
+        ...raw,
+        regions: Array.isArray(raw.regionsJson) ? raw.regionsJson : [],
+        serviceTypes: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson : [],
+        regionsCount: Array.isArray(raw.regionsJson) ? raw.regionsJson.length : 0,
+        serviceTypesCount: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson.length : 0,
+        document: raw.document ?? null,
+        rating: raw.rating ?? null,
+      }
+    : null;
+
   return {
-    inspector: query.data?.data ?? null,
+    inspector,
     isLoading: query.isLoading,
     isError: query.isError,
     refetch: query.refetch,

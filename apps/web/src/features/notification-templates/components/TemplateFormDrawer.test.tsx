@@ -48,10 +48,10 @@ const MOCK_TEMPLATE: NotificationTemplate = {
   id: 'tpl-01',
   code: 'INSPECTION_NOTICE',
   channel: 'EMAIL',
-  subject: 'Inspection at {{property_address}}',
-  body: 'Hello {{tenant_name}}, your inspection is on {{scheduled_date}}.',
+  subject: 'Inspection at {{propertyAddress}}',
+  body: 'Hello {{tenantName}}, your inspection is on {{scheduledDate}}.',
   active: true,
-  requiredVariables: ['tenant_name', 'scheduled_date'],
+  requiredVariables: ['tenantName', 'scheduledDate'],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };
@@ -122,9 +122,9 @@ describe('TemplateFormDrawer', () => {
 
   it('populates form with template data', () => {
     renderDrawer();
-    expect(screen.getByLabelText('Subject')).toHaveValue('Inspection at {{property_address}}');
+    expect(screen.getByLabelText('Subject')).toHaveValue('Inspection at {{propertyAddress}}');
     expect(screen.getByLabelText('Body')).toHaveValue(
-      'Hello {{tenant_name}}, your inspection is on {{scheduled_date}}.',
+      'Hello {{tenantName}}, your inspection is on {{scheduledDate}}.',
     );
   });
 
@@ -137,7 +137,7 @@ describe('TemplateFormDrawer', () => {
   it('shows required variables in info bar', () => {
     renderDrawer();
     expect(screen.getByText('Required Variables')).toBeInTheDocument();
-    expect(screen.getByText('{{tenant_name}}, {{scheduled_date}}')).toBeInTheDocument();
+    expect(screen.getByText('{{tenantName}}, {{scheduledDate}}')).toBeInTheDocument();
   });
 
   it('validates on save and shows errors for disallowed variables', async () => {
@@ -146,7 +146,7 @@ describe('TemplateFormDrawer', () => {
 
     const bodyInput = screen.getByLabelText('Body');
     fireEvent.change(bodyInput, {
-      target: { value: 'Hello {{bad_var}} {{tenant_name}} {{scheduled_date}}' },
+      target: { value: 'Hello {{bad_var}} {{tenantName}} {{scheduledDate}}' },
     });
 
     await user.click(screen.getByText('Save'));

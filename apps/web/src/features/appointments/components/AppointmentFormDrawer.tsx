@@ -13,6 +13,7 @@ import { DateInput } from '@/components/forms/DateInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
@@ -33,10 +34,27 @@ export function AppointmentFormDrawer({
   appointmentId,
   onSaved,
 }: AppointmentFormDrawerProps) {
+  const { user } = useAuth();
+  const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
+
+  const [selectedTenantId, setSelectedTenantId] = useState('');
+
+  const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
+    ['tenants', 'form-options'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+    undefined,
+    { enabled: isGlobalRole },
+  );
+
+  const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
+
   const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
-    ['branches', 'form-options'],
+    ['branches', 'form-options', effectiveTenantId ?? ''],
     '/v1/branches',
     (item) => ({ value: item.id, label: item.name }),
+    effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
+    { enabled: !isGlobalRole || !!effectiveTenantId },
   );
   const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
     ['service-types', 'form-options'],
@@ -44,9 +62,11 @@ export function AppointmentFormDrawer({
     (item) => ({ value: item.id, label: item.name }),
   );
   const { options: propertyOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
-    ['properties', 'form-options'],
+    ['properties', 'form-options', effectiveTenantId ?? ''],
     '/v1/properties',
     (item) => ({ value: item.id, label: `${item.propertyCode} - ${item.street}` }),
+    effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
+    { enabled: !isGlobalRole || !!effectiveTenantId },
   );
 
   const isEditMode = !!appointmentId;
@@ -90,8 +110,14 @@ export function AppointmentFormDrawer({
       setForm(EMPTY_FORM_DATA);
       setInitialData(EMPTY_FORM_DATA);
       setErrors({});
+      setSelectedTenantId('');
     }
   }, [open, isEditMode]);
+
+  const handleTenantChange = useCallback((tenantId: string) => {
+    setSelectedTenantId(tenantId);
+    setForm((prev) => ({ ...prev, branchId: '', propertyId: '' }));
+  }, []);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
@@ -162,6 +188,17 @@ export function AppointmentFormDrawer({
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="flex flex-col gap-6">
                   <FormSection title="Appointment Details" columns={2}>
+                    {isGlobalRole && !isEditMode && (
+                      <FormField label="Agency" required>
+                        <SelectInput
+                          value={selectedTenantId}
+                          onChange={handleTenantChange}
+                          options={tenantOptions}
+                          placeholder="Select agency"
+                          aria-label="Agency"
+                        />
+                      </FormField>
+                    )}
                     <FormField label="Branch" required error={errors.branchId}>
                       <SelectInput
                         value={form.branchId}

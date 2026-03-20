@@ -34,7 +34,7 @@ const MOCK_REPORT = {
   id: 'rpt-01',
   reportType: 'APPOINTMENTS',
   status: 'COMPLETED',
-  requestedByName: 'Admin Principal',
+  requestedBy: { id: 'u-1', name: 'Admin Principal' },
 };
 
 beforeEach(() => {
@@ -51,7 +51,7 @@ describe('useReportDetail', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.report?.requestedByName).toBe('Admin Principal');
+    expect(result.current.report?.requestedBy.name).toBe('Admin Principal');
   });
 
   it('returns null when id is null', () => {

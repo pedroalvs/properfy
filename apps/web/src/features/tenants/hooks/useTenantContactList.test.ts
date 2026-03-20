@@ -78,7 +78,7 @@ describe('useTenantContactList', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(mockGet).toHaveBeenCalledWith('/v1/tenants', { params: { query: expect.any(Object) } });
+    expect(mockGet).toHaveBeenCalledWith('/v1/appointment-contacts', { params: { query: expect.any(Object) } });
   });
 
   it('pagination total reflects API response', async () => {

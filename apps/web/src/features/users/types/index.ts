@@ -39,6 +39,8 @@ export interface UserFormData {
   role: string;
   status: string;
   branchId: string;
+  password: string;
+  confirmPassword: string;
 }
 
 export type UserFormErrors = Partial<Record<keyof UserFormData, string>>;
@@ -50,4 +52,6 @@ export const EMPTY_USER_FORM: UserFormData = {
   role: '',
   status: '',
   branchId: '',
+  password: '',
+  confirmPassword: '',
 };

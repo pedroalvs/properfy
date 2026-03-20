@@ -97,7 +97,13 @@ export function useTemplateSave(): UseTemplateSaveReturn {
     try {
       const { error } = await api.PUT(
         `/v1/notification-templates/${code}/${channel}` as any,
-        { body: data as any },
+        {
+          body: {
+            subject: data.subject || undefined,
+            bodyText: data.body,
+            isActive: data.active,
+          } as any,
+        },
       );
       if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       setValidationErrors({});

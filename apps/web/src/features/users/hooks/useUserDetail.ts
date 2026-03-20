@@ -9,9 +9,9 @@ export interface UseUserDetailReturn {
   refetch: () => void;
 }
 
-export function useUserDetail(id: string | null): UseUserDetailReturn {
+export function useUserDetail(id: string | null, overrideTenantId?: string): UseUserDetailReturn {
   const { user: authUser } = useAuth();
-  const tenantId = authUser?.tenantId;
+  const tenantId = overrideTenantId ?? authUser?.tenantId;
 
   const query = useDetailQuery<UserDetail>(
     ['users', tenantId, id],

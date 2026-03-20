@@ -5,15 +5,15 @@ export interface Report {
   reportType: ReportType;
   status: ReportStatus;
   format: ReportFormat;
-  requestedByName: string;
+  requestedBy: { id: string; name: string };
   fileName: string | null;
   createdAt: string;
-  updatedAt: string;
+  updatedAt: string | null;
 }
 
 export interface ReportDetail extends Report {
   parameters: string | null;
-  fileSize: number | null;
+  fileSize?: number | null;
 }
 
 export interface ReportFiltersState {

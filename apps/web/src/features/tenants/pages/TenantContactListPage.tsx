@@ -32,7 +32,7 @@ export function TenantContactListPage() {
   }, []);
 
   return (
-    <ListFilterTableTemplate title="Tenants">
+    <ListFilterTableTemplate title="Contacts">
       <TenantFilters
         filters={filters}
         onFiltersChange={setFilters}

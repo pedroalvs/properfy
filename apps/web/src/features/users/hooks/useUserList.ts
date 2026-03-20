@@ -16,9 +16,9 @@ export interface UseUserListReturn {
   sorting: DataTableSorting;
 }
 
-export function useUserList(): UseUserListReturn {
+export function useUserList(overrideTenantId?: string): UseUserListReturn {
   const { user: authUser } = useAuth();
-  const tenantId = authUser?.tenantId;
+  const tenantId = overrideTenantId ?? authUser?.tenantId;
 
   const [filters, setFilters] = useState<UserFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);

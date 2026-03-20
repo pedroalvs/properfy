@@ -6,25 +6,28 @@ import type { AuditLogFiltersState } from '../types';
 
 const ENTITY_TYPE_OPTIONS: FilterSelectOption[] = [
   { label: 'All', value: '' },
-  { label: 'Appointment', value: 'APPOINTMENT' },
-  { label: 'Property', value: 'PROPERTY' },
+  { label: 'Appointment', value: 'Appointment' },
+  { label: 'Availability Slot', value: 'AvailabilitySlot' },
+  { label: 'Financial Entry', value: 'FinancialEntry' },
+  { label: 'Inspector', value: 'Inspector' },
+  { label: 'Notification Template', value: 'NOTIFICATION_TEMPLATE' },
+  { label: 'Pricing Rule', value: 'PricingRule' },
+  { label: 'Property', value: 'Property' },
+  { label: 'Service Group', value: 'ServiceGroup' },
   { label: 'User', value: 'USER' },
-  { label: 'Tenant', value: 'TENANT' },
-  { label: 'Inspector', value: 'INSPECTOR' },
-  { label: 'Financial Entry', value: 'FINANCIAL_ENTRY' },
-  { label: 'Service Group', value: 'SERVICE_GROUP' },
-  { label: 'Service Type', value: 'SERVICE_TYPE' },
-  { label: 'Pricing Rule', value: 'PRICING_RULE' },
 ];
 
 const ACTION_OPTIONS: FilterSelectOption[] = [
   { label: 'All', value: '' },
-  { label: 'Create', value: 'CREATE' },
-  { label: 'Update', value: 'UPDATE' },
-  { label: 'Delete', value: 'DELETE' },
-  { label: 'Status Transition', value: 'STATUS_TRANSITION' },
-  { label: 'Login', value: 'LOGIN' },
-  { label: 'Logout', value: 'LOGOUT' },
+  { label: 'Appointment Created', value: 'appointment.created' },
+  { label: 'Appointment Updated', value: 'appointment.updated' },
+  { label: 'Status Transition', value: 'appointment.status_transition' },
+  { label: 'Login', value: 'auth.login' },
+  { label: 'Logout', value: 'auth.logout' },
+  { label: 'Pricing Rule Created', value: 'pricing_rule.created' },
+  { label: 'Pricing Rule Updated', value: 'pricing_rule.updated' },
+  { label: 'Financial Entry Approved', value: 'financial_entry.approved' },
+  { label: 'Notification Template Upserted', value: 'NOTIFICATION_TEMPLATE_UPSERTED' },
 ];
 
 interface AuditLogFiltersProps {

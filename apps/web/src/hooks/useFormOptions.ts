@@ -1,18 +1,21 @@
-import { usePaginatedQuery } from '@/hooks/useApiQuery';
+import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import type { SelectOption } from '@/components/forms/SelectInput';
 
 export function useFormOptions<T>(
   queryKey: unknown[],
   path: string,
   mapper: (item: T) => SelectOption,
+  extraParams?: Partial<ListParams>,
+  options?: { enabled?: boolean },
 ): { options: SelectOption[]; isLoading: boolean } {
   const { data: response, isLoading } = usePaginatedQuery<T>(
     queryKey,
     path,
-    { pageSize: 100 },
+    { pageSize: 100, ...extraParams },
+    options,
   );
 
-  const options = (response?.data ?? []).map(mapper);
+  const items = (response?.data ?? []).map(mapper);
 
-  return { options, isLoading };
+  return { options: items, isLoading };
 }

@@ -32,8 +32,8 @@ export function useTenantContactList(): UseTenantContactListReturn {
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<TenantContact>(
-    ['tenants'],
-    '/v1/tenants',
+    ['appointment-contacts'],
+    '/v1/appointment-contacts',
     params,
   );
 

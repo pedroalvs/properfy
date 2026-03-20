@@ -23,7 +23,7 @@ export function UserDetailSections({ user }: UserDetailSectionsProps) {
         <DetailRow label="Role" value={<UserRoleChip role={user.role} />} />
         <DetailRow label="Status" value={<UserStatusChip status={user.status} />} />
         <DetailRow label="Branch" value={user.branchName} />
-        <DetailRow label="Permissions" value={user.permissions.length > 0 ? user.permissions.join(', ') : null} />
+        <DetailRow label="Permissions" value={(user.permissions ?? []).length > 0 ? user.permissions.join(', ') : null} />
       </FormSection>
 
       <FormSection title="Activity">

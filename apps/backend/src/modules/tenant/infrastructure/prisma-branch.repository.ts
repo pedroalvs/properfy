@@ -78,6 +78,16 @@ export class PrismaBranchRepository implements IBranchRepository {
     return this.prisma.branch.count({ where });
   }
 
+  async countByTenantIds(tenantIds: string[]): Promise<Record<string, number>> {
+    if (tenantIds.length === 0) return {};
+    const groups = await this.prisma.branch.groupBy({
+      by: ['tenant_id'],
+      where: { tenant_id: { in: tenantIds }, deleted_at: null },
+      _count: { id: true },
+    });
+    return Object.fromEntries(groups.map((g) => [g.tenant_id, g._count.id]));
+  }
+
   async save(branch: BranchEntity): Promise<void> {
     await this.prisma.branch.create({
       data: {

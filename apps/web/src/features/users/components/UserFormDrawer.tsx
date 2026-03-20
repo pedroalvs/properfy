@@ -22,6 +22,7 @@ interface UserFormDrawerProps {
   onClose: () => void;
   userId?: string | null;
   onSaved: () => void;
+  tenantId?: string;
 }
 
 export function UserFormDrawer({
@@ -29,18 +30,22 @@ export function UserFormDrawer({
   onClose,
   userId,
   onSaved,
+  tenantId,
 }: UserFormDrawerProps) {
   const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
-    ['branches', 'form-options'],
+    ['branches', 'form-options', tenantId ?? ''],
     '/v1/branches',
     (item) => ({ value: item.id, label: item.name }),
+    tenantId ? { tenantId } : undefined,
+    { enabled: !!tenantId },
   );
 
   const isEditMode = !!userId;
   const { user, isLoading: isLoadingDetail } = useUserDetail(
     isEditMode ? userId : null,
+    tenantId,
   );
-  const { save, isSaving, validate } = useUserSave();
+  const { save, isSaving, validate } = useUserSave(tenantId);
   const { showSuccess, showError } = useSnackbar();
 
   const [form, setForm] = useState<UserFormData>(EMPTY_USER_FORM);
@@ -57,6 +62,8 @@ export function UserFormDrawer({
         role: user.role,
         status: user.status,
         branchId: user.branchId ?? '',
+        password: '',
+        confirmPassword: '',
       };
       setForm(data);
       setInitialData(data);
@@ -170,6 +177,30 @@ export function UserFormDrawer({
                         aria-label="Role"
                       />
                     </FormField>
+                    {!isEditMode && (
+                      <>
+                        <FormField label="Password" required error={errors.password}>
+                          <TextInput
+                            value={form.password}
+                            onChange={(v) => updateField('password', v)}
+                            type="password"
+                            placeholder="Min 8 chars, uppercase, number, symbol"
+                            error={!!errors.password}
+                            aria-label="Password"
+                          />
+                        </FormField>
+                        <FormField label="Confirm Password" required error={errors.confirmPassword}>
+                          <TextInput
+                            value={form.confirmPassword}
+                            onChange={(v) => updateField('confirmPassword', v)}
+                            type="password"
+                            placeholder="Repeat password"
+                            error={!!errors.confirmPassword}
+                            aria-label="Confirm Password"
+                          />
+                        </FormField>
+                      </>
+                    )}
                   </FormSection>
 
                   <FormSection title="Assignment" columns={2}>

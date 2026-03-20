@@ -34,9 +34,11 @@ export const listInspectorsQuerySchema = paginationSchema.extend({
 export type ListInspectorsQueryInput = z.infer<typeof listInspectorsQuerySchema>;
 
 export const createAvailabilitySlotSchema = z.object({
+  inspectorId: z.string().uuid().optional(),
   date: z.string().date(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:mm format'),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:mm format'),
+  region: z.string().optional(),
   regionJson: z.record(z.unknown()).optional(),
   capacity: z.number().int().min(1).default(1),
 });
@@ -46,6 +48,7 @@ export const updateAvailabilitySlotSchema = z.object({
   date: z.string().date().optional(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:mm format').optional(),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:mm format').optional(),
+  region: z.string().optional(),
   regionJson: z.record(z.unknown()).nullable().optional(),
   capacity: z.number().int().min(1).optional(),
   status: z.enum(['AVAILABLE', 'BOOKED', 'CANCELLED']).optional(),

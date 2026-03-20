@@ -3,7 +3,7 @@ import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
 export interface ServiceGroup {
   id: string;
   tenantId: string;
-  name: string;
+  name: string | null;
   regionName: string | null;
   inspectorId: string | null;
   inspectorName: string | null;

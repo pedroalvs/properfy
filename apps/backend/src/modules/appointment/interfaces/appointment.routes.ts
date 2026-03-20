@@ -7,6 +7,8 @@ import {
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
   appointmentResponseSchema,
+  appointmentContactResponseSchema,
+  appointmentContactDetailResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
 } from '@properfy/shared';
@@ -21,6 +23,7 @@ import type { ExecuteStatusTransitionUseCase } from '../application/use-cases/ex
 import type { ForceManualTenantConfirmationUseCase } from '../application/use-cases/force-manual-confirmation.use-case';
 import type { ImportAppointmentsUseCase } from '../application/use-cases/import-appointments.use-case';
 import type { GetImportStatusUseCase } from '../application/use-cases/get-import-status.use-case';
+import type { ListAppointmentContactsUseCase } from '../application/use-cases/list-appointment-contacts.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 const importIdParam = z.object({ importId: z.string().uuid() });
@@ -34,6 +37,8 @@ export interface AppointmentRouteContainer {
   forceManualConfirmationUseCase: ForceManualTenantConfirmationUseCase;
   importAppointmentsUseCase: ImportAppointmentsUseCase;
   getImportStatusUseCase: GetImportStatusUseCase;
+  listAppointmentContactsUseCase: ListAppointmentContactsUseCase;
+  appointmentRepo: { findContactById(id: string): Promise<object | null> };
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -277,6 +282,61 @@ export async function registerAppointmentRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/appointment-contacts — 200
+  app.get(
+    '/v1/appointment-contacts',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: z.object({
+          page: z.coerce.number().int().min(1).default(1),
+          pageSize: z.coerce.number().int().min(1).max(100).default(10),
+          sortBy: z.string().optional(),
+          sortOrder: z.enum(['asc', 'desc']).default('desc'),
+          confirmationStatus: z.string().optional(),
+          search: z.string().optional(),
+          tenantId: z.string().uuid().optional(),
+        }),
+        response: { 200: paginatedResponseSchema(appointmentContactResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const q = request.query as {
+        page: number; pageSize: number; sortBy?: string; sortOrder: 'asc' | 'desc';
+        confirmationStatus?: string; search?: string; tenantId?: string;
+      };
+      const result = await container.listAppointmentContactsUseCase.execute({
+        filters: {
+          tenantId: q.tenantId,
+          confirmationStatus: q.confirmationStatus,
+          search: q.search,
+        },
+        pagination: { page: q.page, pageSize: q.pageSize, sortBy: q.sortBy, sortOrder: q.sortOrder },
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(paginated(result.data, result.total, q.page, q.pageSize));
+    },
+  );
+
+  // GET /v1/appointment-contacts/:contactId — 200
+  app.get(
+    '/v1/appointment-contacts/:contactId',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ contactId: z.string().uuid() }),
+        response: { 200: successResponseSchema(appointmentContactDetailResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = z.object({ contactId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid contact ID', params.error.errors);
+      const contact = await container.appointmentRepo.findContactById(params.data.contactId);
+      if (!contact) throw new ValidationError('Contact not found', []);
+      return reply.status(200).send(success(contact));
     },
   );
 }

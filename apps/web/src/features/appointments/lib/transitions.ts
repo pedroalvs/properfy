@@ -56,7 +56,20 @@ function filterByRole(
 ): AppointmentStatus[] {
   switch (userRole) {
     case 'AM':
-      return targets;
+      return targets.filter((t) => {
+        if (currentStatus === AppointmentStatus.DRAFT && t === AppointmentStatus.AWAITING_INSPECTOR)
+          return false;
+        if (
+          currentStatus === AppointmentStatus.AWAITING_INSPECTOR &&
+          t === AppointmentStatus.SCHEDULED
+        )
+          return false;
+        if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.DONE)
+          return false;
+        if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.REJECTED)
+          return false;
+        return true;
+      });
     case 'OP':
       return targets.filter((t) => {
         if (currentStatus === AppointmentStatus.DONE && t === AppointmentStatus.DRAFT) return false;

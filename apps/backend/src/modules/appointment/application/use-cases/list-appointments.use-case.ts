@@ -19,6 +19,7 @@ export interface ListAppointmentsInput {
     fromDate?: string;
     toDate?: string;
     tenantConfirmationStatus?: string;
+    showCancelled?: boolean;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -97,6 +98,7 @@ export class ListAppointmentsUseCase {
       fromDate: filters.fromDate,
       toDate: filters.toDate,
       tenantConfirmationStatus: filters.tenantConfirmationStatus,
+      showCancelled: filters.showCancelled,
     };
 
     const [data, total] = await Promise.all([

@@ -78,7 +78,7 @@ describe('useTenantContactDetail', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(mockGet).toHaveBeenCalledWith('/v1/tenants/tnt-01', { params: { query: undefined } });
+    expect(mockGet).toHaveBeenCalledWith('/v1/appointment-contacts/tnt-01', { params: { query: undefined } });
   });
 
   it('handles API error gracefully', async () => {

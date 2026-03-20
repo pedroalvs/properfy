@@ -30,6 +30,7 @@ export function ServiceGroupTable({
       key: 'name',
       label: 'Name',
       sortable: true,
+      render: (row) => <>{row.name ?? '—'}</>,
     },
     {
       key: 'regionName',

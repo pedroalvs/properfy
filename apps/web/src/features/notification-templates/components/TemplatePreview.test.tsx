@@ -6,8 +6,8 @@ describe('TemplatePreview', () => {
   it('replaces variables with sample data', () => {
     render(
       <TemplatePreview
-        subject="Hello {{tenant_name}}"
-        body="Your inspection at {{property_address}} is on {{scheduled_date}}."
+        subject="Hello {{tenantName}}"
+        body="Your inspection at {{propertyAddress}} is on {{scheduledDate}}."
         channel="EMAIL"
       />,
     );

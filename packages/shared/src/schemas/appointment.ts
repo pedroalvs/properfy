@@ -73,6 +73,10 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   fromDate: z.string().date().optional(),
   toDate: z.string().date().optional(),
   tenantConfirmationStatus: z.nativeEnum(TenantConfirmationStatus).optional(),
+  showCancelled: z
+    .string()
+    .transform((v) => v === 'true')
+    .optional(),
 });
 export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySchema>;
 

@@ -39,7 +39,7 @@ export function useAppointmentList(): UseAppointmentListReturn {
     search: filters.search || undefined,
     fromDate: filters.startDate || undefined,
     toDate: filters.endDate || undefined,
-    showCancelled: filters.showCancelled || undefined,
+    showCancelled: filters.showCancelled ? 'true' : undefined,
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<Appointment>(

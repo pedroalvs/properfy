@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { PricingRuleFilters } from '../components/PricingRuleFilters';
 import { PricingRuleTable } from '../components/PricingRuleTable';
 import { PricingRuleFormDrawer } from '../components/PricingRuleFormDrawer';
 import { usePricingRuleList } from '../hooks/usePricingRuleList';
+import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import type { PricingRule } from '../types';
 
 export function PricingRuleListPage() {
@@ -18,6 +19,57 @@ export function PricingRuleListPage() {
     pagination,
     sorting,
   } = usePricingRuleList();
+
+  const { data: tenantsResp } = usePaginatedQuery<{ id: string; name: string }>(
+    ['tenants-options'],
+    '/v1/tenants',
+    { page: 1, pageSize: 100, sortBy: 'name', sortOrder: 'asc' },
+  );
+  const { data: serviceTypesResp } = usePaginatedQuery<{ id: string; name: string }>(
+    ['service-types-options'],
+    '/v1/service-types',
+    { page: 1, pageSize: 100, sortBy: 'name', sortOrder: 'asc' },
+  );
+  const activeTenantId = filters.tenantId || null;
+  const { data: branchesResp } = usePaginatedQuery<{ id: string; name: string }>(
+    ['branches-options', activeTenantId ?? ''],
+    '/v1/branches',
+    { page: 1, pageSize: 100, sortBy: 'name', sortOrder: 'asc', tenantId: activeTenantId ?? undefined },
+    { enabled: !!activeTenantId },
+  );
+
+  const tenantOptions = useMemo(
+    () => (tenantsResp?.data ?? []).map((t) => ({ value: t.id, label: t.name })),
+    [tenantsResp],
+  );
+  const serviceTypeOptions = useMemo(
+    () => (serviceTypesResp?.data ?? []).map((s) => ({ value: s.id, label: s.name })),
+    [serviceTypesResp],
+  );
+
+  const tenantMap = useMemo(
+    () => Object.fromEntries((tenantsResp?.data ?? []).map((t) => [t.id, t.name])),
+    [tenantsResp],
+  );
+  const serviceTypeMap = useMemo(
+    () => Object.fromEntries((serviceTypesResp?.data ?? []).map((s) => [s.id, s.name])),
+    [serviceTypesResp],
+  );
+  const branchMap = useMemo(
+    () => Object.fromEntries((branchesResp?.data ?? []).map((b) => [b.id, b.name])),
+    [branchesResp],
+  );
+
+  const enrichedData = useMemo(
+    () =>
+      data.map((rule) => ({
+        ...rule,
+        tenantName: tenantMap[rule.tenantId],
+        serviceTypeName: serviceTypeMap[rule.serviceTypeId],
+        branchName: rule.branchId ? branchMap[rule.branchId] : null,
+      })),
+    [data, tenantMap, serviceTypeMap, branchMap],
+  );
 
   const [formOpen, setFormOpen] = useState(false);
   const [editRule, setEditRule] = useState<PricingRule | null>(null);
@@ -51,7 +103,7 @@ export function PricingRuleListPage() {
           onFiltersChange={setFilters}
         />
         <PricingRuleTable
-          data={data}
+          data={enrichedData}
           loading={isLoading}
           error={isError ? (errorMessage ?? 'Failed to load pricing rules') : undefined}
           onRetryError={refetch}
@@ -68,6 +120,8 @@ export function PricingRuleListPage() {
         }}
         rule={editRule}
         onSaved={handleSaved}
+        tenantOptions={tenantOptions}
+        serviceTypeOptions={serviceTypeOptions}
       />
     </>
   );

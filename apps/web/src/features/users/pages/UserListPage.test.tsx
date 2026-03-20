@@ -41,7 +41,7 @@ import { UserListPage } from './UserListPage';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
-const MOCK_ME = { id: 'usr-99', name: 'Test Admin', email: 'admin@test.com', role: 'AM', tenantId: 'tenant-1', branchId: null, totpEnabled: false };
+const MOCK_ME = { id: 'usr-99', name: 'Test Admin', email: 'admin@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1', branchId: null, totpEnabled: false };
 
 const MOCK_USERS = [
   { id: 'usr-01', name: 'Main Admin', email: 'admin@properfy.com', role: 'AM', status: 'ACTIVE' },

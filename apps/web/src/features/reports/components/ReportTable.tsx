@@ -85,10 +85,11 @@ export function ReportTable({
       render: (row) => <>{row.fileName ?? '—'}</>,
     },
     {
-      key: 'requestedByName',
+      key: 'requestedBy',
       label: 'Requested By',
       width: '180px',
       sortable: true,
+      render: (row) => <>{row.requestedBy?.name ?? '—'}</>,
     },
     {
       key: 'createdAt',

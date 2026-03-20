@@ -193,6 +193,8 @@ describe('AppointmentDetailPage', () => {
 
   it('renders transition actions for AM user on DRAFT', () => {
     renderPage();
-    expect(screen.getByText('Release to Inspector')).toBeInTheDocument();
+    // AM can Cancel and Reject from DRAFT; cannot Release to Inspector (OP/SYS only)
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
+    expect(screen.getByText('Reject')).toBeInTheDocument();
   });
 });

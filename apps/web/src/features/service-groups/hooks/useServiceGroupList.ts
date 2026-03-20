@@ -31,7 +31,7 @@ export function useServiceGroupList(): UseServiceGroupListReturn {
     search: filters.search || undefined,
   };
 
-  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<ServiceGroup>(
+  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<any>(
     ['service-groups'],
     '/v1/service-groups',
     params,
@@ -56,8 +56,19 @@ export function useServiceGroupList(): UseServiceGroupListReturn {
     },
   };
 
+  const rawData: any[] = response?.data ?? [];
+  const data: ServiceGroup[] = rawData.map((item) => ({
+    ...item,
+    name: item.name ?? '',
+    regionName: item.regionName ?? null,
+    inspectorId: item.assignedInspectorId ?? null,
+    inspectorName: null,
+    appointmentsCount: item.groupSize ?? 0,
+    updatedAt: item.updatedAt ?? item.createdAt,
+  }));
+
   return {
-    data: response?.data ?? [],
+    data,
     isLoading,
     isError,
     errorMessage: null,

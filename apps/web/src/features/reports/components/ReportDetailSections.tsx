@@ -9,8 +9,8 @@ interface ReportDetailSectionsProps {
   report: ReportDetail;
 }
 
-function formatFileSize(bytes: number | null): string | null {
-  if (bytes === null) return null;
+function formatFileSize(bytes: number | null | undefined): string | null {
+  if (bytes == null) return null;
   const mb = bytes / (1024 * 1024);
   return `${mb.toFixed(2)} MB`;
 }
@@ -30,13 +30,13 @@ export function ReportDetailSections({ report }: ReportDetailSectionsProps) {
       </FormSection>
 
       <FormSection title="Request">
-        <DetailRow label="Requested By" value={report.requestedByName} />
+        <DetailRow label="Requested By" value={report.requestedBy?.name ?? '—'} />
         <DetailRow label="Parameters" value={report.parameters} />
       </FormSection>
 
       <FormSection title="Record">
         <DetailRow label="Created At" value={formatDateTime(report.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTime(report.updatedAt)} />
+        {report.updatedAt && <DetailRow label="Updated At" value={formatDateTime(report.updatedAt)} />}
       </FormSection>
     </div>
   );

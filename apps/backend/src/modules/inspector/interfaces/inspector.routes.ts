@@ -37,6 +37,7 @@ export interface InspectorRouteContainer {
   linkInspectorToUserUseCase: LinkInspectorToUserUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
+  slotRepo: { findByIdAny(id: string): Promise<{ inspectorId: string } | null> };
 }
 
 const inspectorIdParam = z.object({ inspectorId: z.string().uuid() });
@@ -44,6 +45,12 @@ const slotIdParam = z.object({
   inspectorId: z.string().uuid(),
   slotId: z.string().uuid(),
 });
+
+function extractRegion(regionJson: Record<string, unknown> | null | undefined): string | null {
+  if (!regionJson) return null;
+  if (typeof regionJson['name'] === 'string') return regionJson['name'];
+  return null;
+}
 
 export async function registerInspectorRoutes(
   app: FastifyInstance,
@@ -180,13 +187,9 @@ export async function registerInspectorRoutes(
       if (actor.role === 'INSP') {
         resolvedInspectorId = actor.inspectorId ?? undefined;
       } else if (actor.role === 'AM' || actor.role === 'OP') {
-        resolvedInspectorId = queryInspectorId;
+        resolvedInspectorId = queryInspectorId; // undefined = list all
       } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
         resolvedInspectorId = queryInspectorId;
-      }
-
-      if (!resolvedInspectorId) {
-        return reply.status(200).send(paginated([], 0, page, pageSize));
       }
 
       const result = await container.listAvailabilitySlotsUseCase.execute({
@@ -195,7 +198,153 @@ export async function registerInspectorRoutes(
         pagination: { page, pageSize, sortBy, sortOrder },
         actor,
       });
-      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+      const mapped = result.data.map((s) => ({
+        id: s.id,
+        inspectorId: s.inspectorId,
+        inspectorName: s.inspectorName ?? null,
+        date: s.date instanceof Date ? s.date.toISOString().slice(0, 10) : String(s.date),
+        startTime: s.startTime,
+        endTime: s.endTime,
+        region: extractRegion(s.regionJson),
+        regionJson: s.regionJson,
+        capacity: s.capacity,
+        bookedCount: 0,
+        status: s.status,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+      }));
+      return reply.status(200).send(paginated(mapped, result.total, page, pageSize));
+    },
+  );
+
+  // POST /v1/availability-slots — flat route (inspectorId in body)
+  app.post(
+    '/v1/availability-slots',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: createAvailabilitySlotSchema,
+        response: { 201: successResponseSchema(availabilitySlotResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = createAvailabilitySlotSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const actor = request.authContext!;
+      const { inspectorId: bodyInspectorId, date, startTime, endTime, region, regionJson, capacity } = parsed.data;
+
+      let resolvedInspectorId: string;
+      if (actor.role === 'INSP') {
+        if (!actor.inspectorId) {
+          throw new ValidationError('Inspector profile not linked to user account', []);
+        }
+        resolvedInspectorId = actor.inspectorId;
+      } else {
+        if (!bodyInspectorId) {
+          throw new ValidationError('inspectorId is required', [{ path: ['inspectorId'], message: 'Required' }]);
+        }
+        resolvedInspectorId = bodyInspectorId;
+      }
+
+      // Derive regionJson from region string if provided
+      const resolvedRegionJson = regionJson ?? (region ? { name: region } : undefined);
+
+      const result = await container.createAvailabilitySlotUseCase.execute({
+        inspectorId: resolvedInspectorId,
+        date: new Date(date),
+        startTime,
+        endTime,
+        regionJson: resolvedRegionJson,
+        capacity,
+        actor,
+      });
+
+      return reply.status(201).send(success({
+        id: result.id,
+        inspectorId: result.inspectorId,
+        inspectorName: null,
+        date: result.date instanceof Date ? result.date.toISOString().slice(0, 10) : String(result.date),
+        startTime: result.startTime,
+        endTime: result.endTime,
+        region: extractRegion(result.regionJson),
+        regionJson: result.regionJson,
+        capacity: result.capacity,
+        bookedCount: 0,
+        status: result.status,
+        createdAt: result.createdAt,
+        updatedAt: result.createdAt,
+      }));
+    },
+  );
+
+  // PATCH /v1/availability-slots/:id — flat route (no inspectorId in path)
+  app.patch(
+    '/v1/availability-slots/:id',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ id: z.string().uuid() }),
+        body: updateAvailabilitySlotSchema,
+        response: { 200: successResponseSchema(availabilitySlotResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid slot ID', params.error.errors);
+      }
+      const parsed = updateAvailabilitySlotSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const actor = request.authContext!;
+      const { id } = params.data;
+
+      const slot = await container.slotRepo.findByIdAny(id);
+      if (!slot) {
+        const { NotFoundError } = await import('../../../shared/domain/errors');
+        throw new NotFoundError('SLOT_NOT_FOUND', 'Availability slot not found');
+      }
+
+      const { date, startTime, endTime, region, regionJson, capacity, status } = parsed.data;
+      const resolvedRegionJson = regionJson !== undefined
+        ? regionJson
+        : region !== undefined
+          ? { name: region }
+          : undefined;
+
+      const updateData: Record<string, unknown> = {};
+      if (date !== undefined) updateData.date = new Date(date);
+      if (startTime !== undefined) updateData.startTime = startTime;
+      if (endTime !== undefined) updateData.endTime = endTime;
+      if (resolvedRegionJson !== undefined) updateData.regionJson = resolvedRegionJson;
+      if (capacity !== undefined) updateData.capacity = capacity;
+      if (status !== undefined) updateData.status = status;
+
+      const result = await container.updateAvailabilitySlotUseCase.execute({
+        inspectorId: slot.inspectorId,
+        slotId: id,
+        data: updateData as Parameters<typeof container.updateAvailabilitySlotUseCase.execute>[0]['data'],
+        actor,
+      });
+
+      return reply.status(200).send(success({
+        id: result.id,
+        inspectorId: result.inspectorId,
+        inspectorName: null,
+        date: result.date instanceof Date ? result.date.toISOString().slice(0, 10) : String(result.date),
+        startTime: result.startTime,
+        endTime: result.endTime,
+        region: extractRegion(result.regionJson),
+        regionJson: result.regionJson,
+        capacity: result.capacity,
+        bookedCount: 0,
+        status: result.status,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      }));
     },
   );
 

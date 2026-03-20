@@ -32,11 +32,23 @@ export function useTemplateList(): UseTemplateListReturn {
     active: filters.active || undefined,
   };
 
-  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<NotificationTemplate>(
+  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<Record<string, unknown>>(
     ['notification-templates'],
     '/v1/notification-templates',
     params,
   );
+
+  const templates: NotificationTemplate[] = (response?.data ?? []).map((raw) => ({
+    id: raw['id'] as string,
+    code: (raw['templateCode'] ?? raw['code']) as string,
+    channel: raw['channel'] as NotificationTemplate['channel'],
+    subject: (raw['subject'] as string) ?? '',
+    body: (raw['bodyText'] ?? raw['body']) as string,
+    active: (raw['isActive'] ?? raw['active']) as boolean,
+    requiredVariables: (raw['variables'] ?? raw['requiredVariables'] ?? []) as string[],
+    createdAt: raw['createdAt'] as string,
+    updatedAt: raw['updatedAt'] as string,
+  }));
 
   const pagination: DataTablePagination = {
     page,
@@ -58,7 +70,7 @@ export function useTemplateList(): UseTemplateListReturn {
   };
 
   return {
-    data: response?.data ?? [],
+    data: templates,
     isLoading,
     isError,
     errorMessage: null,

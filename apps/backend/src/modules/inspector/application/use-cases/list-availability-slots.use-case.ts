@@ -7,7 +7,7 @@ import type {
 } from '../../domain/availability-slot.repository';
 
 export interface ListAvailabilitySlotsInput {
-  inspectorId: string;
+  inspectorId?: string;
   filters: Omit<AvailabilitySlotFilters, 'inspectorId'>;
   pagination: PaginationParams;
   actor: AuthContext;
@@ -17,6 +17,7 @@ export interface ListAvailabilitySlotsOutput {
   data: Array<{
     id: string;
     inspectorId: string;
+    inspectorName: string | null;
     date: Date;
     startTime: string;
     endTime: string;
@@ -41,7 +42,8 @@ export class ListAvailabilitySlotsUseCase {
       if (!actor.inspectorId) {
         throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
       }
-      if (inspectorId !== actor.inspectorId) {
+      const resolvedInspectorId = inspectorId ?? actor.inspectorId;
+      if (resolvedInspectorId !== actor.inspectorId) {
         throw new ForbiddenError('FORBIDDEN', "Cannot access another inspector's data");
       }
     } else if (actor.role !== 'AM' && actor.role !== 'OP') {
@@ -49,8 +51,8 @@ export class ListAvailabilitySlotsUseCase {
     }
 
     const fullFilters: AvailabilitySlotFilters = {
-      inspectorId,
       ...filters,
+      ...(inspectorId !== undefined ? { inspectorId } : {}),
     };
 
     const [data, total] = await Promise.all([
@@ -62,6 +64,7 @@ export class ListAvailabilitySlotsUseCase {
       data: data.map((s) => ({
         id: s.id,
         inspectorId: s.inspectorId,
+        inspectorName: s.inspectorName,
         date: s.date,
         startTime: s.startTime,
         endTime: s.endTime,

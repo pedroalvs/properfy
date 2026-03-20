@@ -26,6 +26,10 @@ vi.mock('@/lib/api-error', () => ({
   },
 }));
 
+vi.mock('@/hooks/useFormOptions', () => ({
+  useFormOptions: () => ({ options: [], isLoading: false }),
+}));
+
 import { SlotFormDrawer } from './SlotFormDrawer';
 
 function createWrapper() {
@@ -92,7 +96,7 @@ describe('SlotFormDrawer', () => {
         <SlotFormDrawer open onClose={vi.fn()} onSaved={vi.fn()} />
       </Wrapper>,
     );
-    expect(screen.getByLabelText('Inspector ID')).toBeInTheDocument();
+    expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
     expect(screen.getByLabelText('Date')).toBeInTheDocument();
     expect(screen.getByLabelText('Start Time')).toBeInTheDocument();
     expect(screen.getByLabelText('End Time')).toBeInTheDocument();

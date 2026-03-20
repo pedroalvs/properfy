@@ -216,6 +216,7 @@ import { ExecuteStatusTransitionUseCase } from '../modules/appointment/applicati
 import { ForceManualTenantConfirmationUseCase } from '../modules/appointment/application/use-cases/force-manual-confirmation.use-case';
 import { ImportAppointmentsUseCase } from '../modules/appointment/application/use-cases/import-appointments.use-case';
 import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
+import { ListAppointmentContactsUseCase } from '../modules/appointment/application/use-cases/list-appointment-contacts.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
@@ -307,7 +308,7 @@ export function createContainer(logger: Logger): AppContainer {
   // Tenant use cases
   const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService);
   const getTenantUseCase = new GetTenantUseCase(tenantRepo);
-  const listTenantsUseCase = new ListTenantsUseCase(tenantRepo);
+  const listTenantsUseCase = new ListTenantsUseCase(tenantRepo, branchRepo);
   const updateTenantUseCase = new UpdateTenantUseCase(tenantRepo, auditService);
   const deactivateTenantUseCase = new DeactivateTenantUseCase(tenantRepo, appointmentChecker, auditService);
   const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService);
@@ -539,6 +540,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentImportRepo, reportStorageService, importJobQueue, idempotencyService,
   );
   const getImportStatusUseCase = new GetImportStatusUseCase(appointmentImportRepo);
+  const listAppointmentContactsUseCase = new ListAppointmentContactsUseCase(appointmentRepo);
 
   // Workers
   const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
@@ -646,6 +648,7 @@ export function createContainer(logger: Logger): AppContainer {
       linkInspectorToUserUseCase,
       jwtService,
       tenantRepo,
+      slotRepo: availabilitySlotRepo,
     },
     appointment: {
       createAppointmentUseCase,
@@ -656,6 +659,8 @@ export function createContainer(logger: Logger): AppContainer {
       forceManualConfirmationUseCase,
       importAppointmentsUseCase,
       getImportStatusUseCase,
+      listAppointmentContactsUseCase,
+      appointmentRepo,
       jwtService,
       tenantRepo,
     },

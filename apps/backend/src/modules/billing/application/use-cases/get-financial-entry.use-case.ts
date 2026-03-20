@@ -19,10 +19,12 @@ export class GetFinancialEntryUseCase {
 
     // For CL roles, scope at repo level (defense-in-depth)
     const repoTenantId = (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') ? actor.tenantId ?? undefined : undefined;
-    const entry = await this.entryRepo.findById(entryId, repoTenantId);
-    if (!entry) {
+    const enriched = await this.entryRepo.findByIdEnriched(entryId, repoTenantId);
+    if (!enriched) {
       throw new EntryNotFoundError();
     }
+
+    const { entity: entry, appointmentCode, relatedEntityName, approvedByName } = enriched;
 
     // Scope check based on role
     if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
@@ -56,6 +58,10 @@ export class GetFinancialEntryUseCase {
       approvedByUserId: entry.approvedByUserId,
       approvedAt: entry.approvedAt ? entry.approvedAt.toISOString() : null,
       createdAt: entry.createdAt.toISOString(),
+      updatedAt: entry.updatedAt.toISOString(),
+      appointmentCode,
+      relatedEntityName,
+      approvedByName,
     };
   }
 }

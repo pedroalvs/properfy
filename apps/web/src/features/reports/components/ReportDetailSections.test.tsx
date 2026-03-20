@@ -9,7 +9,7 @@ const baseReport: ReportDetail = {
   reportType: ReportType.INSPECTIONS_SCHEDULED,
   status: ReportStatus.READY,
   format: ReportFormat.XLSX,
-  requestedByName: 'Admin Principal',
+  requestedBy: { id: 'u-1', name: 'Admin Principal' },
   fileName: 'vistorias-agendadas-marco-2026.xlsx',
   createdAt: '2026-03-15T14:00:00Z',
   updatedAt: '2026-03-15T14:30:00Z',
