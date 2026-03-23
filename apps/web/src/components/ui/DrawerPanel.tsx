@@ -11,8 +11,8 @@ interface DrawerPanelProps {
 }
 
 const sizeClasses: Record<DrawerSize, string> = {
-  narrow: 'w-drawer-narrow max-w-[90vw]',
-  wide: 'w-drawer-wide max-w-[90vw]',
+  narrow: 'w-full sm:w-drawer-narrow',
+  wide: 'w-full sm:w-drawer-wide sm:max-w-[95vw]',
 };
 
 export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, children }: DrawerPanelProps) {

@@ -16,7 +16,7 @@ interface PageHeaderProps {
 export function PageHeader({ title, primaryAction, secondaryActions }: PageHeaderProps) {
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-page-title text-secondary md:text-page-title mobile:text-page-title-mobile">
+      <h1 className="text-page-title-mobile text-secondary md:text-page-title">
         {title}
       </h1>
       <div className="flex items-center gap-2">

@@ -16,9 +16,9 @@ const variantClasses: Record<ButtonVariant, string> = {
   outlined:
     'border border-primary text-primary bg-transparent hover:bg-primary/5 active:bg-primary/10 h-9 px-4 rounded',
   icon:
-    'bg-transparent text-[rgba(0,0,0,0.54)] hover:bg-black/5 active:bg-black/10 h-9 w-9 rounded-full inline-flex items-center justify-center',
+    'bg-transparent text-[rgba(0,0,0,0.54)] hover:bg-black/5 active:bg-black/10 h-10 w-10 rounded-full inline-flex items-center justify-center',
   delete:
-    'bg-transparent text-error hover:bg-error/5 active:bg-error/10 h-9 w-9 rounded-full inline-flex items-center justify-center',
+    'bg-transparent text-error hover:bg-error/5 active:bg-error/10 h-10 w-10 rounded-full inline-flex items-center justify-center',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

@@ -100,7 +100,7 @@ export function AppointmentDetailPage() {
           >
             <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
           </button>
-          <h1 className="text-page-title text-secondary md:text-page-title mobile:text-page-title-mobile">
+          <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {appointment.code}
           </h1>
           <StatusChip status={appointment.status} />

@@ -95,7 +95,7 @@ export function ServiceGroupDetailPage() {
           >
             <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
           </button>
-          <h1 className="text-page-title text-secondary md:text-page-title mobile:text-page-title-mobile">
+          <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {serviceGroup.name}
           </h1>
           <ServiceGroupStatusChip status={serviceGroup.status} />

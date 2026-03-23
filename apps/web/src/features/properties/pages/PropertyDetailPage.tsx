@@ -100,7 +100,7 @@ export function PropertyDetailPage() {
           >
             <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
           </button>
-          <h1 className="text-page-title text-secondary md:text-page-title mobile:text-page-title-mobile">
+          <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {property.propertyCode}
           </h1>
           <PropertyTypeChip type={property.type} />

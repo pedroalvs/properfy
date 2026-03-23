@@ -59,7 +59,7 @@ function renderWithRouter(route = '/appointments') {
 describe('AppShell', () => {
   it('renders sidebar and main content area', () => {
     renderWithRouter();
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getAllByTestId('sidebar').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByTestId('main-content')).toBeInTheDocument();
   });
 

@@ -24,7 +24,7 @@ export function RowActions({ actions }: RowActionsProps) {
           }}
           disabled={action.disabled}
           aria-label={action.label}
-          className={`inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors duration-150 ${
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-150 ${
             action.disabled
               ? 'pointer-events-none opacity-40'
               : action.variant === 'delete'

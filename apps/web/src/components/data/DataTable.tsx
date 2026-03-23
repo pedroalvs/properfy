@@ -11,6 +11,7 @@ export interface DataTableColumn<T> {
   render?: (row: T, index: number) => ReactNode;
   headerRender?: () => ReactNode;
   sortable?: boolean;
+  hideOnMobile?: boolean;
 }
 
 export interface DataTablePagination {
@@ -102,14 +103,14 @@ export function DataTable<T>({
             <button
               onClick={() => pagination.onChange(page - 1, pageSize)}
               disabled={page <= 1}
-              className="rounded px-3 py-1 text-sm font-semibold text-primary hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-40"
+              className="rounded px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-40 min-h-[36px]"
             >
               Previous
             </button>
             <button
               onClick={() => pagination.onChange(page + 1, pageSize)}
               disabled={page >= totalPages}
-              className="rounded px-3 py-1 text-sm font-semibold text-primary hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-40"
+              className="rounded px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-40 min-h-[36px]"
             >
               Next
             </button>
@@ -130,7 +131,7 @@ export function DataTable<T>({
                   key={col.key}
                   className={`px-4 py-3 text-table-header text-text-secondary ${alignClass(col.align)} ${
                     col.sortable ? 'cursor-pointer select-none hover:text-text-primary' : ''
-                  }`}
+                  } ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
                   style={col.width ? { width: col.width } : undefined}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
                 >
@@ -184,7 +185,7 @@ export function DataTable<T>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-4 py-3 ${alignClass(col.align)}`}
+                      className={`px-4 py-3 ${alignClass(col.align)} ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
                     >
                       {renderCellValue(row, col, index)}
                     </td>
