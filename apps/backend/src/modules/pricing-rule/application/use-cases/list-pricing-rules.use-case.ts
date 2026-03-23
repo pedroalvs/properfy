@@ -55,7 +55,7 @@ export class ListPricingRulesUseCase {
     const isGlobal = actor.role === 'AM' || actor.role === 'OP';
     const resolvedTenantId = isGlobal ? filters.tenantId : actor.tenantId;
 
-    if (!isGlobal && !resolvedTenantId) {
+    if (!resolvedTenantId) {
       return { data: [], total: 0, page: pagination.page, pageSize: pagination.pageSize };
     }
 

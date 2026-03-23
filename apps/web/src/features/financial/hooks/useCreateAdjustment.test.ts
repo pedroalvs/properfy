@@ -49,19 +49,21 @@ describe('useCreateAdjustment', () => {
 
     await act(async () => {
       await result.current.mutateAsync({
+        tenantId: 'tenant-1',
         amount: 100,
         effectiveAt: '2026-03-15T00:00:00.000Z',
-        notes: 'Test adjustment note',
-        entryType: 'MANUAL_ADJUSTMENT',
+        description: 'Manual adjustment',
+        reason: 'Test adjustment note',
       });
     });
 
-    expect(mockPost).toHaveBeenCalledWith('/v1/financial/entries', {
+    expect(mockPost).toHaveBeenCalledWith('/v1/financial/entries/adjust', {
       body: {
+        tenantId: 'tenant-1',
         amount: 100,
         effectiveAt: '2026-03-15T00:00:00.000Z',
-        notes: 'Test adjustment note',
-        entryType: 'MANUAL_ADJUSTMENT',
+        description: 'Manual adjustment',
+        reason: 'Test adjustment note',
       },
       headers: {
         'Idempotency-Key': expect.any(String),
@@ -77,10 +79,11 @@ describe('useCreateAdjustment', () => {
     await expect(
       act(async () => {
         await result.current.mutateAsync({
+          tenantId: 'tenant-1',
           amount: 100,
           effectiveAt: '2026-03-15T00:00:00.000Z',
-          notes: 'Test note',
-          entryType: 'MANUAL_ADJUSTMENT',
+          description: 'Manual adjustment',
+          reason: 'Test note',
         });
       }),
     ).rejects.toBeDefined();

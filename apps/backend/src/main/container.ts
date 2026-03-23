@@ -14,6 +14,7 @@ import { LogoutUseCase } from '../modules/auth/application/use-cases/logout.use-
 import { GetMeUseCase } from '../modules/auth/application/use-cases/get-me.use-case';
 import { ChangePasswordUseCase } from '../modules/auth/application/use-cases/change-password.use-case';
 import { RevokeSessionUseCase } from '../modules/auth/application/use-cases/revoke-session.use-case';
+import { ListSessionsUseCase } from '../modules/auth/application/use-cases/list-sessions.use-case';
 import { SetupTotpUseCase } from '../modules/auth/application/use-cases/setup-totp.use-case';
 import { ConfirmTotpUseCase } from '../modules/auth/application/use-cases/confirm-totp.use-case';
 import { TotpEncryptionService } from '../modules/auth/infrastructure/totp-encryption.service';
@@ -302,6 +303,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getMeUseCase = new GetMeUseCase(userRepo);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
+  const listSessionsUseCase = new ListSessionsUseCase(sessionRepo);
   const setupTotpUseCase = new SetupTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
   const confirmTotpUseCase = new ConfirmTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
 
@@ -583,6 +585,7 @@ export function createContainer(logger: Logger): AppContainer {
       getMeUseCase,
       changePasswordUseCase,
       revokeSessionUseCase,
+      listSessionsUseCase,
       setupTotpUseCase,
       confirmTotpUseCase,
       jwtService,

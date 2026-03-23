@@ -3,10 +3,11 @@ import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
 
 export interface CreateAdjustmentInput {
+  tenantId: string;
   amount: number;
   effectiveAt: string;
-  notes: string;
-  entryType: string;
+  description: string;
+  reason: string;
 }
 
 export function useCreateAdjustment() {
@@ -14,7 +15,7 @@ export function useCreateAdjustment() {
 
   return useMutation({
     mutationFn: async (data: CreateAdjustmentInput) => {
-      const { data: response, error } = await api.POST('/v1/financial/entries' as any, {
+      const { data: response, error } = await api.POST('/v1/financial/entries/adjust' as any, {
         body: data as any,
         headers: {
           'Idempotency-Key': crypto.randomUUID(),

@@ -1,40 +1,82 @@
+const Loadable = (Component: any) => (props: any) => (
+  <Suspense fallback={<div className="flex h-full w-full items-center justify-center p-8"><i className="mdi mdi-loading mdi-spin text-4xl text-primary" /></div>}>
+    <Component {...props} />
+  </Suspense>
+);
+
+const LoginPage = Loadable(lazy(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage }))));
+const AppointmentListPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
+const AppointmentCreatePage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentCreatePage').then(m => ({ default: m.AppointmentCreatePage }))));
+const AppointmentDetailPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
+const AppointmentImportPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentImportPage').then(m => ({ default: m.AppointmentImportPage }))));
+const AppointmentMapPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
+const PropertyListPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyListPage').then(m => ({ default: m.PropertyListPage }))));
+const PropertyCreatePage = Loadable(lazy(() => import('@/features/properties/pages/PropertyCreatePage').then(m => ({ default: m.PropertyCreatePage }))));
+const PropertyDetailPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyDetailPage').then(m => ({ default: m.PropertyDetailPage }))));
+const PropertyImportPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyImportPage').then(m => ({ default: m.PropertyImportPage }))));
+const PropertyMapPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyMapPage').then(m => ({ default: m.PropertyMapPage }))));
+const InspectorListPage = Loadable(lazy(() => import('@/features/inspectors/pages/InspectorListPage').then(m => ({ default: m.InspectorListPage }))));
+const ServiceGroupListPage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupListPage').then(m => ({ default: m.ServiceGroupListPage }))));
+const ServiceGroupCreatePage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupCreatePage').then(m => ({ default: m.ServiceGroupCreatePage }))));
+const ServiceGroupDetailPage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupDetailPage').then(m => ({ default: m.ServiceGroupDetailPage }))));
+const ServiceGroupMapPage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupMapPage').then(m => ({ default: m.ServiceGroupMapPage }))));
+const UserListPage = Loadable(lazy(() => import('@/features/users/pages/UserListPage').then(m => ({ default: m.UserListPage }))));
+const FinancialEntriesPage = Loadable(lazy(() => import('@/features/financial/pages/FinancialEntriesPage').then(m => ({ default: m.FinancialEntriesPage }))));
+const InvoicesPage = Loadable(lazy(() => import('@/features/financial/pages/InvoicesPage').then(m => ({ default: m.InvoicesPage }))));
+const TenantContactListPage = Loadable(lazy(() => import('@/features/tenants/pages/TenantContactListPage').then(m => ({ default: m.TenantContactListPage }))));
+const TenantListPage = Loadable(lazy(() => import('@/features/tenants/pages/TenantListPage').then(m => ({ default: m.TenantListPage }))));
+const TenantDetailPage = Loadable(lazy(() => import('@/features/tenants/pages/TenantDetailPage').then(m => ({ default: m.TenantDetailPage }))));
+const ReportListPage = Loadable(lazy(() => import('@/features/reports/pages/ReportListPage').then(m => ({ default: m.ReportListPage }))));
+const DashboardPage = Loadable(lazy(() => import('@/features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage }))));
+const PortalPage = Loadable(lazy(() => import('@/features/tenant-portal/pages/PortalPage').then(m => ({ default: m.PortalPage }))));
+const ServiceTypeListPage = Loadable(lazy(() => import('@/features/service-types/pages/ServiceTypeListPage').then(m => ({ default: m.ServiceTypeListPage }))));
+const PricingRuleListPage = Loadable(lazy(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
+const AccountSettingsPage = Loadable(lazy(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
+const SecuritySettingsPage = Loadable(lazy(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
+const AuditLogListPage = Loadable(lazy(() => import('@/features/audit-logs/pages/AuditLogListPage').then(m => ({ default: m.AuditLogListPage }))));
+const AvailabilitySlotListPage = Loadable(lazy(() => import('@/features/availability-slots/pages/AvailabilitySlotListPage').then(m => ({ default: m.AvailabilitySlotListPage }))));
+const NotificationTemplateListPage = Loadable(lazy(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
+const MarketplacePage = Loadable(lazy(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
 import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
+import { lazy, Suspense, type ComponentType } from 'react';
+
+
 import { ProtectedRoute } from './ProtectedRoute';
 import { AuthGuard } from './AuthGuard';
 import { AppShell } from '@/components/shell/AppShell';
-import { LoginPage } from '@/features/auth/pages/LoginPage';
-import { AppointmentListPage } from '@/features/appointments/pages/AppointmentListPage';
-import { AppointmentCreatePage } from '@/features/appointments/pages/AppointmentCreatePage';
-import { AppointmentDetailPage } from '@/features/appointments/pages/AppointmentDetailPage';
-import { AppointmentImportPage } from '@/features/appointments/pages/AppointmentImportPage';
-import { AppointmentMapPage } from '@/features/appointments/pages/AppointmentMapPage';
-import { PropertyListPage } from '@/features/properties/pages/PropertyListPage';
-import { PropertyCreatePage } from '@/features/properties/pages/PropertyCreatePage';
-import { PropertyDetailPage } from '@/features/properties/pages/PropertyDetailPage';
-import { PropertyImportPage } from '@/features/properties/pages/PropertyImportPage';
-import { PropertyMapPage } from '@/features/properties/pages/PropertyMapPage';
-import { InspectorListPage } from '@/features/inspectors/pages/InspectorListPage';
-import { ServiceGroupListPage } from '@/features/service-groups/pages/ServiceGroupListPage';
-import { ServiceGroupCreatePage } from '@/features/service-groups/pages/ServiceGroupCreatePage';
-import { ServiceGroupDetailPage } from '@/features/service-groups/pages/ServiceGroupDetailPage';
-import { ServiceGroupMapPage } from '@/features/service-groups/pages/ServiceGroupMapPage';
-import { UserListPage } from '@/features/users/pages/UserListPage';
-import { FinancialEntriesPage } from '@/features/financial/pages/FinancialEntriesPage';
-import { InvoicesPage } from '@/features/financial/pages/InvoicesPage';
-import { TenantContactListPage } from '@/features/tenants/pages/TenantContactListPage';
-import { TenantListPage } from '@/features/tenants/pages/TenantListPage';
-import { TenantDetailPage } from '@/features/tenants/pages/TenantDetailPage';
-import { ReportListPage } from '@/features/reports/pages/ReportListPage';
-import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
-import { PortalPage } from '@/features/tenant-portal/pages/PortalPage';
-import { ServiceTypeListPage } from '@/features/service-types/pages/ServiceTypeListPage';
-import { PricingRuleListPage } from '@/features/pricing-rules/pages/PricingRuleListPage';
-import { AccountSettingsPage } from '@/features/settings/pages/AccountSettingsPage';
-import { SecuritySettingsPage } from '@/features/settings/pages/SecuritySettingsPage';
-import { AuditLogListPage } from '@/features/audit-logs/pages/AuditLogListPage';
-import { AvailabilitySlotListPage } from '@/features/availability-slots/pages/AvailabilitySlotListPage';
-import { NotificationTemplateListPage } from '@/features/notification-templates/pages/NotificationTemplateListPage';
-import { MarketplacePage } from '@/features/marketplace/pages/MarketplacePage';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { UserRole } from '@properfy/shared';
 import { NotFoundPage } from './NotFoundPage';
 

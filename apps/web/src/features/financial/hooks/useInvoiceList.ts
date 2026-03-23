@@ -30,10 +30,9 @@ export function useInvoiceList(): UseInvoiceListReturn {
       pageSize,
       sortBy,
       sortOrder,
-      ...(filters.search ? { search: filters.search } : {}),
       ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.periodStart ? { periodStart: filters.periodStart } : {}),
-      ...(filters.periodEnd ? { periodEnd: filters.periodEnd } : {}),
+      ...(filters.periodStart ? { fromDate: filters.periodStart } : {}),
+      ...(filters.periodEnd ? { toDate: filters.periodEnd } : {}),
     },
   );
 

@@ -52,12 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const { data, error, response } = await api.POST('/v1/auth/login', {
       body: { email, password },
-    }) as { data: any; error: any; response: Response };
-    if (error || !data) {
+    });
+    const err = error as any;
+    if (err || !data) {
       throw new ApiError(
         response.status,
-        error?.error?.message ?? 'Login failed',
-        error?.error?.code,
+        err?.error?.message ?? 'Login failed',
+        err?.error?.code,
       );
     }
     authStorage.setTokens(data.accessToken, data.refreshToken);

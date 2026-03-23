@@ -5,6 +5,7 @@ import type { LogoutUseCase } from '../application/use-cases/logout.use-case';
 import type { GetMeUseCase } from '../application/use-cases/get-me.use-case';
 import type { ChangePasswordUseCase } from '../application/use-cases/change-password.use-case';
 import type { RevokeSessionUseCase } from '../application/use-cases/revoke-session.use-case';
+import type { ListSessionsUseCase } from '../application/use-cases/list-sessions.use-case';
 import type { SetupTotpUseCase } from '../application/use-cases/setup-totp.use-case';
 import type { ConfirmTotpUseCase } from '../application/use-cases/confirm-totp.use-case';
 import {
@@ -27,6 +28,7 @@ export interface AuthRouteContainer {
   getMeUseCase: GetMeUseCase;
   changePasswordUseCase: ChangePasswordUseCase;
   revokeSessionUseCase: RevokeSessionUseCase;
+  listSessionsUseCase: ListSessionsUseCase;
   setupTotpUseCase: SetupTotpUseCase;
   confirmTotpUseCase: ConfirmTotpUseCase;
   jwtService: JwtService;
@@ -173,6 +175,38 @@ export async function registerAuthRoutes(
         totpCode: parsed.data.totpCode,
       });
       return reply.status(204).send();
+    },
+  );
+
+  // DELETE /v1/auth/sessions/:sessionId
+  app.get(
+    '/v1/auth/sessions',
+    {
+      preHandler: authenticate,
+      schema: {
+        response: {
+          200: z.object({
+            data: z.array(
+              z.object({
+                id: z.string().uuid(),
+                userAgent: z.string().nullable(),
+                ipAddress: z.string().nullable(),
+                lastActiveAt: z.string().datetime(),
+                createdAt: z.string().datetime(),
+                isCurrent: z.boolean(),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await container.listSessionsUseCase.execute({
+        actor: request.authContext!,
+        currentIpAddress: request.ip,
+        currentUserAgent: request.headers['user-agent'] ?? null,
+      });
+      return reply.status(200).send({ data: result });
     },
   );
 

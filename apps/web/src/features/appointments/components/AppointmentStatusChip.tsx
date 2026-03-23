@@ -1,5 +1,6 @@
 import type { AppointmentStatus } from '@properfy/shared';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 
 interface AppointmentStatusChipProps {
   status: AppointmentStatus;
@@ -7,5 +8,7 @@ interface AppointmentStatusChipProps {
 }
 
 export function AppointmentStatusChip({ status, className }: AppointmentStatusChipProps) {
-  return <StatusChip status={status} className={className} />;
+  const style = APPOINTMENT_STATUS_MAP[status];
+  if (!style) return null;
+  return <StatusChip label={style.label} bg={style.bg} text={style.text} className={className} />;
 }

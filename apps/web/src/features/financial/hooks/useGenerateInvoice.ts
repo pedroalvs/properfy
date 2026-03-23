@@ -4,7 +4,7 @@ export interface GenerateInvoiceInput {
   inspectorId: string;
   periodStart: string;
   periodEnd: string;
-  frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+  frequency?: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
 }
 
 export function useGenerateInvoice() {

@@ -73,10 +73,9 @@ describe('CreateRefundModal', () => {
       </Wrapper>,
     );
     expect(screen.getByText('Create Refund')).toBeInTheDocument();
-    expect(screen.getByLabelText('Appointment')).toBeInTheDocument();
-    expect(screen.getByLabelText('Amount')).toBeInTheDocument();
+    expect(screen.getByLabelText('Financial Entry ID')).toBeInTheDocument();
+    expect(screen.getByLabelText('Description')).toBeInTheDocument();
     expect(screen.getByLabelText('Reason')).toBeInTheDocument();
-    expect(screen.getByLabelText('Effective Date')).toBeInTheDocument();
   });
 
   it('shows validation errors on empty submit', async () => {
@@ -104,5 +103,23 @@ describe('CreateRefundModal', () => {
 
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shows a description error separately from the reason field', async () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: 'entry-1' } });
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Customer overpaid' } });
+    fireEvent.click(screen.getByText('Create'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Required')).toBeInTheDocument();
+    });
+    expect(mockPost).not.toHaveBeenCalled();
   });
 });

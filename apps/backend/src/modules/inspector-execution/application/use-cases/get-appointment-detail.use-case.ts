@@ -20,12 +20,26 @@ export interface AppointmentDetailOutput {
   status: string;
   scheduledDate: string;
   timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   serviceTypeId: string;
+  serviceTypeName: string | null;
+  flowType: string;
   propertyId: string;
+  propertyAddress: string;
+  suburb: string;
+  propertyLatitude: number | null;
+  propertyLongitude: number | null;
   tenantConfirmationStatus: string;
+  tenantConfirmation: string;
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
+  tenantName: string;
+  tenantPhone: string | null;
+  tenantEmail: string | null;
+  notes: string | null;
+  restrictionsSummary: string | null;
   contact: {
     tenantName: string;
     primaryEmail: string | null;
@@ -118,20 +132,44 @@ export class GetAppointmentDetailUseCase {
     const execution = await this.executionRepo.findByAppointmentId(appointmentId);
     const assets = execution ? await this.assetRepo.findByExecutionId(execution.id) : [];
 
+    const scheduledDate =
+      appointment.scheduledDate instanceof Date
+        ? appointment.scheduledDate.toISOString().split('T')[0]!
+        : String(appointment.scheduledDate);
+    const [startTime = '00:00', endTime = '00:00'] = appointment.timeSlot.split('-');
+    const timeSlotStart = new Date(`${scheduledDate}T${startTime}:00.000Z`).toISOString();
+    const timeSlotEnd = new Date(`${scheduledDate}T${endTime}:00.000Z`).toISOString();
+    const serviceType = await this.serviceTypeReader.findById(appointment.serviceTypeId);
+    const restrictionsSummary = restrictions
+      .map((restriction) => restriction.notes?.trim())
+      .filter((note): note is string => Boolean(note))
+      .join(' | ') || null;
+
     return {
       id: appointment.id,
       status: appointment.status,
-      scheduledDate:
-        appointment.scheduledDate instanceof Date
-          ? appointment.scheduledDate.toISOString().split('T')[0]!
-          : String(appointment.scheduledDate),
+      scheduledDate,
       timeSlot: appointment.timeSlot,
+      timeSlotStart,
+      timeSlotEnd,
       serviceTypeId: appointment.serviceTypeId,
+      serviceTypeName: result.serviceTypeName ?? serviceType?.name ?? null,
+      flowType: serviceType?.flowType ?? 'ROUTINE',
       propertyId: appointment.propertyId,
+      propertyAddress: result.propertyAddress ?? '',
+      suburb: result.propertySuburb ?? '',
+      propertyLatitude: result.propertyLatitude ?? null,
+      propertyLongitude: result.propertyLongitude ?? null,
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
+      tenantConfirmation: appointment.tenantConfirmationStatus,
       keyRequired: appointment.keyRequired,
       meetingLocation: appointment.meetingLocation,
       keyLocation: appointment.keyLocation,
+      tenantName: contact?.tenantName ?? '',
+      tenantPhone: contact?.primaryPhone ?? null,
+      tenantEmail: contact?.primaryEmail ?? null,
+      notes: appointment.notes,
+      restrictionsSummary,
       contact: contact
         ? {
             tenantName: contact.tenantName,

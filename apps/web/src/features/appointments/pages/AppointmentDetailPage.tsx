@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
-import { StatusChip } from '@/components/ui/StatusChip';
+import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
@@ -103,7 +103,7 @@ export function AppointmentDetailPage() {
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {appointment.code}
           </h1>
-          <StatusChip status={appointment.status} />
+          <AppointmentStatusChip status={appointment.status} />
         </div>
         <button
           onClick={handleEdit}

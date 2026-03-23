@@ -30,6 +30,9 @@ export interface AppointmentWithRelations {
   // Enriched join fields (populated by findById)
   propertyCode?: string;
   propertyAddress?: string;
+  propertySuburb?: string;
+  propertyLatitude?: number | null;
+  propertyLongitude?: number | null;
   branchName?: string;
   serviceTypeName?: string;
   inspectorName?: string | null;

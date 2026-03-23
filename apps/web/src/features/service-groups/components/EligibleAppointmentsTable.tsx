@@ -1,6 +1,6 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import type { AppointmentStatus } from '@properfy/shared';
-import { StatusChip } from '@/components/ui/StatusChip';
+import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { formatDate } from '@/lib/format-date';
 
 export interface EligibleAppointment {
@@ -77,7 +77,7 @@ export function EligibleAppointmentsTable({
       key: 'status',
       label: 'Status',
       width: '160px',
-      render: (row) => <StatusChip status={row.status} />,
+      render: (row) => <AppointmentStatusChip status={row.status} />,
     },
   ];
 

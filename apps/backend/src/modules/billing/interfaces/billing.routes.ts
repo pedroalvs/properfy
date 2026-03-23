@@ -141,6 +141,23 @@ export async function registerBillingRoutes(
     },
   );
 
+  // PATCH /v1/financial/entries/:entryId/approve
+  app.patch(
+    '/v1/financial/entries/:entryId/approve',
+    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
+    async (request, reply) => {
+      const params = entryIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid entry ID', params.error.errors);
+      }
+      const result = await container.approveFinancialEntryUseCase.execute({
+        entryId: params.data.entryId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
   // POST /v1/financial/entries/adjust
   app.post(
     '/v1/financial/entries/adjust',
@@ -203,9 +220,44 @@ export async function registerBillingRoutes(
     },
   );
 
+  // GET /v1/billing/invoices
+  app.get(
+    '/v1/billing/invoices',
+    { preHandler: authenticate, schema: { querystring: listInvoicesQuerySchema, response: { 200: paginatedResponseSchema(invoiceResponseSchema) } } },
+    async (request, reply) => {
+      const parsed = listInvoicesQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const { page, pageSize } = parsed.data;
+      const result = await container.listInvoicesUseCase.execute({
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
   // POST /v1/invoices/generate
   app.post(
     '/v1/invoices/generate',
+    { preHandler: authenticate, schema: { body: generateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
+    async (request, reply) => {
+      const parsed = generateInvoiceSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.generateInvoiceUseCase.execute({
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(202).send(success(result));
+    },
+  );
+
+  // POST /v1/billing/invoices/generate
+  app.post(
+    '/v1/billing/invoices/generate',
     { preHandler: authenticate, schema: { body: generateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
     async (request, reply) => {
       const parsed = generateInvoiceSchema.safeParse(request.body);
@@ -237,9 +289,43 @@ export async function registerBillingRoutes(
     },
   );
 
+  // GET /v1/billing/invoices/:invoiceId
+  app.get(
+    '/v1/billing/invoices/:invoiceId',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceResponseSchema) } } },
+    async (request, reply) => {
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const result = await container.getInvoiceUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
   // GET /v1/invoices/:invoiceId/download
   app.get(
     '/v1/invoices/:invoiceId/download',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceDownloadResponseSchema) } } },
+    async (request, reply) => {
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const result = await container.downloadInvoiceUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/billing/invoices/:invoiceId/download
+  app.get(
+    '/v1/billing/invoices/:invoiceId/download',
     { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceDownloadResponseSchema) } } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);

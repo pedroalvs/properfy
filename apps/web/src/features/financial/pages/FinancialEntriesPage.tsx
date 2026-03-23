@@ -5,7 +5,6 @@ import { FinancialSummaryBar } from '../components/FinancialSummaryBar';
 import { FinancialFilters } from '../components/FinancialFilters';
 import { FinancialTable } from '../components/FinancialTable';
 import { FinancialEntryDetailDrawer } from '../components/FinancialEntryDetailDrawer';
-import { FinancialEntryFormDrawer } from '../components/FinancialEntryFormDrawer';
 import { FinancialBatchActions } from '../components/FinancialBatchActions';
 import { CreateAdjustmentModal } from '../components/CreateAdjustmentModal';
 import { CreateRefundModal } from '../components/CreateRefundModal';
@@ -28,8 +27,6 @@ export function FinancialEntriesPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
@@ -86,14 +83,6 @@ export function FinancialEntriesPage() {
     <>
       <ListFilterTableTemplate
         title="Financial Entries"
-        primaryAction={{
-          label: 'New Entry',
-          icon: 'mdi-plus',
-          onClick: () => {
-            setEditId(null);
-            setFormOpen(true);
-          },
-        }}
         secondaryActions={[
           {
             label: 'Adjustment',
@@ -121,7 +110,6 @@ export function FinancialEntriesPage() {
             pagination={pagination}
             sorting={sorting}
             onView={handleView}
-            onEdit={handleView}
             selectedIds={selectedIds}
             onToggleSelect={handleToggleSelect}
             onSelectAllPending={handleSelectAllPending}
@@ -139,25 +127,6 @@ export function FinancialEntriesPage() {
         entryId={selectedId}
         open={drawerOpen}
         onClose={handleCloseDrawer}
-        onEdit={(id) => {
-          setDrawerOpen(false);
-          setSelectedId(null);
-          setEditId(id);
-          setFormOpen(true);
-        }}
-      />
-      <FinancialEntryFormDrawer
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditId(null);
-        }}
-        entryId={editId}
-        onSaved={() => {
-          setFormOpen(false);
-          setEditId(null);
-          refetch();
-        }}
       />
       <CreateAdjustmentModal
         open={adjustmentOpen}

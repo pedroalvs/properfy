@@ -176,7 +176,7 @@ export function DataTable<T>({
               !error &&
               data.map((row, index) => (
                 <tr
-                  key={keyExtractor ? keyExtractor(row, index) : index}
+                  key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
                   className={`border-b border-border-light text-table-body text-text-primary ${
                     onRowClick ? 'cursor-pointer hover:bg-hover-row' : ''
                   }`}

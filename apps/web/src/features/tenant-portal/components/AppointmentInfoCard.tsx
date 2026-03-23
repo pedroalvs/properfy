@@ -1,4 +1,4 @@
-import { StatusChip } from '@/components/ui/StatusChip';
+import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { formatDate } from '@/lib/format-date';
 import { TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { useCountdown } from '../hooks/useCountdown';
@@ -23,7 +23,7 @@ export function AppointmentInfoCard({ appointment, deadline, onDeadlineExpire }:
 
       <div className="space-y-3 text-sm">
         <InfoRow label="Status">
-          <StatusChip status={appointment.status} />
+          <AppointmentStatusChip status={appointment.status} />
         </InfoRow>
 
         <InfoRow label="Scheduled Date">

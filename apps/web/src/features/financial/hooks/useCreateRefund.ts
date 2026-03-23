@@ -3,10 +3,9 @@ import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
 
 export interface CreateRefundInput {
-  appointmentId: string;
-  amount: number;
+  entryId: string;
+  description: string;
   reason: string;
-  effectiveAt: string;
 }
 
 export function useCreateRefund() {
@@ -14,8 +13,9 @@ export function useCreateRefund() {
 
   return useMutation({
     mutationFn: async (data: CreateRefundInput) => {
-      const { data: response, error } = await api.POST('/v1/financial/entries' as any, {
-        body: data as any,
+      const { entryId, ...body } = data;
+      const { data: response, error } = await api.POST(`/v1/financial/entries/${entryId}/refund` as any, {
+        body: body as any,
         headers: {
           'Idempotency-Key': crypto.randomUUID(),
         },

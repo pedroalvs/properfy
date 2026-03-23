@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
-import { StatusChip } from '@/components/ui/StatusChip';
+import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useAuth } from '@/hooks/useAuth';
@@ -69,7 +69,7 @@ export function AppointmentDetailDrawer({
               onClose={onClose}
               actions={
                 <>
-                  <StatusChip status={appointment.status} />
+                  <AppointmentStatusChip status={appointment.status} />
                   <Button variant="icon" onClick={handleEdit} aria-label="Edit">
                     <i className="mdi mdi-pencil-outline text-xl" />
                   </Button>

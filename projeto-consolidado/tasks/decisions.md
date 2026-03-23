@@ -18,3 +18,9 @@
 1. O documento de perguntas pendentes para o cliente será entregue em PDF.
 2. A fonte de verdade editorial permanece em Markdown.
 3. A geração do PDF será feita por HTML estilizado e exportação via Chrome headless para garantir melhor acabamento visual.
+
+## 2026-03-23 - Compatibilidade de Contratos na Auditoria
+
+1. O backend passa a expor aliases compatíveis para `/v1/billing/invoices*` e `PATCH /v1/financial/entries/:entryId/approve` enquanto o frontend legado React ainda consome esses caminhos.
+2. A listagem de sessões ativas foi exposta em `GET /v1/auth/sessions` para suportar a tela existente de settings sem manter um 404 permanente.
+3. O contrato canônico continua sendo o definido nos módulos backend/shared; aliases servem apenas como camada de compatibilidade durante a estabilização.

@@ -31,6 +31,12 @@ import { CreateAdjustmentModal } from './CreateAdjustmentModal';
 
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { tenantId: 'tenant-1' },
+  }),
+}));
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
@@ -73,8 +79,10 @@ describe('CreateAdjustmentModal', () => {
       </Wrapper>,
     );
     expect(screen.getByText('Create Adjustment')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tenant ID')).toBeInTheDocument();
     expect(screen.getByLabelText('Amount')).toBeInTheDocument();
-    expect(screen.getByLabelText('Notes')).toBeInTheDocument();
+    expect(screen.getByLabelText('Description')).toBeInTheDocument();
+    expect(screen.getByLabelText('Reason')).toBeInTheDocument();
     expect(screen.getByLabelText('Effective Date')).toBeInTheDocument();
   });
 
@@ -93,25 +101,6 @@ describe('CreateAdjustmentModal', () => {
     });
   });
 
-  it('shows notes min length validation', async () => {
-    const Wrapper = createWrapper();
-    render(
-      <Wrapper>
-        <CreateAdjustmentModal open={true} onClose={onClose} onCreated={onCreated} />
-      </Wrapper>,
-    );
-
-    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '100' } });
-    fireEvent.change(screen.getByLabelText('Effective Date'), { target: { value: '2026-03-15' } });
-    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Short' } });
-
-    fireEvent.click(screen.getByText('Create'));
-
-    await waitFor(() => {
-      expect(screen.getByText('Notes must be at least 10 characters')).toBeInTheDocument();
-    });
-  });
-
   it('calls onClose when Cancel is clicked', () => {
     const Wrapper = createWrapper();
     render(
@@ -122,5 +111,35 @@ describe('CreateAdjustmentModal', () => {
 
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('submits using the authenticated tenant when the tenant field is locked', async () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateAdjustmentModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '125.50' } });
+    fireEvent.change(screen.getByLabelText('Effective Date'), { target: { value: '2026-03-23' } });
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Manual credit' } });
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Pricing correction' } });
+    fireEvent.click(screen.getByText('Create'));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/financial/entries/adjust',
+        expect.objectContaining({
+          body: expect.objectContaining({
+            tenantId: 'tenant-1',
+            amount: 125.5,
+            description: 'Manual credit',
+            reason: 'Pricing correction',
+          }),
+        }),
+      );
+    });
+    expect(onCreated).toHaveBeenCalled();
   });
 });

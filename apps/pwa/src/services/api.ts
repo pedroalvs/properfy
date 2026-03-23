@@ -44,6 +44,9 @@ api.use({
   async onResponse({ response, request }) {
     if (response.status !== 401) return response;
 
+    const pathname = new URL(request.url).pathname;
+    if (pathname.startsWith('/v1/auth/')) return response;
+
     if (!isRefreshing) {
       isRefreshing = true;
       refreshPromise = refreshAccessToken().finally(() => {

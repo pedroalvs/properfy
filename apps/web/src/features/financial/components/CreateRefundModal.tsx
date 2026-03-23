@@ -4,8 +4,6 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
-import { NumberInput } from '@/components/forms/NumberInput';
-import { DateInput } from '@/components/forms/DateInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useCreateRefund } from '../hooks/useCreateRefund';
@@ -17,30 +15,25 @@ interface CreateRefundModalProps {
 }
 
 interface RefundFormData {
-  appointmentId: string;
-  amount: string;
+  entryId: string;
+  description: string;
   reason: string;
-  effectiveAt: string;
 }
 
 type RefundFormErrors = Partial<Record<keyof RefundFormData, string>>;
 
 const EMPTY_FORM: RefundFormData = {
-  appointmentId: '',
-  amount: '',
+  entryId: '',
+  description: '',
   reason: '',
-  effectiveAt: '',
 };
 
 function validate(data: RefundFormData): RefundFormErrors {
   const errors: RefundFormErrors = {};
-  if (!data.appointmentId.trim()) errors.appointmentId = 'Required field';
-  if (!data.amount.trim()) errors.amount = 'Required field';
-  if (!data.effectiveAt.trim()) errors.effectiveAt = 'Required field';
+  if (!data.entryId.trim()) errors.entryId = 'Required field';
 
-  // Validate description/reason fields using the shared Zod schema
   const schemaPayload = {
-    description: data.reason.trim() || undefined,
+    description: data.description.trim() || undefined,
     reason: data.reason.trim() || undefined,
   };
 
@@ -48,7 +41,10 @@ function validate(data: RefundFormData): RefundFormErrors {
   if (!result.success) {
     for (const issue of result.error.issues) {
       const path = issue.path.join('.');
-      if ((path === 'description' || path === 'reason') && !errors.reason) {
+      if (path === 'description' && !errors.description) {
+        errors.description = issue.message;
+      }
+      if (path === 'reason' && !errors.reason) {
         errors.reason = issue.message;
       }
     }
@@ -80,10 +76,9 @@ export function CreateRefundModal({ open, onClose, onCreated }: CreateRefundModa
 
     try {
       await mutateAsync({
-        appointmentId: form.appointmentId,
-        amount: Number(form.amount),
+        entryId: form.entryId,
+        description: form.description,
         reason: form.reason,
-        effectiveAt: new Date(form.effectiveAt).toISOString(),
       });
       showSuccess('Refund created successfully');
       setForm(EMPTY_FORM);
@@ -117,27 +112,19 @@ export function CreateRefundModal({ open, onClose, onCreated }: CreateRefundModa
       }
     >
       <div className="flex flex-col gap-4">
-        <FormField label="Appointment" required error={errors.appointmentId}>
+        <FormField label="Financial Entry ID" required error={errors.entryId}>
           <TextInput
-            value={form.appointmentId}
-            onChange={(v) => updateField('appointmentId', v)}
-            placeholder="Search appointment code..."
-            aria-label="Appointment"
+            value={form.entryId}
+            onChange={(v) => updateField('entryId', v)}
+            placeholder="Financial entry UUID"
+            aria-label="Financial Entry ID"
           />
         </FormField>
-        <FormField label="Amount" required error={errors.amount}>
-          <NumberInput
-            value={form.amount}
-            onChange={(v) => updateField('amount', v)}
-            placeholder="0.00"
-            aria-label="Amount"
-          />
-        </FormField>
-        <FormField label="Effective Date" required error={errors.effectiveAt}>
-          <DateInput
-            value={form.effectiveAt}
-            onChange={(v) => updateField('effectiveAt', v)}
-            aria-label="Effective Date"
+        <FormField label="Description" required error={errors.description}>
+          <TextInput
+            value={form.description}
+            onChange={(v) => updateField('description', v)}
+            aria-label="Description"
           />
         </FormField>
         <FormField label="Reason" required error={errors.reason}>
