@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
-import { TextInput } from '@/components/forms/TextInput';
+import { EmailInput } from '@/components/forms/EmailInput';
+import { PhoneInput } from '@/components/forms/PhoneInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useUpdateContact } from '../hooks/usePortalData';
 import type { PortalContact, UpdateContactInput } from '../types';
@@ -67,18 +68,15 @@ export function ContactForm({ contact, token, isReadOnly }: ContactFormProps) {
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <FormField label="Primary Email">
-          <TextInput
-            type="email"
+          <EmailInput
             value={primaryEmail}
             onChange={setPrimaryEmail}
-            placeholder="email@example.com"
             disabled={isReadOnly}
           />
         </FormField>
 
         <FormField label="Secondary Email">
-          <TextInput
-            type="email"
+          <EmailInput
             value={secondaryEmail}
             onChange={setSecondaryEmail}
             placeholder="Optional"
@@ -87,18 +85,15 @@ export function ContactForm({ contact, token, isReadOnly }: ContactFormProps) {
         </FormField>
 
         <FormField label="Primary Phone">
-          <TextInput
-            type="tel"
+          <PhoneInput
             value={primaryPhone}
             onChange={setPrimaryPhone}
-            placeholder="+61 400 000 000"
             disabled={isReadOnly}
           />
         </FormField>
 
         <FormField label="Secondary Phone">
-          <TextInput
-            type="tel"
+          <PhoneInput
             value={secondaryPhone}
             onChange={setSecondaryPhone}
             placeholder="Optional"

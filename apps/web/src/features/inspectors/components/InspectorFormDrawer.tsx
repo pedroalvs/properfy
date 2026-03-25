@@ -8,6 +8,8 @@ import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
+import { EmailInput } from '@/components/forms/EmailInput';
+import { PhoneInput } from '@/components/forms/PhoneInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
@@ -163,17 +165,18 @@ export function InspectorFormDrawer({
                       />
                     </FormField>
                     <FormField label="Email" required error={errors.email}>
-                      <TextInput
+                      <EmailInput
                         value={form.email}
                         onChange={(v) => updateField('email', v)}
+                        error={!!errors.email}
                         aria-label="Email"
                       />
                     </FormField>
                     <FormField label="Phone" error={errors.phone}>
-                      <TextInput
+                      <PhoneInput
                         value={form.phone}
                         onChange={(v) => updateField('phone', v)}
-                        type="tel"
+                        error={!!errors.phone}
                         aria-label="Phone"
                       />
                     </FormField>

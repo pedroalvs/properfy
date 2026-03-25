@@ -7,6 +7,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
+import { EmailInput } from '@/components/forms/EmailInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useBranchSave } from '../hooks/useBranchSave';
 import type { Branch, BranchFormData, BranchFormErrors } from '../types';
@@ -138,11 +139,9 @@ export function BranchFormDrawer({
                   />
                 </FormField>
                 <FormField label="Contact Email" error={errors.contactEmail}>
-                  <TextInput
+                  <EmailInput
                     value={form.contactEmail}
                     onChange={(v) => updateField('contactEmail', v)}
-                    type="email"
-                    placeholder="email@example.com"
                     error={!!errors.contactEmail}
                     aria-label="Contact Email"
                   />

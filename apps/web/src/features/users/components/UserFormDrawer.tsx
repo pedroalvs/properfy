@@ -8,6 +8,9 @@ import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
+import { EmailInput } from '@/components/forms/EmailInput';
+import { PhoneInput } from '@/components/forms/PhoneInput';
+import { PasswordStrengthIndicator } from '@/components/forms/PasswordStrengthIndicator';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -154,17 +157,18 @@ export function UserFormDrawer({
                       />
                     </FormField>
                     <FormField label="Email" required error={errors.email}>
-                      <TextInput
+                      <EmailInput
                         value={form.email}
                         onChange={(v) => updateField('email', v)}
+                        error={!!errors.email}
                         aria-label="Email"
                       />
                     </FormField>
                     <FormField label="Phone" error={errors.phone}>
-                      <TextInput
+                      <PhoneInput
                         value={form.phone}
                         onChange={(v) => updateField('phone', v)}
-                        type="tel"
+                        error={!!errors.phone}
                         aria-label="Phone"
                       />
                     </FormField>
@@ -187,6 +191,10 @@ export function UserFormDrawer({
                             placeholder="Min 8 chars, uppercase, number, symbol"
                             error={!!errors.password}
                             aria-label="Password"
+                          />
+                          <PasswordStrengthIndicator
+                            password={form.password}
+                            confirmPassword={form.confirmPassword}
                           />
                         </FormField>
                         <FormField label="Confirm Password" required error={errors.confirmPassword}>

@@ -8,6 +8,8 @@ import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
+import { EmailInput } from '@/components/forms/EmailInput';
+import { PhoneInput } from '@/components/forms/PhoneInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { Textarea } from '@/components/forms/Textarea';
@@ -263,21 +265,17 @@ export function AppointmentFormDrawer({
                       />
                     </FormField>
                     <FormField label="Phone" error={errors.contactPhone}>
-                      <TextInput
+                      <PhoneInput
                         value={form.contactPhone}
                         onChange={(v) => updateField('contactPhone', v)}
-                        type="tel"
-                        placeholder="(00) 00000-0000"
                         error={!!errors.contactPhone}
                         aria-label="Phone"
                       />
                     </FormField>
                     <FormField label="Email" error={errors.contactEmail}>
-                      <TextInput
+                      <EmailInput
                         value={form.contactEmail}
                         onChange={(v) => updateField('contactEmail', v)}
-                        type="email"
-                        placeholder="email@example.com"
                         error={!!errors.contactEmail}
                         aria-label="Email"
                       />

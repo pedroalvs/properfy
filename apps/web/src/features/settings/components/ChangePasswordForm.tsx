@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
+import { PasswordStrengthIndicator } from '@/components/forms/PasswordStrengthIndicator';
 import { Button } from '@/components/ui/Button';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
@@ -73,6 +74,10 @@ export function ChangePasswordForm() {
               placeholder="Enter new password"
               error={!!errors.newPassword}
               aria-label="New Password"
+            />
+            <PasswordStrengthIndicator
+              password={form.newPassword}
+              confirmPassword={form.confirmPassword}
             />
           </FormField>
           <FormField label="Confirm Password" required error={errors.confirmPassword}>
