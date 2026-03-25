@@ -336,12 +336,20 @@ export const portalTokenResponseSchema = z.object({
 
 export const inspectorScheduleItemSchema = z.object({
   id: z.string().uuid(),
-  appointmentId: z.string().uuid().optional(),
   status: z.string(),
   scheduledDate: dateStr(),
   timeSlot: z.string(),
-  property: z.unknown(),
-  serviceType: z.unknown(),
+  serviceTypeId: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  tenantConfirmationStatus: z.string(),
+  keyRequired: z.boolean(),
+  meetingLocation: z.string().nullable(),
+  executionStatus: z.enum(['NOT_STARTED', 'IN_PROGRESS', 'FINISHED']),
+});
+
+export const inspectorScheduleResponseSchema = z.object({
+  date: dateStr(),
+  appointments: z.array(inspectorScheduleItemSchema),
 });
 
 export const inspectionExecutionResponseSchema = z.object({

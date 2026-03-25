@@ -5,7 +5,7 @@ import {
   startInspectionSchema,
   finishInspectionSchema,
   requestAssetUploadSchema,
-  inspectorScheduleItemSchema,
+  inspectorScheduleResponseSchema,
   inspectionExecutionResponseSchema,
   inspectionAssetResponseSchema,
   appointmentResponseSchema,
@@ -57,7 +57,7 @@ export async function registerInspectorExecutionRoutes(
   // GET /v1/inspector/schedule
   app.get(
     '/v1/inspector/schedule',
-    { preHandler: authenticate, schema: { querystring: inspectorScheduleQuerySchema, response: { 200: z.array(inspectorScheduleItemSchema) } } },
+    { preHandler: authenticate, schema: { querystring: inspectorScheduleQuerySchema, response: { 200: inspectorScheduleResponseSchema } } },
     async (request, reply) => {
       const parsed = inspectorScheduleQuerySchema.safeParse(request.query);
       if (!parsed.success) {

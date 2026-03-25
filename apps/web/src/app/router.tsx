@@ -1,79 +1,65 @@
+import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+
+/**
+ * Retry a dynamic import once, then force-reload the page.
+ * Handles stale chunk hashes after a new deployment.
+ */
+function lazyRetry(importFn: () => Promise<any>) {
+  return lazy(() =>
+    importFn().catch(() => {
+      const reloaded = sessionStorage.getItem('chunk_reload');
+      if (!reloaded) {
+        sessionStorage.setItem('chunk_reload', '1');
+        window.location.reload();
+        return new Promise(() => {}); // never resolves — page is reloading
+      }
+      sessionStorage.removeItem('chunk_reload');
+      return importFn(); // second attempt after reload
+    }),
+  );
+}
+
 const Loadable = (Component: any) => (props: any) => (
   <Suspense fallback={<div className="flex h-full w-full items-center justify-center p-8"><i className="mdi mdi-loading mdi-spin text-4xl text-primary" /></div>}>
     <Component {...props} />
   </Suspense>
 );
 
-const LoginPage = Loadable(lazy(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage }))));
-const AppointmentListPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
-const AppointmentCreatePage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentCreatePage').then(m => ({ default: m.AppointmentCreatePage }))));
-const AppointmentDetailPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
-const AppointmentImportPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentImportPage').then(m => ({ default: m.AppointmentImportPage }))));
-const PropertyListPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyListPage').then(m => ({ default: m.PropertyListPage }))));
-const PropertyCreatePage = Loadable(lazy(() => import('@/features/properties/pages/PropertyCreatePage').then(m => ({ default: m.PropertyCreatePage }))));
-const PropertyDetailPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyDetailPage').then(m => ({ default: m.PropertyDetailPage }))));
-const PropertyImportPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyImportPage').then(m => ({ default: m.PropertyImportPage }))));
-const InspectorListPage = Loadable(lazy(() => import('@/features/inspectors/pages/InspectorListPage').then(m => ({ default: m.InspectorListPage }))));
-const ServiceGroupListPage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupListPage').then(m => ({ default: m.ServiceGroupListPage }))));
-const ServiceGroupCreatePage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupCreatePage').then(m => ({ default: m.ServiceGroupCreatePage }))));
-const ServiceGroupDetailPage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupDetailPage').then(m => ({ default: m.ServiceGroupDetailPage }))));
-const UserListPage = Loadable(lazy(() => import('@/features/users/pages/UserListPage').then(m => ({ default: m.UserListPage }))));
-const FinancialEntriesPage = Loadable(lazy(() => import('@/features/financial/pages/FinancialEntriesPage').then(m => ({ default: m.FinancialEntriesPage }))));
-const InvoicesPage = Loadable(lazy(() => import('@/features/financial/pages/InvoicesPage').then(m => ({ default: m.InvoicesPage }))));
-const TenantContactListPage = Loadable(lazy(() => import('@/features/tenants/pages/TenantContactListPage').then(m => ({ default: m.TenantContactListPage }))));
-const TenantListPage = Loadable(lazy(() => import('@/features/tenants/pages/TenantListPage').then(m => ({ default: m.TenantListPage }))));
-const TenantDetailPage = Loadable(lazy(() => import('@/features/tenants/pages/TenantDetailPage').then(m => ({ default: m.TenantDetailPage }))));
-const ReportListPage = Loadable(lazy(() => import('@/features/reports/pages/ReportListPage').then(m => ({ default: m.ReportListPage }))));
-const DashboardPage = Loadable(lazy(() => import('@/features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage }))));
-const PortalPage = Loadable(lazy(() => import('@/features/tenant-portal/pages/PortalPage').then(m => ({ default: m.PortalPage }))));
-const ServiceTypeListPage = Loadable(lazy(() => import('@/features/service-types/pages/ServiceTypeListPage').then(m => ({ default: m.ServiceTypeListPage }))));
-const PricingRuleListPage = Loadable(lazy(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
-const AccountSettingsPage = Loadable(lazy(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
-const SecuritySettingsPage = Loadable(lazy(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
-const AuditLogListPage = Loadable(lazy(() => import('@/features/audit-logs/pages/AuditLogListPage').then(m => ({ default: m.AuditLogListPage }))));
-const AvailabilitySlotListPage = Loadable(lazy(() => import('@/features/availability-slots/pages/AvailabilitySlotListPage').then(m => ({ default: m.AvailabilitySlotListPage }))));
-const NotificationTemplateListPage = Loadable(lazy(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
-const MarketplacePage = Loadable(lazy(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
-import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
-import { lazy, Suspense, type ComponentType } from 'react';
-
+const LoginPage = Loadable(lazyRetry(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage }))));
+const AppointmentListPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
+const AppointmentCreatePage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentCreatePage').then(m => ({ default: m.AppointmentCreatePage }))));
+const AppointmentDetailPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
+const AppointmentImportPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentImportPage').then(m => ({ default: m.AppointmentImportPage }))));
+const PropertyListPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyListPage').then(m => ({ default: m.PropertyListPage }))));
+const PropertyCreatePage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyCreatePage').then(m => ({ default: m.PropertyCreatePage }))));
+const PropertyDetailPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyDetailPage').then(m => ({ default: m.PropertyDetailPage }))));
+const PropertyImportPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyImportPage').then(m => ({ default: m.PropertyImportPage }))));
+const InspectorListPage = Loadable(lazyRetry(() => import('@/features/inspectors/pages/InspectorListPage').then(m => ({ default: m.InspectorListPage }))));
+const ServiceGroupListPage = Loadable(lazyRetry(() => import('@/features/service-groups/pages/ServiceGroupListPage').then(m => ({ default: m.ServiceGroupListPage }))));
+const ServiceGroupCreatePage = Loadable(lazyRetry(() => import('@/features/service-groups/pages/ServiceGroupCreatePage').then(m => ({ default: m.ServiceGroupCreatePage }))));
+const ServiceGroupDetailPage = Loadable(lazyRetry(() => import('@/features/service-groups/pages/ServiceGroupDetailPage').then(m => ({ default: m.ServiceGroupDetailPage }))));
+const UserListPage = Loadable(lazyRetry(() => import('@/features/users/pages/UserListPage').then(m => ({ default: m.UserListPage }))));
+const FinancialEntriesPage = Loadable(lazyRetry(() => import('@/features/financial/pages/FinancialEntriesPage').then(m => ({ default: m.FinancialEntriesPage }))));
+const InvoicesPage = Loadable(lazyRetry(() => import('@/features/financial/pages/InvoicesPage').then(m => ({ default: m.InvoicesPage }))));
+const TenantContactListPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantContactListPage').then(m => ({ default: m.TenantContactListPage }))));
+const TenantListPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantListPage').then(m => ({ default: m.TenantListPage }))));
+const TenantDetailPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantDetailPage').then(m => ({ default: m.TenantDetailPage }))));
+const ReportListPage = Loadable(lazyRetry(() => import('@/features/reports/pages/ReportListPage').then(m => ({ default: m.ReportListPage }))));
+const DashboardPage = Loadable(lazyRetry(() => import('@/features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage }))));
+const PortalPage = Loadable(lazyRetry(() => import('@/features/tenant-portal/pages/PortalPage').then(m => ({ default: m.PortalPage }))));
+const ServiceTypeListPage = Loadable(lazyRetry(() => import('@/features/service-types/pages/ServiceTypeListPage').then(m => ({ default: m.ServiceTypeListPage }))));
+const PricingRuleListPage = Loadable(lazyRetry(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
+const AccountSettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
+const SecuritySettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
+const AuditLogListPage = Loadable(lazyRetry(() => import('@/features/audit-logs/pages/AuditLogListPage').then(m => ({ default: m.AuditLogListPage }))));
+const AvailabilitySlotListPage = Loadable(lazyRetry(() => import('@/features/availability-slots/pages/AvailabilitySlotListPage').then(m => ({ default: m.AvailabilitySlotListPage }))));
+const NotificationTemplateListPage = Loadable(lazyRetry(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
+const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
 
 import { ProtectedRoute } from './ProtectedRoute';
 import { AuthGuard } from './AuthGuard';
 import { AppShell } from '@/components/shell/AppShell';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { UserRole } from '@properfy/shared';
 import { NotFoundPage } from './NotFoundPage';
 
