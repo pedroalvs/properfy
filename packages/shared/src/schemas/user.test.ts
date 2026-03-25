@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createUserSchema,
   updateUserSchema,
+  resetUserPasswordSchema,
   listUsersQuerySchema,
 } from './user';
 
@@ -171,5 +172,21 @@ describe('listUsersQuerySchema', () => {
       const result = listUsersQuerySchema.safeParse({ role });
       expect(result.success).toBe(true);
     }
+  });
+});
+
+describe('resetUserPasswordSchema', () => {
+  it('should accept a strong password', () => {
+    const result = resetUserPasswordSchema.safeParse({
+      newPassword: 'StrongPass1!',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject a weak password', () => {
+    const result = resetUserPasswordSchema.safeParse({
+      newPassword: 'weak',
+    });
+    expect(result.success).toBe(false);
   });
 });

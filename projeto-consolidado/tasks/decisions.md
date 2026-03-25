@@ -206,6 +206,25 @@
 3. `PendingActionsCard` passou a navegar apenas para destinos canônicos ja existentes: `NO_RESPONSE -> /appointments?tenantConfirmationStatus=NO_RESPONSE`, `pending operator cross-checks -> /appointments?status=DONE`, `pending financial entries -> /financial?status=PENDING` e `processing reports -> /reports?status=PROCESSING`.
 4. Para que esses links sejam honestos, os hooks/listagens de `appointments`, `financial` e `reports` passaram a inicializar filtros a partir da querystring suportada. No caso de `appointments`, o filtro `tenantConfirmationStatus` deixou de ficar implícito no backend e foi exposto tambem na UI.
 
+## 2026-03-25 - Documento Tecnico do Banco como Referencia de Schema
+
+1. O arquivo [`banco-de-dados-properfy.md`](/Users/pedro/Code/GitHub/properfy/projeto-consolidado/tasks/banco-de-dados-properfy.md) passa a ser a referencia narrativa de alto nivel do schema real, complementar ao [`schema.prisma`](/Users/pedro/Code/GitHub/properfy/apps/backend/prisma/schema.prisma).
+2. A leitura do banco deve ser organizada por dominio e por decisao de modelagem, nao apenas por lista de tabelas. O objetivo e explicar o porquê do schema, nao so enumerar colunas.
+3. Sempre que houver mudanca estrutural relevante em tenancy, appointments, portal, execution, billing, notifications ou reports, esse documento deve ser revisado junto com o Prisma para evitar drift entre modelo real e documentacao.
+
+## 2026-03-25 - Versao Executiva do Banco para Stakeholders Tecnicos
+
+1. O arquivo [`banco-de-dados-properfy-stakeholders.md`](/Users/pedro/Code/GitHub/properfy/projeto-consolidado/tasks/banco-de-dados-properfy-stakeholders.md) passa a ser a versao executiva do banco para cliente, gestor tecnico e parceiros de implantacao.
+2. Essa versao deve priorizar visao de dominios, finalidade de cada bloco, relacoes principais e decisoes de schema com linguagem clara, evitando densidade excessiva de engenharia.
+3. O guia detalhado continua sendo a referencia interna principal; a versao para stakeholder nao substitui o schema nem o documento tecnico completo.
+
+## 2026-03-25 - Reset Administrativo de Senha em Gestao de Usuarios
+
+1. O reset de senha de usuario deve existir como comando administrativo separado do fluxo `change-password` do proprio usuario. Ele foi exposto em `POST /v1/tenants/:tenantId/users/:userId/reset-password`.
+2. A acao fica restrita a `AM/OP`, no contexto de gestao de usuarios. `CL_ADMIN` nao recebe essa capacidade e o proprio admin nao pode usar esse comando para resetar a propria senha; para si mesmo, o fluxo correto continua sendo `change-password`.
+3. O reset administrativo revoga todas as sessoes do usuario-alvo e limpa estado de lockout (`failed_login_count`, `locked_until`, `status = ACTIVE`), porque o objetivo operacional do comando e recuperar acesso, nao apenas trocar o hash.
+4. No web, a acao aparece no drawer de detalhe do usuario como `Reset Password`, com dialog proprio exigindo senha forte e confirmacao. Ela fica oculta quando o alvo e o proprio usuario autenticado.
+
 ## 2026-03-24 - Notifications por Appointment: Diagnostico Antes de Retry
 
 1. Na superficie atual do produto, notificacoes aparecem no tab do `Appointment Detail`, nao em um notification center geral. Portanto o criterio correto desta rodada foi tornar esse tab operacionalmente util antes de discutir uma UI de retry dedicada.

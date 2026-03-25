@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   createUserSchema,
   updateUserSchema,
+  resetUserPasswordSchema,
   listUsersQuerySchema,
   deactivateSchema,
   userResponseSchema,
@@ -17,6 +18,7 @@ import type { GetUserUseCase } from '../application/use-cases/get-user.use-case'
 import type { ListUsersUseCase } from '../application/use-cases/list-users.use-case';
 import type { UpdateUserUseCase } from '../application/use-cases/update-user.use-case';
 import type { DeactivateUserUseCase } from '../application/use-cases/deactivate-user.use-case';
+import type { ResetUserPasswordUseCase } from '../application/use-cases/reset-user-password.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface UserRouteContainer {
@@ -25,6 +27,7 @@ export interface UserRouteContainer {
   listUsersUseCase: ListUsersUseCase;
   updateUserUseCase: UpdateUserUseCase;
   deactivateUserUseCase: DeactivateUserUseCase;
+  resetUserPasswordUseCase: ResetUserPasswordUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -205,6 +208,40 @@ export async function registerUserRoutes(
         tenantId: params.data.tenantId,
         userId: params.data.userId,
         reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/users/:userId/reset-password
+  app.post(
+    '/v1/tenants/:tenantId/users/:userId/reset-password',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: userIdParam,
+        body: resetUserPasswordSchema,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const params = userIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const parsed = resetUserPasswordSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      await container.resetUserPasswordUseCase.execute({
+        tenantId: params.data.tenantId,
+        userId: params.data.userId,
+        newPassword: parsed.data.newPassword,
         actor: request.authContext!,
       });
       return reply.status(204).send();

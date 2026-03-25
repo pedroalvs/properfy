@@ -91,7 +91,13 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function renderDrawer(props: { userId: string | null; open: boolean; onClose?: () => void; onEdit?: (id: string) => void }) {
+function renderDrawer(props: {
+  userId: string | null;
+  open: boolean;
+  onClose?: () => void;
+  onEdit?: (id: string) => void;
+  onResetPassword?: (id: string) => void;
+}) {
   return render(
     <Wrapper>
       <UserDetailDrawer
@@ -99,6 +105,7 @@ function renderDrawer(props: { userId: string | null; open: boolean; onClose?: (
         open={props.open}
         onClose={props.onClose ?? vi.fn()}
         onEdit={props.onEdit}
+        onResetPassword={props.onResetPassword}
       />
     </Wrapper>,
   );
@@ -126,6 +133,11 @@ describe('UserDetailDrawer', () => {
   it('hides edit button when onEdit prop is not provided', () => {
     renderDrawer({ userId: 'usr-01', open: true });
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
+  });
+
+  it('hides reset password button when onResetPassword prop is not provided', () => {
+    renderDrawer({ userId: 'usr-01', open: true });
+    expect(screen.queryByLabelText('Reset Password')).not.toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
@@ -158,6 +170,13 @@ describe('UserDetailDrawer', () => {
     renderDrawer({ userId: 'usr-01', open: true, onEdit });
     fireEvent.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith('usr-01');
+  });
+
+  it('reset password button calls onResetPassword with user id when prop is provided', () => {
+    const onResetPassword = vi.fn();
+    renderDrawer({ userId: 'usr-01', open: true, onResetPassword });
+    fireEvent.click(screen.getByLabelText('Reset Password'));
+    expect(onResetPassword).toHaveBeenCalledWith('usr-01');
   });
 
 });

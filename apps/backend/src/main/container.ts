@@ -42,6 +42,7 @@ import { GetUserUseCase } from '../modules/user/application/use-cases/get-user.u
 import { ListUsersUseCase } from '../modules/user/application/use-cases/list-users.use-case';
 import { UpdateUserUseCase } from '../modules/user/application/use-cases/update-user.use-case';
 import { DeactivateUserUseCase } from '../modules/user/application/use-cases/deactivate-user.use-case';
+import { ResetUserPasswordUseCase } from '../modules/user/application/use-cases/reset-user-password.use-case';
 import type { UserRouteContainer } from '../modules/user/interfaces/user.routes';
 
 // Property module
@@ -325,6 +326,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listUsersUseCase = new ListUsersUseCase(userManagementRepo);
   const updateUserUseCase = new UpdateUserUseCase(userManagementRepo, branchRepo, auditService);
   const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, auditService);
+  const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService);
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
@@ -637,6 +639,7 @@ export function createContainer(logger: Logger): AppContainer {
       listUsersUseCase,
       updateUserUseCase,
       deactivateUserUseCase,
+      resetUserPasswordUseCase,
       jwtService,
       tenantRepo,
     },

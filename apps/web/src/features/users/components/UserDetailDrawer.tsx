@@ -12,10 +12,18 @@ interface UserDetailDrawerProps {
   open: boolean;
   onClose: () => void;
   onEdit?: (id: string) => void;
+  onResetPassword?: (id: string) => void;
   tenantId?: string;
 }
 
-export function UserDetailDrawer({ userId, open, onClose, onEdit, tenantId }: UserDetailDrawerProps) {
+export function UserDetailDrawer({
+  userId,
+  open,
+  onClose,
+  onEdit,
+  onResetPassword,
+  tenantId,
+}: UserDetailDrawerProps) {
   const { user, isLoading } = useUserDetail(userId, tenantId);
 
   const handleEdit = useCallback(() => {
@@ -23,6 +31,12 @@ export function UserDetailDrawer({ userId, open, onClose, onEdit, tenantId }: Us
       onEdit(userId);
     }
   }, [onEdit, userId]);
+
+  const handleResetPassword = useCallback(() => {
+    if (onResetPassword && userId) {
+      onResetPassword(userId);
+    }
+  }, [onResetPassword, userId]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">
@@ -42,6 +56,11 @@ export function UserDetailDrawer({ userId, open, onClose, onEdit, tenantId }: Us
               actions={
                 <>
                   <UserStatusChip status={user.status} />
+                  {onResetPassword ? (
+                    <Button variant="icon" onClick={handleResetPassword} aria-label="Reset Password">
+                      <i className="mdi mdi-lock-reset text-xl" />
+                    </Button>
+                  ) : null}
                   {onEdit ? (
                     <Button variant="icon" onClick={handleEdit} aria-label="Edit">
                       <i className="mdi mdi-pencil-outline text-xl" />

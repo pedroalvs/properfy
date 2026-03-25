@@ -148,6 +148,22 @@ export class PrismaUserManagementRepository
     await this.prisma.user.updateMany({ where: { id: userId, tenant_id: tenantId }, data: updateData });
   }
 
+  async resetPassword(
+    userId: string,
+    tenantId: string,
+    passwordHash: string,
+  ): Promise<void> {
+    await this.prisma.user.updateMany({
+      where: { id: userId, tenant_id: tenantId, deleted_at: null },
+      data: {
+        password_hash: passwordHash,
+        failed_login_count: 0,
+        locked_until: null,
+        status: PrismaUserStatus.ACTIVE,
+      },
+    });
+  }
+
   async revokeAllSessions(userId: string): Promise<void> {
     await this.prisma.session.updateMany({
       where: { user_id: userId, revoked_at: null },

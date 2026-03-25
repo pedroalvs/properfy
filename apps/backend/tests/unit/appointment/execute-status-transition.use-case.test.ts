@@ -114,6 +114,7 @@ const userRepo = {
   countByTenantId: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
+  resetPassword: vi.fn(),
   revokeAllSessions: vi.fn(),
 };
 

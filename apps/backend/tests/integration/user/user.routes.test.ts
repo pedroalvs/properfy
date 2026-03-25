@@ -10,6 +10,7 @@ const mockGetUserExecute = vi.fn();
 const mockListUsersExecute = vi.fn();
 const mockUpdateUserExecute = vi.fn();
 const mockDeactivateUserExecute = vi.fn();
+const mockResetUserPasswordExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
@@ -24,6 +25,7 @@ vi.mock('../../../src/main/container', () => ({
       listUsersUseCase: { execute: mockListUsersExecute },
       updateUserUseCase: { execute: mockUpdateUserExecute },
       deactivateUserUseCase: { execute: mockDeactivateUserExecute },
+      resetUserPasswordUseCase: { execute: mockResetUserPasswordExecute },
       jwtService: { verify: mockJwtVerify },
     },
     property: { jwtService: { verify: mockJwtVerify } },
@@ -68,6 +70,38 @@ afterAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('POST /v1/tenants/:tenantId/users/:userId/reset-password', () => {
+  it('should return 204 on successful password reset', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockResetUserPasswordExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/users/${USER_ID}/reset-password`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ newPassword: 'NewStrong1!' });
+
+    expect(res.status).toBe(204);
+    expect(mockResetUserPasswordExecute).toHaveBeenCalledWith({
+      tenantId: TENANT_ID,
+      userId: USER_ID,
+      newPassword: 'NewStrong1!',
+      actor: amContext,
+    });
+  });
+
+  it('should return 400 with invalid payload', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/users/${USER_ID}/reset-password`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ newPassword: 'weak' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
 });
 
 describe('POST /v1/tenants/:tenantId/users', () => {

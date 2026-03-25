@@ -28,6 +28,14 @@
 3. Planejar MVP por fluxo crítico ponta a ponta.
 4. Enviar o PDF consolidado ao cliente como pauta de alinhamento.
 
+## TODO - Documentação Técnica do Banco
+
+- [x] Revisar o `schema.prisma` real do backend
+- [x] Cruzar o schema com `modelo-dados-executavel.md` e `state-machine-executavel.md`
+- [x] Documentar a estrutura do banco por domínio e por entidade
+- [x] Explicar decisões de schema, relações e trade-offs principais
+- [x] Publicar o guia técnico em `projeto-consolidado/tasks/banco-de-dados-properfy.md`
+
 ## TODO - Auditoria Full Stack 2026-03-23
 
 - [x] Revisar `CLAUDE.md` raiz e por stack, além de `projeto-consolidado/`

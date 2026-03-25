@@ -42,5 +42,10 @@ export interface IUserManagementRepository {
       deletedAt: Date | null;
     }>,
   ): Promise<void>;
+  resetPassword(
+    userId: string,
+    tenantId: string,
+    passwordHash: string,
+  ): Promise<void>;
   revokeAllSessions(userId: string): Promise<void>;
 }

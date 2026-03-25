@@ -4,6 +4,7 @@ import { UserFilters } from '../components/UserFilters';
 import { UserTable } from '../components/UserTable';
 import { UserDetailDrawer } from '../components/UserDetailDrawer';
 import { UserFormDrawer } from '../components/UserFormDrawer';
+import { UserResetPasswordDialog } from '../components/UserResetPasswordDialog';
 import { useUserList } from '../hooks/useUserList';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -42,6 +43,10 @@ export function UserListPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [resetUserId, setResetUserId] = useState<string | null>(null);
+  const [resetUserName, setResetUserName] = useState<string | null>(null);
+  const canResetPassword = authUser?.role === 'AM' || authUser?.role === 'OP';
 
   return (
     <>
@@ -110,6 +115,12 @@ export function UserListPage() {
           setEditId(id);
           setFormOpen(true);
         }}
+        onResetPassword={canResetPassword && selectedId !== authUser?.id ? (id) => {
+          const selectedUser = data.find((item) => item.id === id);
+          setResetUserId(id);
+          setResetUserName(selectedUser?.name ?? null);
+          setResetPasswordOpen(true);
+        } : undefined}
       />
       <UserFormDrawer
         open={formOpen}
@@ -117,6 +128,20 @@ export function UserListPage() {
         userId={editId}
         tenantId={effectiveTenantId}
         onSaved={() => { setFormOpen(false); setEditId(null); refetch(); }}
+      />
+      <UserResetPasswordDialog
+        open={resetPasswordOpen}
+        userId={resetUserId}
+        userName={resetUserName}
+        tenantId={effectiveTenantId}
+        onClose={() => {
+          setResetPasswordOpen(false);
+          setResetUserId(null);
+          setResetUserName(null);
+        }}
+        onReset={() => {
+          refetch();
+        }}
       />
     </>
   );

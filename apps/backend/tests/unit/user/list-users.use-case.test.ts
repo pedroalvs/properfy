@@ -73,6 +73,7 @@ describe('ListUsersUseCase', () => {
       countByTenantId: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      resetPassword: vi.fn(),
       revokeAllSessions: vi.fn(),
     };
     useCase = new ListUsersUseCase(userManagementRepo);

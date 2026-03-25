@@ -126,7 +126,7 @@ describe('UserListPage', () => {
     renderPage();
 
     expect(await screen.findByText('Select an agency before creating or editing users.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'New User' })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'New User' }).every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
   });
 
   it('renders filter bar with search, role, and status controls', () => {
