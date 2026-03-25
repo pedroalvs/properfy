@@ -4,6 +4,7 @@ import {
   filterLabel,
   filterLabelFocused,
   filterIcon,
+  filterClearButton,
   filterDropdown,
   filterOption,
   filterOptionActive,
@@ -64,7 +65,8 @@ export function FilterAutocomplete({
         <input
           ref={inputRef}
           type="text"
-          className="w-full bg-transparent py-2 text-sm text-text-primary outline-none placeholder:text-text-muted"
+          autoComplete="off"
+          className="w-full bg-transparent py-[7px] text-sm text-text-primary outline-none placeholder:text-text-muted"
           placeholder={showFloatingLabel ? placeholder || '' : label}
           value={open ? search : selectedLabel}
           onChange={(e) => {
@@ -85,6 +87,19 @@ export function FilterAutocomplete({
           role="combobox"
           aria-autocomplete="list"
         />
+        {value !== '' && !open && (
+          <button
+            type="button"
+            onClick={() => {
+              onChange('');
+              setSearch('');
+            }}
+            className={filterClearButton}
+            aria-label={`Clear ${label}`}
+          >
+            <i className="mdi mdi-close text-sm" />
+          </button>
+        )}
       </div>
 
       {open && (

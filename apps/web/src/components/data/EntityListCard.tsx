@@ -7,7 +7,7 @@ interface EntityListCardProps {
 
 export function EntityListCard({ children, className = '' }: EntityListCardProps) {
   return (
-    <div className={`rounded bg-card-bg ${className}`}>
+    <div className={`bg-card-bg ${className}`}>
       {children}
     </div>
   );

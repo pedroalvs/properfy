@@ -48,6 +48,7 @@ const config: Config = {
       },
       fontFamily: {
         nunito: ['Nunito', 'sans-serif'],
+        poppins: ['Poppins', 'sans-serif'],
       },
       fontSize: {
         'page-title': ['24px', { lineHeight: '32px', fontWeight: '700' }],

@@ -143,6 +143,7 @@
 
   /* Typography */
   --font-family: 'Nunito', sans-serif;
+  --font-family-heading: 'Poppins', sans-serif;
   --font-size-body: 16px;
   --font-weight-body: 500;
   --line-height-body: 24px;

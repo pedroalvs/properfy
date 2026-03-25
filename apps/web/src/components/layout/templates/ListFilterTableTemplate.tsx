@@ -31,7 +31,9 @@ export function ListFilterTableTemplate({
         primaryAction={primaryAction}
         secondaryActions={secondaryActions}
       />
-      <EntityListCard>{children}</EntityListCard>
+      <EntityListCard>
+        <div className="flex flex-col gap-0">{children}</div>
+      </EntityListCard>
     </div>
   );
 }

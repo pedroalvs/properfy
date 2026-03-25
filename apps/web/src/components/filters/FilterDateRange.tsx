@@ -20,7 +20,7 @@ export function FilterDateRange({
   return (
     <div className={filterContainer}>
       {hasValue && <span className={filterLabel}>{label}</span>}
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex items-center gap-2 px-3 py-[7px]">
         <i className={`mdi mdi-calendar ${filterIcon}`} />
         <input
           type="date"

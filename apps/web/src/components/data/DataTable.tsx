@@ -77,44 +77,62 @@ export function DataTable<T>({
   function renderPaginationInfo() {
     if (!pagination) return null;
     const { page, pageSize, total } = pagination;
-    const start = (page - 1) * pageSize + 1;
-    const end = Math.min(page * pageSize, total);
     const totalPages = Math.ceil(total / pageSize);
 
     return (
-      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-4 py-3">
-        <span className="text-sm text-text-secondary">
-          {`Showing ${start}–${end} of ${total}`}
-        </span>
-        <div className="flex items-center gap-4">
+      <div className="mt-4 flex flex-wrap items-center justify-between rounded-md border border-border-subtle bg-card-bg px-4 py-2">
+        {/* Sort order / page size selector */}
+        <div className="flex items-center gap-3">
           <select
             value={pageSize}
             onChange={(e) => pagination.onChange(1, Number(e.target.value))}
-            className="rounded border border-border-subtle bg-white px-2 py-1 text-sm text-text-primary"
+            className="rounded border-none bg-transparent py-1 text-sm text-text-primary outline-none"
             aria-label="Items per page"
           >
             {PAGE_SIZE_OPTIONS.map((size) => (
               <option key={size} value={size}>
-                {size}
+                {size} per page
               </option>
             ))}
           </select>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => pagination.onChange(page - 1, pageSize)}
-              disabled={page <= 1}
-              className="rounded px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-40 min-h-[36px]"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => pagination.onChange(page + 1, pageSize)}
-              disabled={page >= totalPages}
-              className="rounded px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/5 disabled:pointer-events-none disabled:opacity-40 min-h-[36px]"
-            >
-              Next
-            </button>
+        </div>
+
+        {/* Page navigation */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => pagination.onChange(page - 1, pageSize)}
+            disabled={page <= 1}
+            className="inline-flex h-8 w-8 items-center justify-center rounded text-text-primary hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+            aria-label="Previous page"
+          >
+            <i className="mdi mdi-chevron-left text-lg" />
+          </button>
+
+          <div className="flex items-center gap-1.5 text-sm text-text-secondary">
+            <input
+              type="text"
+              value={page}
+              onChange={(e) => {
+                const p = parseInt(e.target.value, 10);
+                if (!isNaN(p) && p >= 1 && p <= totalPages) {
+                  pagination.onChange(p, pageSize);
+                }
+              }}
+              className="h-7 w-10 rounded border border-border-subtle bg-transparent text-center text-sm text-text-primary outline-none focus:border-primary"
+              aria-label="Current page"
+            />
+            <span>of</span>
+            <span className="font-medium">{totalPages}</span>
           </div>
+
+          <button
+            onClick={() => pagination.onChange(page + 1, pageSize)}
+            disabled={page >= totalPages}
+            className="inline-flex h-8 w-8 items-center justify-center rounded text-text-primary hover:bg-black/5 disabled:pointer-events-none disabled:opacity-40"
+            aria-label="Next page"
+          >
+            <i className="mdi mdi-chevron-right text-lg" />
+          </button>
         </div>
       </div>
     );
@@ -122,8 +140,8 @@ export function DataTable<T>({
 
   return (
     <div>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+      <div className="overflow-x-auto overflow-y-auto rounded-md border border-[#ddd]">
+        <table className="w-full min-w-[800px] border-collapse">
           <thead>
             <tr className="border-b border-border-subtle">
               {columns.map((col) => (

@@ -4,6 +4,7 @@ import {
   filterLabel,
   filterLabelFocused,
   filterIcon,
+  filterClearButton,
   filterDropdown,
   filterOption,
   filterOptionActive,
@@ -48,7 +49,7 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
       )}
       <button
         type="button"
-        className="flex w-full items-center justify-between px-3 py-2 text-sm"
+        className="flex w-full items-center justify-between px-3 py-[7px] text-sm"
         onClick={() => {
           setOpen(!open);
           setFocused(true);
@@ -64,7 +65,25 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
         <span className={selectedLabel ? 'text-text-primary' : 'text-text-muted'}>
           {selectedLabel ?? (showFloatingLabel ? placeholder || '' : label)}
         </span>
-        <i className={`mdi mdi-menu-down ${filterIcon} transition-transform ${open ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-1">
+          {value !== '' && (
+            <span
+              role="button"
+              tabIndex={-1}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('');
+                setOpen(false);
+                setFocused(false);
+              }}
+              className={filterClearButton}
+              aria-label={`Clear ${label}`}
+            >
+              <i className="mdi mdi-close text-sm" />
+            </span>
+          )}
+          <i className={`mdi mdi-menu-down ${filterIcon} transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
       </button>
 
       {open && (

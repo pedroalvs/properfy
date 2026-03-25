@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { filterContainer, filterInput, filterLabel, filterLabelFocused, filterIcon } from './filter-styles';
+import { filterContainer, filterInput, filterLabel, filterLabelFocused, filterIcon, filterClearButton } from './filter-styles';
 
 interface FilterInputProps {
   label: string;
@@ -32,6 +32,12 @@ export function FilterInput({
     }, debounceMs);
   };
 
+  const handleClear = () => {
+    setLocalValue('');
+    clearTimeout(timerRef.current);
+    onChange('');
+  };
+
   useEffect(() => {
     return () => clearTimeout(timerRef.current);
   }, []);
@@ -56,6 +62,16 @@ export function FilterInput({
           onBlur={() => setFocused(false)}
           aria-label={label}
         />
+        {localValue.length > 0 && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className={filterClearButton}
+            aria-label={`Clear ${label}`}
+          >
+            <i className="mdi mdi-close text-sm" />
+          </button>
+        )}
       </div>
     </div>
   );
