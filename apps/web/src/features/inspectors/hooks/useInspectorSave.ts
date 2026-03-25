@@ -41,6 +41,7 @@ function parseServiceTypeIds(value: string): string[] | undefined {
 export interface SaveResult {
   success: boolean;
   error?: string;
+  errorCode?: string;
 }
 
 export interface UseInspectorSaveReturn {
@@ -96,12 +97,19 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         serviceTypes: parseServiceTypeIds(data.serviceTypes),
       };
 
+      let apiError: { error?: { code?: string; message?: string } } | undefined;
       if (inspectorId) {
         const { error } = await api.PATCH(`/v1/inspectors/${inspectorId}` as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        apiError = error as any;
       } else {
         const { error } = await api.POST('/v1/inspectors' as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        apiError = error as any;
+      }
+
+      if (apiError) {
+        const code = apiError?.error?.code ?? 'UNKNOWN';
+        const message = apiError?.error?.message ?? 'Request failed';
+        return { success: false, error: message, errorCode: code };
       }
 
       await queryClient.invalidateQueries({ queryKey: ['inspectors'] });

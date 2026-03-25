@@ -114,6 +114,8 @@ export function InspectorFormDrawer({
     if (result.success) {
       showSuccess(isEditMode ? 'Inspector updated successfully' : 'Inspector created successfully');
       onSaved();
+    } else if (result.errorCode === 'INSPECTOR_EMAIL_CONFLICT') {
+      setErrors((prev) => ({ ...prev, email: result.error ?? 'Email already in use' }));
     } else {
       showError(result.error ?? 'Failed to save');
     }

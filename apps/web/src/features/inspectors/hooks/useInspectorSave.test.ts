@@ -123,6 +123,24 @@ describe('useInspectorSave', () => {
     expect(mockPatch).toHaveBeenCalledWith('/v1/inspectors/insp-01', { body: expect.any(Object) });
   });
 
+  it('save returns errorCode on 409 conflict', async () => {
+    mockPost.mockResolvedValueOnce({
+      error: { error: { code: 'INSPECTOR_EMAIL_CONFLICT', message: 'An inspector with this email already exists' } },
+    });
+
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+    let saveResult: { success: boolean; error?: string; errorCode?: string } | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.errorCode).toBe('INSPECTOR_EMAIL_CONFLICT');
+    expect(saveResult?.error).toBe('An inspector with this email already exists');
+  });
+
   it('isSaving is true during save operation', async () => {
     let resolvePost!: (value: unknown) => void;
     mockPost.mockReturnValueOnce(new Promise((resolve) => { resolvePost = resolve; }));
