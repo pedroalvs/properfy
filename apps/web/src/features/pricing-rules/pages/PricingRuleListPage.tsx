@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
+import { useAuth } from '@/hooks/useAuth';
 import { PricingRuleFilters } from '../components/PricingRuleFilters';
 import { PricingRuleTable } from '../components/PricingRuleTable';
 import { PricingRuleFormDrawer } from '../components/PricingRuleFormDrawer';
@@ -8,6 +9,8 @@ import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import type { PricingRule } from '../types';
 
 export function PricingRuleListPage() {
+  const { user } = useAuth();
+  const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
   const {
     data,
     isLoading,
@@ -31,6 +34,7 @@ export function PricingRuleListPage() {
     { page: 1, pageSize: 100, sortBy: 'name', sortOrder: 'asc' },
   );
   const activeTenantId = filters.tenantId || null;
+  const requiresTenantSelection = isGlobalRole && !activeTenantId;
   const { data: branchesResp } = usePaginatedQuery<{ id: string; name: string }>(
     ['branches-options', activeTenantId ?? ''],
     '/v1/branches',
@@ -45,6 +49,10 @@ export function PricingRuleListPage() {
   const serviceTypeOptions = useMemo(
     () => (serviceTypesResp?.data ?? []).map((s) => ({ value: s.id, label: s.name })),
     [serviceTypesResp],
+  );
+  const branchOptions = useMemo(
+    () => (branchesResp?.data ?? []).map((b) => ({ value: b.id, label: b.name })),
+    [branchesResp],
   );
 
   const tenantMap = useMemo(
@@ -96,12 +104,18 @@ export function PricingRuleListPage() {
             setEditRule(null);
             setFormOpen(true);
           },
+          disabled: requiresTenantSelection,
         }}
       >
         <PricingRuleFilters
           filters={filters}
           onFiltersChange={setFilters}
         />
+        {requiresTenantSelection && (
+          <p className="mb-4 text-sm text-text-muted">
+            Select an agency before creating pricing rules.
+          </p>
+        )}
         <PricingRuleTable
           data={enrichedData}
           loading={isLoading}
@@ -120,8 +134,10 @@ export function PricingRuleListPage() {
         }}
         rule={editRule}
         onSaved={handleSaved}
+        defaultTenantId={editRule ? undefined : activeTenantId ?? undefined}
         tenantOptions={tenantOptions}
         serviceTypeOptions={serviceTypeOptions}
+        branchOptions={branchOptions}
       />
     </>
   );

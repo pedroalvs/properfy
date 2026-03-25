@@ -26,6 +26,8 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
     timeSlot: '09:00-12:00',
     keyRequired: true,
     notes: 'Test observation',
+    doneCheckedByUserId: null,
+    doneCheckedAt: null,
     createdAt: '2026-03-10T10:00:00Z',
     updatedAt: '2026-03-10T10:00:00Z',
     meetingLocation: 'Main entrance',
@@ -90,5 +92,35 @@ describe('AppointmentDetailSections', () => {
     );
     expect(screen.getByText('Cancellation/Rejection Reason')).toBeInTheDocument();
     expect(screen.getByText('Tenant cancelled')).toBeInTheDocument();
+  });
+
+  it('shows pending operator cross-check when DONE has no validator', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({
+          status: AppointmentStatus.DONE,
+          doneCheckedByUserId: null,
+          doneCheckedAt: null,
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Operational Validation')).toBeInTheDocument();
+    expect(screen.getByText('Pending operator cross-check')).toBeInTheDocument();
+  });
+
+  it('shows validated state when DONE already has cross-check', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({
+          status: AppointmentStatus.DONE,
+          doneCheckedByUserId: 'op-1',
+          doneCheckedAt: '2026-03-11T11:00:00Z',
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Validated')).toBeInTheDocument();
+    expect(screen.getByText(/11\/03\/2026/)).toBeInTheDocument();
   });
 });

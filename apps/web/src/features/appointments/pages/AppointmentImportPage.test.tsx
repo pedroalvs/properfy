@@ -99,7 +99,7 @@ describe('AppointmentImportPage', () => {
     renderPage();
 
     expect(
-      screen.getByText(/code, address, scheduledDate/),
+      screen.getByText(/propertyCode, scheduledDate, timeSlot/),
     ).toBeInTheDocument();
   });
 
@@ -108,5 +108,12 @@ describe('AppointmentImportPage', () => {
 
     const nextBtn = screen.getByText('Next');
     expect(nextBtn).toBeDisabled();
+  });
+
+  it('shows csv-only upload guidance', () => {
+    renderPage();
+
+    expect(screen.getByText(/Accepted: CSV/)).toBeInTheDocument();
+    expect(screen.queryByText(/XLSX/)).not.toBeInTheDocument();
   });
 });

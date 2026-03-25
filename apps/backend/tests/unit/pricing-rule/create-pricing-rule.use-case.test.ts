@@ -3,10 +3,12 @@ import { CreatePricingRuleUseCase } from '../../../src/modules/pricing-rule/appl
 import type { IPricingRuleRepository } from '../../../src/modules/pricing-rule/domain/pricing-rule.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
 import { PricingRuleDuplicateError } from '../../../src/modules/pricing-rule/domain/pricing-rule.errors';
 import { ServiceTypeNotFoundError } from '../../../src/modules/service-type/domain/service-type.errors';
@@ -76,10 +78,29 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   };
 }
 
+function makeTenant(
+  overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
+): TenantEntity {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Tenant 1',
+    legalName: 'Tenant 1 Pty Ltd',
+    timezone: 'Australia/Sydney',
+    currency: 'USD',
+    settingsJson: {},
+    status: 'ACTIVE',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
 describe('CreatePricingRuleUseCase', () => {
   let pricingRuleRepo: IPricingRuleRepository;
   let serviceTypeRepo: IServiceTypeRepository;
   let branchRepo: IBranchRepository;
+  let tenantRepo: ITenantRepository;
   let auditService: AuditService;
   let useCase: CreatePricingRuleUseCase;
 
@@ -108,11 +129,21 @@ describe('CreatePricingRuleUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
+    tenantRepo = {
+      findById: vi.fn(),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new CreatePricingRuleUseCase(
       pricingRuleRepo,
       serviceTypeRepo,
       branchRepo,
+      tenantRepo,
       auditService,
     );
   });
@@ -131,6 +162,7 @@ describe('CreatePricingRuleUseCase', () => {
     });
 
     expect(result.tenantId).toBe('tenant-1');
+    expect(result.currency).toBe('USD');
     expect(result.serviceTypeId).toBe('st-1');
     expect(result.priceAmount).toBe(15000);
     expect(result.payoutType).toBe('FIXED');
@@ -156,6 +188,7 @@ describe('CreatePricingRuleUseCase', () => {
     });
 
     expect(result.tenantId).toBe('tenant-1');
+    expect(result.currency).toBe('USD');
     expect(result.priceAmount).toBe(12000);
     expect(pricingRuleRepo.save).toHaveBeenCalled();
   });

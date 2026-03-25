@@ -1,5 +1,4 @@
 import { FilterBar } from '@/components/filters/FilterBar';
-import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { AvailabilitySlotStatus } from '@properfy/shared';
@@ -20,12 +19,6 @@ interface SlotFiltersProps {
 export function SlotFilters({ filters, onFiltersChange }: SlotFiltersProps) {
   return (
     <FilterBar>
-      <FilterInput
-        label="Search"
-        placeholder="Search by inspector or region..."
-        value={filters.search}
-        onChange={(search) => onFiltersChange({ ...filters, search })}
-      />
       <FilterSelect
         label="Status"
         value={filters.status}

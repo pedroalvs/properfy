@@ -83,4 +83,42 @@ describe('useAuditLogList', () => {
     expect(result.current.isError).toBe(true);
     expect(result.current.data).toHaveLength(0);
   });
+
+  it('sends only supported backend filters', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAuditLogList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    result.current.setFilters({
+      actorId: 'usr-1',
+      entityType: 'APPOINTMENT',
+      entityId: 'apt-01',
+      action: 'STATUS_TRANSITION',
+      fromDate: '2026-03-01T00:00:00.000Z',
+      toDate: '2026-03-31T23:59:59.999Z',
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenLastCalledWith('/v1/audit-logs', {
+        params: {
+          query: expect.objectContaining({
+            actorId: 'usr-1',
+            entityType: 'APPOINTMENT',
+            entityId: 'apt-01',
+            action: 'STATUS_TRANSITION',
+            fromDate: '2026-03-01T00:00:00.000Z',
+            toDate: '2026-03-31T23:59:59.999Z',
+          }),
+        },
+      });
+    });
+
+    const lastCall = mockGet.mock.calls.at(-1)?.[1];
+    expect(lastCall?.params?.query).not.toHaveProperty('search');
+    expect(lastCall?.params?.query).not.toHaveProperty('startDate');
+    expect(lastCall?.params?.query).not.toHaveProperty('endDate');
+  });
 });

@@ -2,16 +2,12 @@ export type OfferAcceptState = 'IDLE' | 'CONFIRMING' | 'ACCEPTING' | 'ACCEPTED' 
 
 export interface MarketplaceOffer {
   groupId: string;
+  tenantName: string;
   serviceTypeName: string;
-  flowType: string;
+  groupSize: number;
   scheduledDate: string;
-  timeWindowStart: string;
-  timeWindowEnd: string;
-  region: string;
+  timeWindow: string;
+  priorityMode: string;
+  priorityExpiresAt: string | null;
   suburbs: string[];
-  appointmentCount: number;
-  confirmedCount: number;
-  pendingCount: number;
-  distance: number | null;
-  publishedAt: string;
 }

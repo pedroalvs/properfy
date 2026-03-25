@@ -35,16 +35,16 @@ describe('InvoiceDetailDrawer', () => {
     mockUseInvoiceDetail.mockReturnValue({
       invoice: {
         id: 'inv-01',
-        inspectorName: 'Diego',
-        periodStart: '2026-03-01T00:00:00Z',
-        periodEnd: '2026-03-15T00:00:00Z',
-        frequency: 'BIWEEKLY',
+        inspectorId: 'insp-01',
+        periodStart: '2026-03-01',
+        periodEnd: '2026-03-15',
+        periodType: 'BIWEEKLY',
         totalAmount: 1800,
         currency: 'AUD',
-        status: 'DRAFT',
-        entryCount: 5,
-        entries: [],
-        downloadUrl: null,
+        status: 'CLOSED',
+        fileKey: 'invoices/inv-01.pdf',
+        generatedAt: '2026-03-16T10:00:00Z',
+        paidAt: null,
         notes: null,
         createdAt: '2026-03-16T10:00:00Z',
         updatedAt: '2026-03-16T10:00:00Z',
@@ -54,10 +54,41 @@ describe('InvoiceDetailDrawer', () => {
       refetch: vi.fn(),
     });
     render(
-      <InvoiceDetailDrawer invoiceId="inv-01" open={true} onClose={vi.fn()} />,
+      <InvoiceDetailDrawer invoiceId="inv-01" open={true} onClose={vi.fn()} resolveInspectorLabel={() => 'Diego'} />,
     );
     expect(screen.getByText('Invoice - Diego')).toBeInTheDocument();
     expect(screen.getByText('Biweekly')).toBeInTheDocument();
+    expect(screen.getByText(/01\/03\/2026 - 15\/03\/2026/)).toBeInTheDocument();
     expect(screen.getByText('Download')).toBeInTheDocument();
+  });
+
+  it('shows an open-invoice warning and disables download when the invoice is still open', () => {
+    mockUseInvoiceDetail.mockReturnValue({
+      invoice: {
+        id: 'inv-02',
+        inspectorId: 'insp-02',
+        periodStart: '2026-03-01',
+        periodEnd: '2026-03-15',
+        periodType: 'BIWEEKLY',
+        totalAmount: 1800,
+        currency: 'AUD',
+        status: 'OPEN',
+        fileKey: null,
+        generatedAt: null,
+        paidAt: null,
+        notes: null,
+        createdAt: '2026-03-16T10:00:00Z',
+        updatedAt: '2026-03-16T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(
+      <InvoiceDetailDrawer invoiceId="inv-02" open={true} onClose={vi.fn()} resolveInspectorLabel={() => 'Carlos'} />,
+    );
+
+    expect(screen.getByText('This invoice is still open. The total can change until the invoice is closed.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Download invoice')).toBeDisabled();
   });
 });

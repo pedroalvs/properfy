@@ -122,11 +122,9 @@ describe('InspectorDetailDrawer', () => {
     expect(screen.getByText('Coverage')).toBeInTheDocument();
   });
 
-  it('edit button calls showInfo snackbar', () => {
+  it('hides edit button when onEdit prop is not provided', () => {
     renderDrawer({ inspectorId: 'insp-01', open: true });
-    const editButton = screen.getByLabelText('Edit');
-    fireEvent.click(editButton);
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
@@ -161,9 +159,4 @@ describe('InspectorDetailDrawer', () => {
     expect(onEdit).toHaveBeenCalledWith('insp-01');
   });
 
-  it('edit button falls back to snackbar when onEdit prop is not provided', () => {
-    renderDrawer({ inspectorId: 'insp-01', open: true });
-    fireEvent.click(screen.getByLabelText('Edit'));
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
-  });
 });

@@ -44,24 +44,24 @@ const inspContext = {
 
 const GROUP_ID = '00000000-0000-0000-0000-000000000001';
 
-const fullOffer = {
-  id: GROUP_ID,
-  tenantId: '00000000-0000-0000-0000-000000000010',
-  serviceTypeId: '00000000-0000-0000-0000-000000000020',
-  status: 'PUBLISHED',
+const marketplaceOffer = {
+  groupId: GROUP_ID,
+  tenantName: 'Properfy Realty',
+  serviceTypeName: 'Routine Inspection',
   groupSize: 5,
-  offeredCount: 1,
-  confirmedCount: 0,
   scheduledDate: '2026-04-01',
   timeWindow: '08:00-12:00',
   priorityMode: 'STANDARD',
   priorityExpiresAt: null,
-  assignedInspectorId: null,
-  publishedAt: new Date().toISOString(),
-  assignedAt: null,
-  createdByUserId: '00000000-0000-0000-0000-000000000030',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  suburbs: ['Surry Hills', 'Redfern'],
+};
+
+const acceptedOffer = {
+  groupId: GROUP_ID,
+  status: 'ASSIGNED',
+  assignedInspectorId: '00000000-0000-0000-0000-000000000111',
+  appointmentsScheduled: 5,
+  acceptedAt: new Date().toISOString(),
 };
 
 let app: FastifyInstance;
@@ -85,7 +85,7 @@ describe('GET /v1/marketplace/offers', () => {
   it('should return 200 with paginated marketplace offers', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     mockGetMarketplaceOffersExecute.mockResolvedValueOnce({
-      data: [fullOffer],
+      data: [marketplaceOffer],
       total: 1,
     });
 
@@ -95,7 +95,7 @@ describe('GET /v1/marketplace/offers', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0].id).toBe(GROUP_ID);
+    expect(res.body.data[0].groupId).toBe(GROUP_ID);
     expect(res.body.pagination).toEqual({
       page: 1,
       pageSize: 10,
@@ -114,7 +114,7 @@ describe('GET /v1/marketplace/offers', () => {
   it('should pass inspectorId from authContext, not userId', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     mockGetMarketplaceOffersExecute.mockResolvedValueOnce({
-      data: [fullOffer],
+      data: [marketplaceOffer],
       total: 1,
     });
 
@@ -133,14 +133,14 @@ describe('GET /v1/marketplace/offers', () => {
 describe('POST /v1/marketplace/offers/:groupId/accept', () => {
   it('should return 200 with accepted offer', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
-    mockAcceptOfferExecute.mockResolvedValueOnce(fullOffer);
+    mockAcceptOfferExecute.mockResolvedValueOnce(acceptedOffer);
 
     const res = await supertest(app.server)
       .post(`/v1/marketplace/offers/${GROUP_ID}/accept`)
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual(fullOffer);
+    expect(res.body.data).toEqual(acceptedOffer);
   });
 
   it('should return 401 without auth token', async () => {
@@ -152,7 +152,7 @@ describe('POST /v1/marketplace/offers/:groupId/accept', () => {
 
   it('should pass groupId and inspectorId from authContext, not userId', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
-    mockAcceptOfferExecute.mockResolvedValueOnce(fullOffer);
+    mockAcceptOfferExecute.mockResolvedValueOnce(acceptedOffer);
 
     await supertest(app.server)
       .post(`/v1/marketplace/offers/${GROUP_ID}/accept`)

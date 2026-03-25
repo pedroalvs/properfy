@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
@@ -60,6 +60,10 @@ export class CreateServiceGroupUseCase {
       // Determine tenantId from first appointment
       if (tenantId === null) {
         tenantId = appt.tenantId;
+      }
+
+      if (appt.tenantId !== tenantId) {
+        throw new ValidationError('Appointments must belong to the same tenant');
       }
 
       appointments.push({

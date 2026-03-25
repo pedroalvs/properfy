@@ -1,14 +1,17 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { createServiceGroupSchema, UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { SelectInput } from '@/components/forms/SelectInput';
+import { DateInput } from '@/components/forms/DateInput';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
 import { EligibleAppointmentsTable } from '../components/EligibleAppointmentsTable';
@@ -25,6 +28,8 @@ export function ServiceGroupCreatePage() {
   const navigate = useNavigate();
   const { showSuccess, showError } = useSnackbar();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isGlobalRole = user?.role === UserRole.AM || user?.role === UserRole.OP;
 
   const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
     ['service-types', 'form-options'],
@@ -32,25 +37,45 @@ export function ServiceGroupCreatePage() {
     (item) => ({ value: item.id, label: item.name }),
   );
 
+  const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
+    ['tenants', 'form-options'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+    { enabled: isGlobalRole },
+  );
+
   // Wizard state
   const [step, setStep] = useState<1 | 2>(1);
+  const [selectedTenantId, setSelectedTenantId] = useState('');
   const [serviceTypeId, setServiceTypeId] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [scheduledDate, setScheduledDate] = useState('');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
   const [priorityMode, setPriorityMode] = useState('STANDARD');
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
+  const requiresTenantSelection = isGlobalRole && !selectedTenantId;
+
   const { data: eligibleAppointments, isLoading: loadingAppointments } =
-    useEligibleAppointments(serviceTypeId || null);
+    useEligibleAppointments(serviceTypeId || null, effectiveTenantId);
 
   const selectedServiceType = serviceTypeOptions.find((o) => o.value === serviceTypeId);
+  const createPayload = {
+    appointmentIds: selectedIds,
+    serviceTypeId,
+    scheduledDate,
+    timeWindow: `${startTime}-${endTime}`,
+    priorityMode,
+  };
+  const parsedCreatePayload = createServiceGroupSchema.safeParse(createPayload);
 
   const isSelectionValid =
     selectedIds.length >= MIN_APPOINTMENTS && selectedIds.length <= MAX_APPOINTMENTS;
 
-  const isDirty = serviceTypeId !== '' || selectedIds.length > 0;
+  const isDirty = selectedTenantId !== '' || serviceTypeId !== '' || selectedIds.length > 0 || scheduledDate !== '';
 
   const handleNext = useCallback(() => {
     setStep(2);
@@ -77,14 +102,13 @@ export function ServiceGroupCreatePage() {
   const handleSubmit = useCallback(async () => {
     setIsSaving(true);
     try {
+      if (!parsedCreatePayload.success) {
+        showError('Select a valid date and time window before creating the group');
+        return;
+      }
+
       const { data, error } = await api.POST('/v1/service-groups' as any, {
-        body: {
-          appointmentIds: selectedIds,
-          serviceTypeId,
-          startTime,
-          endTime,
-          priorityMode,
-        } as any,
+        body: parsedCreatePayload.data as any,
       });
       if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
@@ -100,7 +124,7 @@ export function ServiceGroupCreatePage() {
     } finally {
       setIsSaving(false);
     }
-  }, [selectedIds, serviceTypeId, startTime, endTime, priorityMode, navigate, showSuccess, showError, queryClient]);
+  }, [navigate, parsedCreatePayload, queryClient, showError, showSuccess]);
 
   const forceBack = useCallback(() => {
     setShowConfirm(false);
@@ -152,6 +176,21 @@ export function ServiceGroupCreatePage() {
         {step === 1 && (
           <div className="flex flex-col gap-6">
             <FormSection title="Filters" columns={2}>
+              {isGlobalRole && (
+                <FormField label="Agency" required>
+                  <SelectInput
+                    value={selectedTenantId}
+                    onChange={(value) => {
+                      setSelectedTenantId(value);
+                      setServiceTypeId('');
+                      setSelectedIds([]);
+                    }}
+                    options={tenantOptions}
+                    placeholder="Select agency"
+                    aria-label="Agency"
+                  />
+                </FormField>
+              )}
               <FormField label="Service Type" required>
                 <SelectInput
                   value={serviceTypeId}
@@ -162,9 +201,16 @@ export function ServiceGroupCreatePage() {
                   options={serviceTypeOptions}
                   placeholder="Select service type"
                   aria-label="Service Type"
+                  disabled={requiresTenantSelection}
                 />
               </FormField>
             </FormSection>
+
+            {requiresTenantSelection && (
+              <p className="text-sm text-text-secondary">
+                Select an agency before loading eligible appointments.
+              </p>
+            )}
 
             {serviceTypeId && (
               <>
@@ -203,6 +249,16 @@ export function ServiceGroupCreatePage() {
         {/* Step 2: Configure & confirm */}
         {step === 2 && (
           <div className="flex flex-col gap-6">
+            <FormSection title="Schedule">
+              <FormField label="Scheduled Date" required>
+                <DateInput
+                  value={scheduledDate}
+                  onChange={setScheduledDate}
+                  aria-label="Scheduled Date"
+                />
+              </FormField>
+            </FormSection>
+
             <FormSection title="Time Window">
               <TimeWindowPicker
                 startTime={startTime}
@@ -219,6 +275,7 @@ export function ServiceGroupCreatePage() {
             <GroupSummaryCard
               appointmentCount={selectedIds.length}
               serviceType={selectedServiceType?.label ?? ''}
+              scheduledDate={scheduledDate}
               timeWindow={timeWindow}
               priorityMode={priorityMode}
             />
@@ -228,7 +285,7 @@ export function ServiceGroupCreatePage() {
                 <Button variant="secondary" onClick={handleBack}>
                   Back
                 </Button>
-                <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
+                <Button variant="primary" loading={isSaving} disabled={!parsedCreatePayload.success} onClick={handleSubmit}>
                   Create Group
                 </Button>
               </FormActions>

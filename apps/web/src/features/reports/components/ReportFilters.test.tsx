@@ -14,6 +14,8 @@ describe('ReportFilters', () => {
     );
     expect(screen.getByLabelText('Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
+    expect(screen.getByLabelText('From Date')).toBeInTheDocument();
+    expect(screen.getByLabelText('To Date')).toBeInTheDocument();
   });
 
   it('type select shows "All" plus 7 type labels', async () => {

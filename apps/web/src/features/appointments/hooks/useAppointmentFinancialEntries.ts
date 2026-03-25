@@ -8,8 +8,12 @@ export interface AppointmentFinancialEntry {
   currency: string;
   status: FinancialEntryStatus;
   description: string;
-  relatedEntityName: string;
+  relatedEntityName: string | null;
   effectiveAt: string;
+  reason: string | null;
+  approvedByUserId: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
   createdAt: string;
 }
 

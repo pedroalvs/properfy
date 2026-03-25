@@ -137,8 +137,8 @@ export class GetAppointmentDetailUseCase {
         ? appointment.scheduledDate.toISOString().split('T')[0]!
         : String(appointment.scheduledDate);
     const [startTime = '00:00', endTime = '00:00'] = appointment.timeSlot.split('-');
-    const timeSlotStart = new Date(`${scheduledDate}T${startTime}:00.000Z`).toISOString();
-    const timeSlotEnd = new Date(`${scheduledDate}T${endTime}:00.000Z`).toISOString();
+    const timeSlotStart = `${scheduledDate}T${startTime}:00`;
+    const timeSlotEnd = `${scheduledDate}T${endTime}:00`;
     const serviceType = await this.serviceTypeReader.findById(appointment.serviceTypeId);
     const restrictionsSummary = restrictions
       .map((restriction) => restriction.notes?.trim())

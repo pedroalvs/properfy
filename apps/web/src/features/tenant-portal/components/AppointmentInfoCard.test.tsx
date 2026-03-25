@@ -3,9 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 import type { PortalAppointment } from '../types';
 
-// Mock StatusChip to avoid its internal dependencies
-vi.mock('@/components/ui/StatusChip', () => ({
-  StatusChip: ({ status }: { status: string }) => <span data-testid="status-chip">{status}</span>,
+// Mock AppointmentStatusChip to avoid its internal dependencies
+vi.mock('@/features/appointments/components/AppointmentStatusChip', () => ({
+  AppointmentStatusChip: ({ status }: { status: string }) => <span data-testid="status-chip">{status}</span>,
 }));
 
 // Mock useCountdown to control countdown state

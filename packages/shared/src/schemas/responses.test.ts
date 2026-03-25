@@ -112,6 +112,7 @@ describe('meResponseSchema', () => {
 describe('portalDataResponseSchema', () => {
   it('should accept restrictions as object', () => {
     const result = portalDataResponseSchema.safeParse({
+      token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
       appointment: { id: '123' },
       contact: null,
       restrictions: { isHome: true, notes: 'Ring bell' },
@@ -121,6 +122,7 @@ describe('portalDataResponseSchema', () => {
 
   it('should accept restrictions as null', () => {
     const result = portalDataResponseSchema.safeParse({
+      token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
       appointment: { id: '123' },
       contact: null,
       restrictions: null,
@@ -130,8 +132,24 @@ describe('portalDataResponseSchema', () => {
 
   it('should accept missing restrictions (defaults to undefined)', () => {
     const result = portalDataResponseSchema.safeParse({
+      token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
       appointment: { id: '123' },
       contact: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept existingResponse metadata when present', () => {
+    const result = portalDataResponseSchema.safeParse({
+      token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      appointment: { id: '123' },
+      contact: null,
+      restrictions: null,
+      existingResponse: {
+        type: 'CONFIRMED',
+        createdAt: '2026-03-20T10:00:00.000Z',
+        summary: 'Tenant confirmed attendance',
+      },
     });
     expect(result.success).toBe(true);
   });

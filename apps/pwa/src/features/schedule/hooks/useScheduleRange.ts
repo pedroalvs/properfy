@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/hooks/useApiQuery';
 import { mapInspectorAppointmentDetail } from '../lib/adapters';
+import { toLocalISODate } from '../lib/time-slot';
 import type {
   InspectorAppointment,
   InspectorAppointmentDetailResponse,
@@ -17,7 +18,7 @@ function listDates(from: string, to: string): string[] {
   const end = new Date(`${to}T12:00:00`);
 
   while (current <= end) {
-    dates.push(current.toISOString().split('T')[0]!);
+    dates.push(toLocalISODate(current));
     current.setDate(current.getDate() + 1);
   }
 

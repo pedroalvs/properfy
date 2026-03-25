@@ -234,8 +234,8 @@ export class ExecuteStatusTransitionUseCase {
       });
     }
 
-    // 9d. Side effect: create financial entries on DONE
-    if (targetStatus === 'DONE' && this.onDoneHandler) {
+    // 9d. Side effect: create financial entries only after operator cross-check
+    if (targetStatus === 'DONE' && doneCheckedByUserId && this.onDoneHandler) {
       try {
         await this.onDoneHandler.execute({ appointmentId });
       } catch {

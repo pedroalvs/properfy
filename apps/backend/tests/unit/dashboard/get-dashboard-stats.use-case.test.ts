@@ -16,11 +16,13 @@ const mockStats: DashboardStatsOutput = {
       code: 'APT-000000',
       propertyAddress: '1 Test St, Sydney NSW 2000',
       status: 'SCHEDULED',
+      doneCheckedByUserId: null,
       scheduledDate: '2026-03-17',
     },
   ],
   pendingActions: {
     noResponseTenants: 1,
+    pendingOperatorCrossChecks: 4,
     pendingFinancialEntries: 2,
     processingReports: 0,
   },

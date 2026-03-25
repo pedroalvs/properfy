@@ -31,7 +31,6 @@ export interface SlotFormErrors {
 }
 
 export interface SlotFiltersState {
-  search: string;
   inspectorId: string;
   status: string;
   dateFrom: string;
@@ -39,7 +38,6 @@ export interface SlotFiltersState {
 }
 
 export const DEFAULT_SLOT_FILTERS: SlotFiltersState = {
-  search: '',
   inspectorId: '',
   status: '',
   dateFrom: '',

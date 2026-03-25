@@ -15,8 +15,6 @@ export function NotificationTemplateListPage() {
     refetch,
     filters,
     setFilters,
-    pagination,
-    sorting,
   } = useTemplateList();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -50,8 +48,6 @@ export function NotificationTemplateListPage() {
           loading={isLoading}
           error={isError ? (errorMessage ?? 'Failed to load notification templates') : undefined}
           onRetryError={refetch}
-          pagination={pagination}
-          sorting={sorting}
           onEdit={handleEdit}
         />
       </ListFilterTableTemplate>

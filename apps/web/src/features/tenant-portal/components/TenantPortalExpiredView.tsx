@@ -26,7 +26,7 @@ export function TenantPortalExpiredView({
         role="status"
       >
         <i className="mdi mdi-clock-alert-outline mt-0.5 text-lg" />
-        <span>The confirmation deadline has passed.</span>
+        <span>The confirmation deadline has passed. Contact the agency directly for any changes.</span>
       </div>
 
       <AppointmentInfoCard appointment={appointment} />

@@ -4,6 +4,7 @@ import { formatDateTime } from '@/lib/format-date';
 import { ReportTypeChip } from './ReportTypeChip';
 import { ReportStatusChip } from './ReportStatusChip';
 import type { ReportDetail } from '../types';
+import { formatReportFilters, getReportFileName } from '../lib/report-display';
 
 interface ReportDetailSectionsProps {
   report: ReportDetail;
@@ -25,18 +26,21 @@ export function ReportDetailSections({ report }: ReportDetailSectionsProps) {
       </FormSection>
 
       <FormSection title="File">
-        <DetailRow label="Name" value={report.fileName} />
+        <DetailRow label="Name" value={getReportFileName(report) ?? '—'} />
         <DetailRow label="Size" value={formatFileSize(report.fileSize)} />
       </FormSection>
 
       <FormSection title="Request">
         <DetailRow label="Requested By" value={report.requestedBy?.name ?? '—'} />
-        <DetailRow label="Parameters" value={report.parameters} />
+        <DetailRow label="Filters" value={formatReportFilters(report)} />
       </FormSection>
 
       <FormSection title="Record">
         <DetailRow label="Created At" value={formatDateTime(report.createdAt)} />
         {report.updatedAt && <DetailRow label="Updated At" value={formatDateTime(report.updatedAt)} />}
+        {report.completedAt && <DetailRow label="Completed At" value={formatDateTime(report.completedAt)} />}
+        {report.failedAt && <DetailRow label="Failed At" value={formatDateTime(report.failedAt)} />}
+        {report.expiresAt && <DetailRow label="Expires At" value={formatDateTime(report.expiresAt)} />}
       </FormSection>
     </div>
   );

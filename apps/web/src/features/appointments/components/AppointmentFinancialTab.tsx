@@ -25,6 +25,12 @@ const columns: DataTableColumn<AppointmentFinancialEntry>[] = [
   },
   { key: 'description', label: 'Description' },
   {
+    key: 'relatedEntityName',
+    label: 'Counterparty',
+    width: '180px',
+    render: (row) => row.relatedEntityName ?? '\u2014',
+  },
+  {
     key: 'amount',
     label: 'Amount',
     width: '120px',
@@ -38,10 +44,25 @@ const columns: DataTableColumn<AppointmentFinancialEntry>[] = [
     render: (row) => <FinancialStatusChip status={row.status as FinancialEntryStatus} />,
   },
   {
+    key: 'approval',
+    label: 'Approved By',
+    width: '200px',
+    render: (row) => {
+      if (row.status !== 'APPROVED') return '\u2014';
+      return row.approvedByName ?? row.approvedByUserId ?? '\u2014';
+    },
+  },
+  {
     key: 'effectiveAt',
     label: 'Effective Date',
     width: '140px',
     render: (row) => formatDate(row.effectiveAt),
+  },
+  {
+    key: 'reason',
+    label: 'Reason',
+    width: '220px',
+    render: (row) => row.reason ?? '\u2014',
   },
 ];
 
@@ -55,7 +76,7 @@ export function AppointmentFinancialTab({ appointmentId }: AppointmentFinancialT
       loading={isLoading}
       error={isError ? 'Failed to load financial entries' : undefined}
       onRetryError={refetch}
-      emptyMessage="No financial entries for this appointment"
+      emptyMessage="No financial entries for this appointment yet. If this service is done, billing may still be pending operator cross-check."
       keyExtractor={(row) => row.id}
     />
   );

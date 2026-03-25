@@ -7,11 +7,11 @@ import type { RecentAppointment } from '../types';
 
 function makeRecentAppointments(): RecentAppointment[] {
   return [
-    { id: '1', code: 'VST-001', propertyAddress: 'Rua das Flores, 123', status: AppointmentStatus.DRAFT, scheduledDate: '2026-03-10' },
-    { id: '2', code: 'VST-002', propertyAddress: 'Av. Paulista, 456', status: AppointmentStatus.AWAITING_INSPECTOR, scheduledDate: '2026-03-11' },
-    { id: '3', code: 'VST-003', propertyAddress: 'Rua Augusta, 789', status: AppointmentStatus.SCHEDULED, scheduledDate: '2026-03-12' },
-    { id: '4', code: 'VST-004', propertyAddress: 'Rua Oscar Freire, 321', status: AppointmentStatus.DONE, scheduledDate: '2026-03-13' },
-    { id: '5', code: 'VST-005', propertyAddress: 'Alameda Santos, 654', status: AppointmentStatus.CANCELLED, scheduledDate: '2026-03-14' },
+    { id: '1', code: 'VST-001', propertyAddress: 'Rua das Flores, 123', status: AppointmentStatus.DRAFT, doneCheckedByUserId: null, scheduledDate: '2026-03-10' },
+    { id: '2', code: 'VST-002', propertyAddress: 'Av. Paulista, 456', status: AppointmentStatus.AWAITING_INSPECTOR, doneCheckedByUserId: null, scheduledDate: '2026-03-11' },
+    { id: '3', code: 'VST-003', propertyAddress: 'Rua Augusta, 789', status: AppointmentStatus.SCHEDULED, doneCheckedByUserId: null, scheduledDate: '2026-03-12' },
+    { id: '4', code: 'VST-004', propertyAddress: 'Rua Oscar Freire, 321', status: AppointmentStatus.DONE, doneCheckedByUserId: null, scheduledDate: '2026-03-13' },
+    { id: '5', code: 'VST-005', propertyAddress: 'Alameda Santos, 654', status: AppointmentStatus.CANCELLED, doneCheckedByUserId: null, scheduledDate: '2026-03-14' },
   ];
 }
 
@@ -35,8 +35,33 @@ describe('RecentAppointmentsList', () => {
     expect(screen.getByText('Draft')).toBeInTheDocument();
     expect(screen.getByText('Awaiting Inspector')).toBeInTheDocument();
     expect(screen.getByText('Scheduled')).toBeInTheDocument();
-    expect(screen.getByText('Done')).toBeInTheDocument();
+    expect(screen.getByText('Done (Review Required)')).toBeInTheDocument();
     expect(screen.getByText('Cancelled')).toBeInTheDocument();
+  });
+
+  it('shows pending review marker for DONE without operator cross-check', () => {
+    render(<RecentAppointmentsList appointments={makeRecentAppointments()} />);
+    expect(screen.getByText('Pending review')).toBeInTheDocument();
+  });
+
+  it('renders reviewed DONE appointments without pending review copy', () => {
+    render(
+      <RecentAppointmentsList
+        appointments={[
+          {
+            id: '4',
+            code: 'VST-004',
+            propertyAddress: 'Rua Oscar Freire, 321',
+            status: AppointmentStatus.DONE,
+            doneCheckedByUserId: 'user-1',
+            scheduledDate: '2026-03-13',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('Done (Review)')).toBeInTheDocument();
+    expect(screen.queryByText('Pending review')).not.toBeInTheDocument();
   });
 
   it('renders "View all" link', () => {

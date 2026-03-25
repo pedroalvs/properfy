@@ -53,11 +53,13 @@ const mockStats = {
       code: 'APT-001',
       propertyAddress: '123 Main St, Sydney NSW 2000',
       status: 'SCHEDULED',
+      doneCheckedByUserId: null,
       scheduledDate: '2026-03-17',
     },
   ],
   pendingActions: {
     noResponseTenants: 3,
+    pendingOperatorCrossChecks: 6,
     pendingFinancialEntries: 7,
     processingReports: 1,
   },

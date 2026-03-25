@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LoginPage } from '../pages/LoginPage';
 import { renderWithProviders } from '@/test-utils';
+import { ApiError } from '@/lib/api-error';
 
 const mockLogin = vi.fn();
 const mockUseAuth = vi.fn();
@@ -48,7 +49,7 @@ describe('LoginPage', () => {
   });
 
   it('shows error on failed login', async () => {
-    mockLogin.mockRejectedValue(new Error('Login failed'));
+    mockLogin.mockRejectedValue(new ApiError(401, 'Invalid credentials', 'AUTH_INVALID_CREDENTIALS'));
     const user = userEvent.setup();
 
     renderWithProviders(<LoginPage />);
@@ -59,7 +60,22 @@ describe('LoginPage', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('login-error')).toBeInTheDocument();
-      expect(screen.getByText('Invalid email or password')).toBeInTheDocument();
+      expect(screen.getByText('Invalid email or password.')).toBeInTheDocument();
+    });
+  });
+
+  it('shows locked account message when backend returns AUTH_ACCOUNT_LOCKED', async () => {
+    mockLogin.mockRejectedValue(new ApiError(423, 'Locked', 'AUTH_ACCOUNT_LOCKED'));
+    const user = userEvent.setup();
+
+    renderWithProviders(<LoginPage />);
+
+    await user.type(screen.getByTestId('email-input'), 'locked@test.com');
+    await user.type(screen.getByTestId('password-input'), 'wrong');
+    await user.click(screen.getByTestId('login-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Account locked. Please try again later.')).toBeInTheDocument();
     });
   });
 

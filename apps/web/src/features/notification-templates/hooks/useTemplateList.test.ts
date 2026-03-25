@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -33,23 +33,25 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const MOCK_TEMPLATES = [
   {
     id: 'tpl-01',
-    code: 'INSPECTION_NOTICE',
+    tenantId: null,
+    templateCode: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection Scheduled',
-    body: 'Hello {{tenant_name}}, your inspection is on {{scheduled_date}}.',
-    active: true,
-    requiredVariables: ['tenant_name', 'scheduled_date'],
+    bodyText: 'Hello {{tenant_name}}, your inspection is on {{scheduled_date}}.',
+    isActive: true,
+    variables: ['tenant_name', 'scheduled_date'],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
   },
   {
     id: 'tpl-02',
-    code: 'REMINDER_7D',
+    tenantId: 'tenant-1',
+    templateCode: 'REMINDER_7D',
     channel: 'SMS',
     subject: '',
-    body: 'Reminder: inspection at {{property_address}} on {{scheduled_date}}.',
-    active: false,
-    requiredVariables: ['property_address', 'scheduled_date'],
+    bodyText: 'Reminder: inspection at {{property_address}} on {{scheduled_date}}.',
+    isActive: false,
+    variablesJson: ['property_address', 'scheduled_date'],
     createdAt: '2026-02-01T00:00:00Z',
     updatedAt: '2026-02-01T00:00:00Z',
   },
@@ -103,11 +105,11 @@ describe('useTemplateList', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateList(), { wrapper });
 
-    expect(result.current.filters).toEqual({ search: '', channel: '', active: '' });
+    expect(result.current.filters).toEqual({ templateCode: '', channel: '', includeDefaults: 'true' });
     expect(typeof result.current.setFilters).toBe('function');
   });
 
-  it('pagination total reflects API response', async () => {
+  it('sends only supported query params', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateList(), { wrapper });
 
@@ -115,6 +117,27 @@ describe('useTemplateList', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.pagination.total).toBe(2);
+    act(() => {
+      result.current.setFilters({
+        templateCode: 'INSPECTION_NOTICE',
+        channel: 'EMAIL',
+        includeDefaults: 'false',
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenLastCalledWith(
+        '/v1/notification-templates',
+        expect.objectContaining({
+          params: {
+            query: {
+              templateCode: 'INSPECTION_NOTICE',
+              channel: 'EMAIL',
+              includeDefaults: 'false',
+            },
+          },
+        }),
+      );
+    });
   });
 });

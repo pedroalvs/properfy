@@ -68,10 +68,13 @@ describe('FinancialTable', () => {
     expect(amountEl.style.color).toBe('var(--color-money-negative)');
   });
 
-  it('renders formatted AUD currency', () => {
-    const entry = makeEntry({ amount: -350 });
+  it('renders formatted amount with the row currency', () => {
+    const entry = makeEntry({ amount: -350, currency: 'NZD' });
     render(<FinancialTable data={[entry]} />);
-    expect(screen.getByText(/350\.00/)).toBeInTheDocument();
+    const matches = screen.getAllByText((_content, element) => {
+      return element?.textContent?.includes('350') && (element?.textContent?.includes('NZD') || element?.textContent?.includes('NZ$')) || false;
+    });
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders formatted date for effectiveAt', () => {
@@ -111,5 +114,11 @@ describe('FinancialTable', () => {
     render(<FinancialTable data={[entry]} onEdit={onEdit} />);
     await userEvt.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith(entry);
+  });
+
+  it('hides edit action when onEdit is not provided', () => {
+    const entry = makeEntry();
+    render(<FinancialTable data={[entry]} />);
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 });

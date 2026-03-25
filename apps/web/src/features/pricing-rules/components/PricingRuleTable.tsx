@@ -27,6 +27,9 @@ export function PricingRuleTable({
   sorting,
   onEdit,
 }: PricingRuleTableProps) {
+  const formatCurrency = (value: number, currency: string) =>
+    value.toLocaleString('en-AU', { style: 'currency', currency });
+
   const columns: DataTableColumn<PricingRule>[] = [
     {
       key: 'tenantName',
@@ -55,7 +58,7 @@ export function PricingRuleTable({
       sortable: true,
       render: (row) => (
         <span style={{ fontWeight: 600 }}>
-          {row.priceAmount.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })}
+          {formatCurrency(row.priceAmount, row.currency)}
         </span>
       ),
     },
@@ -74,7 +77,7 @@ export function PricingRuleTable({
         <span style={{ fontWeight: 600 }}>
           {row.payoutType === 'PERCENTAGE'
             ? `${row.payoutValue}%`
-            : row.payoutValue.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })}
+            : formatCurrency(row.payoutValue, row.currency)}
         </span>
       ),
     },

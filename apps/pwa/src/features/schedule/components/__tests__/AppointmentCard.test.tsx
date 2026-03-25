@@ -15,6 +15,8 @@ const baseAppointment: InspectorAppointment = {
   id: 'apt-1',
   propertyAddress: '123 Collins St',
   suburb: 'Melbourne',
+  scheduledDate: '2026-03-18',
+  timeSlot: '09:00-11:00',
   timeSlotStart: '2026-03-18T09:00:00.000Z',
   timeSlotEnd: '2026-03-18T11:00:00.000Z',
   status: AppointmentStatus.SCHEDULED,
@@ -51,10 +53,12 @@ describe('AppointmentCard', () => {
   });
 
   it('shows T-1 warning for unconfirmed routine today', () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const apt: InspectorAppointment = {
       ...baseAppointment,
-      timeSlotStart: `${today}T09:00:00.000Z`,
+      scheduledDate: todayDate,
+      timeSlotStart: `${todayDate}T09:00:00.000Z`,
       tenantConfirmation: TenantConfirmationStatus.PENDING,
       flowType: ServiceTypeFlowType.ROUTINE,
     };
@@ -63,10 +67,12 @@ describe('AppointmentCard', () => {
   });
 
   it('does not show T-1 warning for confirmed routine', () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const apt: InspectorAppointment = {
       ...baseAppointment,
-      timeSlotStart: `${today}T09:00:00.000Z`,
+      scheduledDate: todayDate,
+      timeSlotStart: `${todayDate}T09:00:00.000Z`,
       tenantConfirmation: TenantConfirmationStatus.CONFIRMED,
     };
     renderWithProviders(<AppointmentCard appointment={apt} />);
@@ -74,10 +80,12 @@ describe('AppointmentCard', () => {
   });
 
   it('does not show T-1 warning for non-routine', () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const apt: InspectorAppointment = {
       ...baseAppointment,
-      timeSlotStart: `${today}T09:00:00.000Z`,
+      scheduledDate: todayDate,
+      timeSlotStart: `${todayDate}T09:00:00.000Z`,
       tenantConfirmation: TenantConfirmationStatus.PENDING,
       flowType: ServiceTypeFlowType.INGOING,
     };

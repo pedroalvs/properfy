@@ -33,16 +33,34 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const MOCK_ENTRIES = [
   {
     id: 'log-01',
-    event: 'Status changed to SCHEDULED',
-    actorName: 'Admin User',
+    tenantId: 'ten-1',
+    actorType: 'USER',
+    actorId: 'usr-1',
+    entityType: 'APPOINTMENT',
+    entityId: 'apt-01',
+    action: 'appointment.status_transition',
     reason: null,
+    beforeJson: { status: 'DRAFT' },
+    afterJson: { status: 'SCHEDULED' },
+    requestId: 'req-1',
+    ipAddress: '127.0.0.1',
+    metadataJson: null,
     createdAt: '2026-03-10T10:00:00Z',
   },
   {
     id: 'log-02',
-    event: 'Status changed to CANCELLED',
-    actorName: 'Client Admin',
+    tenantId: 'ten-1',
+    actorType: 'USER',
+    actorId: 'usr-2',
+    entityType: 'APPOINTMENT',
+    entityId: 'apt-01',
+    action: 'appointment.status_transition',
     reason: 'No longer needed',
+    beforeJson: { status: 'SCHEDULED' },
+    afterJson: { status: 'CANCELLED' },
+    requestId: 'req-2',
+    ipAddress: '127.0.0.1',
+    metadataJson: null,
     createdAt: '2026-03-11T14:00:00Z',
   },
 ];
@@ -64,7 +82,7 @@ describe('useAppointmentAuditLog', () => {
     });
 
     expect(result.current.entries).toHaveLength(2);
-    expect(result.current.entries[0]!.event).toBe('Status changed to SCHEDULED');
+    expect(result.current.entries[0]!.action).toBe('appointment.status_transition');
   });
 
   it('returns empty entries when id is null', () => {

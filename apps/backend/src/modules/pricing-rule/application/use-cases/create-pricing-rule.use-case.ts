@@ -7,10 +7,11 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IPricingRuleRepository } from '../../domain/pricing-rule.repository';
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { PricingRuleEntity } from '../../domain/pricing-rule.entity';
 import { PricingRuleDuplicateError } from '../../domain/pricing-rule.errors';
 import { ServiceTypeNotFoundError } from '../../../service-type/domain/service-type.errors';
-import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
+import { BranchNotFoundError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 
 export interface CreatePricingRuleInput {
   tenantId?: string;
@@ -27,6 +28,7 @@ export interface CreatePricingRuleInput {
 export interface CreatePricingRuleOutput {
   id: string;
   tenantId: string;
+  currency: string;
   serviceTypeId: string;
   branchId: string | null;
   priceAmount: number;
@@ -43,6 +45,7 @@ export class CreatePricingRuleUseCase {
     private readonly pricingRuleRepo: IPricingRuleRepository,
     private readonly serviceTypeRepo: IServiceTypeRepository,
     private readonly branchRepo: IBranchRepository,
+    private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
   ) {}
 
@@ -64,6 +67,11 @@ export class CreatePricingRuleUseCase {
 
     if (!resolvedTenantId) {
       throw new ValidationError('tenantId is required');
+    }
+
+    const tenant = await this.tenantRepo.findById(resolvedTenantId);
+    if (!tenant) {
+      throw new TenantNotFoundError();
     }
 
     // Validate service type exists
@@ -133,6 +141,7 @@ export class CreatePricingRuleUseCase {
     return {
       id: rule.id,
       tenantId: rule.tenantId,
+      currency: tenant.currency,
       serviceTypeId: rule.serviceTypeId,
       branchId: rule.branchId,
       priceAmount: rule.priceAmount,

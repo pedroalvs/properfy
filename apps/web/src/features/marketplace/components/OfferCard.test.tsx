@@ -4,34 +4,32 @@ import { OfferCard } from './OfferCard';
 import type { MarketplaceOffer } from '../types';
 
 const MOCK_OFFER: MarketplaceOffer = {
-  id: 'off-01',
   groupId: 'grp-01',
-  groupName: 'Sydney CBD',
-  regionName: 'NSW',
+  tenantName: 'Sydney CBD',
+  serviceTypeName: 'Routine Inspection',
   priorityMode: 'STANDARD',
-  appointmentsCount: 3,
-  totalPayout: 450,
-  expiresAt: '2026-04-01T00:00:00Z',
-  createdAt: '2026-03-15T00:00:00Z',
-  appointments: [],
+  groupSize: 3,
+  scheduledDate: '2026-03-20',
+  timeWindow: '09:00-12:00',
+  priorityExpiresAt: '2026-04-01T00:00:00Z',
+  suburbs: ['Sydney CBD'],
 };
 
 const MOCK_PRIORITY_OFFER: MarketplaceOffer = {
   ...MOCK_OFFER,
-  id: 'off-02',
   groupId: 'grp-02',
-  groupName: 'Melbourne Inner',
+  tenantName: 'Melbourne Inner',
   priorityMode: 'PRIORITY_24H',
 };
 
 describe('OfferCard', () => {
-  it('renders offer info: name, region, count, payout', () => {
+  it('renders offer info: service, client, count, date', () => {
     render(<OfferCard offer={MOCK_OFFER} selected={false} onClick={vi.fn()} onAccept={vi.fn()} />);
 
-    expect(screen.getByText('Sydney CBD')).toBeInTheDocument();
-    expect(screen.getByText('NSW')).toBeInTheDocument();
+    expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
+    expect(screen.getAllByText('Sydney CBD').length).toBeGreaterThan(0);
     expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText(/\$450/)).toBeInTheDocument();
+    expect(screen.getByText('09:00-12:00')).toBeInTheDocument();
   });
 
   it('shows standard priority badge', () => {

@@ -38,7 +38,15 @@ export function RecentAppointmentsList({
               <span className="text-sm text-text-secondary max-w-[200px] truncate">
                 {appointment.propertyAddress}
               </span>
-              <AppointmentStatusChip status={appointment.status} />
+              <AppointmentStatusChip
+                status={appointment.status}
+                doneCheckedByUserId={appointment.doneCheckedByUserId}
+              />
+              {appointment.status === 'DONE' && !appointment.doneCheckedByUserId && (
+                <span className="text-xs font-semibold text-warning whitespace-nowrap">
+                  Pending review
+                </span>
+              )}
               <span className="text-xs text-text-muted ml-auto whitespace-nowrap">
                 {appointment.scheduledDate}
               </span>

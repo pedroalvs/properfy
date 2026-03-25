@@ -32,17 +32,19 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_INVOICE = {
   id: 'inv-01',
-  inspectorName: 'Diego',
+  inspectorId: 'insp-01',
   periodStart: '2026-03-01',
   periodEnd: '2026-03-15',
-  frequency: 'BIWEEKLY',
+  periodType: 'BIWEEKLY',
   totalAmount: 1800,
   currency: 'AUD',
-  status: 'DRAFT',
-  entryCount: 5,
-  entries: [],
-  downloadUrl: null,
+  status: 'CLOSED',
+  fileKey: 'invoices/inv-01.pdf',
+  generatedAt: '2026-03-16T10:00:00Z',
+  paidAt: null,
   notes: null,
+  createdAt: '2026-03-16T10:00:00Z',
+  updatedAt: '2026-03-16T10:00:00Z',
 };
 
 beforeEach(() => {

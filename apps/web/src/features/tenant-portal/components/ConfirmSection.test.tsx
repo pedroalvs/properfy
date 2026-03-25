@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 import type { PortalAppointment } from '../types';
 
@@ -109,7 +109,9 @@ describe('ConfirmSection', () => {
 
     fireEvent.click(screen.getByText('Confirm Attendance'));
 
-    expect(mockMutateAsync).toHaveBeenCalledWith({});
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith({});
+    });
   });
 
   it('shows success state after successful confirmation', async () => {

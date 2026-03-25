@@ -47,6 +47,7 @@ export class ListNotificationTemplatesUseCase {
     if (actor.role === 'AM') {
       if (input.tenantId) {
         filters.tenantId = input.tenantId;
+        filters.includeDefaults = input.includeDefaults ?? true;
       }
     } else {
       // CL_ADMIN: force own tenant scope

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { DashboardSummaryCards } from './DashboardSummaryCards';
@@ -10,6 +10,10 @@ describe('DashboardSummaryCards', () => {
     scheduled: 4,
     doneThisMonth: 3,
   };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('renders four stat cards', () => {
     render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
@@ -55,5 +59,21 @@ describe('DashboardSummaryCards', () => {
     expect(grid.className).toContain('sm:grid-cols-2');
     expect(grid.className).toContain('lg:grid-cols-4');
     expect(grid.className).toContain('gap-4');
+  });
+
+  it('builds scheduled and done links with local date strings', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 25, 23, 30));
+
+    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+
+    expect(screen.getByRole('link', { name: /scheduled/i })).toHaveAttribute(
+      'href',
+      '/appointments?status=SCHEDULED&fromDate=2026-03-25&toDate=2026-03-25',
+    );
+    expect(screen.getByRole('link', { name: /done this month/i })).toHaveAttribute(
+      'href',
+      '/appointments?status=DONE&fromDate=2026-03-01&toDate=2026-03-25',
+    );
   });
 });

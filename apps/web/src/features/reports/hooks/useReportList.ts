@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type Report, type ReportFiltersState } from '../types';
 
 export interface UseReportListReturn {
@@ -12,23 +13,27 @@ export interface UseReportListReturn {
   filters: ReportFiltersState;
   setFilters: (filters: ReportFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useReportList(): UseReportListReturn {
-  const [filters, setFilters] = useState<ReportFiltersState>(DEFAULT_FILTERS);
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState<ReportFiltersState>({
+    ...DEFAULT_FILTERS,
+    reportType: searchParams.get('reportType') ?? '',
+    status: searchParams.get('status') ?? '',
+    fromDate: searchParams.get('fromDate') ?? '',
+    toDate: searchParams.get('toDate') ?? '',
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const params: ListParams = {
     page,
     pageSize,
-    sortBy,
-    sortOrder,
     reportType: filters.reportType || undefined,
     status: filters.status || undefined,
+    fromDate: filters.fromDate || undefined,
+    toDate: filters.toDate || undefined,
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<Report>(
@@ -47,15 +52,6 @@ export function useReportList(): UseReportListReturn {
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: response?.data ?? [],
     isLoading,
@@ -65,6 +61,5 @@ export function useReportList(): UseReportListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

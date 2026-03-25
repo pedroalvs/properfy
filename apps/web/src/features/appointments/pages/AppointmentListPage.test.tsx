@@ -104,6 +104,11 @@ describe('AppointmentListPage', () => {
     expect(screen.getAllByText('New Appointment').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('does not expose a map CTA while map pages are disabled', () => {
+    renderPage();
+    expect(screen.queryByText('Map')).not.toBeInTheDocument();
+  });
+
   it('renders filter bar with search and status controls', () => {
     renderPage();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();

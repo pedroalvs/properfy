@@ -48,7 +48,7 @@ beforeEach(() => {
 describe('useEligibleAppointments', () => {
   it('returns data when serviceTypeId is provided', async () => {
     const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useEligibleAppointments('st-01'), { wrapper });
+    const { result } = renderHook(() => useEligibleAppointments('st-01', 'tenant-1'), { wrapper });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -60,7 +60,7 @@ describe('useEligibleAppointments', () => {
 
   it('does not fetch when serviceTypeId is null', () => {
     const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useEligibleAppointments(null), { wrapper });
+    const { result } = renderHook(() => useEligibleAppointments(null, 'tenant-1'), { wrapper });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data).toHaveLength(0);
@@ -68,14 +68,14 @@ describe('useEligibleAppointments', () => {
 
   it('returns empty array when loading', () => {
     const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useEligibleAppointments('st-01'), { wrapper });
+    const { result } = renderHook(() => useEligibleAppointments('st-01', 'tenant-1'), { wrapper });
 
     expect(result.current.data).toHaveLength(0);
   });
 
   it('calls API with correct params', async () => {
     const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useEligibleAppointments('st-01'), { wrapper });
+    const { result } = renderHook(() => useEligibleAppointments('st-01', 'tenant-1'), { wrapper });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -86,6 +86,7 @@ describe('useEligibleAppointments', () => {
         query: expect.objectContaining({
           status: 'AWAITING_INSPECTOR',
           serviceTypeId: 'st-01',
+          tenantId: 'tenant-1',
           pageSize: '100',
         }),
       },
@@ -95,7 +96,7 @@ describe('useEligibleAppointments', () => {
   it('handles API error gracefully', async () => {
     mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Network error' } });
     const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useEligibleAppointments('st-01'), { wrapper });
+    const { result } = renderHook(() => useEligibleAppointments('st-01', 'tenant-1'), { wrapper });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -103,5 +104,14 @@ describe('useEligibleAppointments', () => {
 
     expect(result.current.isError).toBe(true);
     expect(result.current.data).toHaveLength(0);
+  });
+
+  it('does not fetch for global flow until tenant is selected', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useEligibleAppointments('st-01', ''), { wrapper });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.data).toHaveLength(0);
+    expect(mockGet).not.toHaveBeenCalled();
   });
 });

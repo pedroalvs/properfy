@@ -99,8 +99,10 @@ describe('GenerateInvoiceUseCase', () => {
     expect(result.status).toBe('CLOSED');
     expect(result.totalAmount).toBe(2500);
     expect(result.currency).toBe('AUD');
-    expect(result.invoiceId).toBeDefined();
-    expect(result.message).toBe('Invoice generation queued. File will be available shortly.');
+    expect(result.id).toBeDefined();
+    expect(result.inspectorId).toBe('insp-1');
+    expect(result.periodType).toBe('BIWEEKLY');
+    expect(result.fileKey).toBeNull();
 
     expect(invoiceRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -133,10 +135,32 @@ describe('GenerateInvoiceUseCase', () => {
       actor: makeActor({ role: 'OP' }),
     });
 
-    expect(result.invoiceId).toBe('existing-inv');
+    expect(result.id).toBe('existing-inv');
     expect(result.totalAmount).toBe(1400);
+    expect(result.status).toBe('CLOSED');
+    expect(result.periodStart).toBe('2026-03-01');
+    expect(result.periodEnd).toBe('2026-03-15');
     expect(invoiceRepo.save).not.toHaveBeenCalled();
     expect(financialEntryRepo.sumApprovedPayoutsForInspectorInPeriod).not.toHaveBeenCalled();
+  });
+
+  it('should reflect the actual status of an existing invoice', async () => {
+    const { useCase, invoiceRepo } = sut;
+
+    vi.mocked(invoiceRepo.findByInspectorAndPeriod).mockResolvedValue(
+      makeInvoice({ id: 'existing-paid', status: 'PAID', paidAt: new Date('2026-03-20T10:00:00.000Z') }),
+    );
+
+    const result = await useCase.execute({
+      inspectorId: 'insp-1',
+      periodStart: '2026-03-01',
+      periodEnd: '2026-03-15',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.id).toBe('existing-paid');
+    expect(result.status).toBe('PAID');
+    expect(result.paidAt).toBe('2026-03-20T10:00:00.000Z');
   });
 
   it('should reject overlapping period', async () => {
@@ -216,8 +240,31 @@ describe('GenerateInvoiceUseCase', () => {
     });
 
     expect(result.currency).toBe('NZD');
+    expect(result.periodType).toBe('MONTHLY');
     expect(invoiceRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ periodType: 'MONTHLY', currency: 'NZD' }),
+    );
+  });
+
+  it('should include the full final day when summing approved payouts', async () => {
+    const { useCase, invoiceRepo, financialEntryRepo } = sut;
+
+    vi.mocked(invoiceRepo.findByInspectorAndPeriod).mockResolvedValue(null);
+    vi.mocked(invoiceRepo.findOverlapping).mockResolvedValue(null);
+    vi.mocked(financialEntryRepo.sumApprovedPayoutsForInspectorInPeriod).mockResolvedValue(1000);
+    vi.mocked(invoiceRepo.save).mockResolvedValue(undefined);
+
+    await useCase.execute({
+      inspectorId: 'insp-1',
+      periodStart: '2026-03-01',
+      periodEnd: '2026-03-15',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(financialEntryRepo.sumApprovedPayoutsForInspectorInPeriod).toHaveBeenCalledWith(
+      'insp-1',
+      new Date('2026-03-01T00:00:00.000Z'),
+      new Date('2026-03-15T23:59:59.999Z'),
     );
   });
 

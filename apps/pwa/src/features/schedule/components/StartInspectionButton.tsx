@@ -1,19 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
+import { getScheduleStartDateTime } from '../lib/time-slot';
 
 interface StartInspectionButtonProps {
   appointmentId: string;
-  timeSlotStart: string;
-  timeSlotEnd: string;
+  scheduledDate: string;
+  timeSlot: string;
 }
 
 const MINUTES_BEFORE = 30;
 const HOURS_AFTER = 2;
 
-function getWindowState(timeSlotStart: string): { enabled: boolean; label: string } {
+function getWindowState(scheduledDate: string, timeSlot: string): { enabled: boolean; label: string } {
   const now = new Date();
-  const start = new Date(timeSlotStart);
+  const start = getScheduleStartDateTime(scheduledDate, timeSlot);
   const today = new Date();
 
   const isSameDay =
@@ -45,13 +46,17 @@ function getWindowState(timeSlotStart: string): { enabled: boolean; label: strin
   return { enabled: true, label: 'Start Inspection' };
 }
 
-export function StartInspectionButton({ appointmentId, timeSlotStart }: StartInspectionButtonProps) {
+export function StartInspectionButton({
+  appointmentId,
+  scheduledDate,
+  timeSlot,
+}: StartInspectionButtonProps) {
   const navigate = useNavigate();
-  const [state, setState] = useState(() => getWindowState(timeSlotStart));
+  const [state, setState] = useState(() => getWindowState(scheduledDate, timeSlot));
 
   const updateState = useCallback(() => {
-    setState(getWindowState(timeSlotStart));
-  }, [timeSlotStart]);
+    setState(getWindowState(scheduledDate, timeSlot));
+  }, [scheduledDate, timeSlot]);
 
   useEffect(() => {
     const interval = setInterval(updateState, 30_000);

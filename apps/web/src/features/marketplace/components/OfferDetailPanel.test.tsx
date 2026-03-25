@@ -4,19 +4,15 @@ import { OfferDetailPanel } from './OfferDetailPanel';
 import type { MarketplaceOffer } from '../types';
 
 const MOCK_OFFER: MarketplaceOffer = {
-  id: 'off-01',
   groupId: 'grp-01',
-  groupName: 'Sydney CBD',
-  regionName: 'NSW',
+  tenantName: 'Sydney CBD',
+  serviceTypeName: 'Routine Inspection',
   priorityMode: 'STANDARD',
-  appointmentsCount: 2,
-  totalPayout: 450,
-  expiresAt: '2026-04-01T00:00:00Z',
-  createdAt: '2026-03-15T00:00:00Z',
-  appointments: [
-    { id: 'apt-01', code: 'APT-001', address: '123 George St', scheduledDate: '2026-03-20', timeSlot: '09:00-12:00', latitude: -33.8688, longitude: 151.2093 },
-    { id: 'apt-02', code: 'APT-002', address: '456 Pitt St', scheduledDate: '2026-03-21', timeSlot: '13:00-16:00', latitude: -33.8700, longitude: 151.2080 },
-  ],
+  groupSize: 2,
+  scheduledDate: '2026-03-20',
+  timeWindow: '09:00-12:00',
+  priorityExpiresAt: '2026-04-01T00:00:00Z',
+  suburbs: ['Sydney CBD', 'Surry Hills'],
 };
 
 describe('OfferDetailPanel', () => {
@@ -31,18 +27,15 @@ describe('OfferDetailPanel', () => {
     render(<OfferDetailPanel offer={MOCK_OFFER} onAccept={vi.fn()} isAccepting={false} />);
 
     expect(screen.getByTestId('offer-detail-panel')).toBeInTheDocument();
-    expect(screen.getByText('Sydney CBD')).toBeInTheDocument();
-    expect(screen.getByText('NSW')).toBeInTheDocument();
-    expect(screen.getByText(/\$450/)).toBeInTheDocument();
+    expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
+    expect(screen.getAllByText('Sydney CBD').length).toBeGreaterThan(0);
+    expect(screen.getByText('09:00-12:00')).toBeInTheDocument();
   });
 
-  it('lists appointments in table', () => {
+  it('shows suburbs summary', () => {
     render(<OfferDetailPanel offer={MOCK_OFFER} onAccept={vi.fn()} isAccepting={false} />);
 
-    expect(screen.getByText('APT-001')).toBeInTheDocument();
-    expect(screen.getByText('APT-002')).toBeInTheDocument();
-    expect(screen.getByText('123 George St')).toBeInTheDocument();
-    expect(screen.getByText('456 Pitt St')).toBeInTheDocument();
+    expect(screen.getByText(/Sydney CBD, Surry Hills/)).toBeInTheDocument();
   });
 
   it('shows accept button', () => {
@@ -59,10 +52,10 @@ describe('OfferDetailPanel', () => {
     expect(onAccept).toHaveBeenCalledWith('grp-01');
   });
 
-  it('shows no appointments message when appointments list is empty', () => {
-    const offerNoApts = { ...MOCK_OFFER, appointments: [] };
+  it('shows fallback when suburbs list is empty', () => {
+    const offerNoApts = { ...MOCK_OFFER, suburbs: [] };
     render(<OfferDetailPanel offer={offerNoApts} onAccept={vi.fn()} isAccepting={false} />);
 
-    expect(screen.getByText('No appointments in this offer.')).toBeInTheDocument();
+    expect(screen.getByText(/Not informed/)).toBeInTheDocument();
   });
 });

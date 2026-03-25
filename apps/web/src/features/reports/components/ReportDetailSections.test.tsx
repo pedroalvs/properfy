@@ -10,10 +10,10 @@ const baseReport: ReportDetail = {
   status: ReportStatus.READY,
   format: ReportFormat.XLSX,
   requestedBy: { id: 'u-1', name: 'Admin Principal' },
-  fileName: 'vistorias-agendadas-marco-2026.xlsx',
+  fileKey: 'reports/vistorias-agendadas-marco-2026.xlsx',
+  filters: { fromDate: '2026-03-01', toDate: '2026-03-15' },
   createdAt: '2026-03-15T14:00:00Z',
   updatedAt: '2026-03-15T14:30:00Z',
-  parameters: 'Period: 01/03/2026 to 15/03/2026',
   fileSize: 1048576,
 };
 
@@ -57,8 +57,8 @@ describe('ReportDetailSections', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows parameters when present, em-dash when null', () => {
+  it('shows filters when present, em-dash when null', () => {
     render(<ReportDetailSections report={baseReport} />);
-    expect(screen.getByText('Period: 01/03/2026 to 15/03/2026')).toBeInTheDocument();
+    expect(screen.getByText('fromDate: 2026-03-01, toDate: 2026-03-15')).toBeInTheDocument();
   });
 });

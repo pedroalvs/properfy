@@ -6,6 +6,7 @@ import type { PricingRuleFormData, PricingRuleFormErrors } from '../types';
 const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const REQUIRED_FIELDS: (keyof PricingRuleFormData)[] = [
+  'tenantId',
   'serviceTypeId',
   'priceAmount',
   'payoutType',

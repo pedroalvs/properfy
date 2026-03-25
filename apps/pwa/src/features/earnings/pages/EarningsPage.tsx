@@ -4,21 +4,28 @@ import { EarningsSummaryCard } from '../components/EarningsSummaryCard';
 
 interface FinancialEntry {
   id: string;
-  type: string;
+  entryType: string;
   amount: number;
+  currency: string;
   status: string;
   effectiveAt: string;
 }
 
 interface PaginatedResponse {
   data: FinancialEntry[];
-  total: number;
-  page: number;
-  pageSize: number;
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
+function formatCurrency(amount: number, currency = 'AUD'): string {
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency,
+  }).format(amount);
 }
 
 export function EarningsPage() {
@@ -38,6 +45,7 @@ export function EarningsPage() {
   );
 
   const entries = data?.data ?? [];
+  const primaryCurrency = entries[0]?.currency ?? 'AUD';
   const totalEarnings = entries.reduce((sum, e) => sum + e.amount, 0);
 
   const now = new Date();
@@ -74,12 +82,12 @@ export function EarningsPage() {
         <>
           <EarningsSummaryCard
             label="This Month"
-            amount={formatCurrency(thisMonthTotal)}
+            amount={formatCurrency(thisMonthTotal, primaryCurrency)}
             subtitle={`${thisMonthEntries.length} payments`}
           />
           <EarningsSummaryCard
             label="Total Earnings"
-            amount={formatCurrency(totalEarnings)}
+            amount={formatCurrency(totalEarnings, primaryCurrency)}
             subtitle={`${entries.length} payments total`}
           />
 
@@ -99,10 +107,10 @@ export function EarningsPage() {
                 <div key={entry.id} className="flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-sm">
                   <div>
                     <p className="text-sm font-medium text-text-primary">
-                      {formatCurrency(entry.amount)}
+                      {formatCurrency(entry.amount, entry.currency)}
                     </p>
                     <p className="text-xs text-text-muted">
-                      {new Date(entry.effectiveAt).toLocaleDateString('pt-BR')}
+                      {new Date(entry.effectiveAt).toLocaleDateString('en-AU')}
                     </p>
                   </div>
                   <span className="rounded bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">

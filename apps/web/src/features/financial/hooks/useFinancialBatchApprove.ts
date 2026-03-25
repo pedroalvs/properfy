@@ -3,7 +3,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 
 export interface UseFinancialBatchApproveReturn {
-  approve: (ids: string[]) => Promise<{ success: boolean; failedCount: number }>;
+  approve: (ids: string[]) => Promise<{ 
+    success: boolean; 
+    failedCount: number; 
+    errors: Array<{ id: string; message: string; code?: string }>;
+  }>;
   isApproving: boolean;
 }
 
@@ -13,21 +17,40 @@ export function useFinancialBatchApprove(): UseFinancialBatchApproveReturn {
 
   const approve = useCallback(async (ids: string[]) => {
     setIsApproving(true);
-    let failedCount = 0;
+    const errors: Array<{ id: string; message: string; code?: string }> = [];
 
     try {
       const results = await Promise.allSettled(
         ids.map(async (id) => {
-          const { error } = await api.PATCH(`/v1/financial/entries/${id}/approve` as any, {});
-          if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+          const { error, response } = await api.PATCH(`/v1/financial/entries/${id}/approve` as any, {});
+          if (error) {
+            const err = error as any;
+            throw {
+              id,
+              message: err?.error?.message ?? 'Request failed',
+              code: err?.error?.code,
+              status: response.status
+            };
+          }
         }),
       );
 
-      failedCount = results.filter((r) => r.status === 'rejected').length;
+      results.forEach((r) => {
+        if (r.status === 'rejected') {
+          errors.push(r.reason);
+        }
+      });
 
-      await queryClient.invalidateQueries({ queryKey: ['financial-entries'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['financial-entries'] }),
+        queryClient.invalidateQueries({ queryKey: ['financial-entries', 'summary'] }),
+      ]);
 
-      return { success: failedCount === 0, failedCount };
+      return { 
+        success: errors.length === 0, 
+        failedCount: errors.length,
+        errors
+      };
     } finally {
       setIsApproving(false);
     }

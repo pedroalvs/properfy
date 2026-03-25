@@ -78,6 +78,37 @@ export function validateEnv(source: Record<string, string | undefined> = process
     );
   }
 
+  const isStrictRuntime =
+    result.data.NODE_ENV === 'staging' || result.data.NODE_ENV === 'production';
+
+  if (isStrictRuntime) {
+    const strictIssues: string[] = [];
+
+    if (result.data.ENABLE_JOB_QUEUE !== 'true') {
+      strictIssues.push('  - ENABLE_JOB_QUEUE: Must be true in staging/production');
+    }
+
+    if (!result.data.SUPABASE_S3_ENDPOINT || !result.data.SUPABASE_S3_ACCESS_KEY_ID || !result.data.SUPABASE_S3_SECRET_ACCESS_KEY) {
+      strictIssues.push('  - Supabase S3: SUPABASE_S3_ENDPOINT, SUPABASE_S3_ACCESS_KEY_ID and SUPABASE_S3_SECRET_ACCESS_KEY are required in staging/production');
+    }
+
+    if (!result.data.RESEND_API_KEY || !result.data.RESEND_FROM_EMAIL) {
+      strictIssues.push('  - Resend: RESEND_API_KEY and RESEND_FROM_EMAIL are required in staging/production');
+    }
+
+    if (!result.data.TWILIO_ACCOUNT_SID || !result.data.TWILIO_AUTH_TOKEN || !result.data.TWILIO_PHONE_NUMBER) {
+      strictIssues.push('  - Twilio: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER are required in staging/production');
+    }
+
+    if (!result.data.MAPBOX_ACCESS_TOKEN) {
+      strictIssues.push('  - MAPBOX_ACCESS_TOKEN: Required in staging/production');
+    }
+
+    if (strictIssues.length > 0) {
+      throw new Error(`Environment validation failed:\n${strictIssues.join('\n')}`);
+    }
+  }
+
   _env = result.data;
   return result.data;
 }

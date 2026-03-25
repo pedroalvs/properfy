@@ -90,6 +90,14 @@ vi.mock('../hooks/usePropertyAppointments', () => ({
   }),
 }));
 
+vi.mock('../components/PropertyFormDrawer', () => ({
+  PropertyFormDrawer: () => null,
+}));
+
+vi.mock('../components/PropertyAppointmentsTab', () => ({
+  PropertyAppointmentsTab: () => <div>appointments table</div>,
+}));
+
 import { PropertyDetailPage } from './PropertyDetailPage';
 
 function createWrapper(initialEntry: string = '/properties/prop-01') {
@@ -148,7 +156,7 @@ describe('PropertyDetailPage', () => {
   it('switches to appointments tab on click', () => {
     renderPage();
     fireEvent.click(screen.getByRole('tab', { name: 'Appointments' }));
-    expect(screen.getByText('Code')).toBeInTheDocument();
+    expect(screen.getByText('appointments table')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {

@@ -1,6 +1,8 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
+import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
+import type { IInspectionExecutionRepository } from '../../../inspector-execution/domain/inspection-execution.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
@@ -10,6 +12,7 @@ import {
   PortalRescheduleNotAllowedError,
   PortalRescheduleWindowExceededError,
   PortalDateInPastError,
+  PortalInspectionInProgressError,
 } from '../../domain/tenant-portal.errors';
 import { NotFoundError } from '../../../../shared/domain/errors';
 
@@ -35,8 +38,10 @@ const MAX_RESCHEDULE_DAYS = 30;
 export class RescheduleRequestUseCase {
   constructor(
     private readonly activityRepo: ITenantPortalActivityRepository,
+    private readonly tokenRepo: ITenantPortalTokenRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly serviceTypeRepo: IServiceTypeRepository,
+    private readonly executionRepo: IInspectionExecutionRepository,
     private readonly auditService: AuditService,
     private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
   ) {}
@@ -60,13 +65,19 @@ export class RescheduleRequestUseCase {
       throw new PortalAppointmentInactiveError();
     }
 
-    // 4. Load service type and check flow_type
+    // 4. Block reschedule while inspection is actively in progress
+    const activeExecution = await this.executionRepo.findByAppointmentId(input.appointmentId);
+    if (activeExecution && !activeExecution.isFinished()) {
+      throw new PortalInspectionInProgressError();
+    }
+
+    // 5. Load service type and check flow_type
     const serviceType = await this.serviceTypeRepo.findById(appointment.serviceTypeId);
     if (!serviceType || serviceType.flowType !== 'ROUTINE') {
       throw new PortalRescheduleNotAllowedError();
     }
 
-    // 5. Validate newDate is not in the past
+    // 6. Validate newDate is not in the past
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const newDateObj = new Date(input.newDate + 'T00:00:00Z');
@@ -74,7 +85,7 @@ export class RescheduleRequestUseCase {
       throw new PortalDateInPastError();
     }
 
-    // 6. Validate newDate is within 30 days of original scheduledDate
+    // 7. Validate newDate is within 30 days of original scheduledDate
     const originalDate = new Date(appointment.scheduledDate);
     const diffMs = Math.abs(newDateObj.getTime() - originalDate.getTime());
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
@@ -95,6 +106,10 @@ export class RescheduleRequestUseCase {
       timeSlot: input.newTimeSlot,
       tenantConfirmationStatus: 'PENDING',
     });
+
+    // Portal reschedule restarts the tenant confirmation cycle; revoke active portal tokens
+    // so the cutoff window is not inherited from the previous scheduled date.
+    await this.tokenRepo.revokeAllForAppointment(input.appointmentId);
 
     // 9. Save restrictions if provided
     if (input.restrictions) {

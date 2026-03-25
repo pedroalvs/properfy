@@ -7,7 +7,11 @@ import type { ITenantPortalActivityRepository } from '../../../src/modules/tenan
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
-import { PortalAppointmentInactiveError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import {
+  PortalAppointmentInactiveError,
+  PortalInspectionAlreadyStartedError,
+} from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
@@ -69,6 +73,8 @@ describe('ReportUnavailabilityUseCase', () => {
     updateContact: ReturnType<typeof vi.fn>;
   };
   let auditService: { log: ReturnType<typeof vi.fn> };
+  let notificationHandler: { execute: ReturnType<typeof vi.fn> };
+  let executionRepo: { findByAppointmentId: ReturnType<typeof vi.fn> };
   let useCase: ReportUnavailabilityUseCase;
 
   beforeEach(() => {
@@ -93,11 +99,15 @@ describe('ReportUnavailabilityUseCase', () => {
       updateContact: vi.fn(),
     };
     auditService = { log: vi.fn() };
+    notificationHandler = { execute: vi.fn().mockResolvedValue(undefined) };
+    executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
 
     useCase = new ReportUnavailabilityUseCase(
       activityRepo as unknown as ITenantPortalActivityRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       auditService as unknown as PersistentAuditService,
+      notificationHandler,
+      executionRepo as never,
     );
   });
 
@@ -114,10 +124,8 @@ describe('ReportUnavailabilityUseCase', () => {
     });
   });
 
-  it('should trigger urgent mode when isReadOnly is true', async () => {
-    const result = await useCase.execute(makeInput({ isReadOnly: true }));
-
-    expect(result).toEqual({
+  it('allows urgent unavailable reports after cutoff while the inspection has not started', async () => {
+    await expect(useCase.execute(makeInput({ isReadOnly: true }))).resolves.toEqual({
       tenantConfirmationStatus: 'UNAVAILABLE',
       urgentMode: true,
     });
@@ -125,21 +133,6 @@ describe('ReportUnavailabilityUseCase', () => {
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
       tenantConfirmationStatus: 'UNAVAILABLE',
     });
-
-    // Should record activity even in urgent mode
-    expect(activityRepo.save).toHaveBeenCalledTimes(1);
-    const savedActivity = activityRepo.save.mock.calls[0][0];
-    expect(savedActivity.action).toBe('UNAVAILABLE_REPORTED');
-  });
-
-  it('should include urgentMode: true in audit metadata when isReadOnly', async () => {
-    await useCase.execute(makeInput({ isReadOnly: true }));
-
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: { urgentMode: true },
-      }),
-    );
   });
 
   it('should return idempotent success if already UNAVAILABLE without recording new activity', async () => {
@@ -208,6 +201,24 @@ describe('ReportUnavailabilityUseCase', () => {
     expect(savedActivity.userAgent).toBe('TestAgent/1.0');
   });
 
+  it('should trigger operational notification in the normal path', async () => {
+    await useCase.execute(makeInput());
+
+    expect(notificationHandler.execute).toHaveBeenCalledWith({
+      appointmentId: 'appt-1',
+      action: 'UNAVAILABLE',
+    });
+  });
+
+  it('should swallow notification failures', async () => {
+    notificationHandler.execute.mockRejectedValueOnce(new Error('Queue failure'));
+
+    await expect(useCase.execute(makeInput())).resolves.toEqual({
+      tenantConfirmationStatus: 'UNAVAILABLE',
+      urgentMode: false,
+    });
+  });
+
   it('should save restrictions when provided', async () => {
     const restrictions = {
       isHome: false,
@@ -251,5 +262,29 @@ describe('ReportUnavailabilityUseCase', () => {
     appointmentRepo.findById.mockResolvedValue(null);
 
     await expect(useCase.execute(makeInput())).rejects.toThrow('Appointment not found');
+  });
+
+  it('rejects when the inspection has already started in field', async () => {
+    executionRepo.findByAppointmentId.mockResolvedValue(
+      new InspectionExecutionEntity({
+        id: 'exec-1',
+        appointmentId: 'appt-1',
+        inspectorId: 'insp-1',
+        startedAt: new Date('2026-04-15T09:00:00Z'),
+        finishedAt: null,
+        startLatitude: -1,
+        startLongitude: -1,
+        finishLatitude: null,
+        finishLongitude: null,
+        checklistJson: null,
+        notes: null,
+        createdAt: new Date('2026-04-15T09:00:00Z'),
+        updatedAt: new Date('2026-04-15T09:00:00Z'),
+      }),
+    );
+
+    await expect(useCase.execute(makeInput({ isReadOnly: true }))).rejects.toThrow(
+      PortalInspectionAlreadyStartedError,
+    );
   });
 });

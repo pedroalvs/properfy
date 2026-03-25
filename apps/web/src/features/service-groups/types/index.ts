@@ -20,12 +20,10 @@ export interface ServiceGroupDetail extends ServiceGroup {
 }
 
 export interface ServiceGroupFiltersState {
-  search: string;
   status: string;
 }
 
 export const DEFAULT_FILTERS: ServiceGroupFiltersState = {
-  search: '',
   status: '',
 };
 

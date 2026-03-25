@@ -10,10 +10,9 @@ const CHANNEL_OPTIONS: FilterSelectOption[] = [
   { label: 'WhatsApp', value: 'WHATSAPP' },
 ];
 
-const ACTIVE_OPTIONS: FilterSelectOption[] = [
-  { label: 'All', value: '' },
-  { label: 'Active', value: 'true' },
-  { label: 'Inactive', value: 'false' },
+const INCLUDE_DEFAULTS_OPTIONS: FilterSelectOption[] = [
+  { label: 'Yes', value: 'true' },
+  { label: 'No', value: 'false' },
 ];
 
 interface TemplateFiltersProps {
@@ -28,10 +27,10 @@ export function TemplateFilters({
   return (
     <FilterBar>
       <FilterInput
-        label="Search"
-        placeholder="Template code, subject..."
-        value={filters.search}
-        onChange={(search) => onFiltersChange({ ...filters, search })}
+        label="Template Code"
+        placeholder="INSPECTION_NOTICE"
+        value={filters.templateCode}
+        onChange={(templateCode) => onFiltersChange({ ...filters, templateCode })}
       />
       <FilterSelect
         label="Channel"
@@ -40,10 +39,10 @@ export function TemplateFilters({
         options={CHANNEL_OPTIONS}
       />
       <FilterSelect
-        label="Status"
-        value={filters.active}
-        onChange={(active) => onFiltersChange({ ...filters, active })}
-        options={ACTIVE_OPTIONS}
+        label="Include Platform Defaults"
+        value={filters.includeDefaults}
+        onChange={(includeDefaults) => onFiltersChange({ ...filters, includeDefaults: includeDefaults as 'true' | 'false' })}
+        options={INCLUDE_DEFAULTS_OPTIONS}
       />
     </FilterBar>
   );

@@ -83,40 +83,6 @@ function setupPortalAuth() {
   mockFindByTokenHash.mockResolvedValue(createMockToken());
 }
 
-const TENANT_ID = '00000000-0000-0000-0000-000000000010';
-const BRANCH_ID = '00000000-0000-0000-0000-000000000011';
-const PROPERTY_ID = '00000000-0000-0000-0000-000000000012';
-const SERVICE_TYPE_ID = '00000000-0000-0000-0000-000000000013';
-const CREATED_BY_USER_ID = '00000000-0000-0000-0000-000000000014';
-
-const mockAppointmentResponse = {
-  id: APPOINTMENT_ID,
-  tenantId: TENANT_ID,
-  branchId: BRANCH_ID,
-  propertyId: PROPERTY_ID,
-  serviceTypeId: SERVICE_TYPE_ID,
-  inspectorId: null,
-  serviceGroupId: null,
-  status: 'SCHEDULED',
-  scheduledDate: '2026-05-01',
-  timeSlot: '09:00-10:00',
-  keyRequired: false,
-  meetingLocation: null,
-  keyLocation: null,
-  tenantConfirmationStatus: 'CONFIRMED',
-  priceAmount: 150,
-  payoutAmount: 100,
-  pricingRuleSnapshotJson: null,
-  notes: null,
-  customFieldsJson: null,
-  reason: null,
-  createdByUserId: CREATED_BY_USER_ID,
-  doneCheckedByUserId: null,
-  doneCheckedAt: null,
-  createdAt: '2026-03-01T00:00:00.000Z',
-  updatedAt: '2026-03-01T00:00:00.000Z',
-};
-
 let app: FastifyInstance;
 
 beforeAll(async () => {
@@ -137,7 +103,17 @@ beforeEach(() => {
 describe('GET /v1/tenant-portal/:token', () => {
   it('should return 200 with portal data', async () => {
     setupPortalAuth();
-    const mockResult = { appointment: {}, contact: null, restrictions: [] };
+    const mockResult = {
+      token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      appointment: {},
+      contact: null,
+      restrictions: [],
+      existingResponse: {
+        type: 'CONFIRMED',
+        createdAt: '2026-03-20T10:00:00.000Z',
+        summary: 'Tenant confirmed attendance',
+      },
+    };
     mockGetPortalDataExecute.mockResolvedValueOnce(mockResult);
 
     const res = await supertest(app.server)
@@ -172,14 +148,18 @@ describe('GET /v1/tenant-portal/:token', () => {
 describe('POST /v1/tenant-portal/:token/confirm', () => {
   it('should return 200 on successful confirmation', async () => {
     setupPortalAuth();
-    mockConfirmAppointmentExecute.mockResolvedValueOnce(mockAppointmentResponse);
+    const mockResult = {
+      tenantConfirmationStatus: 'CONFIRMED',
+      confirmedAt: '2026-03-01T00:00:00.000Z',
+    };
+    mockConfirmAppointmentExecute.mockResolvedValueOnce(mockResult);
 
     const res = await supertest(app.server)
       .post('/v1/tenant-portal/valid-raw-token/confirm')
       .send({});
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(mockAppointmentResponse);
+    expect(res.body).toEqual(mockResult);
     expect(mockConfirmAppointmentExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         tokenId: TOKEN_ID,
@@ -193,14 +173,19 @@ describe('POST /v1/tenant-portal/:token/confirm', () => {
 describe('POST /v1/tenant-portal/:token/reschedule', () => {
   it('should return 200 on successful reschedule request', async () => {
     setupPortalAuth();
-    mockRescheduleRequestExecute.mockResolvedValueOnce(mockAppointmentResponse);
+    const mockResult = {
+      scheduledDate: '2026-05-01',
+      timeSlot: '09:00-10:00',
+      tenantConfirmationStatus: 'PENDING',
+    };
+    mockRescheduleRequestExecute.mockResolvedValueOnce(mockResult);
 
     const res = await supertest(app.server)
       .post('/v1/tenant-portal/valid-raw-token/reschedule')
       .send({ newDate: '2026-05-01', newTimeSlot: '09:00-10:00' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(mockAppointmentResponse);
+    expect(res.body).toEqual(mockResult);
     expect(mockRescheduleRequestExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         tokenId: TOKEN_ID,
@@ -229,6 +214,7 @@ describe('PATCH /v1/tenant-portal/:token/contact', () => {
       expect.objectContaining({
         tokenId: TOKEN_ID,
         appointmentId: APPOINTMENT_ID,
+        isReadOnly: false,
         contact: { primaryEmail: 'new@email.com' },
       }),
     );
@@ -238,7 +224,7 @@ describe('PATCH /v1/tenant-portal/:token/contact', () => {
 describe('POST /v1/tenant-portal/:token/unavailable', () => {
   it('should return 200 on successful unavailability report', async () => {
     setupPortalAuth();
-    const mockResult = { restrictions: {} };
+    const mockResult = { tenantConfirmationStatus: 'UNAVAILABLE', urgentMode: false };
     mockReportUnavailabilityExecute.mockResolvedValueOnce(mockResult);
 
     const res = await supertest(app.server)

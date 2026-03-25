@@ -1,9 +1,13 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IInspectionExecutionRepository } from '../../../inspector-execution/domain/inspection-execution.repository';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
-import { PortalAppointmentInactiveError } from '../../domain/tenant-portal.errors';
+import {
+  PortalAppointmentInactiveError,
+  PortalInspectionAlreadyStartedError,
+} from '../../domain/tenant-portal.errors';
 import { NotFoundError } from '../../../../shared/domain/errors';
 
 export interface ReportUnavailabilityInput {
@@ -27,6 +31,8 @@ export class ReportUnavailabilityUseCase {
     private readonly activityRepo: ITenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
+    private readonly executionRepo?: IInspectionExecutionRepository,
   ) {}
 
   async execute(input: ReportUnavailabilityInput) {
@@ -38,44 +44,7 @@ export class ReportUnavailabilityUseCase {
 
     const { appointment } = result;
 
-    // 2. If read-only: urgent mode
-    if (input.isReadOnly) {
-      await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
-        tenantConfirmationStatus: 'UNAVAILABLE',
-      });
-
-      const activity = new TenantPortalActivityEntity({
-        id: crypto.randomUUID(),
-        appointmentId: input.appointmentId,
-        tenantPortalTokenId: input.tokenId,
-        action: 'UNAVAILABLE_REPORTED',
-        previousValuesJson: { tenantConfirmationStatus: appointment.tenantConfirmationStatus },
-        newValuesJson: { tenantConfirmationStatus: 'UNAVAILABLE' },
-        ipAddress: input.ipAddress,
-        userAgent: input.userAgent,
-        createdAt: new Date(),
-      });
-      await this.activityRepo.save(activity);
-
-      this.auditService.log({
-        action: 'tenant_portal.unavailability_reported',
-        actorType: 'ANONYMOUS',
-        entityType: 'appointment',
-        entityId: input.appointmentId,
-        tenantId: appointment.tenantId,
-        before: { tenantConfirmationStatus: appointment.tenantConfirmationStatus },
-        after: { tenantConfirmationStatus: 'UNAVAILABLE' },
-        ipAddress: input.ipAddress ?? undefined,
-        metadata: { urgentMode: true },
-      });
-
-      return {
-        tenantConfirmationStatus: 'UNAVAILABLE' as const,
-        urgentMode: true,
-      };
-    }
-
-    // 3. Idempotent: already UNAVAILABLE — return success without recording activity
+    // 2. Idempotent: already UNAVAILABLE — return success without recording activity
     if (appointment.tenantConfirmationStatus === 'UNAVAILABLE') {
       return {
         tenantConfirmationStatus: 'UNAVAILABLE' as const,
@@ -83,22 +52,30 @@ export class ReportUnavailabilityUseCase {
       };
     }
 
-    // 4. Block for inactive appointment statuses
+    // 3. Block for inactive appointment statuses
     if (INACTIVE_STATUSES.includes(appointment.status as (typeof INACTIVE_STATUSES)[number])) {
       throw new PortalAppointmentInactiveError();
     }
 
-    // 5. Snapshot previous values
+    // 4. After inspection start, the portal becomes view-only for every action.
+    const execution = this.executionRepo
+      ? await this.executionRepo.findByAppointmentId(input.appointmentId)
+      : null;
+    if (execution) {
+      throw new PortalInspectionAlreadyStartedError();
+    }
+
+    // 4. Snapshot previous values
     const previousValues = {
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
     };
 
-    // 6. Update appointment confirmation status
+    // 5. Update appointment confirmation status
     await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
       tenantConfirmationStatus: 'UNAVAILABLE',
     });
 
-    // 7. Save restrictions if provided
+    // 6. Save restrictions if provided
     if (input.restrictions) {
       await this.appointmentRepo.deleteRestrictionsByAppointmentId(input.appointmentId);
 
@@ -116,7 +93,7 @@ export class ReportUnavailabilityUseCase {
       await this.appointmentRepo.saveRestriction(restriction);
     }
 
-    // 8. Record UNAVAILABLE_REPORTED activity
+    // 7. Record UNAVAILABLE_REPORTED activity
     const activity = new TenantPortalActivityEntity({
       id: crypto.randomUUID(),
       appointmentId: input.appointmentId,
@@ -130,7 +107,7 @@ export class ReportUnavailabilityUseCase {
     });
     await this.activityRepo.save(activity);
 
-    // 9. Audit log
+    // 8. Audit log
     this.auditService.log({
       action: 'tenant_portal.unavailability_reported',
       actorType: 'ANONYMOUS',
@@ -139,12 +116,25 @@ export class ReportUnavailabilityUseCase {
       tenantId: appointment.tenantId,
       before: previousValues,
       after: { tenantConfirmationStatus: 'UNAVAILABLE' },
+      metadata: {
+        origin: 'tenant_portal',
+        urgentMode: input.isReadOnly,
+      },
       ipAddress: input.ipAddress ?? undefined,
     });
 
+    // 9. Side effect: notify operator of unavailability
+    if (this.onNotificationHandler) {
+      try {
+        await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, action: 'UNAVAILABLE' });
+      } catch {
+        // fire-and-forget — notification failure must not affect the action
+      }
+    }
+
     return {
       tenantConfirmationStatus: 'UNAVAILABLE' as const,
-      urgentMode: false,
+      urgentMode: input.isReadOnly,
     };
   }
 }

@@ -303,6 +303,44 @@ describe('GetAppointmentDetailUseCase', () => {
     vi.useRealTimers();
   });
 
+  it('should throw ExecutionT1BlockedError for unconfirmed ROUTINE on the scheduled day', async () => {
+    const today = new Date('2026-03-21T12:00:00Z');
+    vi.useFakeTimers({ now: today });
+
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({
+        scheduledDate: new Date('2026-03-21T12:00:00Z'),
+        tenantConfirmationStatus: 'PENDING',
+        keyRequired: false,
+      }),
+    );
+
+    await expect(
+      useCase.execute({ appointmentId: 'appt-1', actor: inspActor }),
+    ).rejects.toThrow(ExecutionT1BlockedError);
+
+    vi.useRealTimers();
+  });
+
+  it('should throw ExecutionT1BlockedError for ROUTINE marked UNAVAILABLE on the scheduled day', async () => {
+    const today = new Date('2026-03-21T12:00:00Z');
+    vi.useFakeTimers({ now: today });
+
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({
+        scheduledDate: new Date('2026-03-21T12:00:00Z'),
+        tenantConfirmationStatus: 'UNAVAILABLE',
+        keyRequired: false,
+      }),
+    );
+
+    await expect(
+      useCase.execute({ appointmentId: 'appt-1', actor: inspActor }),
+    ).rejects.toThrow(ExecutionT1BlockedError);
+
+    vi.useRealTimers();
+  });
+
   it('should allow DONE appointment detail without T-1 check', async () => {
     const today = new Date('2026-03-20T12:00:00Z');
     vi.useFakeTimers({ now: today });
@@ -325,8 +363,7 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.status).toBe('DONE');
     expect(result.execution).not.toBeNull();
     expect(result.execution!.status).toBe('FINISHED');
-    // serviceTypeReader.findById should NOT have been called for DONE
-    expect(serviceTypeReader.findById).not.toHaveBeenCalled();
+    expect(serviceTypeReader.findById).toHaveBeenCalledTimes(1);
 
     vi.useRealTimers();
   });

@@ -80,6 +80,23 @@ describe('PricingRuleFormDrawer', () => {
     expect(screen.getByText('Create Pricing Rule')).toBeInTheDocument();
   });
 
+  it('prefills and locks the agency when defaultTenantId is provided', () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <PricingRuleFormDrawer
+          open
+          onClose={vi.fn()}
+          onSaved={vi.fn()}
+          defaultTenantId="ten-1"
+          tenantOptions={[{ value: 'ten-1', label: 'Imob Alpha' }]}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.getByLabelText('Agency')).toBeDisabled();
+  });
+
   it('renders Cancel button', () => {
     const Wrapper = createWrapper();
     render(

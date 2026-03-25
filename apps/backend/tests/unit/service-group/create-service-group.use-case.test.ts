@@ -5,7 +5,7 @@ import type { IAppointmentRepository, AppointmentWithRelations } from '../../../
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
 import {
   GroupSizeTooSmallError,
@@ -215,6 +215,29 @@ describe('CreateServiceGroupUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(AppointmentInvalidStatusError);
+  });
+
+  it('should reject mixed-tenant appointment groups', async () => {
+    const appointmentIds = makeAppointmentIds(5);
+    for (let i = 0; i < 4; i++) {
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: `appt-${i + 1}`, tenantId: 'tenant-1' }),
+      );
+    }
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-5', tenantId: 'tenant-2' }),
+    );
+
+    await expect(
+      useCase.execute({
+        appointmentIds,
+        serviceTypeId: 'svc-type-1',
+        scheduledDate: farFutureDate,
+        timeWindow: '09:00-12:00',
+        priorityMode: 'STANDARD',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(ValidationError);
   });
 
   it('should throw GroupSizeTooSmallError when fewer than 5 appointments', async () => {

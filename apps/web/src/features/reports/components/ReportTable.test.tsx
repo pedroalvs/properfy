@@ -12,7 +12,8 @@ function makeReport(overrides: Partial<Report> = {}): Report {
     status: ReportStatus.READY,
     format: ReportFormat.XLSX,
     requestedBy: { id: 'u-1', name: 'Admin Principal' },
-    fileName: 'vistorias-agendadas-marco-2026.xlsx',
+    fileKey: 'reports/vistorias-agendadas-marco-2026.xlsx',
+    filters: { fromDate: '2026-03-01', toDate: '2026-03-15' },
     createdAt: '2026-03-15T14:00:00Z',
     updatedAt: '2026-03-15T14:00:00Z',
     ...overrides,
@@ -41,8 +42,8 @@ describe('ReportTable', () => {
     expect(screen.getByText('Processing')).toBeInTheDocument();
   });
 
-  it('renders fileName or em dash', () => {
-    const report = makeReport({ fileName: null });
+  it('renders file name derived from file key or em dash', () => {
+    const report = makeReport({ fileKey: null });
     render(<ReportTable data={[report]} />);
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThanOrEqual(1);

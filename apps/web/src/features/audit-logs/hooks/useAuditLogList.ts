@@ -30,11 +30,12 @@ export function useAuditLogList(): UseAuditLogListReturn {
       pageSize,
       sortBy,
       sortOrder,
-      ...(filters.search ? { search: filters.search } : {}),
+      ...(filters.actorId ? { actorId: filters.actorId } : {}),
       ...(filters.entityType ? { entityType: filters.entityType } : {}),
+      ...(filters.entityId ? { entityId: filters.entityId } : {}),
       ...(filters.action ? { action: filters.action } : {}),
-      ...(filters.startDate ? { startDate: filters.startDate } : {}),
-      ...(filters.endDate ? { endDate: filters.endDate } : {}),
+      ...(filters.fromDate ? { fromDate: filters.fromDate } : {}),
+      ...(filters.toDate ? { toDate: filters.toDate } : {}),
     },
   );
 

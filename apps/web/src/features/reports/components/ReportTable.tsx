@@ -1,10 +1,11 @@
 import { ReportStatus } from '@properfy/shared';
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions, type RowAction } from '@/components/data/RowActions';
 import { formatDate } from '@/lib/format-date';
 import { ReportTypeChip } from './ReportTypeChip';
 import { ReportStatusChip } from './ReportStatusChip';
 import type { Report } from '../types';
+import { getReportFileName } from '../lib/report-display';
 
 interface ReportTableProps {
   data: Report[];
@@ -12,7 +13,6 @@ interface ReportTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onDownload?: (report: Report) => void;
   onRetry?: (report: Report) => void;
   onView?: (report: Report) => void;
@@ -59,7 +59,6 @@ export function ReportTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onDownload,
   onRetry,
   onView,
@@ -69,33 +68,29 @@ export function ReportTable({
       key: 'reportType',
       label: 'Type',
       width: '200px',
-      sortable: true,
       render: (row) => <ReportTypeChip reportType={row.reportType} />,
     },
     {
       key: 'status',
       label: 'Status',
       width: '140px',
-      sortable: true,
       render: (row) => <ReportStatusChip status={row.status} />,
     },
     {
-      key: 'fileName',
+      key: 'fileKey',
       label: 'File',
-      render: (row) => <>{row.fileName ?? '—'}</>,
+      render: (row) => <>{getReportFileName(row) ?? '—'}</>,
     },
     {
       key: 'requestedBy',
       label: 'Requested By',
       width: '180px',
-      sortable: true,
       render: (row) => <>{row.requestedBy?.name ?? '—'}</>,
     },
     {
       key: 'createdAt',
       label: 'Created At',
       width: '140px',
-      sortable: true,
       render: (row) => <>{formatDate(row.createdAt)}</>,
     },
     {
@@ -116,7 +111,6 @@ export function ReportTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
       keyExtractor={(row) => row.id}
     />
   );

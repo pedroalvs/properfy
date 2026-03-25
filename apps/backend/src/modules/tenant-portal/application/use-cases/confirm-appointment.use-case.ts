@@ -69,10 +69,10 @@ export class ConfirmAppointmentUseCase {
       tenantConfirmationStatus: 'CONFIRMED',
     });
 
-    // 7. Save restrictions if provided
-    if (input.restrictions) {
-      await this.appointmentRepo.deleteRestrictionsByAppointmentId(input.appointmentId);
+    // 7. Confirm resets stale tenant-portal restrictions from previous unavailability/reschedule cycles.
+    await this.appointmentRepo.deleteRestrictionsByAppointmentId(input.appointmentId);
 
+    if (input.restrictions) {
       const restriction = new AppointmentRestrictionEntity({
         id: crypto.randomUUID(),
         appointmentId: input.appointmentId,

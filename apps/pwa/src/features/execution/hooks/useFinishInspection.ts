@@ -52,7 +52,7 @@ export function useFinishInspection() {
         });
 
         return {
-          data: { appointmentId, status: 'DONE' },
+          data: { appointmentId, status: 'QUEUED' },
         };
       }
 

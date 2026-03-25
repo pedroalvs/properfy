@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { createRefundSchema } from '@properfy/shared';
+import { z } from 'zod';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
@@ -28,9 +29,12 @@ const EMPTY_FORM: RefundFormData = {
   reason: '',
 };
 
+const entryIdSchema = z.string().uuid();
+
 function validate(data: RefundFormData): RefundFormErrors {
   const errors: RefundFormErrors = {};
   if (!data.entryId.trim()) errors.entryId = 'Required field';
+  else if (!entryIdSchema.safeParse(data.entryId.trim()).success) errors.entryId = 'Invalid entry ID';
 
   const schemaPayload = {
     description: data.description.trim() || undefined,

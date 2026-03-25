@@ -1,21 +1,23 @@
 import { StatCard } from './StatCard';
+import { toLocalISODate } from '@/lib/format-date';
 
 interface DashboardSummaryCardsProps {
   draft: number;
   awaitingInspector: number;
   scheduled: number;
   doneThisMonth: number;
+  donePendingCrossCheck?: number;
 }
 
 function todayRange(): { from: string; to: string } {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toLocalISODate(new Date());
   return { from: today, to: today };
 }
 
 function monthRange(): { from: string; to: string } {
   const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const to = now.toISOString().slice(0, 10);
+  const from = toLocalISODate(new Date(now.getFullYear(), now.getMonth(), 1));
+  const to = toLocalISODate(now);
   return { from, to };
 }
 
@@ -24,6 +26,7 @@ export function DashboardSummaryCards({
   awaitingInspector,
   scheduled,
   doneThisMonth,
+  donePendingCrossCheck,
 }: DashboardSummaryCardsProps) {
   const today = todayRange();
   const month = monthRange();
@@ -58,6 +61,7 @@ export function DashboardSummaryCards({
         icon="mdi-check-circle-outline"
         value={doneThisMonth}
         label="Done This Month"
+        sublabel={donePendingCrossCheck ? `${donePendingCrossCheck} pending review` : undefined}
         colorClass="border-l-[#C8E6C9]"
         iconColorClass="text-success"
         href={`/appointments?status=DONE&fromDate=${month.from}&toDate=${month.to}`}

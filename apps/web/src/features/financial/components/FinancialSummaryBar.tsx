@@ -1,9 +1,5 @@
 import { useFinancialSummary } from '../hooks/useFinancialSummary';
 
-function formatCurrency(value: number): string {
-  return value.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' });
-}
-
 interface StatCardProps {
   label: string;
   value: string;
@@ -28,32 +24,40 @@ function StatCard({ label, value, color, isLoading }: StatCardProps) {
   );
 }
 
-export function FinancialSummaryBar() {
-  const { summary, isLoading } = useFinancialSummary();
+interface FinancialSummaryBarProps {
+  tenantId?: string;
+  enabled?: boolean;
+}
+
+export function FinancialSummaryBar({ tenantId, enabled = true }: FinancialSummaryBarProps) {
+  const { summary, isLoading } = useFinancialSummary(tenantId, enabled);
+  const currency = summary?.currency;
+  const formatAmount = (value: number) =>
+    currency ? value.toLocaleString('en-AU', { style: 'currency', currency }) : '—';
 
   return (
     <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5" data-testid="financial-summary-bar">
       <StatCard
-        label="Total Debits"
-        value={formatCurrency(summary?.totalDebits ?? 0)}
+        label="Approved Debits"
+        value={formatAmount(summary?.totalDebits ?? 0)}
         color="var(--color-money-negative)"
         isLoading={isLoading}
       />
       <StatCard
-        label="Payouts"
-        value={formatCurrency(summary?.totalPayouts ?? 0)}
+        label="Approved Payouts"
+        value={formatAmount(summary?.totalPayouts ?? 0)}
         color="var(--color-money-positive)"
         isLoading={isLoading}
       />
       <StatCard
-        label="Adjustments"
-        value={formatCurrency(summary?.totalAdjustments ?? 0)}
+        label="Approved Adjustments"
+        value={formatAmount(summary?.totalAdjustments ?? 0)}
         color="var(--color-text-primary)"
         isLoading={isLoading}
       />
       <StatCard
-        label="Refunds"
-        value={formatCurrency(summary?.totalRefunds ?? 0)}
+        label="Approved Refunds"
+        value={formatAmount(summary?.totalRefunds ?? 0)}
         color="var(--color-warning)"
         isLoading={isLoading}
       />

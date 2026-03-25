@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { useAuth } from '@/hooks/useAuth';
 import { usePropertySave } from '../hooks/usePropertySave';
 import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
@@ -18,19 +20,46 @@ import { EMPTY_PROPERTY_FORM } from '../types';
 
 export function PropertyCreatePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const { save, isSaving, validate } = usePropertySave();
+  const isGlobalRole = user?.role === UserRole.AM || user?.role === UserRole.OP;
+  const initialTenantId = typeof location.state === 'object'
+    && location.state
+    && 'tenantId' in location.state
+    && typeof location.state.tenantId === 'string'
+      ? location.state.tenantId
+      : '';
+  const [selectedTenantId, setSelectedTenantId] = useState(initialTenantId);
+  const effectiveTenantId = isGlobalRole ? selectedTenantId : user?.tenantId ?? undefined;
+  const requiresTenantSelection = isGlobalRole && !selectedTenantId;
+
+  const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
+    ['tenants', 'property-create'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+    undefined,
+    { enabled: isGlobalRole },
+  );
 
   const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
-    ['branches', 'form-options'],
+    ['branches', 'property-create', effectiveTenantId ?? ''],
     '/v1/branches',
     (item) => ({ value: item.id, label: item.name }),
+    effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
+    { enabled: !isGlobalRole || !!effectiveTenantId },
   );
 
   const [form, setForm] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
   const [initialData] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
   const [errors, setErrors] = useState<PropertyFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+
+  useEffect(() => {
+    if (!isGlobalRole) return;
+    setForm((prev) => ({ ...prev, branchId: '' }));
+  }, [isGlobalRole, selectedTenantId]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
@@ -53,10 +82,18 @@ export function PropertyCreatePage() {
     const validationErrors = validate(form, 'create');
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      if (requiresTenantSelection) {
+        showError('Select an agency before creating a property');
+      }
       return;
     }
 
-    const result = await save(form);
+    if (requiresTenantSelection) {
+      showError('Select an agency before creating a property');
+      return;
+    }
+
+    const result = await save(form, undefined, effectiveTenantId);
     if (result.success) {
       showSuccess('Property created. Geocoding in progress.');
       if (result.id) {
@@ -67,7 +104,7 @@ export function PropertyCreatePage() {
     } else {
       showError(result.error ?? 'Failed to create property');
     }
-  }, [form, validate, save, showSuccess, showError, navigate]);
+  }, [effectiveTenantId, form, navigate, requiresTenantSelection, save, showError, showSuccess, validate]);
 
   const handleBack = useCallback(() => {
     if (isDirty) {
@@ -102,6 +139,24 @@ export function PropertyCreatePage() {
       <div className="mx-auto max-w-[640px]">
         <div className="rounded bg-card-bg p-6 shadow-sm">
           <div className="flex flex-col gap-6">
+            {isGlobalRole && (
+              <FormSection title="Agency Context">
+                <FormField label="Agency" required>
+                  <SelectInput
+                    value={selectedTenantId}
+                    onChange={setSelectedTenantId}
+                    options={tenantOptions}
+                    placeholder="Select agency"
+                    aria-label="Agency"
+                  />
+                </FormField>
+                {requiresTenantSelection && (
+                  <p className="text-sm text-text-muted">
+                    Select an agency before creating a property.
+                  </p>
+                )}
+              </FormSection>
+            )}
             <FormSection title="Identification" columns={2}>
               <FormField label="Property Code" required error={errors.propertyCode}>
                 <TextInput
@@ -131,6 +186,11 @@ export function PropertyCreatePage() {
                   aria-label="Branch"
                 />
               </FormField>
+              {isGlobalRole && selectedTenantId && branchOptions.length === 0 && (
+                <p className="text-sm text-text-muted">
+                  No branches available for the selected agency.
+                </p>
+              )}
             </FormSection>
 
             <FormSection title="Address" columns={2}>

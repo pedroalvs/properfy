@@ -4,7 +4,6 @@ import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
-import { useSnackbar } from '@/hooks/useSnackbar';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { PropertyTypeChip } from './PropertyTypeChip';
 import { PropertyDetailSections } from './PropertyDetailSections';
@@ -24,15 +23,12 @@ export function PropertyDetailDrawer({
 }: PropertyDetailDrawerProps) {
   const navigate = useNavigate();
   const { property, isLoading } = usePropertyDetail(propertyId);
-  const { showInfo } = useSnackbar();
 
   const handleEdit = useCallback(() => {
     if (onEdit && propertyId) {
       onEdit(propertyId);
-    } else {
-      showInfo('Editing coming soon');
     }
-  }, [onEdit, propertyId, showInfo]);
+  }, [onEdit, propertyId]);
 
   const handleOpenFullDetail = useCallback(() => {
     if (propertyId) {
@@ -59,9 +55,11 @@ export function PropertyDetailDrawer({
               actions={
                 <>
                   <PropertyTypeChip type={property.type} />
-                  <Button variant="icon" onClick={handleEdit} aria-label="Edit">
-                    <i className="mdi mdi-pencil-outline text-xl" />
-                  </Button>
+                  {onEdit ? (
+                    <Button variant="icon" onClick={handleEdit} aria-label="Edit">
+                      <i className="mdi mdi-pencil-outline text-xl" />
+                    </Button>
+                  ) : null}
                 </>
               }
             />

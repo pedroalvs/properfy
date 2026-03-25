@@ -1,6 +1,6 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatDateTime } from '@/lib/format-date';
+import { formatDateTime, toLocalISODate } from '@/lib/format-date';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import type { InspectorDetail } from '../types';
 
@@ -17,8 +17,8 @@ function formatRating(rating: number | null | undefined): string | null {
 }
 
 function useInspectorWorkload(inspectorId: string) {
-  const today = new Date().toISOString().slice(0, 10);
-  const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const today = toLocalISODate(new Date());
+  const weekEnd = toLocalISODate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
 
   const { data: scheduledData, isLoading: scheduledLoading } = usePaginatedQuery<{ id: string }>(
     ['appointments', 'inspector-workload-scheduled', inspectorId],
@@ -43,6 +43,13 @@ function useInspectorWorkload(inspectorId: string) {
 
 export function InspectorDetailSections({ inspector }: InspectorDetailSectionsProps) {
   const { scheduledCount, weekCount, isLoading: workloadLoading } = useInspectorWorkload(inspector.id);
+  const { data: serviceTypesData } = usePaginatedQuery<{ id: string; name: string }>(
+    ['service-types', 'inspector-detail'],
+    '/v1/service-types',
+    { pageSize: 100 },
+  );
+  const serviceTypeNameMap = new Map((serviceTypesData?.data ?? []).map((item) => [item.id, item.name]));
+  const serviceTypeLabels = inspector.serviceTypes.map((serviceTypeId) => serviceTypeNameMap.get(serviceTypeId) ?? serviceTypeId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,7 +62,7 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
 
       <FormSection title="Coverage">
         <DetailRow label="Regions" value={formatList(inspector.regions)} />
-        <DetailRow label="Service Types" value={formatList(inspector.serviceTypes)} />
+        <DetailRow label="Service Types" value={formatList(serviceTypeLabels)} />
         <DetailRow label="Rating" value={formatRating(inspector.rating)} />
       </FormSection>
 

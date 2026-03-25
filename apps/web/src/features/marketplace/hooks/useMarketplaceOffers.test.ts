@@ -32,30 +32,26 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_OFFERS = [
   {
-    id: 'off-01',
     groupId: 'grp-01',
-    groupName: 'Sydney CBD',
-    regionName: 'NSW',
+    tenantName: 'Sydney CBD',
+    serviceTypeName: 'Routine Inspection',
     priorityMode: 'STANDARD',
-    appointmentsCount: 3,
-    totalPayout: 450,
-    expiresAt: '2026-04-01T00:00:00Z',
-    createdAt: '2026-03-15T00:00:00Z',
-    appointments: [
-      { id: 'apt-01', code: 'APT-001', address: '123 George St', scheduledDate: '2026-03-20', timeSlot: '09:00-12:00', latitude: -33.8688, longitude: 151.2093 },
-    ],
+    groupSize: 3,
+    scheduledDate: '2026-03-20',
+    timeWindow: '09:00-12:00',
+    priorityExpiresAt: '2026-04-01T00:00:00Z',
+    suburbs: ['Sydney CBD'],
   },
   {
-    id: 'off-02',
     groupId: 'grp-02',
-    groupName: 'Melbourne Inner',
-    regionName: 'VIC',
+    tenantName: 'Melbourne Inner',
+    serviceTypeName: 'Routine Inspection',
     priorityMode: 'PRIORITY_24H',
-    appointmentsCount: 1,
-    totalPayout: 200,
-    expiresAt: '2026-03-20T00:00:00Z',
-    createdAt: '2026-03-16T00:00:00Z',
-    appointments: [],
+    groupSize: 1,
+    scheduledDate: '2026-03-21',
+    timeWindow: '13:00-16:00',
+    priorityExpiresAt: '2026-03-20T00:00:00Z',
+    suburbs: [],
   },
 ];
 
@@ -87,8 +83,8 @@ describe('useMarketplaceOffers', () => {
     });
 
     expect(result.current.data).toHaveLength(2);
-    expect(result.current.data[0]?.groupName).toBe('Sydney CBD');
-    expect(result.current.data[1]?.groupName).toBe('Melbourne Inner');
+    expect(result.current.data[0]?.tenantName).toBe('Sydney CBD');
+    expect(result.current.data[1]?.tenantName).toBe('Melbourne Inner');
   });
 
   it('returns error state on API failure', async () => {
@@ -113,14 +109,6 @@ describe('useMarketplaceOffers', () => {
     });
 
     expect(mockGet).toHaveBeenCalledWith('/v1/marketplace/offers', { params: { query: expect.any(Object) } });
-  });
-
-  it('exposes filters and setFilters', () => {
-    const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useMarketplaceOffers(), { wrapper });
-
-    expect(result.current.filters).toEqual({ search: '', priorityMode: '', dateFrom: '', dateTo: '' });
-    expect(typeof result.current.setFilters).toBe('function');
   });
 
   it('pagination total reflects API response', async () => {

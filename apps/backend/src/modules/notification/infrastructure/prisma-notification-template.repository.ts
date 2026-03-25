@@ -62,26 +62,35 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
   }
 
   async upsert(template: NotificationTemplateEntity): Promise<void> {
-    await this.prisma.notificationTemplate.upsert({
+    const existing = await this.prisma.notificationTemplate.findFirst({
       where: {
-        tenant_id_template_code_channel: {
-          tenant_id: template.tenantId ?? '',
-          template_code: template.templateCode,
-          channel: template.channel,
-        },
+        tenant_id: template.tenantId,
+        template_code: template.templateCode,
+        channel: template.channel,
       },
-      create: {
+      select: { id: true },
+    });
+
+    if (existing) {
+      await this.prisma.notificationTemplate.update({
+        where: { id: existing.id },
+        data: {
+          subject: template.subject,
+          body_html: template.bodyHtml,
+          body_text: template.bodyText,
+          variables_json: template.variablesJson,
+          is_active: template.active,
+        },
+      });
+      return;
+    }
+
+    await this.prisma.notificationTemplate.create({
+      data: {
         id: template.id,
         tenant_id: template.tenantId,
         template_code: template.templateCode,
         channel: template.channel,
-        subject: template.subject,
-        body_html: template.bodyHtml,
-        body_text: template.bodyText,
-        variables_json: template.variablesJson,
-        is_active: template.active,
-      },
-      update: {
         subject: template.subject,
         body_html: template.bodyHtml,
         body_text: template.bodyText,

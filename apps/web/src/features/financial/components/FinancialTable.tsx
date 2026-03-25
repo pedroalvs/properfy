@@ -98,7 +98,7 @@ export function FinancialTable({
             fontWeight: 600,
           }}
         >
-          {row.amount.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })}
+          {row.amount.toLocaleString('en-AU', { style: 'currency', currency: row.currency })}
         </span>
       ),
     },
@@ -133,11 +133,13 @@ export function FinancialTable({
               label: 'View',
               onClick: () => onView?.(row),
             },
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
-            },
+            ...(onEdit
+              ? [{
+                  icon: 'mdi-pencil-outline',
+                  label: 'Edit',
+                  onClick: () => onEdit(row),
+                }]
+              : []),
           ]}
         />
       ),

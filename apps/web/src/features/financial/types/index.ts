@@ -1,4 +1,4 @@
-import type { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
+import type { BillingPeriodType, FinancialEntryType, FinancialEntryStatus, InspectorInvoiceStatus } from '@properfy/shared';
 import type { InvoiceStatus } from '@/lib/status-colors';
 
 export interface FinancialEntry {
@@ -24,13 +24,11 @@ export interface FinancialEntryDetail extends FinancialEntry {
 }
 
 export interface FinancialFiltersState {
-  search: string;
   entryType: string;
   status: string;
 }
 
 export const DEFAULT_FILTERS: FinancialFiltersState = {
-  search: '',
   entryType: '',
   status: '',
 };
@@ -53,39 +51,39 @@ export interface FinancialSummary {
   totalAdjustments: number;
   totalRefunds: number;
   pendingCount: number;
+  currency: string | null;
 }
 
 export interface Invoice {
   id: string;
-  tenantId: string;
   inspectorId: string;
-  inspectorName: string;
   periodStart: string;
   periodEnd: string;
-  frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+  periodType: BillingPeriodType;
   totalAmount: number;
   currency: string;
-  status: InvoiceStatus;
-  entryCount: number;
+  status: InspectorInvoiceStatus;
+  fileKey: string | null;
+  generatedAt: string | null;
+  paidAt: string | null;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface InvoiceDetail extends Invoice {
-  entries: FinancialEntry[];
-  downloadUrl: string | null;
+  generatedByUserId?: string | null;
   notes: string | null;
 }
 
 export interface InvoiceFiltersState {
-  search: string;
+  inspectorId: string;
   status: string;
   periodStart: string;
   periodEnd: string;
 }
 
 export const DEFAULT_INVOICE_FILTERS: InvoiceFiltersState = {
-  search: '',
+  inspectorId: '',
   status: '',
   periodStart: '',
   periodEnd: '',

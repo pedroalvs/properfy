@@ -5,6 +5,7 @@ export interface PageHeaderAction {
   icon?: string;
   onClick: () => void;
   loading?: boolean;
+  disabled?: boolean;
 }
 
 interface PageHeaderProps {
@@ -26,6 +27,7 @@ export function PageHeader({ title, primaryAction, secondaryActions }: PageHeade
             variant="outlined"
             onClick={action.onClick}
             loading={action.loading}
+            disabled={action.disabled}
           >
             {action.icon && <i className={`mdi ${action.icon}`} aria-hidden="true" />}
             {action.label}
@@ -36,6 +38,7 @@ export function PageHeader({ title, primaryAction, secondaryActions }: PageHeade
             variant="primary"
             onClick={primaryAction.onClick}
             loading={primaryAction.loading}
+            disabled={primaryAction.disabled}
           >
             {primaryAction.icon && (
               <i className={`mdi ${primaryAction.icon}`} aria-hidden="true" />

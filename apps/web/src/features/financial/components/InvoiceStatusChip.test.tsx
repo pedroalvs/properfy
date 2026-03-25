@@ -4,11 +4,9 @@ import type { InvoiceStatus } from '@/lib/status-colors';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
-  DRAFT: 'Draft',
-  SENT: 'Sent',
+  OPEN: 'Open',
+  CLOSED: 'Closed',
   PAID: 'Paid',
-  OVERDUE: 'Overdue',
-  CANCELLED: 'Cancelled',
 };
 
 describe('InvoiceStatusChip', () => {

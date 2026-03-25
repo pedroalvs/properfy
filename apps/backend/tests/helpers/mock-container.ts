@@ -126,6 +126,7 @@ export function createMockContainer(
       listAppointmentsUseCase: { execute: vi.fn() },
       updateAppointmentUseCase: { execute: vi.fn() },
       executeStatusTransitionUseCase: { execute: vi.fn() },
+      performCrossCheckUseCase: { execute: vi.fn() },
       forceManualConfirmationUseCase: { execute: vi.fn() },
       importAppointmentsUseCase: { execute: vi.fn() },
       getImportStatusUseCase: { execute: vi.fn() },

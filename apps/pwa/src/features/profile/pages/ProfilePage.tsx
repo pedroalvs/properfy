@@ -10,7 +10,14 @@ export function ProfilePage() {
   return (
     <div className="flex flex-col gap-4 p-4">
       <h1 className="text-xl font-bold text-text-primary">Profile</h1>
-      <ProfileCard name={user.name} email={user.email} role={user.role} />
+      <ProfileCard
+        name={user.name}
+        email={user.email}
+        role={user.role}
+        phone={user.phone}
+        totpEnabled={user.totpEnabled}
+        lastLoginAt={user.lastLoginAt}
+      />
       <div className="mt-4">
         <Button variant="secondary" onClick={logout} className="w-full">
           Log Out

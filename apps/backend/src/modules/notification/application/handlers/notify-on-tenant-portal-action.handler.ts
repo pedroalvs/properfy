@@ -18,7 +18,9 @@ export class NotifyOnTenantPortalActionHandler {
         ? 'INSPECTION_CONFIRMED'
         : input.action === 'RESCHEDULE'
           ? 'INSPECTION_RESCHEDULED'
-          : null;
+          : input.action === 'UNAVAILABLE'
+            ? 'INSPECTION_UNAVAILABILITY_REPORTED'
+            : null;
     if (!templateCode) return;
 
     const result = await this.appointmentRepo.findById(input.appointmentId, null);

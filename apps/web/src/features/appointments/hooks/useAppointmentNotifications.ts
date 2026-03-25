@@ -4,8 +4,13 @@ export interface AppointmentNotification {
   id: string;
   channel: string;
   recipient: string;
+  templateCode: string;
   status: string;
   sentAt: string | null;
+  deliveredAt: string | null;
+  failedAt: string | null;
+  failureReason: string | null;
+  retryCount: number;
   createdAt: string;
 }
 

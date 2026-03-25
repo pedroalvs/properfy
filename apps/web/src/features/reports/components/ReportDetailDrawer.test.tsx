@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
+import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { ReportDetailDrawer } from './ReportDetailDrawer';
 
 vi.mock('@/config/env', () => ({
@@ -55,27 +55,15 @@ vi.mock('../hooks/useReportDetail', () => ({
     return {
       report: {
         id: 'rpt-01', reportType: 'INSPECTIONS_SCHEDULED', status: 'READY',
-        format: 'XLSX', requestedByName: 'Admin Principal',
-        fileName: 'vistorias-agendadas-marco-2026.xlsx', fileSize: 1048576,
-        parameters: null,
+        format: 'XLSX', requestedBy: { id: 'u-1', name: 'Admin Principal' },
+        fileKey: 'reports/vistorias-agendadas-marco-2026.xlsx', fileSize: 1048576,
+        filters: { fromDate: '2026-03-01', toDate: '2026-03-15' },
         createdAt: '2026-03-15T10:00:00Z', updatedAt: '2026-03-15T10:00:00Z',
       },
       isLoading: false, isError: false, refetch: vi.fn(),
     };
   },
 }));
-
-
-function SnackbarDisplay() {
-  const { messages } = useSnackbar();
-  return (
-    <div data-testid="snackbar-display">
-      {messages.map((m) => (
-        <div key={m.id}>{m.message}</div>
-      ))}
-    </div>
-  );
-}
 
 const testQueryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
@@ -86,7 +74,6 @@ function Wrapper({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={testQueryClient}>
       <SnackbarProvider>
       {children}
-      <SnackbarDisplay />
       </SnackbarProvider>
     </QueryClientProvider>
   );
@@ -121,13 +108,6 @@ describe('ReportDetailDrawer', () => {
     renderDrawer({ reportId: 'rpt-01', open: true });
     expect(screen.getAllByText('Report').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('File')).toBeInTheDocument();
-  });
-
-  it('edit button calls showInfo snackbar', () => {
-    renderDrawer({ reportId: 'rpt-01', open: true });
-    const editButton = screen.getByLabelText('Edit');
-    fireEvent.click(editButton);
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {

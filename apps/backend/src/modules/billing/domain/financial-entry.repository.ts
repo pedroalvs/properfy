@@ -24,6 +24,7 @@ export interface FinancialEntrySummary {
   totalAdjustments: number;
   totalRefunds: number;
   pendingCount: number;
+  currency: string | null;
 }
 
 export interface FinancialEntryEnriched {

@@ -4,6 +4,8 @@ import { FormField } from '@/components/forms/FormField';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/hooks/useAuth';
+import { useFormOptions } from '@/hooks/useFormOptions';
 
 const REPORT_TYPE_OPTIONS = [
   { value: 'INSPECTIONS_SCHEDULED', label: 'Scheduled Inspections' },
@@ -18,11 +20,17 @@ const REPORT_TYPE_OPTIONS = [
 interface GenerateReportDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (reportType: string, fromDate: string, toDate: string) => Promise<void>;
+  onSubmit: (input: {
+    reportType: string;
+    fromDate: string;
+    toDate: string;
+    tenantId?: string;
+  }) => Promise<void>;
   isSubmitting: boolean;
 }
 
 interface FormErrors {
+  tenantId?: string;
   reportType?: string;
   fromDate?: string;
   toDate?: string;
@@ -34,13 +42,24 @@ export function GenerateReportDialog({
   onSubmit,
   isSubmitting,
 }: GenerateReportDialogProps) {
+  const { user } = useAuth();
+  const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
+  const [tenantId, setTenantId] = useState('');
   const [reportType, setReportType] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
+  const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
+    ['reports', 'tenant-options'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+    undefined,
+    { enabled: isGlobalRole && open },
+  );
 
   const validate = (): FormErrors => {
     const errs: FormErrors = {};
+    if (isGlobalRole && !tenantId) errs.tenantId = 'Agency is required';
     if (!reportType) errs.reportType = 'Report type is required';
     if (!fromDate) errs.fromDate = 'Start date is required';
     if (!toDate) errs.toDate = 'End date is required';
@@ -54,14 +73,21 @@ export function GenerateReportDialog({
       setErrors(errs);
       return;
     }
-    await onSubmit(reportType, fromDate, toDate);
+    await onSubmit({
+      reportType,
+      fromDate,
+      toDate,
+      tenantId: isGlobalRole ? tenantId : undefined,
+    });
+    setTenantId('');
     setReportType('');
     setFromDate('');
     setToDate('');
     setErrors({});
-  }, [reportType, fromDate, toDate, onSubmit]);
+  }, [reportType, fromDate, toDate, tenantId, isGlobalRole, onSubmit]);
 
   const handleClose = useCallback(() => {
+    setTenantId('');
     setReportType('');
     setFromDate('');
     setToDate('');
@@ -72,6 +98,21 @@ export function GenerateReportDialog({
   return (
     <Dialog open={open} onClose={handleClose} title="Generate Report">
       <div className="flex flex-col gap-4 p-6">
+        {isGlobalRole && (
+          <FormField label="Agency" required error={errors.tenantId}>
+            <SelectInput
+              value={tenantId}
+              onChange={(value) => {
+                setTenantId(value);
+                setErrors((prev) => ({ ...prev, tenantId: undefined }));
+              }}
+              options={tenantOptions}
+              placeholder="Select agency"
+              error={!!errors.tenantId}
+              aria-label="Agency"
+            />
+          </FormField>
+        )}
         <FormField label="Report Type" required error={errors.reportType}>
           <SelectInput
             value={reportType}

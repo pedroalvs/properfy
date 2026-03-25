@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -17,6 +17,29 @@ vi.mock('@/lib/api-error', () => ({
   },
 }));
 
+const showSuccess = vi.fn();
+const showError = vi.fn();
+const logout = vi.fn();
+const changePassword = vi.fn();
+const validate = vi.fn(() => ({}));
+
+vi.mock('@/hooks/useSnackbar', () => ({
+  useSnackbar: () => ({ showSuccess, showError }),
+  SnackbarProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ logout }),
+}));
+
+vi.mock('../hooks/useChangePassword', () => ({
+  useChangePassword: () => ({
+    changePassword,
+    isChanging: false,
+    validate,
+  }),
+}));
+
 import { ChangePasswordForm } from './ChangePasswordForm';
 
 function createWrapper() {
@@ -26,7 +49,11 @@ function createWrapper() {
   };
 }
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  validate.mockReturnValue({});
+  changePassword.mockResolvedValue({ success: true });
+});
 
 describe('ChangePasswordForm', () => {
   it('renders password fields', () => {
@@ -41,5 +68,32 @@ describe('ChangePasswordForm', () => {
     const Wrapper = createWrapper();
     render(<Wrapper><ChangePasswordForm /></Wrapper>);
     expect(screen.getByRole('button', { name: /Change Password/ })).toBeInTheDocument();
+  });
+
+  it('logs out locally after successful password change', async () => {
+    vi.useFakeTimers();
+    const Wrapper = createWrapper();
+    render(<Wrapper><ChangePasswordForm /></Wrapper>);
+
+    fireEvent.change(screen.getByLabelText('Current Password'), { target: { value: 'OldPass1!' } });
+    fireEvent.change(screen.getByLabelText('New Password'), { target: { value: 'NewPass2@' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'NewPass2@' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Change Password/ }));
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(changePassword).toHaveBeenCalled();
+    expect(showSuccess).toHaveBeenCalledWith('Password changed. Please sign in again.');
+    expect(logout).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1200);
+    });
+
+    expect(logout).toHaveBeenCalled();
   });
 });

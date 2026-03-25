@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import type { NotificationTemplate } from '../types';
 
@@ -13,8 +13,6 @@ interface TemplateTableProps {
   loading?: boolean;
   error?: string;
   onRetryError?: () => void;
-  pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onEdit?: (template: NotificationTemplate) => void;
 }
 
@@ -23,21 +21,27 @@ export function TemplateTable({
   loading,
   error,
   onRetryError,
-  pagination,
-  sorting,
   onEdit,
 }: TemplateTableProps) {
   const columns: DataTableColumn<NotificationTemplate>[] = [
     {
       key: 'code',
       label: 'Code',
-      sortable: true,
+    },
+    {
+      key: 'scope',
+      label: 'Scope',
+      width: '170px',
+      render: (row) => (
+        <span className="text-sm text-text-secondary">
+          {row.tenantId ? 'Agency Override' : 'Platform Default'}
+        </span>
+      ),
     },
     {
       key: 'channel',
       label: 'Channel',
       width: '130px',
-      sortable: true,
       render: (row) => {
         const colorClass = CHANNEL_COLORS[row.channel] ?? 'bg-gray-100 text-gray-800';
         return (
@@ -89,8 +93,6 @@ export function TemplateTable({
       loading={loading}
       error={error}
       onRetryError={onRetryError}
-      pagination={pagination}
-      sorting={sorting}
       keyExtractor={(row) => row.id}
     />
   );

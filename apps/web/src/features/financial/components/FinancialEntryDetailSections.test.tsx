@@ -44,12 +44,24 @@ describe('FinancialEntryDetailSections', () => {
     expect(screen.getByText('Approved')).toBeInTheDocument();
   });
 
-  it('shows amount formatted as AUD currency', () => {
+  it('shows amount formatted with the entry currency', () => {
     render(<FinancialEntryDetailSections entry={baseEntry} />);
     const matches = screen.getAllByText((_content, element) => {
       return element?.textContent?.includes('350') && (element?.textContent?.includes('A$') || element?.textContent?.includes('AUD')) || false;
     });
     expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows pending approval state instead of approval metadata for pending entries', () => {
+    render(
+      <FinancialEntryDetailSections
+        entry={{ ...baseEntry, status: FinancialEntryStatus.PENDING, approvedByName: null, approvedAt: null }}
+      />,
+    );
+
+    expect(screen.getByText('Pending financial approval')).toBeInTheDocument();
+    expect(screen.queryByText('Approved By')).not.toBeInTheDocument();
+    expect(screen.queryByText('Approved At')).not.toBeInTheDocument();
   });
 
   it('shows approved by name when present, em-dash when null', () => {

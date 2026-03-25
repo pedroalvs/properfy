@@ -13,6 +13,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
       doneThisMonth,
       recentAppointments,
       noResponseTenants,
+      pendingOperatorCrossChecks,
       pendingFinancialEntries,
       processingReports,
       totalProperties,
@@ -62,6 +63,16 @@ export class PrismaDashboardRepository implements DashboardRepository {
           deleted_at: null,
           tenant_confirmation_status: 'NO_RESPONSE',
           status: { notIn: ['DONE', 'CANCELLED', 'REJECTED'] },
+        },
+      }),
+
+      // Pending actions: pending financial entries
+      this.prisma.appointment.count({
+        where: {
+          ...tenantFilter,
+          deleted_at: null,
+          status: 'DONE',
+          done_checked_by_user_id: null,
         },
       }),
 
@@ -128,6 +139,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
         code: `APT-${apt.id.slice(0, 6).toUpperCase()}`,
         propertyAddress: address,
         status: apt.status,
+        doneCheckedByUserId: apt.done_checked_by_user_id,
         scheduledDate: apt.scheduled_date.toISOString().split('T')[0]!,
       };
     });
@@ -142,6 +154,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
       recentAppointments: formattedRecentAppointments,
       pendingActions: {
         noResponseTenants,
+        pendingOperatorCrossChecks,
         pendingFinancialEntries,
         processingReports,
       },

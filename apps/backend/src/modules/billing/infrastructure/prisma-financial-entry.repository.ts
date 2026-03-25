@@ -64,10 +64,12 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     const where: Record<string, unknown> = {};
     if (tenantId) where.tenant_id = tenantId;
 
+    const approvedWhere = { ...where, status: 'APPROVED' as FinancialEntryStatus };
+
     const [grouped, pendingCount] = await Promise.all([
       this.prisma.financialEntry.groupBy({
         by: ['entry_type'],
-        where,
+        where: approvedWhere,
         _sum: { amount: true },
       }),
       this.prisma.financialEntry.count({ where: { ...where, status: 'PENDING' } }),
@@ -79,10 +81,11 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       totalAdjustments: 0,
       totalRefunds: 0,
       pendingCount,
+      currency: null,
     };
 
     for (const row of grouped) {
-      const amount = Number(row._sum.amount ?? 0);
+      const amount = Number(row._sum?.amount ?? 0);
       switch (row.entry_type) {
         case 'TENANT_DEBIT': summary.totalDebits = amount; break;
         case 'INSPECTOR_PAYOUT': summary.totalPayouts = amount; break;

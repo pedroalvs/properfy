@@ -41,9 +41,13 @@ export function UnavailableSection({
 
   const handleReport = async () => {
     try {
-      await unavailableMutation.mutateAsync({});
+      const result = await unavailableMutation.mutateAsync({});
       setReported(true);
-      showSuccess('Unavailability reported successfully.');
+      showSuccess(
+        (result as { urgentMode?: boolean } | undefined)?.urgentMode
+          ? 'Urgent unavailability reported. The operations team and inspector were notified.'
+          : 'Unavailability reported successfully.',
+      );
     } catch (err) {
       showError(
         err instanceof Error ? err.message : 'Failed to report unavailability.',
@@ -51,7 +55,6 @@ export function UnavailableSection({
     }
   };
 
-  // Unavailability can be reported even in read-only mode (urgent mode)
   return (
     <div className="rounded bg-card-bg p-6 shadow-sm">
       <h2 className="mb-2 text-base font-bold text-secondary">
@@ -59,7 +62,7 @@ export function UnavailableSection({
       </h2>
       <p className="mb-4 text-sm text-text-secondary">
         {isReadOnly
-          ? 'Even though the portal has expired, you can still report unavailability as an urgent request.'
+          ? "The deadline has passed, but if you've had an emergency or urgent change, please report your unavailability below so our team is notified."
           : "If you won't be available for this inspection, let us know."}
       </p>
 
@@ -67,9 +70,10 @@ export function UnavailableSection({
         variant="outlined"
         onClick={handleReport}
         loading={unavailableMutation.isPending}
+        className={isReadOnly ? 'border-warning/50 text-warning hover:bg-warning/5' : ''}
       >
-        <i className="mdi mdi-calendar-remove text-base" />
-        {isReadOnly ? 'Report Unavailability (Urgent)' : 'Report Unavailability'}
+        <i className={`mdi mdi-calendar-remove text-base ${isReadOnly ? 'text-warning' : ''}`} />
+        {isReadOnly ? 'Urgent Report: Unavailable' : 'Report Unavailability'}
       </Button>
     </div>
   );

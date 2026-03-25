@@ -51,3 +51,15 @@ export class PortalNoContactFieldsError extends DomainError {
     this.name = 'PortalNoContactFieldsError';
   }
 }
+
+export class PortalInspectionInProgressError extends ConflictError {
+  constructor() {
+    super('PORTAL_INSPECTION_IN_PROGRESS', 'Reschedule is not allowed while the inspection is in progress');
+  }
+}
+
+export class PortalInspectionAlreadyStartedError extends ConflictError {
+  constructor() {
+    super('PORTAL_INSPECTION_ALREADY_STARTED', 'Portal changes are not allowed after the inspection has started');
+  }
+}

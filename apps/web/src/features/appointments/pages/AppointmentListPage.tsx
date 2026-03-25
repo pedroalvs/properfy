@@ -67,7 +67,6 @@ export function AppointmentListPage() {
         title="Appointments"
         primaryAction={canCreate ? { label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } } : undefined}
         secondaryActions={canMapImport ? [
-          { label: 'Map', icon: 'mdi-map-outline', onClick: () => navigate('/appointments/map') },
           { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/appointments/import') },
         ] : []}
       >

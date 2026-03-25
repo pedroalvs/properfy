@@ -125,11 +125,9 @@ describe('FinancialEntryDetailDrawer', () => {
     expect(screen.getByText('Values')).toBeInTheDocument();
   });
 
-  it('edit button calls showInfo snackbar when onEdit not provided', () => {
+  it('hides edit button when onEdit prop is not provided', () => {
     renderDrawer({ entryId: 'fin-01', open: true });
-    const editButton = screen.getByLabelText('Edit');
-    fireEvent.click(editButton);
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 
   it('edit button calls onEdit with entry id when onEdit prop is provided', () => {

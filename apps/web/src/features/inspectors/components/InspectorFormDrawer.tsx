@@ -10,7 +10,9 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
+import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import { useInspectorDetail } from '../hooks/useInspectorDetail';
 import { useInspectorSave } from '../hooks/useInspectorSave';
 import { INSPECTOR_STATUS_OPTIONS } from '../constants/form-options';
@@ -30,6 +32,11 @@ export function InspectorFormDrawer({
   inspectorId,
   onSaved,
 }: InspectorFormDrawerProps) {
+  const { options: serviceTypeOptions, isLoading: isLoadingServiceTypes } = useFormOptions<{ id: string; name: string }>(
+    ['service-types', 'inspector-form-options'],
+    '/v1/service-types',
+    (item) => ({ value: item.id, label: item.name }),
+  );
   const isEditMode = !!inspectorId;
   const { inspector, isLoading: isLoadingDetail } = useInspectorDetail(
     isEditMode ? inspectorId : null,
@@ -51,7 +58,7 @@ export function InspectorFormDrawer({
         document: inspector.document ?? '',
         status: inspector.status,
         regions: (inspector.regions ?? []).join(', '),
-        serviceTypes: (inspector.serviceTypes ?? []).join(', '),
+        serviceTypes: (inspector.serviceTypes ?? []).join(','),
       };
       setForm(data);
       setInitialData(data);
@@ -83,6 +90,18 @@ export function InspectorFormDrawer({
     },
     [],
   );
+
+  const selectedServiceTypeIds = form.serviceTypes
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const toggleServiceType = useCallback((serviceTypeId: string, checked: boolean) => {
+    const next = checked
+      ? Array.from(new Set([...selectedServiceTypeIds, serviceTypeId]))
+      : selectedServiceTypeIds.filter((value) => value !== serviceTypeId);
+    updateField('serviceTypes', next.join(','));
+  }, [selectedServiceTypeIds, updateField]);
 
   const handleSubmit = useCallback(async () => {
     const mode = isEditMode ? 'edit' : 'create';
@@ -176,13 +195,24 @@ export function InspectorFormDrawer({
                       />
                     </FormField>
                     <FormField label="Service Types" error={errors.serviceTypes}>
-                      <Textarea
-                        value={form.serviceTypes}
-                        onChange={(v) => updateField('serviceTypes', v)}
-                        rows={2}
-                        placeholder="Comma-separated"
-                        aria-label="Service Types"
-                      />
+                      <div className="flex flex-col gap-3 rounded border border-black/10 px-3 py-3">
+                        {serviceTypeOptions.length > 0 ? (
+                          <div className="grid gap-2">
+                            {serviceTypeOptions.map((option) => (
+                              <Checkbox
+                                key={option.value}
+                                label={option.label}
+                                checked={selectedServiceTypeIds.includes(option.value)}
+                                onChange={(checked) => toggleServiceType(option.value, checked)}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-text-muted">
+                            {isLoadingServiceTypes ? 'Loading service types...' : 'No active service types available.'}
+                          </p>
+                        )}
+                      </div>
                     </FormField>
                   </FormSection>
 

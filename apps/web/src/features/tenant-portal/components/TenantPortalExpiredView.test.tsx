@@ -21,7 +21,7 @@ describe('TenantPortalExpiredView', () => {
     render(<TenantPortalExpiredView appointment={MOCK_APPOINTMENT} />);
 
     expect(
-      screen.getByText('The confirmation deadline has passed.'),
+      screen.getByText('The confirmation deadline has passed. Contact the agency directly for any changes.'),
     ).toBeInTheDocument();
   });
 
@@ -66,12 +66,12 @@ describe('TenantPortalExpiredView', () => {
     );
 
     expect(screen.getByText('+61 2 1234 5678')).toBeInTheDocument();
-    expect(screen.getByText(/Contact the agency/)).toBeInTheDocument();
+    expect(screen.getByText(/Need help\? Contact the agency at/)).toBeInTheDocument();
   });
 
   it('does not show agency phone section when not provided', () => {
     render(<TenantPortalExpiredView appointment={MOCK_APPOINTMENT} />);
 
-    expect(screen.queryByText(/Contact the agency/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Need help\? Contact the agency at/)).not.toBeInTheDocument();
   });
 });

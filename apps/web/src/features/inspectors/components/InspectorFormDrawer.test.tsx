@@ -51,7 +51,7 @@ vi.mock('../hooks/useInspectorSave', () => ({
 const MOCK_INSPECTOR = {
   id: 'insp-01', name: 'Carlos Silva', email: 'carlos@test.com',
   phone: '11888888888', document: '123.456.789-00', status: 'ACTIVE',
-  regions: ['Centro', 'Norte'], serviceTypes: ['Vistoria de Entrada'],
+  regions: ['Centro', 'Norte'], serviceTypes: ['123e4567-e89b-12d3-a456-426614174000'],
 };
 
 vi.mock('../hooks/useInspectorDetail', () => ({
@@ -62,6 +62,9 @@ vi.mock('../hooks/useInspectorDetail', () => ({
 }));
 
 import { InspectorFormDrawer } from './InspectorFormDrawer';
+import { api } from '@/services/api';
+
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 function createWrapper() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } });
@@ -85,6 +88,15 @@ function renderDrawer(props: Partial<Parameters<typeof InspectorFormDrawer>[0]> 
 describe('InspectorFormDrawer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGet.mockResolvedValue({
+      data: {
+        data: [
+          { id: '123e4567-e89b-12d3-a456-426614174000', name: 'Entry Inspection' },
+          { id: '123e4567-e89b-12d3-a456-426614174001', name: 'Exit Inspection' },
+        ],
+        pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+      },
+    });
     mockSave.mockResolvedValue({ success: true });
     mockValidate.mockReturnValue({});
   });
@@ -107,6 +119,13 @@ describe('InspectorFormDrawer', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Carlos Silva');
     expect(screen.getByLabelText('Email')).toHaveValue('carlos@test.com');
     expect(screen.getByLabelText('Document')).toHaveValue('123.456.789-00');
+  });
+
+  it('renders canonical service type options instead of free-text input', async () => {
+    renderDrawer();
+    expect(await screen.findByLabelText('Entry Inspection')).toBeInTheDocument();
+    expect(screen.getByLabelText('Exit Inspection')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Service Types')).not.toBeInTheDocument();
   });
 
   it('shows validation errors and prevents save when validation fails', () => {

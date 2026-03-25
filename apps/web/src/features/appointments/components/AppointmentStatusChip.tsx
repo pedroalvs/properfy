@@ -4,11 +4,18 @@ import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 
 interface AppointmentStatusChipProps {
   status: AppointmentStatus;
+  doneCheckedByUserId?: string | null;
   className?: string;
 }
 
-export function AppointmentStatusChip({ status, className }: AppointmentStatusChipProps) {
+export function AppointmentStatusChip({ status, doneCheckedByUserId, className }: AppointmentStatusChipProps) {
   const style = APPOINTMENT_STATUS_MAP[status];
   if (!style) return null;
-  return <StatusChip label={style.label} bg={style.bg} text={style.text} className={className} />;
+
+  let label = style.label;
+  if (status === 'DONE') {
+    label = doneCheckedByUserId ? 'Done (Review)' : 'Done (Review Required)';
+  }
+
+  return <StatusChip label={label} bg={style.bg} text={style.text} className={className} />;
 }

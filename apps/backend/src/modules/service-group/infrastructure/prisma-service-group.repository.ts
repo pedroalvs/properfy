@@ -35,6 +35,26 @@ function mapToEntity(row: any): ServiceGroupEntity {
   });
 }
 
+function buildMarketplaceOfferWhere(
+  inspectorServiceTypes: string[],
+  inspectorRegions: string[],
+  inspectorClientEligibility: string[],
+): Record<string, unknown> {
+  return {
+    status: 'PUBLISHED',
+    service_type_id: { in: inspectorServiceTypes },
+    tenant_id: { in: inspectorClientEligibility },
+    scheduled_date: { gte: new Date() },
+    appointments: {
+      some: {
+        property: {
+          suburb: { in: inspectorRegions },
+        },
+      },
+    },
+  };
+}
+
 export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -181,15 +201,22 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     inspectorClientEligibility: string[],
     pagination: PaginationParams,
   ): Promise<MarketplaceOffer[]> {
-    // Query PUBLISHED groups where service_type_id matches inspector's service types
-    // Filter by region (suburb intersection) and client eligibility
+    if (
+      inspectorServiceTypes.length === 0 ||
+      inspectorRegions.length === 0 ||
+      inspectorClientEligibility.length === 0
+    ) {
+      return [];
+    }
+
+    const where = buildMarketplaceOfferWhere(
+      inspectorServiceTypes,
+      inspectorRegions,
+      inspectorClientEligibility,
+    );
+
     const rows = await this.prisma.serviceGroup.findMany({
-      where: {
-        status: 'PUBLISHED',
-        service_type_id: { in: inspectorServiceTypes },
-        tenant_id: { in: inspectorClientEligibility },
-        scheduled_date: { gte: new Date() },
-      },
+      where,
       include: {
         tenant: { select: { name: true } },
         service_type: { select: { name: true } },
@@ -204,38 +231,27 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       orderBy: { scheduled_date: 'asc' },
     });
 
-    return rows
-      .filter((row: any) => {
-        // Region filtering: at least one appointment's property suburb must match
-        if (inspectorRegions.length === 0) return false;
-        const suburbs = row.appointments
-          .map((a: any) => a.property?.suburb)
-          .filter(Boolean);
-        return suburbs.some((suburb: string) =>
-          inspectorRegions.includes(suburb),
-        );
-      })
-      .map((row: any) => {
-        const suburbs = [
-          ...new Set(
-            row.appointments
-              .map((a: any) => a.property?.suburb)
-              .filter(Boolean),
-          ),
-        ] as string[];
-        return {
-          groupId: row.id,
-          tenantId: row.tenant_id,
-          tenantName: row.tenant?.name ?? '',
-          serviceTypeName: row.service_type?.name ?? '',
-          groupSize: row.group_size,
-          scheduledDate: row.scheduled_date,
-          timeWindow: row.time_window,
-          priorityMode: row.priority_mode,
-          priorityExpiresAt: row.priority_expires_at,
-          suburbs,
-        };
-      });
+    return rows.map((row: any) => {
+      const suburbs = [
+        ...new Set(
+          row.appointments
+            .map((a: any) => a.property?.suburb)
+            .filter(Boolean),
+        ),
+      ] as string[];
+      return {
+        groupId: row.id,
+        tenantId: row.tenant_id,
+        tenantName: row.tenant?.name ?? '',
+        serviceTypeName: row.service_type?.name ?? '',
+        groupSize: row.group_size,
+        scheduledDate: row.scheduled_date,
+        timeWindow: row.time_window,
+        priorityMode: row.priority_mode,
+        priorityExpiresAt: row.priority_expires_at,
+        suburbs,
+      };
+    });
   }
 
   async countPublishedForInspector(
@@ -243,15 +259,20 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     inspectorRegions: string[],
     inspectorClientEligibility: string[],
   ): Promise<number> {
-    // Simplified count -- in production this would need the same region filtering
-    // For now, count PUBLISHED groups matching service types and client eligibility
+    if (
+      inspectorServiceTypes.length === 0 ||
+      inspectorRegions.length === 0 ||
+      inspectorClientEligibility.length === 0
+    ) {
+      return 0;
+    }
+
     return this.prisma.serviceGroup.count({
-      where: {
-        status: 'PUBLISHED',
-        service_type_id: { in: inspectorServiceTypes },
-        tenant_id: { in: inspectorClientEligibility },
-        scheduled_date: { gte: new Date() },
-      },
+      where: buildMarketplaceOfferWhere(
+        inspectorServiceTypes,
+        inspectorRegions,
+        inspectorClientEligibility,
+      ),
     });
   }
 

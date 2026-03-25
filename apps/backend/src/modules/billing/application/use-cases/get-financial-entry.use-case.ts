@@ -41,6 +41,19 @@ export class GetFinancialEntryUseCase {
     }
     // AM/OP can see any entry
 
+    const approval =
+      entry.status === 'APPROVED'
+        ? {
+            approvedByUserId: entry.approvedByUserId,
+            approvedAt: entry.approvedAt ? entry.approvedAt.toISOString() : null,
+            approvedByName,
+          }
+        : {
+            approvedByUserId: null,
+            approvedAt: null,
+            approvedByName: null,
+          };
+
     return {
       id: entry.id,
       tenantId: entry.tenantId,
@@ -55,13 +68,13 @@ export class GetFinancialEntryUseCase {
       reason: entry.reason,
       referenceEntryId: entry.referenceEntryId,
       initiatedByUserId: entry.initiatedByUserId,
-      approvedByUserId: entry.approvedByUserId,
-      approvedAt: entry.approvedAt ? entry.approvedAt.toISOString() : null,
+      approvedByUserId: approval.approvedByUserId,
+      approvedAt: approval.approvedAt,
       createdAt: entry.createdAt.toISOString(),
       updatedAt: entry.updatedAt.toISOString(),
       appointmentCode,
       relatedEntityName,
-      approvedByName,
+      approvedByName: approval.approvedByName,
     };
   }
 }

@@ -730,7 +730,24 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
 // =============================================================================
 
 describe('ExecuteStatusTransitionUseCase – DONE side effects', () => {
-  it('calls onDoneHandler.execute when transitioning to DONE', async () => {
+  it('calls onDoneHandler.execute when transitioning to DONE with cross-check', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    userRepo.findById.mockResolvedValue(makeUserEntity('OP'));
+    const uc = makeUseCase({ withOnDoneHandler: true });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      doneCheckedByUserId: 'checker-1',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    expect(onDoneHandler.execute).toHaveBeenCalledOnce();
+    expect(onDoneHandler.execute).toHaveBeenCalledWith({ appointmentId: 'appt-1' });
+  });
+
+  it('does NOT call onDoneHandler when INSP marks DONE without cross-check', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
     );
@@ -741,8 +758,7 @@ describe('ExecuteStatusTransitionUseCase – DONE side effects', () => {
       actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
     });
 
-    expect(onDoneHandler.execute).toHaveBeenCalledOnce();
-    expect(onDoneHandler.execute).toHaveBeenCalledWith({ appointmentId: 'appt-1' });
+    expect(onDoneHandler.execute).not.toHaveBeenCalled();
   });
 
   it('succeeds without onDoneHandler (backward compatibility)', async () => {
@@ -764,12 +780,14 @@ describe('ExecuteStatusTransitionUseCase – DONE side effects', () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
     );
+    userRepo.findById.mockResolvedValue(makeUserEntity('OP'));
     onDoneHandler.execute.mockRejectedValueOnce(new Error('Financial entry creation failed'));
 
     const uc = makeUseCase({ withOnDoneHandler: true });
     const result = await uc.execute({
       appointmentId: 'appt-1',
       targetStatus: 'DONE',
+      doneCheckedByUserId: 'checker-1',
       actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
     });
 

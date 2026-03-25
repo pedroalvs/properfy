@@ -5,6 +5,7 @@ import type { ITenantPortalActivityRepository } from '../../../src/modules/tenan
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
+import { TenantPortalActivityEntity } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.entity';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
@@ -193,6 +194,7 @@ describe('GetPortalDataUseCase', () => {
     );
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
 
     const result = await useCase.execute(makeInput());
 
@@ -235,6 +237,7 @@ describe('GetPortalDataUseCase', () => {
       notes: 'Dog at home',
       source: 'TENANT_PORTAL',
     });
+    expect(result.existingResponse).toBeUndefined();
   });
 
   it('should return null contact when no contact exists', async () => {
@@ -243,6 +246,7 @@ describe('GetPortalDataUseCase', () => {
     );
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
 
     const result = await useCase.execute(makeInput());
 
@@ -254,6 +258,7 @@ describe('GetPortalDataUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
 
     await useCase.execute(makeInput());
 
@@ -272,6 +277,7 @@ describe('GetPortalDataUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
 
     await useCase.execute(makeInput());
 
@@ -289,6 +295,7 @@ describe('GetPortalDataUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
 
     await useCase.execute(makeInput());
 
@@ -314,6 +321,7 @@ describe('GetPortalDataUseCase', () => {
     });
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
 
     const result = await useCase.execute(makeInput());
 
@@ -331,6 +339,7 @@ describe('GetPortalDataUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
 
     const result = await useCase.execute(makeInput({ expiresAt: '2026-05-01T12:00:00.000Z' }));
     expect(result.token.expiresAt).toBe('2026-05-01T12:00:00.000Z');
@@ -340,11 +349,84 @@ describe('GetPortalDataUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
 
     const result = await useCase.execute(
       makeInput({ isReadOnly: true, tokenStatus: 'EXPIRED' }),
     );
 
     expect(result.token).toEqual({ status: 'EXPIRED', isReadOnly: true, expiresAt: '2026-04-01T00:00:00.000Z' });
+  });
+
+  it('should return the latest existing response mapped from portal activity history', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction)
+      .mockResolvedValueOnce(
+        new TenantPortalActivityEntity({
+          id: 'act-confirm',
+          appointmentId: 'appt-1',
+          tenantPortalTokenId: 'token-1',
+          action: 'CONFIRM',
+          previousValuesJson: { tenantConfirmationStatus: 'PENDING' },
+          newValuesJson: { tenantConfirmationStatus: 'CONFIRMED' },
+          ipAddress: null,
+          userAgent: null,
+          createdAt: new Date('2026-03-20T10:00:00.000Z'),
+        }),
+      )
+      .mockResolvedValueOnce(
+        new TenantPortalActivityEntity({
+          id: 'act-reschedule',
+          appointmentId: 'appt-1',
+          tenantPortalTokenId: 'token-1',
+          action: 'RESCHEDULE',
+          previousValuesJson: { tenantConfirmationStatus: 'PENDING' },
+          newValuesJson: { scheduledDate: '2026-04-10', timeSlot: '13:00-15:00' },
+          ipAddress: null,
+          userAgent: null,
+          createdAt: new Date('2026-03-22T09:00:00.000Z'),
+        }),
+      )
+      .mockResolvedValueOnce(null);
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.existingResponse).toEqual({
+      type: 'RESCHEDULE',
+      createdAt: '2026-03-22T09:00:00.000Z',
+      summary: 'Tenant requested reschedule to 2026-04-10 13:00-15:00',
+    });
+  });
+
+  it('should map unavailability activity to UNAVAILABLE existingResponse', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(
+        new TenantPortalActivityEntity({
+          id: 'act-unavailable',
+          appointmentId: 'appt-1',
+          tenantPortalTokenId: 'token-1',
+          action: 'UNAVAILABLE_REPORTED',
+          previousValuesJson: { tenantConfirmationStatus: 'PENDING' },
+          newValuesJson: { tenantConfirmationStatus: 'UNAVAILABLE' },
+          ipAddress: null,
+          userAgent: null,
+          createdAt: new Date('2026-03-21T12:30:00.000Z'),
+        }),
+      );
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.existingResponse).toEqual({
+      type: 'UNAVAILABLE',
+      createdAt: '2026-03-21T12:30:00.000Z',
+      summary: 'Tenant reported unavailability',
+    });
   });
 });

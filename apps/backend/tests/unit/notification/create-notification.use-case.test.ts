@@ -3,6 +3,7 @@ import { CreateNotificationUseCase } from '../../../src/modules/notification/app
 import type { INotificationRepository } from '../../../src/modules/notification/domain/notification.repository';
 import type { IJobQueue } from '../../../src/shared/domain/job-queue';
 import { NotificationEntity } from '../../../src/modules/notification/domain/notification.entity';
+import { ValidationError } from '../../../src/shared/domain/errors';
 
 describe('CreateNotificationUseCase', () => {
   let useCase: CreateNotificationUseCase;
@@ -117,6 +118,18 @@ describe('CreateNotificationUseCase', () => {
     mockRepo.save.mockRejectedValueOnce(new Error('DB write failed'));
 
     await expect(useCase.execute(baseInput)).rejects.toThrow('DB write failed');
+    expect(mockJobQueue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('rejects empty tenantId', async () => {
+    await expect(
+      useCase.execute({
+        ...baseInput,
+        tenantId: '',
+      }),
+    ).rejects.toThrow(ValidationError);
+
+    expect(mockRepo.save).not.toHaveBeenCalled();
     expect(mockJobQueue.enqueue).not.toHaveBeenCalled();
   });
 });

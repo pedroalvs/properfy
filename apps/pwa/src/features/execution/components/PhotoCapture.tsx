@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-import { compressImage } from '../hooks/useImageCompression';
 
 interface PhotoCaptureProps {
   onCapture: (file: File) => void;
@@ -17,6 +16,8 @@ export function PhotoCapture({ onCapture, disabled, count, maxPhotos = 30 }: Pho
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
+
+    const { compressImage } = await import('../hooks/useImageCompression');
 
     for (const file of Array.from(files)) {
       if (file.size > MAX_FILE_SIZE) continue;

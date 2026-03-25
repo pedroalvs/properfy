@@ -3,6 +3,7 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import {
+  PortalActionBlockedError,
   PortalAppointmentInactiveError,
   PortalNoContactFieldsError,
 } from '../../domain/tenant-portal.errors';
@@ -10,6 +11,7 @@ import {
 export interface UpdateContactInput {
   tokenId: string;
   appointmentId: string;
+  isReadOnly: boolean;
   contact: {
     primaryEmail?: string | null;
     secondaryEmail?: string | null;
@@ -20,6 +22,8 @@ export interface UpdateContactInput {
   userAgent: string | null;
 }
 
+const INACTIVE_STATUSES = ['CANCELLED', 'DONE', 'REJECTED'] as const;
+
 export class UpdateContactUseCase {
   constructor(
     private readonly activityRepo: ITenantPortalActivityRepository,
@@ -28,6 +32,10 @@ export class UpdateContactUseCase {
   ) {}
 
   async execute(input: UpdateContactInput) {
+    if (input.isReadOnly) {
+      throw new PortalActionBlockedError();
+    }
+
     // 1. Validate at least one contact field is provided
     const fieldsToUpdate = Object.entries(input.contact).filter(
       ([, value]) => value !== undefined,
@@ -43,6 +51,10 @@ export class UpdateContactUseCase {
     }
 
     const { appointment, contact } = result;
+
+    if (INACTIVE_STATUSES.includes(appointment.status as (typeof INACTIVE_STATUSES)[number])) {
+      throw new PortalAppointmentInactiveError();
+    }
 
     // 3. Snapshot previous contact values (only the fields being updated)
     const previousValues: Record<string, unknown> = {};

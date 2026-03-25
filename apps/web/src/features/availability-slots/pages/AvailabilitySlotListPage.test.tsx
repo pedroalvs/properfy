@@ -117,8 +117,8 @@ describe('AvailabilitySlotListPage', () => {
 
   it('renders table view by default', () => {
     renderPage();
-    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
   });
 
   it('shows view toggle buttons', () => {

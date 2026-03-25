@@ -214,6 +214,7 @@ import { GetAppointmentUseCase } from '../modules/appointment/application/use-ca
 import { ListAppointmentsUseCase } from '../modules/appointment/application/use-cases/list-appointments.use-case';
 import { UpdateAppointmentUseCase } from '../modules/appointment/application/use-cases/update-appointment.use-case';
 import { ExecuteStatusTransitionUseCase } from '../modules/appointment/application/use-cases/execute-status-transition.use-case';
+import { PerformCrossCheckUseCase } from '../modules/appointment/application/use-cases/perform-cross-check.use-case';
 import { ForceManualTenantConfirmationUseCase } from '../modules/appointment/application/use-cases/force-manual-confirmation.use-case';
 import { ImportAppointmentsUseCase } from '../modules/appointment/application/use-cases/import-appointments.use-case';
 import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
@@ -350,9 +351,9 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Pricing rule repositories and use cases
   const pricingRuleRepo = new PrismaPricingRuleRepository(prisma);
-  const createPricingRuleUseCase = new CreatePricingRuleUseCase(pricingRuleRepo, serviceTypeRepo, branchRepo, auditService);
-  const listPricingRulesUseCase = new ListPricingRulesUseCase(pricingRuleRepo);
-  const updatePricingRuleUseCase = new UpdatePricingRuleUseCase(pricingRuleRepo, auditService);
+  const createPricingRuleUseCase = new CreatePricingRuleUseCase(pricingRuleRepo, serviceTypeRepo, branchRepo, tenantRepo, auditService);
+  const listPricingRulesUseCase = new ListPricingRulesUseCase(pricingRuleRepo, tenantRepo);
+  const updatePricingRuleUseCase = new UpdatePricingRuleUseCase(pricingRuleRepo, tenantRepo, auditService);
 
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
@@ -414,9 +415,7 @@ export function createContainer(logger: Logger): AppContainer {
   const tokenService = new TokenService();
   const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
   const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler);
-  const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, appointmentRepo, serviceTypeRepo, auditService, notifyOnTenantPortalActionHandler);
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
-  const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, tokenService, auditService, createNotificationUseCase);
 
   // Inspector execution repositories and services
@@ -426,6 +425,24 @@ export function createContainer(logger: Logger): AppContainer {
     ? new SupabaseStorageService(s3Client)
     : new StubStorageService();
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
+  const performCrossCheckUseCase = new PerformCrossCheckUseCase(
+    appointmentRepo,
+    auditLogRepo,
+    inspectionExecutionRepo,
+    inspectionAssetRepo,
+    auditService,
+    serviceTypeReaderForExec,
+    createFinancialEntriesOnDoneUseCase,
+  );
+  const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(
+    tenantPortalActivityRepo,
+    appointmentRepo,
+    auditService,
+    notifyOnTenantPortalActionHandler,
+    inspectionExecutionRepo,
+  );
+
+  const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, tenantPortalTokenRepo, appointmentRepo, serviceTypeRepo, inspectionExecutionRepo, auditService, notifyOnTenantPortalActionHandler);
 
   // Inspector execution use cases
   const getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
@@ -439,7 +456,7 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, inspectionAssetRepo, idempotencyService,
-    executeStatusTransitionUseCase, auditService, serviceTypeReaderForExec,
+    executeStatusTransitionUseCase, appointmentRepo, auditService, serviceTypeReaderForExec,
   );
   const requestAssetUploadUseCase = new RequestAssetUploadUseCase(
     inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo,
@@ -465,24 +482,34 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
-  const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialEntryRepo);
+  const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialEntryRepo, tenantRepo);
   const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
   const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService);
-  const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(financialEntryRepo, auditService, idempotencyService, tenantRepo);
+  const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(
+    financialEntryRepo,
+    auditService,
+    idempotencyService,
+    tenantRepo,
+    appointmentRepo,
+    inspectorRepo,
+  );
   const createRefundUseCase = new CreateRefundUseCase(financialEntryRepo, auditService, idempotencyService);
   const billingJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
-  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
-  const listInvoicesUseCase = new ListInvoicesUseCase(inspectorInvoiceRepo);
-  const getInvoiceUseCase = new GetInvoiceUseCase(inspectorInvoiceRepo);
-  const downloadInvoiceUseCase = new DownloadInvoiceUseCase(inspectorInvoiceRepo);
-
-  // Report repositories and use cases
-  const reportRepo = new PrismaReportRepository(prisma);
   const reportStorageService = s3Client
     ? new SupabaseReportStorageService(s3Client, env.SUPABASE_STORAGE_BUCKET)
     : new StubReportStorageService();
+  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
+  const listInvoicesUseCase = new ListInvoicesUseCase(inspectorInvoiceRepo);
+  const getInvoiceUseCase = new GetInvoiceUseCase(inspectorInvoiceRepo);
+  const downloadInvoiceUseCase = new DownloadInvoiceUseCase(
+    inspectorInvoiceRepo,
+    reportStorageService,
+  );
+
+  // Report repositories and use cases
+  const reportRepo = new PrismaReportRepository(prisma);
   const xlsxGenerator = new ExcelJsXlsxGenerator();
   const reportDataReader = new PrismaReportDataReader(prisma);
   const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
@@ -553,7 +580,7 @@ export function createContainer(logger: Logger): AppContainer {
   const expireTokensWorker = new ExpireTokensWorker(tenantPortalTokenRepo, logger);
   const expireAssetsWorker = new ExpireAssetsWorker(inspectionAssetRepo, logger);
   const notifyStuckInspectionsWorker = new NotifyStuckInspectionsWorker(
-    inspectionExecutionRepo, createNotificationUseCase, logger,
+    inspectionExecutionRepo, appointmentRepo, createNotificationUseCase, logger,
   );
 
   const appointmentImportWorker = new AppointmentImportWorker(
@@ -659,6 +686,7 @@ export function createContainer(logger: Logger): AppContainer {
       listAppointmentsUseCase,
       updateAppointmentUseCase,
       executeStatusTransitionUseCase,
+      performCrossCheckUseCase,
       forceManualConfirmationUseCase,
       importAppointmentsUseCase,
       getImportStatusUseCase,

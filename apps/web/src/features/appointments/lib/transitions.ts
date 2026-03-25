@@ -72,6 +72,13 @@ function filterByRole(
       });
     case 'OP':
       return targets.filter((t) => {
+        if (
+          currentStatus === AppointmentStatus.AWAITING_INSPECTOR &&
+          t === AppointmentStatus.SCHEDULED
+        )
+          return false;
+        if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.DONE)
+          return false;
         if (currentStatus === AppointmentStatus.DONE && t === AppointmentStatus.DRAFT) return false;
         return true;
       });

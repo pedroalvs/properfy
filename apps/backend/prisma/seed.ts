@@ -1184,41 +1184,50 @@ async function main() {
     { code: 'INSPECTION_CONFIRMED', channel: 'EMAIL' as const, subject: 'Inspection Confirmed', body: 'Dear {{tenantName}}, your inspection at {{propertyAddress}} on {{scheduledDate}} has been confirmed.' },
     { code: 'INSPECTION_RESCHEDULED', channel: 'EMAIL' as const, subject: 'Inspection Rescheduled', body: 'Dear {{tenantName}}, the inspection at {{propertyAddress}} has been rescheduled. New details will follow.' },
     { code: 'INSPECTION_CANCELLED', channel: 'EMAIL' as const, subject: 'Inspection Cancelled', body: 'Dear {{tenantName}}, the inspection at {{propertyAddress}} on {{scheduledDate}} has been cancelled.' },
+    { code: 'INSPECTION_UNAVAILABILITY_REPORTED', channel: 'EMAIL' as const, subject: 'Tenant Reported Unavailability', body: 'The tenant {{tenantName}} reported that the inspection at {{propertyAddress}} on {{scheduledDate}} is unavailable. Review appointment {{appointmentReference}} for follow-up.' },
   ];
 
   for (const t of templates) {
     const variables = (t.body.match(/\{\{(\w+)\}\}/g) ?? []).map((v: string) => v.replace(/\{\{|\}\}/g, ''));
-    await prisma.notificationTemplate.upsert({
-      where: { tenant_id_template_code_channel: { tenant_id: IDS.tenant, template_code: t.code, channel: t.channel } },
-      update: {},
-      create: {
-        tenant_id: IDS.tenant,
-        template_code: t.code,
-        channel: t.channel,
-        subject: t.subject,
-        body_text: t.body,
-        body_html: t.channel === 'EMAIL' ? `<p>${t.body}</p>` : null,
-        variables_json: variables,
-        is_active: true,
-      },
-    });
-    // Also create for tenant2
-    await prisma.notificationTemplate.upsert({
-      where: { tenant_id_template_code_channel: { tenant_id: IDS.tenant2, template_code: t.code, channel: t.channel } },
-      update: {},
-      create: {
-        tenant_id: IDS.tenant2,
-        template_code: t.code,
-        channel: t.channel,
-        subject: t.subject,
-        body_text: t.body,
-        body_html: t.channel === 'EMAIL' ? `<p>${t.body}</p>` : null,
-        variables_json: variables,
-        is_active: true,
-      },
-    });
+    for (const tenantId of [null, IDS.tenant, IDS.tenant2]) {
+      const existingTemplate = await prisma.notificationTemplate.findFirst({
+        where: {
+          tenant_id: tenantId,
+          template_code: t.code,
+          channel: t.channel,
+        },
+        select: { id: true },
+      });
+
+      if (existingTemplate) {
+        await prisma.notificationTemplate.update({
+          where: { id: existingTemplate.id },
+          data: {
+            subject: t.subject,
+            body_text: t.body,
+            body_html: t.channel === 'EMAIL' ? `<p>${t.body}</p>` : null,
+            variables_json: variables,
+            is_active: true,
+          },
+        });
+        continue;
+      }
+
+      await prisma.notificationTemplate.create({
+        data: {
+          tenant_id: tenantId,
+          template_code: t.code,
+          channel: t.channel,
+          subject: t.subject,
+          body_text: t.body,
+          body_html: t.channel === 'EMAIL' ? `<p>${t.body}</p>` : null,
+          variables_json: variables,
+          is_active: true,
+        },
+      });
+    }
   }
-  console.log('Notification templates: 9 × 2 tenants created');
+  console.log('Notification templates: 10 templates synced for platform default + 2 tenants');
 
   // ─── REPORTS ──────────────────────────────────────────────────────────────
 

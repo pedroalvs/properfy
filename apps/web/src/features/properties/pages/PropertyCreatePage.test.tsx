@@ -110,6 +110,7 @@ describe('PropertyCreatePage', () => {
 
   it('renders required form fields', () => {
     renderPage();
+    expect(screen.getByLabelText('Agency')).toBeInTheDocument();
     expect(screen.getByLabelText('Property Code')).toBeInTheDocument();
     expect(screen.getByLabelText('Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Street')).toBeInTheDocument();

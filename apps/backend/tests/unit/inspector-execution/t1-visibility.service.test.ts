@@ -45,8 +45,16 @@ describe('T1VisibilityService', () => {
   });
 
   describe('ROUTINE appointments for today (not T-1)', () => {
-    it('should always be visible when scheduled for today', () => {
-      expect(service.isVisibleForInspector('ROUTINE', 'PENDING', false, todayDate, today)).toBe(true);
+    it('should NOT be visible when scheduled for today and not confirmed', () => {
+      expect(service.isVisibleForInspector('ROUTINE', 'PENDING', false, todayDate, today)).toBe(false);
+    });
+
+    it('should NOT be visible when scheduled for today and marked UNAVAILABLE', () => {
+      expect(service.isVisibleForInspector('ROUTINE', 'UNAVAILABLE', false, todayDate, today)).toBe(false);
+    });
+
+    it('should remain visible when scheduled for today with keyRequired', () => {
+      expect(service.isVisibleForInspector('ROUTINE', 'PENDING', true, todayDate, today)).toBe(true);
     });
   });
 });

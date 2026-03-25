@@ -9,17 +9,14 @@ const AppointmentListPage = Loadable(lazy(() => import('@/features/appointments/
 const AppointmentCreatePage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentCreatePage').then(m => ({ default: m.AppointmentCreatePage }))));
 const AppointmentDetailPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
 const AppointmentImportPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentImportPage').then(m => ({ default: m.AppointmentImportPage }))));
-const AppointmentMapPage = Loadable(lazy(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
 const PropertyListPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyListPage').then(m => ({ default: m.PropertyListPage }))));
 const PropertyCreatePage = Loadable(lazy(() => import('@/features/properties/pages/PropertyCreatePage').then(m => ({ default: m.PropertyCreatePage }))));
 const PropertyDetailPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyDetailPage').then(m => ({ default: m.PropertyDetailPage }))));
 const PropertyImportPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyImportPage').then(m => ({ default: m.PropertyImportPage }))));
-const PropertyMapPage = Loadable(lazy(() => import('@/features/properties/pages/PropertyMapPage').then(m => ({ default: m.PropertyMapPage }))));
 const InspectorListPage = Loadable(lazy(() => import('@/features/inspectors/pages/InspectorListPage').then(m => ({ default: m.InspectorListPage }))));
 const ServiceGroupListPage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupListPage').then(m => ({ default: m.ServiceGroupListPage }))));
 const ServiceGroupCreatePage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupCreatePage').then(m => ({ default: m.ServiceGroupCreatePage }))));
 const ServiceGroupDetailPage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupDetailPage').then(m => ({ default: m.ServiceGroupDetailPage }))));
-const ServiceGroupMapPage = Loadable(lazy(() => import('@/features/service-groups/pages/ServiceGroupMapPage').then(m => ({ default: m.ServiceGroupMapPage }))));
 const UserListPage = Loadable(lazy(() => import('@/features/users/pages/UserListPage').then(m => ({ default: m.UserListPage }))));
 const FinancialEntriesPage = Loadable(lazy(() => import('@/features/financial/pages/FinancialEntriesPage').then(m => ({ default: m.FinancialEntriesPage }))));
 const InvoicesPage = Loadable(lazy(() => import('@/features/financial/pages/InvoicesPage').then(m => ({ default: m.InvoicesPage }))));
@@ -134,7 +131,7 @@ export const router = createBrowserRouter([
             path: 'appointments/map',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <AppointmentMapPage />
+                <Navigate to="/appointments" replace />
               </AuthGuard>
             ),
           },
@@ -174,7 +171,7 @@ export const router = createBrowserRouter([
             path: 'properties/map',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
-                <PropertyMapPage />
+                <Navigate to="/properties" replace />
               </AuthGuard>
             ),
           },
@@ -214,7 +211,7 @@ export const router = createBrowserRouter([
             path: 'service-groups/map',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <ServiceGroupMapPage />
+                <Navigate to="/service-groups" replace />
               </AuthGuard>
             ),
           },

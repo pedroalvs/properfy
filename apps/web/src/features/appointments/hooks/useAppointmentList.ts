@@ -21,6 +21,7 @@ export function useAppointmentList(): UseAppointmentListReturn {
   const [filters, setFilters] = useState<AppointmentFiltersState>({
     ...DEFAULT_FILTERS,
     status: searchParams.get('status') ?? '',
+    tenantConfirmationStatus: searchParams.get('tenantConfirmationStatus') ?? '',
     startDate: searchParams.get('fromDate') ?? '',
     endDate: searchParams.get('toDate') ?? '',
   });
@@ -35,6 +36,7 @@ export function useAppointmentList(): UseAppointmentListReturn {
     sortBy,
     sortOrder,
     status: filters.status || undefined,
+    tenantConfirmationStatus: filters.tenantConfirmationStatus || undefined,
     branchId: filters.branchId || undefined,
     search: filters.search || undefined,
     fromDate: filters.startDate || undefined,

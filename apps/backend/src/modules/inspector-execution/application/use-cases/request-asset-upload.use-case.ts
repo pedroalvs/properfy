@@ -10,6 +10,7 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
+  ExecutionAppointmentNotFoundError,
   AssetMimeTypeNotAllowedError,
 } from '../../domain/inspection-execution.errors';
 
@@ -47,9 +48,17 @@ export class RequestAssetUploadUseCase {
       throw new ForbiddenError('FORBIDDEN', 'Only inspectors can upload assets');
     }
 
+    if (!actor.inspectorId) {
+      throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+    }
+
     // 2. Load execution
     const execution = await this.executionRepo.findByAppointmentId(appointmentId);
     if (!execution) throw new ExecutionNotStartedError();
+
+    if (execution.inspectorId !== actor.inspectorId) {
+      throw new ForbiddenError('FORBIDDEN', 'Inspection execution is not assigned to this inspector');
+    }
 
     // 3. Check not finished
     if (execution.isFinished()) throw new ExecutionAlreadyFinishedError();
@@ -62,11 +71,17 @@ export class RequestAssetUploadUseCase {
     // 5. Generate storage key
     // Load appointment to get tenantId for storage path
     const appointmentResult = await this.appointmentRepo.findById(appointmentId, null);
-    const tenantId = appointmentResult?.appointment.tenantId ?? 'unknown';
+    if (!appointmentResult) {
+      throw new ExecutionAppointmentNotFoundError();
+    }
+    const { appointment } = appointmentResult;
+    if (appointment.inspectorId !== actor.inspectorId) {
+      throw new ExecutionAppointmentNotFoundError();
+    }
 
     const assetId = randomUUID();
     const ext = this.getExtension(mimeType, fileName);
-    const storageKey = `inspections/${tenantId}/${appointmentId}/${assetId}.${ext}`;
+    const storageKey = `inspections/${appointment.tenantId}/${appointmentId}/${assetId}.${ext}`;
 
     // 6. Get presigned URL
     const { url } = await this.storageService.createSignedUploadUrl(

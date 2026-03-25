@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UpdatePricingRuleUseCase } from '../../../src/modules/pricing-rule/application/use-cases/update-pricing-rule.use-case';
 import type { IPricingRuleRepository } from '../../../src/modules/pricing-rule/domain/pricing-rule.repository';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { PricingRuleNotFoundError } from '../../../src/modules/pricing-rule/domain/pricing-rule.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
@@ -37,8 +39,24 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   };
 }
 
+function makeTenant() {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Tenant 1',
+    legalName: 'Tenant 1 Pty Ltd',
+    timezone: 'Australia/Sydney',
+    currency: 'USD',
+    settingsJson: {},
+    status: 'ACTIVE',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  });
+}
+
 describe('UpdatePricingRuleUseCase', () => {
   let pricingRuleRepo: IPricingRuleRepository;
+  let tenantRepo: ITenantRepository;
   let auditService: AuditService;
   let useCase: UpdatePricingRuleUseCase;
 
@@ -51,8 +69,17 @@ describe('UpdatePricingRuleUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
+    tenantRepo = {
+      findById: vi.fn(),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new UpdatePricingRuleUseCase(pricingRuleRepo, auditService);
+    useCase = new UpdatePricingRuleUseCase(pricingRuleRepo, tenantRepo, auditService);
   });
 
   it('should update pricing rule for AM', async () => {
@@ -66,6 +93,7 @@ describe('UpdatePricingRuleUseCase', () => {
     });
 
     expect(result.priceAmount).toBe(20000);
+    expect(result.currency).toBe('USD');
     expect(result.status).toBe('INACTIVE');
     expect(pricingRuleRepo.update).toHaveBeenCalledWith('pr-1', 'tenant-1', {
       priceAmount: 20000,

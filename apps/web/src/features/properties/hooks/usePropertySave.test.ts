@@ -103,7 +103,7 @@ describe('usePropertySave', () => {
 
     let saveResult: { success: boolean; id?: string } | undefined;
     await act(async () => {
-      saveResult = await result.current.save(VALID_CREATE_DATA);
+      saveResult = await result.current.save(VALID_CREATE_DATA, undefined, '123e4567-e89b-12d3-a456-426614174000');
     });
 
     expect(saveResult?.success).toBe(true);
@@ -111,6 +111,7 @@ describe('usePropertySave', () => {
     expect(mockPost).toHaveBeenCalledWith('/v1/properties', {
       body: expect.objectContaining({
         propertyCode: VALID_CREATE_DATA.propertyCode,
+        tenantId: '123e4567-e89b-12d3-a456-426614174000',
         type: VALID_CREATE_DATA.type,
         branchId: VALID_CREATE_DATA.branchId,
         street: VALID_CREATE_DATA.street,

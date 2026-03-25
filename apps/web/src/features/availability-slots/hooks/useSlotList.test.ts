@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -104,7 +104,7 @@ describe('useSlotList', () => {
     });
   });
 
-  it('pagination total reflects API response', async () => {
+  it('does not send unsupported search param', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useSlotList(), { wrapper });
 
@@ -112,7 +112,30 @@ describe('useSlotList', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.pagination.total).toBe(2);
+    act(() => {
+      result.current.setFilters({
+        inspectorId: 'insp-01',
+        status: 'AVAILABLE',
+        dateFrom: '2026-03-20',
+        dateTo: '2026-03-21',
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenLastCalledWith('/v1/availability-slots', {
+        params: {
+          query: expect.objectContaining({
+            inspectorId: 'insp-01',
+            status: 'AVAILABLE',
+            dateFrom: '2026-03-20',
+            dateTo: '2026-03-21',
+          }),
+        },
+      });
+    });
+
+    const lastCall = mockGet.mock.calls.at(-1)?.[1] as { params?: { query?: Record<string, string> } } | undefined;
+    expect(lastCall?.params?.query).not.toHaveProperty('search');
   });
 
   it('returns error state on failure', async () => {

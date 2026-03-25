@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AvailabilitySlotStatus } from '@properfy/shared';
-import { formatDate } from '@/lib/format-date';
+import { formatDate, toLocalISODate } from '@/lib/format-date';
 import type { AvailabilitySlot } from '../types';
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 06:00 to 22:00
@@ -44,7 +44,7 @@ function parseTime(time: string): number {
 }
 
 function dateToIso(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return toLocalISODate(date);
 }
 
 interface SlotCalendarViewProps {

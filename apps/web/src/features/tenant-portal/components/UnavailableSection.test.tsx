@@ -53,7 +53,7 @@ describe('UnavailableSection', () => {
     expect(screen.getByText('Unavailability Reported')).toBeInTheDocument();
   });
 
-  it('shows urgent text in read-only mode', () => {
+  it('shows urgent copy and keeps the action available in read-only mode', () => {
     render(
       <UnavailableSection
         appointment={baseAppointment as any}
@@ -62,7 +62,8 @@ describe('UnavailableSection', () => {
       />,
     );
 
-    expect(screen.getByText('Report Unavailability (Urgent)')).toBeInTheDocument();
+    expect(screen.getByText(/please report your unavailability below/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Urgent Report: Unavailable' })).toBeEnabled();
   });
 
   it('calls mutation on button click', async () => {

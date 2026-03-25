@@ -26,7 +26,7 @@ vi.mock('@/lib/api-error', () => ({
 
 import { api } from '@/services/api';
 import { useFinancialList } from './useFinancialList';
-import { createQueryWrapper } from '@/test-utils/test-wrappers';
+import { createRouterQueryWrapper } from '@/test-utils/test-wrappers';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
@@ -45,7 +45,7 @@ beforeEach(() => {
 
 describe('useFinancialList', () => {
   it('returns data after loading resolves', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useFinancialList(), { wrapper });
 
     expect(result.current.isLoading).toBe(true);
@@ -59,7 +59,7 @@ describe('useFinancialList', () => {
   });
 
   it('initially shows loading then resolves', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useFinancialList(), { wrapper });
 
     expect(result.current.isLoading).toBe(true);
@@ -70,7 +70,7 @@ describe('useFinancialList', () => {
   });
 
   it('calls API with correct path', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useFinancialList(), { wrapper });
 
     await waitFor(() => {
@@ -80,8 +80,34 @@ describe('useFinancialList', () => {
     expect(mockGet).toHaveBeenCalledWith('/v1/financial/entries', { params: { query: expect.any(Object) } });
   });
 
+  it('maps entryType filter to backend type param and does not send search', async () => {
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useFinancialList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    result.current.setFilters({ entryType: 'REFUND', status: 'PENDING' });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenLastCalledWith('/v1/financial/entries', {
+        params: {
+          query: expect.objectContaining({
+            type: 'REFUND',
+            status: 'PENDING',
+          }),
+        },
+      });
+    });
+
+    const lastCall = mockGet.mock.calls.at(-1)?.[1];
+    expect(lastCall?.params?.query).not.toHaveProperty('entryType');
+    expect(lastCall?.params?.query).not.toHaveProperty('search');
+  });
+
   it('pagination total reflects API response', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useFinancialList(), { wrapper });
 
     await waitFor(() => {
@@ -93,7 +119,7 @@ describe('useFinancialList', () => {
 
   it('handles API error gracefully', async () => {
     mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Network error' } });
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useFinancialList(), { wrapper });
 
     await waitFor(() => {
@@ -102,5 +128,25 @@ describe('useFinancialList', () => {
 
     expect(result.current.isError).toBe(true);
     expect(result.current.data).toHaveLength(0);
+  });
+
+  it('initializes supported filters from query params', async () => {
+    const wrapper = createRouterQueryWrapper('/financial?type=REFUND&status=PENDING');
+    const { result } = renderHook(() => useFinancialList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.filters.entryType).toBe('REFUND');
+    expect(result.current.filters.status).toBe('PENDING');
+    expect(mockGet).toHaveBeenCalledWith('/v1/financial/entries', {
+      params: {
+        query: expect.objectContaining({
+          type: 'REFUND',
+          status: 'PENDING',
+        }),
+      },
+    });
   });
 });

@@ -1,6 +1,8 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IFinancialEntryRepository, FinancialEntrySummary } from '../../domain/financial-entry.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 
 export interface GetFinancialSummaryInput {
   tenantId?: string;
@@ -8,7 +10,10 @@ export interface GetFinancialSummaryInput {
 }
 
 export class GetFinancialSummaryUseCase {
-  constructor(private readonly entryRepo: IFinancialEntryRepository) {}
+  constructor(
+    private readonly entryRepo: IFinancialEntryRepository,
+    private readonly tenantRepo: ITenantRepository,
+  ) {}
 
   async execute(input: GetFinancialSummaryInput): Promise<FinancialEntrySummary> {
     const { actor } = input;
@@ -22,6 +27,20 @@ export class GetFinancialSummaryUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to view financial summary');
     }
 
-    return this.entryRepo.getSummary(tenantId);
+    const summary = await this.entryRepo.getSummary(tenantId);
+
+    if (!tenantId) {
+      return summary;
+    }
+
+    const tenant = await this.tenantRepo.findById(tenantId);
+    if (!tenant) {
+      throw new TenantNotFoundError();
+    }
+
+    return {
+      ...summary,
+      currency: tenant.currency,
+    };
   }
 }

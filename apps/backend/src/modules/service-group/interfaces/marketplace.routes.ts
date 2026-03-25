@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   listMarketplaceOffersQuerySchema,
   marketplaceOfferResponseSchema,
+  marketplaceOfferAcceptResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
 } from '@properfy/shared';
@@ -66,7 +67,7 @@ export async function registerMarketplaceRoutes(
       preHandler: authenticate,
       schema: {
         params: z.object({ groupId: z.string().uuid() }),
-        response: { 200: successResponseSchema(marketplaceOfferResponseSchema) },
+        response: { 200: successResponseSchema(marketplaceOfferAcceptResponseSchema) },
       },
     },
     async (request, reply) => {

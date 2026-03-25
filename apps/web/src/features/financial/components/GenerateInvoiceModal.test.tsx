@@ -26,9 +26,31 @@ vi.mock('@/lib/api-error', () => ({
   },
 }));
 
-import { api } from '@/services/api';
+vi.mock('@/lib/auth-storage', () => ({
+  authStorage: {
+    getAccessToken: vi.fn(() => null),
+    hasTokens: vi.fn(() => false),
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+  },
+}));
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'u-1', role: 'CL_ADMIN', tenantId: 'tenant-1' },
+  }),
+}));
+
+vi.mock('@/hooks/useFormOptions', () => ({
+  useFormOptions: () => ({
+    options: [{ value: '123e4567-e89b-12d3-a456-426614174000', label: 'Diego' }],
+    isLoading: false,
+  }),
+}));
+
 import { GenerateInvoiceModal } from './GenerateInvoiceModal';
 
+import { api } from '@/services/api';
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 function createWrapper() {
@@ -102,7 +124,8 @@ describe('GenerateInvoiceModal', () => {
       </Wrapper>,
     );
 
-    fireEvent.change(screen.getByLabelText('Inspector'), { target: { value: 'insp-01' } });
+    fireEvent.click(screen.getByLabelText('Inspector'));
+    fireEvent.click(screen.getByText('Diego'));
     fireEvent.change(screen.getByLabelText('Period Start'), { target: { value: '2026-03-31' } });
     fireEvent.change(screen.getByLabelText('Period End'), { target: { value: '2026-03-01' } });
 
@@ -123,5 +146,32 @@ describe('GenerateInvoiceModal', () => {
 
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('submits period dates in YYYY-MM-DD format', async () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <GenerateInvoiceModal open={true} onClose={onClose} onGenerated={onGenerated} />
+      </Wrapper>,
+    );
+
+    fireEvent.click(screen.getByLabelText('Inspector'));
+    fireEvent.click(screen.getByText('Diego'));
+    fireEvent.change(screen.getByLabelText('Period Start'), { target: { value: '2026-03-01' } });
+    fireEvent.change(screen.getByLabelText('Period End'), { target: { value: '2026-03-31' } });
+
+    fireEvent.click(screen.getByText('Generate'));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/v1/billing/invoices/generate', {
+        body: {
+          inspectorId: '123e4567-e89b-12d3-a456-426614174000',
+          periodStart: '2026-03-01',
+          periodEnd: '2026-03-31',
+          periodType: 'MONTHLY',
+        },
+      });
+    });
   });
 });

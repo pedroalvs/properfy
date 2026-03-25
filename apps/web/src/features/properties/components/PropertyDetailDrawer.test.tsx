@@ -133,11 +133,9 @@ describe('PropertyDetailDrawer', () => {
     expect(screen.getByText('Address')).toBeInTheDocument();
   });
 
-  it('edit button calls showInfo snackbar', () => {
+  it('hides edit button when onEdit prop is not provided', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    const editButton = screen.getByLabelText('Edit');
-    fireEvent.click(editButton);
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
@@ -178,10 +176,4 @@ describe('PropertyDetailDrawer', () => {
     expect(onEdit).toHaveBeenCalledWith('prop-01');
   });
 
-  it('edit button falls back to snackbar when onEdit prop is not provided', () => {
-    renderDrawer({ propertyId: 'prop-01', open: true });
-    const editButton = screen.getByLabelText('Edit');
-    fireEvent.click(editButton);
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
-  });
 });

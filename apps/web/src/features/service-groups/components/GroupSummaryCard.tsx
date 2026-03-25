@@ -4,6 +4,7 @@ import { PRIORITY_MODE_MAP } from '@/lib/status-colors';
 interface GroupSummaryCardProps {
   appointmentCount: number;
   serviceType: string;
+  scheduledDate: string;
   timeWindow: string;
   priorityMode: string;
 }
@@ -11,6 +12,7 @@ interface GroupSummaryCardProps {
 export function GroupSummaryCard({
   appointmentCount,
   serviceType,
+  scheduledDate,
   timeWindow,
   priorityMode,
 }: GroupSummaryCardProps) {
@@ -27,6 +29,9 @@ export function GroupSummaryCard({
 
         <div className="text-sm text-text-secondary">Service Type</div>
         <div className="text-sm font-semibold text-text-primary">{serviceType || '—'}</div>
+
+        <div className="text-sm text-text-secondary">Scheduled Date</div>
+        <div className="text-sm font-semibold text-text-primary">{scheduledDate || '—'}</div>
 
         <div className="text-sm text-text-secondary">Time Window</div>
         <div className="text-sm font-semibold text-text-primary">{timeWindow || '—'}</div>

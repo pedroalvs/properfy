@@ -4,6 +4,7 @@ import type { ExecutionState } from '../types';
 
 const DEFAULT_STATE: Omit<ExecutionState, 'appointmentId'> = {
   phase: 'PRE_START',
+  pendingSync: false,
   startLocation: null,
   finishLocation: null,
   checklistTemplate: [],

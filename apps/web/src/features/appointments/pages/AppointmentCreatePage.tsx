@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -12,6 +13,7 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { TIME_SLOT_OPTIONS } from '../constants/form-options';
@@ -20,29 +22,53 @@ import { EMPTY_FORM_DATA } from '../types';
 
 export function AppointmentCreatePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const { save, isSaving, validate } = useAppointmentSave();
-
-  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
-    ['branches', 'form-options'],
-    '/v1/branches',
-    (item) => ({ value: item.id, label: item.name }),
-  );
-  const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
-    ['service-types', 'form-options'],
-    '/v1/service-types',
-    (item) => ({ value: item.id, label: item.name }),
-  );
-  const { options: propertyOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
-    ['properties', 'form-options'],
-    '/v1/properties',
-    (item) => ({ value: item.id, label: `${item.propertyCode} - ${item.street}` }),
-  );
-
+  const isGlobalRole = user?.role === UserRole.AM || user?.role === UserRole.OP;
+  const [selectedTenantId, setSelectedTenantId] = useState('');
   const [form, setForm] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [initialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [errors, setErrors] = useState<AppointmentFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
+  const requiresTenantSelection = isGlobalRole && !selectedTenantId;
+
+  const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
+    ['tenants', 'appointment-create'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+    undefined,
+    { enabled: isGlobalRole },
+  );
+
+  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+    ['branches', 'appointment-create', effectiveTenantId ?? ''],
+    '/v1/branches',
+    (item) => ({ value: item.id, label: item.name }),
+    effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
+    { enabled: !isGlobalRole || !!effectiveTenantId },
+  );
+  const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
+    ['service-types', 'appointment-create'],
+    '/v1/service-types',
+    (item) => ({ value: item.id, label: item.name }),
+  );
+  const { options: propertyOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
+    ['properties', 'appointment-create', effectiveTenantId ?? '', 'branch', 'form.branchId'],
+    '/v1/properties',
+    (item) => ({ value: item.id, label: `${item.propertyCode} - ${item.street}` }),
+    {
+      ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}),
+      ...(form.branchId ? { branchId: form.branchId } : {}),
+    },
+    { enabled: (!isGlobalRole || !!effectiveTenantId) && !!form.branchId },
+  );
+
+  useEffect(() => {
+    if (!isGlobalRole) return;
+    setForm((prev) => ({ ...prev, branchId: '', propertyId: '' }));
+  }, [isGlobalRole, selectedTenantId]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
@@ -61,10 +87,32 @@ export function AppointmentCreatePage() {
     [],
   );
 
+  const handleTenantChange = useCallback((tenantId: string) => {
+    setSelectedTenantId(tenantId);
+  }, []);
+
+  const handleBranchChange = useCallback((branchId: string) => {
+    setForm((prev) => ({ ...prev, branchId, propertyId: '' }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.branchId;
+      delete next.propertyId;
+      return next;
+    });
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     const validationErrors = validate(form, 'create');
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      if (requiresTenantSelection) {
+        showError('Select an agency before creating an appointment');
+      }
+      return;
+    }
+
+    if (requiresTenantSelection) {
+      showError('Select an agency before creating an appointment');
       return;
     }
 
@@ -79,7 +127,7 @@ export function AppointmentCreatePage() {
     } else {
       showError(result.error ?? 'Failed to create appointment');
     }
-  }, [form, validate, save, showSuccess, showError, navigate]);
+  }, [form, navigate, requiresTenantSelection, save, showError, showSuccess, validate]);
 
   const handleBack = useCallback(() => {
     if (isDirty) {
@@ -114,10 +162,28 @@ export function AppointmentCreatePage() {
       <div className="rounded bg-card-bg p-6 shadow-sm">
         <div className="flex flex-col gap-6">
           <FormSection title="Appointment Details" columns={2}>
+            {isGlobalRole && (
+              <>
+                <FormField label="Agency" required>
+                  <SelectInput
+                    value={selectedTenantId}
+                    onChange={handleTenantChange}
+                    options={tenantOptions}
+                    placeholder="Select agency"
+                    aria-label="Agency"
+                  />
+                </FormField>
+                {requiresTenantSelection && (
+                  <p className="text-sm text-text-muted">
+                    Select an agency before creating an appointment.
+                  </p>
+                )}
+              </>
+            )}
             <FormField label="Branch" required error={errors.branchId}>
               <SelectInput
                 value={form.branchId}
-                onChange={(v) => updateField('branchId', v)}
+                onChange={handleBranchChange}
                 options={branchOptions}
                 placeholder="Select branch"
                 error={!!errors.branchId}
@@ -130,6 +196,7 @@ export function AppointmentCreatePage() {
                 onChange={(v) => updateField('propertyId', v)}
                 options={propertyOptions}
                 placeholder="Select property"
+                disabled={!form.branchId}
                 error={!!errors.propertyId}
                 aria-label="Property"
               />

@@ -149,6 +149,7 @@ export const serviceTypeResponseSchema = z.object({
 export const pricingRuleResponseSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
+  currency: z.string().length(3),
   serviceTypeId: z.string().uuid(),
   branchId: z.string().uuid().nullable(),
   priceAmount: z.number(),
@@ -269,7 +270,25 @@ export const serviceGroupResponseSchema = z.object({
 
 // ─── Marketplace Offer ─────────────────────────────────────────────────────
 
-export const marketplaceOfferResponseSchema = serviceGroupResponseSchema;
+export const marketplaceOfferResponseSchema = z.object({
+  groupId: z.string().uuid(),
+  tenantName: z.string(),
+  serviceTypeName: z.string(),
+  groupSize: z.number(),
+  scheduledDate: dateStr(),
+  timeWindow: z.string(),
+  priorityMode: z.string(),
+  priorityExpiresAt: dateStrNullable(),
+  suburbs: z.array(z.string()),
+});
+
+export const marketplaceOfferAcceptResponseSchema = z.object({
+  groupId: z.string().uuid(),
+  status: z.string(),
+  assignedInspectorId: z.string().uuid(),
+  appointmentsScheduled: z.number(),
+  acceptedAt: dateStr(),
+});
 
 // ─── Audit Log ─────────────────────────────────────────────────────────────
 
@@ -293,9 +312,19 @@ export const auditLogResponseSchema = z.object({
 // ─── Tenant Portal ─────────────────────────────────────────────────────────
 
 export const portalDataResponseSchema = z.object({
+  token: z.object({
+    status: z.string(),
+    isReadOnly: z.boolean(),
+    expiresAt: dateStr(),
+  }),
   appointment: z.unknown(),
   contact: z.unknown().nullable(),
   restrictions: z.unknown().nullable(),
+  existingResponse: z.object({
+    type: z.string(),
+    createdAt: dateStr(),
+    summary: z.string().optional(),
+  }).optional(),
 });
 
 export const portalTokenResponseSchema = z.object({
@@ -485,10 +514,12 @@ export const dashboardStatsResponseSchema = z.object({
     code: z.string(),
     propertyAddress: z.string(),
     status: z.string(),
+    doneCheckedByUserId: z.string().uuid().nullable().optional(),
     scheduledDate: dateStr(),
   })),
   pendingActions: z.object({
     noResponseTenants: z.number(),
+    pendingOperatorCrossChecks: z.number(),
     pendingFinancialEntries: z.number(),
     processingReports: z.number(),
   }),

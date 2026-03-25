@@ -6,6 +6,11 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
+import { TenantInactiveError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
+import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
+import { EntryNotFoundError, InspectorNotFoundError } from '../../domain/billing.errors';
 
 export interface CreateManualAdjustmentInput {
   tenantId: string;
@@ -43,6 +48,8 @@ export class CreateManualAdjustmentUseCase {
     private readonly auditService: AuditService,
     private readonly idempotencyService: IIdempotencyService,
     private readonly tenantRepo: ITenantRepository,
+    private readonly appointmentRepo: IAppointmentRepository,
+    private readonly inspectorRepo: IInspectorRepository,
   ) {}
 
   async execute(input: CreateManualAdjustmentInput): Promise<CreateManualAdjustmentOutput> {
@@ -63,7 +70,52 @@ export class CreateManualAdjustmentUseCase {
 
     // 2. Resolve tenant currency
     const tenant = await this.tenantRepo.findById(input.tenantId);
-    const currency = tenant?.currency ?? 'AUD';
+    if (!tenant) {
+      throw new TenantNotFoundError();
+    }
+    if (!tenant.isActive()) {
+      throw new TenantInactiveError();
+    }
+    const currency = tenant.currency;
+
+    if (input.appointmentId) {
+      const appointmentResult = await this.appointmentRepo.findById(input.appointmentId, null);
+      if (!appointmentResult) {
+        throw new AppointmentNotFoundError();
+      }
+      if (appointmentResult.appointment.tenantId !== input.tenantId) {
+        throw new ForbiddenError(
+          'AUTH_FORBIDDEN',
+          'Appointment belongs to a different tenant',
+        );
+      }
+    }
+
+    if (input.referenceEntryId) {
+      const referenceEntry = await this.financialEntryRepo.findById(input.referenceEntryId);
+      if (!referenceEntry) {
+        throw new EntryNotFoundError();
+      }
+      if (referenceEntry.tenantId !== input.tenantId) {
+        throw new ForbiddenError(
+          'AUTH_FORBIDDEN',
+          'Reference entry belongs to a different tenant',
+        );
+      }
+    }
+
+    if (input.inspectorId) {
+      const inspector = await this.inspectorRepo.findById(input.inspectorId);
+      if (!inspector || !inspector.isActive()) {
+        throw new InspectorNotFoundError();
+      }
+      if (!inspector.isEligibleForTenant(input.tenantId)) {
+        throw new ForbiddenError(
+          'AUTH_FORBIDDEN',
+          'Inspector is not eligible for this tenant',
+        );
+      }
+    }
 
     // 3. Create entry
     const now = new Date();

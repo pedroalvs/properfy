@@ -1,9 +1,11 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '../hooks';
 import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, StatCard } from '../components';
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { stats, isLoading } = useDashboardStats();
 
   return (
@@ -14,11 +16,18 @@ export function DashboardPage() {
         <LoadingState rows={8} />
       ) : (
         <>
-          <DashboardSummaryCards {...stats.appointmentsByStatus} />
+          <DashboardSummaryCards
+            {...stats.appointmentsByStatus}
+            donePendingCrossCheck={stats.pendingActions.pendingOperatorCrossChecks}
+          />
 
           <div className="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
             <div className="lg:col-span-3">
-              <RecentAppointmentsList appointments={stats.recentAppointments} />
+              <RecentAppointmentsList
+                appointments={stats.recentAppointments}
+                onViewAppointment={(id) => navigate(`/appointments/${id}`)}
+                onViewAll={() => navigate('/appointments')}
+              />
             </div>
             <div className="lg:col-span-2">
               <PendingActionsCard {...stats.pendingActions} />

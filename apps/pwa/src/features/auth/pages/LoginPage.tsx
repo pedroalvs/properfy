@@ -2,6 +2,30 @@ import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
+import { ApiError } from '@/lib/api-error';
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    switch (error.code) {
+      case 'AUTH_INVALID_CREDENTIALS':
+        return 'Invalid email or password.';
+      case 'AUTH_ACCOUNT_LOCKED':
+        return 'Account locked. Please try again later.';
+      case 'AUTH_USER_INACTIVE':
+        return 'Account is inactive. Contact your administrator.';
+      case 'AUTH_TOTP_REQUIRED':
+        return 'Two-factor authentication code required.';
+      case 'VALIDATION_ERROR':
+        return 'Invalid email or password format.';
+      default:
+        break;
+    }
+    if (error.status === 429) return 'Too many attempts. Please wait.';
+    if (error.status >= 500) return 'Server error. Please try again later.';
+    return 'Invalid email or password.';
+  }
+  return 'An unexpected error occurred.';
+}
 
 export function LoginPage() {
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -16,11 +40,17 @@ export function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!email.trim() || !password) {
+      setError('Please enter your email and password.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await login(email, password);
-    } catch {
-      setError('Invalid email or password');
+      await login(email.trim(), password);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

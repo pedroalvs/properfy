@@ -4,7 +4,11 @@ import { useFinancialBatchApprove } from '../hooks/useFinancialBatchApprove';
 interface FinancialBatchActionsProps {
   selectedIds: string[];
   onClearSelection: () => void;
-  onApproveComplete: (result: { success: boolean; failedCount: number }) => void;
+  onApproveComplete: (result: {
+    success: boolean;
+    failedCount: number;
+    errors: Array<{ id: string; message: string; code?: string; status?: number }>;
+  }) => void;
 }
 
 export function FinancialBatchActions({

@@ -89,6 +89,11 @@ describe('PropertyListPage', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('does not expose a map CTA while map pages are disabled', () => {
+    renderPage();
+    expect(screen.queryByText('Map')).not.toBeInTheDocument();
+  });
+
   it('renders filter bar with search and type controls', () => {
     renderPage();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();

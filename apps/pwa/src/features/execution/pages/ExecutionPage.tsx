@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { PreStartPanel } from '../components/PreStartPanel';
 import { InProgressPanel } from '../components/InProgressPanel';
 import { FinishingPanel } from '../components/FinishingPanel';
@@ -19,19 +20,19 @@ import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorA
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { canTransition } from '../lib/execution-state-machine';
 import type { CapturedLocation, ChecklistResponse } from '../types';
-import { formatTime } from '@/lib/format-date';
+import { getTimeWindowParts } from '@/features/schedule/lib/time-slot';
 
 export function ExecutionPage() {
   const { appointmentId: appointmentIdParam } = useParams<{ appointmentId: string }>();
   const navigate = useNavigate();
   const appointmentId = appointmentIdParam!;
 
-  const { data: aptData, isLoading: aptLoading } = useInspectorAppointment(appointmentId);
+  const { data: aptData, isLoading: aptLoading, isError: aptError, refetch: refetchAppointment } = useInspectorAppointment(appointmentId);
   const { state, updateState, clearState, isRestored } = useLocalExecutionState(appointmentId);
   const startMutation = useStartInspection();
   const finishMutation = useFinishInspection();
   const { assets, addAsset, removeAsset, retryFailed, completedAssets } = useAssetUpload(appointmentId);
-  const { showInfo } = useSnackbar();
+  const { showInfo, showError } = useSnackbar();
   useAutoSave(state);
   const [showFailedModal, setShowFailedModal] = useState(false);
   const resumeBannerShown = useRef(false);
@@ -58,8 +59,22 @@ export function ExecutionPage() {
   }
 
   const appointment = aptData?.data;
+  if (aptError || !appointment) {
+    return (
+      <div>
+        <TopBar title="Inspection" showBack />
+        <ErrorState
+          message="Unable to load this appointment"
+          detail="This inspection is not available right now. Reload the page or go back to your schedule."
+          onRetry={() => {
+            refetchAppointment();
+          }}
+        />
+      </div>
+    );
+  }
   const topBarSubtitle = appointment
-    ? `${appointment.propertyAddress} · ${formatTime(appointment.timeSlotStart)}`
+    ? `${appointment.propertyAddress} · ${getTimeWindowParts(appointment.timeSlot).startTime}`
     : undefined;
 
   const handleStart = async (location: CapturedLocation) => {
@@ -73,12 +88,8 @@ export function ExecutionPage() {
         startedAt: location.capturedAt,
         checklistTemplate: (result.data.checklistTemplate ?? []) as any,
       });
-    } catch {
-      updateState({
-        phase: 'IN_PROGRESS',
-        startLocation: location,
-        startedAt: location.capturedAt,
-      });
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Unable to start inspection');
     }
   };
 
@@ -128,18 +139,23 @@ export function ExecutionPage() {
     updateState({ phase: 'SUBMITTING', finishLocation: location });
 
     try {
-      await finishMutation.mutateAsync({
+      const result = await finishMutation.mutateAsync({
         appointmentId,
         location,
         checklist: state.checklistResponses,
         notes: state.notes,
         assets: completedAssets,
       });
-      updateState({ phase: 'DONE' });
-      clearState();
+      const queuedOffline = result.data.status === 'QUEUED';
+      updateState({
+        phase: 'DONE',
+        pendingSync: queuedOffline,
+        errorMessage: null,
+      });
     } catch (err) {
       updateState({
         phase: 'ERROR',
+        pendingSync: false,
         errorMessage: err instanceof Error ? err.message : 'Submission failed',
       });
     }
@@ -196,7 +212,16 @@ export function ExecutionPage() {
 
       {state.phase === 'SUBMITTING' && <SubmittingPanel />}
 
-      {state.phase === 'DONE' && <DonePanel />}
+      {state.phase === 'DONE' && (
+        <DonePanel
+          pendingSync={state.pendingSync}
+          onBack={() => {
+            if (!state.pendingSync) {
+              clearState();
+            }
+          }}
+        />
+      )}
 
       {state.phase === 'ERROR' && (
         <ErrorPanel

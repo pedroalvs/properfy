@@ -1,6 +1,8 @@
 import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { formatDateTime } from '@/lib/format-date';
+import { formatAuditAction, formatAuditActor, formatAuditTenant, summarizeAuditChanges } from '../lib/audit-log-display';
 import type { AuditLog } from '../types';
 
 interface AuditLogTableProps {
@@ -11,6 +13,19 @@ interface AuditLogTableProps {
   pagination?: DataTablePagination;
   sorting?: DataTableSorting;
   onView?: (log: AuditLog) => void;
+}
+
+function actorChipStyle(actorType: string): { bg: string; text?: string } {
+  switch (actorType) {
+    case 'USER':
+      return { bg: '#B3E5FC' };
+    case 'SYSTEM':
+      return { bg: '#C8E6C9' };
+    case 'ANONYMOUS':
+      return { bg: '#FFE0B2' };
+    default:
+      return { bg: '#E0E0E0' };
+  }
 }
 
 export function AuditLogTable({
@@ -33,8 +48,24 @@ export function AuditLogTable({
     {
       key: 'actorType',
       label: 'Actor',
-      width: '120px',
-      render: (row) => <>{row.actorType}{row.actorId ? ` (${row.actorId.slice(0, 8)})` : ''}</>,
+      width: '180px',
+      render: (row) => {
+        const style = actorChipStyle(row.actorType);
+        return (
+          <div className="flex flex-col gap-1">
+            <StatusChip label={row.actorType} bg={style.bg} text={style.text} />
+            <span className="text-xs text-text-secondary">
+              {formatAuditActor(row.actorType, row.actorId)}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'tenantId',
+      label: 'Tenant',
+      width: '180px',
+      render: (row) => <>{formatAuditTenant(row.tenantId)}</>,
     },
     {
       key: 'entityType',
@@ -45,14 +76,21 @@ export function AuditLogTable({
     {
       key: 'entityId',
       label: 'Entity ID',
-      width: '120px',
-      render: (row) => <>{row.entityId ? row.entityId.slice(0, 8) + '...' : '—'}</>,
+      width: '180px',
+      render: (row) => <>{row.entityId ?? '—'}</>,
     },
     {
       key: 'action',
       label: 'Action',
-      width: '160px',
+      width: '220px',
       sortable: true,
+      render: (row) => <>{formatAuditAction(row.action)}</>,
+    },
+    {
+      key: 'changes',
+      label: 'Changed Fields',
+      width: '200px',
+      render: (row) => <>{summarizeAuditChanges(row)}</>,
     },
     {
       key: 'reason',

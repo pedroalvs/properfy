@@ -14,6 +14,7 @@ export function UserListPage() {
   const { user: authUser } = useAuth();
   const isGlobalRole = authUser?.role === 'AM' || authUser?.role === 'OP';
   const [selectedTenantId, setSelectedTenantId] = useState('');
+  const requiresTenantSelection = isGlobalRole && !selectedTenantId;
 
   const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
     ['tenants', 'form-options'],
@@ -46,7 +47,15 @@ export function UserListPage() {
     <>
       <ListFilterTableTemplate
         title="Users"
-        primaryAction={{ label: 'New User', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } }}
+        primaryAction={{
+          label: 'New User',
+          icon: 'mdi-plus',
+          onClick: () => {
+            setEditId(null);
+            setFormOpen(true);
+          },
+          disabled: requiresTenantSelection,
+        }}
       >
         {isGlobalRole && (
           <div className="px-0 pb-2">
@@ -59,6 +68,11 @@ export function UserListPage() {
                 aria-label="Agency"
               />
             </FormField>
+            {requiresTenantSelection && (
+              <p className="mt-2 text-sm text-text-muted">
+                Select an agency before creating or editing users.
+              </p>
+            )}
           </div>
         )}
         <UserFilters

@@ -128,6 +128,7 @@ describe('generateInvoiceSchema', () => {
       inspectorId: '550e8400-e29b-41d4-a716-446655440000',
       periodStart: '2026-03-01',
       periodEnd: '2026-03-15',
+      periodType: 'MONTHLY',
     });
     expect(result.success).toBe(true);
   });

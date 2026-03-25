@@ -6,10 +6,10 @@ interface PricingPreviewProps {
   serviceTypeId: string;
 }
 
-function formatCurrency(amount: number): string {
+function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-AU', {
     style: 'currency',
-    currency: 'AUD',
+    currency,
   }).format(amount);
 }
 
@@ -92,13 +92,13 @@ export function PricingPreview({ branchId, serviceTypeId }: PricingPreviewProps)
         <div className="flex items-center justify-between">
           <span className="text-sm text-text-primary">Base Price</span>
           <span className="text-sm font-medium text-text-primary" data-testid="base-price">
-            {formatCurrency(rule.priceAmount)}
+            {formatCurrency(rule.priceAmount, rule.currency)}
           </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-text-primary">Inspector Payout</span>
           <span className="text-sm font-medium text-text-primary" data-testid="inspector-payout">
-            {formatCurrency(inspectorPayout)}
+            {formatCurrency(inspectorPayout, rule.currency)}
             {rule.payoutType === 'PERCENTAGE' && (
               <span className="ml-1 text-xs text-text-muted">({rule.payoutValue}%)</span>
             )}
@@ -108,7 +108,7 @@ export function PricingPreview({ branchId, serviceTypeId }: PricingPreviewProps)
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-text-secondary">Platform Fee</span>
           <span className="text-sm font-bold text-secondary" data-testid="platform-fee">
-            {formatCurrency(platformFee)}
+            {formatCurrency(platformFee, rule.currency)}
           </span>
         </div>
       </div>

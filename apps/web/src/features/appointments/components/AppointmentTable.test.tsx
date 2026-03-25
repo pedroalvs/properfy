@@ -43,6 +43,7 @@ describe('AppointmentTable', () => {
     expect(screen.getByText('Confirmation')).toBeInTheDocument();
     expect(screen.getByText('Inspector')).toBeInTheDocument();
     expect(screen.getByText('Scheduled Date')).toBeInTheDocument();
+    expect(screen.getByText('Reviewed')).toBeInTheDocument();
   });
 
   it('renders appointment data in rows', () => {
@@ -57,13 +58,33 @@ describe('AppointmentTable', () => {
   it('renders AppointmentStatusChip for status column', () => {
     const apt = makeAppointment({ status: AppointmentStatus.DONE });
     render(<AppointmentTable data={[apt]} />);
-    expect(screen.getByText('Done')).toBeInTheDocument();
+    expect(screen.getByText('Done (Review Required)')).toBeInTheDocument();
+  });
+
+  it('shows reviewed false for DONE without operator cross-check', () => {
+    const apt = makeAppointment({
+      status: AppointmentStatus.DONE,
+      doneCheckedByUserId: null,
+      doneCheckedAt: null,
+    });
+    render(<AppointmentTable data={[apt]} />);
+    expect(screen.getByLabelText('No')).toBeInTheDocument();
+  });
+
+  it('shows reviewed true for DONE with operator cross-check', () => {
+    const apt = makeAppointment({
+      status: AppointmentStatus.DONE,
+      doneCheckedByUserId: 'op-1',
+      doneCheckedAt: '2026-03-24T12:00:00Z',
+    });
+    render(<AppointmentTable data={[apt]} />);
+    expect(screen.getByLabelText('Yes')).toBeInTheDocument();
   });
 
   it('renders em dash for null inspectorName', () => {
     const apt = makeAppointment({ inspectorId: null, inspectorName: null });
     render(<AppointmentTable data={[apt]} />);
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getAllByText('—')).toHaveLength(2);
   });
 
   it('formats scheduled date', () => {
@@ -99,9 +120,16 @@ describe('AppointmentTable', () => {
   it('edit action calls onEdit with correct appointment', async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();
-    const apt = makeAppointment();
+    const apt = makeAppointment({ status: AppointmentStatus.DRAFT });
     render(<AppointmentTable data={[apt]} onEdit={onEdit} />);
     await user.click(screen.getByLabelText('Edit'));
     expect(onEdit).toHaveBeenCalledWith(apt);
+  });
+
+  it('hides edit action for non-editable statuses', () => {
+    const onEdit = vi.fn();
+    const apt = makeAppointment({ status: AppointmentStatus.DONE });
+    render(<AppointmentTable data={[apt]} onEdit={onEdit} />);
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 });

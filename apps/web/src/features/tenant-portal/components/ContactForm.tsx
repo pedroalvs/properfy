@@ -9,9 +9,10 @@ import type { PortalContact, UpdateContactInput } from '../types';
 interface ContactFormProps {
   contact: PortalContact | null;
   token: string;
+  isReadOnly: boolean;
 }
 
-export function ContactForm({ contact, token }: ContactFormProps) {
+export function ContactForm({ contact, token, isReadOnly }: ContactFormProps) {
   const { showSuccess, showError } = useSnackbar();
   const updateMutation = useUpdateContact(token);
 
@@ -71,6 +72,7 @@ export function ContactForm({ contact, token }: ContactFormProps) {
             value={primaryEmail}
             onChange={setPrimaryEmail}
             placeholder="email@example.com"
+            disabled={isReadOnly}
           />
         </FormField>
 
@@ -80,6 +82,7 @@ export function ContactForm({ contact, token }: ContactFormProps) {
             value={secondaryEmail}
             onChange={setSecondaryEmail}
             placeholder="Optional"
+            disabled={isReadOnly}
           />
         </FormField>
 
@@ -89,6 +92,7 @@ export function ContactForm({ contact, token }: ContactFormProps) {
             value={primaryPhone}
             onChange={setPrimaryPhone}
             placeholder="+61 400 000 000"
+            disabled={isReadOnly}
           />
         </FormField>
 
@@ -98,6 +102,7 @@ export function ContactForm({ contact, token }: ContactFormProps) {
             value={secondaryPhone}
             onChange={setSecondaryPhone}
             placeholder="Optional"
+            disabled={isReadOnly}
           />
         </FormField>
 
@@ -114,11 +119,18 @@ export function ContactForm({ contact, token }: ContactFormProps) {
           type="submit"
           variant="secondary"
           loading={updateMutation.isPending}
+          disabled={isReadOnly}
         >
           <i className="mdi mdi-content-save text-base" />
           Update Contact
         </Button>
       </form>
+
+      {isReadOnly && (
+        <p className="mt-2 text-xs text-text-muted">
+          This portal is read-only. Contact updates are no longer available.
+        </p>
+      )}
     </div>
   );
 }

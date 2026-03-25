@@ -1,22 +1,18 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppointmentStatus, TenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
+import { AppointmentStatus } from '@properfy/shared';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { TenantConfirmationBadge } from './TenantConfirmationBadge';
-import { formatTime } from '@/lib/format-date';
 import { FLOW_TYPE_MAP } from '@/lib/status-colors';
 import type { InspectorAppointment } from '../types';
+import { getTimeWindowParts, getTodayLocalISODate, isScheduleRisk } from '../lib/time-slot';
 
 interface AppointmentCardProps {
   appointment: InspectorAppointment;
 }
 
 function isT1Warning(appointment: InspectorAppointment): boolean {
-  if (appointment.flowType !== ServiceTypeFlowType.ROUTINE) return false;
-  if (appointment.tenantConfirmation === TenantConfirmationStatus.CONFIRMED) return false;
-
-  const today = new Date().toISOString().split('T')[0]!;
-  return appointment.timeSlotStart.startsWith(today);
+  return isScheduleRisk(appointment) && appointment.scheduledDate === getTodayLocalISODate();
 }
 
 function getLeftBorderClass(status: AppointmentStatus): string {
@@ -38,6 +34,7 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment }: Ap
   const showWarning = isT1Warning(appointment);
   const flowStyle = FLOW_TYPE_MAP[appointment.flowType];
   const leftBorder = getLeftBorderClass(appointment.status);
+  const { startTime } = getTimeWindowParts(appointment.timeSlot);
 
   return (
     <button
@@ -47,9 +44,7 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment }: Ap
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-text-primary">
-            {formatTime(appointment.timeSlotStart)}
-          </span>
+          <span className="text-sm font-bold text-text-primary">{startTime}</span>
           {showWarning && (
             <i
               className="mdi mdi-alert text-warning"

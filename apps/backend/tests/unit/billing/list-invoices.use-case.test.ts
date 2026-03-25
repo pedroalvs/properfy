@@ -82,6 +82,7 @@ describe('ListInvoicesUseCase', () => {
     expect(result.data[0].totalAmount).toBe(1400);
     expect(result.data[0].periodStart).toBe('2026-03-01');
     expect(result.data[0].periodEnd).toBe('2026-03-15');
+    expect(result.data[0].fileKey).toBeNull();
   });
 
   it('should force inspectorId to own for INSP role', async () => {

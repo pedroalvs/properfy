@@ -45,6 +45,7 @@ export interface AssetUploadState {
 export interface ExecutionState {
   appointmentId: string;
   phase: ExecutionPhase;
+  pendingSync: boolean;
   startLocation: CapturedLocation | null;
   finishLocation: CapturedLocation | null;
   checklistTemplate: ChecklistTemplateItem[];

@@ -1,16 +1,13 @@
-import type { PriorityMode } from '@properfy/shared';
-
 export interface MarketplaceOffer {
-  id: string;
   groupId: string;
-  groupName: string;
-  regionName: string;
-  priorityMode: PriorityMode;
-  appointmentsCount: number;
-  totalPayout: number;
-  expiresAt: string;
-  createdAt: string;
-  appointments: MarketplaceAppointment[];
+  tenantName: string;
+  serviceTypeName: string;
+  groupSize: number;
+  scheduledDate: string;
+  timeWindow: string;
+  priorityMode: string;
+  priorityExpiresAt: string | null;
+  suburbs: string[];
 }
 
 export interface MarketplaceAppointment {
@@ -22,17 +19,3 @@ export interface MarketplaceAppointment {
   latitude: number;
   longitude: number;
 }
-
-export interface OfferFiltersState {
-  search: string;
-  priorityMode: string;
-  dateFrom: string;
-  dateTo: string;
-}
-
-export const DEFAULT_OFFER_FILTERS: OfferFiltersState = {
-  search: '',
-  priorityMode: '',
-  dateFrom: '',
-  dateTo: '',
-};

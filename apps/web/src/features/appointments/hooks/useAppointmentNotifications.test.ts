@@ -35,16 +35,26 @@ const MOCK_NOTIFICATIONS = [
     id: 'notif-01',
     channel: 'EMAIL',
     recipient: 'tenant@example.com',
+    templateCode: 'INITIAL_NOTICE',
     status: 'SENT',
     sentAt: '2026-03-10T10:00:00Z',
+    deliveredAt: '2026-03-10T10:01:00Z',
+    failedAt: null,
+    failureReason: null,
+    retryCount: 0,
     createdAt: '2026-03-10T09:55:00Z',
   },
   {
     id: 'notif-02',
     channel: 'SMS',
     recipient: '+5511999000000',
+    templateCode: 'REMINDER_T1',
     status: 'PENDING',
     sentAt: null,
+    deliveredAt: null,
+    failedAt: null,
+    failureReason: null,
+    retryCount: 1,
     createdAt: '2026-03-11T14:00:00Z',
   },
 ];
@@ -67,6 +77,7 @@ describe('useAppointmentNotifications', () => {
 
     expect(result.current.notifications).toHaveLength(2);
     expect(result.current.notifications[0]!.channel).toBe('EMAIL');
+    expect(result.current.notifications[0]!.templateCode).toBe('INITIAL_NOTICE');
   });
 
   it('returns empty list when id is null', () => {

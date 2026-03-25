@@ -25,7 +25,7 @@ const mockContact = {
 
 describe('ContactForm', () => {
   it('renders form fields and title', () => {
-    render(<ContactForm contact={mockContact} token="test-token" />);
+    render(<ContactForm contact={mockContact} token="test-token" isReadOnly={false} />);
 
     expect(screen.getByText('Contact Information')).toBeInTheDocument();
     expect(screen.getByText(/Name:/)).toBeInTheDocument();
@@ -35,7 +35,7 @@ describe('ContactForm', () => {
   });
 
   it('renders with null contact', () => {
-    render(<ContactForm contact={null} token="test-token" />);
+    render(<ContactForm contact={null} token="test-token" isReadOnly={false} />);
 
     expect(screen.getByText('Contact Information')).toBeInTheDocument();
     expect(screen.queryByText(/Name:/)).not.toBeInTheDocument();
@@ -43,7 +43,7 @@ describe('ContactForm', () => {
 
   it('shows error when submitting with no changes', async () => {
     const user = userEvent.setup();
-    render(<ContactForm contact={null} token="test-token" />);
+    render(<ContactForm contact={null} token="test-token" isReadOnly={false} />);
 
     await user.click(screen.getByText('Update Contact'));
 
@@ -55,7 +55,7 @@ describe('ContactForm', () => {
   it('calls mutation on valid submit', async () => {
     mutateAsyncMock.mockResolvedValueOnce({});
     const user = userEvent.setup();
-    render(<ContactForm contact={null} token="test-token" />);
+    render(<ContactForm contact={null} token="test-token" isReadOnly={false} />);
 
     await user.type(screen.getByPlaceholderText('email@example.com'), 'new@test.com');
     await user.click(screen.getByText('Update Contact'));
@@ -63,5 +63,14 @@ describe('ContactForm', () => {
     expect(mutateAsyncMock).toHaveBeenCalledWith(
       expect.objectContaining({ primaryEmail: 'new@test.com' }),
     );
+  });
+
+  it('disables editing when portal is read-only', () => {
+    render(<ContactForm contact={mockContact} token="test-token" isReadOnly={true} />);
+
+    expect(screen.getByPlaceholderText('email@example.com')).toBeDisabled();
+    expect(screen.getByPlaceholderText('+61 400 000 000')).toBeDisabled();
+    expect(screen.getByText('Update Contact')).toBeDisabled();
+    expect(screen.getByText('This portal is read-only. Contact updates are no longer available.')).toBeInTheDocument();
   });
 });

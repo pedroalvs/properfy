@@ -1,5 +1,6 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDateTime } from '@/lib/format-date';
 import { ChangePasswordForm } from '../components/ChangePasswordForm';
 import { USER_ROLE_MAP } from '@/lib/status-colors';
 
@@ -26,6 +27,16 @@ export function AccountSettingsPage() {
               <p className="text-xs text-text-muted">Role</p>
               <p className="text-sm font-medium">
                 {user?.role ? (USER_ROLE_MAP[user.role as keyof typeof USER_ROLE_MAP]?.label ?? user.role) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-text-muted">Phone</p>
+              <p className="text-sm font-medium">{user?.phone ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-text-muted">Last Login</p>
+              <p className="text-sm font-medium">
+                {user?.lastLoginAt ? formatDateTime(user.lastLoginAt) : '—'}
               </p>
             </div>
           </div>

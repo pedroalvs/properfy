@@ -7,6 +7,7 @@ import type { NotificationTemplate } from '../types';
 function makeTemplate(overrides: Partial<NotificationTemplate> = {}): NotificationTemplate {
   return {
     id: 'tpl-1',
+    tenantId: null,
     code: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection Scheduled',
@@ -23,6 +24,7 @@ describe('TemplateTable', () => {
   it('renders column headers', () => {
     render(<TemplateTable data={[]} />);
     expect(screen.getByText('Code')).toBeInTheDocument();
+    expect(screen.getByText('Scope')).toBeInTheDocument();
     expect(screen.getByText('Channel')).toBeInTheDocument();
     expect(screen.getByText('Subject')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
@@ -32,7 +34,14 @@ describe('TemplateTable', () => {
     const template = makeTemplate();
     render(<TemplateTable data={[template]} />);
     expect(screen.getByText('INSPECTION_NOTICE')).toBeInTheDocument();
+    expect(screen.getByText('Platform Default')).toBeInTheDocument();
     expect(screen.getByText('Inspection Scheduled')).toBeInTheDocument();
+  });
+
+  it('shows agency override scope when tenant-specific', () => {
+    const template = makeTemplate({ tenantId: 'tenant-1' });
+    render(<TemplateTable data={[template]} />);
+    expect(screen.getByText('Agency Override')).toBeInTheDocument();
   });
 
   it('shows channel chips with correct text', () => {

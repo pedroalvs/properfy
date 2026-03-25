@@ -20,6 +20,7 @@ import type { GetAppointmentUseCase } from '../application/use-cases/get-appoint
 import type { ListAppointmentsUseCase } from '../application/use-cases/list-appointments.use-case';
 import type { UpdateAppointmentUseCase } from '../application/use-cases/update-appointment.use-case';
 import type { ExecuteStatusTransitionUseCase } from '../application/use-cases/execute-status-transition.use-case';
+import type { PerformCrossCheckUseCase } from '../application/use-cases/perform-cross-check.use-case';
 import type { ForceManualTenantConfirmationUseCase } from '../application/use-cases/force-manual-confirmation.use-case';
 import type { ImportAppointmentsUseCase } from '../application/use-cases/import-appointments.use-case';
 import type { GetImportStatusUseCase } from '../application/use-cases/get-import-status.use-case';
@@ -34,6 +35,7 @@ export interface AppointmentRouteContainer {
   listAppointmentsUseCase: ListAppointmentsUseCase;
   updateAppointmentUseCase: UpdateAppointmentUseCase;
   executeStatusTransitionUseCase: ExecuteStatusTransitionUseCase;
+  performCrossCheckUseCase: PerformCrossCheckUseCase;
   forceManualConfirmationUseCase: ForceManualTenantConfirmationUseCase;
   importAppointmentsUseCase: ImportAppointmentsUseCase;
   getImportStatusUseCase: GetImportStatusUseCase;
@@ -44,6 +46,16 @@ export interface AppointmentRouteContainer {
 }
 
 const appointmentIdParam = z.object({ appointmentId: z.string().uuid() });
+const statusActionResponseSchema = successResponseSchema(z.object({
+  id: z.string().uuid(),
+  status: z.string(),
+  previousStatus: z.string(),
+  reason: z.string().nullable(),
+  inspectorId: z.string().uuid().nullable(),
+  doneCheckedByUserId: z.string().uuid().nullable(),
+  doneCheckedAt: z.unknown().nullable(),
+  updatedAt: z.unknown(),
+}));
 
 export async function registerAppointmentRoutes(
   app: FastifyInstance,
@@ -166,18 +178,7 @@ export async function registerAppointmentRoutes(
       schema: {
         params: z.object({ appointmentId: z.string().uuid() }),
         body: statusTransitionSchema,
-        response: {
-          200: successResponseSchema(z.object({
-            id: z.string().uuid(),
-            status: z.string(),
-            previousStatus: z.string(),
-            reason: z.string().nullable(),
-            inspectorId: z.string().uuid().nullable(),
-            doneCheckedByUserId: z.string().uuid().nullable(),
-            doneCheckedAt: z.unknown().nullable(),
-            updatedAt: z.unknown(),
-          })),
-        },
+        response: { 200: statusActionResponseSchema },
       },
     },
     async (request, reply) => {
@@ -196,6 +197,32 @@ export async function registerAppointmentRoutes(
         idempotencyKey,
         actor: request.authContext!,
       });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/:appointmentId/cross-check-done — 200
+  app.post(
+    '/v1/appointments/:appointmentId/cross-check-done',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ appointmentId: z.string().uuid() }),
+        body: z.object({}).optional(),
+        response: { 200: statusActionResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+
+      const result = await container.performCrossCheckUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        actor: request.authContext!,
+      });
+
       return reply.status(200).send(success(result));
     },
   );

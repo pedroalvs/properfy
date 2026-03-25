@@ -47,7 +47,10 @@ export class GetPortalDataUseCase {
       ? await this.serviceTypeRepo.findById(appointment.serviceTypeId)
       : null;
 
-    // 3. Record VIEW activity
+    // 3. Load the latest tenant response recorded on the portal
+    const existingResponse = await this.loadExistingResponse(input.tokenId);
+
+    // 4. Record VIEW activity
     const activity = new TenantPortalActivityEntity({
       id: crypto.randomUUID(),
       appointmentId: input.appointmentId,
@@ -61,7 +64,7 @@ export class GetPortalDataUseCase {
     });
     await this.activityRepo.save(activity);
 
-    // 4. Return structured portal data
+    // 5. Return structured portal data
     return {
       token: {
         status: input.tokenStatus,
@@ -116,6 +119,61 @@ export class GetPortalDataUseCase {
             source: restrictions[0].source,
           }
         : null,
+      existingResponse,
     };
+  }
+
+  private async loadExistingResponse(tokenId: string) {
+    const [confirm, reschedule, unavailable] = await Promise.all([
+      this.activityRepo.findLatestByTokenAndAction(tokenId, 'CONFIRM'),
+      this.activityRepo.findLatestByTokenAndAction(tokenId, 'RESCHEDULE'),
+      this.activityRepo.findLatestByTokenAndAction(tokenId, 'UNAVAILABLE_REPORTED'),
+    ]);
+
+    const latest = [confirm, reschedule, unavailable]
+      .filter((activity): activity is NonNullable<typeof activity> => !!activity)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+
+    if (!latest) {
+      return undefined;
+    }
+
+    switch (latest.action) {
+      case 'CONFIRM':
+        return {
+          type: 'CONFIRMED',
+          createdAt: latest.createdAt.toISOString(),
+          summary: 'Tenant confirmed attendance',
+        };
+      case 'RESCHEDULE':
+        return {
+          type: 'RESCHEDULE',
+          createdAt: latest.createdAt.toISOString(),
+          summary: this.buildRescheduleSummary(latest.newValuesJson),
+        };
+      case 'UNAVAILABLE_REPORTED':
+        return {
+          type: 'UNAVAILABLE',
+          createdAt: latest.createdAt.toISOString(),
+          summary: 'Tenant reported unavailability',
+        };
+      default:
+        return undefined;
+    }
+  }
+
+  private buildRescheduleSummary(newValuesJson: Record<string, unknown> | null): string {
+    const scheduledDate = typeof newValuesJson?.['scheduledDate'] === 'string'
+      ? newValuesJson['scheduledDate']
+      : null;
+    const timeSlot = typeof newValuesJson?.['timeSlot'] === 'string'
+      ? newValuesJson['timeSlot']
+      : null;
+
+    if (scheduledDate && timeSlot) {
+      return `Tenant requested reschedule to ${scheduledDate} ${timeSlot}`;
+    }
+
+    return 'Tenant requested reschedule';
   }
 }

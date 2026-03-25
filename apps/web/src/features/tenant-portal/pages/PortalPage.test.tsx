@@ -118,7 +118,7 @@ describe('PortalPage', () => {
     });
   });
 
-  it('shows expired view when token status is EXPIRED', async () => {
+  it('shows read-only banner when token status is EXPIRED', async () => {
     mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
@@ -127,8 +127,8 @@ describe('PortalPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('The confirmation deadline has passed.'),
-      ).toBeInTheDocument();
+        screen.getAllByText(/restricted mode/i).length,
+      ).toBeGreaterThan(0);
     });
   });
 
@@ -143,6 +143,7 @@ describe('PortalPage', () => {
       const matches = screen.getAllByText(/done/i);
       expect(matches.length).toBeGreaterThan(0);
     });
+    expect(screen.getByText('This portal is read-only. Contact updates are no longer available.')).toBeInTheDocument();
   });
 
   it('shows invalid view when API returns PORTAL_TOKEN_NOT_FOUND', async () => {
@@ -168,7 +169,7 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getByText('The confirmation deadline has passed.')).toBeInTheDocument();
+      expect(screen.getByText('The confirmation deadline has passed. Contact the agency directly for any changes.')).toBeInTheDocument();
     });
   });
 
@@ -205,7 +206,7 @@ describe('PortalPage', () => {
     });
   });
 
-  it('hides reschedule form when expired (shows expired view)', async () => {
+  it('hides reschedule form when token is expired (read-only)', async () => {
     mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
@@ -213,9 +214,44 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getByText('The confirmation deadline has passed.')).toBeInTheDocument();
+      expect(screen.getAllByText(/restricted mode/i).length).toBeGreaterThan(0);
     });
-    expect(screen.queryByText('Request Reschedule')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Request Reschedule' })).not.toBeInTheDocument();
+  });
+
+  it('shows unavailability section when token is expired but confirmation is not CONFIRMED', async () => {
+    mockGet.mockResolvedValue({ data: {
+      ...MOCK_PORTAL_DATA,
+      token: { status: 'EXPIRED', isReadOnly: true },
+    } });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/restricted mode/i).length).toBeGreaterThan(0);
+    });
+    // Unavailability section must remain accessible for urgent reports even when expired
+    expect(screen.getByRole('heading', { name: 'Report Unavailability' })).toBeInTheDocument();
+  });
+
+  it('keeps unavailability available after cutoff even when a previous response exists', async () => {
+    mockGet.mockResolvedValue({ data: {
+      ...MOCK_PORTAL_DATA,
+      token: { status: 'EXPIRED', isReadOnly: true },
+      appointment: {
+        ...MOCK_PORTAL_DATA.appointment,
+        tenantConfirmationStatus: 'CONFIRMED',
+      },
+      existingResponse: {
+        type: 'CONFIRMED',
+        createdAt: '2026-04-10T10:00:00Z',
+        summary: 'Confirmed by tenant',
+      },
+    } });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Report Unavailability' })).toBeInTheDocument();
+    });
   });
 
   it('shows unavailability section when confirmation is PENDING', async () => {

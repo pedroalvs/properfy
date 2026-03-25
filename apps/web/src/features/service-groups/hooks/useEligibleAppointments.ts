@@ -7,16 +7,22 @@ export interface UseEligibleAppointmentsReturn {
   isError: boolean;
 }
 
-export function useEligibleAppointments(serviceTypeId: string | null): UseEligibleAppointmentsReturn {
+export function useEligibleAppointments(
+  serviceTypeId: string | null,
+  tenantId?: string | null,
+): UseEligibleAppointmentsReturn {
+  const tenantReady = tenantId === undefined || tenantId === null || tenantId.length > 0;
+
   const { data: response, isLoading, isError } = usePaginatedQuery<EligibleAppointment>(
-    ['appointments', 'eligible', serviceTypeId],
+    ['appointments', 'eligible', serviceTypeId, tenantId ?? null],
     '/v1/appointments',
     {
       status: 'AWAITING_INSPECTOR',
       serviceTypeId: serviceTypeId || undefined,
+      tenantId: tenantId || undefined,
       pageSize: 100,
     },
-    { enabled: !!serviceTypeId },
+    { enabled: !!serviceTypeId && tenantReady },
   );
 
   return {

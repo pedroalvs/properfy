@@ -19,6 +19,7 @@ function formatTimeAgo(timestamp: number): string {
 export function MarketplacePage() {
   const isOnline = useIsOnline();
   const { data, isLoading, isError, refetch, dataUpdatedAt } = useMarketplaceOffers();
+  const offers = data?.data ?? [];
 
   return (
     <div data-testid="marketplace-page">
@@ -36,14 +37,14 @@ export function MarketplacePage() {
         <ErrorState message="Failed to load offers" onRetry={refetch} />
       )}
 
-      {isOnline && !isLoading && !isError && data && (
+      {isOnline && !isLoading && !isError && (
         <PullToRefresh onRefresh={refetch}>
           {dataUpdatedAt > 0 && (
             <p className="px-page-x pt-2 text-xs text-text-muted" data-testid="last-updated">
               Last updated {formatTimeAgo(dataUpdatedAt)}
             </p>
           )}
-          <OfferFeed offers={data.offers} onRefresh={refetch} />
+          <OfferFeed offers={offers} onRefresh={refetch} />
         </PullToRefresh>
       )}
     </div>

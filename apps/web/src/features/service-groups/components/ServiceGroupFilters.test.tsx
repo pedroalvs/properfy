@@ -12,7 +12,6 @@ describe('ServiceGroupFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
-    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
@@ -47,14 +46,13 @@ describe('ServiceGroupFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'PUBLISHED' });
   });
 
-  it('search input accessible via "Search"', () => {
+  it('does not render unsupported search filter', () => {
     render(
       <ServiceGroupFilters
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
       />,
     );
-    const input = screen.getByLabelText('Search');
-    expect(input.tagName).toBe('INPUT');
+    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
   });
 });

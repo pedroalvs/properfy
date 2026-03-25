@@ -5,9 +5,18 @@ import { AppointmentTimelineTab } from './AppointmentTimelineTab';
 const mockEntries = [
   {
     id: 'log-01',
-    event: 'Created',
-    actorName: 'Admin',
+    tenantId: 'ten-1',
+    actorType: 'USER',
+    actorId: 'usr-1',
+    entityType: 'APPOINTMENT',
+    entityId: 'apt-01',
+    action: 'appointment.create',
     reason: null,
+    beforeJson: null,
+    afterJson: { status: 'DRAFT' },
+    requestId: 'req-1',
+    ipAddress: null,
+    metadataJson: null,
     createdAt: '2026-03-10T10:00:00Z',
   },
 ];
@@ -24,7 +33,7 @@ vi.mock('../hooks/useAppointmentAuditLog', () => ({
 describe('AppointmentTimelineTab', () => {
   it('renders timeline entries', () => {
     render(<AppointmentTimelineTab appointmentId="apt-01" />);
-    expect(screen.getByText('Created')).toBeInTheDocument();
+    expect(screen.getByText('Appointment Create')).toBeInTheDocument();
   });
 
   it('shows loading state', () => {

@@ -9,7 +9,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: '/schedule', icon: 'mdi-calendar-clock', label: 'Schedule' },
   { to: '/marketplace', icon: 'mdi-tag-multiple', label: 'Offers' },
-  { to: '/map', icon: 'mdi-map', label: 'Map' },
   { to: '/earnings', icon: 'mdi-cash-multiple', label: 'Earnings' },
   { to: '/profile', icon: 'mdi-account', label: 'Profile' },
 ];

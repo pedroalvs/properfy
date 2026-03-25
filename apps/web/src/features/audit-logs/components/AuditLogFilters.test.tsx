@@ -4,14 +4,19 @@ import { AuditLogFilters } from './AuditLogFilters';
 import { DEFAULT_FILTERS } from '../types';
 
 describe('AuditLogFilters', () => {
-  it('renders search input', () => {
+  it('renders actor id input', () => {
     render(<AuditLogFilters filters={DEFAULT_FILTERS} onFiltersChange={vi.fn()} />);
-    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    expect(screen.getByLabelText('Actor ID')).toBeInTheDocument();
   });
 
   it('renders entity type select', () => {
     render(<AuditLogFilters filters={DEFAULT_FILTERS} onFiltersChange={vi.fn()} />);
     expect(screen.getByLabelText('Entity Type')).toBeInTheDocument();
+  });
+
+  it('renders entity id input', () => {
+    render(<AuditLogFilters filters={DEFAULT_FILTERS} onFiltersChange={vi.fn()} />);
+    expect(screen.getByLabelText('Entity ID')).toBeInTheDocument();
   });
 
   it('renders action select', () => {

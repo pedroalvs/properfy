@@ -10,7 +10,7 @@ import { TenantContactSection } from '../components/TenantContactSection';
 import { KeyDetailsSection } from '../components/KeyDetailsSection';
 import { StartInspectionButton } from '../components/StartInspectionButton';
 import { useInspectorAppointment } from '../hooks/useInspectorAppointment';
-import { formatDate, formatTime } from '@/lib/format-date';
+import { formatScheduleDate, formatTimeWindow } from '../lib/time-slot';
 
 export function AppointmentDetailPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
@@ -46,10 +46,10 @@ export function AppointmentDetailPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-base font-bold text-text-primary">
-              {formatDate(apt.timeSlotStart)}
+              {formatScheduleDate(apt.scheduledDate)}
             </p>
             <p className="text-sm text-text-secondary">
-              {formatTime(apt.timeSlotStart)} – {formatTime(apt.timeSlotEnd)}
+              {formatTimeWindow(apt.timeSlot)}
             </p>
           </div>
           <StatusChip status={apt.status} />
@@ -86,8 +86,8 @@ export function AppointmentDetailPage() {
           <div className="mt-2">
             <StartInspectionButton
               appointmentId={apt.id}
-              timeSlotStart={apt.timeSlotStart}
-              timeSlotEnd={apt.timeSlotEnd}
+              scheduledDate={apt.scheduledDate}
+              timeSlot={apt.timeSlot}
             />
           </div>
         )}

@@ -46,6 +46,7 @@ const mockPut = api.PUT as ReturnType<typeof vi.fn>;
 
 const MOCK_TEMPLATE: NotificationTemplate = {
   id: 'tpl-01',
+  tenantId: null,
   code: 'INSPECTION_NOTICE',
   channel: 'EMAIL',
   subject: 'Inspection at {{propertyAddress}}',

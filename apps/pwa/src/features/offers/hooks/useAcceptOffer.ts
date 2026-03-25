@@ -8,10 +8,10 @@ import type { OfferAcceptState } from '../types';
 
 interface AcceptResult {
   groupId: string;
-  appointmentCount: number;
-  scheduledDate: string;
-  timeWindowStart: string;
-  timeWindowEnd: string;
+  status: string;
+  assignedInspectorId: string;
+  appointmentsScheduled: number;
+  acceptedAt: string;
 }
 
 export function useAcceptOffer() {

@@ -4,8 +4,10 @@ import type { IInspectionAssetRepository } from '../../domain/inspection-asset.r
 import type { IIdempotencyService } from '../../domain/idempotency.service';
 import type { IServiceTypeReader } from '../../domain/service-type-reader';
 import type { ExecuteStatusTransitionUseCase } from '../../../appointment/application/use-cases/execute-status-transition.use-case';
+import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
+  ExecutionAppointmentNotFoundError,
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
   ExecutionAssetUploadPendingError,
@@ -39,6 +41,7 @@ export class FinishInspectionUseCase {
     private readonly assetRepo: IInspectionAssetRepository,
     private readonly idempotencyService: IIdempotencyService,
     private readonly executeStatusTransition: ExecuteStatusTransitionUseCase,
+    private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly serviceTypeReader?: IServiceTypeReader,
   ) {}
@@ -60,6 +63,10 @@ export class FinishInspectionUseCase {
       throw new ForbiddenError('FORBIDDEN', 'Only inspectors can finish inspections');
     }
 
+    if (!actor.inspectorId) {
+      throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+    }
+
     // 2. Check idempotency
     const cached = await this.idempotencyService.get<FinishInspectionOutput>(
       idempotencyKey,
@@ -71,8 +78,18 @@ export class FinishInspectionUseCase {
     const execution = await this.executionRepo.findByAppointmentId(appointmentId);
     if (!execution) throw new ExecutionNotStartedError();
 
+    if (execution.inspectorId !== actor.inspectorId) {
+      throw new ForbiddenError('FORBIDDEN', 'Inspection execution is not assigned to this inspector');
+    }
+
     // 4. Check not finished
     if (execution.isFinished()) throw new ExecutionAlreadyFinishedError();
+
+    const appointmentResult = await this.appointmentRepo.findById(appointmentId, null);
+    if (!appointmentResult) {
+      throw new ExecutionAppointmentNotFoundError();
+    }
+    const { appointment } = appointmentResult;
 
     // 5. Validate minimum assets (configurable per service type, default: 1 PHOTO)
     const uploadedAssets = await this.assetRepo.findUploadedByExecutionId(execution.id);
@@ -82,9 +99,9 @@ export class FinishInspectionUseCase {
     // yet defined on the service type — will be extended post-launch (M5).
     let minPhotos = 1;
     let requiresSignature = false;
-    const executionServiceTypeId = (execution as unknown as { serviceTypeId?: string }).serviceTypeId;
-    if (this.serviceTypeReader && executionServiceTypeId) {
-      const svcType = await this.serviceTypeReader.findById(executionServiceTypeId);
+    const serviceTypeId = appointment.serviceTypeId;
+    if (this.serviceTypeReader && serviceTypeId) {
+      const svcType = await this.serviceTypeReader.findById(serviceTypeId);
       const checklist = (svcType as Record<string, unknown> | null)?.checklistTemplate as
         | { minPhotos?: number; requiresSignature?: boolean }
         | undefined;
@@ -136,7 +153,7 @@ export class FinishInspectionUseCase {
       actorId: actor.userId,
       entityType: 'InspectionExecution',
       entityId: execution.id,
-      tenantId: undefined,
+      tenantId: appointment.tenantId,
       after: {
         appointmentId,
         finishLatitude: latitude,

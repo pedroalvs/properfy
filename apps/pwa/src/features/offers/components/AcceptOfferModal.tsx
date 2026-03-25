@@ -1,6 +1,10 @@
 import { Button } from '@/components/ui/Button';
-import { formatDate, formatTime } from '@/lib/format-date';
+import { formatDate } from '@/lib/format-date';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
+
+function formatTimeWindow(timeWindow: string): string {
+  return timeWindow.replace('-', ' - ');
+}
 
 interface AcceptOfferModalProps {
   offer: MarketplaceOffer;
@@ -28,17 +32,19 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
           </div>
           <div className="flex justify-between">
             <span className="text-text-secondary">Time</span>
-            <span className="font-semibold">
-              {formatTime(offer.timeWindowStart)} – {formatTime(offer.timeWindowEnd)}
-            </span>
+            <span className="font-semibold">{formatTimeWindow(offer.timeWindow)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-text-secondary">Inspections</span>
-            <span className="font-semibold">{offer.appointmentCount}</span>
+            <span className="font-semibold">{offer.groupSize}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-text-secondary">Region</span>
-            <span className="font-semibold">{offer.region}</span>
+            <span className="text-text-secondary">Client</span>
+            <span className="font-semibold">{offer.tenantName}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-text-secondary">Suburbs</span>
+            <span className="font-semibold">{offer.suburbs.join(', ') || 'Not informed'}</span>
           </div>
         </div>
 

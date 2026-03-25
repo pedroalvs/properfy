@@ -53,7 +53,6 @@ export class GetInspectorScheduleUseCase {
 
     const appointments = await this.appointmentRepo.findAll(
       {
-        tenantId: actor.tenantId ?? '',
         inspectorId: actor.inspectorId,
         status: 'SCHEDULED',
         fromDate: targetDateStr,

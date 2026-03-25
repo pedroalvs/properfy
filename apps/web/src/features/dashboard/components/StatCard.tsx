@@ -4,12 +4,13 @@ interface StatCardProps {
   icon: string;
   value: number;
   label: string;
+  sublabel?: string;
   colorClass: string;
   iconColorClass: string;
   href?: string;
 }
 
-export function StatCard({ icon, value, label, colorClass, iconColorClass, href }: StatCardProps) {
+export function StatCard({ icon, value, label, sublabel, colorClass, iconColorClass, href }: StatCardProps) {
   const content = (
     <div
       className={`rounded bg-card-bg shadow-sm border-l-4 ${colorClass} p-4 flex items-start gap-3 ${
@@ -21,6 +22,7 @@ export function StatCard({ icon, value, label, colorClass, iconColorClass, href 
       <div>
         <div className="text-2xl font-bold text-text-primary">{value}</div>
         <div className="text-sm text-text-secondary">{label}</div>
+        {sublabel && <div className="text-xs text-warning mt-0.5">{sublabel}</div>}
       </div>
     </div>
   );

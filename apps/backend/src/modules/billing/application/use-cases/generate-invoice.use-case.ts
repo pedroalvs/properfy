@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { AuthContext, BillingPeriodType } from '@properfy/shared';
+import type { AuthContext, BillingPeriodType, InspectorInvoiceStatus } from '@properfy/shared';
 import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice.repository';
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import { InspectorInvoiceEntity } from '../../domain/inspector-invoice.entity';
@@ -18,11 +18,21 @@ export interface GenerateInvoiceInput {
 }
 
 export interface GenerateInvoiceOutput {
-  invoiceId: string;
-  status: 'CLOSED';
+  id: string;
+  inspectorId: string;
+  periodStart: string;
+  periodEnd: string;
+  periodType: BillingPeriodType;
+  status: InspectorInvoiceStatus;
   totalAmount: number;
   currency: string;
-  message: string;
+  fileKey: string | null;
+  generatedByUserId: string | null;
+  generatedAt: string | null;
+  paidAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export class GenerateInvoiceUseCase {
@@ -41,18 +51,28 @@ export class GenerateInvoiceUseCase {
       throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can generate invoices');
     }
 
-    const startDate = new Date(periodStart);
-    const endDate = new Date(periodEnd);
+    const startDate = parseDateOnly(periodStart);
+    const endDate = parseDateOnly(periodEnd);
 
     // 2. Check exact match (idempotent)
     const existing = await this.invoiceRepo.findByInspectorAndPeriod(inspectorId, startDate, endDate);
     if (existing) {
       return {
-        invoiceId: existing.id,
-        status: 'CLOSED',
+        id: existing.id,
+        inspectorId: existing.inspectorId,
+        periodStart: formatDate(existing.periodStart),
+        periodEnd: formatDate(existing.periodEnd),
+        periodType: existing.periodType,
+        status: existing.status,
         totalAmount: Number(existing.totalAmount),
         currency: existing.currency,
-        message: 'Invoice generation queued. File will be available shortly.',
+        fileKey: existing.fileKey,
+        generatedByUserId: existing.generatedByUserId,
+        generatedAt: existing.generatedAt?.toISOString() ?? null,
+        paidAt: existing.paidAt?.toISOString() ?? null,
+        notes: existing.notes,
+        createdAt: existing.createdAt.toISOString(),
+        updatedAt: existing.updatedAt.toISOString(),
       };
     }
 
@@ -66,7 +86,7 @@ export class GenerateInvoiceUseCase {
     const totalAmount = await this.financialEntryRepo.sumApprovedPayoutsForInspectorInPeriod(
       inspectorId,
       startDate,
-      endDate,
+      endOfDay(endDate),
     );
 
     // 5. Create entity
@@ -116,11 +136,35 @@ export class GenerateInvoiceUseCase {
     }
 
     return {
-      invoiceId,
-      status: 'CLOSED',
+      id: invoiceId,
+      inspectorId,
+      periodStart: formatDate(invoice.periodStart),
+      periodEnd: formatDate(invoice.periodEnd),
+      periodType: invoice.periodType,
+      status: invoice.status,
       totalAmount: Number(totalAmount),
       currency: input.currency ?? 'AUD',
-      message: 'Invoice generation queued. File will be available shortly.',
+      fileKey: invoice.fileKey,
+      generatedByUserId: invoice.generatedByUserId,
+      generatedAt: invoice.generatedAt?.toISOString() ?? null,
+      paidAt: invoice.paidAt?.toISOString() ?? null,
+      notes: invoice.notes,
+      createdAt: invoice.createdAt.toISOString(),
+      updatedAt: invoice.updatedAt.toISOString(),
     };
   }
+}
+
+function parseDateOnly(value: string): Date {
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
+function endOfDay(value: Date): Date {
+  const end = new Date(value);
+  end.setUTCHours(23, 59, 59, 999);
+  return end;
+}
+
+function formatDate(value: Date): string {
+  return value.toISOString().slice(0, 10);
 }

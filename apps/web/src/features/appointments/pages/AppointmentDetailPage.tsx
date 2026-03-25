@@ -1,20 +1,26 @@
 import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
+import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
+import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { getAvailableTransitions } from '../lib/transitions';
+import { isAppointmentEditable } from '../lib/editability';
 import { AppointmentDetailSections } from '../components/AppointmentDetailSections';
 import { AppointmentContactTab } from '../components/AppointmentContactTab';
 import { AppointmentTimelineTab } from '../components/AppointmentTimelineTab';
 import { AppointmentNotificationsTab } from '../components/AppointmentNotificationsTab';
 import { AppointmentFinancialTab } from '../components/AppointmentFinancialTab';
 import { AppointmentTransitionActions } from '../components/AppointmentTransitionActions';
+import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 
 const BASE_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -24,6 +30,7 @@ const BASE_TABS = [
 const NOTIFICATIONS_TAB = { id: 'notifications', label: 'Notifications' };
 const TIMELINE_TAB = { id: 'timeline', label: 'Timeline' };
 const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
+const CAN_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 
 function isPrivilegedRole(role: string): boolean {
   return role === 'AM' || role === 'OP';
@@ -34,10 +41,14 @@ export function AppointmentDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { appointment, isLoading, isError, refetch } = useAppointmentDetail(id ?? null);
+  const { crossCheckDone, isCrossChecking } = useAppointmentCrossCheck(id ?? null, refetch);
   const { transition, isTransitioning } = useAppointmentTransition(id ?? null, refetch);
   const [activeTab, setActiveTab] = useState('overview');
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmCrossCheckOpen, setConfirmCrossCheckOpen] = useState(false);
 
   const isPrivileged = user ? isPrivilegedRole(user.role) : false;
+  const canEdit = user ? CAN_EDIT_ROLES.includes(user.role) : false;
   const tabs = [
     ...BASE_TABS,
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
@@ -49,10 +60,18 @@ export function AppointmentDetailPage() {
     appointment && user
       ? getAvailableTransitions(appointment.status, user.role)
       : [];
+  const canEditAppointment = canEdit && !!appointment && isAppointmentEditable(appointment.status);
+  const canCrossCheckDone = !!appointment &&
+    isPrivileged &&
+    appointment.status === 'DONE' &&
+    !appointment.doneCheckedByUserId;
 
   const handleEdit = useCallback(() => {
-    navigate(`/appointments`);
-  }, [navigate]);
+    if (!canEditAppointment) {
+      return;
+    }
+    setEditOpen(true);
+  }, [canEditAppointment]);
 
   if (isLoading) {
     return (
@@ -103,15 +122,29 @@ export function AppointmentDetailPage() {
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {appointment.code}
           </h1>
-          <AppointmentStatusChip status={appointment.status} />
+          <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} />
         </div>
-        <button
-          onClick={handleEdit}
-          className="rounded p-2 text-text-secondary hover:bg-black/5"
-          aria-label="Edit appointment"
-        >
-          <i className="mdi mdi-pencil-outline text-xl" aria-hidden="true" />
-        </button>
+        <div className="flex items-center gap-2">
+          {canCrossCheckDone && (
+            <Button
+              variant="primary"
+              onClick={() => setConfirmCrossCheckOpen(true)}
+              loading={isCrossChecking}
+            >
+              <i className="mdi mdi-check-decagram text-base" aria-hidden="true" />
+              Confirm Done
+            </Button>
+          )}
+          {canEditAppointment && (
+            <button
+              onClick={handleEdit}
+              className="rounded p-2 text-text-secondary hover:bg-black/5"
+              aria-label="Edit appointment"
+            >
+              <i className="mdi mdi-pencil-outline text-xl" aria-hidden="true" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="rounded bg-card-bg shadow-sm">
@@ -145,6 +178,29 @@ export function AppointmentDetailPage() {
           </div>
         )}
       </div>
+
+      <AppointmentFormDrawer
+        open={editOpen}
+        appointmentId={appointment.id}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => {
+          setEditOpen(false);
+          refetch();
+        }}
+      />
+      <ConfirmDialog
+        open={confirmCrossCheckOpen}
+        onClose={() => setConfirmCrossCheckOpen(false)}
+        onConfirm={() => {
+          crossCheckDone();
+          setConfirmCrossCheckOpen(false);
+        }}
+        title="Confirm Done"
+        message="Confirm that the field completion is valid and release this appointment for financial processing?"
+        confirmLabel="Confirm Done"
+        variant="warning"
+        loading={isCrossChecking}
+      />
     </div>
   );
 }

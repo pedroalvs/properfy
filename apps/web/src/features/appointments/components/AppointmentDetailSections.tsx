@@ -1,6 +1,7 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
+import { AppointmentStatus } from '@properfy/shared';
 import { TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import type { AppointmentDetail } from '../types';
@@ -11,6 +12,8 @@ interface AppointmentDetailSectionsProps {
 
 export function AppointmentDetailSections({ appointment }: AppointmentDetailSectionsProps) {
   const confirmationStyle = TENANT_CONFIRMATION_STATUS_MAP[appointment.tenantConfirmationStatus];
+  const isPendingOperationalCrossCheck =
+    appointment.status === AppointmentStatus.DONE && !appointment.doneCheckedByUserId;
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,6 +54,27 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
           }
         />
       </FormSection>
+
+      {(appointment.status === AppointmentStatus.DONE || appointment.doneCheckedByUserId || appointment.doneCheckedAt) && (
+        <FormSection title="Operational Validation">
+          <DetailRow
+            label="Cross-check"
+            value={
+              isPendingOperationalCrossCheck
+                ? (
+                  <span className="inline-block rounded bg-warning/10 px-2 py-0.5 text-xs font-semibold leading-5 text-warning">
+                    Pending operator cross-check
+                  </span>
+                )
+                : 'Validated'
+            }
+          />
+          <DetailRow
+            label="Validated At"
+            value={appointment.doneCheckedAt ? formatDateTime(appointment.doneCheckedAt) : null}
+          />
+        </FormSection>
+      )}
 
       {appointment.notes && (
         <FormSection title="Notes">

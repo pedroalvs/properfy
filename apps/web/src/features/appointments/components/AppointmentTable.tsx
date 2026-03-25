@@ -1,9 +1,11 @@
 import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { formatDate } from '@/lib/format-date';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
 import { TenantConfirmationChip } from './TenantConfirmationChip';
 import type { Appointment } from '../types';
+import { isAppointmentEditable } from '../lib/editability';
 
 interface AppointmentTableProps {
   data: Appointment[];
@@ -48,7 +50,7 @@ export function AppointmentTable({
       label: 'Status',
       width: '160px',
       sortable: true,
-      render: (row) => <AppointmentStatusChip status={row.status} />,
+      render: (row) => <AppointmentStatusChip status={row.status} doneCheckedByUserId={row.doneCheckedByUserId} />,
     },
     {
       key: 'tenantConfirmationStatus',
@@ -71,6 +73,16 @@ export function AppointmentTable({
       render: (row) => <>{formatDate(row.scheduledDate)}</>,
     },
     {
+      key: 'doneCheckedByUserId',
+      label: 'Reviewed',
+      width: '100px',
+      render: (row) => (
+        row.status === 'DONE'
+          ? <BooleanIcon value={!!row.doneCheckedByUserId} />
+          : <>—</>
+      ),
+    },
+    {
       key: 'actions',
       label: '',
       width: '80px',
@@ -82,11 +94,13 @@ export function AppointmentTable({
               label: 'View',
               onClick: () => onView?.(row),
             },
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
-            },
+            ...(onEdit && isAppointmentEditable(row.status)
+              ? [{
+                  icon: 'mdi-pencil-outline',
+                  label: 'Edit',
+                  onClick: () => onEdit(row),
+                }]
+              : []),
           ]}
         />
       ),

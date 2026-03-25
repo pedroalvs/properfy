@@ -94,22 +94,6 @@ export function PortalPage() {
 
   const { appointment, contact } = data;
 
-  // Token is expired but we have data (API returned read-only data)
-  if (data.token.status === 'EXPIRED' || data.token.isReadOnly) {
-    // If the token is expired, show the dedicated expired view with data
-    if (data.token.status === 'EXPIRED') {
-      return (
-        <PortalLayout>
-          <TenantPortalExpiredView
-            appointment={appointment}
-            existingResponse={data.existingResponse}
-            agencyPhone={data.agencyPhone}
-          />
-        </PortalLayout>
-      );
-    }
-  }
-
   // Appointment is cancelled
   if (appointment.status === AppointmentStatus.CANCELLED) {
     return (
@@ -122,21 +106,26 @@ export function PortalPage() {
   const isReadOnly = data.token.isReadOnly;
   const isTerminal = appointment.status === AppointmentStatus.DONE ||
     appointment.status === AppointmentStatus.REJECTED;
+  const hasResponse = !!data.existingResponse;
+
   const showConfirm =
     !isTerminal &&
+    !isReadOnly &&
+    !hasResponse &&
     appointment.tenantConfirmationStatus !== TenantConfirmationStatus.UNAVAILABLE;
-  const showReschedule = !isTerminal && !isReadOnly;
+  const showReschedule = !isTerminal && !isReadOnly && !hasResponse;
   const showUnavailable =
     !isTerminal &&
-    appointment.tenantConfirmationStatus !== TenantConfirmationStatus.CONFIRMED;
+    appointment.tenantConfirmationStatus !== TenantConfirmationStatus.UNAVAILABLE &&
+    (isReadOnly || (!hasResponse && appointment.tenantConfirmationStatus !== TenantConfirmationStatus.CONFIRMED));
 
   return (
     <PortalLayout>
       <div className="space-y-4">
         {isReadOnly && (
           <InfoBanner>
-            This portal is read-only. The confirmation deadline has passed.
-            You can still view details and report unavailability.
+            This portal is in restricted mode because the confirmation deadline has passed.
+            You can still report an urgent unavailability until the visit starts.
           </InfoBanner>
         )}
 
@@ -145,6 +134,12 @@ export function PortalPage() {
             This appointment is{' '}
             <strong>{appointment.status.toLowerCase().replace('_', ' ')}</strong>.
             No further actions are available.
+          </InfoBanner>
+        )}
+
+        {hasResponse && !isReadOnly && !isTerminal && (
+          <InfoBanner>
+            Your response has been recorded. If you need to make further changes, please contact the agency directly.
           </InfoBanner>
         )}
 
@@ -173,7 +168,7 @@ export function PortalPage() {
           />
         )}
 
-        <ContactForm contact={contact} token={token} />
+        <ContactForm contact={contact} token={token} isReadOnly={isReadOnly || isTerminal} />
 
         {showUnavailable && (
           <UnavailableSection

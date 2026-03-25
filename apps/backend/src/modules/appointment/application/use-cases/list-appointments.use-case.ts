@@ -44,6 +44,8 @@ export interface ListAppointmentsOutput {
     payoutAmount: number;
     notes: string | null;
     createdByUserId: string;
+    doneCheckedByUserId: string | null;
+    doneCheckedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
     // Enriched fields
@@ -125,6 +127,8 @@ export class ListAppointmentsUseCase {
         payoutAmount: item.appointment.payoutAmount,
         notes: item.appointment.notes,
         createdByUserId: item.appointment.createdByUserId,
+        doneCheckedByUserId: item.appointment.doneCheckedByUserId,
+        doneCheckedAt: item.appointment.doneCheckedAt,
         createdAt: item.appointment.createdAt,
         updatedAt: item.appointment.updatedAt,
         code: item.propertyCode,

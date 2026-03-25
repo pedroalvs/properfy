@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { contactSchema } from '@properfy/shared';
+import { contactSchema, createInspectorSchema, updateInspectorSchema } from '@properfy/shared';
 import { api } from '@/services/api';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 
@@ -26,6 +26,18 @@ function validateEmail(email: string): string | undefined {
   return undefined;
 }
 
+function parseDelimitedValues(value: string): string[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseServiceTypeIds(value: string): string[] | undefined {
+  const parsed = parseDelimitedValues(value);
+  return parsed.length > 0 ? parsed : undefined;
+}
+
 export interface SaveResult {
   success: boolean;
   error?: string;
@@ -49,6 +61,25 @@ export function useInspectorSave(): UseInspectorSaveReturn {
     const emailError = validateEmail(data.email);
     if (emailError) errors.email = emailError;
 
+    const serviceTypes = parseServiceTypeIds(data.serviceTypes);
+    const schema = _mode === 'create' ? createInspectorSchema : updateInspectorSchema;
+    const result = schema.safeParse({
+      name: data.name.trim() || undefined,
+      email: data.email.trim() || undefined,
+      phone: data.phone.trim() || undefined,
+      status: data.status || undefined,
+      regions: parseDelimitedValues(data.regions),
+      serviceTypes,
+    });
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        const path = issue.path.join('.');
+        if (path.startsWith('serviceTypes') && !errors.serviceTypes) {
+          errors.serviceTypes = 'Select valid service types';
+        }
+      }
+    }
+
     return errors;
   }, []);
 
@@ -56,13 +87,13 @@ export function useInspectorSave(): UseInspectorSaveReturn {
     setIsSaving(true);
     try {
       const payload = {
-        name: data.name,
-        email: data.email,
-        phone: data.phone || undefined,
-        document: data.document || undefined,
+        name: data.name.trim(),
+        email: data.email.trim(),
+        phone: data.phone.trim() || undefined,
+        document: data.document.trim() || undefined,
         status: data.status || undefined,
-        regions: data.regions ? data.regions.split(',').map((s) => s.trim()).filter(Boolean) : undefined,
-        serviceTypes: data.serviceTypes ? data.serviceTypes.split(',').map((s) => s.trim()).filter(Boolean) : undefined,
+        regions: parseDelimitedValues(data.regions),
+        serviceTypes: parseServiceTypeIds(data.serviceTypes),
       };
 
       if (inspectorId) {

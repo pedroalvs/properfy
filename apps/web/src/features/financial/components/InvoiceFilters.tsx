@@ -1,5 +1,4 @@
 import { FilterBar } from '@/components/filters/FilterBar';
-import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { INVOICE_STATUS_MAP } from '@/lib/status-colors';
@@ -16,16 +15,17 @@ const STATUS_OPTIONS: FilterSelectOption[] = [
 interface InvoiceFiltersProps {
   filters: InvoiceFiltersState;
   onFiltersChange: (filters: InvoiceFiltersState) => void;
+  inspectorOptions?: FilterSelectOption[];
 }
 
-export function InvoiceFilters({ filters, onFiltersChange }: InvoiceFiltersProps) {
+export function InvoiceFilters({ filters, onFiltersChange, inspectorOptions = [] }: InvoiceFiltersProps) {
   return (
     <FilterBar>
-      <FilterInput
+      <FilterSelect
         label="Inspector"
-        placeholder="Search by inspector name..."
-        value={filters.search}
-        onChange={(search) => onFiltersChange({ ...filters, search })}
+        value={filters.inspectorId}
+        onChange={(inspectorId) => onFiltersChange({ ...filters, inspectorId })}
+        options={[{ label: 'All', value: '' }, ...inspectorOptions]}
       />
       <FilterSelect
         label="Status"

@@ -23,13 +23,26 @@ export function AssetThumbnail({ asset, onRetry, onDelete }: AssetThumbnailProps
         </div>
       )}
 
+      {asset.status === 'pending' && (
+        <div className="absolute inset-0 flex items-end justify-center bg-black/25 p-1">
+          <div className="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+            Saved locally
+          </div>
+        </div>
+      )}
+
       {asset.status === 'error' && (
         <div className="absolute inset-0 flex items-center justify-center bg-error/40">
-          {onRetry && (
-            <button onClick={onRetry} className="text-white" aria-label="Retry upload">
-              <i className="mdi mdi-refresh text-xl" />
-            </button>
-          )}
+          <div className="flex flex-col items-center gap-1">
+            {onRetry && (
+              <button onClick={onRetry} className="text-white" aria-label="Retry upload">
+                <i className="mdi mdi-refresh text-xl" />
+              </button>
+            )}
+            <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              Sync failed
+            </span>
+          </div>
         </div>
       )}
 

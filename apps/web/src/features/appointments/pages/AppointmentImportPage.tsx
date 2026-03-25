@@ -13,14 +13,13 @@ import { useAppointmentImport } from '../hooks/useAppointmentImport';
 const STEPS = ['Upload', 'Preview', 'Confirm', 'Progress'];
 
 const EXPECTED_COLUMNS = [
-  'code',
-  'address',
+  'propertyCode',
   'scheduledDate',
   'timeSlot',
-  'contactName',
-  'contactEmail',
-  'contactPhone',
-  'serviceType',
+  'tenantName',
+  'tenantEmail',
+  'tenantPhone',
+  'serviceTypeCode',
   'notes',
 ];
 
@@ -49,9 +48,9 @@ function parseCSV(content: string): ParsedData {
     });
     rows.push(row);
 
-    // Validate required fields
+    // Validate required fields against the backend import worker contract.
     const rowNumber = i;
-    for (const requiredCol of ['code', 'address', 'scheduledDate']) {
+    for (const requiredCol of ['propertyCode', 'scheduledDate', 'timeSlot', 'tenantName']) {
       if (columns.includes(requiredCol) && !row[requiredCol]) {
         errors.push({
           row: rowNumber,
@@ -133,7 +132,7 @@ export function AppointmentImportPage() {
             </div>
             <FileUploadStep
               onFileSelect={handleFileSelect}
-              acceptedTypes={['.csv', '.xlsx']}
+              acceptedTypes={['.csv']}
               maxSizeMB={5}
               selectedFile={selectedFile}
             />

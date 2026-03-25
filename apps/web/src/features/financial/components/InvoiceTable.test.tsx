@@ -6,31 +6,31 @@ import type { Invoice } from '../types';
 const MOCK_INVOICES: Invoice[] = [
   {
     id: 'inv-01',
-    tenantId: 'tenant-01',
     inspectorId: 'insp-01',
-    inspectorName: 'Diego',
     periodStart: '2026-03-01',
     periodEnd: '2026-03-15',
-    frequency: 'BIWEEKLY',
+    periodType: 'BIWEEKLY',
     totalAmount: 1800,
     currency: 'AUD',
-    status: 'DRAFT',
-    entryCount: 5,
+    status: 'CLOSED',
+    fileKey: 'invoices/inv-01.pdf',
+    generatedAt: '2026-03-16T10:00:00Z',
+    paidAt: null,
     createdAt: '2026-03-16T10:00:00Z',
     updatedAt: '2026-03-16T10:00:00Z',
   },
   {
     id: 'inv-02',
-    tenantId: 'tenant-01',
     inspectorId: 'insp-02',
-    inspectorName: 'Carlos',
     periodStart: '2026-03-01',
     periodEnd: '2026-03-31',
-    frequency: 'MONTHLY',
+    periodType: 'MONTHLY',
     totalAmount: 3200,
     currency: 'AUD',
-    status: 'SENT',
-    entryCount: 12,
+    status: 'PAID',
+    fileKey: 'invoices/inv-02.pdf',
+    generatedAt: '2026-03-16T10:00:00Z',
+    paidAt: '2026-03-20T10:00:00Z',
     createdAt: '2026-03-16T10:00:00Z',
     updatedAt: '2026-03-16T10:00:00Z',
   },
@@ -41,20 +41,20 @@ describe('InvoiceTable', () => {
     render(<InvoiceTable data={[]} />);
     expect(screen.getByText('Inspector')).toBeInTheDocument();
     expect(screen.getByText('Period')).toBeInTheDocument();
-    expect(screen.getByText('Frequency')).toBeInTheDocument();
+    expect(screen.getByText('Period Type')).toBeInTheDocument();
     expect(screen.getByText('Total')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
   });
 
   it('renders invoice data', () => {
-    render(<InvoiceTable data={MOCK_INVOICES} />);
+    render(<InvoiceTable data={MOCK_INVOICES} resolveInspectorLabel={(id) => (id === 'insp-01' ? 'Diego' : 'Carlos')} />);
     expect(screen.getByText('Diego')).toBeInTheDocument();
     expect(screen.getByText('Carlos')).toBeInTheDocument();
-    expect(screen.getByText('Draft')).toBeInTheDocument();
-    expect(screen.getByText('Sent')).toBeInTheDocument();
+    expect(screen.getByText('Closed')).toBeInTheDocument();
+    expect(screen.getByText('Paid')).toBeInTheDocument();
   });
 
-  it('renders frequency labels', () => {
+  it('renders period type labels', () => {
     render(<InvoiceTable data={MOCK_INVOICES} />);
     expect(screen.getByText('Biweekly')).toBeInTheDocument();
     expect(screen.getByText('Monthly')).toBeInTheDocument();

@@ -73,7 +73,7 @@ function makeExecution(
 
 const inspActor: AuthContext = {
   userId: 'insp-1',
-  tenantId: 'tenant-1',
+  tenantId: null,
   role: 'INSP',
   branchId: null,
   inspectorId: 'insp-1',
@@ -239,6 +239,64 @@ describe('GetInspectorScheduleUseCase', () => {
     );
 
     vi.useRealTimers();
+  });
+
+  it('should filter out ROUTINE appointments for today when still pending confirmation', async () => {
+    const today = new Date('2026-03-21T12:00:00Z');
+    vi.useFakeTimers({ now: today });
+
+    const appt = makeAppointment({
+      scheduledDate: new Date('2026-03-21T12:00:00Z'),
+      tenantConfirmationStatus: 'PENDING',
+      keyRequired: false,
+    });
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([appt]);
+    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
+      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
+    ]);
+
+    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
+
+    expect(result.appointments).toHaveLength(0);
+
+    vi.useRealTimers();
+  });
+
+  it('should filter out ROUTINE appointments for today when tenant marked UNAVAILABLE', async () => {
+    const today = new Date('2026-03-21T12:00:00Z');
+    vi.useFakeTimers({ now: today });
+
+    const appt = makeAppointment({
+      scheduledDate: new Date('2026-03-21T12:00:00Z'),
+      tenantConfirmationStatus: 'UNAVAILABLE',
+      keyRequired: false,
+    });
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([appt]);
+    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
+      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
+    ]);
+
+    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
+
+    expect(result.appointments).toHaveLength(0);
+
+    vi.useRealTimers();
+  });
+
+  it('should not constrain the schedule by actor tenantId for global inspectors', async () => {
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+
+    await useCase.execute({ date: '2026-03-21', actor: inspActor });
+
+    expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+      {
+        inspectorId: 'insp-1',
+        status: 'SCHEDULED',
+        fromDate: '2026-03-21',
+        toDate: '2026-03-21',
+      },
+      expect.any(Object),
+    );
   });
 
   it('should mark finished executions correctly', async () => {

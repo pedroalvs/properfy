@@ -41,7 +41,17 @@ import { UserListPage } from './UserListPage';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
-const MOCK_ME = { id: 'usr-99', name: 'Test Admin', email: 'admin@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1', branchId: null, totpEnabled: false };
+type MockAuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  tenantId: string | null;
+  branchId: string | null;
+  totpEnabled: boolean;
+};
+
+let mockMe: MockAuthUser = { id: 'usr-99', name: 'Test Admin', email: 'admin@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1', branchId: null, totpEnabled: false };
 
 const MOCK_USERS = [
   { id: 'usr-01', name: 'Main Admin', email: 'admin@properfy.com', role: 'AM', status: 'ACTIVE' },
@@ -64,10 +74,19 @@ function createWrapper() {
 }
 
 beforeEach(() => {
+  mockMe = { id: 'usr-99', name: 'Test Admin', email: 'admin@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1', branchId: null, totpEnabled: false };
   mockGet.mockReset();
   mockGet.mockImplementation((path: string) => {
     if (path === '/v1/me') {
-      return Promise.resolve({ data: MOCK_ME, error: undefined });
+      return Promise.resolve({ data: mockMe, error: undefined });
+    }
+    if (path === '/v1/tenants') {
+      return Promise.resolve({
+        data: {
+          data: [{ id: 'tenant-1', name: 'Agency One' }],
+          pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
+        },
+      });
     }
     return Promise.resolve({ data: {
       data: MOCK_USERS,
@@ -91,6 +110,23 @@ describe('UserListPage', () => {
     renderPage();
     const matches = screen.getAllByText('New User');
     expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('disables "New User" for global roles until an agency is selected', async () => {
+    mockMe = {
+      id: 'usr-99',
+      name: 'Platform Admin',
+      email: 'am@test.com',
+      role: 'AM',
+      tenantId: null,
+      branchId: null,
+      totpEnabled: false,
+    };
+
+    renderPage();
+
+    expect(await screen.findByText('Select an agency before creating or editing users.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New User' })).toBeDisabled();
   });
 
   it('renders filter bar with search, role, and status controls', () => {

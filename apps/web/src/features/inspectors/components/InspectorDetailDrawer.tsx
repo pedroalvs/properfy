@@ -3,7 +3,6 @@ import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
-import { useSnackbar } from '@/hooks/useSnackbar';
 import { useInspectorDetail } from '../hooks/useInspectorDetail';
 import { InspectorStatusChip } from './InspectorStatusChip';
 import { InspectorDetailSections } from './InspectorDetailSections';
@@ -22,15 +21,12 @@ export function InspectorDetailDrawer({
   onEdit,
 }: InspectorDetailDrawerProps) {
   const { inspector, isLoading } = useInspectorDetail(inspectorId);
-  const { showInfo } = useSnackbar();
 
   const handleEdit = useCallback(() => {
     if (onEdit && inspectorId) {
       onEdit(inspectorId);
-    } else {
-      showInfo('Editing coming soon');
     }
-  }, [onEdit, inspectorId, showInfo]);
+  }, [onEdit, inspectorId]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">
@@ -50,9 +46,11 @@ export function InspectorDetailDrawer({
               actions={
                 <>
                   <InspectorStatusChip status={inspector.status} />
-                  <Button variant="icon" onClick={handleEdit} aria-label="Edit">
-                    <i className="mdi mdi-pencil-outline text-xl" />
-                  </Button>
+                  {onEdit ? (
+                    <Button variant="icon" onClick={handleEdit} aria-label="Edit">
+                      <i className="mdi mdi-pencil-outline text-xl" />
+                    </Button>
+                  ) : null}
                 </>
               }
             />

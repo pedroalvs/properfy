@@ -151,6 +151,20 @@ describe('NotifyOnTenantPortalActionHandler', () => {
     );
   });
 
+  it('sends INSPECTION_UNAVAILABILITY_REPORTED email on UNAVAILABLE action', async () => {
+    const handler = makeHandler();
+    await handler.execute({ appointmentId: 'appt-1', action: 'UNAVAILABLE' });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'INSPECTION_UNAVAILABILITY_REPORTED',
+        channel: 'EMAIL',
+        recipient: 'john@example.com',
+      }),
+    );
+  });
+
   it('skips notification when no contact exists', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),

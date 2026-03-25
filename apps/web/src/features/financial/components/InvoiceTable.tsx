@@ -17,6 +17,7 @@ interface InvoiceTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   sorting?: DataTableSorting;
+  resolveInspectorLabel?: (inspectorId: string) => string;
   onView?: (invoice: Invoice) => void;
   onDownload?: (invoice: Invoice) => void;
 }
@@ -28,15 +29,17 @@ export function InvoiceTable({
   onRetryError,
   pagination,
   sorting,
+  resolveInspectorLabel,
   onView,
   onDownload,
 }: InvoiceTableProps) {
   const columns: DataTableColumn<Invoice>[] = [
     {
-      key: 'inspectorName',
+      key: 'inspectorId',
       label: 'Inspector',
       width: '180px',
       sortable: true,
+      render: (row) => <>{resolveInspectorLabel?.(row.inspectorId) ?? row.inspectorId}</>,
     },
     {
       key: 'periodStart',
@@ -50,10 +53,10 @@ export function InvoiceTable({
       ),
     },
     {
-      key: 'frequency',
-      label: 'Frequency',
+      key: 'periodType',
+      label: 'Period Type',
       width: '120px',
-      render: (row) => <>{FREQUENCY_LABELS[row.frequency] ?? row.frequency}</>,
+      render: (row) => <>{FREQUENCY_LABELS[row.periodType] ?? row.periodType}</>,
     },
     {
       key: 'totalAmount',
@@ -65,11 +68,6 @@ export function InvoiceTable({
           {row.totalAmount.toLocaleString('en-AU', { style: 'currency', currency: row.currency })}
         </span>
       ),
-    },
-    {
-      key: 'entryCount',
-      label: 'Entries',
-      width: '80px',
     },
     {
       key: 'status',
@@ -94,6 +92,7 @@ export function InvoiceTable({
               icon: 'mdi-download-outline',
               label: 'Download',
               onClick: () => onDownload?.(row),
+              disabled: row.status === 'OPEN' || !row.fileKey,
             },
           ]}
         />

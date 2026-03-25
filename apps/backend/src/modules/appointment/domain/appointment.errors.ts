@@ -52,6 +52,58 @@ export class AppointmentDoneCheckerSelfCheckError extends DomainError {
   }
 }
 
+export class AppointmentDoneCrossCheckNotPermittedError extends ForbiddenError {
+  constructor() {
+    super('APPOINTMENT_DONE_CROSS_CHECK_NOT_PERMITTED', 'Only OP or AM can cross-check DONE appointments');
+  }
+}
+
+export class AppointmentDoneCrossCheckInvalidStatusError extends DomainError {
+  constructor(status: string) {
+    super(
+      'APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS',
+      `Cross-check is only allowed for DONE appointments, current status is ${status}`,
+      422,
+    );
+  }
+}
+
+export class AppointmentDoneCrossCheckAlreadyCompletedError extends DomainError {
+  constructor() {
+    super('APPOINTMENT_DONE_CROSS_CHECK_ALREADY_COMPLETED', 'Appointment was already cross-checked', 409);
+  }
+}
+
+export class AppointmentDoneCrossCheckSelfApprovalError extends DomainError {
+  constructor() {
+    super(
+      'APPOINTMENT_DONE_CROSS_CHECK_SELF_APPROVAL',
+      'The same user who marked DONE cannot cross-check the appointment',
+      422,
+    );
+  }
+}
+
+export class AppointmentDoneCrossCheckOriginNotFoundError extends DomainError {
+  constructor() {
+    super(
+      'APPOINTMENT_DONE_CROSS_CHECK_ORIGIN_NOT_FOUND',
+      'Unable to determine who marked the appointment as DONE',
+      409,
+    );
+  }
+}
+
+export class AppointmentDoneCrossCheckEvidenceIncompleteError extends DomainError {
+  constructor() {
+    super(
+      'APPOINTMENT_DONE_CROSS_CHECK_EVIDENCE_INCOMPLETE',
+      'Appointment cannot be cross-checked before the required inspection evidence exists',
+      422,
+    );
+  }
+}
+
 export class AppointmentInspectorRequiredError extends DomainError {
   constructor() {
     super(

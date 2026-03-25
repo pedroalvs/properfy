@@ -150,6 +150,29 @@ describe('ListNotificationTemplatesUseCase', () => {
     );
   });
 
+  it('should default includeDefaults to true for AM when tenantId is provided', async () => {
+    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
+
+    await useCase.execute({
+      tenantId: 'tenant-42',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(templateRepo.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-42', includeDefaults: true }),
+    );
+  });
+
+  it('should not set includeDefaults for AM when no tenantId is provided', async () => {
+    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
+
+    await useCase.execute({
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(templateRepo.findAll).toHaveBeenCalledWith({});
+  });
+
   it('should return mapped template items with variables', async () => {
     vi.mocked(templateRepo.findAll).mockResolvedValue([
       makeTemplateEntity({

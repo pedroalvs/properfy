@@ -10,7 +10,23 @@ export interface PortalAppointment {
   status: AppointmentStatus;
   scheduledDate: string;
   timeSlot: string;
-  serviceTypeId: string;
+  serviceTypeId?: string;
+  serviceType?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
+  property?: {
+    id: string;
+    propertyCode: string;
+    type: string;
+    street: string;
+    addressLine2: string | null;
+    suburb: string;
+    postcode: string;
+    state: string;
+    country: string;
+  } | null;
   tenantConfirmationStatus: TenantConfirmationStatus;
   keyRequired: boolean;
   meetingLocation: string | null;
@@ -26,9 +42,9 @@ export interface PortalContact {
 }
 
 export interface PortalRestrictions {
-  isHome: boolean;
+  isHome: boolean | null;
   unavailableDaysJson: string[] | null;
-  unavailableHoursJson: string[] | null;
+  unavailableHoursJson: Array<{ start: string; end: string }> | null;
   notes: string | null;
   source: string;
 }

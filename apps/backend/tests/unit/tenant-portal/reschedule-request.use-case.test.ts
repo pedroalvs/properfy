@@ -4,16 +4,20 @@ import {
   type RescheduleRequestInput,
 } from '../../../src/modules/tenant-portal/application/use-cases/reschedule-request.use-case';
 import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
+import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
+import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
+import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import { PortalActionBlockedError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
 import { PortalAppointmentInactiveError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
 import { PortalRescheduleNotAllowedError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
 import { PortalRescheduleWindowExceededError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
 import { PortalDateInPastError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { PortalInspectionInProgressError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
@@ -79,6 +83,15 @@ describe('RescheduleRequestUseCase', () => {
     save: ReturnType<typeof vi.fn>;
     findLatestByTokenAndAction: ReturnType<typeof vi.fn>;
   };
+  let tokenRepo: {
+    findByTokenHash: ReturnType<typeof vi.fn>;
+    findActiveByAppointmentId: ReturnType<typeof vi.fn>;
+    save: ReturnType<typeof vi.fn>;
+    updateStatus: ReturnType<typeof vi.fn>;
+    updateLastAccessedAt: ReturnType<typeof vi.fn>;
+    revokeAllForAppointment: ReturnType<typeof vi.fn>;
+    expireActiveTokens: ReturnType<typeof vi.fn>;
+  };
   let appointmentRepo: {
     findById: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
@@ -99,12 +112,22 @@ describe('RescheduleRequestUseCase', () => {
     update: ReturnType<typeof vi.fn>;
   };
   let auditService: { log: ReturnType<typeof vi.fn> };
+  let executionRepo: { findByAppointmentId: ReturnType<typeof vi.fn> };
   let useCase: RescheduleRequestUseCase;
 
   beforeEach(() => {
     activityRepo = {
       save: vi.fn().mockResolvedValue(undefined),
       findLatestByTokenAndAction: vi.fn().mockResolvedValue(null),
+    };
+    tokenRepo = {
+      findByTokenHash: vi.fn(),
+      findActiveByAppointmentId: vi.fn(),
+      save: vi.fn(),
+      updateStatus: vi.fn(),
+      updateLastAccessedAt: vi.fn(),
+      revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
+      expireActiveTokens: vi.fn(),
     };
     appointmentRepo = {
       findById: vi.fn().mockResolvedValue({
@@ -131,11 +154,14 @@ describe('RescheduleRequestUseCase', () => {
       update: vi.fn(),
     };
     auditService = { log: vi.fn() };
+    executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
 
     useCase = new RescheduleRequestUseCase(
       activityRepo as unknown as ITenantPortalActivityRepository,
+      tokenRepo as unknown as ITenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       serviceTypeRepo as unknown as IServiceTypeRepository,
+      executionRepo as unknown as IInspectionExecutionRepository,
       auditService as unknown as PersistentAuditService,
     );
   });
@@ -154,6 +180,7 @@ describe('RescheduleRequestUseCase', () => {
       timeSlot: 'AFTERNOON',
       tenantConfirmationStatus: 'PENDING',
     });
+    expect(tokenRepo.revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
   });
 
   it('should throw PortalActionBlockedError when isReadOnly is true', async () => {
@@ -278,6 +305,49 @@ describe('RescheduleRequestUseCase', () => {
 
     await expect(useCase.execute(makeInput())).rejects.toThrow('Appointment not found');
   });
+
+  it('should throw PortalInspectionInProgressError when inspection is actively in progress', async () => {
+    const activeExecution = new InspectionExecutionEntity({
+      id: 'exec-1',
+      appointmentId: 'appt-1',
+      inspectorId: 'inspector-1',
+      startedAt: new Date(),
+      finishedAt: null,
+      startLatitude: -33.8,
+      startLongitude: 151.2,
+      finishLatitude: null,
+      finishLongitude: null,
+      checklistJson: null,
+      notes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    executionRepo.findByAppointmentId.mockResolvedValue(activeExecution);
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalInspectionInProgressError);
+  });
+
+  it('should allow reschedule when execution is finished', async () => {
+    const finishedExecution = new InspectionExecutionEntity({
+      id: 'exec-1',
+      appointmentId: 'appt-1',
+      inspectorId: 'inspector-1',
+      startedAt: new Date(),
+      finishedAt: new Date(),
+      startLatitude: -33.8,
+      startLongitude: 151.2,
+      finishLatitude: -33.8,
+      finishLongitude: 151.2,
+      checklistJson: null,
+      notes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    executionRepo.findByAppointmentId.mockResolvedValue(finishedExecution);
+
+    const result = await useCase.execute(makeInput());
+    expect(result.tenantConfirmationStatus).toBe('PENDING');
+  });
 });
 
 describe('RescheduleRequestUseCase – onNotificationHandler', () => {
@@ -287,6 +357,15 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
     const activityRepo = {
       save: vi.fn().mockResolvedValue(undefined),
       findLatestByTokenAndAction: vi.fn().mockResolvedValue(null),
+    };
+    const tokenRepo = {
+      findByTokenHash: vi.fn(),
+      findActiveByAppointmentId: vi.fn(),
+      save: vi.fn(),
+      updateStatus: vi.fn(),
+      updateLastAccessedAt: vi.fn(),
+      revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
+      expireActiveTokens: vi.fn(),
     };
     const appointmentRepo = {
       findById: vi.fn().mockResolvedValue({
@@ -313,6 +392,7 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
       update: vi.fn(),
     };
     const auditService = { log: vi.fn() };
+    const executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
     onNotificationHandler = {
       execute: vi.fn().mockResolvedValue(undefined),
     };
@@ -320,15 +400,19 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
     return {
       useCase: new RescheduleRequestUseCase(
         activityRepo as unknown as ITenantPortalActivityRepository,
+        tokenRepo as unknown as ITenantPortalTokenRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         serviceTypeRepo as unknown as IServiceTypeRepository,
+        executionRepo as unknown as IInspectionExecutionRepository,
         auditService as unknown as PersistentAuditService,
         onNotificationHandler,
       ),
       useCaseWithout: new RescheduleRequestUseCase(
         activityRepo as unknown as ITenantPortalActivityRepository,
+        tokenRepo as unknown as ITenantPortalTokenRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         serviceTypeRepo as unknown as IServiceTypeRepository,
+        executionRepo as unknown as IInspectionExecutionRepository,
         auditService as unknown as PersistentAuditService,
       ),
       onNotificationHandler,

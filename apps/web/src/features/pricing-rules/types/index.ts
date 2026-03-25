@@ -1,6 +1,7 @@
 export interface PricingRule {
   id: string;
   tenantId: string;
+  currency: string;
   tenantName?: string;
   serviceTypeId: string;
   serviceTypeName?: string;

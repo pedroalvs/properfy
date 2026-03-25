@@ -5,18 +5,14 @@ import type { MarketplaceOffer } from '../../types';
 
 const baseOffer: MarketplaceOffer = {
   groupId: 'group-1',
+  tenantName: 'Acme Realty',
   serviceTypeName: 'Routine Inspection',
-  flowType: 'ROUTINE',
+  groupSize: 3,
   scheduledDate: '2026-03-20',
-  timeWindowStart: '2026-03-20T09:00:00.000Z',
-  timeWindowEnd: '2026-03-20T11:00:00.000Z',
-  region: 'Brunswick, Fitzroy',
+  timeWindow: '09:00-11:00',
+  priorityMode: 'STANDARD',
+  priorityExpiresAt: null,
   suburbs: ['Brunswick', 'Fitzroy'],
-  appointmentCount: 3,
-  confirmedCount: 2,
-  pendingCount: 1,
-  distance: 5.2,
-  publishedAt: '2026-03-18T00:00:00.000Z',
 };
 
 describe('OfferCard', () => {
@@ -35,8 +31,9 @@ describe('OfferCard', () => {
     render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
     expect(screen.getByText('Brunswick, Fitzroy')).toBeInTheDocument();
+    expect(screen.getByText('Acme Realty')).toBeInTheDocument();
     expect(screen.getByText('3 inspections')).toBeInTheDocument();
-    expect(screen.getByText('~5 km away')).toBeInTheDocument();
+    expect(screen.getByText('Standard availability')).toBeInTheDocument();
   });
 
   it('shows Accept button for IDLE state', () => {
@@ -77,16 +74,9 @@ describe('OfferCard', () => {
 
   it('shows "1 inspection" singular', () => {
     render(
-      <OfferCard offer={{ ...baseOffer, appointmentCount: 1 }} state="IDLE" onAccept={onAccept} />,
+      <OfferCard offer={{ ...baseOffer, groupSize: 1 }} state="IDLE" onAccept={onAccept} />,
     );
     expect(screen.getByText('1 inspection')).toBeInTheDocument();
-  });
-
-  it('shows confirmation chips with counts', () => {
-    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
-    expect(screen.getByTestId('confirmation-chips')).toBeInTheDocument();
-    expect(screen.getByText('2 confirmed')).toBeInTheDocument();
-    expect(screen.getByText('1 pending')).toBeInTheDocument();
   });
 
   it('has expand/collapse details button', async () => {
@@ -99,14 +89,6 @@ describe('OfferCard', () => {
     expect(screen.getByTestId('offer-details-expanded')).toBeInTheDocument();
     expect(screen.getByText('Brunswick')).toBeInTheDocument();
     expect(screen.getByText('Fitzroy')).toBeInTheDocument();
-  });
-
-  it('shows confirmation progress bar in expanded details', async () => {
-    vi.useRealTimers();
-    const user = userEvent.setup();
-    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
-    await user.click(screen.getByTestId('expand-details-button'));
-    expect(screen.getByTestId('confirmation-progress-bar')).toBeInTheDocument();
   });
 
   it('has role="alert" on state label', () => {
@@ -126,8 +108,8 @@ describe('OfferCard', () => {
     expect(card.className).toContain('opacity-50');
   });
 
-  it('shows published relative time', () => {
+  it('shows priority expiration fallback', () => {
     render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
-    expect(screen.getByTestId('published-time')).toBeInTheDocument();
+    expect(screen.getByTestId('priority-expiration')).toHaveTextContent('Standard availability');
   });
 });

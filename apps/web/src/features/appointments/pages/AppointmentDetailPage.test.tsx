@@ -55,6 +55,42 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     if (!id) return { appointment: null, isLoading: false, isError: false, refetch: mockRefetch };
     if (id === 'loading') return { appointment: null, isLoading: true, isError: false, refetch: mockRefetch };
     if (id === 'error') return { appointment: null, isLoading: false, isError: true, refetch: mockRefetch };
+    if (id === 'done') {
+      return {
+        appointment: {
+          id: 'done',
+          code: 'VST-002',
+          status: 'DONE',
+          branchName: 'Downtown Branch',
+          branchId: 'branch-1',
+          propertyId: 'prop-1',
+          propertyAddress: '123 Flower Street',
+          serviceTypeId: 'st-1',
+          serviceTypeName: 'Inspection',
+          tenantId: 'tenant-1',
+          tenantConfirmationStatus: 'CONFIRMED',
+          contactName: 'John',
+          scheduledDate: '2026-04-01',
+          timeSlot: '09:00-12:00',
+          contactPhone: '11999',
+          contactEmail: 'john@test.com',
+          inspectorId: null,
+          inspectorName: null,
+          keyRequired: false,
+          meetingLocation: null,
+          keyLocation: null,
+          cancellationReason: null,
+          notes: '',
+          doneCheckedByUserId: null,
+          doneCheckedAt: null,
+          createdAt: '2026-03-01T10:00:00Z',
+          updatedAt: '2026-03-01T10:00:00Z',
+        },
+        isLoading: false,
+        isError: false,
+        refetch: mockRefetch,
+      };
+    }
     return {
       appointment: {
         id: 'apt-01',
@@ -80,6 +116,8 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
         keyLocation: null,
         cancellationReason: null,
         notes: '',
+        doneCheckedByUserId: null,
+        doneCheckedAt: null,
         createdAt: '2026-03-01T10:00:00Z',
         updatedAt: '2026-03-01T10:00:00Z',
       },
@@ -95,6 +133,24 @@ vi.mock('../hooks/useAppointmentTransition', () => ({
     transition: vi.fn(),
     isTransitioning: false,
   }),
+}));
+
+const mockCrossCheckDone = vi.fn();
+vi.mock('../hooks/useAppointmentCrossCheck', () => ({
+  useAppointmentCrossCheck: () => ({
+    crossCheckDone: mockCrossCheckDone,
+    isCrossChecking: false,
+  }),
+}));
+
+vi.mock('../components/AppointmentFormDrawer', () => ({
+  AppointmentFormDrawer: ({
+    open,
+    appointmentId,
+  }: {
+    open: boolean;
+    appointmentId?: string | null;
+  }) => (open ? <div>Edit Drawer {appointmentId}</div> : null),
 }));
 
 import { AppointmentDetailPage } from './AppointmentDetailPage';
@@ -189,6 +245,29 @@ describe('AppointmentDetailPage', () => {
   it('renders edit button', () => {
     renderPage();
     expect(screen.getByLabelText('Edit appointment')).toBeInTheDocument();
+  });
+
+  it('opens the edit drawer from the detail page', () => {
+    renderPage();
+    fireEvent.click(screen.getByLabelText('Edit appointment'));
+    expect(screen.getByText('Edit Drawer apt-01')).toBeInTheDocument();
+  });
+
+  it('hides edit button for non-editable appointment statuses', () => {
+    renderPage('/appointments/done');
+    expect(screen.queryByLabelText('Edit appointment')).not.toBeInTheDocument();
+  });
+
+  it('shows Confirm Done for privileged users on pending cross-check appointments', () => {
+    renderPage('/appointments/done');
+    expect(screen.getByText('Confirm Done')).toBeInTheDocument();
+  });
+
+  it('calls cross-check hook after confirmation', () => {
+    renderPage('/appointments/done');
+    fireEvent.click(screen.getByText('Confirm Done'));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Confirm Done' }).at(-1)!);
+    expect(mockCrossCheckDone).toHaveBeenCalled();
   });
 
   it('renders transition actions for AM user on DRAFT', () => {

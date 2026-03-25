@@ -1,5 +1,4 @@
 import { FilterBar } from '@/components/filters/FilterBar';
-import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
 import { FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP } from '@/lib/status-colors';
 import type { FinancialFiltersState } from '../types';
@@ -31,12 +30,6 @@ export function FinancialFilters({
 }: FinancialFiltersProps) {
   return (
     <FilterBar>
-      <FilterInput
-        label="Search"
-        placeholder="Description, inspection code..."
-        value={filters.search}
-        onChange={(search) => onFiltersChange({ ...filters, search })}
-      />
       <FilterSelect
         label="Type"
         value={filters.entryType}

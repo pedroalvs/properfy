@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
+import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { TenantContactDetailDrawer } from './TenantContactDetailDrawer';
 
 vi.mock('@/config/env', () => ({
@@ -65,18 +65,6 @@ vi.mock('../hooks/useTenantContactDetail', () => ({
   },
 }));
 
-
-function SnackbarDisplay() {
-  const { messages } = useSnackbar();
-  return (
-    <div data-testid="snackbar-display">
-      {messages.map((m) => (
-        <div key={m.id}>{m.message}</div>
-      ))}
-    </div>
-  );
-}
-
 const testQueryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
 });
@@ -86,7 +74,6 @@ function Wrapper({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={testQueryClient}>
       <SnackbarProvider>
       {children}
-      <SnackbarDisplay />
       </SnackbarProvider>
     </QueryClientProvider>
   );
@@ -123,11 +110,9 @@ describe('TenantContactDetailDrawer', () => {
     expect(screen.getByText('Appointment')).toBeInTheDocument();
   });
 
-  it('edit button calls showInfo snackbar', () => {
+  it('does not render a fake edit action', () => {
     renderDrawer({ contactId: 'tnt-01', open: true });
-    const editButton = screen.getByLabelText('Edit');
-    fireEvent.click(editButton);
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {

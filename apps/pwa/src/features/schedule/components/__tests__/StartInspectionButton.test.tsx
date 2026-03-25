@@ -15,12 +15,25 @@ describe('StartInspectionButton', () => {
     vi.useRealTimers();
   });
 
+  function formatDateKey(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  function formatTimeSlot(date: Date): string {
+    const end = new Date(date.getTime() + 2 * 60 * 60 * 1000);
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    const endHh = String(end.getHours()).padStart(2, '0');
+    const endMm = String(end.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}-${endHh}:${endMm}`;
+  }
+
   it('is disabled when appointment is not today', () => {
     renderWithProviders(
       <StartInspectionButton
         appointmentId="apt-1"
-        timeSlotStart="2099-12-31T09:00:00.000Z"
-        timeSlotEnd="2099-12-31T11:00:00.000Z"
+        scheduledDate="2099-12-31"
+        timeSlot="09:00-11:00"
       />,
     );
     const button = screen.getByTestId('start-inspection-button');
@@ -35,8 +48,8 @@ describe('StartInspectionButton', () => {
     renderWithProviders(
       <StartInspectionButton
         appointmentId="apt-1"
-        timeSlotStart={start.toISOString()}
-        timeSlotEnd={new Date(start.getTime() + 2 * 60 * 60 * 1000).toISOString()}
+        scheduledDate={formatDateKey(start)}
+        timeSlot={formatTimeSlot(start)}
       />,
     );
 
@@ -53,8 +66,8 @@ describe('StartInspectionButton', () => {
     renderWithProviders(
       <StartInspectionButton
         appointmentId="apt-1"
-        timeSlotStart={start.toISOString()}
-        timeSlotEnd={new Date(start.getTime() + 2 * 60 * 60 * 1000).toISOString()}
+        scheduledDate={formatDateKey(start)}
+        timeSlot={formatTimeSlot(start)}
       />,
     );
 
@@ -69,8 +82,8 @@ describe('StartInspectionButton', () => {
     renderWithProviders(
       <StartInspectionButton
         appointmentId="apt-1"
-        timeSlotStart={start.toISOString()}
-        timeSlotEnd={new Date(start.getTime() + 2 * 60 * 60 * 1000).toISOString()}
+        scheduledDate={formatDateKey(start)}
+        timeSlot={formatTimeSlot(start)}
       />,
     );
 

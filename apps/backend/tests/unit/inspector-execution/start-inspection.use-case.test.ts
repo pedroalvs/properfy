@@ -306,6 +306,58 @@ describe('StartInspectionUseCase', () => {
     ).rejects.toThrow(ExecutionT1BlockedError);
   });
 
+  it('should throw ExecutionT1BlockedError for unconfirmed ROUTINE on the scheduled day', async () => {
+    const sut = makeSut();
+    const today = new Date('2026-03-21T12:00:00Z');
+    vi.useFakeTimers({ now: today });
+
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations({
+        tenantConfirmationStatus: 'PENDING',
+        keyRequired: false,
+        scheduledDate: new Date('2026-03-21T12:00:00Z'),
+      }),
+    );
+
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        latitude: -33.891,
+        longitude: 151.277,
+        idempotencyKey: 'key-7b',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(ExecutionT1BlockedError);
+
+    vi.useRealTimers();
+  });
+
+  it('should throw ExecutionT1BlockedError for ROUTINE marked UNAVAILABLE on the scheduled day', async () => {
+    const sut = makeSut();
+    const today = new Date('2026-03-21T12:00:00Z');
+    vi.useFakeTimers({ now: today });
+
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations({
+        tenantConfirmationStatus: 'UNAVAILABLE',
+        keyRequired: false,
+        scheduledDate: new Date('2026-03-21T12:00:00Z'),
+      }),
+    );
+
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        latitude: -33.891,
+        longitude: 151.277,
+        idempotencyKey: 'key-7c',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(ExecutionT1BlockedError);
+
+    vi.useRealTimers();
+  });
+
   it('should throw ForbiddenError when actor is not INSP', async () => {
     const sut = makeSut();
 

@@ -29,32 +29,43 @@ export class T1VisibilityService {
       return true;
     }
 
-    // Check if scheduledDate is tomorrow (T-1)
-    const isTomorrow = this.isNextDay(today, scheduledDate);
-
-    // If not T-1 (i.e., today or further), visible
-    if (!isTomorrow) {
-      return true;
-    }
-
-    // T-1 for ROUTINE: only visible if confirmed or key required
-    if (tenantConfirmationStatus === 'CONFIRMED') {
-      return true;
-    }
-
     if (keyRequired) {
       return true;
     }
 
-    return false;
+    if (tenantConfirmationStatus === 'CONFIRMED') {
+      return true;
+    }
+
+    if (tenantConfirmationStatus === 'UNAVAILABLE') {
+      return false;
+    }
+
+    const isToday = this.isSameDay(today, scheduledDate);
+    const isTomorrow = this.isNextDay(today, scheduledDate);
+
+    if (isToday || isTomorrow) {
+      return false;
+    }
+
+    return true;
   }
 
   private isNextDay(today: Date, target: Date): boolean {
+    const diffDays = this.diffInDays(today, target);
+    return diffDays === 1;
+  }
+
+  private isSameDay(today: Date, target: Date): boolean {
+    const diffDays = this.diffInDays(today, target);
+    return diffDays === 0;
+  }
+
+  private diffInDays(today: Date, target: Date): number {
     // Compare dates only (no time component)
     const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const targetDate = new Date(target.getFullYear(), target.getMonth(), target.getDate());
     const diffMs = targetDate.getTime() - todayDate.getTime();
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    return diffDays === 1;
+    return diffMs / (1000 * 60 * 60 * 24);
   }
 }

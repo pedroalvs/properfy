@@ -74,6 +74,7 @@ export async function registerBillingRoutes(
               totalAdjustments: z.number(),
               totalRefunds: z.number(),
               pendingCount: z.number(),
+              currency: z.string().length(3).nullable(),
             }),
           ),
         },

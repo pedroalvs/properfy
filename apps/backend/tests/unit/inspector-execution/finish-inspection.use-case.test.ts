@@ -3,6 +3,7 @@ import { FinishInspectionUseCase } from '../../../src/modules/inspector-executio
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import { InspectionAssetEntity } from '../../../src/modules/inspector-execution/domain/inspection-asset.entity';
 import {
+  ExecutionAppointmentNotFoundError,
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
   ExecutionInsufficientAssetsError,
@@ -34,7 +35,14 @@ const executeStatusTransition = {
   execute: vi.fn(),
 };
 
+const appointmentRepo = {
+  findById: vi.fn(),
+};
+
 const auditService = { log: vi.fn() };
+const serviceTypeReader = {
+  findById: vi.fn(),
+};
 
 const inspActor = {
   userId: 'insp-1',
@@ -86,7 +94,9 @@ function makeSut() {
     assetRepo,
     idempotencyService,
     executeStatusTransition as any,
+    appointmentRepo as any,
     auditService as any,
+    serviceTypeReader as any,
   );
 }
 
@@ -106,6 +116,13 @@ describe('FinishInspectionUseCase', () => {
       doneCheckedAt: null,
       updatedAt: new Date(),
     });
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: {
+        tenantId: 'tenant-1',
+        serviceTypeId: 'stype-1',
+      },
+    });
+    serviceTypeReader.findById.mockResolvedValue(null);
   });
 
   it('should set finishedAt and trigger SCHEDULED->DONE transition', async () => {
@@ -198,6 +215,26 @@ describe('FinishInspectionUseCase', () => {
     ).rejects.toThrow(ExecutionAlreadyFinishedError);
   });
 
+  it('should throw ExecutionAppointmentNotFoundError when appointment lookup returns null', async () => {
+    const sut = makeSut();
+    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
+    appointmentRepo.findById.mockResolvedValue(null);
+
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        latitude: -33.900,
+        longitude: 151.300,
+        idempotencyKey: 'key-missing-appointment',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(ExecutionAppointmentNotFoundError);
+
+    expect(assetRepo.findUploadedByExecutionId).not.toHaveBeenCalled();
+    expect(executeStatusTransition.execute).not.toHaveBeenCalled();
+    expect(auditService.log).not.toHaveBeenCalled();
+  });
+
   it('should throw ExecutionInsufficientAssetsError when no PHOTO asset uploaded', async () => {
     const sut = makeSut();
     executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
@@ -212,6 +249,28 @@ describe('FinishInspectionUseCase', () => {
         latitude: -33.900,
         longitude: 151.300,
         idempotencyKey: 'key-4',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(ExecutionInsufficientAssetsError);
+  });
+
+  it('should enforce signature requirement from the appointment service type', async () => {
+    const sut = makeSut();
+    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
+    assetRepo.findUploadedByExecutionId.mockResolvedValue([makeUploadedAsset()]);
+    serviceTypeReader.findById.mockResolvedValue({
+      checklistTemplate: {
+        minPhotos: 1,
+        requiresSignature: true,
+      },
+    });
+
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        latitude: -33.900,
+        longitude: 151.300,
+        idempotencyKey: 'key-signature',
         actor: inspActor,
       }),
     ).rejects.toThrow(ExecutionInsufficientAssetsError);
@@ -317,6 +376,7 @@ describe('FinishInspectionUseCase', () => {
         actorId: 'insp-1',
         entityType: 'InspectionExecution',
         entityId: 'exec-1',
+        tenantId: 'tenant-1',
       }),
     );
   });

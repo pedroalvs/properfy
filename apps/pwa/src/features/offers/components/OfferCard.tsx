@@ -1,6 +1,6 @@
 import { memo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
-import { formatDate, formatTime } from '@/lib/format-date';
+import { formatDate, toLocalISODate } from '@/lib/format-date';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
 
 interface OfferCardProps {
@@ -10,19 +10,12 @@ interface OfferCardProps {
 }
 
 function isToday(dateStr: string): boolean {
-  const today = new Date().toISOString().split('T')[0]!;
+  const today = toLocalISODate(new Date());
   return dateStr === today;
 }
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `Posted ${minutes} min ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Posted ${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `Posted ${days}d ago`;
+function formatTimeWindow(timeWindow: string): string {
+  return timeWindow.replace('-', ' - ');
 }
 
 const stateLabels: Partial<Record<OfferAcceptState, { label: string; className: string }>> = {
@@ -62,28 +55,21 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
             )}
           </div>
           <p className="mt-0.5 text-xs text-text-secondary">
-            {formatDate(offer.scheduledDate)} | {formatTime(offer.timeWindowStart)} – {formatTime(offer.timeWindowEnd)}
+            {formatDate(offer.scheduledDate)} | {formatTimeWindow(offer.timeWindow)}
           </p>
+          <p className="mt-0.5 text-xs text-text-muted">{offer.tenantName}</p>
         </div>
         <span className="text-sm font-bold text-primary">
-          {offer.appointmentCount} {offer.appointmentCount === 1 ? 'inspection' : 'inspections'}
+          {offer.groupSize} {offer.groupSize === 1 ? 'inspection' : 'inspections'}
         </span>
       </div>
 
-      <p className="mt-2 text-sm text-text-primary">{offer.region}</p>
+      <p className="mt-2 text-sm text-text-primary">
+        {offer.suburbs.length > 0 ? offer.suburbs.join(', ') : 'Suburbs not informed'}
+      </p>
       <div className="flex items-center gap-2 text-xs text-text-muted">
-        {offer.distance !== null && <span>~{Math.round(offer.distance)} km away</span>}
-        <span data-testid="published-time">{formatTimeAgo(offer.publishedAt)}</span>
-      </div>
-
-      <div className="mt-2 flex items-center gap-3 text-xs text-text-secondary" data-testid="confirmation-chips">
-        <span className="flex items-center gap-1">
-          <i className="mdi mdi-check-circle text-success" aria-hidden="true" />
-          {offer.confirmedCount} confirmed
-        </span>
-        <span className="flex items-center gap-1">
-          <i className="mdi mdi-clock-outline text-warning" aria-hidden="true" />
-          {offer.pendingCount} pending
+        <span data-testid="priority-expiration">
+          {offer.priorityExpiresAt ? `Priority until ${formatDate(offer.priorityExpiresAt)}` : 'Standard availability'}
         </span>
       </div>
 
@@ -104,20 +90,6 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
               <li key={suburb}>{suburb}</li>
             ))}
           </ul>
-          {offer.appointmentCount > 0 && (
-            <div className="mt-2">
-              <p className="mb-1 text-xs font-bold uppercase text-text-secondary">Confirmation progress</p>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-border-subtle">
-                <div
-                  className="h-full rounded-full bg-success transition-all"
-                  style={{
-                    width: `${offer.appointmentCount > 0 ? Math.round((offer.confirmedCount / offer.appointmentCount) * 100) : 0}%`,
-                  }}
-                  data-testid="confirmation-progress-bar"
-                />
-              </div>
-            </div>
-          )}
         </div>
       )}
 

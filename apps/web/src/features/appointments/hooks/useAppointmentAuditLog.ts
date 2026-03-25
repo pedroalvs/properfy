@@ -2,9 +2,18 @@ import { usePaginatedQuery } from '@/hooks/useApiQuery';
 
 export interface AuditLogEntry {
   id: string;
-  event: string;
-  actorName: string;
+  tenantId: string | null;
+  actorType: string;
+  actorId: string | null;
+  entityType: string;
+  entityId: string | null;
+  action: string;
   reason: string | null;
+  beforeJson: unknown | null;
+  afterJson: unknown | null;
+  requestId: string | null;
+  ipAddress: string | null;
+  metadataJson: unknown | null;
   createdAt: string;
 }
 

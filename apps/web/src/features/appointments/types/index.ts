@@ -23,6 +23,8 @@ export interface Appointment {
   timeSlot: string;
   keyRequired: boolean;
   notes: string | null;
+  doneCheckedByUserId?: string | null;
+  doneCheckedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,6 +32,7 @@ export interface Appointment {
 export interface AppointmentFiltersState {
   search: string;
   status: string;
+  tenantConfirmationStatus: string;
   branchId: string;
   startDate: string;
   endDate: string;
@@ -85,6 +88,7 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
 export const DEFAULT_FILTERS: AppointmentFiltersState = {
   search: '',
   status: '',
+  tenantConfirmationStatus: '',
   branchId: '',
   startDate: '',
   endDate: '',

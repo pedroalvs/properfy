@@ -5,6 +5,8 @@ import type {
   PricingRuleFilters,
   PaginationParams,
 } from '../../domain/pricing-rule.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 
 export interface ListPricingRulesInput {
   filters: {
@@ -21,6 +23,7 @@ export interface ListPricingRulesOutput {
   data: Array<{
     id: string;
     tenantId: string;
+    currency: string;
     serviceTypeId: string;
     branchId: string | null;
     priceAmount: number;
@@ -37,7 +40,10 @@ export interface ListPricingRulesOutput {
 }
 
 export class ListPricingRulesUseCase {
-  constructor(private readonly pricingRuleRepo: IPricingRuleRepository) {}
+  constructor(
+    private readonly pricingRuleRepo: IPricingRuleRepository,
+    private readonly tenantRepo: ITenantRepository,
+  ) {}
 
   async execute(input: ListPricingRulesInput): Promise<ListPricingRulesOutput> {
     const { filters, pagination, actor } = input;
@@ -59,6 +65,11 @@ export class ListPricingRulesUseCase {
       return { data: [], total: 0, page: pagination.page, pageSize: pagination.pageSize };
     }
 
+    const tenant = await this.tenantRepo.findById(resolvedTenantId);
+    if (!tenant) {
+      throw new TenantNotFoundError();
+    }
+
     const resolvedFilters: PricingRuleFilters = {
       tenantId: resolvedTenantId,
       serviceTypeId: filters.serviceTypeId,
@@ -75,6 +86,7 @@ export class ListPricingRulesUseCase {
       data: data.map((r) => ({
         id: r.id,
         tenantId: r.tenantId,
+        currency: tenant.currency,
         serviceTypeId: r.serviceTypeId,
         branchId: r.branchId,
         priceAmount: r.priceAmount,

@@ -5,14 +5,13 @@ import { FinancialFilters } from './FinancialFilters';
 import { DEFAULT_FILTERS } from '../types';
 
 describe('FinancialFilters', () => {
-  it('renders all 3 filter controls', () => {
+  it('renders type and status filter controls', () => {
     render(
       <FinancialFilters
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
       />,
     );
-    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
@@ -62,16 +61,5 @@ describe('FinancialFilters', () => {
     await user.click(screen.getByLabelText('Type'));
     await user.click(screen.getByText('Refund'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, entryType: 'REFUND' });
-  });
-
-  it('search input accessible via "Search"', () => {
-    render(
-      <FinancialFilters
-        filters={DEFAULT_FILTERS}
-        onFiltersChange={() => {}}
-      />,
-    );
-    const input = screen.getByLabelText('Search');
-    expect(input.tagName).toBe('INPUT');
   });
 });

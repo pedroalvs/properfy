@@ -7,10 +7,8 @@ import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { useInvoiceDetail } from '../hooks/useInvoiceDetail';
 import { useInvoiceDownload } from '../hooks/useInvoiceDownload';
-import { formatDateTime } from '@/lib/format-date';
+import { formatDateTime, formatDate } from '@/lib/format-date';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
-import { FinancialEntryTypeChip } from './FinancialEntryTypeChip';
-import { FinancialStatusChip } from './FinancialStatusChip';
 
 const FREQUENCY_LABELS: Record<string, string> = {
   WEEKLY: 'Weekly',
@@ -26,11 +24,21 @@ interface InvoiceDetailDrawerProps {
   invoiceId: string | null;
   open: boolean;
   onClose: () => void;
+  resolveInspectorLabel?: (inspectorId: string) => string;
 }
 
-export function InvoiceDetailDrawer({ invoiceId, open, onClose }: InvoiceDetailDrawerProps) {
+export function InvoiceDetailDrawer({
+  invoiceId,
+  open,
+  onClose,
+  resolveInspectorLabel,
+}: InvoiceDetailDrawerProps) {
   const { invoice, isLoading } = useInvoiceDetail(invoiceId);
   const { download, isDownloading } = useInvoiceDownload();
+  const inspectorLabel = invoice
+    ? (resolveInspectorLabel?.(invoice.inspectorId) ?? invoice.inspectorId)
+    : '';
+  const canDownload = !!invoice && invoice.status !== 'OPEN' && !!invoice.fileKey;
 
   const handleDownload = useCallback(() => {
     if (invoiceId) {
@@ -51,7 +59,7 @@ export function InvoiceDetailDrawer({ invoiceId, open, onClose }: InvoiceDetailD
         ) : invoice ? (
           <>
             <DrawerHeader
-              title={`Invoice - ${invoice.inspectorName}`}
+              title={`Invoice - ${inspectorLabel}`}
               onClose={onClose}
               actions={
                 <>
@@ -60,6 +68,7 @@ export function InvoiceDetailDrawer({ invoiceId, open, onClose }: InvoiceDetailD
                     variant="outlined"
                     onClick={handleDownload}
                     loading={isDownloading}
+                    disabled={!canDownload}
                     aria-label="Download invoice"
                   >
                     <i className="mdi mdi-download-outline text-base" />
@@ -71,12 +80,17 @@ export function InvoiceDetailDrawer({ invoiceId, open, onClose }: InvoiceDetailD
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="flex flex-col gap-6">
                 <FormSection title="Invoice Details">
-                  <DetailRow label="Inspector" value={invoice.inspectorName} />
-                  <DetailRow label="Period" value={`${formatDateTime(invoice.periodStart)} - ${formatDateTime(invoice.periodEnd)}`} />
-                  <DetailRow label="Frequency" value={FREQUENCY_LABELS[invoice.frequency] ?? invoice.frequency} />
+                  <DetailRow label="Inspector" value={inspectorLabel} />
+                  <DetailRow label="Period" value={`${formatDate(invoice.periodStart)} - ${formatDate(invoice.periodEnd)}`} />
+                  <DetailRow label="Period Type" value={FREQUENCY_LABELS[invoice.periodType] ?? invoice.periodType} />
                   <DetailRow label="Total Amount" value={formatCurrency(invoice.totalAmount, invoice.currency)} />
-                  <DetailRow label="Entries" value={String(invoice.entryCount)} />
                   <DetailRow label="Status" value={<InvoiceStatusChip status={invoice.status} />} />
+                  <DetailRow label="Document" value={invoice.fileKey ? 'Ready' : 'Pending generation'} />
+                  {invoice.status === 'OPEN' && (
+                    <p className="text-sm text-text-muted">
+                      This invoice is still open. The total can change until the invoice is closed.
+                    </p>
+                  )}
                 </FormSection>
 
                 {invoice.notes && (
@@ -85,37 +99,11 @@ export function InvoiceDetailDrawer({ invoiceId, open, onClose }: InvoiceDetailD
                   </FormSection>
                 )}
 
-                <FormSection title="Entries">
-                  {invoice.entries.length === 0 ? (
-                    <p className="text-sm text-text-muted">No entries in this invoice.</p>
-                  ) : (
-                    <div className="divide-y divide-black/5">
-                      {invoice.entries.map((entry) => (
-                        <div key={entry.id} className="flex items-center justify-between py-2">
-                          <div className="flex items-center gap-3">
-                            <FinancialEntryTypeChip entryType={entry.entryType} />
-                            <span className="text-sm text-text-primary">{entry.appointmentCode}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span
-                              className="text-sm font-semibold"
-                              style={{
-                                color: entry.amount >= 0 ? 'var(--color-money-positive)' : 'var(--color-money-negative)',
-                              }}
-                            >
-                              {entry.amount.toLocaleString('en-AU', { style: 'currency', currency: entry.currency })}
-                            </span>
-                            <FinancialStatusChip status={entry.status} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </FormSection>
-
                 <FormSection title="Record">
                   <DetailRow label="Created at" value={formatDateTime(invoice.createdAt)} />
-                  <DetailRow label="Updated at" value={formatDateTime(invoice.updatedAt)} />
+                  <DetailRow label="Generated at" value={invoice.generatedAt ? formatDateTime(invoice.generatedAt) : 'Pending generation'} />
+                  <DetailRow label="Paid at" value={invoice.paidAt ? formatDateTime(invoice.paidAt) : 'Not paid'} />
+                  <DetailRow label="Updated at" value={formatDateTime(invoice.updatedAt ?? invoice.createdAt)} />
                 </FormSection>
               </div>
             </div>

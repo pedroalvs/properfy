@@ -59,7 +59,7 @@ export interface SaveResult {
 }
 
 export interface UsePropertySaveReturn {
-  save: (data: PropertyFormData, propertyId?: string) => Promise<SaveResult>;
+  save: (data: PropertyFormData, propertyId?: string, tenantIdOverride?: string) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: PropertyFormData, mode: 'create' | 'edit') => PropertyFormErrors;
 }
@@ -88,7 +88,7 @@ export function usePropertySave(): UsePropertySaveReturn {
     return errors;
   }, []);
 
-  const save = useCallback(async (data: PropertyFormData, propertyId?: string): Promise<SaveResult> => {
+  const save = useCallback(async (data: PropertyFormData, propertyId?: string, tenantIdOverride?: string): Promise<SaveResult> => {
     setIsSaving(true);
     try {
       let newId: string | undefined;
@@ -97,7 +97,7 @@ export function usePropertySave(): UsePropertySaveReturn {
         const { error } = await api.PATCH(`/v1/properties/${propertyId}` as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        const payload = toSchemaPayload(data, 'create', user?.tenantId);
+        const payload = toSchemaPayload(data, 'create', tenantIdOverride ?? user?.tenantId);
         const { data: responseData, error } = await api.POST('/v1/properties' as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
         newId = (responseData as any)?.data?.id;
@@ -110,7 +110,7 @@ export function usePropertySave(): UsePropertySaveReturn {
     } finally {
       setIsSaving(false);
     }
-  }, [queryClient]);
+  }, [queryClient, user?.tenantId]);
 
   return { save, isSaving, validate };
 }

@@ -3,6 +3,8 @@ import { ListPricingRulesUseCase } from '../../../src/modules/pricing-rule/appli
 import type { IPricingRuleRepository } from '../../../src/modules/pricing-rule/domain/pricing-rule.repository';
 import type { AuthContext } from '@properfy/shared';
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 
 function makePricingRule(
   overrides: Partial<ConstructorParameters<typeof PricingRuleEntity>[0]> = {},
@@ -34,8 +36,24 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   };
 }
 
+function makeTenant() {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Tenant 1',
+    legalName: 'Tenant 1 Pty Ltd',
+    timezone: 'Australia/Sydney',
+    currency: 'USD',
+    settingsJson: {},
+    status: 'ACTIVE',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  });
+}
+
 describe('ListPricingRulesUseCase', () => {
   let pricingRuleRepo: IPricingRuleRepository;
+  let tenantRepo: ITenantRepository;
   let useCase: ListPricingRulesUseCase;
 
   beforeEach(() => {
@@ -47,7 +65,16 @@ describe('ListPricingRulesUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
-    useCase = new ListPricingRulesUseCase(pricingRuleRepo);
+    tenantRepo = {
+      findById: vi.fn(),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    useCase = new ListPricingRulesUseCase(pricingRuleRepo, tenantRepo);
   });
 
   it('should return paginated list for AM', async () => {
@@ -65,6 +92,7 @@ describe('ListPricingRulesUseCase', () => {
     });
 
     expect(result.data).toHaveLength(2);
+    expect(result.data[0]?.currency).toBe('USD');
     expect(result.total).toBe(2);
     expect(result.page).toBe(1);
     expect(result.pageSize).toBe(10);

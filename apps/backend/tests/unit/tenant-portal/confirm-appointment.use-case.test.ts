@@ -117,6 +117,7 @@ describe('ConfirmAppointmentUseCase', () => {
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
       tenantConfirmationStatus: 'CONFIRMED',
     });
+    expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
   });
 
   it('should throw PortalActionBlockedError when token is read-only', async () => {
@@ -226,12 +227,12 @@ describe('ConfirmAppointmentUseCase', () => {
     expect(savedRestriction.source).toBe('TENANT_PORTAL');
   });
 
-  it('should not save restrictions when not provided', async () => {
+  it('should clear stale restrictions even when no new restrictions are provided', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
     await useCase.execute(makeInput());
 
-    expect(appointmentRepo.deleteRestrictionsByAppointmentId).not.toHaveBeenCalled();
+    expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
     expect(appointmentRepo.saveRestriction).not.toHaveBeenCalled();
   });
 

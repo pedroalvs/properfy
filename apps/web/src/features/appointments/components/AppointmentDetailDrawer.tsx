@@ -6,10 +6,10 @@ import { AppointmentStatusChip } from '@/features/appointments/components/Appoin
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useAuth } from '@/hooks/useAuth';
-import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { getAvailableTransitions } from '../lib/transitions';
+import { isAppointmentEditable } from '../lib/editability';
 import { AppointmentDetailSections } from './AppointmentDetailSections';
 import { AppointmentTransitionActions } from './AppointmentTransitionActions';
 
@@ -29,21 +29,19 @@ export function AppointmentDetailDrawer({
   const navigate = useNavigate();
   const { appointment, isLoading, refetch } = useAppointmentDetail(appointmentId);
   const { user } = useAuth();
-  const { showInfo } = useSnackbar();
   const { transition, isTransitioning } = useAppointmentTransition(appointmentId, refetch);
 
   const transitions =
     appointment && user
       ? getAvailableTransitions(appointment.status, user.role)
       : [];
+  const canEditAppointment = !!appointment && isAppointmentEditable(appointment.status);
 
   const handleEdit = useCallback(() => {
     if (onEdit && appointmentId) {
       onEdit(appointmentId);
-    } else {
-      showInfo('Editing coming soon');
     }
-  }, [onEdit, appointmentId, showInfo]);
+  }, [onEdit, appointmentId]);
 
   const handleOpenFullDetail = useCallback(() => {
     if (appointmentId) {
@@ -69,10 +67,12 @@ export function AppointmentDetailDrawer({
               onClose={onClose}
               actions={
                 <>
-                  <AppointmentStatusChip status={appointment.status} />
-                  <Button variant="icon" onClick={handleEdit} aria-label="Edit">
-                    <i className="mdi mdi-pencil-outline text-xl" />
-                  </Button>
+                  <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} />
+                  {onEdit && canEditAppointment ? (
+                    <Button variant="icon" onClick={handleEdit} aria-label="Edit">
+                      <i className="mdi mdi-pencil-outline text-xl" />
+                    </Button>
+                  ) : null}
                 </>
               }
             />

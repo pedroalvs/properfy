@@ -31,8 +31,8 @@ import { createQueryWrapper } from '@/test-utils/test-wrappers';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_RULES = [
-  { id: 'pr-01', tenantId: 'ten-1', serviceTypeId: 'st-1', branchId: null, priceAmount: 150, payoutType: 'FIXED', payoutValue: 100, bonusRuleJson: null, status: 'ACTIVE', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z' },
-  { id: 'pr-02', tenantId: 'ten-2', serviceTypeId: 'st-2', branchId: 'br-1', priceAmount: 200, payoutType: 'PERCENTAGE', payoutValue: 70, bonusRuleJson: null, status: 'ACTIVE', createdAt: '2026-03-02T10:00:00Z', updatedAt: '2026-03-02T10:00:00Z' },
+  { id: 'pr-01', tenantId: 'ten-1', currency: 'USD', serviceTypeId: 'st-1', branchId: null, priceAmount: 150, payoutType: 'FIXED', payoutValue: 100, bonusRuleJson: null, status: 'ACTIVE', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z' },
+  { id: 'pr-02', tenantId: 'ten-2', currency: 'AUD', serviceTypeId: 'st-2', branchId: 'br-1', priceAmount: 200, payoutType: 'PERCENTAGE', payoutValue: 70, bonusRuleJson: null, status: 'ACTIVE', createdAt: '2026-03-02T10:00:00Z', updatedAt: '2026-03-02T10:00:00Z' },
 ];
 
 beforeEach(() => {

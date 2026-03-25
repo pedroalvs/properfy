@@ -41,10 +41,10 @@ export function SessionTable() {
       render: (row) => <>{row.ipAddress ?? '—'}</>,
     },
     {
-      key: 'lastActiveAt',
-      label: 'Last Active',
+      key: 'createdAt',
+      label: 'Started At',
       width: '160px',
-      render: (row) => <>{formatDateTime(row.lastActiveAt)}</>,
+      render: (row) => <>{formatDateTime(row.createdAt)}</>,
     },
     {
       key: 'isCurrent',

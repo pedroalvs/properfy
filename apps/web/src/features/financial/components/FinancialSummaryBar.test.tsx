@@ -16,10 +16,10 @@ describe('FinancialSummaryBar', () => {
     render(<FinancialSummaryBar />);
 
     expect(screen.getByTestId('financial-summary-bar')).toBeInTheDocument();
-    expect(screen.getByText('Total Debits')).toBeInTheDocument();
-    expect(screen.getByText('Payouts')).toBeInTheDocument();
-    expect(screen.getByText('Adjustments')).toBeInTheDocument();
-    expect(screen.getByText('Refunds')).toBeInTheDocument();
+    expect(screen.getByText('Approved Debits')).toBeInTheDocument();
+    expect(screen.getByText('Approved Payouts')).toBeInTheDocument();
+    expect(screen.getByText('Approved Adjustments')).toBeInTheDocument();
+    expect(screen.getByText('Approved Refunds')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
@@ -31,12 +31,14 @@ describe('FinancialSummaryBar', () => {
         totalAdjustments: 200,
         totalRefunds: 150,
         pendingCount: 7,
+        currency: 'USD',
       },
       isLoading: false,
     });
     render(<FinancialSummaryBar />);
 
     expect(screen.getByText('7')).toBeInTheDocument();
+    expect(screen.getByText(/USD\s*5,?000\.00/)).toBeInTheDocument();
   });
 
   it('renders zero values when summary is null and not loading', () => {

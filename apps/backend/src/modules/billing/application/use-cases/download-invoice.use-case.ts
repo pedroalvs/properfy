@@ -6,6 +6,8 @@ import {
   InvoiceFileNotGeneratedError,
 } from '../../domain/billing.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { IReportStorageService } from '../../../report/domain/report-storage.service';
+import { PRESIGNED_URL_TTL_SECONDS } from '../../../report/domain/report.constants';
 
 export interface DownloadInvoiceInput {
   invoiceId: string;
@@ -18,7 +20,10 @@ export interface DownloadInvoiceOutput {
 }
 
 export class DownloadInvoiceUseCase {
-  constructor(private readonly invoiceRepo: IInspectorInvoiceRepository) {}
+  constructor(
+    private readonly invoiceRepo: IInspectorInvoiceRepository,
+    private readonly storageService: IReportStorageService,
+  ) {}
 
   async execute(input: DownloadInvoiceInput): Promise<DownloadInvoiceOutput> {
     const { invoiceId, actor } = input;
@@ -53,11 +58,15 @@ export class DownloadInvoiceUseCase {
       throw new InvoiceFileNotGeneratedError();
     }
 
-    // 5. Generate stub presigned URL
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 60 minutes
+    const downloadUrl = await this.storageService.generatePresignedGetUrl(
+      invoice.fileKey!,
+      PRESIGNED_URL_TTL_SECONDS,
+    );
+    const expiresAt = new Date();
+    expiresAt.setSeconds(expiresAt.getSeconds() + PRESIGNED_URL_TTL_SECONDS);
 
     return {
-      downloadUrl: `https://stub-storage/billing-documents/invoices/${invoice.inspectorId}/${invoice.id}.xlsx?token=stub-presigned-token`,
+      downloadUrl,
       expiresAt: expiresAt.toISOString(),
     };
   }

@@ -5,6 +5,7 @@ import { ForbiddenError } from '../../../src/shared/domain/errors';
 import {
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
+  ExecutionAppointmentNotFoundError,
   AssetMimeTypeNotAllowedError,
 } from '../../../src/modules/inspector-execution/domain/inspection-execution.errors';
 import type { AuthContext } from '@properfy/shared';
@@ -85,7 +86,7 @@ describe('RequestAssetUploadUseCase', () => {
     const execution = makeExecution();
     executionRepo.findByAppointmentId.mockResolvedValue(execution);
     appointmentRepo.findById.mockResolvedValue({
-      appointment: { tenantId: 'tenant-1' },
+      appointment: { tenantId: 'tenant-1', inspectorId: 'insp-1' },
       contact: null,
       restrictions: [],
     });
@@ -183,11 +184,53 @@ describe('RequestAssetUploadUseCase', () => {
     ).rejects.toThrow(AssetMimeTypeNotAllowedError);
   });
 
+  it('throws ExecutionAppointmentNotFoundError when appointment lookup returns null', async () => {
+    const execution = makeExecution();
+    executionRepo.findByAppointmentId.mockResolvedValue(execution);
+    appointmentRepo.findById.mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        kind: 'PHOTO',
+        mimeType: 'image/jpeg',
+        fileName: 'photo.jpg',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(ExecutionAppointmentNotFoundError);
+
+    expect(storageService.createSignedUploadUrl).not.toHaveBeenCalled();
+    expect(assetRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('throws ExecutionAppointmentNotFoundError when appointment is assigned to another inspector', async () => {
+    const execution = makeExecution();
+    executionRepo.findByAppointmentId.mockResolvedValue(execution);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: { tenantId: 'tenant-1', inspectorId: 'insp-2' },
+      contact: null,
+      restrictions: [],
+    });
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        kind: 'PHOTO',
+        mimeType: 'image/jpeg',
+        fileName: 'photo.jpg',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(ExecutionAppointmentNotFoundError);
+
+    expect(storageService.createSignedUploadUrl).not.toHaveBeenCalled();
+    expect(assetRepo.save).not.toHaveBeenCalled();
+  });
+
   it('generates correct storage key pattern: inspections/{tenantId}/{appointmentId}/{uuid}.{ext}', async () => {
     const execution = makeExecution();
     executionRepo.findByAppointmentId.mockResolvedValue(execution);
     appointmentRepo.findById.mockResolvedValue({
-      appointment: { tenantId: 'tenant-abc' },
+      appointment: { tenantId: 'tenant-abc', inspectorId: 'insp-1' },
       contact: null,
       restrictions: [],
     });
@@ -212,7 +255,7 @@ describe('RequestAssetUploadUseCase', () => {
     const execution = makeExecution();
     executionRepo.findByAppointmentId.mockResolvedValue(execution);
     appointmentRepo.findById.mockResolvedValue({
-      appointment: { tenantId: 'tenant-1' },
+      appointment: { tenantId: 'tenant-1', inspectorId: 'insp-1' },
       contact: null,
       restrictions: [],
     });

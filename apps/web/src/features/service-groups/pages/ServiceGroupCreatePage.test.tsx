@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
@@ -43,17 +43,29 @@ vi.mock('@/lib/format-date', () => ({
 }));
 
 vi.mock('@/hooks/useFormOptions', () => ({
-  useFormOptions: () => ({
-    options: [
-      { value: 'st-01', label: 'Full Inspection' },
-      { value: 'st-02', label: 'Partial Inspection' },
-    ],
+  useFormOptions: (queryKey: string[]) => ({
+    options: queryKey[0] === 'tenants'
+      ? [{ value: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', label: 'Agency One' }]
+      : [
+          { value: '11111111-1111-4111-8111-111111111111', label: 'Full Inspection' },
+          { value: '22222222-2222-4222-8222-222222222222', label: 'Partial Inspection' },
+        ],
     isLoading: false,
   }),
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: {
+      id: 'usr-1',
+      role: 'AM',
+      tenantId: null,
+    },
+  }),
+}));
+
 const MOCK_ELIGIBLE = Array.from({ length: 8 }, (_, i) => ({
-  id: `apt-${String(i + 1).padStart(2, '0')}`,
+  id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
   code: `VST-${String(i + 1).padStart(3, '0')}`,
   propertyAddress: `${100 + i} Main St`,
   scheduledDate: `2026-04-${String(i + 1).padStart(2, '0')}`,
@@ -61,8 +73,8 @@ const MOCK_ELIGIBLE = Array.from({ length: 8 }, (_, i) => ({
 }));
 
 vi.mock('../hooks/useEligibleAppointments', () => ({
-  useEligibleAppointments: (serviceTypeId: string | null) => ({
-    data: serviceTypeId ? MOCK_ELIGIBLE : [],
+  useEligibleAppointments: (serviceTypeId: string | null, tenantId?: string | null) => ({
+    data: serviceTypeId && tenantId ? MOCK_ELIGIBLE : [],
     isLoading: false,
     isError: false,
   }),
@@ -84,6 +96,9 @@ vi.mock('@/lib/status-colors', () => ({
 }));
 
 import { ServiceGroupCreatePage } from './ServiceGroupCreatePage';
+import { api } from '@/services/api';
+
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -122,6 +137,7 @@ function renderPage() {
 describe('ServiceGroupCreatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPost.mockResolvedValue({ data: { data: { id: '33333333-3333-4333-8333-333333333333' } } });
   });
 
   it('renders page title', () => {
@@ -137,6 +153,7 @@ describe('ServiceGroupCreatePage', () => {
 
   it('shows service type select on step 1', () => {
     renderPage();
+    expect(screen.getByLabelText('Agency')).toBeInTheDocument();
     expect(screen.getByLabelText('Service Type')).toBeInTheDocument();
   });
 
@@ -144,6 +161,11 @@ describe('ServiceGroupCreatePage', () => {
     renderPage();
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   });
+
+  function selectAgency() {
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByRole('option', { name: 'Agency One' }));
+  }
 
   function selectServiceType() {
     // Open the custom SelectInput dropdown
@@ -160,18 +182,21 @@ describe('ServiceGroupCreatePage', () => {
 
   it('shows eligible appointments after selecting service type', () => {
     renderPage();
+    selectAgency();
     selectServiceType();
     expect(screen.getByText('Eligible Appointments')).toBeInTheDocument();
   });
 
   it('shows selection counter after selecting service type', () => {
     renderPage();
+    selectAgency();
     selectServiceType();
     expect(screen.getByText(/selected/)).toBeInTheDocument();
   });
 
   it('enables Next when enough appointments are selected', () => {
     renderPage();
+    selectAgency();
     selectServiceType();
     selectMinAppointments();
     expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
@@ -179,9 +204,11 @@ describe('ServiceGroupCreatePage', () => {
 
   it('advances to step 2 on Next click', () => {
     renderPage();
+    selectAgency();
     selectServiceType();
     selectMinAppointments();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByLabelText('Scheduled Date')).toBeInTheDocument();
     expect(screen.getAllByText('Time Window').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Priority Mode')).toBeInTheDocument();
     expect(screen.getByText('Group Summary')).toBeInTheDocument();
@@ -189,6 +216,7 @@ describe('ServiceGroupCreatePage', () => {
 
   it('shows Create Group button on step 2', () => {
     renderPage();
+    selectAgency();
     selectServiceType();
     selectMinAppointments();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -197,6 +225,7 @@ describe('ServiceGroupCreatePage', () => {
 
   it('goes back to step 1 from step 2', () => {
     renderPage();
+    selectAgency();
     selectServiceType();
     selectMinAppointments();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -209,5 +238,33 @@ describe('ServiceGroupCreatePage', () => {
   it('shows Back button in page header', () => {
     renderPage();
     expect(screen.getByText('Back')).toBeInTheDocument();
+  });
+
+  it('requires agency selection before loading eligible appointments for AM', () => {
+    renderPage();
+    expect(screen.getByText('Select an agency before loading eligible appointments.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Service Type')).toBeDisabled();
+  });
+
+  it('submits canonical create payload', async () => {
+    renderPage();
+    selectAgency();
+    selectServiceType();
+    selectMinAppointments();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByLabelText('Scheduled Date'), { target: { value: '2026-04-10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Group' }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/v1/service-groups', {
+        body: {
+          appointmentIds: MOCK_ELIGIBLE.slice(0, 5).map((item) => item.id),
+          serviceTypeId: '11111111-1111-4111-8111-111111111111',
+          scheduledDate: '2026-04-10',
+          timeWindow: '08:00-17:00',
+          priorityMode: 'STANDARD',
+        },
+      });
+    });
   });
 });

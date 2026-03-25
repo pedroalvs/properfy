@@ -71,7 +71,7 @@ beforeEach(() => {
 describe('useAppointmentImport', () => {
   it('upload calls POST with FormData', async () => {
     mockPost.mockResolvedValue({
-      data: { data: { id: 'import-123' } },
+      data: { data: { importId: 'import-123', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
     });
 
     const { result } = renderHook(() => useAppointmentImport(), {
@@ -95,7 +95,7 @@ describe('useAppointmentImport', () => {
 
   it('sets Idempotency-Key header', async () => {
     mockPost.mockResolvedValue({
-      data: { data: { id: 'import-456' } },
+      data: { data: { importId: 'import-456', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
     });
 
     const { result } = renderHook(() => useAppointmentImport(), {
@@ -119,7 +119,7 @@ describe('useAppointmentImport', () => {
 
   it('sets import status to PROCESSING after upload', async () => {
     mockPost.mockResolvedValue({
-      data: { data: { id: 'import-789' } },
+      data: { data: { importId: 'import-789', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
     });
 
     const { result } = renderHook(() => useAppointmentImport(), {
@@ -141,7 +141,7 @@ describe('useAppointmentImport', () => {
 
   it('polls status endpoint after upload', async () => {
     mockPost.mockResolvedValue({
-      data: { data: { id: 'import-poll' } },
+      data: { data: { importId: 'import-poll', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
     });
 
     mockGet.mockResolvedValue({
@@ -149,10 +149,10 @@ describe('useAppointmentImport', () => {
         data: {
           id: 'import-poll',
           status: 'COMPLETED',
-          progress: 100,
+          totalRows: 10,
           successCount: 10,
           errorCount: 0,
-          errors: [],
+          errorsJson: [],
         },
       },
     });
@@ -178,5 +178,46 @@ describe('useAppointmentImport', () => {
       },
       { timeout: 5000 },
     );
+  });
+
+  it('normalizes errorsJson from polling response', async () => {
+    mockPost.mockResolvedValue({
+      data: { data: { importId: 'import-errors', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
+    });
+
+    mockGet.mockResolvedValue({
+      data: {
+        data: {
+          id: 'import-errors',
+          status: 'FAILED',
+          totalRows: 2,
+          successCount: 0,
+          errorCount: 2,
+          errorsJson: [
+            { row: 2, field: 'propertyCode', message: 'Property not found' },
+            { row: 4, field: 'tenantName', message: 'Tenant name is required' },
+          ],
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useAppointmentImport(), {
+      wrapper: createWrapper(),
+    });
+
+    const file = new File(['data'], 'test.csv', { type: 'text/csv' });
+
+    await act(async () => {
+      result.current.upload(file);
+    });
+
+    await waitFor(() => {
+      expect(result.current.importStatus?.status).toBe('FAILED');
+    });
+
+    expect(result.current.importStatus?.errors).toEqual([
+      { row: 2, message: 'Property not found' },
+      { row: 4, message: 'Tenant name is required' },
+    ]);
   });
 });

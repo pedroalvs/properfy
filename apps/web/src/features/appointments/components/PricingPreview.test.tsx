@@ -28,6 +28,7 @@ vi.mock('@/lib/api-error', () => ({
 const mockFixedRule = {
   id: 'pr-1',
   tenantId: 't-1',
+  currency: 'USD',
   serviceTypeId: 'st-1',
   branchId: 'b-1',
   priceAmount: 250,
@@ -117,12 +118,10 @@ describe('PricingPreview', () => {
     expect(screen.getByText('Inspector Payout')).toBeInTheDocument();
     expect(screen.getByText('Platform Fee')).toBeInTheDocument();
 
-    // Base price: $250.00
-    expect(screen.getByTestId('base-price')).toHaveTextContent('$250.00');
-    // Inspector payout (fixed): $180.00
-    expect(screen.getByTestId('inspector-payout')).toHaveTextContent('$180.00');
-    // Platform fee: $250 - $180 = $70.00
-    expect(screen.getByTestId('platform-fee')).toHaveTextContent('$70.00');
+    // Base price / payout / fee: USD currency should be preserved
+    expect(screen.getByTestId('base-price')).toHaveTextContent(/USD\s*250\.00/);
+    expect(screen.getByTestId('inspector-payout')).toHaveTextContent(/USD\s*180\.00/);
+    expect(screen.getByTestId('platform-fee')).toHaveTextContent(/USD\s*70\.00/);
   });
 
   it('displays percentage payout pricing correctly', () => {
@@ -133,14 +132,11 @@ describe('PricingPreview', () => {
     });
     render(<PricingPreview branchId="b-1" serviceTypeId="st-1" />, { wrapper: createWrapper() });
 
-    // Base price: $250.00
-    expect(screen.getByTestId('base-price')).toHaveTextContent('$250.00');
-    // Inspector payout (70%): $175.00
-    expect(screen.getByTestId('inspector-payout')).toHaveTextContent('$175.00');
+    expect(screen.getByTestId('base-price')).toHaveTextContent(/USD\s*250\.00/);
+    expect(screen.getByTestId('inspector-payout')).toHaveTextContent(/USD\s*175\.00/);
     // Shows percentage indicator
     expect(screen.getByText('(70%)')).toBeInTheDocument();
-    // Platform fee: $250 - $175 = $75.00
-    expect(screen.getByTestId('platform-fee')).toHaveTextContent('$75.00');
+    expect(screen.getByTestId('platform-fee')).toHaveTextContent(/USD\s*75\.00/);
   });
 
   it('passes correct params to usePaginatedQuery', () => {

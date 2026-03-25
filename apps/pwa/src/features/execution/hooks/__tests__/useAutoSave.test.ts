@@ -13,6 +13,7 @@ function makeState(overrides: Partial<ExecutionState> = {}): ExecutionState {
   return {
     appointmentId: 'apt-1',
     phase: 'IN_PROGRESS',
+    pendingSync: false,
     startLocation: null,
     finishLocation: null,
     checklistTemplate: [],
@@ -21,6 +22,7 @@ function makeState(overrides: Partial<ExecutionState> = {}): ExecutionState {
     assets: [],
     startedAt: null,
     errorMessage: null,
+    lastSavedAt: null,
     ...overrides,
   };
 }

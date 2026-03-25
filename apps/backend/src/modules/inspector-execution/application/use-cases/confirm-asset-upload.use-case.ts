@@ -29,16 +29,24 @@ export class ConfirmAssetUploadUseCase {
   ) {}
 
   async execute(input: ConfirmAssetUploadInput): Promise<ConfirmAssetUploadOutput> {
-    const { assetId, actor } = input;
+    const { appointmentId, assetId, actor } = input;
 
     // 1. INSP only
     if (actor.role !== 'INSP') {
       throw new ForbiddenError('FORBIDDEN', 'Only inspectors can confirm asset uploads');
     }
 
+    if (!actor.inspectorId) {
+      throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+    }
+
     // 2. Load asset
     const asset = await this.assetRepo.findById(assetId);
     if (!asset || asset.uploadedBy !== actor.userId) {
+      throw new AssetNotFoundError();
+    }
+
+    if (asset.appointmentId !== appointmentId) {
       throw new AssetNotFoundError();
     }
 

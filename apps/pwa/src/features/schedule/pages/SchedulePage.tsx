@@ -8,7 +8,7 @@ import { AppointmentDayList } from '../components/AppointmentDayList';
 import { ScheduleOfflineBanner } from '../components/ScheduleOfflineBanner';
 import { useScheduleRange } from '../hooks/useScheduleRange';
 import { useScheduleDay } from '../hooks/useScheduleDay';
-import { TenantConfirmationStatus } from '@properfy/shared';
+import { isScheduleRisk, toLocalISODate } from '../lib/time-slot';
 
 function generateDays(count: number): string[] {
   const days: string[] = [];
@@ -16,7 +16,7 @@ function generateDays(count: number): string[] {
   for (let i = 0; i < count; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    days.push(d.toISOString().split('T')[0]!);
+    days.push(toLocalISODate(d));
   }
   return days;
 }
@@ -33,8 +33,7 @@ export function SchedulePage() {
   const appointmentCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const apt of data?.appointments ?? []) {
-      const date = apt.timeSlotStart.split('T')[0]!;
-      counts[date] = (counts[date] ?? 0) + 1;
+      counts[apt.scheduledDate] = (counts[apt.scheduledDate] ?? 0) + 1;
     }
     return counts;
   }, [data?.appointments]);
@@ -42,9 +41,8 @@ export function SchedulePage() {
   const urgentDays = useMemo(() => {
     const days = new Set<string>();
     for (const apt of data?.appointments ?? []) {
-      if (apt.tenantConfirmation === TenantConfirmationStatus.UNAVAILABLE) {
-        const date = apt.timeSlotStart.split('T')[0]!;
-        days.add(date);
+      if (isScheduleRisk(apt)) {
+        days.add(apt.scheduledDate);
       }
     }
     return days;

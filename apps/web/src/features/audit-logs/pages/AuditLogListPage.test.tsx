@@ -56,8 +56,9 @@ describe('AuditLogListPage', () => {
 
   it('renders filter bar', () => {
     renderPage();
-    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    expect(screen.getByLabelText('Actor ID')).toBeInTheDocument();
     expect(screen.getByLabelText('Entity Type')).toBeInTheDocument();
+    expect(screen.getByLabelText('Entity ID')).toBeInTheDocument();
     expect(screen.getByLabelText('Action')).toBeInTheDocument();
   });
 
@@ -65,7 +66,7 @@ describe('AuditLogListPage', () => {
     renderPage();
     await waitFor(() => {
       expect(screen.getByText('APPOINTMENT')).toBeInTheDocument();
-      expect(screen.getByText('STATUS_TRANSITION')).toBeInTheDocument();
+      expect(screen.getByText('Status Transition')).toBeInTheDocument();
     });
   });
 });

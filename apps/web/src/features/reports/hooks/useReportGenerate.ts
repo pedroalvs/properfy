@@ -3,7 +3,12 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 
 interface ReportGenerateInput {
   reportType: string;
-  filters?: Record<string, string>;
+  filters: {
+    fromDate: string;
+    toDate: string;
+    tenantId?: string;
+  };
+  format?: 'XLSX';
 }
 
 export interface UseReportGenerateReturn {

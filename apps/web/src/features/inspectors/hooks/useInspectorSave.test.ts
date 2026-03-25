@@ -40,7 +40,7 @@ const VALID_CREATE_DATA: InspectorFormData = {
   document: '123.456.789-00',
   status: '',
   regions: 'Zona Norte, Zona Sul',
-  serviceTypes: 'Vistoria de Entrada',
+  serviceTypes: '123e4567-e89b-12d3-a456-426614174000',
 };
 
 beforeEach(() => {
@@ -73,6 +73,13 @@ describe('useInspectorSave', () => {
     expect(errors.email).toBe('Invalid email');
   });
 
+  it('validate flags invalid service type identifiers', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorSave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_CREATE_DATA, serviceTypes: 'vistoria-entrada' }, 'create');
+    expect(errors.serviceTypes).toBe('Select valid service types');
+  });
+
   it('validate accepts empty optional fields', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useInspectorSave(), { wrapper });
@@ -96,7 +103,11 @@ describe('useInspectorSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/inspectors', { body: expect.any(Object) });
+    expect(mockPost).toHaveBeenCalledWith('/v1/inspectors', {
+      body: expect.objectContaining({
+        serviceTypes: ['123e4567-e89b-12d3-a456-426614174000'],
+      }),
+    });
   });
 
   it('save returns success on edit', async () => {

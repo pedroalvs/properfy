@@ -59,6 +59,7 @@ beforeEach(() => { vi.clearAllMocks(); });
 const fullPricingRule = {
   id: PRICING_RULE_ID,
   tenantId: TENANT_ID,
+  currency: 'AUD',
   serviceTypeId: SERVICE_TYPE_ID,
   branchId: null,
   priceAmount: 150.0,

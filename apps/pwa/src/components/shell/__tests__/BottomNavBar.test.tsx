@@ -3,13 +3,12 @@ import { BottomNavBar } from '../BottomNavBar';
 import { renderWithProviders } from '@/test-utils';
 
 describe('BottomNavBar', () => {
-  it('renders 5 navigation tabs', () => {
+  it('renders 4 navigation tabs', () => {
     renderWithProviders(<BottomNavBar />);
     const nav = screen.getByTestId('bottom-nav');
     expect(nav).toBeInTheDocument();
     expect(screen.getByTestId('nav-schedule')).toBeInTheDocument();
     expect(screen.getByTestId('nav-offers')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-map')).toBeInTheDocument();
     expect(screen.getByTestId('nav-earnings')).toBeInTheDocument();
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
   });
@@ -37,7 +36,6 @@ describe('BottomNavBar', () => {
     renderWithProviders(<BottomNavBar />);
     expect(screen.getByText('Schedule')).toBeInTheDocument();
     expect(screen.getByText('Offers')).toBeInTheDocument();
-    expect(screen.getByText('Map')).toBeInTheDocument();
     expect(screen.getByText('Earnings')).toBeInTheDocument();
     expect(screen.getByText('Profile')).toBeInTheDocument();
   });

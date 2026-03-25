@@ -229,4 +229,29 @@ describe('ListAppointmentsUseCase', () => {
     expect(result.data).toHaveLength(0);
     expect(result.total).toBe(0);
   });
+
+  it('should expose done check metadata in list items', async () => {
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+      makeAppointmentListItem({
+        status: 'DONE',
+        doneCheckedByUserId: 'op-1',
+        doneCheckedAt: new Date('2026-03-24T12:00:00Z'),
+      }),
+    ]);
+    vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+    const result = await useCase.execute({
+      filters: { tenantId: 'tenant-1' },
+      pagination: defaultPagination,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.data[0]).toEqual(
+      expect.objectContaining({
+        status: 'DONE',
+        doneCheckedByUserId: 'op-1',
+        doneCheckedAt: new Date('2026-03-24T12:00:00Z'),
+      }),
+    );
+  });
 });

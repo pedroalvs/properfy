@@ -39,16 +39,22 @@ export function AuditLogFilters({ filters, onFiltersChange }: AuditLogFiltersPro
   return (
     <FilterBar>
       <FilterInput
-        label="Search"
-        placeholder="Search by entity ID or actor..."
-        value={filters.search}
-        onChange={(search) => onFiltersChange({ ...filters, search })}
+        label="Actor ID"
+        placeholder="Filter by actor UUID"
+        value={filters.actorId}
+        onChange={(actorId) => onFiltersChange({ ...filters, actorId })}
       />
       <FilterSelect
         label="Entity Type"
         value={filters.entityType}
         onChange={(entityType) => onFiltersChange({ ...filters, entityType })}
         options={ENTITY_TYPE_OPTIONS}
+      />
+      <FilterInput
+        label="Entity ID"
+        placeholder="Filter by entity UUID"
+        value={filters.entityId}
+        onChange={(entityId) => onFiltersChange({ ...filters, entityId })}
       />
       <FilterSelect
         label="Action"
@@ -58,10 +64,10 @@ export function AuditLogFilters({ filters, onFiltersChange }: AuditLogFiltersPro
       />
       <FilterDateRange
         label="Date"
-        startDate={filters.startDate}
-        endDate={filters.endDate}
-        onStartChange={(startDate) => onFiltersChange({ ...filters, startDate })}
-        onEndChange={(endDate) => onFiltersChange({ ...filters, endDate })}
+        startDate={filters.fromDate}
+        endDate={filters.toDate}
+        onStartChange={(fromDate) => onFiltersChange({ ...filters, fromDate })}
+        onEndChange={(toDate) => onFiltersChange({ ...filters, toDate })}
       />
     </FilterBar>
   );

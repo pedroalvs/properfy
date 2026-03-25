@@ -11,7 +11,7 @@ const branchOptions: FilterSelectOption[] = [
 ];
 
 describe('AppointmentFilters', () => {
-  it('renders all 5 filter controls', () => {
+  it('renders all filter controls', () => {
     render(
       <AppointmentFilters
         filters={DEFAULT_FILTERS}
@@ -21,6 +21,7 @@ describe('AppointmentFilters', () => {
     );
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tenant Response')).toBeInTheDocument();
     expect(screen.getByLabelText('Branch')).toBeInTheDocument();
     expect(screen.getByLabelText('Period - start')).toBeInTheDocument();
     expect(screen.getByLabelText('Period - end')).toBeInTheDocument();
@@ -98,5 +99,25 @@ describe('AppointmentFilters', () => {
     await user.click(screen.getByLabelText('Status'));
     await user.click(screen.getByText('Scheduled'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'SCHEDULED' });
+  });
+
+  it('calls onFiltersChange when tenant response is selected', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <AppointmentFilters
+        filters={DEFAULT_FILTERS}
+        onFiltersChange={onChange}
+        branchOptions={branchOptions}
+      />,
+    );
+
+    await user.click(screen.getByLabelText('Tenant Response'));
+    await user.click(screen.getByText('No Response'));
+
+    expect(onChange).toHaveBeenCalledWith({
+      ...DEFAULT_FILTERS,
+      tenantConfirmationStatus: 'NO_RESPONSE',
+    });
   });
 });

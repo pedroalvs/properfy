@@ -19,6 +19,7 @@ const NOTIFICATION_STATUS_COLORS: Record<string, { bg: string; text: string }> =
 };
 
 const columns: DataTableColumn<AppointmentNotification>[] = [
+  { key: 'templateCode', label: 'Template', width: '180px' },
   { key: 'channel', label: 'Channel', width: '100px' },
   { key: 'recipient', label: 'Recipient' },
   {
@@ -42,6 +43,25 @@ const columns: DataTableColumn<AppointmentNotification>[] = [
     label: 'Sent At',
     width: '180px',
     render: (row) => formatDateTimeOrDash(row.sentAt),
+  },
+  {
+    key: 'outcomeAt',
+    label: 'Delivered / Failed At',
+    width: '200px',
+    render: (row) => formatDateTimeOrDash(row.deliveredAt ?? row.failedAt),
+  },
+  {
+    key: 'failureReason',
+    label: 'Failure Reason',
+    width: '280px',
+    render: (row) => row.failureReason ?? '\u2014',
+  },
+  {
+    key: 'retryCount',
+    label: 'Retries',
+    width: '100px',
+    align: 'center',
+    render: (row) => row.retryCount,
   },
 ];
 

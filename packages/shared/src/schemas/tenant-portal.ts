@@ -30,6 +30,12 @@ export const confirmAppointmentPortalSchema = z.object({
 });
 export type ConfirmAppointmentPortalInput = z.infer<typeof confirmAppointmentPortalSchema>;
 
+export const confirmAppointmentPortalResponseSchema = z.object({
+  tenantConfirmationStatus: z.literal('CONFIRMED'),
+  confirmedAt: z.string().datetime(),
+});
+export type ConfirmAppointmentPortalResponse = z.infer<typeof confirmAppointmentPortalResponseSchema>;
+
 // POST /reschedule body
 export const rescheduleRequestPortalSchema = z.object({
   newDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
@@ -37,6 +43,13 @@ export const rescheduleRequestPortalSchema = z.object({
   restrictions: portalRestrictionsSchema,
 });
 export type RescheduleRequestPortalInput = z.infer<typeof rescheduleRequestPortalSchema>;
+
+export const rescheduleRequestPortalResponseSchema = z.object({
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  timeSlot: z.string().min(1).max(50),
+  tenantConfirmationStatus: z.literal('PENDING'),
+});
+export type RescheduleRequestPortalResponse = z.infer<typeof rescheduleRequestPortalResponseSchema>;
 
 // PATCH /contact body
 export const updateContactPortalSchema = z
@@ -56,3 +69,9 @@ export const reportUnavailabilityPortalSchema = z.object({
   restrictions: portalRestrictionsSchema,
 });
 export type ReportUnavailabilityPortalInput = z.infer<typeof reportUnavailabilityPortalSchema>;
+
+export const reportUnavailabilityPortalResponseSchema = z.object({
+  tenantConfirmationStatus: z.literal('UNAVAILABLE'),
+  urgentMode: z.boolean(),
+});
+export type ReportUnavailabilityPortalResponse = z.infer<typeof reportUnavailabilityPortalResponseSchema>;

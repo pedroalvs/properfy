@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
+import { AuthProvider } from '@/hooks/useAuth';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -26,7 +27,7 @@ import { SecuritySettingsPage } from './SecuritySettingsPage';
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return <QueryClientProvider client={queryClient}><SnackbarProvider>{children}</SnackbarProvider></QueryClientProvider>;
+    return <QueryClientProvider client={queryClient}><AuthProvider><SnackbarProvider>{children}</SnackbarProvider></AuthProvider></QueryClientProvider>;
   };
 }
 

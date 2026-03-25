@@ -4,11 +4,13 @@ import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
 import { Button } from '@/components/ui/Button';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useAuth } from '@/hooks/useAuth';
 import { useTotpSetup } from '../hooks/useTotpSetup';
 import { useTotpConfirm } from '../hooks/useTotpConfirm';
 import type { TotpSetupData } from '../types';
 
 export function TotpSetupCard() {
+  const { user } = useAuth();
   const { setupTotp, isSettingUp } = useTotpSetup();
   const { confirmTotp, isConfirming } = useTotpConfirm();
   const { showSuccess, showError } = useSnackbar();
@@ -16,6 +18,8 @@ export function TotpSetupCard() {
   const [totpCode, setTotpCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [enabledInSession, setEnabledInSession] = useState(false);
+  const isTotpEnabled = user?.totpEnabled === true || enabledInSession;
 
   useEffect(() => {
     if (totpData?.totpUri) {
@@ -47,6 +51,8 @@ export function TotpSetupCard() {
       showSuccess('Two-factor authentication enabled successfully');
       setTotpData(null);
       setTotpCode('');
+      setCodeError('');
+      setEnabledInSession(true);
     } else {
       showError(result.error ?? 'Invalid code');
     }
@@ -56,7 +62,16 @@ export function TotpSetupCard() {
     <div className="rounded bg-card-bg p-6 shadow-sm">
       <h3 className="mb-4 text-lg font-semibold text-secondary">Two-Factor Authentication</h3>
 
-      {!totpData ? (
+      {isTotpEnabled ? (
+        <div className="rounded border border-green-200 bg-green-50 p-4">
+          <p className="text-sm font-medium text-green-800">
+            Two-factor authentication is enabled for this account.
+          </p>
+          <p className="mt-1 text-sm text-green-700">
+            Use the 6-digit code from your authenticator app when prompted during login.
+          </p>
+        </div>
+      ) : !totpData ? (
         <div>
           <p className="mb-4 text-sm text-text-secondary">
             Add an extra layer of security to your account by enabling two-factor authentication.

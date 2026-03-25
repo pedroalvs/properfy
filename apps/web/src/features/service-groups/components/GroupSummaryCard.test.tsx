@@ -15,6 +15,7 @@ describe('GroupSummaryCard', () => {
       <GroupSummaryCard
         appointmentCount={12}
         serviceType="Inspection"
+        scheduledDate="2026-04-10"
         timeWindow="08:00 - 17:00"
         priorityMode="STANDARD"
       />,
@@ -27,6 +28,7 @@ describe('GroupSummaryCard', () => {
       <GroupSummaryCard
         appointmentCount={5}
         serviceType="Full Inspection"
+        scheduledDate="2026-04-10"
         timeWindow="08:00 - 17:00"
         priorityMode="STANDARD"
       />,
@@ -39,6 +41,7 @@ describe('GroupSummaryCard', () => {
       <GroupSummaryCard
         appointmentCount={5}
         serviceType="Inspection"
+        scheduledDate="2026-04-10"
         timeWindow="09:00 - 18:00"
         priorityMode="STANDARD"
       />,
@@ -51,6 +54,7 @@ describe('GroupSummaryCard', () => {
       <GroupSummaryCard
         appointmentCount={5}
         serviceType="Inspection"
+        scheduledDate="2026-04-10"
         timeWindow="08:00 - 17:00"
         priorityMode="PRIORITY_24H"
       />,
@@ -63,6 +67,7 @@ describe('GroupSummaryCard', () => {
       <GroupSummaryCard
         appointmentCount={0}
         serviceType=""
+        scheduledDate=""
         timeWindow=""
         priorityMode="STANDARD"
       />,
@@ -75,11 +80,25 @@ describe('GroupSummaryCard', () => {
       <GroupSummaryCard
         appointmentCount={0}
         serviceType=""
+        scheduledDate=""
         timeWindow=""
         priorityMode="STANDARD"
       />,
     );
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders scheduled date', () => {
+    render(
+      <GroupSummaryCard
+        appointmentCount={5}
+        serviceType="Inspection"
+        scheduledDate="2026-04-10"
+        timeWindow="08:00 - 17:00"
+        priorityMode="STANDARD"
+      />,
+    );
+    expect(screen.getByText('2026-04-10')).toBeInTheDocument();
   });
 });

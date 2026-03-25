@@ -33,11 +33,17 @@ describe('useReportGenerate', () => {
     const { result } = renderHook(() => useReportGenerate(), { wrapper });
 
     act(() => {
-      result.current.generate({ reportType: 'INSPECTIONS_DONE' });
+      result.current.generate({
+        reportType: 'INSPECTIONS_DONE',
+        filters: { fromDate: '2026-03-01', toDate: '2026-03-31' },
+      });
     });
 
     expect(mockMutate).toHaveBeenCalledWith(
-      { reportType: 'INSPECTIONS_DONE' },
+      {
+        reportType: 'INSPECTIONS_DONE',
+        filters: { fromDate: '2026-03-01', toDate: '2026-03-31' },
+      },
       expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
     );
   });
@@ -48,7 +54,10 @@ describe('useReportGenerate', () => {
     const { result } = renderHook(() => useReportGenerate(), { wrapper });
 
     act(() => {
-      result.current.generate({ reportType: 'INSPECTIONS_DONE' });
+      result.current.generate({
+        reportType: 'INSPECTIONS_DONE',
+        filters: { fromDate: '2026-03-01', toDate: '2026-03-31' },
+      });
     });
 
     expect(mockShowSuccess).toHaveBeenCalledWith('Report generation started');
@@ -62,7 +71,10 @@ describe('useReportGenerate', () => {
     const { result } = renderHook(() => useReportGenerate(), { wrapper });
 
     act(() => {
-      result.current.generate({ reportType: 'INSPECTIONS_DONE' });
+      result.current.generate({
+        reportType: 'INSPECTIONS_DONE',
+        filters: { fromDate: '2026-03-01', toDate: '2026-03-31' },
+      });
     });
 
     expect(mockShowError).toHaveBeenCalledWith('Generation failed');

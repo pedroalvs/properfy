@@ -1,4 +1,4 @@
-export { FinancialListPage, FinancialEntriesPage, InvoicesPage } from './pages';
+export { FinancialEntriesPage, InvoicesPage } from './pages';
 export { FinancialEntryTypeChip, FinancialStatusChip, FinancialFilters, FinancialTable, FinancialSummaryBar, FinancialBatchActions, CreateAdjustmentModal, CreateRefundModal, InvoiceStatusChip, InvoiceFilters, InvoiceTable, InvoiceDetailDrawer, GenerateInvoiceModal } from './components';
 export { useFinancialList, useFinancialSummary, useFinancialBatchApprove, useCreateAdjustment, useCreateRefund, useInvoiceList, useInvoiceDetail, useGenerateInvoice, useInvoiceDownload } from './hooks';
 export type { FinancialEntry, FinancialFiltersState, FinancialSummary, Invoice, InvoiceDetail, InvoiceFiltersState } from './types';

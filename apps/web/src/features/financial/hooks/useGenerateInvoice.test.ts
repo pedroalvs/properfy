@@ -50,20 +50,20 @@ describe('useGenerateInvoice', () => {
     await act(async () => {
       await result.current.mutateAsync({
         inspectorId: 'insp-01',
-        periodStart: '2026-03-01T00:00:00.000Z',
-        periodEnd: '2026-03-31T00:00:00.000Z',
-        frequency: 'MONTHLY',
+        periodStart: '2026-03-01',
+        periodEnd: '2026-03-31',
+        periodType: 'MONTHLY',
       });
     });
 
     expect(mockPost).toHaveBeenCalledWith('/v1/billing/invoices/generate', {
-      body: {
-        inspectorId: 'insp-01',
-        periodStart: '2026-03-01T00:00:00.000Z',
-        periodEnd: '2026-03-31T00:00:00.000Z',
-        frequency: 'MONTHLY',
-      },
-    });
+        body: {
+          inspectorId: 'insp-01',
+          periodStart: '2026-03-01',
+          periodEnd: '2026-03-31',
+          periodType: 'MONTHLY',
+        },
+      });
   });
 
   it('handles API error', async () => {
@@ -75,9 +75,9 @@ describe('useGenerateInvoice', () => {
       act(async () => {
         await result.current.mutateAsync({
           inspectorId: 'insp-01',
-          periodStart: '2026-03-01T00:00:00.000Z',
-          periodEnd: '2026-03-31T00:00:00.000Z',
-          frequency: 'MONTHLY',
+          periodStart: '2026-03-01',
+          periodEnd: '2026-03-31',
+          periodType: 'MONTHLY',
         });
       }),
     ).rejects.toBeDefined();

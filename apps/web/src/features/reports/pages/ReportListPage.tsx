@@ -8,6 +8,7 @@ import { useReportList } from '../hooks/useReportList';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 import type { Report } from '../types';
+import { getReportDownloadName } from '../lib/report-display';
 
 export function ReportListPage() {
   const {
@@ -19,7 +20,6 @@ export function ReportListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useReportList();
 
   const { showSuccess, showError } = useSnackbar();
@@ -38,11 +38,29 @@ export function ReportListPage() {
     setSelectedId(null);
   }, []);
 
-  const handleGenerateSubmit = useCallback(async (reportType: string, fromDate: string, toDate: string) => {
+  const handleGenerateSubmit = useCallback(async ({
+    reportType,
+    fromDate,
+    toDate,
+    tenantId,
+  }: {
+    reportType: string;
+    fromDate: string;
+    toDate: string;
+    tenantId?: string;
+  }) => {
     setIsGenerating(true);
     try {
       const { error } = await api.POST('/v1/reports' as any, {
-        body: { reportType, filters: { fromDate, toDate }, format: 'XLSX' } as any,
+        body: {
+          reportType,
+          filters: {
+            fromDate,
+            toDate,
+            tenantId,
+          },
+          format: 'XLSX',
+        } as any,
       });
       if (error) {
         throw new Error((error as any)?.error?.message ?? 'Failed to generate report');
@@ -67,16 +85,19 @@ export function ReportListPage() {
         throw new Error((error as any)?.error?.message ?? 'Failed to download report');
       }
 
-      if (fileData instanceof Blob) {
-        const url = URL.createObjectURL(fileData);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = report.fileName ?? `report-${report.id}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+      const downloadUrl = (fileData as { downloadUrl?: string } | undefined)?.downloadUrl;
+      if (!downloadUrl) {
+        throw new Error('Report download URL is unavailable');
       }
+
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = getReportDownloadName(report);
+      a.target = '_blank';
+      a.rel = 'noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to download report');
     }
@@ -84,17 +105,24 @@ export function ReportListPage() {
 
   const handleRetry = useCallback(async (report: Report) => {
     try {
-      const { error } = await api.POST(
-        `/v1/reports/${report.id}/retry` as any,
-        {},
-      );
+      if (!report.filters) {
+        throw new Error('This report cannot be regenerated because its filters are unavailable');
+      }
+
+      const { error } = await api.POST('/v1/reports' as any, {
+        body: {
+          reportType: report.reportType,
+          filters: report.filters,
+          format: report.format,
+        } as any,
+      });
       if (error) {
-        throw new Error((error as any)?.error?.message ?? 'Failed to retry report');
+        throw new Error((error as any)?.error?.message ?? 'Failed to regenerate report');
       }
       showSuccess('Report regeneration started');
       refetch();
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to retry report');
+      showError(err instanceof Error ? err.message : 'Failed to regenerate report');
     }
   }, [refetch, showSuccess, showError]);
 
@@ -113,7 +141,6 @@ export function ReportListPage() {
         error={isError ? (errorMessage ?? 'Failed to load reports') : undefined}
         onRetryError={refetch}
         pagination={pagination}
-        sorting={sorting}
         onDownload={handleDownload}
         onRetry={handleRetry}
         onView={handleView}

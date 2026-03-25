@@ -1,6 +1,7 @@
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { formatDateTime } from '@/lib/format-date';
+import { formatAuditAction, formatAuditActor, formatAuditTenant, summarizeAuditChanges } from '../lib/audit-log-display';
 import type { AuditLog } from '../types';
 
 interface AuditLogDetailDrawerProps {
@@ -37,7 +38,11 @@ export function AuditLogDetailDrawer({ log, open, onClose }: AuditLogDetailDrawe
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Actor</p>
-                  <p className="text-sm font-medium">{log.actorType}{log.actorId ? ` (${log.actorId})` : ''}</p>
+                  <p className="text-sm font-medium">{formatAuditActor(log.actorType, log.actorId)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-text-muted">Tenant</p>
+                  <p className="text-sm font-medium">{formatAuditTenant(log.tenantId)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Entity Type</p>
@@ -49,11 +54,15 @@ export function AuditLogDetailDrawer({ log, open, onClose }: AuditLogDetailDrawe
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Action</p>
-                  <p className="text-sm font-medium">{log.action}</p>
+                  <p className="text-sm font-medium">{formatAuditAction(log.action)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">IP Address</p>
                   <p className="text-sm font-medium">{log.ipAddress ?? '—'}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-text-muted">Changed Fields</p>
+                  <p className="text-sm font-medium">{summarizeAuditChanges(log)}</p>
                 </div>
               </div>
 

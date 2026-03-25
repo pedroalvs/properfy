@@ -4,11 +4,13 @@ import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
 import { Button } from '@/components/ui/Button';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useAuth } from '@/hooks/useAuth';
 import { useChangePassword } from '../hooks/useChangePassword';
 import type { ChangePasswordFormData, ChangePasswordFormErrors } from '../types';
 import { EMPTY_CHANGE_PASSWORD_FORM } from '../types';
 
 export function ChangePasswordForm() {
+  const { logout } = useAuth();
   const { changePassword, isChanging, validate } = useChangePassword();
   const { showSuccess, showError } = useSnackbar();
   const [form, setForm] = useState<ChangePasswordFormData>(EMPTY_CHANGE_PASSWORD_FORM);
@@ -38,13 +40,16 @@ export function ChangePasswordForm() {
 
     const result = await changePassword(form);
     if (result.success) {
-      showSuccess('Password changed successfully');
+      showSuccess('Password changed. Please sign in again.');
       setForm(EMPTY_CHANGE_PASSWORD_FORM);
       setErrors({});
+      window.setTimeout(() => {
+        logout();
+      }, 1200);
     } else {
       showError(result.error ?? 'Failed to change password');
     }
-  }, [form, validate, changePassword, showSuccess, showError]);
+  }, [form, validate, changePassword, showSuccess, showError, logout]);
 
   return (
     <div className="rounded bg-card-bg p-6 shadow-sm">

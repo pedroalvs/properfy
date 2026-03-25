@@ -118,28 +118,43 @@ export class ListFinancialEntriesUseCase {
     ]);
 
     return {
-      data: enriched.map(({ entity: entry, appointmentCode, relatedEntityName, approvedByName }) => ({
-        id: entry.id,
-        tenantId: entry.tenantId,
-        appointmentId: entry.appointmentId,
-        inspectorId: entry.inspectorId,
-        entryType: entry.entryType,
-        amount: Number(entry.amount),
-        currency: entry.currency,
-        status: entry.status,
-        description: entry.description,
-        effectiveAt: entry.effectiveAt.toISOString(),
-        reason: entry.reason,
-        referenceEntryId: entry.referenceEntryId,
-        initiatedByUserId: entry.initiatedByUserId,
-        approvedByUserId: entry.approvedByUserId,
-        approvedAt: entry.approvedAt ? entry.approvedAt.toISOString() : null,
-        createdAt: entry.createdAt.toISOString(),
-        updatedAt: entry.updatedAt.toISOString(),
-        appointmentCode,
-        relatedEntityName,
-        approvedByName,
-      })),
+      data: enriched.map(({ entity: entry, appointmentCode, relatedEntityName, approvedByName }) => {
+        const approval =
+          entry.status === 'APPROVED'
+            ? {
+                approvedByUserId: entry.approvedByUserId,
+                approvedAt: entry.approvedAt ? entry.approvedAt.toISOString() : null,
+                approvedByName,
+              }
+            : {
+                approvedByUserId: null,
+                approvedAt: null,
+                approvedByName: null,
+              };
+
+        return {
+          id: entry.id,
+          tenantId: entry.tenantId,
+          appointmentId: entry.appointmentId,
+          inspectorId: entry.inspectorId,
+          entryType: entry.entryType,
+          amount: Number(entry.amount),
+          currency: entry.currency,
+          status: entry.status,
+          description: entry.description,
+          effectiveAt: entry.effectiveAt.toISOString(),
+          reason: entry.reason,
+          referenceEntryId: entry.referenceEntryId,
+          initiatedByUserId: entry.initiatedByUserId,
+          approvedByUserId: approval.approvedByUserId,
+          approvedAt: approval.approvedAt,
+          createdAt: entry.createdAt.toISOString(),
+          updatedAt: entry.updatedAt.toISOString(),
+          appointmentCode,
+          relatedEntityName,
+          approvedByName: approval.approvedByName,
+        };
+      }),
       total,
       page: input.page,
       pageSize: input.pageSize,

@@ -44,30 +44,26 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_OFFERS = [
   {
-    id: 'off-01',
     groupId: 'grp-01',
-    groupName: 'Sydney CBD',
-    regionName: 'NSW',
+    tenantName: 'Sydney CBD',
+    serviceTypeName: 'Routine Inspection',
     priorityMode: 'STANDARD',
-    appointmentsCount: 3,
-    totalPayout: 450,
-    expiresAt: '2026-04-01T00:00:00Z',
-    createdAt: '2026-03-15T00:00:00Z',
-    appointments: [
-      { id: 'apt-01', code: 'APT-001', address: '123 George St', scheduledDate: '2026-03-20', timeSlot: '09:00-12:00', latitude: -33.8688, longitude: 151.2093 },
-    ],
+    groupSize: 3,
+    scheduledDate: '2026-03-20',
+    timeWindow: '09:00-12:00',
+    priorityExpiresAt: '2026-04-01T00:00:00Z',
+    suburbs: ['Sydney CBD'],
   },
   {
-    id: 'off-02',
     groupId: 'grp-02',
-    groupName: 'Melbourne Inner',
-    regionName: 'VIC',
+    tenantName: 'Melbourne Inner',
+    serviceTypeName: 'Routine Inspection',
     priorityMode: 'PRIORITY_24H',
-    appointmentsCount: 1,
-    totalPayout: 200,
-    expiresAt: '2026-03-20T00:00:00Z',
-    createdAt: '2026-03-16T00:00:00Z',
-    appointments: [],
+    groupSize: 1,
+    scheduledDate: '2026-03-21',
+    timeWindow: '13:00-16:00',
+    priorityExpiresAt: '2026-03-20T00:00:00Z',
+    suburbs: [],
   },
 ];
 
@@ -109,9 +105,9 @@ describe('MarketplacePage', () => {
     expect(screen.getByText('Marketplace')).toBeInTheDocument();
   });
 
-  it('renders map container', () => {
+  it('renders neutral map information panel', () => {
     renderPage();
-    expect(screen.getByTestId('map-container')).toBeInTheDocument();
+    expect(screen.getByTestId('marketplace-map-panel')).toBeInTheDocument();
   });
 
   it('renders map screen layout', () => {
@@ -123,21 +119,19 @@ describe('MarketplacePage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Sydney CBD')).toBeInTheDocument();
+      expect(screen.getAllByText('Sydney CBD').length).toBeGreaterThan(0);
     });
 
-    expect(screen.getByText('Melbourne Inner')).toBeInTheDocument();
+    expect(screen.getAllByText('Melbourne Inner').length).toBeGreaterThan(0);
   });
 
-  it('renders filters', () => {
+  it('does not render unsupported filters', () => {
     renderPage();
-    expect(screen.getByTestId('offer-filters')).toBeInTheDocument();
-    expect(screen.getByLabelText('Search')).toBeInTheDocument();
-    expect(screen.getByLabelText('Priority')).toBeInTheDocument();
+    expect(screen.queryByTestId('offer-filters')).not.toBeInTheDocument();
   });
 
   it('shows placeholder text when no offer is selected', () => {
     renderPage();
-    expect(screen.getByText('Select an offer to view appointments')).toBeInTheDocument();
+    expect(screen.getByText('Select an offer to view its summary.')).toBeInTheDocument();
   });
 });

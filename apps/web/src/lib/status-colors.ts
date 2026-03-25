@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, type InspectorInvoiceStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -121,14 +121,12 @@ export const SERVICE_TYPE_STATUS_MAP: Record<ServiceTypeStatus, StatusStyle> = {
   [ServiceTypeStatus.INACTIVE]: { bg: 'var(--color-st-status-inactive)', text: 'var(--color-text-primary)', label: 'Inactive' },
 };
 
-export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+export type InvoiceStatus = InspectorInvoiceStatus;
 
 export const INVOICE_STATUS_MAP: Record<InvoiceStatus, StatusStyle> = {
-  DRAFT:     { bg: 'var(--color-status-draft)',      text: 'var(--color-text-primary)', label: 'Draft' },
-  SENT:      { bg: 'var(--color-invoice-sent)',       text: 'var(--color-text-primary)', label: 'Sent' },
-  PAID:      { bg: 'var(--color-status-done)',        text: 'var(--color-text-primary)', label: 'Paid' },
-  OVERDUE:   { bg: 'var(--color-invoice-overdue)',    text: 'var(--color-text-primary)', label: 'Overdue' },
-  CANCELLED: { bg: 'var(--color-status-cancelled)',   text: 'var(--color-text-primary)', label: 'Cancelled' },
+  OPEN:   { bg: 'var(--color-status-draft)', text: 'var(--color-text-primary)', label: 'Open' },
+  CLOSED: { bg: 'var(--color-invoice-sent)', text: 'var(--color-text-primary)', label: 'Closed' },
+  PAID:   { bg: 'var(--color-status-done)', text: 'var(--color-text-primary)', label: 'Paid' },
 };
 
 export const TENANT_ADMIN_STATUS_MAP: Record<string, StatusStyle> = {

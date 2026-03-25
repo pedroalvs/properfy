@@ -113,12 +113,31 @@ describe('CreateRefundModal', () => {
       </Wrapper>,
     );
 
-    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: 'entry-1' } });
+    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: '123e4567-e89b-12d3-a456-426614174000' } });
     fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Customer overpaid' } });
     fireEvent.click(screen.getByText('Create'));
 
     await waitFor(() => {
       expect(screen.getByText('Required')).toBeInTheDocument();
+    });
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('shows an error when financial entry ID is not a UUID', async () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: 'entry-1' } });
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Refund requested' } });
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Customer overpaid' } });
+    fireEvent.click(screen.getByText('Create'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Invalid entry ID')).toBeInTheDocument();
     });
     expect(mockPost).not.toHaveBeenCalled();
   });

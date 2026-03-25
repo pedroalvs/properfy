@@ -3,6 +3,7 @@ import type { NotificationChannel } from '@properfy/shared';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import { NotificationEntity } from '../../domain/notification.entity';
+import { ValidationError } from '../../../../shared/domain/errors';
 
 export interface CreateNotificationInput {
   tenantId: string;
@@ -24,6 +25,10 @@ export class CreateNotificationUseCase {
   ) {}
 
   async execute(input: CreateNotificationInput): Promise<CreateNotificationOutput> {
+    if (!input.tenantId.trim()) {
+      throw new ValidationError('tenantId is required');
+    }
+
     const now = new Date();
     const notificationId = randomUUID();
     const notification = new NotificationEntity({

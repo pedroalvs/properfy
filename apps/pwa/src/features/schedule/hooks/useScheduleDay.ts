@@ -9,9 +9,9 @@ export function useScheduleDay(
     if (!appointments) return [];
 
     return appointments
-      .filter((apt) => apt.timeSlotStart.startsWith(selectedDate))
+      .filter((apt) => apt.scheduledDate === selectedDate)
       .sort((a, b) => {
-        const timeDiff = a.timeSlotStart.localeCompare(b.timeSlotStart);
+        const timeDiff = a.timeSlot.localeCompare(b.timeSlot);
         if (timeDiff !== 0) return timeDiff;
         return a.suburb.localeCompare(b.suburb);
       });

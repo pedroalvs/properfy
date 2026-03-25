@@ -153,7 +153,8 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
     expect(debitEntry.appointmentId).toBe('appt-1');
     expect(debitEntry.inspectorId).toBeNull();
     expect(debitEntry.initiatedByUserId).toBe('SYSTEM');
-    expect(debitEntry.approvedByUserId).toBe('op-1');
+    expect(debitEntry.approvedByUserId).toBeNull();
+    expect(debitEntry.approvedAt).toBeNull();
     expect(debitEntry.description).toBe('Inspection service debit');
 
     const payoutEntry = financialEntryRepo.save.mock.calls[1][0] as FinancialEntryEntity;
@@ -181,6 +182,32 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
 
     const payoutEntry = financialEntryRepo.save.mock.calls[1][0] as FinancialEntryEntity;
     expect(payoutEntry.amount).toBe(350);
+  });
+
+  it('should generate deterministic ids for automatic entries', async () => {
+    const sut = makeSut();
+
+    await sut.execute({ appointmentId: 'appt-1' });
+    const firstDebit = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
+    const firstPayout = financialEntryRepo.save.mock.calls[1][0] as FinancialEntryEntity;
+
+    vi.clearAllMocks();
+    appointmentRepo.findById.mockResolvedValue(makeAppointment());
+    financialEntryRepo.findByAppointmentAndType.mockResolvedValue(null);
+    financialEntryRepo.save.mockResolvedValue(undefined);
+    idempotencyService.get.mockResolvedValue(null);
+    tenantRepo.findById.mockResolvedValue({
+      id: 'tenant-1',
+      currency: 'AUD',
+      isActive: () => true,
+    });
+
+    await sut.execute({ appointmentId: 'appt-1' });
+    const secondDebit = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
+    const secondPayout = financialEntryRepo.save.mock.calls[1][0] as FinancialEntryEntity;
+
+    expect(firstDebit.id).toBe(secondDebit.id);
+    expect(firstPayout.id).toBe(secondPayout.id);
   });
 
   it('should skip creating entries if both already exist (idempotent)', async () => {
@@ -248,6 +275,44 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
 
     const payoutEntry = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
     expect(payoutEntry.entryType).toBe('INSPECTOR_PAYOUT');
+  });
+
+  it('should treat duplicate save during concurrent creation as already created', async () => {
+    const sut = makeSut();
+    const duplicateDebit = new FinancialEntryEntity({
+      id: 'existing-debit',
+      tenantId: 'tenant-1',
+      appointmentId: 'appt-1',
+      inspectorId: null,
+      entryType: 'TENANT_DEBIT',
+      amount: 200,
+      currency: 'AUD',
+      status: 'PENDING',
+      description: 'Inspection service debit',
+      effectiveAt: new Date(),
+      initiatedByUserId: 'SYSTEM',
+      approvedByUserId: null,
+      approvedAt: null,
+      referenceEntryId: null,
+      reason: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    financialEntryRepo.findByAppointmentAndType
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(duplicateDebit)
+      .mockResolvedValueOnce(null);
+    financialEntryRepo.save
+      .mockRejectedValueOnce(new Error('duplicate key value violates unique constraint'))
+      .mockResolvedValueOnce(undefined);
+
+    const result = await sut.execute({ appointmentId: 'appt-1' });
+
+    expect(result.debitEntryId).toBeNull();
+    expect(result.payoutEntryId).not.toBeNull();
+    expect(financialEntryRepo.save).toHaveBeenCalledTimes(2);
+    expect(auditService.log).toHaveBeenCalledTimes(1);
   });
 
   it('should throw FinancialEntryDoneCheckRequiredError when doneCheckedByUserId is not set', async () => {

@@ -19,8 +19,6 @@ export function useInvoiceList(): UseInvoiceListReturn {
   const [filters, setFilters] = useState<InvoiceFiltersState>(DEFAULT_INVOICE_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const query = usePaginatedQuery<Invoice>(
     ['invoices'],
@@ -28,8 +26,7 @@ export function useInvoiceList(): UseInvoiceListReturn {
     {
       page,
       pageSize,
-      sortBy,
-      sortOrder,
+      ...(filters.inspectorId ? { inspectorId: filters.inspectorId } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.periodStart ? { fromDate: filters.periodStart } : {}),
       ...(filters.periodEnd ? { toDate: filters.periodEnd } : {}),
@@ -47,12 +44,9 @@ export function useInvoiceList(): UseInvoiceListReturn {
   };
 
   const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+    onChange: () => {},
   };
 
   return {

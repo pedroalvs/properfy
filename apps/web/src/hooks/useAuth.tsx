@@ -9,6 +9,11 @@ export interface AuthUser {
   email: string;
   role: string;
   tenantId: string | null;
+  branchId?: string | null;
+  totpEnabled?: boolean;
+  phone?: string | null;
+  lastLoginAt?: string | null;
+  createdAt?: string;
 }
 
 interface AuthContextValue {
@@ -33,12 +38,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.GET('/v1/me')
       .then(({ data }) => {
         if (data) {
+          const me = data as typeof data & {
+            branchId?: string | null;
+            totpEnabled?: boolean;
+            phone?: string | null;
+            lastLoginAt?: string | null;
+            createdAt?: string;
+          };
           setUser({
-            id: data.id,
-            name: data.name,
-            email: data.email,
-            role: data.role,
-            tenantId: data.tenantId,
+            id: me.id,
+            name: me.name,
+            email: me.email,
+            role: me.role,
+            tenantId: me.tenantId,
+            branchId: me.branchId,
+            totpEnabled: me.totpEnabled,
+            phone: me.phone,
+            lastLoginAt: me.lastLoginAt,
+            createdAt: me.createdAt,
           });
         }
       })

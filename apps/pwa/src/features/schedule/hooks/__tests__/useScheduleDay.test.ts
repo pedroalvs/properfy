@@ -8,6 +8,8 @@ function makeApt(overrides: Partial<InspectorAppointment> = {}): InspectorAppoin
     id: 'apt-1',
     propertyAddress: '123 Test St',
     suburb: 'TestSuburb',
+    scheduledDate: '2026-03-18',
+    timeSlot: '09:00-11:00',
     timeSlotStart: '2026-03-18T09:00:00.000Z',
     timeSlotEnd: '2026-03-18T11:00:00.000Z',
     status: AppointmentStatus.SCHEDULED,
@@ -35,18 +37,18 @@ describe('useScheduleDay', () => {
 
   it('filters appointments by selected date', () => {
     const appointments = [
-      makeApt({ id: '1', timeSlotStart: '2026-03-18T09:00:00.000Z' }),
-      makeApt({ id: '2', timeSlotStart: '2026-03-19T09:00:00.000Z' }),
+      makeApt({ id: '1', scheduledDate: '2026-03-18', timeSlotStart: '2026-03-18T09:00:00.000Z' }),
+      makeApt({ id: '2', scheduledDate: '2026-03-19', timeSlotStart: '2026-03-19T09:00:00.000Z' }),
     ];
     const { result } = renderHook(() => useScheduleDay(appointments, '2026-03-18'));
     expect(result.current).toHaveLength(1);
     expect(result.current[0].id).toBe('1');
   });
 
-  it('sorts by timeSlotStart ascending', () => {
+  it('sorts by timeSlot ascending', () => {
     const appointments = [
-      makeApt({ id: '2', timeSlotStart: '2026-03-18T14:00:00.000Z', suburb: 'A' }),
-      makeApt({ id: '1', timeSlotStart: '2026-03-18T09:00:00.000Z', suburb: 'A' }),
+      makeApt({ id: '2', timeSlot: '14:00-16:00', timeSlotStart: '2026-03-18T14:00:00.000Z', suburb: 'A' }),
+      makeApt({ id: '1', timeSlot: '09:00-11:00', timeSlotStart: '2026-03-18T09:00:00.000Z', suburb: 'A' }),
     ];
     const { result } = renderHook(() => useScheduleDay(appointments, '2026-03-18'));
     expect(result.current[0].id).toBe('1');
@@ -55,8 +57,8 @@ describe('useScheduleDay', () => {
 
   it('sorts by suburb when times are equal', () => {
     const appointments = [
-      makeApt({ id: '2', timeSlotStart: '2026-03-18T09:00:00.000Z', suburb: 'Collingwood' }),
-      makeApt({ id: '1', timeSlotStart: '2026-03-18T09:00:00.000Z', suburb: 'Brunswick' }),
+      makeApt({ id: '2', timeSlot: '09:00-11:00', timeSlotStart: '2026-03-18T09:00:00.000Z', suburb: 'Collingwood' }),
+      makeApt({ id: '1', timeSlot: '09:00-11:00', timeSlotStart: '2026-03-18T09:00:00.000Z', suburb: 'Brunswick' }),
     ];
     const { result } = renderHook(() => useScheduleDay(appointments, '2026-03-18'));
     expect(result.current[0].id).toBe('1'); // Brunswick first

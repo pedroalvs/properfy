@@ -29,8 +29,8 @@ vi.mock('@/lib/api-error', () => ({
 
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: {
-    getAccessToken: vi.fn(() => null),
-    hasTokens: vi.fn(() => false),
+    getAccessToken: vi.fn(() => 'mock-token'),
+    hasTokens: vi.fn(() => true),
     setTokens: vi.fn(),
     clearTokens: vi.fn(),
   },
@@ -40,9 +40,18 @@ import { api } from '@/services/api';
 import { PricingRuleListPage } from './PricingRuleListPage';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
+let mockMe = {
+  id: 'usr-01',
+  name: 'Platform Admin',
+  email: 'admin@properfy.com',
+  role: 'AM',
+  tenantId: null as string | null,
+  branchId: null as string | null,
+  totpEnabled: false,
+};
 
 const MOCK_RULES = [
-  { id: 'pr-01', tenantId: 'ten-1', tenantName: 'Imob Alpha', serviceTypeId: 'st-1', serviceTypeName: 'Routine', branchId: null, branchName: null, priceAmount: 150, payoutType: 'FIXED', payoutValue: 100, bonusRuleJson: null, status: 'ACTIVE', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z' },
+  { id: 'pr-01', tenantId: 'ten-1', currency: 'USD', tenantName: 'Imob Alpha', serviceTypeId: 'st-1', serviceTypeName: 'Routine', branchId: null, branchName: null, priceAmount: 150, payoutType: 'FIXED', payoutValue: 100, bonusRuleJson: null, status: 'ACTIVE', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z' },
 ];
 
 function createWrapper() {
@@ -61,8 +70,20 @@ function createWrapper() {
 }
 
 beforeEach(() => {
+  mockMe = {
+    id: 'usr-01',
+    name: 'Platform Admin',
+    email: 'admin@properfy.com',
+    role: 'AM',
+    tenantId: null,
+    branchId: null,
+    totpEnabled: false,
+  };
   mockGet.mockReset();
   mockGet.mockImplementation((path: string) => {
+    if (path === '/v1/me') {
+      return Promise.resolve({ data: mockMe, error: undefined });
+    }
     if (path === '/v1/tenants') {
       return Promise.resolve({ data: {
         data: [{ id: 'ten-1', name: 'Imob Alpha' }],
@@ -97,6 +118,13 @@ describe('PricingRuleListPage', () => {
     renderPage();
     const matches = screen.getAllByText('New Pricing Rule');
     expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('disables creation for global users until an agency is selected', async () => {
+    renderPage();
+
+    expect(await screen.findByText('Select an agency before creating pricing rules.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New Pricing Rule' })).toBeDisabled();
   });
 
   it('renders filter bar with agency, service type, branch, and status', () => {

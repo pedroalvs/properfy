@@ -9,6 +9,7 @@ import {
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import type { AuthContext } from '@properfy/shared';
+import type { IReportStorageService } from '../../../src/modules/report/domain/report-storage.service';
 
 function makeInvoice(overrides: Partial<InspectorInvoiceProps> = {}): InspectorInvoiceEntity {
   const now = new Date('2026-03-16T10:00:00Z');
@@ -53,10 +54,16 @@ function makeSut() {
     save: vi.fn(),
     update: vi.fn(),
   };
+  const storageService: IReportStorageService = {
+    uploadReport: vi.fn(),
+    generatePresignedGetUrl: vi.fn(),
+    downloadReport: vi.fn(),
+    deleteReport: vi.fn(),
+  };
 
-  const useCase = new DownloadInvoiceUseCase(invoiceRepo);
+  const useCase = new DownloadInvoiceUseCase(invoiceRepo, storageService);
 
-  return { useCase, invoiceRepo };
+  return { useCase, invoiceRepo, storageService };
 }
 
 describe('DownloadInvoiceUseCase', () => {
@@ -68,9 +75,12 @@ describe('DownloadInvoiceUseCase', () => {
   });
 
   it('should return download URL for CLOSED invoice with file', async () => {
-    const { useCase, invoiceRepo } = sut;
+    const { useCase, invoiceRepo, storageService } = sut;
 
     vi.mocked(invoiceRepo.findById).mockResolvedValue(makeInvoice());
+    vi.mocked(storageService.generatePresignedGetUrl).mockResolvedValue(
+      'https://storage.example.com/invoices/insp-1/invoice-1.xlsx?signature=abc',
+    );
 
     const result = await useCase.execute({
       invoiceId: 'invoice-1',
@@ -78,7 +88,11 @@ describe('DownloadInvoiceUseCase', () => {
     });
 
     expect(result.downloadUrl).toBe(
-      'https://stub-storage/billing-documents/invoices/insp-1/invoice-1.xlsx?token=stub-presigned-token',
+      'https://storage.example.com/invoices/insp-1/invoice-1.xlsx?signature=abc',
+    );
+    expect(storageService.generatePresignedGetUrl).toHaveBeenCalledWith(
+      'invoices/insp-1/invoice-1.xlsx',
+      3600,
     );
     expect(result.expiresAt).toBeDefined();
     // Verify expiresAt is roughly 60 minutes from now
@@ -133,9 +147,12 @@ describe('DownloadInvoiceUseCase', () => {
   });
 
   it('should allow INSP to download own invoice', async () => {
-    const { useCase, invoiceRepo } = sut;
+    const { useCase, invoiceRepo, storageService } = sut;
 
     vi.mocked(invoiceRepo.findById).mockResolvedValue(makeInvoice({ inspectorId: 'insp-1' }));
+    vi.mocked(storageService.generatePresignedGetUrl).mockResolvedValue(
+      'https://storage.example.com/invoices/insp-1/invoice-1.xlsx?signature=own',
+    );
 
     const result = await useCase.execute({
       invoiceId: 'invoice-1',
@@ -173,10 +190,13 @@ describe('DownloadInvoiceUseCase', () => {
   });
 
   it('should work for PAID invoice with file', async () => {
-    const { useCase, invoiceRepo } = sut;
+    const { useCase, invoiceRepo, storageService } = sut;
 
     vi.mocked(invoiceRepo.findById).mockResolvedValue(
       makeInvoice({ status: 'PAID', fileKey: 'invoices/insp-1/invoice-1.xlsx' }),
+    );
+    vi.mocked(storageService.generatePresignedGetUrl).mockResolvedValue(
+      'https://storage.example.com/invoices/insp-1/invoice-1.xlsx?signature=paid',
     );
 
     const result = await useCase.execute({

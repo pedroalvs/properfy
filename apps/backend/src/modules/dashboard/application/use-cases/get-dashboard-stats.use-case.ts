@@ -14,10 +14,12 @@ export interface DashboardStatsOutput {
     code: string;
     propertyAddress: string;
     status: string;
+    doneCheckedByUserId: string | null;
     scheduledDate: string;
   }>;
   pendingActions: {
     noResponseTenants: number;
+    pendingOperatorCrossChecks: number;
     pendingFinancialEntries: number;
     processingReports: number;
   };

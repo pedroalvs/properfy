@@ -2,6 +2,7 @@ import type { NotificationChannel } from '@properfy/shared';
 
 export interface NotificationTemplate {
   id: string;
+  tenantId: string | null;
   code: string;
   channel: NotificationChannel;
   subject: string;
@@ -24,15 +25,15 @@ export interface TemplateFormErrors {
 }
 
 export interface TemplateFiltersState {
-  search: string;
+  templateCode: string;
   channel: string;
-  active: string;
+  includeDefaults: 'true' | 'false';
 }
 
 export const DEFAULT_TEMPLATE_FILTERS: TemplateFiltersState = {
-  search: '',
+  templateCode: '',
   channel: '',
-  active: '',
+  includeDefaults: 'true',
 };
 
 export const ALLOWED_VARIABLES = [

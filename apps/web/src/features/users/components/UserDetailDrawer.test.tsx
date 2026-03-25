@@ -123,11 +123,9 @@ describe('UserDetailDrawer', () => {
     expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('edit button calls showInfo snackbar', () => {
+  it('hides edit button when onEdit prop is not provided', () => {
     renderDrawer({ userId: 'usr-01', open: true });
-    const editButton = screen.getByLabelText('Edit');
-    fireEvent.click(editButton);
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 
   it('shows loading state while fetching', () => {
@@ -162,9 +160,4 @@ describe('UserDetailDrawer', () => {
     expect(onEdit).toHaveBeenCalledWith('usr-01');
   });
 
-  it('edit button falls back to snackbar when onEdit prop is not provided', () => {
-    renderDrawer({ userId: 'usr-01', open: true });
-    fireEvent.click(screen.getByLabelText('Edit'));
-    expect(screen.getByText('Editing coming soon')).toBeInTheDocument();
-  });
 });

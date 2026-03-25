@@ -30,7 +30,6 @@ export function useSlotList(): UseSlotListReturn {
       pageSize,
       sortBy,
       sortOrder,
-      ...(filters.search ? { search: filters.search } : {}),
       ...(filters.inspectorId ? { inspectorId: filters.inspectorId } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),

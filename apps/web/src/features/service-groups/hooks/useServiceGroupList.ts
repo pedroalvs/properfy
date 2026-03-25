@@ -28,7 +28,6 @@ export function useServiceGroupList(): UseServiceGroupListReturn {
     sortBy,
     sortOrder,
     status: filters.status || undefined,
-    search: filters.search || undefined,
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<any>(

@@ -3,6 +3,8 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IPricingRuleRepository } from '../../domain/pricing-rule.repository';
 import { PricingRuleNotFoundError } from '../../domain/pricing-rule.errors';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 
 export interface UpdatePricingRuleInput {
   pricingRuleId: string;
@@ -20,6 +22,7 @@ export interface UpdatePricingRuleInput {
 export interface UpdatePricingRuleOutput {
   id: string;
   tenantId: string;
+  currency: string;
   serviceTypeId: string;
   branchId: string | null;
   priceAmount: number;
@@ -34,6 +37,7 @@ export interface UpdatePricingRuleOutput {
 export class UpdatePricingRuleUseCase {
   constructor(
     private readonly pricingRuleRepo: IPricingRuleRepository,
+    private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
   ) {}
 
@@ -56,6 +60,11 @@ export class UpdatePricingRuleUseCase {
     const rule = await this.pricingRuleRepo.findById(pricingRuleId, resolvedTenantId);
     if (!rule) {
       throw new PricingRuleNotFoundError();
+    }
+
+    const tenant = await this.tenantRepo.findById(rule.tenantId);
+    if (!tenant) {
+      throw new TenantNotFoundError();
     }
 
     // For CL_ADMIN, verify tenant scope
@@ -104,6 +113,7 @@ export class UpdatePricingRuleUseCase {
     return {
       id: rule.id,
       tenantId: rule.tenantId,
+      currency: tenant.currency,
       serviceTypeId: rule.serviceTypeId,
       branchId: rule.branchId,
       priceAmount: after.priceAmount,

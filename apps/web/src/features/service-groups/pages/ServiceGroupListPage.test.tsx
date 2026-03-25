@@ -89,10 +89,15 @@ describe('ServiceGroupListPage', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders filter bar with search and status controls', () => {
+  it('does not expose a map CTA while map pages are disabled', () => {
     renderPage();
-    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    expect(screen.queryByText('Map')).not.toBeInTheDocument();
+  });
+
+  it('renders only contract-backed filters', () => {
+    renderPage();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
   });
 
   it('renders data table with service group data after loading', async () => {

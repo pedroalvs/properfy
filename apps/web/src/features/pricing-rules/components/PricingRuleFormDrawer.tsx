@@ -29,6 +29,7 @@ interface PricingRuleFormDrawerProps {
   onClose: () => void;
   rule?: PricingRule | null;
   onSaved: () => void;
+  defaultTenantId?: string;
   tenantOptions?: { value: string; label: string }[];
   serviceTypeOptions?: { value: string; label: string }[];
   branchOptions?: { value: string; label: string }[];
@@ -39,6 +40,7 @@ export function PricingRuleFormDrawer({
   onClose,
   rule,
   onSaved,
+  defaultTenantId,
   tenantOptions = [],
   serviceTypeOptions = [],
   branchOptions = [],
@@ -71,11 +73,15 @@ export function PricingRuleFormDrawer({
 
   useEffect(() => {
     if (open && !isEditMode) {
-      setForm(EMPTY_PRICING_RULE_FORM);
-      setInitialData(EMPTY_PRICING_RULE_FORM);
+      const createData = {
+        ...EMPTY_PRICING_RULE_FORM,
+        tenantId: defaultTenantId ?? '',
+      };
+      setForm(createData);
+      setInitialData(createData);
       setErrors({});
     }
-  }, [open, isEditMode]);
+  }, [open, isEditMode, defaultTenantId]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
@@ -146,6 +152,7 @@ export function PricingRuleFormDrawer({
                       onChange={(v) => updateField('tenantId', v)}
                       options={[{ value: '', label: 'Select agency' }, ...tenantOptions]}
                       placeholder="Select agency"
+                      disabled={!isEditMode && !!defaultTenantId}
                       error={!!errors.tenantId}
                       aria-label="Agency"
                     />

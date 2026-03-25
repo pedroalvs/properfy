@@ -1,4 +1,3 @@
-import { PriorityMode } from '@properfy/shared';
 import type { MarketplaceOffer } from '../types';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/format-date';
@@ -11,7 +10,7 @@ interface OfferCardProps {
 }
 
 export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps) {
-  const isPriority = offer.priorityMode === PriorityMode.PRIORITY_24H;
+  const isPriority = offer.priorityMode === 'PRIORITY_24H';
 
   const borderColor = selected
     ? 'border-secondary'
@@ -21,13 +20,6 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
 
   const badgeBg = isPriority ? 'bg-[#FFF3E0] text-[#E65100]' : 'bg-[#E3F2FD] text-[#1565C0]';
   const badgeLabel = isPriority ? '24h Priority' : 'Standard';
-
-  const formattedPayout = new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
-  }).format(offer.totalPayout);
-
-  const expiresDate = formatDate(offer.expiresAt);
 
   return (
     <div
@@ -48,8 +40,8 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
     >
       <div className="mb-2 flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-bold text-text-primary">{offer.groupName}</h3>
-          <p className="text-xs text-text-secondary">{offer.regionName}</p>
+          <h3 className="text-sm font-bold text-text-primary">{offer.serviceTypeName}</h3>
+          <p className="text-xs text-text-secondary">{offer.tenantName}</p>
         </div>
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeBg}`} data-testid="priority-badge">
           {badgeLabel}
@@ -58,16 +50,22 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
 
       <div className="mb-3 grid grid-cols-2 gap-2 text-xs">
         <div>
-          <span className="text-text-muted">Appointments</span>
-          <p className="font-semibold text-text-primary">{offer.appointmentsCount}</p>
+          <span className="text-text-muted">Inspections</span>
+          <p className="font-semibold text-text-primary">{offer.groupSize}</p>
         </div>
         <div>
-          <span className="text-text-muted">Payout</span>
-          <p className="font-semibold text-text-primary">{formattedPayout}</p>
+          <span className="text-text-muted">Date</span>
+          <p className="font-semibold text-text-primary">{formatDate(offer.scheduledDate)}</p>
         </div>
         <div className="col-span-2">
-          <span className="text-text-muted">Expires</span>
-          <p className="font-semibold text-text-primary">{expiresDate}</p>
+          <span className="text-text-muted">Time window</span>
+          <p className="font-semibold text-text-primary">{offer.timeWindow}</p>
+        </div>
+        <div className="col-span-2">
+          <span className="text-text-muted">Suburbs</span>
+          <p className="font-semibold text-text-primary">
+            {offer.suburbs.length > 0 ? offer.suburbs.join(', ') : 'Not informed'}
+          </p>
         </div>
       </div>
 

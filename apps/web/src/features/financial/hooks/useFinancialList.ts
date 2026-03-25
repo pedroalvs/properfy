@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type FinancialEntry, type FinancialFiltersState } from '../types';
@@ -15,25 +16,31 @@ export interface UseFinancialListReturn {
   sorting: DataTableSorting;
 }
 
-export function useFinancialList(): UseFinancialListReturn {
-  const [filters, setFilters] = useState<FinancialFiltersState>(DEFAULT_FILTERS);
+export function useFinancialList(tenantId?: string, enabled: boolean = true): UseFinancialListReturn {
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState<FinancialFiltersState>({
+    ...DEFAULT_FILTERS,
+    entryType: searchParams.get('type') ?? '',
+    status: searchParams.get('status') ?? '',
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState('effectiveAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const query = usePaginatedQuery<FinancialEntry>(
-    ['financial-entries'],
+    ['financial-entries', tenantId ?? ''],
     '/v1/financial/entries',
     {
       page,
       pageSize,
       sortBy,
       sortOrder,
-      ...(filters.entryType ? { entryType: filters.entryType } : {}),
+      ...(tenantId ? { tenantId } : {}),
+      ...(filters.entryType ? { type: filters.entryType } : {}),
       ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.search ? { search: filters.search } : {}),
     },
+    { enabled },
   );
 
   const pagination: DataTablePagination = {

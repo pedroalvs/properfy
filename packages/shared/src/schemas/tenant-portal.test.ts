@@ -2,9 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   portalTokenParam,
   confirmAppointmentPortalSchema,
+  confirmAppointmentPortalResponseSchema,
   rescheduleRequestPortalSchema,
+  rescheduleRequestPortalResponseSchema,
   updateContactPortalSchema,
   reportUnavailabilityPortalSchema,
+  reportUnavailabilityPortalResponseSchema,
 } from './tenant-portal';
 
 describe('portalTokenParam', () => {
@@ -185,6 +188,37 @@ describe('reportUnavailabilityPortalSchema', () => {
         unavailableDaysJson: ['2026-04-01'],
         notes: 'Will be traveling',
       },
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('confirmAppointmentPortalResponseSchema', () => {
+  it('should accept the real confirm command response', () => {
+    const result = confirmAppointmentPortalResponseSchema.safeParse({
+      tenantConfirmationStatus: 'CONFIRMED',
+      confirmedAt: '2026-03-01T00:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('rescheduleRequestPortalResponseSchema', () => {
+  it('should accept the real reschedule command response', () => {
+    const result = rescheduleRequestPortalResponseSchema.safeParse({
+      scheduledDate: '2026-05-01',
+      timeSlot: '09:00-10:00',
+      tenantConfirmationStatus: 'PENDING',
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('reportUnavailabilityPortalResponseSchema', () => {
+  it('should accept the real unavailability command response', () => {
+    const result = reportUnavailabilityPortalResponseSchema.safeParse({
+      tenantConfirmationStatus: 'UNAVAILABLE',
+      urgentMode: false,
     });
     expect(result.success).toBe(true);
   });

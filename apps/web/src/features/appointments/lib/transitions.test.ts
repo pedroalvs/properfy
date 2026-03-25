@@ -33,11 +33,19 @@ describe('getAvailableTransitions', () => {
     expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.REJECTED);
   });
 
-  it('OP from SCHEDULED sees 3 transitions', () => {
-    const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'OP');
-    expect(transitions).toHaveLength(3);
+  it('OP from AWAITING_INSPECTOR does not see SCHEDULED without assignment context', () => {
+    const transitions = getAvailableTransitions(AppointmentStatus.AWAITING_INSPECTOR, 'OP');
+    expect(transitions).toHaveLength(2);
     expect(transitions.map((t) => t.targetStatus)).toEqual([
-      AppointmentStatus.DONE,
+      AppointmentStatus.CANCELLED,
+      AppointmentStatus.REJECTED,
+    ]);
+  });
+
+  it('OP from SCHEDULED hides DONE because the UI cannot provide cross-check context', () => {
+    const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'OP');
+    expect(transitions).toHaveLength(2);
+    expect(transitions.map((t) => t.targetStatus)).toEqual([
       AppointmentStatus.CANCELLED,
       AppointmentStatus.REJECTED,
     ]);
@@ -65,11 +73,9 @@ describe('getAvailableTransitions', () => {
     expect(transitions).toHaveLength(0);
   });
 
-  it('CANCELLED transitions require reason, DONE does not', () => {
+  it('CANCELLED transitions require reason in the OP action bar', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'OP');
     const cancelled = transitions.find((t) => t.targetStatus === AppointmentStatus.CANCELLED);
-    const done = transitions.find((t) => t.targetStatus === AppointmentStatus.DONE);
     expect(cancelled?.requiresReason).toBe(true);
-    expect(done?.requiresReason).toBe(false);
   });
 });

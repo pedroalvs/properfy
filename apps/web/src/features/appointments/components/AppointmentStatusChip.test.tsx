@@ -7,9 +7,9 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
   DRAFT: 'Draft',
   AWAITING_INSPECTOR: 'Awaiting Inspector',
   SCHEDULED: 'Scheduled',
-  DONE: 'Done',
   CANCELLED: 'Cancelled',
   REJECTED: 'Rejected',
+  DONE: 'Done (Review Required)',
 };
 
 describe('AppointmentStatusChip', () => {
@@ -27,5 +27,15 @@ describe('AppointmentStatusChip', () => {
     );
     const chip = screen.getByText('Draft');
     expect(chip.className).toContain('my-custom');
+  });
+
+  it('renders reviewed DONE label when cross-check exists', () => {
+    render(
+      <AppointmentStatusChip
+        status={AppointmentStatus.DONE}
+        doneCheckedByUserId="user-123"
+      />,
+    );
+    expect(screen.getByText('Done (Review)')).toBeInTheDocument();
   });
 });

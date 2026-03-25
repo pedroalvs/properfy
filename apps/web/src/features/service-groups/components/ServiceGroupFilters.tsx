@@ -1,5 +1,4 @@
 import { FilterBar } from '@/components/filters/FilterBar';
-import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
 import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import type { ServiceGroupFiltersState } from '../types';
@@ -23,12 +22,6 @@ export function ServiceGroupFilters({
 }: ServiceGroupFiltersProps) {
   return (
     <FilterBar>
-      <FilterInput
-        label="Search"
-        placeholder="Name, region, inspector..."
-        value={filters.search}
-        onChange={(search) => onFiltersChange({ ...filters, search })}
-      />
       <FilterSelect
         label="Status"
         value={filters.status}

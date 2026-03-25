@@ -16,17 +16,19 @@ export interface AuditLog {
 }
 
 export interface AuditLogFiltersState {
-  search: string;
+  actorId: string;
   entityType: string;
+  entityId: string;
   action: string;
-  startDate: string;
-  endDate: string;
+  fromDate: string;
+  toDate: string;
 }
 
 export const DEFAULT_FILTERS: AuditLogFiltersState = {
-  search: '',
+  actorId: '',
   entityType: '',
+  entityId: '',
   action: '',
-  startDate: '',
-  endDate: '',
+  fromDate: '',
+  toDate: '',
 };

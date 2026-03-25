@@ -40,6 +40,10 @@ const MOCK_ENTRIES = [
     description: 'Inspection fee',
     relatedEntityName: 'Branch Centro',
     effectiveAt: '2026-03-10T00:00:00Z',
+    reason: null,
+    approvedByUserId: null,
+    approvedByName: null,
+    approvedAt: null,
     createdAt: '2026-03-10T10:00:00Z',
   },
   {
@@ -51,6 +55,10 @@ const MOCK_ENTRIES = [
     description: 'Inspector payment',
     relatedEntityName: 'Inspector João',
     effectiveAt: '2026-03-11T00:00:00Z',
+    reason: 'Cross-check completed',
+    approvedByUserId: 'usr-99',
+    approvedByName: 'Test Admin',
+    approvedAt: '2026-03-11T15:00:00Z',
     createdAt: '2026-03-11T14:00:00Z',
   },
 ];
@@ -68,11 +76,12 @@ describe('useAppointmentFinancialEntries', () => {
     const { result } = renderHook(() => useAppointmentFinancialEntries('apt-01'), { wrapper });
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    expect(result.current.isLoading).toBe(false);
+  });
 
-    expect(result.current.entries).toHaveLength(2);
-    expect(result.current.entries[0]!.entryType).toBe('TENANT_DEBIT');
+  expect(result.current.entries).toHaveLength(2);
+  expect(result.current.entries[0]!.entryType).toBe('TENANT_DEBIT');
+  expect(result.current.entries[1]!.approvedByName).toBe('Test Admin');
   });
 
   it('returns empty list when id is null', () => {

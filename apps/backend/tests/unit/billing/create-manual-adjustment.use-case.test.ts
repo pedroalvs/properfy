@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateManualAdjustmentUseCase } from '../../../src/modules/billing/application/use-cases/create-manual-adjustment.use-case';
 import { FinancialEntryEntity } from '../../../src/modules/billing/domain/financial-entry.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { TenantInactiveError, TenantNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
+import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
+import { EntryNotFoundError, InspectorNotFoundError } from '../../../src/modules/billing/domain/billing.errors';
 
 const financialEntryRepo = {
   findById: vi.fn(),
@@ -31,6 +34,33 @@ const tenantRepo = {
   update: vi.fn(),
 };
 
+const appointmentRepo = {
+  findById: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+  saveContact: vi.fn(),
+  updateContact: vi.fn(),
+  saveRestriction: vi.fn(),
+  deleteRestrictionsByAppointmentId: vi.fn(),
+  findScheduledOnDate: vi.fn(),
+  findAllContacts: vi.fn(),
+  countContacts: vi.fn(),
+  findContactById: vi.fn(),
+  findDuplicateForImport: vi.fn(),
+};
+
+const inspectorRepo = {
+  findById: vi.fn(),
+  findByEmail: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+  linkUserId: vi.fn(),
+};
+
 const opActor = {
   userId: 'op-1',
   tenantId: 'tenant-1',
@@ -48,7 +78,14 @@ const amActor = {
 };
 
 function makeSut() {
-  return new CreateManualAdjustmentUseCase(financialEntryRepo, auditService as any, idempotencyService, tenantRepo);
+  return new CreateManualAdjustmentUseCase(
+    financialEntryRepo,
+    auditService as any,
+    idempotencyService,
+    tenantRepo,
+    appointmentRepo as any,
+    inspectorRepo as any,
+  );
 }
 
 describe('CreateManualAdjustmentUseCase', () => {
@@ -60,6 +97,21 @@ describe('CreateManualAdjustmentUseCase', () => {
       id: 'tenant-1',
       currency: 'AUD',
       isActive: () => true,
+    });
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: {
+        id: 'appt-1',
+        tenantId: 'tenant-1',
+      },
+    });
+    inspectorRepo.findById.mockResolvedValue({
+      id: 'insp-1',
+      isActive: () => true,
+      isEligibleForTenant: (tenantId: string) => tenantId === 'tenant-1',
+    });
+    financialEntryRepo.findById.mockResolvedValue({
+      id: 'entry-1',
+      tenantId: 'tenant-1',
     });
   });
 
@@ -274,19 +326,146 @@ describe('CreateManualAdjustmentUseCase', () => {
     expect(savedEntry.currency).toBe('NZD');
   });
 
-  it('should default to AUD when tenant not found', async () => {
+  it('should reject when tenant is not found', async () => {
     tenantRepo.findById.mockResolvedValue(null);
     const sut = makeSut();
 
-    const result = await sut.execute({
-      tenantId: 'tenant-1',
-      amount: 50,
-      description: 'Test',
-      reason: 'Test',
-      actor: opActor,
-    });
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        amount: 50,
+        description: 'Test',
+        reason: 'Test',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(TenantNotFoundError);
+  });
 
-    expect(result.currency).toBe('AUD');
+  it('should reject when tenant is inactive', async () => {
+    tenantRepo.findById.mockResolvedValue({
+      id: 'tenant-1',
+      currency: 'AUD',
+      isActive: () => false,
+    });
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        amount: 50,
+        description: 'Test',
+        reason: 'Test',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(TenantInactiveError);
+  });
+
+  it('should reject when appointment is not found', async () => {
+    appointmentRepo.findById.mockResolvedValue(null);
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        appointmentId: 'appt-1',
+        amount: 50,
+        description: 'Test',
+        reason: 'Test',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(AppointmentNotFoundError);
+  });
+
+  it('should reject cross-tenant appointment references', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: {
+        id: 'appt-1',
+        tenantId: 'tenant-2',
+      },
+    });
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        appointmentId: 'appt-1',
+        amount: 50,
+        description: 'Test',
+        reason: 'Test',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should reject when reference entry is not found', async () => {
+    financialEntryRepo.findById.mockResolvedValue(null);
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        referenceEntryId: 'entry-1',
+        amount: 50,
+        description: 'Test',
+        reason: 'Test',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(EntryNotFoundError);
+  });
+
+  it('should reject cross-tenant reference entries', async () => {
+    financialEntryRepo.findById.mockResolvedValue({
+      id: 'entry-1',
+      tenantId: 'tenant-2',
+    });
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        referenceEntryId: 'entry-1',
+        amount: 50,
+        description: 'Test',
+        reason: 'Test',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should reject when inspector is not found or inactive', async () => {
+    inspectorRepo.findById.mockResolvedValue(null);
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        inspectorId: 'insp-1',
+        amount: 50,
+        description: 'Test',
+        reason: 'Test',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(InspectorNotFoundError);
+  });
+
+  it('should reject inspectors not eligible for tenant', async () => {
+    inspectorRepo.findById.mockResolvedValue({
+      id: 'insp-1',
+      isActive: () => true,
+      isEligibleForTenant: () => false,
+    });
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        inspectorId: 'insp-1',
+        amount: 50,
+        description: 'Test',
+        reason: 'Test',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('should audit log the manual adjustment creation', async () => {

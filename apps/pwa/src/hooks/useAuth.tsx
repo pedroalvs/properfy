@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { api } from '@/services/api';
 import { authStorage } from '@/lib/auth-storage';
+import { ApiError } from '@/lib/api-error';
 
 export interface AuthUser {
   id: string;
@@ -8,6 +9,9 @@ export interface AuthUser {
   email: string;
   role: string;
   tenantId: string | null;
+  phone?: string | null;
+  totpEnabled?: boolean;
+  lastLoginAt?: string | null;
 }
 
 interface AuthContextValue {
@@ -32,12 +36,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.GET('/v1/me')
       .then(({ data }) => {
         if (data) {
+          const me = data as typeof data & {
+            phone?: string | null;
+            totpEnabled?: boolean;
+            lastLoginAt?: string | null;
+          };
           setUser({
-            id: data.id,
-            name: data.name,
-            email: data.email,
-            role: data.role,
-            tenantId: data.tenantId,
+            id: me.id,
+            name: me.name,
+            email: me.email,
+            role: me.role,
+            tenantId: me.tenantId,
+            phone: me.phone,
+            totpEnabled: me.totpEnabled,
+            lastLoginAt: me.lastLoginAt,
           });
         }
       })
@@ -49,11 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { data, error } = await api.POST('/v1/auth/login', {
+    const { data, error, response } = await api.POST('/v1/auth/login', {
       body: { email, password },
     });
-    if (error || !data) {
-      throw new Error('Login failed');
+    const err = error as any;
+    if (err || !data) {
+      throw new ApiError(
+        response.status,
+        err?.error?.message ?? 'Login failed',
+        err?.error?.code,
+      );
     }
     authStorage.setTokens(data.accessToken, data.refreshToken);
     setToken(data.accessToken);

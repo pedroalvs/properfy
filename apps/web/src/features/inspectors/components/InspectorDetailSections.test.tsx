@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { InspectorStatus } from '@properfy/shared';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 import { InspectorDetailSections } from './InspectorDetailSections';
 import type { InspectorDetail } from '../types';
+import { api } from '@/services/api';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -29,7 +30,7 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
     regionsCount: 3,
     serviceTypesCount: 5,
     regions: ['Zona Norte', 'Zona Sul', 'Centro'],
-    serviceTypes: ['Vistoria de Entrada', 'Vistoria de Saída'],
+    serviceTypes: ['123e4567-e89b-12d3-a456-426614174000', '123e4567-e89b-12d3-a456-426614174001'],
     document: '123.456.789-00',
     rating: 4.8,
     createdAt: '2026-01-10T10:00:00Z',
@@ -40,6 +41,30 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
 
 describe('InspectorDetailSections', () => {
   const wrapper = createQueryWrapper();
+  const mockGet = api.GET as ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockGet.mockReset();
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/service-types') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { id: '123e4567-e89b-12d3-a456-426614174000', name: 'Vistoria de Entrada' },
+              { id: '123e4567-e89b-12d3-a456-426614174001', name: 'Vistoria de Saída' },
+            ],
+            pagination: { total: 2, page: 1, pageSize: 100, totalPages: 1 },
+          },
+          error: null,
+        });
+      }
+
+      return Promise.resolve({
+        data: { data: [], pagination: { total: 0, page: 1, pageSize: 1, totalPages: 0 } },
+        error: null,
+      });
+    });
+  });
 
   it('renders section titles', () => {
     render(<InspectorDetailSections inspector={makeInspector()} />, { wrapper });

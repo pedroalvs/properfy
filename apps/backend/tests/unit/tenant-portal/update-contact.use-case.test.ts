@@ -6,6 +6,7 @@ import type { PersistentAuditService } from '../../../src/modules/audit/applicat
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import {
+  PortalActionBlockedError,
   PortalAppointmentInactiveError,
   PortalNoContactFieldsError,
 } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
@@ -76,6 +77,7 @@ function makeInput(overrides: Partial<Parameters<UpdateContactUseCase['execute']
   return {
     tokenId: 'token-1',
     appointmentId: 'appt-1',
+    isReadOnly: false,
     contact: {
       primaryEmail: 'newemail@example.com',
       primaryPhone: '+61400111111',
@@ -138,14 +140,11 @@ describe('UpdateContactUseCase', () => {
     expect(result.secondaryPhone).toBe('+61400000001');
   });
 
-  it('should work even when token is read-only (expired)', async () => {
+  it('should block contact updates when token is read-only (expired)', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
-    // Note: isReadOnly is not even in the input — update-contact does not check it
-    const result = await useCase.execute(makeInput());
-
-    expect(result.primaryEmail).toBe('newemail@example.com');
-    expect(appointmentRepo.updateContact).toHaveBeenCalled();
+    await expect(useCase.execute(makeInput({ isReadOnly: true }))).rejects.toThrow(PortalActionBlockedError);
+    expect(appointmentRepo.updateContact).not.toHaveBeenCalled();
   });
 
   it('should record CONTACT_UPDATED activity with previous and new values', async () => {
@@ -196,6 +195,15 @@ describe('UpdateContactUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(null);
 
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+  });
+
+  it('should block contact updates for terminal appointments', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DONE' }),
+    );
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+    expect(appointmentRepo.updateContact).not.toHaveBeenCalled();
   });
 
   it('should log audit entry on contact update', async () => {

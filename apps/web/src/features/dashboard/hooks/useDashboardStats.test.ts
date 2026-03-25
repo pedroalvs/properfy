@@ -20,14 +20,15 @@ const MOCK_STATS = {
     doneThisMonth: 3,
   },
   recentAppointments: [
-    { id: 'apt-15', code: 'VST-015' },
-    { id: 'apt-14', code: 'VST-014' },
-    { id: 'apt-13', code: 'VST-013' },
-    { id: 'apt-12', code: 'VST-012' },
-    { id: 'apt-07', code: 'VST-007' },
+    { id: 'apt-15', code: 'VST-015', propertyAddress: 'Address 15', status: 'SCHEDULED', doneCheckedByUserId: null, scheduledDate: '2026-04-01' },
+    { id: 'apt-14', code: 'VST-014', propertyAddress: 'Address 14', status: 'DONE', doneCheckedByUserId: null, scheduledDate: '2026-03-31' },
+    { id: 'apt-13', code: 'VST-013', propertyAddress: 'Address 13', status: 'SCHEDULED', doneCheckedByUserId: null, scheduledDate: '2026-03-30' },
+    { id: 'apt-12', code: 'VST-012', propertyAddress: 'Address 12', status: 'DRAFT', doneCheckedByUserId: null, scheduledDate: '2026-03-29' },
+    { id: 'apt-07', code: 'VST-007', propertyAddress: 'Address 07', status: 'DONE', doneCheckedByUserId: 'op-1', scheduledDate: '2026-03-28' },
   ],
   pendingActions: {
     noResponseTenants: 2,
+    pendingOperatorCrossChecks: 3,
     pendingFinancialEntries: 5,
     processingReports: 2,
   },
@@ -99,6 +100,7 @@ describe('useDashboardStats', () => {
 
     const { pendingActions } = result.current.stats!;
     expect(pendingActions.noResponseTenants).toBe(2);
+    expect(pendingActions.pendingOperatorCrossChecks).toBe(3);
     expect(pendingActions.pendingFinancialEntries).toBe(5);
     expect(pendingActions.processingReports).toBe(2);
   });

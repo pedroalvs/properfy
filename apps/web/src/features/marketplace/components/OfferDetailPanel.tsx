@@ -1,4 +1,3 @@
-import { PriorityMode } from '@properfy/shared';
 import type { MarketplaceOffer } from '../types';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -23,21 +22,14 @@ export function OfferDetailPanel({ offer, onAccept, isAccepting }: OfferDetailPa
     );
   }
 
-  const isPriority = offer.priorityMode === PriorityMode.PRIORITY_24H;
+  const isPriority = offer.priorityMode === 'PRIORITY_24H';
   const badgeBg = isPriority ? 'bg-[#FFF3E0] text-[#E65100]' : 'bg-[#E3F2FD] text-[#1565C0]';
   const badgeLabel = isPriority ? '24h Priority' : 'Standard';
-
-  const formattedPayout = new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
-  }).format(offer.totalPayout);
-
-  const expiresDate = formatDate(offer.expiresAt);
 
   return (
     <div className="border-t border-gray-200 p-4" data-testid="offer-detail-panel">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-bold text-secondary">{offer.groupName}</h3>
+        <h3 className="text-base font-bold text-secondary">{offer.serviceTypeName}</h3>
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeBg}`}>
           {badgeLabel}
         </span>
@@ -45,58 +37,24 @@ export function OfferDetailPanel({ offer, onAccept, isAccepting }: OfferDetailPa
 
       <div className="mb-4 grid grid-cols-3 gap-3 text-sm">
         <div>
-          <span className="text-text-muted text-xs">Region</span>
-          <p className="font-medium text-text-primary">{offer.regionName}</p>
+          <span className="text-text-muted text-xs">Client</span>
+          <p className="font-medium text-text-primary">{offer.tenantName}</p>
         </div>
         <div>
-          <span className="text-text-muted text-xs">Total Payout</span>
-          <p className="font-medium text-text-primary">{formattedPayout}</p>
+          <span className="text-text-muted text-xs">Inspections</span>
+          <p className="font-medium text-text-primary">{offer.groupSize}</p>
         </div>
         <div>
-          <span className="text-text-muted text-xs">Expires</span>
-          <p className="font-medium text-text-primary">{expiresDate}</p>
+          <span className="text-text-muted text-xs">Date</span>
+          <p className="font-medium text-text-primary">{formatDate(offer.scheduledDate)}</p>
         </div>
       </div>
 
-      {offer.appointments.length > 0 && (
-        <div className="mb-4">
-          <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-text-secondary">
-            Appointments ({offer.appointments.length})
-          </h4>
-          <div className="max-h-48 overflow-y-auto rounded border border-gray-100">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-gray-100 bg-[#FAFAFA]">
-                  <th className="px-2 py-1.5 text-left font-bold text-text-secondary">Code</th>
-                  <th className="px-2 py-1.5 text-left font-bold text-text-secondary">Address</th>
-                  <th className="px-2 py-1.5 text-left font-bold text-text-secondary">Date</th>
-                  <th className="px-2 py-1.5 text-left font-bold text-text-secondary">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {offer.appointments.map((apt) => (
-                  <tr key={apt.id} className="border-b border-gray-50 last:border-0">
-                    <td className="px-2 py-1.5 font-medium text-text-primary">{apt.code}</td>
-                    <td className="px-2 py-1.5 text-text-secondary" title={apt.address}>
-                      <span className="line-clamp-1">{apt.address}</span>
-                    </td>
-                    <td className="px-2 py-1.5 text-text-primary">
-                      {formatDate(apt.scheduledDate)}
-                    </td>
-                    <td className="px-2 py-1.5 text-text-primary">{apt.timeSlot}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {offer.appointments.length === 0 && (
-        <div className="mb-4 rounded bg-[#FAFAFA] p-3 text-center text-xs text-text-muted">
-          No appointments in this offer.
-        </div>
-      )}
+      <div className="mb-4 rounded bg-[#FAFAFA] p-3 text-sm text-text-primary">
+        <p><span className="text-text-muted">Time window:</span> {offer.timeWindow}</p>
+        <p><span className="text-text-muted">Priority expires:</span> {offer.priorityExpiresAt ? formatDate(offer.priorityExpiresAt) : 'Standard availability'}</p>
+        <p><span className="text-text-muted">Suburbs:</span> {offer.suburbs.length > 0 ? offer.suburbs.join(', ') : 'Not informed'}</p>
+      </div>
 
       <Button
         variant="primary"

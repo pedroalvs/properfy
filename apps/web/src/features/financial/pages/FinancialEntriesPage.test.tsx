@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -42,8 +43,8 @@ import { FinancialEntriesPage } from './FinancialEntriesPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_ENTRIES = [
-  { id: 'fin-01', entryType: 'TENANT_DEBIT', appointmentCode: 'VIST-001', description: 'Debit', amount: 350, status: 'PENDING', effectiveAt: '2026-03-15', relatedEntityName: 'Imob Centro' },
-  { id: 'fin-02', entryType: 'INSPECTOR_PAYOUT', appointmentCode: 'VIST-002', description: 'Payout', amount: 180, status: 'APPROVED', effectiveAt: '2026-03-16', relatedEntityName: 'Diego' },
+  { id: 'fin-01', entryType: 'TENANT_DEBIT', appointmentCode: 'VIST-001', description: 'Debit', amount: 350, currency: 'USD', status: 'PENDING', effectiveAt: '2026-03-15', relatedEntityName: 'Imob Centro' },
+  { id: 'fin-02', entryType: 'INSPECTOR_PAYOUT', appointmentCode: 'VIST-002', description: 'Payout', amount: 180, currency: 'USD', status: 'APPROVED', effectiveAt: '2026-03-16', relatedEntityName: 'Diego' },
 ];
 
 const MOCK_SUMMARY = {
@@ -52,6 +53,7 @@ const MOCK_SUMMARY = {
   totalAdjustments: 200,
   totalRefunds: 150,
   pendingCount: 7,
+  currency: 'USD',
 };
 
 function createWrapper() {
@@ -61,9 +63,11 @@ function createWrapper() {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <SnackbarProvider>{children}</SnackbarProvider>
-        </AuthProvider>
+        <MemoryRouter>
+          <AuthProvider>
+            <SnackbarProvider>{children}</SnackbarProvider>
+          </AuthProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     );
   };
@@ -95,10 +99,9 @@ describe('FinancialEntriesPage', () => {
     expect(screen.getByText('Financial Entries')).toBeInTheDocument();
   });
 
-  it('renders "New Entry" CTA button', () => {
+  it('does not render legacy "New Entry" CTA', () => {
     renderPage();
-    const matches = screen.getAllByText('New Entry');
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByRole('button', { name: 'New Entry' })).not.toBeInTheDocument();
   });
 
   it('renders summary bar', () => {
@@ -112,9 +115,11 @@ describe('FinancialEntriesPage', () => {
     expect(screen.getByText('Refund')).toBeInTheDocument();
   });
 
-  it('renders filter bar with search, type, and status controls', () => {
+  it('renders filter bar with type and status controls', () => {
     renderPage();
-    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+    const filterBar = screen.getByRole('search', { name: 'Filters' });
+    expect(within(filterBar).getByLabelText('Type')).toBeInTheDocument();
+    expect(within(filterBar).getByLabelText('Status')).toBeInTheDocument();
   });
 
   it('renders data table with financial data after loading', async () => {

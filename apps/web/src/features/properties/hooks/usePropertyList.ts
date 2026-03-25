@@ -15,7 +15,7 @@ export interface UsePropertyListReturn {
   sorting: DataTableSorting;
 }
 
-export function usePropertyList(): UsePropertyListReturn {
+export function usePropertyList(tenantId?: string): UsePropertyListReturn {
   const [filters, setFilters] = useState<PropertyFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -28,6 +28,7 @@ export function usePropertyList(): UsePropertyListReturn {
     sortBy,
     sortOrder,
     type: filters.type || undefined,
+    tenantId: tenantId || undefined,
     branchId: filters.branchId || undefined,
     search: filters.search || undefined,
   };

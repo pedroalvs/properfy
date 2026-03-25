@@ -17,11 +17,13 @@ export interface RecentAppointment {
   code: string;
   propertyAddress: string;
   status: AppointmentStatus;
+  doneCheckedByUserId?: string | null;
   scheduledDate: string;
 }
 
 export interface PendingActions {
   noResponseTenants: number;
+  pendingOperatorCrossChecks: number;
   pendingFinancialEntries: number;
   processingReports: number;
 }

@@ -36,6 +36,7 @@ const MOCK_SUMMARY = {
   totalAdjustments: 200,
   totalRefunds: 150,
   pendingCount: 7,
+  currency: 'USD',
 };
 
 beforeEach(() => {

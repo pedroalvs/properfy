@@ -4,6 +4,7 @@ import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenan
 import type { AuthContext } from '@properfy/shared';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
 
 function makeTenant(
   overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
@@ -36,6 +37,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 
 describe('ListTenantsUseCase', () => {
   let tenantRepo: ITenantRepository;
+  let branchRepo: IBranchRepository;
   let useCase: ListTenantsUseCase;
 
   beforeEach(() => {
@@ -47,7 +49,16 @@ describe('ListTenantsUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
-    useCase = new ListTenantsUseCase(tenantRepo);
+    branchRepo = {
+      findById: vi.fn(),
+      findByName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      countByTenantIds: vi.fn().mockResolvedValue({ 'tenant-1': 2 }),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    useCase = new ListTenantsUseCase(tenantRepo, branchRepo);
   });
 
   it('should return paginated list when actor is AM', async () => {
@@ -61,6 +72,7 @@ describe('ListTenantsUseCase', () => {
     expect(result.total).toBe(1);
     expect(result.page).toBe(1);
     expect(result.pageSize).toBe(10);
+    expect(result.data[0].branchCount).toBe(2);
   });
 
   it('should return paginated list when actor is OP', async () => {

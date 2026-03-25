@@ -12,6 +12,11 @@ interface QueuedAction {
   lastError: string | null;
 }
 
+interface PendingAssetRecord extends AssetUploadState {
+  appointmentId: string;
+  blob?: Blob;
+}
+
 interface ProperfyPwaDB extends DBSchema {
   'execution-states': {
     key: string;
@@ -23,7 +28,7 @@ interface ProperfyPwaDB extends DBSchema {
   };
   'pending-assets': {
     key: string;
-    value: AssetUploadState & { blob?: Blob };
+    value: PendingAssetRecord;
   };
 }
 
@@ -83,12 +88,12 @@ export async function updateQueuedAction(action: QueuedAction): Promise<void> {
   await db.put('queued-actions', action, action.id);
 }
 
-export async function savePendingAsset(asset: AssetUploadState & { blob?: Blob }): Promise<void> {
+export async function savePendingAsset(asset: PendingAssetRecord): Promise<void> {
   const db = await getDB();
   await db.put('pending-assets', asset, asset.localId);
 }
 
-export async function getPendingAssets(): Promise<Array<AssetUploadState & { blob?: Blob }>> {
+export async function getPendingAssets(): Promise<PendingAssetRecord[]> {
   const db = await getDB();
   return db.getAll('pending-assets');
 }
@@ -98,4 +103,4 @@ export async function removePendingAsset(localId: string): Promise<void> {
   await db.delete('pending-assets', localId);
 }
 
-export type { QueuedAction };
+export type { QueuedAction, PendingAssetRecord };

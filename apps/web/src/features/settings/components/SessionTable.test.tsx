@@ -44,6 +44,7 @@ describe('SessionTable', () => {
     const Wrapper = createWrapper();
     render(<Wrapper><SessionTable /></Wrapper>);
     expect(screen.getByText('Active Sessions')).toBeInTheDocument();
+    expect(screen.getByText('Started At')).toBeInTheDocument();
   });
 
   it('renders session data after loading', async () => {

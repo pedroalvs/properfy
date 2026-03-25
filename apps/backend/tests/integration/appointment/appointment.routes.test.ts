@@ -9,6 +9,7 @@ const mockGetAppointmentExecute = vi.fn();
 const mockListAppointmentsExecute = vi.fn();
 const mockUpdateAppointmentExecute = vi.fn();
 const mockExecuteStatusTransitionExecute = vi.fn();
+const mockPerformCrossCheckExecute = vi.fn();
 const mockForceManualConfirmationExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
@@ -29,6 +30,7 @@ vi.mock('../../../src/main/container', () => ({
       listAppointmentsUseCase: { execute: mockListAppointmentsExecute },
       updateAppointmentUseCase: { execute: mockUpdateAppointmentExecute },
       executeStatusTransitionUseCase: { execute: mockExecuteStatusTransitionExecute },
+      performCrossCheckUseCase: { execute: mockPerformCrossCheckExecute },
       forceManualConfirmationUseCase: { execute: mockForceManualConfirmationExecute },
       jwtService: { verify: mockJwtVerify },
     },
@@ -89,6 +91,17 @@ const appointmentResult = {
     secondaryPhone: null,
   },
   restrictions: [],
+};
+
+const statusTransitionResult = {
+  id: APPOINTMENT_ID,
+  status: 'AWAITING_INSPECTOR',
+  previousStatus: 'DRAFT',
+  reason: null,
+  inspectorId: null,
+  doneCheckedByUserId: null,
+  doneCheckedAt: null,
+  updatedAt: new Date().toISOString(),
 };
 
 let app: FastifyInstance;
@@ -249,10 +262,7 @@ describe('PATCH /v1/appointments/:appointmentId', () => {
 describe('POST /v1/appointments/:appointmentId/status-transitions', () => {
   it('should return 200 with transition result', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
-    mockExecuteStatusTransitionExecute.mockResolvedValueOnce({
-      ...appointmentResult,
-      status: 'AWAITING_INSPECTOR',
-    });
+    mockExecuteStatusTransitionExecute.mockResolvedValueOnce(statusTransitionResult);
 
     const res = await supertest(app.server)
       .post(`/v1/appointments/${APPOINTMENT_ID}/status-transitions`)
@@ -261,6 +271,7 @@ describe('POST /v1/appointments/:appointmentId/status-transitions', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('AWAITING_INSPECTOR');
+    expect(res.body.data.previousStatus).toBe('DRAFT');
   });
 
   it('should return 400 with invalid targetStatus', async () => {
@@ -285,6 +296,36 @@ describe('POST /v1/appointments/:appointmentId/status-transitions', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('POST /v1/appointments/:appointmentId/cross-check-done', () => {
+  it('should return 200 with cross-check result', async () => {
+    mockJwtVerify.mockReset();
+    mockJwtVerify.mockResolvedValue(amContext);
+    mockPerformCrossCheckExecute.mockResolvedValueOnce({
+      id: APPOINTMENT_ID,
+      status: 'DONE',
+      previousStatus: 'DONE',
+      reason: null,
+      inspectorId: '11111111-1111-4111-8111-111111111111',
+      doneCheckedByUserId: '22222222-2222-4222-8222-222222222222',
+      doneCheckedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .post(`/v1/appointments/${APPOINTMENT_ID}/cross-check-done`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('DONE');
+    expect(res.body.data.doneCheckedByUserId).toBe('22222222-2222-4222-8222-222222222222');
+    expect(mockPerformCrossCheckExecute).toHaveBeenCalledWith({
+      appointmentId: APPOINTMENT_ID,
+      actor: amContext,
+    });
   });
 });
 
