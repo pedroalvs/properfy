@@ -394,3 +394,50 @@
 1. Para chamar a `FASE 1` de concluída e estável, não bastou a prova dirigida da fase; a decisão correta foi exigir também `typecheck`, `build` e suíte completa verdes em `backend`, `web` e `pwa`.
 2. Os resíduos encontrados nessa checagem ampla eram de baixo risco e foram corrigidos no próprio round: um harness de integração de `pricing-rules` que não refletia o campo obrigatório `currency`, e um teste de `AppointmentStatusChip` desatualizado após a introdução da semântica de review em `DONE`.
 3. Com isso, o fechamento de estabilidade da fase passou a ficar apoiado não só no fluxo de aceite, mas também na saúde completa das stacks relevantes do monorepo.
+
+## 2026-03-25 - PWA Deve Rejeitar Roles Nao Suportadas no Ponto de Entrada
+
+1. O PWA é um produto exclusivo para `INSP`; a decisão correta foi rejeitar `AM`, `OP`, `CL` e demais roles já no bootstrap de sessão e no `login`, em vez de autenticar e deixar o router/guard gerar loop silencioso.
+2. Quando o backend autenticar uma role não suportada, o PWA deve limpar tokens locais e exibir mensagem explícita orientando uso do portal web administrativo, não redirecionar para `/schedule` nem cair em tela branca.
+3. A tela de `login` também passou a comunicar isso de forma estável antes da autenticação, para reduzir erro de acesso e suporte desnecessário.
+
+## 2026-03-25 - Marketplace do PWA Deve Permanecer Utilizavel Offline com Cache
+
+1. A decisão correta foi manter o feed de ofertas visível quando houver dados em cache, mesmo offline. Ocultar toda a lista só porque a conexão caiu transforma um PWA em tela vazia e desperdiça o valor do cache já carregado.
+2. O modo offline continua restringindo a ação de aceitar oferta, mas a listagem e o timestamp da última atualização podem permanecer visíveis com segurança.
+3. Para datas canônicas `YYYY-MM-DD` no PWA, a ordenação mínima segura é por comparação lexical ou helper de data local; `new Date('YYYY-MM-DD')` foi evitado nessa superfície para não reintroduzir drift por timezone.
+
+## 2026-03-25 - Appointment Detail do PWA Deve Refletir Execucao Local
+
+1. A decisão correta foi deixar o detalhe do appointment ler o estado local de execução e trocar a CTA para `Resume Inspection` quando existir inspeção em andamento localmente.
+2. Em fluxo offline-first, o detalhe não pode depender só do status remoto do appointment para decidir a ação principal; isso esconderia retomada legítima depois de refresh, perda de conexão ou saída acidental do app.
+3. A solução mínima segura foi reaproveitar a mesma rota `/execution/:appointmentId`, sem criar estado ou comando novo no backend.
+
+## 2026-03-25 - Back Navigation do PWA Precisa de Fallback Canônico
+
+1. Em páginas internas do PWA abertas por link direto, refresh ou reentrada do app, `navigate(-1)` puro não é suficiente; ele pode sair do fluxo do produto ou depender de histórico inexistente.
+2. A decisão correta foi fazer o `TopBar` usar back nativo só quando houver histórico interno do router (`history.state.idx > 0`) e, caso contrário, voltar para a rota canônica do app (`/schedule` por padrão).
+3. Isso mantém a navegação natural dentro do app sem quebrar entrada direta em detalhe ou execução.
+
+## 2026-03-25 - Deep Links de Contato e Mapa do PWA Precisam Ser Honestos
+
+1. Coordenadas `0` são válidas e não podem ser tratadas como ausência. A decisão correta foi checar `latitude/longitude !== null` antes de montar o link de mapa, em vez de usar truthiness.
+2. Quando o backend não trouxer telefone nem email do tenant, a seção de contato do detalhe não deve ficar vazia; o PWA passou a mostrar fallback explícito de ausência de dados.
+3. Essas correções mantêm o detalhe do appointment utilizável mesmo com dados parciais ou propriedades em coordenadas limítrofes.
+
+## 2026-03-25 - Execution do PWA Deve Permitir Recuperacao de Geolocalizacao e Respeitar Limite de Fotos
+
+1. Quando a geolocalização cair em `denied`, a UI ainda precisa oferecer `Try Again`; negar a primeira solicitação não pode aprisionar o usuário sem ação dentro do painel.
+2. O `PhotoCapture` passou a respeitar o número de vagas restantes (`maxPhotos - count`) mesmo quando o usuário seleciona múltiplos arquivos de uma vez.
+3. Essas duas correções evitam bloqueio operacional e estouro silencioso de limite no fluxo de campo.
+
+## 2026-03-25 - Banner Offline do Marketplace Deve Refletir o Cache Visivel
+
+1. Depois que o marketplace do PWA passou a exibir ofertas em cache offline, o banner não podia continuar dizendo que internet era necessária para “view and accept offers”.
+2. A decisão correta foi alinhar a cópia para o comportamento real: ofertas em cache podem continuar visíveis, mas aceitar novo trabalho exige conexão.
+
+## 2026-03-25 - Update Prompt do PWA Deve Detectar Worker Ja em Waiting
+
+1. O `SwUpdatePrompt` não pode depender apenas de `updatefound`; em produção, o app pode montar com um service worker já em `waiting`.
+2. A decisão correta foi checar `registration.waiting` assim que `navigator.serviceWorker.ready` resolve e reaproveitar a mesma action de `SKIP_WAITING`.
+3. O cleanup do listener também passou a usar a referência capturada do `serviceWorker`, evitando dependência implícita do global no unmount.

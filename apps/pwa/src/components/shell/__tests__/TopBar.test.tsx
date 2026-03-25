@@ -10,8 +10,16 @@ vi.mock('react-router-dom', async () => {
 });
 
 describe('TopBar', () => {
+  let historyStateSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     mockNavigate.mockClear();
+    historyStateSpy = vi.spyOn(window.history, 'state', 'get');
+    historyStateSpy.mockReturnValue({ idx: 1 });
+  });
+
+  afterEach(() => {
+    historyStateSpy.mockRestore();
   });
 
   it('renders title', () => {
@@ -34,6 +42,16 @@ describe('TopBar', () => {
     renderWithProviders(<TopBar title="Detail" showBack />);
     await user.click(screen.getByTestId('back-button'));
     expect(mockNavigate).toHaveBeenCalledWith(-1);
+  });
+
+  it('falls back to /schedule on direct entry with no in-app history', async () => {
+    historyStateSpy.mockReturnValue({ idx: 0 });
+    const user = userEvent.setup();
+
+    renderWithProviders(<TopBar title="Detail" showBack />);
+    await user.click(screen.getByTestId('back-button'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/schedule', { replace: true });
   });
 
   it('shows connection indicator', () => {

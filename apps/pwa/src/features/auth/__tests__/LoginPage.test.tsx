@@ -62,6 +62,9 @@ describe('LoginPage', () => {
       expect(screen.getByTestId('login-error')).toBeInTheDocument();
       expect(screen.getByText('Invalid email or password.')).toBeInTheDocument();
     });
+
+    expect(screen.getByTestId('email-input')).toHaveValue('wrong@test.com');
+    expect(screen.getByTestId('password-input')).toHaveValue('wrong');
   });
 
   it('shows locked account message when backend returns AUTH_ACCOUNT_LOCKED', async () => {
@@ -91,5 +94,28 @@ describe('LoginPage', () => {
 
     renderWithProviders(<LoginPage />, { initialEntries: ['/login'] });
     expect(screen.queryByTestId('login-form')).not.toBeInTheDocument();
+  });
+
+  it('shows access guidance for unsupported roles instead of redirecting', async () => {
+    mockLogin.mockRejectedValue(
+      new ApiError(403, 'This app is only available for inspectors.', 'AUTH_ROLE_NOT_SUPPORTED'),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<LoginPage />);
+
+    await user.type(screen.getByTestId('email-input'), 'admin@test.com');
+    await user.type(screen.getByTestId('password-input'), 'password123');
+    await user.click(screen.getByTestId('login-button'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'This app is only available for inspectors. Use the web portal for admin or agency access.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('login-form')).toBeInTheDocument();
   });
 });

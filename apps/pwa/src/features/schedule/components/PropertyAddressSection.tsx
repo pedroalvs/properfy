@@ -5,7 +5,8 @@ interface PropertyAddressSectionProps {
 }
 
 export function PropertyAddressSection({ address, latitude, longitude }: PropertyAddressSectionProps) {
-  const mapsUrl = latitude && longitude
+  const hasCoordinates = latitude !== null && longitude !== null;
+  const mapsUrl = hasCoordinates
     ? `https://maps.google.com/?q=${latitude},${longitude}`
     : `https://maps.google.com/?q=${encodeURIComponent(address)}`;
 

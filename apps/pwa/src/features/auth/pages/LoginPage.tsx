@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { ApiError } from '@/lib/api-error';
+import { UserRole } from '@properfy/shared';
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -15,6 +16,8 @@ function getErrorMessage(error: unknown): string {
         return 'Account is inactive. Contact your administrator.';
       case 'AUTH_TOTP_REQUIRED':
         return 'Two-factor authentication code required.';
+      case 'AUTH_ROLE_NOT_SUPPORTED':
+        return 'This app is only available for inspectors. Use the web portal for admin or agency access.';
       case 'VALIDATION_ERROR':
         return 'Invalid email or password format.';
       default:
@@ -28,14 +31,20 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function LoginPage() {
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (authLoading) return null;
-  if (isAuthenticated) return <Navigate to="/schedule" replace />;
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-app-bg px-page-x">
+        <p className="text-sm text-text-secondary">Loading Properfy Inspector...</p>
+      </div>
+    );
+  }
+  if (isAuthenticated && user?.role === UserRole.INSP) return <Navigate to="/schedule" replace />;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,6 +71,10 @@ export function LoginPage() {
         <div className="text-center">
           <h1 className="text-page-title text-secondary">Properfy</h1>
           <p className="mt-1 text-sm text-text-secondary">Inspector Login</p>
+        </div>
+
+        <div className="mt-4 rounded border border-border-subtle bg-card-bg px-4 py-3 text-sm text-text-secondary">
+          This mobile app is for inspectors only. Admin and agency access should use the Properfy web portal.
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4" data-testid="login-form">

@@ -5,17 +5,31 @@ interface TopBarProps {
   title: string;
   subtitle?: string;
   showBack?: boolean;
+  backTo?: string;
 }
 
-export function TopBar({ title, subtitle, showBack = false }: TopBarProps) {
+export function TopBar({ title, subtitle, showBack = false, backTo = '/schedule' }: TopBarProps) {
   const navigate = useNavigate();
   const isOnline = useIsOnline();
+
+  const handleBack = () => {
+    const historyIndex = typeof window !== 'undefined'
+      ? (window.history.state as { idx?: number } | null)?.idx ?? 0
+      : 0;
+
+    if (historyIndex > 0) {
+      navigate(-1);
+      return;
+    }
+
+    navigate(backTo, { replace: true });
+  };
 
   return (
     <header className="flex min-h-[56px] items-center gap-2 bg-card-bg px-page-x shadow-sm">
       {showBack && (
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="flex min-h-touch min-w-touch items-center justify-center rounded-full hover:bg-black/5"
           aria-label="Go back"
           data-testid="back-button"

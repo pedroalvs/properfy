@@ -35,7 +35,7 @@ export function OfferFeed({ offers, onRefresh }: OfferFeedProps) {
     const aResolved = ['ACCEPTED', 'CONFLICT', 'GONE'].includes(aState);
     const bResolved = ['ACCEPTED', 'CONFLICT', 'GONE'].includes(bState);
     if (aResolved !== bResolved) return aResolved ? 1 : -1;
-    return new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime();
+    return a.scheduledDate.localeCompare(b.scheduledDate);
   });
 
   const handleAcceptClick = (offer: MarketplaceOffer) => {

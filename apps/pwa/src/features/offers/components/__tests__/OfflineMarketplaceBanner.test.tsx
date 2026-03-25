@@ -17,7 +17,12 @@ describe('OfflineMarketplaceBanner', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
     renderWithProviders(<OfflineMarketplaceBanner />);
     expect(screen.getByTestId('offline-marketplace-banner')).toBeInTheDocument();
-    expect(screen.getByText('Marketplace requires internet')).toBeInTheDocument();
+    expect(screen.getByText('Offline marketplace mode')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Cached offers may still be visible, but you need an internet connection to accept new work.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('hides banner when online', () => {

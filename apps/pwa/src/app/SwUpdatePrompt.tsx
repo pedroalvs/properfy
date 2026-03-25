@@ -11,13 +11,20 @@ export function SwUpdatePrompt() {
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
+    const serviceWorker = navigator.serviceWorker;
+    if (!serviceWorker) return;
 
     const handleControllerChange = () => {
       window.location.reload();
     };
 
     const checkForUpdates = async () => {
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await serviceWorker.ready;
+      if (reg.waiting) {
+        setShowUpdate(true);
+        setRegistration(reg);
+      }
+
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if (!newWorker) return;
@@ -31,11 +38,11 @@ export function SwUpdatePrompt() {
       });
     };
 
-    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+    serviceWorker.addEventListener('controllerchange', handleControllerChange);
     checkForUpdates();
 
     return () => {
-      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      serviceWorker.removeEventListener('controllerchange', handleControllerChange);
     };
   }, []);
 

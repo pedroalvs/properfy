@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import { api } from '@/services/api';
 import { authStorage } from '@/lib/auth-storage';
 import { ApiError } from '@/lib/api-error';
+import { UserRole } from '@properfy/shared';
 
 export interface AuthUser {
   id: string;
@@ -25,6 +26,18 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function normalizePwaUser(user: AuthUser): AuthUser {
+  if (user.role !== UserRole.INSP) {
+    throw new ApiError(
+      403,
+      'This app is only available for inspectors.',
+      'AUTH_ROLE_NOT_SUPPORTED',
+    );
+  }
+
+  return user;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(authStorage.getAccessToken());
@@ -41,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             totpEnabled?: boolean;
             lastLoginAt?: string | null;
           };
-          setUser({
+          setUser(normalizePwaUser({
             id: me.id,
             name: me.name,
             email: me.email,
@@ -50,12 +63,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone: me.phone,
             totpEnabled: me.totpEnabled,
             lastLoginAt: me.lastLoginAt,
-          });
+          }));
         }
       })
       .catch(() => {
         authStorage.clearTokens();
         setToken(null);
+        setUser(null);
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -72,9 +86,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         err?.error?.code,
       );
     }
-    authStorage.setTokens(data.accessToken, data.refreshToken);
-    setToken(data.accessToken);
-    setUser(data.user);
+    try {
+      const user = normalizePwaUser(data.user);
+      authStorage.setTokens(data.accessToken, data.refreshToken);
+      setToken(data.accessToken);
+      setUser(user);
+    } catch (roleError) {
+      authStorage.clearTokens();
+      setToken(null);
+      setUser(null);
+      throw roleError;
+    }
   }, []);
 
   const logout = useCallback(() => {

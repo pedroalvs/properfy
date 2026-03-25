@@ -11,9 +11,9 @@ export function OfflineMarketplaceBanner() {
       data-testid="offline-marketplace-banner"
     >
       <i className="mdi mdi-wifi-off text-[48px] text-text-muted" aria-hidden="true" />
-      <p className="mt-4 text-base font-semibold text-text-primary">Marketplace requires internet</p>
+      <p className="mt-4 text-base font-semibold text-text-primary">Offline marketplace mode</p>
       <p className="mt-1 text-sm text-text-secondary">
-        Connect to the internet to view and accept offers
+        Cached offers may still be visible, but you need an internet connection to accept new work.
       </p>
     </div>
   );

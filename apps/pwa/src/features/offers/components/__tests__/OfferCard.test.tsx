@@ -2,6 +2,7 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OfferCard } from '../OfferCard';
 import type { MarketplaceOffer } from '../../types';
+import { toLocalISODate } from '@/lib/format-date';
 
 const baseOffer: MarketplaceOffer = {
   groupId: 'group-1',
@@ -66,7 +67,7 @@ describe('OfferCard', () => {
 
   it('shows TODAY badge when date is today', () => {
     vi.useRealTimers();
-    const today = new Date().toISOString().split('T')[0]!;
+    const today = toLocalISODate(new Date());
     const todayOffer = { ...baseOffer, scheduledDate: today };
     render(<OfferCard offer={todayOffer} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByTestId('today-badge')).toBeInTheDocument();

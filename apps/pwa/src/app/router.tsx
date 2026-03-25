@@ -8,6 +8,9 @@ import { InspectorAuthGuard } from './InspectorAuthGuard';
 const LoginPage = lazy(() =>
   import('@/features/auth/pages/LoginPage').then((module) => ({ default: module.LoginPage })),
 );
+const AccessDeniedPage = lazy(() =>
+  import('@/features/auth/pages/AccessDeniedPage').then((module) => ({ default: module.AccessDeniedPage })),
+);
 const SchedulePage = lazy(() =>
   import('@/features/schedule/pages/SchedulePage').then((module) => ({
     default: module.SchedulePage,
@@ -59,6 +62,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: lazyElement(LoginPage),
+  },
+  {
+    path: '/access-denied',
+    element: lazyElement(AccessDeniedPage),
   },
   {
     element: <ProtectedRoute />,

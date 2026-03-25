@@ -61,15 +61,13 @@ export function GeoLocationCapture({ status, location, error, onRequest, childre
             <i className="mdi mdi-alert-circle" />
             {error}
           </div>
-          {status === 'error' && (
-            <button
-              onClick={onRequest}
-              className="mt-2 text-sm font-semibold text-primary"
-              data-testid="geo-retry-button"
-            >
-              Try Again
-            </button>
-          )}
+          <button
+            onClick={onRequest}
+            className="mt-2 text-sm font-semibold text-primary"
+            data-testid="geo-retry-button"
+          >
+            Try Again
+          </button>
         </div>
       )}
 

@@ -7,6 +7,7 @@ interface StartInspectionButtonProps {
   appointmentId: string;
   scheduledDate: string;
   timeSlot: string;
+  resume?: boolean;
 }
 
 const MINUTES_BEFORE = 30;
@@ -50,6 +51,7 @@ export function StartInspectionButton({
   appointmentId,
   scheduledDate,
   timeSlot,
+  resume = false,
 }: StartInspectionButtonProps) {
   const navigate = useNavigate();
   const [state, setState] = useState(() => getWindowState(scheduledDate, timeSlot));
@@ -59,20 +61,25 @@ export function StartInspectionButton({
   }, [scheduledDate, timeSlot]);
 
   useEffect(() => {
+    if (resume) return;
     const interval = setInterval(updateState, 30_000);
     return () => clearInterval(interval);
-  }, [updateState]);
+  }, [resume, updateState]);
+
+  const buttonState = resume
+    ? { enabled: true, label: 'Resume Inspection' }
+    : state;
 
   return (
     <Button
       variant="primary"
-      disabled={!state.enabled}
+      disabled={!buttonState.enabled}
       onClick={() => navigate(`/execution/${appointmentId}`)}
       className="!w-full !min-h-[48px]"
       data-testid="start-inspection-button"
     >
       <i className="mdi mdi-play-circle-outline text-lg" aria-hidden="true" />
-      {state.label}
+      {buttonState.label}
     </Button>
   );
 }

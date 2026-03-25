@@ -16,10 +16,15 @@ export function PhotoCapture({ onCapture, disabled, count, maxPhotos = 30 }: Pho
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
+    const remainingSlots = Math.max(maxPhotos - count, 0);
+    if (remainingSlots === 0) {
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
 
     const { compressImage } = await import('../hooks/useImageCompression');
 
-    for (const file of Array.from(files)) {
+    for (const file of Array.from(files).slice(0, remainingSlots)) {
       if (file.size > MAX_FILE_SIZE) continue;
       try {
         const compressed = await compressImage(file);

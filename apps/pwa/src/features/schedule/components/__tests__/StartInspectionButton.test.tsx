@@ -91,4 +91,19 @@ describe('StartInspectionButton', () => {
     expect(button).toBeDisabled();
     expect(button.textContent).toMatch(/Available in \d+ min/);
   });
+
+  it('shows resume state when a local inspection is already in progress', () => {
+    renderWithProviders(
+      <StartInspectionButton
+        appointmentId="apt-1"
+        scheduledDate="2099-12-31"
+        timeSlot="09:00-11:00"
+        resume
+      />,
+    );
+
+    const button = screen.getByTestId('start-inspection-button');
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveTextContent('Resume Inspection');
+  });
 });

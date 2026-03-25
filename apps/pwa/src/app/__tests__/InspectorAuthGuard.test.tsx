@@ -29,7 +29,7 @@ describe('InspectorAuthGuard', () => {
     expect(screen.getByText('Protected content')).toBeInTheDocument();
   });
 
-  it('redirects non-INSP users to login', () => {
+  it('redirects non-INSP users to access denied', () => {
     mockUseAuth.mockReturnValue({
       user: { id: '1', name: 'Admin', email: 'admin@test.com', role: 'AM', tenantId: null },
       isAuthenticated: true,
@@ -41,11 +41,12 @@ describe('InspectorAuthGuard', () => {
         <Route element={<InspectorAuthGuard />}>
           <Route index element={<div>Protected content</div>} />
         </Route>
-        <Route path="/login" element={<div>Login page</div>} />
+        <Route path="/access-denied" element={<div>Access denied page</div>} />
       </Routes>,
     );
 
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+    expect(screen.getByText('Access denied page')).toBeInTheDocument();
   });
 
   it('redirects when user is null', () => {
@@ -65,5 +66,6 @@ describe('InspectorAuthGuard', () => {
     );
 
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+    expect(screen.getByText('Login page')).toBeInTheDocument();
   });
 });

@@ -5,6 +5,8 @@ interface TenantContactSectionProps {
 }
 
 export function TenantContactSection({ name, phone, email }: TenantContactSectionProps) {
+  const hasContactDetails = Boolean(phone || email);
+
   return (
     <section className="rounded-lg bg-card-bg p-4" data-testid="tenant-contact-section">
       <h3 className="text-xs font-bold uppercase text-text-secondary">Tenant</h3>
@@ -21,6 +23,9 @@ export function TenantContactSection({ name, phone, email }: TenantContactSectio
             <i className="mdi mdi-email-outline text-base" aria-hidden="true" />
             {email}
           </a>
+        )}
+        {!hasContactDetails && (
+          <p className="text-sm text-text-muted">No contact details available.</p>
         )}
       </div>
     </section>

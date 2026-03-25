@@ -20,6 +20,8 @@ export function MarketplacePage() {
   const isOnline = useIsOnline();
   const { data, isLoading, isError, refetch, dataUpdatedAt } = useMarketplaceOffers();
   const offers = data?.data ?? [];
+  const hasCachedOffers = offers.length > 0;
+  const shouldShowFeed = !isLoading && (!isError || hasCachedOffers);
 
   return (
     <div data-testid="marketplace-page">
@@ -33,11 +35,11 @@ export function MarketplacePage() {
         </div>
       )}
 
-      {isOnline && isError && (
+      {isOnline && isError && !hasCachedOffers && (
         <ErrorState message="Failed to load offers" onRetry={refetch} />
       )}
 
-      {isOnline && !isLoading && !isError && (
+      {shouldShowFeed && (
         <PullToRefresh onRefresh={refetch}>
           {dataUpdatedAt > 0 && (
             <p className="px-page-x pt-2 text-xs text-text-muted" data-testid="last-updated">

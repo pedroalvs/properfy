@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useListQuery } from '@/hooks/useApiQuery';
 import { EarningsSummaryCard } from '../components/EarningsSummaryCard';
+import { formatDate } from '@/lib/format-date';
 
 interface FinancialEntry {
   id: string;
@@ -110,7 +111,7 @@ export function EarningsPage() {
                       {formatCurrency(entry.amount, entry.currency)}
                     </p>
                     <p className="text-xs text-text-muted">
-                      {new Date(entry.effectiveAt).toLocaleDateString('en-AU')}
+                      {formatDate(entry.effectiveAt)}
                     </p>
                   </div>
                   <span className="rounded bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">

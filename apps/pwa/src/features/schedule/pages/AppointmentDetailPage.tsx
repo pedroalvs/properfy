@@ -10,11 +10,13 @@ import { TenantContactSection } from '../components/TenantContactSection';
 import { KeyDetailsSection } from '../components/KeyDetailsSection';
 import { StartInspectionButton } from '../components/StartInspectionButton';
 import { useInspectorAppointment } from '../hooks/useInspectorAppointment';
+import { useLocalExecutionState } from '@/features/execution/hooks/useLocalExecutionState';
 import { formatScheduleDate, formatTimeWindow } from '../lib/time-slot';
 
 export function AppointmentDetailPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
   const { data, isLoading, isError, refetch } = useInspectorAppointment(appointmentId!);
+  const { state: localExecutionState, isRestored } = useLocalExecutionState(appointmentId!);
 
   if (isLoading) {
     return (
@@ -37,6 +39,9 @@ export function AppointmentDetailPage() {
   }
 
   const apt = data.data;
+  const hasResumableExecution =
+    isRestored &&
+    ['IN_PROGRESS', 'FINISHING', 'SUBMITTING', 'ERROR'].includes(localExecutionState.phase);
 
   return (
     <div data-testid="appointment-detail-page">
@@ -82,12 +87,13 @@ export function AppointmentDetailPage() {
           </section>
         )}
 
-        {apt.status === AppointmentStatus.SCHEDULED && (
+        {(hasResumableExecution || apt.status === AppointmentStatus.SCHEDULED) && (
           <div className="mt-2">
             <StartInspectionButton
               appointmentId={apt.id}
               scheduledDate={apt.scheduledDate}
               timeSlot={apt.timeSlot}
+              resume={hasResumableExecution}
             />
           </div>
         )}
