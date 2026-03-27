@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['icons/icon-192x192.png', 'icons/icon-512x512.png'],
+      includeAssets: ['icons/favicon.png'],
       manifest: {
         name: 'Properfy Inspector',
         short_name: 'Properfy',
@@ -20,12 +20,12 @@ export default defineConfig({
         start_url: '/schedule',
         icons: [
           {
-            src: 'icons/icon-192x192.png',
+            src: 'icons/favicon.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: 'icons/icon-512x512.png',
+            src: 'icons/favicon.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable',
