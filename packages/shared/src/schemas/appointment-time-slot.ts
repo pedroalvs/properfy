@@ -47,8 +47,7 @@ export const listAppointmentTimeSlotsQuerySchema = z.object({
   tenantId: z.string().uuid().optional(),
   branchId: z.string().uuid().optional(),
   includeInactive: z
-    .string()
-    .transform((v) => v === 'true')
+    .union([z.boolean(), z.string().transform((v) => v === 'true')])
     .optional(),
 });
 export type ListAppointmentTimeSlotsQueryInput = z.infer<typeof listAppointmentTimeSlotsQuerySchema>;
