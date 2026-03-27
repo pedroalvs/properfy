@@ -8,7 +8,7 @@ import {
   inspectorScheduleResponseSchema,
   inspectionExecutionResponseSchema,
   inspectionAssetResponseSchema,
-  appointmentResponseSchema,
+  inspectorAppointmentDetailResponseSchema,
   successResponseSchema,
   listMarketplaceOffersQuerySchema,
   marketplaceOfferResponseSchema,
@@ -74,7 +74,7 @@ export async function registerInspectorExecutionRoutes(
   // GET /v1/inspector/appointments/:appointmentId
   app.get(
     '/v1/inspector/appointments/:appointmentId',
-    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 200: successResponseSchema(appointmentResponseSchema) } } },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 200: successResponseSchema(inspectorAppointmentDetailResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {

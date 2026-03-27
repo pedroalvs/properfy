@@ -22,7 +22,7 @@ interface AuthContextValue {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -67,9 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, totpCode?: string) => {
     const { data, error, response } = await api.POST('/v1/auth/login', {
-      body: { email, password },
+      body: { email, password, ...(totpCode ? { totpCode } : {}) },
     });
     const err = error as any;
     if (err || !data) {

@@ -301,3 +301,17 @@
 - A migration foi aplicada com sucesso via `prisma migrate deploy` e o banco passou a registrar `appointment_time_slots` com `4` linhas, `2` por tenant demo atual.
 - A causa raiz do drift ficou explícita: o deploy via Fly não rodava migrations e a imagem nem carregava a pasta `prisma/` para permitir um `release_command`.
 - O `Dockerfile` agora copia `apps/backend/prisma/` para a imagem final, instala `prisma` CLI e o `fly.toml` passou a executar `prisma migrate deploy` antes de subir a nova release.
+
+## TODO - Refino do Login Web 2026-03-27
+
+- [x] Auditar a tela atual de login do `web`
+- [x] Validar a direção de UX com o Claude
+- [x] Melhorar a hierarquia visual da tela sem criar fluxo placebo
+- [x] Adicionar suporte real a `TOTP` no login do `web`
+- [x] Validar testes focados e `web typecheck`
+
+## Resultado - Refino do Login Web 2026-03-27
+
+- A tela de login do `web` deixou de ser um card genérico no centro da tela e passou a usar um layout mais maduro para produto B2B operacional: painel lateral de contexto em desktop, cabeçalho enxuto no mobile e formulário com hierarquia mais forte.
+- O login agora incorpora `TOTP` condicional de verdade, em linha com o contrato já existente do backend, evitando drift entre ativação de 2FA e experiência de acesso.
+- O suporte operacional ficou explícito por texto estático honesto, sem links/placeholders para fluxos inexistentes.

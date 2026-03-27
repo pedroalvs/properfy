@@ -561,3 +561,9 @@
 3. O `fly.toml` passou a usar `release_command = 'cd /app/apps/backend && prisma migrate deploy'`.
 4. Para isso funcionar de forma determinística, a imagem final do backend precisa carregar `apps/backend/prisma/` e ter CLI do Prisma disponível.
 5. A migration `20260326000000_add_appointment_time_slots` foi aplicada manualmente no banco atual para reparar o ambiente já publicado, e a prevenção agora fica no próprio deploy.
+
+## 2026-03-27 - Login do Web Deve Parecer Produto Operacional, Nao Card Generico
+
+1. A direção correta para o login do `web` não era “landing page de marketing”, nem um formulário cru; o melhor meio-termo para produto B2B operacional é split layout sóbrio, com painel de confiança/contexto em desktop e formulário mais focado no mobile.
+2. O conteúdo auxiliar do login deve reforçar o uso do produto e orientar suporte real, sem introduzir links/placeholders para `forgot password`, help center ou flows que o sistema ainda não implementa.
+3. Como o backend já exige `totpCode` quando 2FA está ativado, o login do `web` precisa suportar esse segundo fator condicionalmente no próprio formulário. Ativar 2FA sem login compatível seria regressão funcional, não apenas lacuna visual.

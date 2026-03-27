@@ -241,6 +241,63 @@ export const appointmentResponseSchema = z.object({
   branch: z.unknown().optional(),
 });
 
+export const inspectorAppointmentDetailResponseSchema = z.object({
+  id: z.string().uuid(),
+  status: z.string(),
+  scheduledDate: z.string(),
+  timeSlot: z.string(),
+  timeSlotStart: z.string(),
+  timeSlotEnd: z.string(),
+  serviceTypeId: z.string().uuid(),
+  serviceTypeName: z.string().nullable(),
+  flowType: z.string(),
+  propertyId: z.string().uuid(),
+  propertyAddress: z.string(),
+  suburb: z.string(),
+  propertyLatitude: z.number().nullable(),
+  propertyLongitude: z.number().nullable(),
+  tenantConfirmationStatus: z.string(),
+  tenantConfirmation: z.string(),
+  keyRequired: z.boolean(),
+  meetingLocation: z.string().nullable(),
+  keyLocation: z.string().nullable(),
+  tenantName: z.string(),
+  tenantPhone: z.string().nullable(),
+  tenantEmail: z.string().nullable(),
+  notes: z.string().nullable(),
+  restrictionsSummary: z.string().nullable(),
+  contact: z.object({
+    tenantName: z.string(),
+    primaryEmail: z.string().nullable(),
+    primaryPhone: z.string().nullable(),
+    secondaryPhone: z.string().nullable(),
+  }).nullable(),
+  restrictions: z.array(z.object({
+    isHome: z.boolean(),
+    unavailableDaysJson: z.unknown(),
+    unavailableHoursJson: z.unknown(),
+    notes: z.string().nullable(),
+  })),
+  execution: z.object({
+    id: z.string().uuid(),
+    startedAt: z.string(),
+    finishedAt: z.string().nullable(),
+    startLatitude: z.number(),
+    startLongitude: z.number(),
+    finishLatitude: z.number().nullable(),
+    finishLongitude: z.number().nullable(),
+    status: z.enum(['IN_PROGRESS', 'FINISHED']),
+  }).nullable(),
+  assets: z.array(z.object({
+    id: z.string().uuid(),
+    storageKey: z.string(),
+    mimeType: z.string(),
+    sizeBytes: z.number().nullable(),
+    kind: z.string(),
+    status: z.string(),
+  })),
+});
+
 // ─── Service Group ─────────────────────────────────────────────────────────
 
 export const serviceGroupResponseSchema = z.object({

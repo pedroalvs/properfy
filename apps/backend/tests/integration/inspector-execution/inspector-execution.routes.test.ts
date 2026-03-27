@@ -64,17 +64,23 @@ beforeEach(() => { vi.clearAllMocks(); });
 describe('GET /v1/inspector/schedule', () => {
   it('should return 200 with schedule data', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
-    const scheduleResult = [
-      {
-        id: APPOINTMENT_ID,
-        appointmentId: APPOINTMENT_ID,
-        status: 'SCHEDULED',
-        scheduledDate: '2026-03-16',
-        timeSlot: '09:00-10:00',
-        property: { street: '123 Main St', suburb: 'Sydney' },
-        serviceType: { code: 'ROUTINE', name: 'Routine Inspection' },
-      },
-    ];
+    const scheduleResult = {
+      date: '2026-03-16',
+      appointments: [
+        {
+          id: APPOINTMENT_ID,
+          status: 'SCHEDULED',
+          scheduledDate: '2026-03-16',
+          timeSlot: '09:00-10:00',
+          serviceTypeId: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44',
+          propertyId: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
+          tenantConfirmationStatus: 'CONFIRMED',
+          keyRequired: false,
+          meetingLocation: null,
+          executionStatus: 'NOT_STARTED',
+        },
+      ],
+    };
     mockGetInspectorScheduleExecute.mockResolvedValueOnce(scheduleResult);
 
     const res = await supertest(app.server)
@@ -82,8 +88,9 @@ describe('GET /v1/inspector/schedule', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].scheduledDate).toBe('2026-03-16');
+    expect(res.body.date).toBe('2026-03-16');
+    expect(res.body.appointments).toHaveLength(1);
+    expect(res.body.appointments[0].scheduledDate).toBe('2026-03-16');
   });
 
   it('should return 401 without auth token', async () => {
@@ -99,32 +106,33 @@ describe('GET /v1/inspector/appointments/:appointmentId', () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     const detailResult = {
       id: APPOINTMENT_ID,
-      tenantId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-      branchId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
       propertyId: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
       serviceTypeId: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44',
-      inspectorId: null,
-      serviceGroupId: null,
       status: 'SCHEDULED',
       scheduledDate: '2026-03-16',
       timeSlot: '09:00-10:00',
+      timeSlotStart: '2026-03-16T09:00:00',
+      timeSlotEnd: '2026-03-16T10:00:00',
+      serviceTypeName: 'Routine Inspection',
+      flowType: 'ROUTINE',
+      propertyAddress: '123 Main St',
+      suburb: 'Sydney',
+      propertyLatitude: -33.8688,
+      propertyLongitude: 151.2093,
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,
       tenantConfirmationStatus: 'CONFIRMED',
-      priceAmount: 150,
-      payoutAmount: 100,
-      pricingRuleSnapshotJson: {},
+      tenantConfirmation: 'CONFIRMED',
+      tenantName: 'John Smith',
+      tenantPhone: '+61400000000',
+      tenantEmail: 'john@example.com',
       notes: null,
-      customFieldsJson: null,
-      reason: null,
-      createdByUserId: 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66',
-      doneCheckedByUserId: null,
-      doneCheckedAt: null,
-      createdAt: '2026-03-16T00:00:00.000Z',
-      updatedAt: '2026-03-16T00:00:00.000Z',
+      restrictionsSummary: null,
       contact: null,
       restrictions: [],
+      execution: null,
+      assets: [],
     };
     mockGetAppointmentDetailExecute.mockResolvedValueOnce(detailResult);
 
