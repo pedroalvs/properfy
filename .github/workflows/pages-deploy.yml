@@ -124,7 +124,7 @@ jobs:
       - name: Build web
         run: pnpm --filter web build
         env:
-          VITE_API_BASE_URL: https://properfy-prod.fly.dev
+          VITE_API_BASE_URL: https://api-properfy.autolabs.tech
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: Deploy to Cloudflare Pages
@@ -158,7 +158,7 @@ jobs:
       - name: Build PWA
         run: pnpm --filter pwa build
         env:
-          VITE_API_BASE_URL: https://properfy-prod.fly.dev
+          VITE_API_BASE_URL: https://api-properfy.autolabs.tech
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: Deploy to Cloudflare Pages
