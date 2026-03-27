@@ -63,7 +63,7 @@ export function AppointmentFormDrawer({
     ['branches', 'form-options', effectiveTenantId ?? ''],
     '/v1/branches',
     (item) => ({ value: item.id, label: item.name }),
-    effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
+    { ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}), status: 'ACTIVE' },
     { enabled: !isGlobalRole || !!effectiveTenantId },
   );
   const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
