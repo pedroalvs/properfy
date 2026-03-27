@@ -19,15 +19,15 @@ function getErrorMessage(error: unknown): string {
       case 'AUTH_ROLE_NOT_SUPPORTED':
         return 'This app is only available for inspectors. Use the web portal for admin or agency access.';
       case 'VALIDATION_ERROR':
-        return 'Invalid email or password format.';
+        return 'Please check your email and password format.';
       default:
         break;
     }
-    if (error.status === 429) return 'Too many attempts. Please wait.';
-    if (error.status >= 500) return 'Server error. Please try again later.';
+    if (error.status === 429) return 'Too many attempts. Wait a moment and try again.';
+    if (error.status >= 500) return 'Server is temporarily unavailable. Try again shortly.';
     return 'Invalid email or password.';
   }
-  return 'An unexpected error occurred.';
+  return 'Something went wrong. Check your connection and try again.';
 }
 
 export function LoginPage() {
@@ -39,8 +39,11 @@ export function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-app-bg px-page-x">
-        <p className="text-sm text-text-secondary">Loading Properfy Inspector...</p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-6">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+          <i className="mdi mdi-loading mdi-spin text-2xl text-primary" aria-hidden="true" />
+        </div>
+        <p className="mt-4 text-sm text-text-secondary">Restoring session...</p>
       </div>
     );
   }
@@ -66,29 +69,24 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(30,64,175,0.10),_transparent_42%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] px-page-x py-8">
-      <div className="w-full max-w-sm">
-        <div className="rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)] backdrop-blur">
-          <div className="text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[inset_0_0_0_1px_rgba(59,130,246,0.15)]">
-              <i className="mdi mdi-clipboard-account-outline text-[28px]" aria-hidden="true" />
-            </div>
-            <h1 className="mt-4 text-page-title text-secondary">Properfy</h1>
-            <p className="mt-1 text-sm text-text-secondary">Inspector Login</p>
-            <p className="mt-2 text-xs leading-5 text-text-muted">
-              Mobile workspace for field inspections, schedules and offer intake.
-            </p>
-          </div>
+    <div className="flex min-h-screen flex-col bg-slate-50">
+      {/* Brand header */}
+      <div className="flex flex-col items-center px-6 pt-16 pb-6">
+        <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
+          <i className="mdi mdi-clipboard-check-outline text-[32px] text-white" aria-hidden="true" />
+        </div>
+        <h1 className="mt-5 text-2xl font-bold tracking-tight text-secondary">Properfy</h1>
+        <p className="mt-1 text-sm font-medium text-text-secondary">Inspector Field App</p>
+      </div>
 
-          <div className="mt-5 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3 text-sm text-text-secondary">
-            This mobile app is for inspectors only. Admin and agency access should use the Properfy web portal.
-          </div>
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4" data-testid="login-form">
+      {/* Form card */}
+      <div className="flex-1 px-5 pb-8">
+        <div className="mx-auto w-full max-w-sm">
+          <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
             {error && (
               <div
                 role="alert"
-                className="rounded-2xl border border-error/20 bg-error/10 px-4 py-3 text-sm text-error"
+                className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
                 data-testid="login-error"
               >
                 {error}
@@ -106,7 +104,9 @@ export function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="h-12 w-full rounded-2xl border border-border-subtle bg-app-bg/80 px-3.5 text-sm text-text-primary outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                inputMode="email"
+                placeholder="your@email.com"
+                className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
                 data-testid="email-input"
               />
             </div>
@@ -122,7 +122,8 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="h-12 w-full rounded-2xl border border-border-subtle bg-app-bg/80 px-3.5 text-sm text-text-primary outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                placeholder="Enter your password"
+                className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
                 data-testid="password-input"
               />
             </div>
@@ -130,12 +131,25 @@ export function LoginPage() {
             <Button
               type="submit"
               loading={isSubmitting}
-              className="!w-full !min-h-[50px] !rounded-2xl"
+              className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
               data-testid="login-button"
             >
               Sign In
             </Button>
           </form>
+
+          {/* Context */}
+          <div className="mt-6 rounded-2xl border border-primary/8 bg-primary/4 px-4 py-3">
+            <p className="text-xs leading-relaxed text-text-secondary">
+              <span className="font-semibold">Inspector access only.</span>{' '}
+              Your schedule, offers and inspections are available here. Agency and admin users should use the{' '}
+              <span className="font-medium text-primary">web portal</span>.
+            </p>
+          </div>
+
+          <p className="mt-6 text-center text-[11px] text-text-muted">
+            Can't sign in? Contact your operations team for access.
+          </p>
         </div>
       </div>
     </div>
