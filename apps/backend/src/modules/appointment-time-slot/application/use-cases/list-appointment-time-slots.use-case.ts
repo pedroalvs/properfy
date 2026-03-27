@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { IAppointmentTimeSlotRepository } from '../../domain/appointment-time-slot.repository';
 
 export interface ListAppointmentTimeSlotsInput {
@@ -35,12 +35,18 @@ export class ListAppointmentTimeSlotsUseCase {
     }
 
     // AM/OP can query any tenant; CL_ADMIN/CL_USER can only query own tenant
-    const tenantId = (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER')
-      ? actor.tenantId!
-      : (input.tenantId ?? actor.tenantId!);
-
-    if ((actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') && input.tenantId && input.tenantId !== actor.tenantId) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Cannot list time slots for another tenant');
+    let tenantId: string;
+    if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+      tenantId = actor.tenantId!;
+      if (input.tenantId && input.tenantId !== actor.tenantId) {
+        throw new ForbiddenError('AUTH_FORBIDDEN', 'Cannot list time slots for another tenant');
+      }
+    } else {
+      // AM/OP: tenantId required from query
+      tenantId = input.tenantId ?? actor.tenantId ?? '';
+      if (!tenantId) {
+        throw new ValidationError('tenantId is required for this role');
+      }
     }
 
     const entities = await this.timeSlotRepo.findAll({

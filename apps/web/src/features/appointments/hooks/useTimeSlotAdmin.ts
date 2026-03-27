@@ -47,6 +47,7 @@ export function useTimeSlotList(tenantId?: string, branchId?: string | null) {
 
   const query = useQuery<TimeSlotListResponse, ApiError>({
     queryKey: ['time-slots', tenantId, branchId],
+    enabled: !!tenantId,
     queryFn: async () => {
       const { data, error } = await api.GET('/v1/time-slots' as any, {
         params: { query: params as any },
