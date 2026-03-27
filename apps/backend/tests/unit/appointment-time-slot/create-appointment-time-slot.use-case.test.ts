@@ -2,11 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateAppointmentTimeSlotUseCase } from '../../../src/modules/appointment-time-slot/application/use-cases/create-appointment-time-slot.use-case';
 import type { IAppointmentTimeSlotRepository } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import type { AuthContext } from '@properfy/shared';
+import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
+import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
+import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
 
 describe('CreateAppointmentTimeSlotUseCase', () => {
   let timeSlotRepo: IAppointmentTimeSlotRepository;
+  let branchRepo: IBranchRepository;
   let auditService: AuditService;
   let useCase: CreateAppointmentTimeSlotUseCase;
 
@@ -67,11 +71,34 @@ describe('CreateAppointmentTimeSlotUseCase', () => {
       findEffective: vi.fn(),
       softDelete: vi.fn(),
     };
+    branchRepo = {
+      findById: vi.fn(),
+      findByName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      countByTenantIds: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new CreateAppointmentTimeSlotUseCase(timeSlotRepo, auditService);
+    useCase = new CreateAppointmentTimeSlotUseCase(timeSlotRepo, branchRepo, auditService);
   });
 
   it('should create a time slot successfully as AM', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(
+      new BranchEntity({
+        id: 'branch-1',
+        tenantId: 'tenant-1',
+        name: 'Sydney',
+        addressJson: null,
+        contactEmail: null,
+        status: 'ACTIVE',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      }),
+    );
+
     const result = await useCase.execute({
       tenantId: 'tenant-1',
       branchId: 'branch-1',
@@ -230,5 +257,34 @@ describe('CreateAppointmentTimeSlotUseCase', () => {
     });
 
     expect(result.tenantId).toBe('tenant-99');
+  });
+
+  it('should reject branchId from another tenant', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        branchId: 'branch-other',
+        label: 'Morning',
+        startTime: '08:00',
+        endTime: '12:00',
+        sortOrder: 1,
+        actor: amActor,
+      }),
+    ).rejects.toThrow(BranchNotFoundError);
+  });
+
+  it('should reject invalid time ranges even when called directly', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        label: 'Morning',
+        startTime: '18:00',
+        endTime: '12:00',
+        sortOrder: 1,
+        actor: amActor,
+      }),
+    ).rejects.toThrow(ValidationError);
   });
 });

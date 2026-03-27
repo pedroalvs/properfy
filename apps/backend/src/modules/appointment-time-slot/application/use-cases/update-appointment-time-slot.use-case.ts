@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentTimeSlotRepository } from '../../domain/appointment-time-slot.repository';
 import { AppointmentTimeSlotEntity } from '../../domain/appointment-time-slot.entity';
@@ -64,13 +64,20 @@ export class UpdateAppointmentTimeSlotUseCase {
     };
 
     const now = new Date();
+    const nextStartTime = data.startTime ?? existing.startTime;
+    const nextEndTime = data.endTime ?? existing.endTime;
+
+    if (nextStartTime >= nextEndTime) {
+      throw new ValidationError('End time must be after start time');
+    }
+
     const updated = new AppointmentTimeSlotEntity({
       id: existing.id,
       tenantId: existing.tenantId,
       branchId: existing.branchId,
       label: data.label ?? existing.label,
-      startTime: data.startTime ?? existing.startTime,
-      endTime: data.endTime ?? existing.endTime,
+      startTime: nextStartTime,
+      endTime: nextEndTime,
       sortOrder: data.sortOrder ?? existing.sortOrder,
       isActive: data.isActive ?? existing.isActive,
       createdAt: existing.createdAt,

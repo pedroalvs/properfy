@@ -59,6 +59,15 @@ vi.mock('../hooks/useAppointmentSave', () => ({
   }),
 }));
 
+vi.mock('../hooks/useTimeSlotOptions', () => ({
+  useTimeSlotOptions: () => ({
+    options: [{ label: 'Morning (09:00 - 12:00)', value: '09:00-12:00' }],
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
+
 // Stable reference to prevent infinite re-render in useEffect
 const MOCK_APPOINTMENT = {
   id: 'apt-01', branchId: 'branch-1', propertyId: 'prop-1', serviceTypeId: 'st-1',
@@ -141,5 +150,10 @@ describe('AppointmentFormDrawer', () => {
       .at(-1);
 
     expect((latestPropertyCall as unknown[] | undefined)?.[3]).toEqual({ branchId: 'branch-1' });
+  });
+
+  it('allows editing the time slot in edit mode', () => {
+    renderDrawer({ appointmentId: 'apt-01' });
+    expect(screen.getByLabelText('Time Slot')).not.toBeDisabled();
   });
 });

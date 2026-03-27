@@ -100,6 +100,17 @@ describe('useUserList', () => {
     expect(result.current.pagination.total).toBe(2);
   });
 
+  it('calls internal users endpoint when scope is internal', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserList(undefined, 'internal'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockGet).toHaveBeenCalledWith('/v1/users', { params: { query: expect.any(Object) } });
+  });
+
   it('handles API error gracefully', async () => {
     mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Network error' } });
     const wrapper = createQueryWrapper();

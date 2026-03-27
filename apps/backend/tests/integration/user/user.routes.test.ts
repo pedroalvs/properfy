@@ -104,6 +104,26 @@ describe('POST /v1/tenants/:tenantId/users/:userId/reset-password', () => {
   });
 });
 
+describe('POST /v1/users/:userId/reset-password', () => {
+  it('should return 204 on successful internal password reset', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockResetUserPasswordExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/reset-password`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ newPassword: 'NewStrong1!' });
+
+    expect(res.status).toBe(204);
+    expect(mockResetUserPasswordExecute).toHaveBeenCalledWith({
+      tenantId: null,
+      userId: USER_ID,
+      newPassword: 'NewStrong1!',
+      actor: amContext,
+    });
+  });
+});
+
 describe('POST /v1/tenants/:tenantId/users', () => {
   it('should return 201 with valid payload', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
@@ -184,6 +204,46 @@ describe('POST /v1/tenants/:tenantId/users', () => {
   });
 });
 
+describe('POST /v1/users', () => {
+  it('should return 201 with valid internal payload', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreateUserExecute.mockResolvedValueOnce({
+      id: USER_ID,
+      name: 'Internal Operator',
+      email: 'op@example.com',
+      role: 'OP',
+      tenantId: null,
+      branchId: null,
+      phone: null,
+      status: 'ACTIVE',
+      totpEnabled: false,
+      lastLoginAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .post('/v1/users')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        name: 'Internal Operator',
+        email: 'op@example.com',
+        password: 'StrongPass1!',
+        role: 'OP',
+      });
+
+    expect(res.status).toBe(201);
+    expect(mockCreateUserExecute).toHaveBeenCalledWith({
+      tenantId: null,
+      name: 'Internal Operator',
+      email: 'op@example.com',
+      password: 'StrongPass1!',
+      role: 'OP',
+      actor: amContext,
+    });
+  });
+});
+
 describe('GET /v1/tenants/:tenantId/users', () => {
   it('should return 200 with paginated response', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
@@ -225,6 +285,43 @@ describe('GET /v1/tenants/:tenantId/users', () => {
       .get(`/v1/tenants/${TENANT_ID}/users`);
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe('GET /v1/users', () => {
+  it('should return 200 with internal users', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockListUsersExecute.mockResolvedValueOnce({
+      data: [
+        {
+          id: USER_ID,
+          name: 'Internal Operator',
+          email: 'op@example.com',
+          role: 'OP',
+          tenantId: null,
+          branchId: null,
+          phone: null,
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/users')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockListUsersExecute).toHaveBeenCalledWith({
+      tenantId: null,
+      filters: {},
+      pagination: { page: 1, pageSize: 20, sortBy: undefined, sortOrder: 'desc' },
+      actor: amContext,
+    });
   });
 });
 
@@ -280,6 +377,35 @@ describe('GET /v1/tenants/:tenantId/users/:userId', () => {
   });
 });
 
+describe('GET /v1/users/:userId', () => {
+  it('should return 200 with internal user', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetUserExecute.mockResolvedValueOnce({
+      id: USER_ID,
+      name: 'Internal Operator',
+      email: 'op@example.com',
+      role: 'OP',
+      tenantId: null,
+      branchId: null,
+      phone: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .get(`/v1/users/${USER_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockGetUserExecute).toHaveBeenCalledWith({
+      tenantId: null,
+      userId: USER_ID,
+      actor: amContext,
+    });
+  });
+});
+
 describe('PATCH /v1/tenants/:tenantId/users/:userId', () => {
   it('should return 200 on successful update', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
@@ -317,6 +443,37 @@ describe('PATCH /v1/tenants/:tenantId/users/:userId', () => {
       .send({ name: '' }); // min 1 char
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('PATCH /v1/users/:userId', () => {
+  it('should return 200 on successful internal update', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockUpdateUserExecute.mockResolvedValueOnce({
+      id: USER_ID,
+      name: 'Ops Lead',
+      email: 'op@example.com',
+      role: 'OP',
+      tenantId: null,
+      branchId: null,
+      phone: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .patch(`/v1/users/${USER_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Ops Lead' });
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateUserExecute).toHaveBeenCalledWith({
+      tenantId: null,
+      userId: USER_ID,
+      data: { name: 'Ops Lead' },
+      actor: amContext,
+    });
   });
 });
 

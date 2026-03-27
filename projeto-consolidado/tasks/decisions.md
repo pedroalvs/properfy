@@ -581,3 +581,23 @@
 2. O contrato compartilhado passou a aceitar `country` opcional e, quando informado, ele pode representar um ou vários códigos de país separados por vírgula.
 3. No `web`, não faz sentido manter “suporte a múltiplos idiomas” se a única superfície real era um seletor lateral com duas traduções pontuais. A decisão correta foi remover a troca de idioma da UI e também limpar a infraestrutura morta de locale.
 4. O produto continua com base textual única em inglês no `web`; se houver internacionalização real no futuro, ela deve nascer como projeto transversal de conteúdo, formatação e QA, não como toggle isolado em menu.
+
+## 2026-03-27 - Gestao de Usuarios Deve Separar Usuarios Internos de Usuarios da Agencia
+
+1. A tela atual de usuários forçava `AM/OP` a selecionar uma agência porque toda a superfície estava amarrada a `/v1/tenants/:tenantId/users`. Isso impedia listar e criar usuários internos do sistema.
+2. A decisão correta foi abrir um segundo eixo explícito de gestão: `Agency Users` continua tenant-scoped e `Internal Users` passa a usar rotas globais sem tenant.
+3. No backend, `AM/OP` internos agora são tratados como usuários com `tenantId = null` e `branchId = null`. Já papéis de agência (`CL_ADMIN`, `CL_USER`, `INSP`) continuam exigindo tenant e, quando aplicável, branch válida.
+4. No `web`, a UI global passou a alternar entre os dois escopos em vez de fingir que toda gestão de usuário é de agência. Isso reduz confusão operacional e torna explícito onde se cadastram administradores e operadores.
+
+## 2026-03-27 - Appointment Time Slots Precisam Validar Tenant da Branch e Intervalo no Backend
+
+1. O módulo de `appointment time slots` não pode confiar só na UI para garantir integridade. Se `branchId` vier no payload, o backend precisa validar que essa branch pertence ao mesmo tenant do slot.
+2. A decisão correta foi validar pertencimento via `branchRepo.findById(branchId, tenantId)` no create, em vez de aceitar o `branchId` cru e deixar corrupção multi-tenant entrar pelo catálogo administrativo.
+3. A regra `endTime > startTime` não pode viver apenas no drawer do `web`; ela precisa existir também no contrato compartilhado e nos use cases para proteger API, importadores e qualquer outro cliente.
+4. Para `AM/OP` globais na tela de configuração, “lista vazia” sem contexto é UX enganosa. A decisão correta foi explicitar que a tela depende de tenant selecionado e bloquear a criação até que esse contexto exista.
+
+## 2026-03-27 - Fluxos de Appointment Devem Consumir Time Slot de Forma Coerente com o Catalogo
+
+1. No `create appointment`, troca de tenant/agência deve limpar todos os campos dependentes do escopo, incluindo `timeSlot`. Manter o slot anterior depois da troca de contexto é drift de formulário.
+2. No `edit appointment`, `branch/property/service type` continuam imutáveis pelo contrato atual, mas `timeSlot` e `scheduledDate` são editáveis. A UI precisa refletir isso e não bloquear `timeSlot` por engano.
+3. Nas outras superfícies, `timeSlot` deve continuar sendo tratado como snapshot textual do agendamento, não como referência viva ao catálogo. Isso vale para PWA, detalhe de appointment, timeline, reports e portal.

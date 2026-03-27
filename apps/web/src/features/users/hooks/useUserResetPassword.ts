@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
+import type { UserScope } from '../types';
 
 const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,128}$/;
 
@@ -20,9 +21,12 @@ export interface ResetPasswordResult {
   error?: string;
 }
 
-export function useUserResetPassword(overrideTenantId?: string) {
+export function useUserResetPassword(
+  overrideTenantId?: string,
+  scope: UserScope = 'tenant',
+) {
   const { user: authUser } = useAuth();
-  const tenantId = overrideTenantId ?? authUser?.tenantId;
+  const tenantId = scope === 'tenant' ? (overrideTenantId ?? authUser?.tenantId) : null;
   const queryClient = useQueryClient();
   const [isResetting, setIsResetting] = useState(false);
 
@@ -48,12 +52,15 @@ export function useUserResetPassword(overrideTenantId?: string) {
     userId: string,
     data: UserResetPasswordFormData,
   ): Promise<ResetPasswordResult> => {
-    if (!tenantId) return { success: false, error: 'No tenant context' };
+    if (scope === 'tenant' && !tenantId) return { success: false, error: 'No tenant context' };
 
     setIsResetting(true);
     try {
+      const path = scope === 'internal'
+        ? `/v1/users/${userId}/reset-password`
+        : `/v1/tenants/${tenantId}/users/${userId}/reset-password`;
       const { error } = await api.POST(
-        `/v1/tenants/${tenantId}/users/${userId}/reset-password` as any,
+        path as any,
         {
           body: { newPassword: data.newPassword } as any,
         },
@@ -62,7 +69,7 @@ export function useUserResetPassword(overrideTenantId?: string) {
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['users'] }),
-        queryClient.invalidateQueries({ queryKey: ['users', tenantId, userId] }),
+        queryClient.invalidateQueries({ queryKey: ['users', scope, tenantId, userId] }),
       ]);
 
       return { success: true };
@@ -72,7 +79,7 @@ export function useUserResetPassword(overrideTenantId?: string) {
     } finally {
       setIsResetting(false);
     }
-  }, [queryClient, tenantId]);
+  }, [queryClient, scope, tenantId]);
 
   return { resetPassword, validate, isResetting };
 }

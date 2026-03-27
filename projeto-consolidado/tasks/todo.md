@@ -331,3 +331,38 @@
 - [x] Manter filtro por país como opção explícita, sem obrigá-lo
 - [x] Remover a UI e a infraestrutura morta de troca de idioma no `web`
 - [x] Validar com testes focados e `typecheck`
+
+## TODO - Suportar Usuarios Internos AM/OP na Gestao de Usuarios 2026-03-27
+
+- [x] Auditar o fluxo atual de usuários internos vs usuários de agência
+- [x] Abrir rotas globais de usuário interno no backend
+- [x] Permitir `AM/OP` no contrato compartilhado de create/update user
+- [x] Ajustar o `web` para alternar entre `Agency Users` e `Internal Users`
+- [x] Validar com testes focados e `typecheck`
+
+## TODO - Endurecer Appointment Time Slots 2026-03-27
+
+- [x] Corrigir criação de slot para validar `branchId` dentro do tenant correto
+- [x] Bloquear intervalos inválidos (`endTime <= startTime`) no contrato compartilhado e no backend
+- [x] Tornar a tela de configuração explícita quando `AM/OP` ainda não selecionou tenant
+- [x] Adicionar cobertura focada de schema, use cases e hooks/página
+- [x] Validar com testes dirigidos e `typecheck`
+
+## Resultado - Endurecer Appointment Time Slots 2026-03-27
+
+- O catálogo de `appointment time slots` ficou semanticamente mais seguro: criação não aceita mais `branchId` de outro tenant e update/create rejeitam intervalos de tempo impossíveis mesmo quando chamados fora da UI.
+- O `web` deixou de parecer “sem dados” para `AM/OP` sem tenant escolhido na configuração de slots; agora a tela comunica o pré-requisito explicitamente e bloqueia a criação até haver tenant ativo.
+- O bloco ganhou cobertura dedicada que antes não existia, reduzindo o risco de regressão silenciosa nas próximas mudanças.
+
+## TODO - Auditoria de Uso dos Time Slots 2026-03-27
+
+- [x] Revisar o uso do catálogo em `new appointment`, `edit appointment`, import e telas de configuração
+- [x] Corrigir desvios reais no `web` de create/edit
+- [x] Validar que backend continua tratando `timeSlot` como snapshot e catálogo ao mesmo tempo
+- [x] Rodar testes dirigidos de web e backend
+
+## Resultado - Auditoria de Uso dos Time Slots 2026-03-27
+
+- O uso do catálogo ficou consistente nos fluxos operacionais principais: `new appointment`, `edit appointment`, import e rota efetiva do backend.
+- Corrigi dois desvios no `web`: troca de agência agora limpa `timeSlot` no create manual, e o drawer de edição voltou a permitir alteração de `timeSlot`, alinhado ao contrato real do backend.
+- As outras superfícies auditadas usam `timeSlot` como snapshot de domínio, não como catálogo mutável, o que está correto para PWA, detalhe e portal.

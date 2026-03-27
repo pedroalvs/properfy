@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { paginationSchema } from './pagination';
 
 const TIME_RE = /^\d{2}:\d{2}$/;
+const TIME_RANGE_MESSAGE = 'End time must be after start time';
+
+function compareTimes(startTime: string, endTime: string) {
+  return startTime.localeCompare(endTime);
+}
 
 export const createAppointmentTimeSlotSchema = z.object({
   tenantId: z.string().uuid().optional(),
@@ -10,6 +15,14 @@ export const createAppointmentTimeSlotSchema = z.object({
   startTime: z.string().regex(TIME_RE, 'Must be HH:mm format'),
   endTime: z.string().regex(TIME_RE, 'Must be HH:mm format'),
   sortOrder: z.number().int().min(0).default(0),
+}).superRefine((data, ctx) => {
+  if (compareTimes(data.startTime, data.endTime) >= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endTime'],
+      message: TIME_RANGE_MESSAGE,
+    });
+  }
 });
 export type CreateAppointmentTimeSlotInput = z.infer<typeof createAppointmentTimeSlotSchema>;
 
@@ -19,6 +32,14 @@ export const updateAppointmentTimeSlotSchema = z.object({
   endTime: z.string().regex(TIME_RE, 'Must be HH:mm format').optional(),
   sortOrder: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  if (data.startTime && data.endTime && compareTimes(data.startTime, data.endTime) >= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endTime'],
+      message: TIME_RANGE_MESSAGE,
+    });
+  }
 });
 export type UpdateAppointmentTimeSlotInput = z.infer<typeof updateAppointmentTimeSlotSchema>;
 

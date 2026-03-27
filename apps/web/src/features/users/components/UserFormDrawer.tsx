@@ -16,8 +16,12 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useUserDetail } from '../hooks/useUserDetail';
 import { useUserSave } from '../hooks/useUserSave';
-import { USER_ROLE_OPTIONS, USER_STATUS_OPTIONS } from '../constants/form-options';
-import type { UserFormData, UserFormErrors } from '../types';
+import {
+  TENANT_USER_ROLE_OPTIONS,
+  INTERNAL_USER_ROLE_OPTIONS,
+  USER_STATUS_OPTIONS,
+} from '../constants/form-options';
+import type { UserFormData, UserFormErrors, UserScope } from '../types';
 import { EMPTY_USER_FORM } from '../types';
 
 interface UserFormDrawerProps {
@@ -26,6 +30,7 @@ interface UserFormDrawerProps {
   userId?: string | null;
   onSaved: () => void;
   tenantId?: string;
+  scope?: UserScope;
 }
 
 export function UserFormDrawer({
@@ -34,27 +39,30 @@ export function UserFormDrawer({
   userId,
   onSaved,
   tenantId,
+  scope = 'tenant',
 }: UserFormDrawerProps) {
   const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
     ['branches', 'form-options', tenantId ?? ''],
     '/v1/branches',
     (item) => ({ value: item.id, label: item.name }),
     tenantId ? { tenantId } : undefined,
-    { enabled: !!tenantId },
+    { enabled: scope === 'tenant' && !!tenantId },
   );
 
   const isEditMode = !!userId;
   const { user, isLoading: isLoadingDetail } = useUserDetail(
     isEditMode ? userId : null,
     tenantId,
+    scope,
   );
-  const { save, isSaving, validate } = useUserSave(tenantId);
+  const { save, isSaving, validate } = useUserSave(tenantId, scope);
   const { showSuccess, showError } = useSnackbar();
 
   const [form, setForm] = useState<UserFormData>(EMPTY_USER_FORM);
   const [initialData, setInitialData] = useState<UserFormData>(EMPTY_USER_FORM);
   const [errors, setErrors] = useState<UserFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const roleOptions = scope === 'internal' ? INTERNAL_USER_ROLE_OPTIONS : TENANT_USER_ROLE_OPTIONS;
 
   useEffect(() => {
     if (isEditMode && user) {
@@ -176,7 +184,7 @@ export function UserFormDrawer({
                       <SelectInput
                         value={form.role}
                         onChange={(v) => updateField('role', v)}
-                        options={USER_ROLE_OPTIONS}
+                        options={roleOptions}
                         placeholder="Select role"
                         aria-label="Role"
                       />
@@ -211,17 +219,19 @@ export function UserFormDrawer({
                     )}
                   </FormSection>
 
-                  <FormSection title="Assignment" columns={2}>
-                    <FormField label="Branch" error={errors.branchId}>
-                      <SelectInput
-                        value={form.branchId}
-                        onChange={(v) => updateField('branchId', v)}
-                        options={branchOptions}
-                        placeholder="None"
-                        aria-label="Branch"
-                      />
-                    </FormField>
-                  </FormSection>
+                  {scope === 'tenant' ? (
+                    <FormSection title="Assignment" columns={2}>
+                      <FormField label="Branch" error={errors.branchId}>
+                        <SelectInput
+                          value={form.branchId}
+                          onChange={(v) => updateField('branchId', v)}
+                          options={branchOptions}
+                          placeholder="None"
+                          aria-label="Branch"
+                        />
+                      </FormField>
+                    </FormSection>
+                  ) : null}
 
                   {isEditMode && (
                     <FormSection title="Status">

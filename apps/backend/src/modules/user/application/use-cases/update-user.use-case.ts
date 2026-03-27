@@ -4,10 +4,10 @@ import type { IBranchRepository } from '../../../tenant/domain/branch.repository
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { UserNotFoundError } from '../../domain/user-management.errors';
 import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 
 export interface UpdateUserInput {
-  tenantId: string;
+  tenantId: string | null;
   userId: string;
   data: {
     name?: string;
@@ -40,6 +40,8 @@ export class UpdateUserUseCase {
 
   async execute(input: UpdateUserInput): Promise<UpdateUserOutput> {
     const { tenantId, userId, data, actor } = input;
+    const targetRole = data.role;
+    const targetIsInternal = targetRole === 'AM' || targetRole === 'OP';
 
     // RBAC check
     if (actor.role === 'CL_ADMIN') {
@@ -63,6 +65,13 @@ export class UpdateUserUseCase {
       );
     }
 
+    if (tenantId === null && actor.role !== 'AM' && actor.role !== 'OP') {
+      throw new ForbiddenError(
+        'AUTH_FORBIDDEN',
+        'You are not allowed to update internal users',
+      );
+    }
+
     // Find the user
     const user = await this.userManagementRepo.findByIdAndTenantId(
       userId,
@@ -70,6 +79,21 @@ export class UpdateUserUseCase {
     );
     if (!user) {
       throw new UserNotFoundError();
+    }
+
+    const effectiveIsInternal =
+      targetRole !== undefined ? targetIsInternal : user.tenantId === null;
+
+    if (effectiveIsInternal && tenantId !== null) {
+      throw new ValidationError('Internal users cannot be assigned to an agency');
+    }
+
+    if (effectiveIsInternal && data.branchId !== undefined && data.branchId !== null) {
+      throw new ValidationError('Internal users cannot be assigned to a branch');
+    }
+
+    if (!effectiveIsInternal && tenantId === null) {
+      throw new ValidationError('Agency users require an agency context');
     }
 
     // Build update data based on role
@@ -90,7 +114,8 @@ export class UpdateUserUseCase {
     // Validate branch if provided
     if (
       updateData.branchId !== undefined &&
-      updateData.branchId !== null
+      updateData.branchId !== null &&
+      tenantId
     ) {
       const branch = await this.branchRepo.findById(
         updateData.branchId as string,
@@ -118,7 +143,7 @@ export class UpdateUserUseCase {
       actorId: actor.userId,
       entityType: 'User',
       entityId: userId,
-      tenantId,
+      tenantId: tenantId ?? undefined,
       before,
       after: updateData,
     });

@@ -26,6 +26,8 @@ export interface UserFiltersState {
   status: string;
 }
 
+export type UserScope = 'tenant' | 'internal';
+
 export const DEFAULT_FILTERS: UserFiltersState = {
   search: '',
   role: '',

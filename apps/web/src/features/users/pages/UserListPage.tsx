@@ -10,12 +10,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { FormField } from '@/components/forms/FormField';
+import type { UserScope } from '../types';
 
 export function UserListPage() {
   const { user: authUser } = useAuth();
   const isGlobalRole = authUser?.role === 'AM' || authUser?.role === 'OP';
+  const [scope, setScope] = useState<UserScope>('tenant');
   const [selectedTenantId, setSelectedTenantId] = useState('');
-  const requiresTenantSelection = isGlobalRole && !selectedTenantId;
+  const requiresTenantSelection = isGlobalRole && scope === 'tenant' && !selectedTenantId;
 
   const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
     ['tenants', 'form-options'],
@@ -25,7 +27,7 @@ export function UserListPage() {
     { enabled: isGlobalRole },
   );
 
-  const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
+  const effectiveTenantId = isGlobalRole && scope === 'tenant' ? selectedTenantId : undefined;
 
   const {
     data,
@@ -37,7 +39,7 @@ export function UserListPage() {
     setFilters,
     pagination,
     sorting,
-  } = useUserList(effectiveTenantId);
+  } = useUserList(effectiveTenantId, isGlobalRole ? scope : 'tenant');
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -64,6 +66,20 @@ export function UserListPage() {
       >
         {isGlobalRole && (
           <div className="px-0 pb-2">
+            <FormField label="User Scope">
+              <SelectInput
+                value={scope}
+                onChange={(value) => {
+                  setScope(value as UserScope);
+                  setSelectedTenantId('');
+                }}
+                options={[
+                  { value: 'tenant', label: 'Agency Users' },
+                  { value: 'internal', label: 'Internal Users' },
+                ]}
+                aria-label="User Scope"
+              />
+            </FormField>
             <FormField label="Agency">
               <SelectInput
                 value={selectedTenantId}
@@ -71,11 +87,17 @@ export function UserListPage() {
                 options={tenantOptions}
                 placeholder="Select agency to view users"
                 aria-label="Agency"
+                disabled={scope !== 'tenant'}
               />
             </FormField>
             {requiresTenantSelection && (
               <p className="mt-2 text-sm text-text-muted">
                 Select an agency before creating or editing users.
+              </p>
+            )}
+            {scope === 'internal' && (
+              <p className="mt-2 text-sm text-text-muted">
+                Internal users are not linked to a specific agency.
               </p>
             )}
           </div>
@@ -105,6 +127,7 @@ export function UserListPage() {
         userId={selectedId}
         open={drawerOpen}
         tenantId={effectiveTenantId}
+        scope={isGlobalRole ? scope : 'tenant'}
         onClose={() => {
           setDrawerOpen(false);
           setSelectedId(null);
@@ -127,6 +150,7 @@ export function UserListPage() {
         onClose={() => { setFormOpen(false); setEditId(null); }}
         userId={editId}
         tenantId={effectiveTenantId}
+        scope={isGlobalRole ? scope : 'tenant'}
         onSaved={() => { setFormOpen(false); setEditId(null); refetch(); }}
       />
       <UserResetPasswordDialog
@@ -134,6 +158,7 @@ export function UserListPage() {
         userId={resetUserId}
         userName={resetUserName}
         tenantId={effectiveTenantId}
+        scope={isGlobalRole ? scope : 'tenant'}
         onClose={() => {
           setResetPasswordOpen(false);
           setResetUserId(null);

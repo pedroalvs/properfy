@@ -401,7 +401,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Appointment time slot
   const appointmentTimeSlotRepo = new PrismaAppointmentTimeSlotRepository(prisma);
-  const createAppointmentTimeSlotUseCase = new CreateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
+  const createAppointmentTimeSlotUseCase = new CreateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, branchRepo, auditService);
   const updateAppointmentTimeSlotUseCase = new UpdateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
   const listAppointmentTimeSlotsUseCase = new ListAppointmentTimeSlotsUseCase(appointmentTimeSlotRepo);
   const listEffectiveTimeSlotsUseCase = new ListEffectiveTimeSlotsUseCase(

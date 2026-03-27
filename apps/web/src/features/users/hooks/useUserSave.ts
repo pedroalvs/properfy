@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { contactSchema } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
-import type { UserFormData, UserFormErrors } from '../types';
+import type { UserFormData, UserFormErrors, UserScope } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
 
@@ -53,11 +53,14 @@ export interface UseUserSaveReturn {
   validate: (data: UserFormData, mode: 'create' | 'edit') => UserFormErrors;
 }
 
-export function useUserSave(overrideTenantId?: string): UseUserSaveReturn {
+export function useUserSave(
+  overrideTenantId?: string,
+  scope: UserScope = 'tenant',
+): UseUserSaveReturn {
   const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
   const { user: authUser } = useAuth();
-  const tenantId = overrideTenantId ?? authUser?.tenantId;
+  const tenantId = scope === 'tenant' ? (overrideTenantId ?? authUser?.tenantId) : null;
 
   const validate = useCallback((data: UserFormData, mode: 'create' | 'edit'): UserFormErrors => {
     const errors: UserFormErrors = {};
@@ -73,7 +76,7 @@ export function useUserSave(overrideTenantId?: string): UseUserSaveReturn {
   }, []);
 
   const save = useCallback(async (data: UserFormData, userId?: string): Promise<SaveResult> => {
-    if (!tenantId) return { success: false, error: 'No tenant context' };
+    if (scope === 'tenant' && !tenantId) return { success: false, error: 'No tenant context' };
 
     setIsSaving(true);
     try {
@@ -82,9 +85,10 @@ export function useUserSave(overrideTenantId?: string): UseUserSaveReturn {
           name: data.name,
           phone: data.phone || undefined,
           role: data.role || undefined,
-          branchId: data.branchId || undefined,
+          branchId: scope === 'internal' ? undefined : (data.branchId || undefined),
         };
-        const { error } = await api.PATCH(`/v1/tenants/${tenantId}/users/${userId}` as any, { body: payload as any });
+        const path = scope === 'internal' ? `/v1/users/${userId}` : `/v1/tenants/${tenantId}/users/${userId}`;
+        const { error } = await api.PATCH(path as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
         const payload = {
@@ -93,9 +97,10 @@ export function useUserSave(overrideTenantId?: string): UseUserSaveReturn {
           password: data.password,
           phone: data.phone || undefined,
           role: data.role || undefined,
-          branchId: data.branchId || undefined,
+          branchId: scope === 'internal' ? undefined : (data.branchId || undefined),
         };
-        const { error } = await api.POST(`/v1/tenants/${tenantId}/users` as any, { body: payload as any });
+        const path = scope === 'internal' ? '/v1/users' : `/v1/tenants/${tenantId}/users`;
+        const { error } = await api.POST(path as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
 
@@ -107,7 +112,7 @@ export function useUserSave(overrideTenantId?: string): UseUserSaveReturn {
     } finally {
       setIsSaving(false);
     }
-  }, [queryClient, tenantId]);
+  }, [queryClient, scope, tenantId]);
 
   return { save, isSaving, validate };
 }

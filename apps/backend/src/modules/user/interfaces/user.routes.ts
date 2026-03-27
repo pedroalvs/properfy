@@ -37,6 +37,7 @@ const userIdParam = z.object({
   tenantId: z.string().uuid(),
   userId: z.string().uuid(),
 });
+const internalUserIdParam = z.object({ userId: z.string().uuid() });
 
 export async function registerUserRoutes(
   app: FastifyInstance,
@@ -83,6 +84,32 @@ export async function registerUserRoutes(
     },
   );
 
+  // POST /v1/users (internal users only)
+  app.post(
+    '/v1/users',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: createUserSchema,
+        response: { 201: successResponseSchema(userResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = createUserSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.createUserUseCase.execute({
+        tenantId: null,
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(201).send(success(result));
+    },
+  );
+
   // GET /v1/tenants/:tenantId/users
   app.get(
     '/v1/tenants/:tenantId/users',
@@ -120,6 +147,36 @@ export async function registerUserRoutes(
     },
   );
 
+  // GET /v1/users (internal users only)
+  app.get(
+    '/v1/users',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: listUsersQuerySchema,
+        response: { 200: paginatedResponseSchema(userResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = listUsersQuerySchema.safeParse(request.query);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Invalid query parameters',
+          parsed.error.errors,
+        );
+      const { page, pageSize, sortBy, sortOrder, ...filters } = parsed.data;
+      const result = await container.listUsersUseCase.execute({
+        tenantId: null,
+        filters,
+        pagination: { page, pageSize, sortBy, sortOrder },
+        actor: request.authContext!,
+      });
+      return reply
+        .status(200)
+        .send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
   // GET /v1/tenants/:tenantId/users/:userId
   app.get(
     '/v1/tenants/:tenantId/users/:userId',
@@ -139,6 +196,32 @@ export async function registerUserRoutes(
         );
       const result = await container.getUserUseCase.execute({
         tenantId: params.data.tenantId,
+        userId: params.data.userId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/users/:userId (internal users only)
+  app.get(
+    '/v1/users/:userId',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: internalUserIdParam,
+        response: { 200: successResponseSchema(userResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = internalUserIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const result = await container.getUserUseCase.execute({
+        tenantId: null,
         userId: params.data.userId,
         actor: request.authContext!,
       });
@@ -172,6 +255,40 @@ export async function registerUserRoutes(
         );
       const result = await container.updateUserUseCase.execute({
         tenantId: params.data.tenantId,
+        userId: params.data.userId,
+        data: parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // PATCH /v1/users/:userId (internal users only)
+  app.patch(
+    '/v1/users/:userId',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: internalUserIdParam,
+        body: updateUserSchema,
+        response: { 200: successResponseSchema(userResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = internalUserIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const parsed = updateUserSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.updateUserUseCase.execute({
+        tenantId: null,
         userId: params.data.userId,
         data: parsed.data,
         actor: request.authContext!,
@@ -240,6 +357,40 @@ export async function registerUserRoutes(
         );
       await container.resetUserPasswordUseCase.execute({
         tenantId: params.data.tenantId,
+        userId: params.data.userId,
+        newPassword: parsed.data.newPassword,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/users/:userId/reset-password (internal users only)
+  app.post(
+    '/v1/users/:userId/reset-password',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: internalUserIdParam,
+        body: resetUserPasswordSchema,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const params = internalUserIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const parsed = resetUserPasswordSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      await container.resetUserPasswordUseCase.execute({
+        tenantId: null,
         userId: params.data.userId,
         newPassword: parsed.data.newPassword,
         actor: request.authContext!,

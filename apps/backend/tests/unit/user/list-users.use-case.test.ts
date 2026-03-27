@@ -189,4 +189,32 @@ describe('ListUsersUseCase', () => {
       filters,
     );
   });
+
+  it('should allow AM to list internal users', async () => {
+    vi.mocked(userManagementRepo.findByTenantId).mockResolvedValue([
+      makeUser({ tenantId: null, role: 'AM', email: 'internal@example.com' }),
+    ]);
+    vi.mocked(userManagementRepo.countByTenantId).mockResolvedValue(1);
+
+    const result = await useCase.execute({
+      tenantId: null,
+      filters: {},
+      pagination: defaultPagination,
+      actor: amActor,
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(userManagementRepo.findByTenantId).toHaveBeenCalledWith(null, {}, defaultPagination);
+  });
+
+  it('should reject CL_ADMIN when listing internal users', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: null,
+        filters: {},
+        pagination: defaultPagination,
+        actor: clAdminActor,
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
 });

@@ -105,4 +105,15 @@ describe('useUserDetail', () => {
     expect(result.current.isError).toBe(true);
     expect(result.current.user).toBeNull();
   });
+
+  it('calls internal user endpoint when scope is internal', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserDetail('usr-01', undefined, 'internal'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockGet).toHaveBeenCalledWith('/v1/users/usr-01', { params: { query: undefined } });
+  });
 });

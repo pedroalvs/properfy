@@ -14,7 +14,7 @@ import {
   TenantInactiveError,
   BranchNotFoundError,
 } from '../../../src/modules/tenant/domain/tenant.errors';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import type { AuthContext } from '@properfy/shared';
 
 function makeUser(
@@ -262,6 +262,35 @@ describe('CreateUserUseCase', () => {
         actor: amActor,
       }),
     ).rejects.toThrow(TenantNotFoundError);
+  });
+
+  it('should allow AM to create internal OP without tenant', async () => {
+    vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: null,
+      name: 'Internal Operator',
+      email: 'internal-op@example.com',
+      password: 'StrongPass1!',
+      role: 'OP',
+      actor: amActor,
+    });
+
+    expect(result.role).toBe('OP');
+    expect(result.tenantId).toBeNull();
+  });
+
+  it('should reject internal user creation with tenant assignment', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        name: 'Internal Operator',
+        email: 'internal-op@example.com',
+        password: 'StrongPass1!',
+        role: 'OP',
+        actor: amActor,
+      }),
+    ).rejects.toThrow(ValidationError);
   });
 
   it('should hash the password with bcrypt', async () => {

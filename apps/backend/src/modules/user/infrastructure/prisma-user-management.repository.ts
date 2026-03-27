@@ -65,7 +65,7 @@ export class PrismaUserManagementRepository
 
   async findByIdAndTenantId(
     userId: string,
-    tenantId: string,
+    tenantId: string | null,
   ): Promise<UserEntity | null> {
     const row = await this.prisma.user.findFirst({
       where: { id: userId, tenant_id: tenantId, deleted_at: null },
@@ -81,7 +81,7 @@ export class PrismaUserManagementRepository
   }
 
   async findByTenantId(
-    tenantId: string,
+    tenantId: string | null,
     filters: UserManagementFilters,
     pagination: PaginationParams,
   ): Promise<UserEntity[]> {
@@ -98,7 +98,7 @@ export class PrismaUserManagementRepository
   }
 
   async countByTenantId(
-    tenantId: string,
+    tenantId: string | null,
     filters: UserManagementFilters,
   ): Promise<number> {
     const where = this.buildWhere(tenantId, filters);
@@ -128,7 +128,7 @@ export class PrismaUserManagementRepository
 
   async update(
     userId: string,
-    tenantId: string,
+    tenantId: string | null,
     data: Partial<{
       name: string;
       phone: string | null;
@@ -150,7 +150,7 @@ export class PrismaUserManagementRepository
 
   async resetPassword(
     userId: string,
-    tenantId: string,
+    tenantId: string | null,
     passwordHash: string,
   ): Promise<void> {
     await this.prisma.user.updateMany({
@@ -171,7 +171,7 @@ export class PrismaUserManagementRepository
     });
   }
 
-  private buildWhere(tenantId: string, filters: UserManagementFilters) {
+  private buildWhere(tenantId: string | null, filters: UserManagementFilters) {
     const where: Record<string, unknown> = {
       tenant_id: tenantId,
       deleted_at: null,

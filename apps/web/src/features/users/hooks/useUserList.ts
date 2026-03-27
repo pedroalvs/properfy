@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
-import { DEFAULT_FILTERS, type User, type UserFiltersState } from '../types';
+import { DEFAULT_FILTERS, type User, type UserFiltersState, type UserScope } from '../types';
 
 export interface UseUserListReturn {
   data: User[];
@@ -16,9 +16,9 @@ export interface UseUserListReturn {
   sorting: DataTableSorting;
 }
 
-export function useUserList(overrideTenantId?: string): UseUserListReturn {
+export function useUserList(overrideTenantId?: string, scope: UserScope = 'tenant'): UseUserListReturn {
   const { user: authUser } = useAuth();
-  const tenantId = overrideTenantId ?? authUser?.tenantId;
+  const tenantId = scope === 'tenant' ? (overrideTenantId ?? authUser?.tenantId) : null;
 
   const [filters, setFilters] = useState<UserFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
@@ -27,8 +27,8 @@ export function useUserList(overrideTenantId?: string): UseUserListReturn {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const query = usePaginatedQuery<User>(
-    ['users', tenantId],
-    `/v1/tenants/${tenantId}/users`,
+    ['users', scope, tenantId],
+    scope === 'internal' ? '/v1/users' : `/v1/tenants/${tenantId}/users`,
     {
       page,
       pageSize,
@@ -38,7 +38,7 @@ export function useUserList(overrideTenantId?: string): UseUserListReturn {
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.search ? { search: filters.search } : {}),
     },
-    { enabled: !!tenantId },
+    { enabled: scope === 'internal' || !!tenantId },
   );
 
   const pagination: DataTablePagination = {

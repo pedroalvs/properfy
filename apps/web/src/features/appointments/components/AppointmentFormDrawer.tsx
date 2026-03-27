@@ -325,7 +325,7 @@ export function AppointmentFormDrawer({
                           onChange={(v) => updateField('timeSlot', v)}
                           options={timeSlotOptions}
                           placeholder={!form.branchId ? 'Select a branch first' : 'Select time slot'}
-                          disabled={isEditMode || !form.branchId || timeSlotOptions.length === 0}
+                          disabled={!form.branchId || timeSlotOptions.length === 0}
                           error={!!errors.timeSlot}
                           aria-label="Time Slot"
                         />

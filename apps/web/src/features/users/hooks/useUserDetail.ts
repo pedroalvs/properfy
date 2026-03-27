@@ -1,6 +1,6 @@
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
-import type { UserDetail } from '../types';
+import type { UserDetail, UserScope } from '../types';
 
 export interface UseUserDetailReturn {
   user: UserDetail | null;
@@ -9,14 +9,18 @@ export interface UseUserDetailReturn {
   refetch: () => void;
 }
 
-export function useUserDetail(id: string | null, overrideTenantId?: string): UseUserDetailReturn {
+export function useUserDetail(
+  id: string | null,
+  overrideTenantId?: string,
+  scope: UserScope = 'tenant',
+): UseUserDetailReturn {
   const { user: authUser } = useAuth();
-  const tenantId = overrideTenantId ?? authUser?.tenantId;
+  const tenantId = scope === 'tenant' ? (overrideTenantId ?? authUser?.tenantId) : null;
 
   const query = useDetailQuery<UserDetail>(
-    ['users', tenantId, id],
-    `/v1/tenants/${tenantId}/users/${id}`,
-    { enabled: !!id && !!tenantId },
+    ['users', scope, tenantId, id],
+    scope === 'internal' ? `/v1/users/${id}` : `/v1/tenants/${tenantId}/users/${id}`,
+    { enabled: !!id && (scope === 'internal' || !!tenantId) },
   );
 
   return {

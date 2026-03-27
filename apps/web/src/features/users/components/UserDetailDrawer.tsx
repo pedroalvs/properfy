@@ -6,6 +6,7 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { useUserDetail } from '../hooks/useUserDetail';
 import { UserStatusChip } from './UserStatusChip';
 import { UserDetailSections } from './UserDetailSections';
+import type { UserScope } from '../types';
 
 interface UserDetailDrawerProps {
   userId: string | null;
@@ -14,6 +15,7 @@ interface UserDetailDrawerProps {
   onEdit?: (id: string) => void;
   onResetPassword?: (id: string) => void;
   tenantId?: string;
+  scope?: UserScope;
 }
 
 export function UserDetailDrawer({
@@ -23,8 +25,9 @@ export function UserDetailDrawer({
   onEdit,
   onResetPassword,
   tenantId,
+  scope = 'tenant',
 }: UserDetailDrawerProps) {
-  const { user, isLoading } = useUserDetail(userId, tenantId);
+  const { user, isLoading } = useUserDetail(userId, tenantId, scope);
 
   const handleEdit = useCallback(() => {
     if (onEdit && userId) {

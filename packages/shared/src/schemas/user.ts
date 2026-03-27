@@ -13,7 +13,7 @@ export const createUserSchema = z.object({
     .regex(/[a-z]/, 'Must contain lowercase letter')
     .regex(/[0-9]/, 'Must contain number')
     .regex(/[^A-Za-z0-9]/, 'Must contain special character'),
-  role: z.enum(['CL_ADMIN', 'CL_USER', 'INSP']),
+  role: z.enum(['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP']),
   branchId: z.string().uuid().optional(),
   phone: z.string().max(20).optional(),
 });
@@ -24,7 +24,7 @@ export const updateUserSchema = z.object({
   name: z.string().min(1).max(200).trim().optional(),
   phone: z.string().max(20).optional(),
   branchId: z.string().uuid().nullable().optional(),
-  role: z.enum(['CL_ADMIN', 'CL_USER', 'INSP']).optional(),
+  role: z.enum(['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP']).optional(),
 });
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 

@@ -13,7 +13,7 @@ import {
 import { COMMON_PASSWORDS } from '../../../auth/application/constants/common-passwords';
 
 export interface ResetUserPasswordInput {
-  tenantId: string;
+  tenantId: string | null;
   userId: string;
   newPassword: string;
   actor: AuthContext;
@@ -71,7 +71,7 @@ export class ResetUserPasswordUseCase {
       actorId: actor.userId,
       entityType: 'User',
       entityId: userId,
-      tenantId,
+      tenantId: tenantId ?? undefined,
       metadata: {
         resetByRole: actor.role,
         unlockedAccount: user.status === 'LOCKED',

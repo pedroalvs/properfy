@@ -146,4 +146,17 @@ describe('useUserSave', () => {
 
     expect(result.current.isSaving).toBe(false);
   });
+
+  it('uses global users endpoint for internal scope', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserSave(undefined, 'internal'), { wrapper });
+
+    let saveResult: { success: boolean } | undefined;
+    await act(async () => {
+      saveResult = await result.current.save({ ...VALID_CREATE_DATA, role: 'OP' });
+    });
+
+    expect(saveResult?.success).toBe(true);
+    expect(mockPost).toHaveBeenCalledWith('/v1/users', { body: expect.any(Object) });
+  });
 });

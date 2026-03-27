@@ -76,7 +76,7 @@ export function AppointmentCreatePage() {
 
   useEffect(() => {
     if (!isGlobalRole) return;
-    setForm((prev) => ({ ...prev, branchId: '', propertyId: '' }));
+    setForm((prev) => ({ ...prev, branchId: '', propertyId: '', timeSlot: '' }));
   }, [isGlobalRole, selectedTenantId]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);

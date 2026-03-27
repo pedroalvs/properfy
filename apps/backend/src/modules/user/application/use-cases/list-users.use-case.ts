@@ -7,7 +7,7 @@ import type {
 import { ForbiddenError } from '../../../../shared/domain/errors';
 
 export interface ListUsersInput {
-  tenantId: string;
+  tenantId: string | null;
   filters: UserManagementFilters;
   pagination: PaginationParams;
   actor: AuthContext;
@@ -41,8 +41,14 @@ export class ListUsersUseCase {
   async execute(input: ListUsersInput): Promise<ListUsersOutput> {
     const { tenantId, filters, pagination, actor } = input;
 
-    // RBAC: AM/OP can access any tenant; CL_ADMIN/CL_USER own tenant only
-    if (
+    if (tenantId === null) {
+      if (actor.role !== 'AM' && actor.role !== 'OP') {
+        throw new ForbiddenError(
+          'AUTH_FORBIDDEN',
+          'You are not allowed to list internal users',
+        );
+      }
+    } else if (
       actor.role !== 'AM' &&
       actor.role !== 'OP' &&
       actor.tenantId !== tenantId

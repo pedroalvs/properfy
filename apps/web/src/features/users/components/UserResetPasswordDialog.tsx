@@ -10,6 +10,7 @@ import {
   type UserResetPasswordErrors,
   useUserResetPassword,
 } from '../hooks/useUserResetPassword';
+import type { UserScope } from '../types';
 
 const EMPTY_FORM: UserResetPasswordFormData = {
   newPassword: '',
@@ -21,6 +22,7 @@ interface UserResetPasswordDialogProps {
   userId: string | null;
   userName?: string | null;
   tenantId?: string;
+  scope?: UserScope;
   onClose: () => void;
   onReset?: () => void;
 }
@@ -30,13 +32,14 @@ export function UserResetPasswordDialog({
   userId,
   userName,
   tenantId,
+  scope = 'tenant',
   onClose,
   onReset,
 }: UserResetPasswordDialogProps) {
   const [form, setForm] = useState<UserResetPasswordFormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<UserResetPasswordErrors>({});
   const { showSuccess, showError } = useSnackbar();
-  const { resetPassword, validate, isResetting } = useUserResetPassword(tenantId);
+  const { resetPassword, validate, isResetting } = useUserResetPassword(tenantId, scope);
 
   const title = useMemo(
     () => `Reset Password${userName ? `: ${userName}` : ''}`,

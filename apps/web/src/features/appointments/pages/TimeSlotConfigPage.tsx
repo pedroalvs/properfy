@@ -32,6 +32,7 @@ export function TimeSlotConfigPage() {
   );
 
   const activeTenantId = selectedTenantId || user?.tenantId || undefined;
+  const requiresTenantSelection = isAdminUser && !activeTenantId;
 
   const { options: branchOptions, isLoading: isLoadingBranches } = useFormOptions<{ id: string; name: string }>(
     ['branches', 'time-slot-filter-options', activeTenantId],
@@ -219,6 +220,7 @@ export function TimeSlotConfigPage() {
           label: 'New Time Slot',
           icon: 'mdi-plus',
           onClick: handleNewSlot,
+          disabled: requiresTenantSelection,
         }}
       >
         <FilterBar>
@@ -243,13 +245,19 @@ export function TimeSlotConfigPage() {
           />
         </FilterBar>
 
+        {requiresTenantSelection && (
+          <div className="rounded-lg border border-border-subtle bg-card-bg px-4 py-3 text-sm text-text-secondary">
+            Select a tenant to list and manage time slots.
+          </div>
+        )}
+
         <DataTable<TimeSlot>
           columns={columns}
           data={sortedData}
           loading={isLoading}
           error={isError ? (errorMessage ?? 'Failed to load time slots') : undefined}
           onRetryError={refetch}
-          emptyMessage="No time slots configured yet"
+          emptyMessage={requiresTenantSelection ? 'Select a tenant to view time slots' : 'No time slots configured yet'}
           keyExtractor={(row) => row.id}
         />
       </ListFilterTableTemplate>

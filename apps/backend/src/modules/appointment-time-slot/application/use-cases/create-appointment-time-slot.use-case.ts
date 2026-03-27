@@ -1,8 +1,10 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentTimeSlotRepository } from '../../domain/appointment-time-slot.repository';
 import { AppointmentTimeSlotEntity } from '../../domain/appointment-time-slot.entity';
+import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
+import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
 
 export interface CreateAppointmentTimeSlotInput {
   tenantId?: string;
@@ -32,6 +34,7 @@ const ALLOWED_ROLES = ['AM', 'OP', 'CL_ADMIN'] as const;
 export class CreateAppointmentTimeSlotUseCase {
   constructor(
     private readonly timeSlotRepo: IAppointmentTimeSlotRepository,
+    private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
   ) {}
 
@@ -49,6 +52,17 @@ export class CreateAppointmentTimeSlotUseCase {
 
     if (actor.role === 'CL_ADMIN' && input.tenantId && input.tenantId !== actor.tenantId) {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Cannot create time slots for another tenant');
+    }
+
+    if (input.startTime >= input.endTime) {
+      throw new ValidationError('End time must be after start time');
+    }
+
+    if (input.branchId) {
+      const branch = await this.branchRepo.findById(input.branchId, tenantId);
+      if (!branch) {
+        throw new BranchNotFoundError();
+      }
     }
 
     const now = new Date();

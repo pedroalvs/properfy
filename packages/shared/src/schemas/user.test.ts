@@ -87,7 +87,7 @@ describe('createUserSchema', () => {
   it('should reject invalid role', () => {
     const result = createUserSchema.safeParse({
       ...validInput,
-      role: 'AM',
+      role: 'SUPER_ADMIN',
     });
     expect(result.success).toBe(false);
   });
@@ -99,7 +99,7 @@ describe('createUserSchema', () => {
   });
 
   it('should accept all valid roles', () => {
-    for (const role of ['CL_ADMIN', 'CL_USER', 'INSP']) {
+    for (const role of ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP']) {
       const result = createUserSchema.safeParse({ ...validInput, role });
       expect(result.success).toBe(true);
     }
@@ -132,6 +132,13 @@ describe('updateUserSchema', () => {
   it('should reject invalid branchId', () => {
     const result = updateUserSchema.safeParse({ branchId: 'not-a-uuid' });
     expect(result.success).toBe(false);
+  });
+
+  it('should accept internal roles', () => {
+    for (const role of ['AM', 'OP']) {
+      const result = updateUserSchema.safeParse({ role });
+      expect(result.success).toBe(true);
+    }
   });
 });
 

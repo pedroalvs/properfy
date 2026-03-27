@@ -11,12 +11,12 @@ import {
   TenantInactiveError,
   BranchNotFoundError,
 } from '../../../tenant/domain/tenant.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import { validatePasswordStrength } from '../../../auth/domain/password-policy';
 import { PasswordTooWeakError } from '../../../auth/domain/auth.errors';
 
 export interface CreateUserInput {
-  tenantId: string;
+  tenantId?: string | null;
   name: string;
   email: string;
   password: string;
@@ -49,6 +49,7 @@ export class CreateUserUseCase {
   async execute(input: CreateUserInput): Promise<CreateUserOutput> {
     const { tenantId, name, email, password, role, branchId, phone, actor } =
       input;
+    const isInternalRole = role === 'AM' || role === 'OP';
 
     // RBAC: AM can create for any tenant; CL_ADMIN can create for own tenant only
     if (actor.role === 'CL_ADMIN') {
@@ -72,20 +73,31 @@ export class CreateUserUseCase {
       );
     }
 
-    // Validate tenant exists and is active
-    const tenant = await this.tenantRepo.findById(tenantId);
-    if (!tenant) {
-      throw new TenantNotFoundError();
-    }
-    if (!tenant.isActive()) {
-      throw new TenantInactiveError();
-    }
+    if (isInternalRole) {
+      if (tenantId) {
+        throw new ValidationError('Internal users cannot be assigned to an agency');
+      }
+      if (branchId) {
+        throw new ValidationError('Internal users cannot be assigned to a branch');
+      }
+    } else {
+      if (!tenantId) {
+        throw new ValidationError('Tenant is required for agency users');
+      }
 
-    // Validate branch if provided
-    if (branchId) {
-      const branch = await this.branchRepo.findById(branchId, tenantId);
-      if (!branch) {
-        throw new BranchNotFoundError();
+      const tenant = await this.tenantRepo.findById(tenantId);
+      if (!tenant) {
+        throw new TenantNotFoundError();
+      }
+      if (!tenant.isActive()) {
+        throw new TenantInactiveError();
+      }
+
+      if (branchId) {
+        const branch = await this.branchRepo.findById(branchId, tenantId);
+        if (!branch) {
+          throw new BranchNotFoundError();
+        }
       }
     }
 
@@ -108,7 +120,7 @@ export class CreateUserUseCase {
     const now = new Date();
     const user = new UserEntity({
       id: crypto.randomUUID(),
-      tenantId,
+      tenantId: tenantId ?? null,
       branchId: branchId ?? null,
       role: role as UserEntity['role'],
       name,
@@ -135,7 +147,7 @@ export class CreateUserUseCase {
       actorId: actor.userId,
       entityType: 'User',
       entityId: user.id,
-      tenantId,
+      tenantId: tenantId ?? undefined,
       after: {
         id: user.id,
         name: user.name,

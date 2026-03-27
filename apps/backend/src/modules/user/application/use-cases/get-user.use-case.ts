@@ -4,7 +4,7 @@ import { UserNotFoundError } from '../../domain/user-management.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 
 export interface GetUserInput {
-  tenantId: string;
+  tenantId: string | null;
   userId: string;
   actor: AuthContext;
 }
@@ -31,7 +31,14 @@ export class GetUserUseCase {
     const { tenantId, userId, actor } = input;
 
     // RBAC: AM/OP can access any tenant; CL_ADMIN/CL_USER own tenant only
-    if (
+    if (tenantId === null) {
+      if (actor.role !== 'AM' && actor.role !== 'OP') {
+        throw new ForbiddenError(
+          'AUTH_FORBIDDEN',
+          'You are not allowed to access internal users',
+        );
+      }
+    } else if (
       actor.role !== 'AM' &&
       actor.role !== 'OP' &&
       actor.tenantId !== tenantId
