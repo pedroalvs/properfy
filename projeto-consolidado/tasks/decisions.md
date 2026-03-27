@@ -613,3 +613,9 @@
 1. Release criada no Fly não equivale a deploy concluído. O estado correto só é “feito” quando `release_command` termina, as máquinas entram em bom estado e o healthcheck passa.
 2. Quando `staging` e `production` existem em apps diferentes, o repositório precisa refletir isso de forma consistente nos manifests. `fly.staging.toml` não pode continuar declarando `iad` se a operação deseja `syd`.
 3. O código da aplicação deve permanecer stateless e independente de domínio; diferenças entre `staging` e `production` precisam viver apenas em configuração de ambiente e infraestrutura.
+
+## 2026-03-27 - Query Ja Transformada Pelo Schema Nao Deve Ser Revalidada Como Input Cru
+
+1. A rota `GET /v1/time-slots` já tinha `querystring` validado e transformado pelo schema do Fastify/Zod. Reexecutar `safeParse` no handler contra o schema de entrada reabria incompatibilidade em `includeInactive`.
+2. A decisão correta foi consumir `request.query` já validado, em vez de revalidar um valor que pode ter mudado de shape após transformação.
+3. Para esse tipo de rota, o teste certo é de integração HTTP com query real, porque o bug só aparece no caminho completo framework + schema + handler.

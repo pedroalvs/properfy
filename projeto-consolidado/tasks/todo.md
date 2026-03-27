@@ -393,3 +393,16 @@
 - `production` ficou saudável no app `properfy-prod` com release nova completa e uma máquina `started` com `1 passing` em `syd`.
 - `staging` recebeu a release nova e o `release_command` executou com sucesso; as máquinas ficaram saudáveis após start manual e passaram no healthcheck.
 - O código não ficou dependente de domínio específico, mas a infraestrutura revelou desalinhamento anterior: `fly.staging.toml` ainda declarava `iad`. Isso foi corrigido no repositório para `syd`.
+
+## TODO - Corrigir 400 na Configuracao de Time Slots 2026-03-27
+
+- [x] Isolar o erro real do console de browser
+- [x] Corrigir a rota `GET /v1/time-slots`
+- [x] Adicionar teste de integração para `includeInactive=true`
+- [x] Validar backend com teste e `typecheck`
+
+## Resultado - Corrigir 400 na Configuracao de Time Slots 2026-03-27
+
+- O ruído predominante do console vinha da extensão Bitwarden e não do produto.
+- O erro real do app era um `400` em `/v1/time-slots` causado por dupla validação da query no backend depois da transformação de `includeInactive`.
+- A rota agora consome a query já validada pelo Fastify/Zod, e a cobertura de integração prende o caso exato que falhava em produção.

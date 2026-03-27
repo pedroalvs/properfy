@@ -54,12 +54,8 @@ export async function registerAppointmentTimeSlotRoutes(
       },
     },
     async (request, reply) => {
-      const parsed = listAppointmentTimeSlotsQuerySchema.safeParse(request.query);
-      if (!parsed.success)
-        throw new ValidationError('Invalid query parameters', parsed.error.errors);
-
       const result = await container.listAppointmentTimeSlotsUseCase.execute({
-        ...parsed.data,
+        ...(request.query as z.infer<typeof listAppointmentTimeSlotsQuerySchema>),
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
