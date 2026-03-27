@@ -607,3 +607,9 @@
 1. A rota de `force-confirmation` não deve reutilizar `appointmentResponseSchema` quando o use case retorna apenas `id + tenantConfirmationStatus`. O contrato HTTP precisa refletir exatamente a shape real para não gerar `500` de validação de resposta.
 2. Filtro de agenda por `fromDate/toDate` não pode usar igualdade de meia-noite (`new Date('YYYY-MM-DD')` em `gte/lte`) para dados de domínio que representam apenas dia. A decisão correta é usar janela completa do dia (`gte start`, `lt next day`).
 3. No endpoint diário da agenda do inspetor, a data canônica do item deve ser a data requisitada/filtrada. Re-serializar `scheduledDate` do banco com `toISOString()` reintroduz drift e pode quebrar agrupamento/seleção no PWA.
+
+## 2026-03-27 - Deploy de Ambiente Nao Deve Ser Dado Como Concluido Sem Estado Saudavel do Fly
+
+1. Release criada no Fly não equivale a deploy concluído. O estado correto só é “feito” quando `release_command` termina, as máquinas entram em bom estado e o healthcheck passa.
+2. Quando `staging` e `production` existem em apps diferentes, o repositório precisa refletir isso de forma consistente nos manifests. `fly.staging.toml` não pode continuar declarando `iad` se a operação deseja `syd`.
+3. O código da aplicação deve permanecer stateless e independente de domínio; diferenças entre `staging` e `production` precisam viver apenas em configuração de ambiente e infraestrutura.

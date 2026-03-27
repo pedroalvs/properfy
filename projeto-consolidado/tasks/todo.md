@@ -379,3 +379,17 @@
 - `force-confirmation` deixou de prometer response errada na rota e agora responde com shape compatível ao use case, eliminando o `500` por `ResponseValidationError`.
 - A agenda do inspetor ficou mais robusta contra drift de data: o backend agora filtra por janela diária inteira e a resposta do endpoint usa a data requisitada como valor canônico dos itens.
 - O bloco crítico de aceite ganhou cobertura em rota, use case e repositório, reduzindo chance de regressão silenciosa.
+
+## TODO - Deploy de Staging e Production 2026-03-27
+
+- [x] Publicar as correções de `force-confirmation` e `schedule` em `staging`
+- [x] Publicar as mesmas correções em `production`
+- [x] Confirmar execução do `release_command` com `prisma migrate deploy`
+- [x] Verificar saúde das máquinas após deploy
+- [x] Corrigir no repositório o `primary_region` de `fly.staging.toml` para `syd`
+
+## Resultado - Deploy de Staging e Production 2026-03-27
+
+- `production` ficou saudável no app `properfy-prod` com release nova completa e uma máquina `started` com `1 passing` em `syd`.
+- `staging` recebeu a release nova e o `release_command` executou com sucesso; as máquinas ficaram saudáveis após start manual e passaram no healthcheck.
+- O código não ficou dependente de domínio específico, mas a infraestrutura revelou desalinhamento anterior: `fly.staging.toml` ainda declarava `iad`. Isso foi corrigido no repositório para `syd`.
