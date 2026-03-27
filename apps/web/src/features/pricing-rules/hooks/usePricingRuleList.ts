@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type PricingRule, type PricingRuleFiltersState } from '../types';
@@ -10,13 +10,13 @@ export interface UsePricingRuleListReturn {
   errorMessage: string | null;
   refetch: () => void;
   filters: PricingRuleFiltersState;
-  setFilters: (filters: PricingRuleFiltersState) => void;
+  setFilters: Dispatch<SetStateAction<PricingRuleFiltersState>>;
   pagination: DataTablePagination;
   sorting: DataTableSorting;
 }
 
-export function usePricingRuleList(): UsePricingRuleListReturn {
-  const [filters, setFilters] = useState<PricingRuleFiltersState>(DEFAULT_FILTERS);
+export function usePricingRuleList(initialFilters?: Partial<PricingRuleFiltersState>): UsePricingRuleListReturn {
+  const [filters, setFilters] = useState<PricingRuleFiltersState>({ ...DEFAULT_FILTERS, ...initialFilters });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState('createdAt');

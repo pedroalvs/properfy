@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { useAuth } from '@/hooks/useAuth';
 import { PricingRuleFilters } from '../components/PricingRuleFilters';
@@ -43,15 +43,31 @@ export function PricingRuleListPage() {
   );
 
   const tenantOptions = useMemo(
-    () => (tenantsResp?.data ?? []).map((t) => ({ value: t.id, label: t.name })),
+    () => [
+      { value: '', label: 'All' },
+      ...(tenantsResp?.data ?? []).map((t) => ({ value: t.id, label: t.name })),
+    ],
     [tenantsResp],
   );
+
+  // Auto-select the first tenant for AM/OP so the page shows data immediately
+  useEffect(() => {
+    if (isGlobalRole && !filters.tenantId && tenantsResp?.data?.length) {
+      setFilters((prev) => ({ ...prev, tenantId: tenantsResp.data[0]!.id }));
+    }
+  }, [isGlobalRole, filters.tenantId, tenantsResp, setFilters]);
   const serviceTypeOptions = useMemo(
-    () => (serviceTypesResp?.data ?? []).map((s) => ({ value: s.id, label: s.name })),
+    () => [
+      { value: '', label: 'All' },
+      ...(serviceTypesResp?.data ?? []).map((s) => ({ value: s.id, label: s.name })),
+    ],
     [serviceTypesResp],
   );
   const branchOptions = useMemo(
-    () => (branchesResp?.data ?? []).map((b) => ({ value: b.id, label: b.name })),
+    () => [
+      { value: '', label: 'All' },
+      ...(branchesResp?.data ?? []).map((b) => ({ value: b.id, label: b.name })),
+    ],
     [branchesResp],
   );
 
@@ -110,6 +126,9 @@ export function PricingRuleListPage() {
         <PricingRuleFilters
           filters={filters}
           onFiltersChange={setFilters}
+          tenantOptions={tenantOptions}
+          serviceTypeOptions={serviceTypeOptions}
+          branchOptions={branchOptions}
         />
         {requiresTenantSelection && (
           <p className="mb-4 text-sm text-text-muted">

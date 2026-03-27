@@ -10,6 +10,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TenantStatusChip } from '../components/TenantStatusChip';
 import { BranchSection } from '../components/BranchSection';
+import { PricingRulesSection } from '../components/PricingRulesSection';
 import { TenantFormDrawer } from '../components/TenantFormDrawer';
 import { useTenantAdminDetail } from '../hooks/useTenantAdminDetail';
 import { useTenantDeactivate } from '../hooks/useTenantDeactivate';
@@ -17,6 +18,7 @@ import { useTenantDeactivate } from '../hooks/useTenantDeactivate';
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'branches', label: 'Branches' },
+  { id: 'pricing', label: 'Pricing' },
 ];
 
 export function TenantDetailPage() {
@@ -131,6 +133,14 @@ export function TenantDetailPage() {
 
         {activeTab === 'branches' && id && (
           <BranchSection tenantId={id} />
+        )}
+
+        {activeTab === 'pricing' && id && (
+          <PricingRulesSection
+            tenantId={id}
+            tenantName={tenant.name}
+            currency={tenant.currency}
+          />
         )}
       </div>
 

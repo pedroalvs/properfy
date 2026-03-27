@@ -120,11 +120,10 @@ describe('PricingRuleListPage', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('disables creation for global users until an agency is selected', async () => {
+  it('renders CTA button for global users', () => {
     renderPage();
-
-    expect(await screen.findByText('Select an agency before creating pricing rules.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'New Pricing Rule' })).toBeDisabled();
+    const matches = screen.getAllByText('New Pricing Rule');
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders filter bar with agency, service type, branch, and status', () => {
