@@ -1,11 +1,11 @@
-app = 'properfy'
-primary_region = 'iad'
+app = 'properfy-prod'
+primary_region = 'syd'
 
 [build]
   dockerfile = 'apps/backend/Dockerfile'
 
 [env]
-  NODE_ENV = 'staging'
+  NODE_ENV = 'production'
   PORT = '3000'
   LOG_LEVEL = 'info'
   JWT_ACCESS_TOKEN_TTL_MINUTES = '60'
