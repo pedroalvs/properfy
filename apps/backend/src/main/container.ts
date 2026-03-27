@@ -404,7 +404,10 @@ export function createContainer(logger: Logger): AppContainer {
   const createAppointmentTimeSlotUseCase = new CreateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
   const updateAppointmentTimeSlotUseCase = new UpdateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
   const listAppointmentTimeSlotsUseCase = new ListAppointmentTimeSlotsUseCase(appointmentTimeSlotRepo);
-  const listEffectiveTimeSlotsUseCase = new ListEffectiveTimeSlotsUseCase(appointmentTimeSlotRepo);
+  const listEffectiveTimeSlotsUseCase = new ListEffectiveTimeSlotsUseCase(
+    appointmentTimeSlotRepo,
+    branchRepo,
+  );
   const deleteAppointmentTimeSlotUseCase = new DeleteAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
   const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, appointmentTimeSlotRepo);
 

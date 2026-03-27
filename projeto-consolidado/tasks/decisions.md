@@ -567,3 +567,17 @@
 1. A direção correta para o login do `web` não era “landing page de marketing”, nem um formulário cru; o melhor meio-termo para produto B2B operacional é split layout sóbrio, com painel de confiança/contexto em desktop e formulário mais focado no mobile.
 2. O conteúdo auxiliar do login deve reforçar o uso do produto e orientar suporte real, sem introduzir links/placeholders para `forgot password`, help center ou flows que o sistema ainda não implementa.
 3. Como o backend já exige `totpCode` quando 2FA está ativado, o login do `web` precisa suportar esse segundo fator condicionalmente no próprio formulário. Ativar 2FA sem login compatível seria regressão funcional, não apenas lacuna visual.
+
+## 2026-03-27 - Time Slot Efetivo Nao Deve Depender de tenantId Opcional no Cliente
+
+1. O `500` de produção em `/v1/time-slots/effective` não era falta de migration nem tabela ausente; a falha real era `tenant_id = null` na query do Prisma quando `AM/OP` chamavam a rota só com `branchId`.
+2. A decisão correta foi endurecer o backend: quando o ator global não informar `tenantId`, o use case deve resolvê-lo pela própria `branch`, em vez de confiar que o frontend sempre mandará esse contexto.
+3. O `web` também passou a enviar `tenantId` explícito quando o operador global já selecionou a agência no formulário de appointment, reduzindo ambiguidade e melhorando observabilidade da chamada.
+4. Como o drift de migrations no Fly já aconteceu antes, `fly.prod.toml` e `fly.staging.toml` também passaram a ter `release_command` com `prisma migrate deploy`, não apenas o `fly.toml` genérico.
+
+## 2026-03-27 - Busca de Endereco Deve Ser Global e Web Nao Deve Fingir Multi-Idioma
+
+1. O lookup de endereço não deve assumir Austrália como filtro implícito do sistema. O comportamento correto é busca global por padrão, com filtro opcional por país apenas quando o fluxo realmente quiser restringir a consulta.
+2. O contrato compartilhado passou a aceitar `country` opcional e, quando informado, ele pode representar um ou vários códigos de país separados por vírgula.
+3. No `web`, não faz sentido manter “suporte a múltiplos idiomas” se a única superfície real era um seletor lateral com duas traduções pontuais. A decisão correta foi remover a troca de idioma da UI e também limpar a infraestrutura morta de locale.
+4. O produto continua com base textual única em inglês no `web`; se houver internacionalização real no futuro, ela deve nascer como projeto transversal de conteúdo, formatação e QA, não como toggle isolado em menu.

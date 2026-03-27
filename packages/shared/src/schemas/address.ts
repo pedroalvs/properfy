@@ -15,7 +15,7 @@ export type AddressInput = z.infer<typeof addressSchema>;
 export const addressSuggestionQuerySchema = z.object({
   q: z.string().min(3).max(200).trim(),
   limit: z.coerce.number().int().min(1).max(10).default(5),
-  country: z.string().trim().min(2).max(3).default('AU'),
+  country: z.string().trim().min(2).max(100).optional(),
 });
 export type AddressSuggestionQueryInput = z.infer<typeof addressSuggestionQuerySchema>;
 

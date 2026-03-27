@@ -315,3 +315,19 @@
 - A tela de login do `web` deixou de ser um card genérico no centro da tela e passou a usar um layout mais maduro para produto B2B operacional: painel lateral de contexto em desktop, cabeçalho enxuto no mobile e formulário com hierarquia mais forte.
 - O login agora incorpora `TOTP` condicional de verdade, em linha com o contrato já existente do backend, evitando drift entre ativação de 2FA e experiência de acesso.
 - O suporte operacional ficou explícito por texto estático honesto, sem links/placeholders para fluxos inexistentes.
+
+## TODO - Corrigir Time Slots Efetivos em Produção 2026-03-27
+
+- [x] Inspecionar logs do `properfy-prod` para a rota `/v1/time-slots/effective`
+- [x] Confirmar se o `500` era banco/migration ou bug de resolução de tenant
+- [x] Corrigir backend para derivar `tenantId` a partir da `branch` quando o ator global não o informar
+- [x] Alinhar o `web` para enviar `tenantId` explícito quando já houver tenant selecionado no create/edit manual
+- [x] Validar com teste unitário focado e `typecheck`
+
+## TODO - Endereco Multi-Pais e Remocao de Multi-Idioma 2026-03-27
+
+- [x] Auditar o lookup de endereço e a infraestrutura de idiomas atual
+- [x] Remover o filtro hardcoded de Austrália na busca de endereços
+- [x] Manter filtro por país como opção explícita, sem obrigá-lo
+- [x] Remover a UI e a infraestrutura morta de troca de idioma no `web`
+- [x] Validar com testes focados e `typecheck`

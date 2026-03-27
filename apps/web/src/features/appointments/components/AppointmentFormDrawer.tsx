@@ -81,7 +81,10 @@ export function AppointmentFormDrawer({
     },
     { enabled: (!isGlobalRole || !!effectiveTenantId) && !!form.branchId },
   );
-  const { options: timeSlotOptions, isError: timeSlotError, error: timeSlotErrorMsg, refetch: refetchTimeSlots } = useTimeSlotOptions(form.branchId || undefined);
+  const { options: timeSlotOptions, isError: timeSlotError, error: timeSlotErrorMsg, refetch: refetchTimeSlots } = useTimeSlotOptions(
+    form.branchId || undefined,
+    effectiveTenantId,
+  );
 
   const isEditMode = !!appointmentId;
   const { appointment, isLoading: isLoadingDetail } = useAppointmentDetail(

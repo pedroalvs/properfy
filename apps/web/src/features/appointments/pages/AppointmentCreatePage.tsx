@@ -69,7 +69,10 @@ export function AppointmentCreatePage() {
     },
     { enabled: (!isGlobalRole || !!effectiveTenantId) && !!form.branchId },
   );
-  const { options: timeSlotOptions, isError: timeSlotError, error: timeSlotErrorMsg, refetch: refetchTimeSlots } = useTimeSlotOptions(form.branchId || undefined);
+  const { options: timeSlotOptions, isError: timeSlotError, error: timeSlotErrorMsg, refetch: refetchTimeSlots } = useTimeSlotOptions(
+    form.branchId || undefined,
+    effectiveTenantId,
+  );
 
   useEffect(() => {
     if (!isGlobalRole) return;

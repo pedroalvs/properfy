@@ -7,9 +7,9 @@ interface AddressSuggestionResponse {
   data: AddressLookupSuggestion[];
 }
 
-export function useAddressSuggestions(search: string, enabled = true) {
+export function useAddressSuggestions(search: string, enabled = true, country?: string) {
   return useQuery<AddressLookupSuggestion[], ApiError>({
-    queryKey: ['address-suggestions', search],
+    queryKey: ['address-suggestions', search, country ?? null],
     enabled: enabled && search.trim().length >= 3,
     staleTime: 60_000,
     queryFn: async () => {
@@ -18,6 +18,7 @@ export function useAddressSuggestions(search: string, enabled = true) {
           query: {
             q: search.trim(),
             limit: '5',
+            ...(country ? { country } : {}),
           } as any,
         },
       });

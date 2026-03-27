@@ -15,6 +15,7 @@ interface AddressLookupInputProps {
   valueLabel: string;
   onSelect: (suggestion: AddressLookupSuggestion) => void;
   onClear: () => void;
+  country?: string;
   placeholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
@@ -25,6 +26,7 @@ export function AddressLookupInput({
   valueLabel,
   onSelect,
   onClear,
+  country,
   placeholder = 'Search address...',
   disabled = false,
   ariaLabel,
@@ -36,7 +38,11 @@ export function AddressLookupInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const { data: options = [], isLoading } = useAddressSuggestions(debouncedSearch, !disabled);
+  const { data: options = [], isLoading } = useAddressSuggestions(
+    debouncedSearch,
+    !disabled,
+    country,
+  );
 
   const showFloatingLabel = focused || open || search !== '' || valueLabel !== '';
   const renderedValue = open ? search : valueLabel;
@@ -45,8 +51,10 @@ export function AddressLookupInput({
     if (search.length > 0 && search.length < 3) return 'Type at least 3 characters to search';
     if (isLoading) return 'Searching...';
     if (debouncedSearch.length >= 3 && options.length === 0) return 'No verified addresses found';
-    return 'Search for a verified address';
-  }, [debouncedSearch.length, isLoading, options.length, search.length]);
+    return country
+      ? `Search for a verified address in ${country}`
+      : 'Search for a verified address';
+  }, [country, debouncedSearch.length, isLoading, options.length, search.length]);
 
   const handleSearchChange = useCallback((nextValue: string) => {
     setSearch(nextValue);

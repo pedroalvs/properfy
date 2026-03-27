@@ -11,14 +11,14 @@ interface EffectiveSlot {
   value: string;
 }
 
-export function useTimeSlotOptions(branchId: string | undefined) {
+export function useTimeSlotOptions(branchId: string | undefined, tenantId?: string) {
   const enabled = !!branchId;
 
   const query = useQuery<SelectOption[]>({
-    queryKey: ['time-slots', 'effective', branchId],
+    queryKey: ['time-slots', 'effective', branchId, tenantId ?? null],
     queryFn: async () => {
       const { data, error } = await api.GET('/v1/time-slots/effective' as any, {
-        params: { query: { branchId } as any },
+        params: { query: { branchId, ...(tenantId ? { tenantId } : {}) } as any },
       });
       if (error) {
         const err = error as any;

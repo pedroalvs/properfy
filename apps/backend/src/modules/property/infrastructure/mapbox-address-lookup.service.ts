@@ -73,11 +73,17 @@ export class MapboxAddressLookupService implements IAddressLookupService {
     return this.circuitBreaker.execute(async () => {
       const encoded = encodeURIComponent(query.trim());
       const limit = options.limit ?? 5;
-      const country = (options.country ?? 'AU').toLowerCase();
+      const country = options.country
+        ?.split(',')
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean)
+        .join(',');
       const url =
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json` +
         `?access_token=${this.accessToken}` +
-        `&autocomplete=true&limit=${limit}&country=${country}&types=address`;
+        `&autocomplete=true&limit=${limit}` +
+        `${country ? `&country=${encodeURIComponent(country)}` : ''}` +
+        `&types=address`;
 
       const response = await fetch(url);
       if (!response.ok) {

@@ -4,6 +4,9 @@ import type { IAppointmentTimeSlotRepository } from '../../../src/modules/appoin
 import { AppointmentTimeSlotEntity } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import type { AuthContext } from '@properfy/shared';
+import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
+import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
+import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
 
 function makeSlotEntity(
   overrides: Partial<ConstructorParameters<typeof AppointmentTimeSlotEntity>[0]> = {},
@@ -26,6 +29,7 @@ function makeSlotEntity(
 
 describe('ListEffectiveTimeSlotsUseCase', () => {
   let timeSlotRepo: IAppointmentTimeSlotRepository;
+  let branchRepo: IBranchRepository;
   let useCase: ListEffectiveTimeSlotsUseCase;
 
   const amActor: AuthContext = {
@@ -77,7 +81,16 @@ describe('ListEffectiveTimeSlotsUseCase', () => {
       findEffective: vi.fn(),
       softDelete: vi.fn(),
     };
-    useCase = new ListEffectiveTimeSlotsUseCase(timeSlotRepo);
+    branchRepo = {
+      findById: vi.fn(),
+      findByName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      countByTenantIds: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    useCase = new ListEffectiveTimeSlotsUseCase(timeSlotRepo, branchRepo);
   });
 
   it('should return effective slots for a branch', async () => {
@@ -209,5 +222,35 @@ describe('ListEffectiveTimeSlotsUseCase', () => {
     await useCase.execute({ branchId: 'branch-1', actor: amWithTenant });
 
     expect(timeSlotRepo.findEffective).toHaveBeenCalledWith('tenant-am', 'branch-1');
+  });
+
+  it('should derive tenantId from branch when AM does not provide one', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(
+      new BranchEntity({
+        id: 'branch-1',
+        tenantId: 'tenant-branch',
+        name: 'Sydney',
+        addressJson: null,
+        contactEmail: null,
+        status: 'ACTIVE',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      }),
+    );
+    vi.mocked(timeSlotRepo.findEffective).mockResolvedValue([]);
+
+    await useCase.execute({ branchId: 'branch-1', actor: amActor });
+
+    expect(branchRepo.findById).toHaveBeenCalledWith('branch-1', '');
+    expect(timeSlotRepo.findEffective).toHaveBeenCalledWith('tenant-branch', 'branch-1');
+  });
+
+  it('should throw BranchNotFoundError when branch cannot be resolved for global role', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(null);
+
+    await expect(useCase.execute({ branchId: 'branch-1', actor: opActor })).rejects.toThrow(
+      BranchNotFoundError,
+    );
   });
 });
