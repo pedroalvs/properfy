@@ -41,7 +41,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
 
   return (
     <div
-      className={`rounded-lg bg-card-bg p-4 shadow-sm transition-opacity duration-500 ${faded ? 'opacity-50' : ''}`}
+      className={`rounded-[24px] border border-white/70 bg-white/92 p-4 shadow-[0_14px_30px_rgba(15,23,42,0.06)] transition-opacity duration-500 ${faded ? 'opacity-50' : ''}`}
       data-testid={`offer-card-${offer.groupId}`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -54,7 +54,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-text-secondary">
+          <p className="mt-1 text-xs text-text-secondary">
             {formatDate(offer.scheduledDate)} | {formatTimeWindow(offer.timeWindow)}
           </p>
           <p className="mt-0.5 text-xs text-text-muted">{offer.tenantName}</p>
@@ -67,7 +67,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
       <p className="mt-2 text-sm text-text-primary">
         {offer.suburbs.length > 0 ? offer.suburbs.join(', ') : 'Suburbs not informed'}
       </p>
-      <div className="flex items-center gap-2 text-xs text-text-muted">
+      <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
         <span data-testid="priority-expiration">
           {offer.priorityExpiresAt ? `Priority until ${formatDate(offer.priorityExpiresAt)}` : 'Standard availability'}
         </span>
@@ -83,7 +83,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
       </button>
 
       {expanded && (
-        <div className="mt-2 rounded bg-app-bg p-3" data-testid="offer-details-expanded">
+        <div className="mt-2 rounded-2xl bg-app-bg p-3" data-testid="offer-details-expanded">
           <p className="mb-1 text-xs font-bold uppercase text-text-secondary">Suburbs</p>
           <ul className="list-disc pl-4 text-xs text-text-primary">
             {offer.suburbs.map((suburb) => (
@@ -108,7 +108,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
             onClick={onAccept}
             loading={state === 'ACCEPTING'}
             disabled={state === 'ACCEPTING' || state === 'CONFIRMING'}
-            className="!w-full !bg-success !min-h-touch"
+            className="!w-full !min-h-touch !rounded-2xl !bg-success"
             data-testid="accept-button"
           >
             Accept

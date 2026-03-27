@@ -46,6 +46,10 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   meetingLocation: '',
   keyLocation: '',
   notes: '',
+  hasRestriction: false,
+  restrictionIsHome: false,
+  restrictionNotes: '',
+  restrictionTouched: false,
 };
 
 beforeEach(() => {
@@ -146,6 +150,50 @@ describe('useAppointmentSave', () => {
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
       },
+    });
+  });
+
+  it('includes restriction payload when set on create', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({
+        ...VALID_CREATE_DATA,
+        hasRestriction: true,
+        restrictionIsHome: true,
+        restrictionNotes: 'Ring bell',
+        restrictionTouched: true,
+      });
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/v1/appointments', {
+      body: expect.objectContaining({
+        restriction: {
+          isHome: true,
+          notes: 'Ring bell',
+          source: 'OPERATOR',
+        },
+      }),
+    });
+  });
+
+  it('sends null restriction on edit when restriction was cleared', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({
+        ...VALID_CREATE_DATA,
+        hasRestriction: false,
+        restrictionTouched: true,
+      }, 'apt-01');
+    });
+
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+      body: expect.objectContaining({
+        restriction: null,
+      }),
     });
   });
 

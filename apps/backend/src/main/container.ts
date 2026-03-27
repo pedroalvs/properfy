@@ -53,9 +53,12 @@ import { ListPropertiesUseCase } from '../modules/property/application/use-cases
 import { UpdatePropertyUseCase } from '../modules/property/application/use-cases/update-property.use-case';
 import { DeletePropertyUseCase } from '../modules/property/application/use-cases/delete-property.use-case';
 import { GeocodePropertyUseCase } from '../modules/property/application/use-cases/geocode-property.use-case';
+import { SearchAddressesUseCase } from '../modules/property/application/use-cases/search-addresses.use-case';
 import { ImportPropertiesUseCase } from '../modules/property/application/use-cases/import-properties.use-case';
 import { GetPropertyImportStatusUseCase } from '../modules/property/application/use-cases/get-property-import-status.use-case';
+import { MapboxAddressLookupService } from '../modules/property/infrastructure/mapbox-address-lookup.service';
 import { MapboxGeocodingService } from '../modules/property/infrastructure/mapbox-geocoding.service';
+import { StubAddressLookupService } from '../modules/property/infrastructure/stub-address-lookup.service';
 import { StubGeocodingService } from '../modules/property/infrastructure/stub-geocoding.service';
 import { PrismaPropertyImportRepository } from '../modules/property/infrastructure/prisma-property-import.repository';
 import { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
@@ -224,6 +227,15 @@ import { PrismaAppointmentImportRepository } from '../modules/appointment/infras
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
+// Appointment time slot module
+import { PrismaAppointmentTimeSlotRepository } from '../modules/appointment-time-slot/infrastructure/prisma-appointment-time-slot.repository';
+import { CreateAppointmentTimeSlotUseCase } from '../modules/appointment-time-slot/application/use-cases/create-appointment-time-slot.use-case';
+import { UpdateAppointmentTimeSlotUseCase } from '../modules/appointment-time-slot/application/use-cases/update-appointment-time-slot.use-case';
+import { ListAppointmentTimeSlotsUseCase } from '../modules/appointment-time-slot/application/use-cases/list-appointment-time-slots.use-case';
+import { ListEffectiveTimeSlotsUseCase } from '../modules/appointment-time-slot/application/use-cases/list-effective-time-slots.use-case';
+import { DeleteAppointmentTimeSlotUseCase } from '../modules/appointment-time-slot/application/use-cases/delete-appointment-time-slot.use-case';
+import type { AppointmentTimeSlotRouteContainer } from '../modules/appointment-time-slot/interfaces/appointment-time-slot.routes';
+
 export interface AppContainer {
   prisma: typeof prisma;
   auditService: PersistentAuditService;
@@ -235,6 +247,7 @@ export interface AppContainer {
   pricingRule: PricingRuleRouteContainer;
   inspector: InspectorRouteContainer;
   appointment: AppointmentRouteContainer;
+  appointmentTimeSlot: AppointmentTimeSlotRouteContainer;
   audit: AuditRouteContainer;
   serviceGroup: ServiceGroupRouteContainer;
   marketplace: MarketplaceRouteContainer;
@@ -310,7 +323,6 @@ export function createContainer(logger: Logger): AppContainer {
   const confirmTotpUseCase = new ConfirmTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
 
   // Tenant use cases
-  const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService);
   const getTenantUseCase = new GetTenantUseCase(tenantRepo);
   const listTenantsUseCase = new ListTenantsUseCase(tenantRepo, branchRepo);
   const updateTenantUseCase = new UpdateTenantUseCase(tenantRepo, auditService);
@@ -336,6 +348,10 @@ export function createContainer(logger: Logger): AppContainer {
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo);
+  const addressLookupService = env.MAPBOX_ACCESS_TOKEN
+    ? new MapboxAddressLookupService(env.MAPBOX_ACCESS_TOKEN)
+    : new StubAddressLookupService();
+  const searchAddressesUseCase = new SearchAddressesUseCase(addressLookupService);
   const geocodingService = env.MAPBOX_ACCESS_TOKEN
     ? new MapboxGeocodingService(env.MAPBOX_ACCESS_TOKEN)
     : new StubGeocodingService();
@@ -382,6 +398,15 @@ export function createContainer(logger: Logger): AppContainer {
   const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
   const inspectorInvoiceRepo = new PrismaInspectorInvoiceRepository(prisma);
 
+  // Appointment time slot
+  const appointmentTimeSlotRepo = new PrismaAppointmentTimeSlotRepository(prisma);
+  const createAppointmentTimeSlotUseCase = new CreateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
+  const updateAppointmentTimeSlotUseCase = new UpdateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
+  const listAppointmentTimeSlotsUseCase = new ListAppointmentTimeSlotsUseCase(appointmentTimeSlotRepo);
+  const listEffectiveTimeSlotsUseCase = new ListEffectiveTimeSlotsUseCase(appointmentTimeSlotRepo);
+  const deleteAppointmentTimeSlotUseCase = new DeleteAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
+  const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, appointmentTimeSlotRepo);
+
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
   const createFinancialEntriesOnDoneUseCase = new CreateFinancialEntriesOnDoneUseCase(
@@ -389,11 +414,11 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
-    createPropertyUseCase, auditService, tenantRepo,
+    createPropertyUseCase, auditService, tenantRepo, appointmentTimeSlotRepo,
   );
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo);
-  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepo);
+  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepo, appointmentTimeSlotRepo);
   // Notification handlers (depend on appointmentRepo, propertyRepo, createNotificationUseCase)
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
     appointmentRepo, propertyRepo, createNotificationUseCase,
@@ -586,7 +611,7 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   const appointmentImportWorker = new AppointmentImportWorker(
-    appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger,
+    appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger, appointmentTimeSlotRepo,
   );
 
   // Property import (depends on reportStorageService and job queue)
@@ -650,6 +675,7 @@ export function createContainer(logger: Logger): AppContainer {
       updatePropertyUseCase,
       deletePropertyUseCase,
       geocodePropertyUseCase,
+      searchAddressesUseCase,
       importPropertiesUseCase,
       getPropertyImportStatusUseCase,
       jwtService,
@@ -695,6 +721,15 @@ export function createContainer(logger: Logger): AppContainer {
       getImportStatusUseCase,
       listAppointmentContactsUseCase,
       appointmentRepo,
+      jwtService,
+      tenantRepo,
+    },
+    appointmentTimeSlot: {
+      createAppointmentTimeSlotUseCase,
+      updateAppointmentTimeSlotUseCase,
+      listAppointmentTimeSlotsUseCase,
+      listEffectiveTimeSlotsUseCase,
+      deleteAppointmentTimeSlotUseCase,
       jwtService,
       tenantRepo,
     },

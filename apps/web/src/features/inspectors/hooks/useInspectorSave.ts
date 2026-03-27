@@ -91,7 +91,6 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         name: data.name.trim(),
         email: data.email.trim(),
         phone: data.phone.trim() || undefined,
-        document: data.document.trim() || undefined,
         status: data.status || undefined,
         regions: parseDelimitedValues(data.regions),
         serviceTypes: parseServiceTypeIds(data.serviceTypes),

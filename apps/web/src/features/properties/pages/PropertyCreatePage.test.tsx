@@ -112,6 +112,7 @@ describe('PropertyCreatePage', () => {
     renderPage();
     expect(screen.getByLabelText('Agency')).toBeInTheDocument();
     expect(screen.getByLabelText('Property Code')).toBeInTheDocument();
+    expect(screen.getByLabelText('Verified Address')).toBeInTheDocument();
     expect(screen.getByLabelText('Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Street')).toBeInTheDocument();
     expect(screen.getByLabelText('Suburb')).toBeInTheDocument();
@@ -142,5 +143,12 @@ describe('PropertyCreatePage', () => {
     const { container } = renderPage();
     const centeredDiv = container.querySelector('.mx-auto.max-w-\\[640px\\]');
     expect(centeredDiv).toBeInTheDocument();
+  });
+
+  it('keeps structured address fields editable for manual refinement', () => {
+    renderPage();
+    expect(screen.getByLabelText('Street')).not.toBeDisabled();
+    expect(screen.getByLabelText('Suburb')).not.toBeDisabled();
+    expect(screen.getByLabelText('Postcode')).not.toBeDisabled();
   });
 });

@@ -146,6 +146,7 @@ model Tenant {
   reports                 Report[]
   appointment_imports     AppointmentImport[]
   property_imports        PropertyImport[]
+  appointment_time_slots  AppointmentTimeSlot[]
 
   @@index([status])
   @@index([deleted_at])
@@ -167,7 +168,8 @@ model Branch {
   users         User[]
   properties    Property[]
   price_rules   ServicePriceRule[]
-  appointments  Appointment[]
+  appointments           Appointment[]
+  appointment_time_slots AppointmentTimeSlot[]
 
   @@unique([tenant_id, name])
   @@index([tenant_id])
@@ -888,4 +890,26 @@ model PropertyImport {
   @@index([created_by_user_id])
   @@index([created_at])
   @@map("property_imports")
+}
+
+model AppointmentTimeSlot {
+  id          String    @id @default(uuid())
+  tenant_id   String
+  branch_id   String?
+  label       String    @db.VarChar(100)
+  start_time  String    @db.VarChar(5)
+  end_time    String    @db.VarChar(5)
+  sort_order  Int       @default(0)
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  tenant      Tenant    @relation(fields: [tenant_id], references: [id])
+  branch      Branch?   @relation(fields: [branch_id], references: [id])
+
+  @@unique([tenant_id, branch_id, start_time, end_time])
+  @@index([tenant_id, branch_id, is_active])
+  @@index([tenant_id, is_active])
+  @@map("appointment_time_slots")
 }

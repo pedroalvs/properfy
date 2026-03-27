@@ -57,7 +57,6 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
         <DetailRow label="Name" value={inspector.name} />
         <DetailRow label="Email" value={inspector.email} />
         <DetailRow label="Phone" value={inspector.phone} />
-        <DetailRow label="CPF" value={inspector.document} />
       </FormSection>
 
       <FormSection title="Coverage">

@@ -10,6 +10,7 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
+import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
@@ -17,12 +18,18 @@ import { usePropertySave } from '../hooks/usePropertySave';
 import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
+import type { AddressLookupSuggestion } from '@/lib/address';
+import { buildAddressLabel } from '@/lib/address';
 
 interface PropertyFormDrawerProps {
   open: boolean;
   onClose: () => void;
   propertyId?: string | null;
   onSaved: () => void;
+  tenantIdOverride?: string;
+  initialBranchId?: string;
+  lockBranch?: boolean;
+  onCreated?: (propertyId: string) => void;
 }
 
 export function PropertyFormDrawer({
@@ -30,6 +37,10 @@ export function PropertyFormDrawer({
   onClose,
   propertyId,
   onSaved,
+  tenantIdOverride,
+  initialBranchId,
+  lockBranch = false,
+  onCreated,
 }: PropertyFormDrawerProps) {
   const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
     ['branches', 'form-options'],
@@ -71,11 +82,15 @@ export function PropertyFormDrawer({
 
   useEffect(() => {
     if (open && !isEditMode) {
-      setForm(EMPTY_PROPERTY_FORM);
-      setInitialData(EMPTY_PROPERTY_FORM);
+      const nextForm = {
+        ...EMPTY_PROPERTY_FORM,
+        branchId: initialBranchId ?? '',
+      };
+      setForm(nextForm);
+      setInitialData(nextForm);
       setErrors({});
     }
-  }, [open, isEditMode]);
+  }, [open, isEditMode, initialBranchId]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
@@ -94,6 +109,40 @@ export function PropertyFormDrawer({
     [],
   );
 
+  const applyAddressSuggestion = useCallback(
+    (suggestion: AddressLookupSuggestion) => {
+      setForm((prev) => ({
+        ...prev,
+        street: suggestion.street,
+        suburb: suggestion.suburb,
+        postcode: suggestion.postcode,
+        state: suggestion.state,
+        country: suggestion.country,
+      }));
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.street;
+        delete next.suburb;
+        delete next.postcode;
+        delete next.state;
+        delete next.country;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const clearAddressSelection = useCallback(() => {
+    setForm((prev) => ({
+      ...prev,
+      street: '',
+      suburb: '',
+      postcode: '',
+      state: '',
+      country: 'AU',
+    }));
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     const mode = isEditMode ? 'edit' : 'create';
     const validationErrors = validate(form, mode);
@@ -101,14 +150,17 @@ export function PropertyFormDrawer({
       setErrors(validationErrors);
       return;
     }
-    const result = await save(form, propertyId ?? undefined);
+    const result = await save(form, propertyId ?? undefined, tenantIdOverride);
     if (result.success) {
       showSuccess(isEditMode ? 'Property updated successfully' : 'Property created successfully');
+      if (!isEditMode && result.id) {
+        onCreated?.(result.id);
+      }
       onSaved();
     } else {
       showError(result.error ?? 'Failed to save');
     }
-  }, [isEditMode, form, validate, save, propertyId, showSuccess, showError, onSaved]);
+  }, [isEditMode, form, validate, save, propertyId, tenantIdOverride, showSuccess, showError, onSaved, onCreated]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -167,12 +219,34 @@ export function PropertyFormDrawer({
                         onChange={(v) => updateField('branchId', v)}
                         options={branchOptions}
                         placeholder="Select branch"
+                        disabled={lockBranch}
                         aria-label="Branch"
                       />
                     </FormField>
                   </FormSection>
 
                   <FormSection title="Address" columns={2}>
+                    <FormField
+                      label="Verified Address"
+                      required
+                      hint="Search a verified address, then adjust the structured fields if needed."
+                      className="md:col-span-2"
+                    >
+                      <AddressLookupInput
+                        label="Verified Address"
+                        valueLabel={buildAddressLabel({
+                          street: form.street,
+                          suburb: form.suburb,
+                          postcode: form.postcode,
+                          state: form.state,
+                          country: form.country,
+                        }) ?? ''}
+                        onSelect={applyAddressSuggestion}
+                        onClear={clearAddressSelection}
+                        placeholder="Search verified address"
+                        ariaLabel="Verified Address"
+                      />
+                    </FormField>
                     <FormField label="Street" required error={errors.street}>
                       <TextInput
                         value={form.street}

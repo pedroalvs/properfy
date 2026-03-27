@@ -23,4 +23,10 @@ describe('DetailRow', () => {
     const { container } = render(<DetailRow label="X" value="Y" className="border-b" />);
     expect(container.firstChild).toHaveClass('border-b');
   });
+
+  it('stacks content on mobile and restores row layout on larger screens', () => {
+    const { container } = render(<DetailRow label="X" value="Y" />);
+    expect(container.firstChild).toHaveClass('flex-col');
+    expect(container.firstChild).toHaveClass('sm:flex-row');
+  });
 });

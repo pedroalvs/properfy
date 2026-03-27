@@ -37,6 +37,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/login": {
         parameters: {
             query?: never;
@@ -73,7 +139,7 @@ export interface paths {
                         "application/json": {
                             accessToken: string;
                             refreshToken: string;
-                            expiresIn: number;
+                            totpSetupRequired?: boolean;
                             user: {
                                 /** Format: uuid */
                                 id: string;
@@ -127,7 +193,6 @@ export interface paths {
                         "application/json": {
                             accessToken: string;
                             refreshToken: string;
-                            expiresIn: number;
                         };
                     };
                 };
@@ -207,6 +272,10 @@ export interface paths {
                             /** Format: uuid */
                             branchId: string | null;
                             totpEnabled: boolean;
+                            phone: string | null;
+                            status: string;
+                            lastLoginAt: (string) | null;
+                            createdAt: string;
                         };
                     };
                 };
@@ -256,6 +325,127 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/2fa/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/2fa/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        totpCode: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": "null" | null;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                userAgent: string | null;
+                                ipAddress: string | null;
+                                /** Format: date-time */
+                                lastActiveAt: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                isCurrent: boolean;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -338,6 +528,7 @@ export interface paths {
                                 timezone: string;
                                 currency: string;
                                 settingsJson?: unknown;
+                                branchCount?: number;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -402,6 +593,7 @@ export interface paths {
                                 timezone: string;
                                 currency: string;
                                 settingsJson?: unknown;
+                                branchCount?: number;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -450,6 +642,7 @@ export interface paths {
                                 timezone: string;
                                 currency: string;
                                 settingsJson?: unknown;
+                                branchCount?: number;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -512,6 +705,7 @@ export interface paths {
                                 timezone: string;
                                 currency: string;
                                 settingsJson?: unknown;
+                                branchCount?: number;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -549,13 +743,11 @@ export interface paths {
             };
             responses: {
                 /** @description Default Response */
-                204: {
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": "null" | null;
-                    };
+                    content?: never;
                 };
             };
         };
@@ -673,6 +865,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                    status?: "ACTIVE" | "INACTIVE";
+                    search?: string;
+                    tenantId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                name: string;
+                                addressJson?: unknown;
+                                contactEmail: string | null;
+                                status: string;
+                                createdAt: string;
+                                updatedAt: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenants/{tenantId}/branches/{branchId}": {
         parameters: {
             query?: never;
@@ -763,13 +1017,11 @@ export interface paths {
             };
             responses: {
                 /** @description Default Response */
-                204: {
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": "null" | null;
-                    };
+                    content?: never;
                 };
             };
         };
@@ -824,10 +1076,10 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
-                                totpEnabled: boolean;
-                                lastLoginAt: string | null;
+                                totpEnabled?: boolean;
+                                lastLoginAt?: (string) | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                             }[];
                             pagination: {
                                 page: number;
@@ -885,10 +1137,10 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
-                                totpEnabled: boolean;
-                                lastLoginAt: string | null;
+                                totpEnabled?: boolean;
+                                lastLoginAt?: (string) | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                             };
                         };
                     };
@@ -939,10 +1191,10 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
-                                totpEnabled: boolean;
-                                lastLoginAt: string | null;
+                                totpEnabled?: boolean;
+                                lastLoginAt?: (string) | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                             };
                         };
                     };
@@ -996,10 +1248,10 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
-                                totpEnabled: boolean;
-                                lastLoginAt: string | null;
+                                totpEnabled?: boolean;
+                                lastLoginAt?: (string) | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                             };
                         };
                     };
@@ -1052,6 +1304,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenants/{tenantId}/users/{userId}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        newPassword: string & (unknown & unknown & unknown & unknown);
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": "null" | null;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/address/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    q: string;
+                    limit?: number;
+                    country?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                formattedAddress: string;
+                                street: string;
+                                suburb: string;
+                                postcode: string;
+                                state: string;
+                                country: string;
+                                latitude: number;
+                                longitude: number;
+                                /** @enum {string} */
+                                provider: "MAPBOX";
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/properties": {
         parameters: {
             query?: never;
@@ -1070,6 +1418,7 @@ export interface paths {
                     branchId?: string;
                     type?: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
                     search?: string;
+                    hasCoordinates?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -1091,6 +1440,7 @@ export interface paths {
                                 tenantId: string;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -1099,8 +1449,8 @@ export interface paths {
                                 postcode: string;
                                 state: string;
                                 country: string;
-                                lat: number | null;
-                                lng: number | null;
+                                latitude?: number | null;
+                                longitude?: number | null;
                                 geocodingStatus: string;
                                 notes: string | null;
                                 rulesJson?: unknown;
@@ -1165,6 +1515,7 @@ export interface paths {
                                 tenantId: string;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -1173,8 +1524,8 @@ export interface paths {
                                 postcode: string;
                                 state: string;
                                 country: string;
-                                lat: number | null;
-                                lng: number | null;
+                                latitude?: number | null;
+                                longitude?: number | null;
                                 geocodingStatus: string;
                                 notes: string | null;
                                 rulesJson?: unknown;
@@ -1224,6 +1575,7 @@ export interface paths {
                                 tenantId: string;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -1232,8 +1584,8 @@ export interface paths {
                                 postcode: string;
                                 state: string;
                                 country: string;
-                                lat: number | null;
-                                lng: number | null;
+                                latitude?: number | null;
+                                longitude?: number | null;
                                 geocodingStatus: string;
                                 notes: string | null;
                                 rulesJson?: unknown;
@@ -1294,6 +1646,8 @@ export interface paths {
                         postcode?: string;
                         state?: string;
                         country?: string;
+                        latitude?: number | null;
+                        longitude?: number | null;
                         notes?: string | null;
                         rulesJson?: {
                             [key: string]: unknown;
@@ -1316,6 +1670,7 @@ export interface paths {
                                 tenantId: string;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -1324,8 +1679,8 @@ export interface paths {
                                 postcode: string;
                                 state: string;
                                 country: string;
-                                lat: number | null;
-                                lng: number | null;
+                                latitude?: number | null;
+                                longitude?: number | null;
                                 geocodingStatus: string;
                                 notes: string | null;
                                 rulesJson?: unknown;
@@ -1337,6 +1692,109 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/properties/{propertyId}/geocode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    propertyId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/properties/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/properties/import/{importId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    importId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/service-types": {
@@ -1571,6 +2029,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                currency: string;
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 /** Format: uuid */
@@ -1639,6 +2098,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                currency: string;
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 /** Format: uuid */
@@ -1712,6 +2172,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                currency: string;
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 /** Format: uuid */
@@ -1955,6 +2416,199 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/availability-slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                    dateFrom?: string;
+                    dateTo?: string;
+                    status?: "AVAILABLE" | "BOOKED" | "CANCELLED";
+                    inspectorId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName?: string | null;
+                                date: string;
+                                startTime: string;
+                                endTime: string;
+                                region?: string | null;
+                                regionJson?: unknown;
+                                capacity: number;
+                                bookedCount?: number;
+                                status: string;
+                                createdAt: string;
+                                updatedAt: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        inspectorId?: string;
+                        /** Format: date */
+                        date: string;
+                        startTime: string;
+                        endTime: string;
+                        region?: string;
+                        regionJson?: {
+                            [key: string]: unknown;
+                        };
+                        /** @default 1 */
+                        capacity?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName?: string | null;
+                                date: string;
+                                startTime: string;
+                                endTime: string;
+                                region?: string | null;
+                                regionJson?: unknown;
+                                capacity: number;
+                                bookedCount?: number;
+                                status: string;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/availability-slots/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: date */
+                        date?: string;
+                        startTime?: string;
+                        endTime?: string;
+                        region?: string;
+                        regionJson?: {
+                            [key: string]: unknown;
+                        } | null;
+                        capacity?: number;
+                        /** @enum {string} */
+                        status?: "AVAILABLE" | "BOOKED" | "CANCELLED";
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName?: string | null;
+                                date: string;
+                                startTime: string;
+                                endTime: string;
+                                region?: string | null;
+                                regionJson?: unknown;
+                                capacity: number;
+                                bookedCount?: number;
+                                status: string;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/v1/inspectors/{inspectorId}/availability-slots": {
         parameters: {
             query?: never;
@@ -1993,11 +2647,14 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 date: string;
                                 startTime: string;
                                 endTime: string;
+                                region?: string | null;
                                 regionJson?: unknown;
                                 capacity: number;
+                                bookedCount?: number;
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
@@ -2026,10 +2683,13 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
+                        /** Format: uuid */
+                        inspectorId?: string;
                         /** Format: date */
                         date: string;
                         startTime: string;
                         endTime: string;
+                        region?: string;
                         regionJson?: {
                             [key: string]: unknown;
                         };
@@ -2051,11 +2711,14 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 date: string;
                                 startTime: string;
                                 endTime: string;
+                                region?: string | null;
                                 regionJson?: unknown;
                                 capacity: number;
+                                bookedCount?: number;
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
@@ -2101,6 +2764,7 @@ export interface paths {
                         date?: string;
                         startTime?: string;
                         endTime?: string;
+                        region?: string;
                         regionJson?: {
                             [key: string]: unknown;
                         } | null;
@@ -2123,11 +2787,14 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 date: string;
                                 startTime: string;
                                 endTime: string;
+                                region?: string | null;
                                 regionJson?: unknown;
                                 capacity: number;
+                                bookedCount?: number;
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
@@ -2199,11 +2866,13 @@ export interface paths {
                     serviceTypeId?: string;
                     branchId?: string;
                     inspectorId?: string;
+                    propertyId?: string;
                     tenantId?: string;
                     search?: string;
                     fromDate?: string;
                     toDate?: string;
                     tenantConfirmationStatus?: "PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE";
+                    showCancelled?: string;
                 };
                 header?: never;
                 path?: never;
@@ -2232,27 +2901,38 @@ export interface paths {
                                 /** Format: uuid */
                                 inspectorId: string | null;
                                 /** Format: uuid */
-                                serviceGroupId: string | null;
+                                serviceGroupId?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
-                                keyRequired: boolean;
-                                meetingLocation: string | null;
-                                keyLocation: string | null;
+                                keyRequired?: boolean;
+                                meetingLocation?: string | null;
+                                keyLocation?: string | null;
                                 tenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 customFieldsJson?: unknown;
-                                reason: string | null;
+                                reason?: string | null;
+                                cancellationReasonCode?: string | null;
+                                rejectionReasonCode?: string | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
-                                doneCheckedByUserId: string | null;
-                                doneCheckedAt: string | null;
+                                doneCheckedByUserId?: string | null;
+                                doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                code?: string;
+                                propertyAddress?: string;
+                                contactName?: string;
+                                contactPhone?: string | null;
+                                contactEmail?: string | null;
+                                inspectorName?: string | null;
+                                branchName?: string | null;
+                                serviceTypeName?: string | null;
+                                cancellationReason?: string | null;
                                 contact?: unknown;
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -2354,27 +3034,38 @@ export interface paths {
                                 /** Format: uuid */
                                 inspectorId: string | null;
                                 /** Format: uuid */
-                                serviceGroupId: string | null;
+                                serviceGroupId?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
-                                keyRequired: boolean;
-                                meetingLocation: string | null;
-                                keyLocation: string | null;
+                                keyRequired?: boolean;
+                                meetingLocation?: string | null;
+                                keyLocation?: string | null;
                                 tenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 customFieldsJson?: unknown;
-                                reason: string | null;
+                                reason?: string | null;
+                                cancellationReasonCode?: string | null;
+                                rejectionReasonCode?: string | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
-                                doneCheckedByUserId: string | null;
-                                doneCheckedAt: string | null;
+                                doneCheckedByUserId?: string | null;
+                                doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                code?: string;
+                                propertyAddress?: string;
+                                contactName?: string;
+                                contactPhone?: string | null;
+                                contactEmail?: string | null;
+                                inspectorName?: string | null;
+                                branchName?: string | null;
+                                serviceTypeName?: string | null;
+                                cancellationReason?: string | null;
                                 contact?: unknown;
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -2432,27 +3123,38 @@ export interface paths {
                                 /** Format: uuid */
                                 inspectorId: string | null;
                                 /** Format: uuid */
-                                serviceGroupId: string | null;
+                                serviceGroupId?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
-                                keyRequired: boolean;
-                                meetingLocation: string | null;
-                                keyLocation: string | null;
+                                keyRequired?: boolean;
+                                meetingLocation?: string | null;
+                                keyLocation?: string | null;
                                 tenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 customFieldsJson?: unknown;
-                                reason: string | null;
+                                reason?: string | null;
+                                cancellationReasonCode?: string | null;
+                                rejectionReasonCode?: string | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
-                                doneCheckedByUserId: string | null;
-                                doneCheckedAt: string | null;
+                                doneCheckedByUserId?: string | null;
+                                doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                code?: string;
+                                propertyAddress?: string;
+                                contactName?: string;
+                                contactPhone?: string | null;
+                                contactEmail?: string | null;
+                                inspectorName?: string | null;
+                                branchName?: string | null;
+                                serviceTypeName?: string | null;
+                                cancellationReason?: string | null;
                                 contact?: unknown;
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -2534,27 +3236,38 @@ export interface paths {
                                 /** Format: uuid */
                                 inspectorId: string | null;
                                 /** Format: uuid */
-                                serviceGroupId: string | null;
+                                serviceGroupId?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
-                                keyRequired: boolean;
-                                meetingLocation: string | null;
-                                keyLocation: string | null;
+                                keyRequired?: boolean;
+                                meetingLocation?: string | null;
+                                keyLocation?: string | null;
                                 tenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 customFieldsJson?: unknown;
-                                reason: string | null;
+                                reason?: string | null;
+                                cancellationReasonCode?: string | null;
+                                rejectionReasonCode?: string | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
-                                doneCheckedByUserId: string | null;
-                                doneCheckedAt: string | null;
+                                doneCheckedByUserId?: string | null;
+                                doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                code?: string;
+                                propertyAddress?: string;
+                                contactName?: string;
+                                contactPhone?: string | null;
+                                contactEmail?: string | null;
+                                inspectorName?: string | null;
+                                branchName?: string | null;
+                                serviceTypeName?: string | null;
+                                cancellationReason?: string | null;
                                 contact?: unknown;
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -2593,6 +3306,8 @@ export interface paths {
                         /** @enum {string} */
                         targetStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                         reason?: string;
+                        cancellationReasonCode?: string;
+                        rejectionReasonCode?: string;
                         /** Format: uuid */
                         doneCheckedByUserId?: string;
                         /** Format: uuid */
@@ -2611,44 +3326,70 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                branchId: string;
-                                /** Format: uuid */
-                                propertyId: string;
-                                /** Format: uuid */
-                                serviceTypeId: string;
+                                status: string;
+                                previousStatus: string;
+                                reason: string | null;
                                 /** Format: uuid */
                                 inspectorId: string | null;
                                 /** Format: uuid */
-                                serviceGroupId: string | null;
+                                doneCheckedByUserId: string | null;
+                                doneCheckedAt?: unknown;
+                                updatedAt?: unknown;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/{appointmentId}/cross-check-done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": unknown | Record<string, never>;
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
                                 status: string;
-                                scheduledDate: string;
-                                timeSlot: string;
-                                keyRequired: boolean;
-                                meetingLocation: string | null;
-                                keyLocation: string | null;
-                                tenantConfirmationStatus: string;
-                                priceAmount: number;
-                                payoutAmount: number;
-                                pricingRuleSnapshotJson?: unknown;
-                                notes: string | null;
-                                customFieldsJson?: unknown;
+                                previousStatus: string;
                                 reason: string | null;
                                 /** Format: uuid */
-                                createdByUserId: string;
+                                inspectorId: string | null;
                                 /** Format: uuid */
                                 doneCheckedByUserId: string | null;
-                                doneCheckedAt: string | null;
-                                createdAt: string;
-                                updatedAt: string;
-                                contact?: unknown;
-                                restrictions?: unknown[];
-                                property?: unknown;
-                                serviceType?: unknown;
-                                inspector?: unknown;
-                                branch?: unknown;
+                                doneCheckedAt?: unknown;
+                                updatedAt?: unknown;
                             };
                         };
                     };
@@ -2710,27 +3451,38 @@ export interface paths {
                                 /** Format: uuid */
                                 inspectorId: string | null;
                                 /** Format: uuid */
-                                serviceGroupId: string | null;
+                                serviceGroupId?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
-                                keyRequired: boolean;
-                                meetingLocation: string | null;
-                                keyLocation: string | null;
+                                keyRequired?: boolean;
+                                meetingLocation?: string | null;
+                                keyLocation?: string | null;
                                 tenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 customFieldsJson?: unknown;
-                                reason: string | null;
+                                reason?: string | null;
+                                cancellationReasonCode?: string | null;
+                                rejectionReasonCode?: string | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
-                                doneCheckedByUserId: string | null;
-                                doneCheckedAt: string | null;
+                                doneCheckedByUserId?: string | null;
+                                doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                code?: string;
+                                propertyAddress?: string;
+                                contactName?: string;
+                                contactPhone?: string | null;
+                                contactEmail?: string | null;
+                                inspectorName?: string | null;
+                                branchName?: string | null;
+                                serviceTypeName?: string | null;
+                                cancellationReason?: string | null;
                                 contact?: unknown;
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -2743,6 +3495,194 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/import/{importId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    importId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointment-contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                    confirmationStatus?: string;
+                    search?: string;
+                    tenantId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                appointmentId: string;
+                                name: string;
+                                primaryEmail: string | null;
+                                primaryPhone: string | null;
+                                confirmationStatus: string;
+                                propertyAddress: string;
+                                appointmentDate: string;
+                                lastActivityAt: (string) | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointment-contacts/{contactId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    contactId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                appointmentId: string;
+                                name: string;
+                                primaryEmail: string | null;
+                                primaryPhone: string | null;
+                                confirmationStatus: string;
+                                propertyAddress: string;
+                                appointmentDate: string;
+                                lastActivityAt: (string) | null;
+                                createdAt: string;
+                                updatedAt: string;
+                                alternativePhone: string | null;
+                                notes: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2796,16 +3736,19 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
+                                name?: string | null;
+                                regionName?: string | null;
+                                description?: string | null;
                                 priorityMode: string;
-                                priorityExpiresAt: string | null;
+                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
-                                publishedAt: string | null;
-                                assignedAt: string | null;
+                                publishedAt: (string) | null;
+                                assignedAt?: (string) | null;
                                 /** Format: uuid */
-                                createdByUserId: string;
+                                createdByUserId?: string;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             }[];
@@ -2865,16 +3808,19 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
+                                name?: string | null;
+                                regionName?: string | null;
+                                description?: string | null;
                                 priorityMode: string;
-                                priorityExpiresAt: string | null;
+                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
-                                publishedAt: string | null;
-                                assignedAt: string | null;
+                                publishedAt: (string) | null;
+                                assignedAt?: (string) | null;
                                 /** Format: uuid */
-                                createdByUserId: string;
+                                createdByUserId?: string;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -2927,16 +3873,19 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
+                                name?: string | null;
+                                regionName?: string | null;
+                                description?: string | null;
                                 priorityMode: string;
-                                priorityExpiresAt: string | null;
+                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
-                                publishedAt: string | null;
-                                assignedAt: string | null;
+                                publishedAt: (string) | null;
+                                assignedAt?: (string) | null;
                                 /** Format: uuid */
-                                createdByUserId: string;
+                                createdByUserId?: string;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -2950,7 +3899,68 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        regionName?: string;
+                        /** @enum {string} */
+                        priorityMode?: "STANDARD" | "PRIORITY_24H";
+                        description?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                /** Format: uuid */
+                                serviceTypeId: string;
+                                status: string;
+                                groupSize: number;
+                                offeredCount: number;
+                                confirmedCount: number;
+                                scheduledDate: string;
+                                timeWindow: string;
+                                name?: string | null;
+                                regionName?: string | null;
+                                description?: string | null;
+                                priorityMode: string;
+                                priorityExpiresAt: (string) | null;
+                                /** Format: uuid */
+                                assignedInspectorId: string | null;
+                                publishedAt: (string) | null;
+                                assignedAt?: (string) | null;
+                                /** Format: uuid */
+                                createdByUserId?: string;
+                                createdAt: string;
+                                updatedAt?: string;
+                                appointments?: unknown[];
+                                assignedInspector?: unknown;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/v1/service-groups/{groupId}/publish": {
@@ -2993,16 +4003,19 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
+                                name?: string | null;
+                                regionName?: string | null;
+                                description?: string | null;
                                 priorityMode: string;
-                                priorityExpiresAt: string | null;
+                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
-                                publishedAt: string | null;
-                                assignedAt: string | null;
+                                publishedAt: (string) | null;
+                                assignedAt?: (string) | null;
                                 /** Format: uuid */
-                                createdByUserId: string;
+                                createdByUserId?: string;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -3064,16 +4077,19 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
+                                name?: string | null;
+                                regionName?: string | null;
+                                description?: string | null;
                                 priorityMode: string;
-                                priorityExpiresAt: string | null;
+                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
-                                publishedAt: string | null;
-                                assignedAt: string | null;
+                                publishedAt: (string) | null;
+                                assignedAt?: (string) | null;
                                 /** Format: uuid */
-                                createdByUserId: string;
+                                createdByUserId?: string;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -3134,16 +4150,19 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
+                                name?: string | null;
+                                regionName?: string | null;
+                                description?: string | null;
                                 priorityMode: string;
-                                priorityExpiresAt: string | null;
+                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
-                                publishedAt: string | null;
-                                assignedAt: string | null;
+                                publishedAt: (string) | null;
+                                assignedAt?: (string) | null;
                                 /** Format: uuid */
-                                createdByUserId: string;
+                                createdByUserId?: string;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -3188,29 +4207,15 @@ export interface paths {
                         "application/json": {
                             data: {
                                 /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                serviceTypeId: string;
-                                status: string;
+                                groupId: string;
+                                tenantName: string;
+                                serviceTypeName: string;
                                 groupSize: number;
-                                offeredCount: number;
-                                confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
                                 priorityMode: string;
-                                priorityExpiresAt: string | null;
-                                /** Format: uuid */
-                                assignedInspectorId: string | null;
-                                publishedAt: string | null;
-                                assignedAt: string | null;
-                                /** Format: uuid */
-                                createdByUserId: string;
-                                createdAt: string;
-                                updatedAt: string;
-                                appointments?: unknown[];
-                                assignedInspector?: unknown;
+                                priorityExpiresAt: (string) | null;
+                                suburbs: string[];
                             }[];
                             pagination: {
                                 page: number;
@@ -3260,29 +4265,12 @@ export interface paths {
                         "application/json": {
                             data: {
                                 /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                serviceTypeId: string;
+                                groupId: string;
                                 status: string;
-                                groupSize: number;
-                                offeredCount: number;
-                                confirmedCount: number;
-                                scheduledDate: string;
-                                timeWindow: string;
-                                priorityMode: string;
-                                priorityExpiresAt: string | null;
                                 /** Format: uuid */
-                                assignedInspectorId: string | null;
-                                publishedAt: string | null;
-                                assignedAt: string | null;
-                                /** Format: uuid */
-                                createdByUserId: string;
-                                createdAt: string;
-                                updatedAt: string;
-                                appointments?: unknown[];
-                                assignedInspector?: unknown;
+                                assignedInspectorId: string;
+                                appointmentsScheduled: number;
+                                acceptedAt: string;
                             };
                         };
                     };
@@ -3391,9 +4379,19 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            token: {
+                                status: string;
+                                isReadOnly: boolean;
+                                expiresAt: string;
+                            };
                             appointment?: unknown;
                             contact?: unknown;
-                            restrictions: unknown[];
+                            restrictions?: unknown;
+                            existingResponse?: {
+                                type: string;
+                                createdAt: string;
+                                summary?: string;
+                            };
                         };
                     };
                 };
@@ -3448,46 +4446,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** Format: uuid */
-                            id: string;
-                            /** Format: uuid */
-                            tenantId: string;
-                            /** Format: uuid */
-                            branchId: string;
-                            /** Format: uuid */
-                            propertyId: string;
-                            /** Format: uuid */
-                            serviceTypeId: string;
-                            /** Format: uuid */
-                            inspectorId: string | null;
-                            /** Format: uuid */
-                            serviceGroupId: string | null;
-                            status: string;
-                            scheduledDate: string;
-                            timeSlot: string;
-                            keyRequired: boolean;
-                            meetingLocation: string | null;
-                            keyLocation: string | null;
-                            tenantConfirmationStatus: string;
-                            priceAmount: number;
-                            payoutAmount: number;
-                            pricingRuleSnapshotJson?: unknown;
-                            notes: string | null;
-                            customFieldsJson?: unknown;
-                            reason: string | null;
-                            /** Format: uuid */
-                            createdByUserId: string;
-                            /** Format: uuid */
-                            doneCheckedByUserId: string | null;
-                            doneCheckedAt: string | null;
-                            createdAt: string;
-                            updatedAt: string;
-                            contact?: unknown;
-                            restrictions?: unknown[];
-                            property?: unknown;
-                            serviceType?: unknown;
-                            inspector?: unknown;
-                            branch?: unknown;
+                            /** @enum {string} */
+                            tenantConfirmationStatus: "CONFIRMED";
+                            /** Format: date-time */
+                            confirmedAt: string;
                         };
                     };
                 };
@@ -3542,46 +4504,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** Format: uuid */
-                            id: string;
-                            /** Format: uuid */
-                            tenantId: string;
-                            /** Format: uuid */
-                            branchId: string;
-                            /** Format: uuid */
-                            propertyId: string;
-                            /** Format: uuid */
-                            serviceTypeId: string;
-                            /** Format: uuid */
-                            inspectorId: string | null;
-                            /** Format: uuid */
-                            serviceGroupId: string | null;
-                            status: string;
                             scheduledDate: string;
                             timeSlot: string;
-                            keyRequired: boolean;
-                            meetingLocation: string | null;
-                            keyLocation: string | null;
-                            tenantConfirmationStatus: string;
-                            priceAmount: number;
-                            payoutAmount: number;
-                            pricingRuleSnapshotJson?: unknown;
-                            notes: string | null;
-                            customFieldsJson?: unknown;
-                            reason: string | null;
-                            /** Format: uuid */
-                            createdByUserId: string;
-                            /** Format: uuid */
-                            doneCheckedByUserId: string | null;
-                            doneCheckedAt: string | null;
-                            createdAt: string;
-                            updatedAt: string;
-                            contact?: unknown;
-                            restrictions?: unknown[];
-                            property?: unknown;
-                            serviceType?: unknown;
-                            inspector?: unknown;
-                            branch?: unknown;
+                            /** @enum {string} */
+                            tenantConfirmationStatus: "PENDING";
                         };
                     };
                 };
@@ -3684,7 +4610,9 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            restrictions?: unknown;
+                            /** @enum {string} */
+                            tenantConfirmationStatus: "UNAVAILABLE";
+                            urgentMode: boolean;
                         };
                     };
                 };
@@ -3761,16 +4689,24 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** Format: uuid */
-                            id: string;
-                            /** Format: uuid */
-                            appointmentId?: string;
-                            status: string;
-                            scheduledDate: string;
-                            timeSlot: string;
-                            property?: unknown;
-                            serviceType?: unknown;
-                        }[];
+                            date: string;
+                            appointments: {
+                                /** Format: uuid */
+                                id: string;
+                                status: string;
+                                scheduledDate: string;
+                                timeSlot: string;
+                                /** Format: uuid */
+                                serviceTypeId: string;
+                                /** Format: uuid */
+                                propertyId: string;
+                                tenantConfirmationStatus: string;
+                                keyRequired: boolean;
+                                meetingLocation: string | null;
+                                /** @enum {string} */
+                                executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                            }[];
+                        };
                     };
                 };
             };
@@ -3822,27 +4758,38 @@ export interface paths {
                                 /** Format: uuid */
                                 inspectorId: string | null;
                                 /** Format: uuid */
-                                serviceGroupId: string | null;
+                                serviceGroupId?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
-                                keyRequired: boolean;
-                                meetingLocation: string | null;
-                                keyLocation: string | null;
+                                keyRequired?: boolean;
+                                meetingLocation?: string | null;
+                                keyLocation?: string | null;
                                 tenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 customFieldsJson?: unknown;
-                                reason: string | null;
+                                reason?: string | null;
+                                cancellationReasonCode?: string | null;
+                                rejectionReasonCode?: string | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
-                                doneCheckedByUserId: string | null;
-                                doneCheckedAt: string | null;
+                                doneCheckedByUserId?: string | null;
+                                doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                code?: string;
+                                propertyAddress?: string;
+                                contactName?: string;
+                                contactPhone?: string | null;
+                                contactEmail?: string | null;
+                                inspectorName?: string | null;
+                                branchName?: string | null;
+                                serviceTypeName?: string | null;
+                                cancellationReason?: string | null;
                                 contact?: unknown;
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -3905,7 +4852,7 @@ export interface paths {
                                 /** Format: uuid */
                                 inspectorId: string;
                                 startedAt: string;
-                                finishedAt: string | null;
+                                finishedAt: (string) | null;
                                 startLatitude: number;
                                 startLongitude: number;
                                 finishLatitude: number | null;
@@ -3978,7 +4925,7 @@ export interface paths {
                                 /** Format: uuid */
                                 inspectorId: string;
                                 startedAt: string;
-                                finishedAt: string | null;
+                                finishedAt: (string) | null;
                                 startLatitude: number;
                                 startLongitude: number;
                                 finishLatitude: number | null;
@@ -4117,6 +5064,111 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/inspector/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                groupId: string;
+                                tenantName: string;
+                                serviceTypeName: string;
+                                groupSize: number;
+                                scheduledDate: string;
+                                timeWindow: string;
+                                priorityMode: string;
+                                priorityExpiresAt: (string) | null;
+                                suburbs: string[];
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/financial/entries/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    tenantId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                totalDebits: number;
+                                totalPayouts: number;
+                                totalAdjustments: number;
+                                totalRefunds: number;
+                                pendingCount: number;
+                                currency: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/financial/entries": {
         parameters: {
             query?: never;
@@ -4170,12 +5222,15 @@ export interface paths {
                                 initiatedByUserId: string;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
-                                approvedAt: string | null;
+                                approvedAt: (string) | null;
                                 /** Format: uuid */
                                 referenceEntryId: string | null;
                                 reason: string | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
+                                appointmentCode?: string | null;
+                                relatedEntityName?: string | null;
+                                approvedByName?: string | null;
                             }[];
                             pagination: {
                                 page: number;
@@ -4240,12 +5295,15 @@ export interface paths {
                                 initiatedByUserId: string;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
-                                approvedAt: string | null;
+                                approvedAt: (string) | null;
                                 /** Format: uuid */
                                 referenceEntryId: string | null;
                                 reason: string | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
+                                appointmentCode?: string | null;
+                                relatedEntityName?: string | null;
+                                approvedByName?: string | null;
                             };
                         };
                     };
@@ -4306,12 +5364,15 @@ export interface paths {
                                 initiatedByUserId: string;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
-                                approvedAt: string | null;
+                                approvedAt: (string) | null;
                                 /** Format: uuid */
                                 referenceEntryId: string | null;
                                 reason: string | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
+                                appointmentCode?: string | null;
+                                relatedEntityName?: string | null;
+                                approvedByName?: string | null;
                             };
                         };
                     };
@@ -4321,7 +5382,58 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    entryId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                /** Format: uuid */
+                                appointmentId: string | null;
+                                /** Format: uuid */
+                                inspectorId: string | null;
+                                entryType: string;
+                                amount: number;
+                                currency: string;
+                                status: string;
+                                description: string;
+                                effectiveAt: string;
+                                /** Format: uuid */
+                                initiatedByUserId: string;
+                                /** Format: uuid */
+                                approvedByUserId: string | null;
+                                approvedAt: (string) | null;
+                                /** Format: uuid */
+                                referenceEntryId: string | null;
+                                reason: string | null;
+                                createdAt: string;
+                                updatedAt?: string;
+                                appointmentCode?: string | null;
+                                relatedEntityName?: string | null;
+                                approvedByName?: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/v1/financial/entries/adjust": {
@@ -4386,12 +5498,15 @@ export interface paths {
                                 initiatedByUserId: string;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
-                                approvedAt: string | null;
+                                approvedAt: (string) | null;
                                 /** Format: uuid */
                                 referenceEntryId: string | null;
                                 reason: string | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
+                                appointmentCode?: string | null;
+                                relatedEntityName?: string | null;
+                                approvedByName?: string | null;
                             };
                         };
                     };
@@ -4457,12 +5572,15 @@ export interface paths {
                                 initiatedByUserId: string;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
-                                approvedAt: string | null;
+                                approvedAt: (string) | null;
                                 /** Format: uuid */
                                 referenceEntryId: string | null;
                                 reason: string | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
+                                appointmentCode?: string | null;
+                                relatedEntityName?: string | null;
+                                approvedByName?: string | null;
                             };
                         };
                     };
@@ -4516,14 +5634,83 @@ export interface paths {
                                 status: string;
                                 totalAmount: number;
                                 currency: string;
-                                fileKey: string | null;
+                                fileKey?: string | null;
                                 /** Format: uuid */
-                                generatedByUserId: string | null;
-                                generatedAt: string | null;
-                                paidAt: string | null;
-                                notes: string | null;
+                                generatedByUserId?: string | null;
+                                generatedAt: (string) | null;
+                                paidAt: (string) | null;
+                                notes?: string | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    inspectorId?: string;
+                    status?: "OPEN" | "CLOSED" | "PAID";
+                    fromDate?: string;
+                    toDate?: string;
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                periodStart: string;
+                                periodEnd: string;
+                                periodType: string;
+                                status: string;
+                                totalAmount: number;
+                                currency: string;
+                                fileKey?: string | null;
+                                /** Format: uuid */
+                                generatedByUserId?: string | null;
+                                generatedAt: (string) | null;
+                                paidAt: (string) | null;
+                                notes?: string | null;
+                                createdAt: string;
+                                updatedAt?: string;
                             }[];
                             pagination: {
                                 page: number;
@@ -4589,14 +5776,79 @@ export interface paths {
                                 status: string;
                                 totalAmount: number;
                                 currency: string;
-                                fileKey: string | null;
+                                fileKey?: string | null;
                                 /** Format: uuid */
-                                generatedByUserId: string | null;
-                                generatedAt: string | null;
-                                paidAt: string | null;
-                                notes: string | null;
+                                generatedByUserId?: string | null;
+                                generatedAt: (string) | null;
+                                paidAt: (string) | null;
+                                notes?: string | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/invoices/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        inspectorId: string;
+                        periodStart: string;
+                        periodEnd: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                periodStart: string;
+                                periodEnd: string;
+                                periodType: string;
+                                status: string;
+                                totalAmount: number;
+                                currency: string;
+                                fileKey?: string | null;
+                                /** Format: uuid */
+                                generatedByUserId?: string | null;
+                                generatedAt: (string) | null;
+                                paidAt: (string) | null;
+                                notes?: string | null;
+                                createdAt: string;
+                                updatedAt?: string;
                             };
                         };
                     };
@@ -4645,14 +5897,72 @@ export interface paths {
                                 status: string;
                                 totalAmount: number;
                                 currency: string;
-                                fileKey: string | null;
+                                fileKey?: string | null;
                                 /** Format: uuid */
-                                generatedByUserId: string | null;
-                                generatedAt: string | null;
-                                paidAt: string | null;
-                                notes: string | null;
+                                generatedByUserId?: string | null;
+                                generatedAt: (string) | null;
+                                paidAt: (string) | null;
+                                notes?: string | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/invoices/{invoiceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invoiceId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                periodStart: string;
+                                periodEnd: string;
+                                periodType: string;
+                                status: string;
+                                totalAmount: number;
+                                currency: string;
+                                fileKey?: string | null;
+                                /** Format: uuid */
+                                generatedByUserId?: string | null;
+                                generatedAt: (string) | null;
+                                paidAt: (string) | null;
+                                notes?: string | null;
+                                createdAt: string;
+                                updatedAt?: string;
                             };
                         };
                     };
@@ -4668,6 +5978,48 @@ export interface paths {
         trace?: never;
     };
     "/v1/invoices/{invoiceId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invoiceId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                downloadUrl: string;
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/invoices/{invoiceId}/download": {
         parameters: {
             query?: never;
             header?: never;
@@ -4743,22 +6095,24 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string | null;
+                                tenantId?: string | null;
                                 reportType: string;
                                 filtersJson?: unknown;
+                                filters?: unknown;
                                 format: string;
                                 status: string;
-                                fileKey: string | null;
+                                fileKey?: string | null;
                                 /** Format: uuid */
-                                requestedByUserId: string;
-                                startedAt: string | null;
-                                completedAt: string | null;
-                                failedAt: string | null;
-                                errorMessage: string | null;
-                                rowCount: number | null;
-                                expiresAt: string | null;
+                                requestedByUserId?: string;
+                                requestedBy?: unknown;
+                                startedAt?: (string) | null;
+                                completedAt: (string) | null;
+                                failedAt?: (string) | null;
+                                errorMessage?: string | null;
+                                rowCount?: number | null;
+                                expiresAt?: (string) | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                             }[];
                             pagination: {
                                 page: number;
@@ -4864,22 +6218,24 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string | null;
+                                tenantId?: string | null;
                                 reportType: string;
                                 filtersJson?: unknown;
+                                filters?: unknown;
                                 format: string;
                                 status: string;
-                                fileKey: string | null;
+                                fileKey?: string | null;
                                 /** Format: uuid */
-                                requestedByUserId: string;
-                                startedAt: string | null;
-                                completedAt: string | null;
-                                failedAt: string | null;
-                                errorMessage: string | null;
-                                rowCount: number | null;
-                                expiresAt: string | null;
+                                requestedByUserId?: string;
+                                requestedBy?: unknown;
+                                startedAt?: (string) | null;
+                                completedAt: (string) | null;
+                                failedAt?: (string) | null;
+                                errorMessage?: string | null;
+                                rowCount?: number | null;
+                                expiresAt?: (string) | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                             };
                         };
                     };
@@ -4983,15 +6339,15 @@ export interface paths {
                                 templateCode: string;
                                 status: string;
                                 providerName: string | null;
-                                providerMessageId: string | null;
-                                sentAt: string | null;
-                                deliveredAt: string | null;
-                                failedAt: string | null;
+                                providerMessageId?: string | null;
+                                sentAt: (string) | null;
+                                deliveredAt: (string) | null;
+                                failedAt: (string) | null;
                                 failureReason: string | null;
                                 retryCount: number;
-                                nextRetryAt: string | null;
+                                nextRetryAt?: (string) | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                             }[];
                             pagination: {
                                 page: number;
@@ -5049,15 +6405,15 @@ export interface paths {
                                 templateCode: string;
                                 status: string;
                                 providerName: string | null;
-                                providerMessageId: string | null;
-                                sentAt: string | null;
-                                deliveredAt: string | null;
-                                failedAt: string | null;
+                                providerMessageId?: string | null;
+                                sentAt: (string) | null;
+                                deliveredAt: (string) | null;
+                                failedAt: (string) | null;
                                 failureReason: string | null;
                                 retryCount: number;
-                                nextRetryAt: string | null;
+                                nextRetryAt?: (string) | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                             };
                         };
                     };
@@ -5111,15 +6467,15 @@ export interface paths {
                                 templateCode: string;
                                 status: string;
                                 providerName: string | null;
-                                providerMessageId: string | null;
-                                sentAt: string | null;
-                                deliveredAt: string | null;
-                                failedAt: string | null;
+                                providerMessageId?: string | null;
+                                sentAt: (string) | null;
+                                deliveredAt: (string) | null;
+                                failedAt: (string) | null;
                                 failureReason: string | null;
                                 retryCount: number;
-                                nextRetryAt: string | null;
+                                nextRetryAt?: (string) | null;
                                 createdAt: string;
-                                updatedAt: string;
+                                updatedAt?: string;
                             };
                         };
                     };
@@ -5282,9 +6638,10 @@ export interface paths {
                                 templateCode: string;
                                 channel: string;
                                 subject: string | null;
-                                bodyHtml: string | null;
+                                bodyHtml?: string | null;
                                 bodyText: string;
                                 variablesJson?: unknown;
+                                variables?: unknown;
                                 isActive: boolean;
                                 createdAt: string;
                                 updatedAt: string;
@@ -5352,9 +6709,10 @@ export interface paths {
                                 templateCode: string;
                                 channel: string;
                                 subject: string | null;
-                                bodyHtml: string | null;
+                                bodyHtml?: string | null;
                                 bodyText: string;
                                 variablesJson?: unknown;
+                                variables?: unknown;
                                 isActive: boolean;
                                 createdAt: string;
                                 updatedAt: string;
@@ -5407,10 +6765,13 @@ export interface paths {
                                     code: string;
                                     propertyAddress: string;
                                     status: string;
+                                    /** Format: uuid */
+                                    doneCheckedByUserId?: string | null;
                                     scheduledDate: string;
                                 }[];
                                 pendingActions: {
                                     noResponseTenants: number;
+                                    pendingOperatorCrossChecks: number;
                                     pendingFinancialEntries: number;
                                     processingReports: number;
                                 };

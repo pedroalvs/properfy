@@ -28,6 +28,7 @@ import {
   AppointmentNoPriceRuleError,
 } from '../../domain/appointment.errors';
 import type { RestrictionSource } from '@properfy/shared';
+import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { assertClUserPermission } from '../../../../shared/domain/cl-user-permissions';
 
@@ -121,6 +122,7 @@ export class CreateAppointmentUseCase {
     private readonly createPropertyUseCase: CreatePropertyUseCase,
     private readonly auditService: AuditService,
     private readonly tenantRepo?: ITenantRepository,
+    private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<CreateAppointmentOutput> {
@@ -204,6 +206,19 @@ export class CreateAppointmentUseCase {
     }
     if (!serviceType.isActive()) {
       throw new AppointmentServiceTypeInactiveError();
+    }
+
+    // 5b. Validate timeSlot exists in effective catalog
+    if (this.timeSlotRepo) {
+      const effectiveSlots = await this.timeSlotRepo.findEffective(tenantId, input.branchId);
+      const valid = effectiveSlots.some(
+        (s) => s.compositeValue === input.timeSlot,
+      );
+      if (!valid) {
+        throw new ValidationError(
+          `Time slot "${input.timeSlot}" is not available for this branch`,
+        );
+      }
     }
 
     // 6. Resolve pricing rule

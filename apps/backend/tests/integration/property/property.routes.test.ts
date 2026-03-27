@@ -9,6 +9,7 @@ const mockGetPropertyExecute = vi.fn();
 const mockListPropertiesExecute = vi.fn();
 const mockUpdatePropertyExecute = vi.fn();
 const mockDeletePropertyExecute = vi.fn();
+const mockSearchAddressesExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
@@ -25,6 +26,7 @@ vi.mock('../../../src/main/container', () => ({
       updatePropertyUseCase: { execute: mockUpdatePropertyExecute },
       deletePropertyUseCase: { execute: mockDeletePropertyExecute },
       geocodePropertyUseCase: { execute: vi.fn() },
+      searchAddressesUseCase: { execute: mockSearchAddressesExecute },
       jwtService: { verify: mockJwtVerify },
     },
     serviceType: { jwtService: { verify: mockJwtVerify } },
@@ -80,6 +82,69 @@ const fullProperty = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
+
+describe('GET /v1/address/suggestions', () => {
+  it('should return 200 with suggestions', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockSearchAddressesExecute.mockResolvedValueOnce([
+      {
+        formattedAddress: '12 Harbour St, Sydney NSW 2000, Australia',
+        street: '12 Harbour St',
+        suburb: 'Sydney',
+        postcode: '2000',
+        state: 'NSW',
+        country: 'AU',
+        latitude: -33.8688,
+        longitude: 151.2093,
+        provider: 'MAPBOX',
+      },
+    ]);
+
+    const res = await supertest(app.server)
+      .get('/v1/address/suggestions?q=harbour&limit=5')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].street).toBe('12 Harbour St');
+  });
+
+  it('should accept partial suggestions when suburb or postcode are missing', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockSearchAddressesExecute.mockResolvedValueOnce([
+      {
+        formattedAddress: 'Remote Road, NSW, Australia',
+        street: 'Remote Road',
+        suburb: '',
+        postcode: '',
+        state: 'NSW',
+        country: 'AU',
+        latitude: -31.0,
+        longitude: 149.0,
+        provider: 'MAPBOX',
+      },
+    ]);
+
+    const res = await supertest(app.server)
+      .get('/v1/address/suggestions?q=remote')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].suburb).toBe('');
+    expect(res.body.data[0].postcode).toBe('');
+  });
+
+  it('should return 400 when query is too short', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/address/suggestions?q=ab')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
 
 describe('POST /v1/properties', () => {
   it('should return 201 with valid payload', async () => {

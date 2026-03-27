@@ -28,14 +28,14 @@ export function OfferDetailPanel({ offer, onAccept, isAccepting }: OfferDetailPa
 
   return (
     <div className="border-t border-gray-200 p-4" data-testid="offer-detail-panel">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-base font-bold text-secondary">{offer.serviceTypeName}</h3>
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeBg}`}>
           {badgeLabel}
         </span>
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-3 text-sm">
+      <div className="mb-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
           <span className="text-text-muted text-xs">Client</span>
           <p className="font-medium text-text-primary">{offer.tenantName}</p>

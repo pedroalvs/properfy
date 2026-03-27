@@ -90,6 +90,7 @@ export function createMockContainer(
       updatePropertyUseCase: { execute: vi.fn() },
       deletePropertyUseCase: { execute: vi.fn() },
       geocodePropertyUseCase: { execute: vi.fn() },
+      searchAddressesUseCase: { execute: vi.fn() },
       importPropertiesUseCase: { execute: vi.fn() },
       getPropertyImportStatusUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },

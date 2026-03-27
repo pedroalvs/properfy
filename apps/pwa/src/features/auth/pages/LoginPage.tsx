@@ -66,65 +66,77 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-app-bg px-page-x">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(30,64,175,0.10),_transparent_42%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] px-page-x py-8">
       <div className="w-full max-w-sm">
-        <div className="text-center">
-          <h1 className="text-page-title text-secondary">Properfy</h1>
-          <p className="mt-1 text-sm text-text-secondary">Inspector Login</p>
-        </div>
-
-        <div className="mt-4 rounded border border-border-subtle bg-card-bg px-4 py-3 text-sm text-text-secondary">
-          This mobile app is for inspectors only. Admin and agency access should use the Properfy web portal.
-        </div>
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4" data-testid="login-form">
-          {error && (
-            <div role="alert" className="rounded bg-error/10 px-4 py-2 text-sm text-error" data-testid="login-error">
-              {error}
+        <div className="rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)] backdrop-blur">
+          <div className="text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[inset_0_0_0_1px_rgba(59,130,246,0.15)]">
+              <i className="mdi mdi-clipboard-account-outline text-[28px]" aria-hidden="true" />
             </div>
-          )}
-
-          <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-text-secondary">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="h-12 w-full rounded border border-border-subtle bg-card-bg px-3 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-              data-testid="email-input"
-            />
+            <h1 className="mt-4 text-page-title text-secondary">Properfy</h1>
+            <p className="mt-1 text-sm text-text-secondary">Inspector Login</p>
+            <p className="mt-2 text-xs leading-5 text-text-muted">
+              Mobile workspace for field inspections, schedules and offer intake.
+            </p>
           </div>
 
-          <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-text-secondary">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              className="h-12 w-full rounded border border-border-subtle bg-card-bg px-3 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-              data-testid="password-input"
-            />
+          <div className="mt-5 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3 text-sm text-text-secondary">
+            This mobile app is for inspectors only. Admin and agency access should use the Properfy web portal.
           </div>
 
-          <Button
-            type="submit"
-            loading={isSubmitting}
-            className="!w-full !min-h-[48px]"
-            data-testid="login-button"
-          >
-            Sign In
-          </Button>
-        </form>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4" data-testid="login-form">
+            {error && (
+              <div
+                role="alert"
+                className="rounded-2xl border border-error/20 bg-error/10 px-4 py-3 text-sm text-error"
+                data-testid="login-error"
+              >
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="h-12 w-full rounded-2xl border border-border-subtle bg-app-bg/80 px-3.5 text-sm text-text-primary outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                data-testid="email-input"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="h-12 w-full rounded-2xl border border-border-subtle bg-app-bg/80 px-3.5 text-sm text-text-primary outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                data-testid="password-input"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              loading={isSubmitting}
+              className="!w-full !min-h-[50px] !rounded-2xl"
+              data-testid="login-button"
+            >
+              Sign In
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );

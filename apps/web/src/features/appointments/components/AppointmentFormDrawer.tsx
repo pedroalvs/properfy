@@ -17,9 +17,11 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { PropertyFormDrawer } from '@/features/properties/components/PropertyFormDrawer';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
-import { TIME_SLOT_OPTIONS } from '../constants/form-options';
+import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
+import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 import { EMPTY_FORM_DATA } from '../types';
 
@@ -49,6 +51,12 @@ export function AppointmentFormDrawer({
     { enabled: isGlobalRole },
   );
 
+  const [form, setForm] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
+  const [initialData, setInitialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
+  const [errors, setErrors] = useState<AppointmentFormErrors>({});
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [propertyDrawerOpen, setPropertyDrawerOpen] = useState(false);
+
   const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
 
   const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
@@ -64,12 +72,16 @@ export function AppointmentFormDrawer({
     (item) => ({ value: item.id, label: item.name }),
   );
   const { options: propertyOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
-    ['properties', 'form-options', effectiveTenantId ?? ''],
+    ['properties', 'form-options', effectiveTenantId ?? '', 'branch', form.branchId],
     '/v1/properties',
     (item) => ({ value: item.id, label: `${item.propertyCode} - ${item.street}` }),
-    effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
-    { enabled: !isGlobalRole || !!effectiveTenantId },
+    {
+      ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}),
+      ...(form.branchId ? { branchId: form.branchId } : {}),
+    },
+    { enabled: (!isGlobalRole || !!effectiveTenantId) && !!form.branchId },
   );
+  const { options: timeSlotOptions, isError: timeSlotError, error: timeSlotErrorMsg, refetch: refetchTimeSlots } = useTimeSlotOptions(form.branchId || undefined);
 
   const isEditMode = !!appointmentId;
   const { appointment, isLoading: isLoadingDetail } = useAppointmentDetail(
@@ -77,11 +89,6 @@ export function AppointmentFormDrawer({
   );
   const { save, isSaving, validate } = useAppointmentSave();
   const { showSuccess, showError } = useSnackbar();
-
-  const [form, setForm] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
-  const [initialData, setInitialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
-  const [errors, setErrors] = useState<AppointmentFormErrors>({});
-  const [showConfirm, setShowConfirm] = useState(false);
 
   // Populate form in edit mode
   useEffect(() => {
@@ -99,6 +106,10 @@ export function AppointmentFormDrawer({
         meetingLocation: appointment.meetingLocation ?? '',
         keyLocation: appointment.keyLocation ?? '',
         notes: appointment.notes ?? '',
+        hasRestriction: (appointment.restrictions?.length ?? 0) > 0,
+        restrictionIsHome: appointment.restrictions?.[0]?.isHome ?? false,
+        restrictionNotes: appointment.restrictions?.[0]?.notes ?? '',
+        restrictionTouched: false,
       };
       setForm(data);
       setInitialData(data);
@@ -118,7 +129,52 @@ export function AppointmentFormDrawer({
 
   const handleTenantChange = useCallback((tenantId: string) => {
     setSelectedTenantId(tenantId);
-    setForm((prev) => ({ ...prev, branchId: '', propertyId: '' }));
+    setForm((prev) => ({ ...prev, branchId: '', propertyId: '', timeSlot: '' }));
+  }, []);
+
+  const handleBranchChange = useCallback((branchId: string) => {
+    setForm((prev) => ({ ...prev, branchId, propertyId: '' }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.branchId;
+      delete next.propertyId;
+      return next;
+    });
+  }, []);
+
+  const handleRestrictionToggle = useCallback((value: boolean) => {
+    setForm((prev) => ({
+      ...prev,
+      hasRestriction: value,
+      restrictionTouched: true,
+      ...(value ? {} : { restrictionIsHome: false, restrictionNotes: '' }),
+    }));
+  }, []);
+
+  const handleRestrictionIsHomeChange = useCallback((value: boolean) => {
+    setForm((prev) => ({
+      ...prev,
+      hasRestriction: true,
+      restrictionIsHome: value,
+      restrictionTouched: true,
+    }));
+  }, []);
+
+  const handleRestrictionNotesChange = useCallback((value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      hasRestriction: true,
+      restrictionNotes: value,
+      restrictionTouched: true,
+    }));
+    setErrors((prev) => {
+      if (prev.restrictionNotes) {
+        const next = { ...prev };
+        delete next.restrictionNotes;
+        return next;
+      }
+      return prev;
+    });
   }, []);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
@@ -204,7 +260,7 @@ export function AppointmentFormDrawer({
                     <FormField label="Branch" required error={errors.branchId}>
                       <SelectInput
                         value={form.branchId}
-                        onChange={(v) => updateField('branchId', v)}
+                        onChange={handleBranchChange}
                         options={branchOptions}
                         placeholder="Select branch"
                         disabled={isEditMode}
@@ -218,11 +274,23 @@ export function AppointmentFormDrawer({
                         onChange={(v) => updateField('propertyId', v)}
                         options={propertyOptions}
                         placeholder="Select property"
-                        disabled={isEditMode}
+                        disabled={isEditMode || !form.branchId}
                         error={!!errors.propertyId}
                         aria-label="Property"
                       />
                     </FormField>
+                    {!isEditMode && (
+                      <div className="md:col-span-2">
+                        <Button
+                          variant="secondary"
+                          onClick={() => setPropertyDrawerOpen(true)}
+                          disabled={!form.branchId || (isGlobalRole && !selectedTenantId)}
+                        >
+                          <i className="mdi mdi-home-plus-outline" aria-hidden="true" />
+                          Property not listed? Create one
+                        </Button>
+                      </div>
+                    )}
                     <FormField label="Service Type" required error={errors.serviceTypeId}>
                       <SelectInput
                         value={form.serviceTypeId}
@@ -242,15 +310,23 @@ export function AppointmentFormDrawer({
                         aria-label="Scheduled Date"
                       />
                     </FormField>
-                    <FormField label="Time Slot" required error={errors.timeSlot}>
-                      <SelectInput
-                        value={form.timeSlot}
-                        onChange={(v) => updateField('timeSlot', v)}
-                        options={TIME_SLOT_OPTIONS}
-                        placeholder="Select time slot"
-                        error={!!errors.timeSlot}
-                        aria-label="Time Slot"
-                      />
+                    <FormField label="Time Slot" required error={errors.timeSlot ?? (timeSlotError ? (timeSlotErrorMsg ?? undefined) : undefined)}>
+                      {timeSlotError ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-error">Failed to load time slots</span>
+                          <button type="button" className="text-sm font-semibold text-primary" onClick={() => refetchTimeSlots()}>Retry</button>
+                        </div>
+                      ) : (
+                        <SelectInput
+                          value={form.timeSlot}
+                          onChange={(v) => updateField('timeSlot', v)}
+                          options={timeSlotOptions}
+                          placeholder={!form.branchId ? 'Select a branch first' : 'Select time slot'}
+                          disabled={isEditMode || !form.branchId || timeSlotOptions.length === 0}
+                          error={!!errors.timeSlot}
+                          aria-label="Time Slot"
+                        />
+                      )}
                     </FormField>
                   </FormSection>
 
@@ -309,6 +385,14 @@ export function AppointmentFormDrawer({
                     </FormField>
                   </FormSection>
 
+                  <AppointmentRestrictionFields
+                    form={form}
+                    errors={errors}
+                    onToggleRestriction={handleRestrictionToggle}
+                    onToggleIsHome={handleRestrictionIsHomeChange}
+                    onChangeNotes={handleRestrictionNotesChange}
+                  />
+
                   <FormSection title="Notes">
                     <FormField label="Notes" error={errors.notes}>
                       <Textarea
@@ -347,6 +431,18 @@ export function AppointmentFormDrawer({
         variant="warning"
         onConfirm={forceClose}
         onClose={cancelDiscard}
+      />
+      <PropertyFormDrawer
+        open={propertyDrawerOpen}
+        onClose={() => setPropertyDrawerOpen(false)}
+        onSaved={() => setPropertyDrawerOpen(false)}
+        tenantIdOverride={effectiveTenantId}
+        initialBranchId={form.branchId}
+        lockBranch
+        onCreated={(propertyId) => {
+          setPropertyDrawerOpen(false);
+          updateField('propertyId', propertyId);
+        }}
       />
     </>
   );

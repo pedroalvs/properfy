@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { createAppointmentSchema, updateAppointmentSchema } from '@properfy/shared';
+import { RestrictionSource, createAppointmentSchema, updateAppointmentSchema } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
@@ -12,6 +12,14 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
     ...(data.contactPhone.trim() ? { primaryPhone: data.contactPhone.trim() } : {}),
   };
 
+  const restriction = data.hasRestriction
+    ? {
+        isHome: data.restrictionIsHome,
+        ...(data.restrictionNotes.trim() ? { notes: data.restrictionNotes.trim() } : {}),
+        source: RestrictionSource.OPERATOR,
+      }
+    : null;
+
   if (mode === 'create') {
     return {
       branchId: data.branchId || undefined,
@@ -20,6 +28,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
       scheduledDate: data.scheduledDate || undefined,
       timeSlot: data.timeSlot || undefined,
       contact,
+      ...(data.hasRestriction ? { restriction } : {}),
       keyRequired: data.keyRequired,
       ...(data.meetingLocation.trim() ? { meetingLocation: data.meetingLocation.trim() } : {}),
       ...(data.keyLocation.trim() ? { keyLocation: data.keyLocation.trim() } : {}),
@@ -35,6 +44,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
     keyLocation: data.keyLocation.trim() || null,
     notes: data.notes.trim() || null,
     contact,
+    ...(data.restrictionTouched ? { restriction } : {}),
   };
 }
 
@@ -53,6 +63,7 @@ const SCHEMA_PATH_TO_FORM_FIELD: Record<string, keyof AppointmentFormData> = {
   meetingLocation: 'meetingLocation',
   keyLocation: 'keyLocation',
   notes: 'notes',
+  'restriction.notes': 'restrictionNotes',
 };
 
 function isRequiredError(issue: { code?: string; message: string }): boolean {

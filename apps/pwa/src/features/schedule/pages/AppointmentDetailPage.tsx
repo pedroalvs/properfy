@@ -44,21 +44,24 @@ export function AppointmentDetailPage() {
     ['IN_PROGRESS', 'FINISHING', 'SUBMITTING', 'ERROR'].includes(localExecutionState.phase);
 
   return (
-    <div data-testid="appointment-detail-page">
+    <div className="w-full" data-testid="appointment-detail-page">
       <TopBar title="Appointment" showBack />
 
-      <div className="flex flex-col gap-3 px-page-x py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-base font-bold text-text-primary">
+      <div className="flex flex-col gap-4 px-page-x py-4">
+        <section className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(30,64,175,0.82))] px-5 py-5 text-white shadow-[0_18px_44px_rgba(15,23,42,0.20)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">Appointment window</p>
+              <p className="mt-2 text-base font-bold">
               {formatScheduleDate(apt.scheduledDate)}
-            </p>
-            <p className="text-sm text-text-secondary">
+              </p>
+              <p className="mt-1 text-sm text-white/80">
               {formatTimeWindow(apt.timeSlot)}
-            </p>
+              </p>
+            </div>
+            <StatusChip status={apt.status} />
           </div>
-          <StatusChip status={apt.status} />
-        </div>
+        </section>
 
         <PropertyAddressSection
           address={apt.propertyAddress}
@@ -81,8 +84,8 @@ export function AppointmentDetailPage() {
         />
 
         {apt.notes && (
-          <section className="rounded-lg bg-card-bg p-4">
-            <h3 className="text-xs font-bold uppercase text-text-secondary">Notes</h3>
+          <section className="rounded-[24px] border border-white/70 bg-white/92 p-4 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
+            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-text-secondary">Notes</h3>
             <p className="mt-1 text-sm text-text-primary">{apt.notes}</p>
           </section>
         )}

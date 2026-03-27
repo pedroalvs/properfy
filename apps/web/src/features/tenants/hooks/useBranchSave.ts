@@ -53,11 +53,16 @@ export function useBranchSave(): UseBranchSaveReturn {
   const save = useCallback(async (data: BranchFormData, tenantId: string, branchId?: string): Promise<SaveResult> => {
     setIsSaving(true);
     try {
+      const payload = {
+        name: data.name,
+        address: data.address ?? undefined,
+        contactEmail: data.contactEmail || undefined,
+      };
       if (branchId) {
-        const { error } = await api.PATCH(`/v1/tenants/${tenantId}/branches/${branchId}` as any, { body: data as any });
+        const { error } = await api.PATCH(`/v1/tenants/${tenantId}/branches/${branchId}` as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        const { error } = await api.POST(`/v1/tenants/${tenantId}/branches` as any, { body: data as any });
+        const { error } = await api.POST(`/v1/tenants/${tenantId}/branches` as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
       queryClient.invalidateQueries({ queryKey: ['tenant-admins', tenantId, 'branches'] });

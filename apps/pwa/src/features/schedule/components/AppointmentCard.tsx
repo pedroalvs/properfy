@@ -39,12 +39,12 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment }: Ap
   return (
     <button
       onClick={() => navigate(`/schedule/${appointment.id}`)}
-      className={`w-full rounded-lg bg-card-bg p-4 shadow-sm transition-shadow hover:shadow-md text-left ${leftBorder}`}
+      className={`w-full rounded-[24px] border border-white/70 bg-white/92 p-4 text-left shadow-[0_14px_30px_rgba(15,23,42,0.06)] transition-shadow hover:shadow-[0_18px_36px_rgba(15,23,42,0.10)] ${leftBorder}`}
       data-testid={`appointment-card-${appointment.id}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-text-primary">{startTime}</span>
+          <span className="rounded-full bg-app-bg px-2.5 py-1 text-sm font-bold text-text-primary">{startTime}</span>
           {showWarning && (
             <i
               className="mdi mdi-alert text-warning"
@@ -56,7 +56,7 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment }: Ap
         <StatusChip status={appointment.status} />
       </div>
 
-      <p className="mt-2 text-sm text-text-primary leading-5">{appointment.propertyAddress}</p>
+      <p className="mt-3 text-sm leading-5 text-text-primary">{appointment.propertyAddress}</p>
       <p className="text-xs text-text-secondary">{appointment.suburb}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">

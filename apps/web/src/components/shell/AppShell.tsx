@@ -15,7 +15,7 @@ export function AppShell() {
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Sidebar />
+        <Sidebar mobile onNavigate={() => setDrawerOpen(false)} />
       </MobileDrawer>
 
       <div className="flex-1 bg-app-bg md:ml-sidebar">

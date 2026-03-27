@@ -159,3 +159,87 @@
 - Os dois resíduos encontrados nessa rodada foram corrigidos:
   - `apps/backend/tests/integration/pricing-rule/pricing-rule.routes.test.ts` foi alinhado ao contrato real de resposta de `pricing-rules`, que agora exige `currency`;
   - `apps/web/src/features/appointments/components/AppointmentStatusChip.test.tsx` foi alinhado à semântica atual de `DONE`, distinguindo `Done (Review Required)` e `Done (Review)`.
+- Na auditoria de responsivo mobile do `web`, os principais gaps reais foram corrigidos nos componentes-base:
+  - `Sidebar/AppShell/MobileDrawer` passaram a ter navegação mobile própria, com labels visíveis, submenus expandidos e ações de settings/logout dentro do drawer;
+  - `MapScreenLayout` deixou de forçar split horizontal em telas estreitas e passou a empilhar painel + mapa no mobile;
+  - `DataTable`, `DetailRow` e `PageHeader` passaram a aceitar melhor stacking/wrapping no mobile, reduzindo overflow estrutural;
+  - `OfferDetailPanel`, `GenerateInvoiceModal` e `GroupSummaryCard` deixaram de usar grids fixos desktop-first em telas pequenas.
+- A validação dessa rodada fechou com `pnpm --filter web exec vitest run src/components/shell/Sidebar.test.tsx src/components/layout/PageHeader.test.tsx src/components/data/DetailRow.test.tsx src/components/data/DataTable.test.tsx src/components/map/MapScreenLayout.test.tsx src/features/marketplace/pages/MarketplacePage.test.tsx src/features/financial/components/GenerateInvoiceModal.test.tsx src/features/service-groups/components/GroupSummaryCard.test.tsx` e `pnpm --filter web typecheck`.
+- No `PWA`, o fluxo de instalação ganhou fonte global de verdade via `InstallPromptProvider` montado no `App`; o `InstallAppCard` na `ProfilePage` passou a depender desse estado em vez de tentar capturar o evento tarde demais.
+- No `web > Inspectors`, o campo `CPF/document` foi removido integralmente de tipos, formulário, detalhe e payload, alinhando o frontend ao schema real do backend.
+- No backend, foi criada a rota `GET /v1/address/suggestions` com lookup server-side em Mapbox e fallback `stub`, incluindo testes de integração em `property.routes.test.ts`.
+- No `web > Properties`, `PropertyFormDrawer` e `PropertyCreatePage` passaram a usar `AddressLookupInput` com base verificada; os campos estruturais do endereço ficaram preenchidos pela seleção e não mais por digitação livre.
+- No `web > Branches`, `BranchFormDrawer` passou a usar o mesmo lookup e a salvar endereço estruturado no `address_json` já existente do backend; `useBranchList` agora formata esse JSON para exibição na tabela.
+- A geração de contratos foi sincronizada com `pnpm generate:api`, atualizando `packages/shared/openapi.json` e `packages/shared/src/api-types.ts` para incluir o novo endpoint de sugestões.
+- As duas observações do Claude sobre endereço foram aplicadas:
+  - `Property` agora permite ajuste manual de `street/suburb/postcode/state/country` depois da seleção do endereço verificado;
+  - o backend/shared deixaram de descartar sugestões parciais sem `suburb/postcode`, permitindo que o formulário complete esses campos quando o provedor vier incompleto.
+- Em `Branch`, a edição fina também passou a existir sobre o objeto estruturado de endereço, mantendo a base verificada e evitando regressão para texto livre.
+- Validação complementar desta rodada:
+  - `pnpm --filter @properfy/backend test -- tests/integration/property/property.routes.test.ts`
+  - `pnpm --filter web exec vitest run src/features/properties/components/PropertyFormDrawer.test.tsx src/features/properties/pages/PropertyCreatePage.test.tsx src/features/tenants/components/BranchFormDrawer.test.tsx`
+  - `pnpm --filter @properfy/shared typecheck`
+  - `pnpm --filter @properfy/backend typecheck`
+  - `pnpm --filter web typecheck`
+- Validação desta rodada:
+  - `pnpm --filter @properfy/backend test -- tests/integration/property/property.routes.test.ts`
+  - `pnpm --filter web exec vitest run src/features/inspectors/hooks/useInspectorSave.test.ts src/features/inspectors/components/InspectorFormDrawer.test.tsx src/features/inspectors/components/InspectorDetailSections.test.tsx src/features/inspectors/components/InspectorDetailDrawer.test.tsx src/features/properties/components/PropertyFormDrawer.test.tsx src/features/properties/pages/PropertyCreatePage.test.tsx src/features/tenants/hooks/useBranchSave.test.ts src/features/tenants/hooks/useBranchList.test.ts src/features/tenants/components/BranchFormDrawer.test.tsx src/features/tenants/components/BranchSection.test.tsx`
+  - `pnpm --filter pwa exec vitest run src/features/profile/components/__tests__/InstallAppCard.test.tsx src/features/profile/pages/__tests__/ProfilePage.test.tsx`
+  - `pnpm --filter @properfy/shared typecheck`
+  - `pnpm --filter @properfy/backend typecheck`
+  - `pnpm --filter web typecheck`
+  - `pnpm --filter pwa typecheck`
+
+## TODO - Auditoria Create/Edit de Appointment 2026-03-26
+
+- [x] Revisar telas web de criação e edição manual de appointment
+- [x] Cruzar campos da UI com schema shared/backend e documentação canônica
+- [x] Validar classificação campo a campo com `guia-properfy` e `Claude Code`
+- [x] Corrigir bug funcional de filtro de `property` por `branch` no drawer
+- [x] Alinhar inputs de contato da create page aos componentes canônicos
+- [x] Publicar matriz em `projeto-consolidado/tasks/appointment-create-edit-audit.md`
+
+## Resultado - Auditoria Create/Edit de Appointment 2026-03-26
+
+- `branchId` e `propertyId` foram confirmados como listas cadastráveis com telas existentes.
+- `serviceTypeId` e `timeSlot` foram confirmados como catálogos/listas canônicas; `timeSlot` não precisa tela própria se continuar fechado no sistema.
+- `restriction` e `property inline` ficaram confirmados como gaps reais entre UI e contrato/documentação do create manual, e foram corrigidos nesta rodada.
+- `customFields` foi classificado como contrato técnico/configurável, sem exigência funcional explícita nesta fase.
+- O drawer de appointment passou a filtrar `property` por `branch` e a limpar `propertyId` quando a branch muda.
+- A `AppointmentCreatePage` passou a usar `PhoneInput` e `EmailInput`, reduzindo drift de UX/validação em relação ao drawer.
+- O create page e o drawer de appointment ganharam seção inline de `Restrictions`, com `source=OPERATOR`, `isHome` e `notes`, incluindo limpeza da restrição no edit quando o usuário desmarca a seção.
+- O create manual de appointment passou a oferecer criação contextual de property via `PropertyFormDrawer`, herdando `tenant` e `branch` e retornando o `propertyId` salvo para o formulário de appointment.
+
+## TODO - Auditoria Appointment Time Slots 2026-03-26
+
+- [x] Revisar implementação do Claude para catálogo configurável de `timeSlot`
+- [x] Eliminar risco de tenant novo sem slots padrão
+- [x] Eliminar escopo indevido do endpoint efetivo para `INSP`
+- [x] Fechar validação de import para property sem `branchId`
+- [x] Adicionar regressão para o worker de import
+- [x] Publicar matriz em `projeto-consolidado/tasks/appointment-time-slots-audit.md`
+
+## Resultado - Auditoria Appointment Time Slots 2026-03-26
+
+- `appointment.time_slot` permaneceu string snapshot e o catálogo configurável ficou corretamente separado em `appointment_time_slots`.
+- A resolução efetiva `branch -> tenant default` foi mantida no backend e consumida pelo web sem fallback hardcoded no create/edit manual.
+- `CreateTenantUseCase` passou a semear os slots padrão do tenant, evitando catálogo vazio para tenants novos.
+- O endpoint de slots efetivos deixou de aceitar `INSP`, removendo uma superfície administrativa que dependia de `actor.tenantId!` de forma insegura.
+- O import de appointments agora valida `timeSlot` também contra o default do tenant quando a property não tem `branchId`.
+- A auditoria encontrou e corrigiu um bug adicional no worker de import: linhas inválidas estavam sendo contadas como sucesso.
+
+## TODO - Refino de UI do PWA 2026-03-26
+
+- [x] Revisar shell e páginas centrais do PWA
+- [x] Melhorar hierarquia visual do shell (`TopBar`, `BottomNavBar`, `PwaLayout`)
+- [x] Refinar `LoginPage`, `SchedulePage`, `AppointmentDetailPage`, `MarketplacePage`, `EarningsPage` e `ProfilePage`
+- [x] Manter compatibilidade funcional com os testes existentes
+- [x] Validar `pwa typecheck` e testes dirigidos
+
+## Resultado - Refino de UI do PWA 2026-03-26
+
+- O shell do PWA ficou mais coeso, com `TopBar` sticky, badge de conexão mais legível, navegação inferior em pill state e layout geral com sensação mais próxima de app instalado.
+- `LoginPage` ganhou hero mais forte, melhor enquadramento do formulário e mensagem contextual mais clara sem alterar o fluxo de autenticação.
+- `SchedulePage`, `AppointmentDetailPage` e `MarketplacePage` ganharam headers/hero cards e cartões mais intencionais, melhorando leitura de agenda, detalhe e ofertas.
+- `EarningsPage` e `ProfilePage` ficaram alinhadas ao shell novo, com resumo superior e cartões mais consistentes visualmente.
+- A validação desta rodada passou em `pnpm --filter pwa typecheck` e em um bloco de `48` testes dirigidos do PWA.

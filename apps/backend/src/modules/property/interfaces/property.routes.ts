@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
+  addressSuggestionQuerySchema,
+  addressSuggestionSchema,
   createPropertySchema,
   updatePropertySchema,
   listPropertiesQuerySchema,
@@ -17,6 +19,7 @@ import type { ListPropertiesUseCase } from '../application/use-cases/list-proper
 import type { UpdatePropertyUseCase } from '../application/use-cases/update-property.use-case';
 import type { DeletePropertyUseCase } from '../application/use-cases/delete-property.use-case';
 import type { GeocodePropertyUseCase } from '../application/use-cases/geocode-property.use-case';
+import type { SearchAddressesUseCase } from '../application/use-cases/search-addresses.use-case';
 import type { ImportPropertiesUseCase } from '../application/use-cases/import-properties.use-case';
 import type { GetPropertyImportStatusUseCase } from '../application/use-cases/get-property-import-status.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -30,6 +33,7 @@ export interface PropertyRouteContainer {
   updatePropertyUseCase: UpdatePropertyUseCase;
   deletePropertyUseCase: DeletePropertyUseCase;
   geocodePropertyUseCase: GeocodePropertyUseCase;
+  searchAddressesUseCase: SearchAddressesUseCase;
   importPropertiesUseCase: ImportPropertiesUseCase;
   getPropertyImportStatusUseCase: GetPropertyImportStatusUseCase;
   jwtService: JwtService;
@@ -47,6 +51,32 @@ export async function registerPropertyRoutes(
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
+    },
+  );
+
+  app.get(
+    '/v1/address/suggestions',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: addressSuggestionQuerySchema,
+        response: { 200: successResponseSchema(z.array(addressSuggestionSchema)) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = addressSuggestionQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+
+      const result = await container.searchAddressesUseCase.execute({
+        query: parsed.data.q,
+        limit: parsed.data.limit,
+        country: parsed.data.country,
+        actor: request.authContext!,
+      });
+
+      return reply.status(200).send(success(result));
     },
   );
 

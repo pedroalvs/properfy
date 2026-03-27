@@ -61,6 +61,19 @@ function renderSidebar(route = '/appointments') {
   );
 }
 
+function renderMobileSidebar(route = '/appointments') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[route]}>
+        <Sidebar mobile />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe('Sidebar', () => {
   it('renders navigation items', () => {
     renderSidebar();
@@ -91,5 +104,13 @@ describe('Sidebar', () => {
   it('renders user section at the bottom', () => {
     renderSidebar();
     expect(screen.getByLabelText('User menu')).toBeInTheDocument();
+  });
+
+  it('renders labels and settings links in mobile mode', () => {
+    renderMobileSidebar();
+    expect(screen.getByText('Properfy')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Appointments' })).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'menu.editProfile' })).toBeInTheDocument();
   });
 });

@@ -29,6 +29,16 @@ const MOCK_APPOINTMENT: AppointmentDetail = {
   meetingLocation: 'Front entrance',
   keyLocation: 'Reception desk',
   cancellationReason: null,
+  restrictions: [
+    {
+      id: 'res-1',
+      isHome: true,
+      unavailableDaysJson: null,
+      unavailableHoursJson: null,
+      notes: 'Ring the bell',
+      source: 'OPERATOR',
+    },
+  ],
 };
 
 describe('AppointmentContactTab', () => {
@@ -45,6 +55,7 @@ describe('AppointmentContactTab', () => {
     expect(screen.getByText('Access Restrictions')).toBeInTheDocument();
     expect(screen.getByText('Front entrance')).toBeInTheDocument();
     expect(screen.getByText('Reception desk')).toBeInTheDocument();
+    expect(screen.getByText('Ring the bell')).toBeInTheDocument();
   });
 
   it('shows dash for null values', () => {

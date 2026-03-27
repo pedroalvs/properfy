@@ -218,6 +218,16 @@
 2. Essa versao deve priorizar visao de dominios, finalidade de cada bloco, relacoes principais e decisoes de schema com linguagem clara, evitando densidade excessiva de engenharia.
 3. O guia detalhado continua sendo a referencia interna principal; a versao para stakeholder nao substitui o schema nem o documento tecnico completo.
 
+## 2026-03-26 - Create/Edit de Appointment: Matriz de Campos e Limites do Fluxo
+
+1. No fluxo manual de appointment, `branchId` e `propertyId` sao listas cadastraveis e devem continuar apontando para entidades mestre com telas proprias; `serviceTypeId` e `timeSlot` sao catálogos canônicos do sistema e nao exigem necessariamente uma tela de cadastro especifica para que o fluxo seja valido.
+2. `restriction` nao e entidade mestre. Quando exposta, deve entrar como secao inline do formulario de appointment, e nao como tela separada de cadastro.
+3. `property inline` e um fluxo alternativo de criacao contextual, nao uma lista. A implementacao correta futura e selecionar propriedade existente ou abrir criacao contextual e retornar `propertyId`, sem duplicar arbitrariamente todo o modulo de `Property`.
+4. O contrato atual de `PATCH /v1/appointments/:appointmentId` nao suporta trocar `branchId`, `propertyId` ou `serviceTypeId`; portanto manter esses campos bloqueados no edit foi validado como comportamento correto nesta rodada.
+5. O drawer de appointment passou a filtrar `property` por `branch`, alinhando a edicao/criacao ao mesmo escopo operacional da `AppointmentCreatePage`. Filtro de entidade dependente sem respeitar o pai (`branch -> property`) foi tratado como bug funcional, nao como detalhe de UX.
+6. Com validacao do `Claude Code`, a implementacao escolhida para fechar os gaps foi:
+   `restriction` inline com escopo reduzido (`isHome + notes + source=OPERATOR`) e `property inline` via `PropertyFormDrawer` contextual, herdando `tenant/branch` do appointment. Integrar o formulario completo de property dentro do form de appointment foi explicitamente evitado por risco alto de UX, estado cruzado e drift com o modulo canônico de `Property`.
+
 ## 2026-03-25 - Reset Administrativo de Senha em Gestao de Usuarios
 
 1. O reset de senha de usuario deve existir como comando administrativo separado do fluxo `change-password` do proprio usuario. Ele foi exposto em `POST /v1/tenants/:tenantId/users/:userId/reset-password`.
@@ -460,3 +470,50 @@
 1. O `SwUpdatePrompt` não pode depender apenas de `updatefound`; em produção, o app pode montar com um service worker já em `waiting`.
 2. A decisão correta foi checar `registration.waiting` assim que `navigator.serviceWorker.ready` resolve e reaproveitar a mesma action de `SKIP_WAITING`.
 3. O cleanup do listener também passou a usar a referência capturada do `serviceWorker`, evitando dependência implícita do global no unmount.
+
+## 2026-03-25 - Web Mobile Deve Corrigir Primeiro os Componentes-Base
+
+1. A auditoria local e a checagem paralela com o Gemini convergiram que os maiores quebras de responsivo do `web` vinham de componentes-base desktop-first, não de páginas isoladas.
+2. A correção de menor risco foi atacar primeiro `Sidebar/AppShell/MobileDrawer`, `MapScreenLayout`, `DataTable`, `DetailRow` e `PageHeader`, porque eles se propagam para múltiplas páginas de listagem, detalhe e marketplace.
+3. No mobile, a navegação lateral deixou de reaproveitar a rail desktop com hover/flyout; ela passou a renderizar links com rótulo visível, submenus expandidos e ações de settings/logout sem popover.
+4. Em layouts de mapa e grids curtos, a decisão correta foi empilhar no mobile e preservar split pane apenas em `md+`, evitando overflow horizontal estrutural.
+5. Em tabelas e headers, a correção mínima segura foi aceitar wrapping/stack no mobile, reduzir larguras mínimas mais agressivas e manter overflow horizontal apenas como fallback, não como layout principal.
+
+## 2026-03-26 - Install Prompt do PWA Precisa Ser Capturado na Raiz
+
+1. O evento `beforeinstallprompt` não pode ser escutado só na `ProfilePage`; se o navegador disparar o evento antes de o usuário abrir a tela, o botão de instalar nunca aparece.
+2. A decisão correta foi mover a captura para um `InstallPromptProvider` montado na raiz do `App`, deixando o `InstallAppCard` apenas consumir o estado pronto na interface.
+3. O card de instalação continua na visão de perfil, mas a fonte de verdade do prompt fica global ao ciclo de vida do PWA.
+
+## 2026-03-26 - CPF Era Drift de Frontend e Devia Sair Inteiro do Fluxo de Inspetores
+
+1. O schema real de `Inspector` não persiste `CPF/document`; o campo existia só no `web` como drift de UI, tipo e teste.
+2. A decisão correta foi remover o campo inteiro do fluxo de inspectores no frontend, em vez de mantê-lo como placeholder ou dado descartado silenciosamente.
+3. Isso evita falsa sensação de cadastro obrigatório e elimina payload morto enviado para a API.
+
+## 2026-03-26 - Endereco Operacional Deve Vir de Base Externa, Nao de Texto Solto
+
+1. Para `Property` e `Branch`, o endereço principal deixou de ser texto livre; a interface agora exige busca em base externa via backend (`GET /v1/address/suggestions`) e preenche campos estruturados a partir da seleção.
+2. A decisão correta foi fazer o lookup no backend com Mapbox, preservando o token fora do navegador e reaproveitando o `address_json` já existente em `Branch`.
+3. Em `Property`, os campos estruturais (`street/suburb/postcode/state/country`) ficaram derivados da seleção; `addressLine2` continua livre para complemento operacional.
+4. Em `Branch`, o endereço continua opcional por contrato atual, mas quando informado passa a ser estruturado e salvo como JSON em vez de texto arbitrário.
+5. Risco residual honesto: se o provedor externo devolver resultado parcial ou diferente do texto que o usuário quer, a correção fina hoje depende de nova seleção e, no caso de `Property`, do uso de `addressLine2`.
+6. As observações posteriores do Claude foram incorporadas: os campos estruturais de `Property` deixaram de ficar travados após a seleção e o lookup passou a aceitar resultados parciais sem `suburb/postcode`, deixando o preenchimento fino para o formulário.
+7. Em `Branch`, o mesmo princípio de ajuste controlado foi aplicado sobre o endereço estruturado salvo em `address_json`, sem reabrir um campo solto de endereço completo.
+
+## 2026-03-26 - Appointment Time Slots Devem Ser Catálogo Configurável, Sem FK em Appointment
+
+1. `timeSlot` deixou de ser lista hardcoded de frontend e passou a ser catálogo configurável em `appointment_time_slots`, com escopo por `tenant` e `branchId` opcional.
+2. A decisão correta foi manter `appointment.time_slot` como string snapshot `HH:mm-HH:mm`, evitando migração arriscada de histórico para FK e preservando compatibilidade com portal, PWA, relatórios e import.
+3. A resolução efetiva do catálogo ficou `branch -> tenant default`.
+4. No create/edit manual, a UI não deve cair para fallback hardcoded se a API falhar; o comportamento correto é falhar fechado, mostrar erro e permitir retry.
+5. No import, `timeSlot` fora do catálogo efetivo deve virar erro de linha, inclusive quando a property não tiver `branchId`, caso em que vale o catálogo default do tenant.
+6. A criação de tenant passou a semear os slots padrão do tenant para evitar ambiente novo sem catálogo base.
+7. O endpoint de slots efetivos não deve servir `INSP`; isso é superfície administrativa e o projeto não pode depender de `actor.tenantId!` do inspetor para esse fluxo.
+
+## 2026-03-26 - Refino de UI do PWA Deve Fortalecer o Shell e as Superfícies Centrais
+
+1. A melhoria correta do PWA não é um redesign genérico; ela deve reforçar as superfícies que o inspetor usa de verdade: login, agenda, detalhe, execução, marketplace, ganhos e perfil.
+2. A decisão visual desta rodada foi começar pelo shell compartilhado (`TopBar`, `BottomNavBar`, `PwaLayout`) e depois alinhar as páginas a esse mesmo ritmo visual com hero cards, bordas suaves e hierarquia de informação mais forte.
+3. O refino foi mantido mobile-first e sem mudança de contrato ou regra de negócio; a prioridade foi leitura, sensação de app instalado e consistência entre páginas.
+4. O ideal era usar o Gemini como executor desta rodada, mas ele não devolveu progresso material pelo Maestri. Para não travar a entrega, a implementação foi finalizada localmente e validada por teste.

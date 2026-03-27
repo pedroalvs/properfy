@@ -16,11 +16,11 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, primaryAction, secondaryActions }: PageHeaderProps) {
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <h1 className="text-page-title-mobile text-secondary md:text-page-title">
         {title}
       </h1>
-      <div className="flex items-center gap-2">
+      <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
         {secondaryActions?.map((action) => (
           <Button
             key={action.label}
@@ -28,6 +28,7 @@ export function PageHeader({ title, primaryAction, secondaryActions }: PageHeade
             onClick={action.onClick}
             loading={action.loading}
             disabled={action.disabled}
+            className="w-full justify-center sm:w-auto"
           >
             {action.icon && <i className={`mdi ${action.icon}`} aria-hidden="true" />}
             {action.label}

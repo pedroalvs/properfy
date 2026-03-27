@@ -25,7 +25,6 @@ export function useInspectorDetail(id: string | null): UseInspectorDetailReturn 
       serviceTypes: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson : [],
       regionsCount: Array.isArray(raw.regionsJson) ? raw.regionsJson.length : 0,
       serviceTypesCount: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson.length : 0,
-      document: raw.document ?? null,
       rating: raw.rating ?? null,
     };
   }, [raw]);

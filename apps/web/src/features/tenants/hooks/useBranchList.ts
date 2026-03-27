@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
+import { formatAddressLabel } from '@/lib/address';
 import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
 import type { Branch } from '../types';
 
@@ -52,7 +53,10 @@ export function useBranchList(tenantId: string | null): UseBranchListReturn {
   };
 
   return {
-    data: response?.data ?? [],
+    data: (response?.data ?? []).map((branch: Branch) => ({
+      ...branch,
+      address: formatAddressLabel((branch as Branch).addressJson) ?? null,
+    })),
     isLoading,
     isError,
     refetch,

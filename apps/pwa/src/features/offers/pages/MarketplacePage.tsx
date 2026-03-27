@@ -24,13 +24,25 @@ export function MarketplacePage() {
   const shouldShowFeed = !isLoading && (!isError || hasCachedOffers);
 
   return (
-    <div data-testid="marketplace-page">
+    <div className="w-full" data-testid="marketplace-page">
       <TopBar title="Marketplace" />
+
+      <div className="px-page-x py-4">
+        <section className="rounded-[28px] border border-primary/10 bg-[linear-gradient(135deg,_rgba(239,246,255,0.96),_rgba(224,231,255,0.92))] px-5 py-5 shadow-[0_16px_38px_rgba(37,99,235,0.10)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">Open work</p>
+          <h2 className="mt-3 text-xl font-bold tracking-tight text-secondary">
+            {offers.length} available {offers.length === 1 ? 'offer' : 'offers'}
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            Review grouped inspections and accept only when you can commit to the route.
+          </p>
+        </section>
+      </div>
 
       {!isOnline && <OfflineMarketplaceBanner />}
 
       {isOnline && isLoading && (
-        <div className="px-page-x py-4">
+        <div className="px-page-x py-2">
           <LoadingState rows={4} variant="card" />
         </div>
       )}
@@ -42,7 +54,7 @@ export function MarketplacePage() {
       {shouldShowFeed && (
         <PullToRefresh onRefresh={refetch}>
           {dataUpdatedAt > 0 && (
-            <p className="px-page-x pt-2 text-xs text-text-muted" data-testid="last-updated">
+            <p className="px-page-x pt-1 text-xs text-text-muted" data-testid="last-updated">
               Last updated {formatTimeAgo(dataUpdatedAt)}
             </p>
           )}

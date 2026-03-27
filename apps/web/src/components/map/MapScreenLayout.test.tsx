@@ -21,7 +21,10 @@ describe('MapScreenLayout', () => {
         map={<div>Map</div>}
       />,
     );
-    expect(screen.getByTestId('map-screen-layout')).toBeInTheDocument();
+    const layout = screen.getByTestId('map-screen-layout');
+    expect(layout).toBeInTheDocument();
+    expect(layout).toHaveClass('flex-col');
+    expect(layout).toHaveClass('md:flex-row');
   });
 
   it('renders side panel with default width', () => {
@@ -33,6 +36,7 @@ describe('MapScreenLayout', () => {
     );
     const panel = screen.getByTestId('map-side-panel');
     expect(panel).toHaveStyle({ width: '400px' });
+    expect(panel).toHaveStyle({ maxWidth: '100%' });
   });
 
   it('hides side panel when sidePanelOpen is false', () => {

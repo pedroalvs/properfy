@@ -3,10 +3,16 @@ import { renderWithProviders } from '@/test-utils';
 import { ProfilePage } from '../ProfilePage';
 
 const mockUseAuth = vi.fn();
+const mockUseInstallPrompt = vi.fn();
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/app/useInstallPrompt', () => ({
+  useInstallPrompt: () => mockUseInstallPrompt(),
+  InstallPromptProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 describe('ProfilePage', () => {
@@ -24,13 +30,18 @@ describe('ProfilePage', () => {
       },
       logout: vi.fn(),
     });
+    mockUseInstallPrompt.mockReturnValue({
+      canInstall: false,
+      isInstalled: false,
+      promptInstall: vi.fn(),
+    });
   });
 
   it('renders enriched profile information', () => {
     renderWithProviders(<ProfilePage />);
 
     expect(screen.getByText('Profile')).toBeInTheDocument();
-    expect(screen.getByText('Inspector Jane')).toBeInTheDocument();
+    expect(screen.getAllByText('Inspector Jane').length).toBeGreaterThan(0);
     expect(screen.getByText('+5511999999999')).toBeInTheDocument();
     expect(screen.getByText('Enabled')).toBeInTheDocument();
     expect(screen.getByText('Last Login')).toBeInTheDocument();

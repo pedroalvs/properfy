@@ -6,6 +6,8 @@ import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
+import { EmailInput } from '@/components/forms/EmailInput';
+import { PhoneInput } from '@/components/forms/PhoneInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { Textarea } from '@/components/forms/Textarea';
@@ -15,8 +17,10 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { PropertyFormDrawer } from '@/features/properties/components/PropertyFormDrawer';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
-import { TIME_SLOT_OPTIONS } from '../constants/form-options';
+import { AppointmentRestrictionFields } from '../components/AppointmentRestrictionFields';
+import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 import { EMPTY_FORM_DATA } from '../types';
 
@@ -31,6 +35,7 @@ export function AppointmentCreatePage() {
   const [initialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [errors, setErrors] = useState<AppointmentFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [propertyDrawerOpen, setPropertyDrawerOpen] = useState(false);
   const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
   const requiresTenantSelection = isGlobalRole && !selectedTenantId;
 
@@ -64,6 +69,7 @@ export function AppointmentCreatePage() {
     },
     { enabled: (!isGlobalRole || !!effectiveTenantId) && !!form.branchId },
   );
+  const { options: timeSlotOptions, isError: timeSlotError, error: timeSlotErrorMsg, refetch: refetchTimeSlots } = useTimeSlotOptions(form.branchId || undefined);
 
   useEffect(() => {
     if (!isGlobalRole) return;
@@ -92,12 +98,48 @@ export function AppointmentCreatePage() {
   }, []);
 
   const handleBranchChange = useCallback((branchId: string) => {
-    setForm((prev) => ({ ...prev, branchId, propertyId: '' }));
+    setForm((prev) => ({ ...prev, branchId, propertyId: '', timeSlot: '' }));
     setErrors((prev) => {
       const next = { ...prev };
       delete next.branchId;
       delete next.propertyId;
+      delete next.timeSlot;
       return next;
+    });
+  }, []);
+
+  const handleRestrictionToggle = useCallback((value: boolean) => {
+    setForm((prev) => ({
+      ...prev,
+      hasRestriction: value,
+      restrictionTouched: true,
+      ...(value ? {} : { restrictionIsHome: false, restrictionNotes: '' }),
+    }));
+  }, []);
+
+  const handleRestrictionIsHomeChange = useCallback((value: boolean) => {
+    setForm((prev) => ({
+      ...prev,
+      hasRestriction: true,
+      restrictionIsHome: value,
+      restrictionTouched: true,
+    }));
+  }, []);
+
+  const handleRestrictionNotesChange = useCallback((value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      hasRestriction: true,
+      restrictionNotes: value,
+      restrictionTouched: true,
+    }));
+    setErrors((prev) => {
+      if (prev.restrictionNotes) {
+        const next = { ...prev };
+        delete next.restrictionNotes;
+        return next;
+      }
+      return prev;
     });
   }, []);
 
@@ -201,6 +243,16 @@ export function AppointmentCreatePage() {
                 aria-label="Property"
               />
             </FormField>
+            <div className="md:col-span-2">
+              <Button
+                variant="secondary"
+                onClick={() => setPropertyDrawerOpen(true)}
+                disabled={!form.branchId || requiresTenantSelection}
+              >
+                <i className="mdi mdi-home-plus-outline" aria-hidden="true" />
+                Property not listed? Create one
+              </Button>
+            </div>
             <FormField label="Service Type" required error={errors.serviceTypeId}>
               <SelectInput
                 value={form.serviceTypeId}
@@ -219,15 +271,23 @@ export function AppointmentCreatePage() {
                 aria-label="Scheduled Date"
               />
             </FormField>
-            <FormField label="Time Slot" required error={errors.timeSlot}>
-              <SelectInput
-                value={form.timeSlot}
-                onChange={(v) => updateField('timeSlot', v)}
-                options={TIME_SLOT_OPTIONS}
-                placeholder="Select time slot"
-                error={!!errors.timeSlot}
-                aria-label="Time Slot"
-              />
+            <FormField label="Time Slot" required error={errors.timeSlot ?? (timeSlotError ? (timeSlotErrorMsg ?? undefined) : undefined)}>
+              {timeSlotError ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-error">Failed to load time slots</span>
+                  <button type="button" className="text-sm font-semibold text-primary" onClick={() => refetchTimeSlots()}>Retry</button>
+                </div>
+              ) : (
+                <SelectInput
+                  value={form.timeSlot}
+                  onChange={(v) => updateField('timeSlot', v)}
+                  options={timeSlotOptions}
+                  placeholder={!form.branchId ? 'Select a branch first' : 'Select time slot'}
+                  disabled={!form.branchId || timeSlotOptions.length === 0}
+                  error={!!errors.timeSlot}
+                  aria-label="Time Slot"
+                />
+              )}
             </FormField>
           </FormSection>
 
@@ -242,20 +302,18 @@ export function AppointmentCreatePage() {
               />
             </FormField>
             <FormField label="Phone" error={errors.contactPhone}>
-              <TextInput
+              <PhoneInput
                 value={form.contactPhone}
                 onChange={(v) => updateField('contactPhone', v)}
-                type="tel"
                 placeholder="(00) 00000-0000"
                 error={!!errors.contactPhone}
                 aria-label="Phone"
               />
             </FormField>
             <FormField label="Email" error={errors.contactEmail}>
-              <TextInput
+              <EmailInput
                 value={form.contactEmail}
                 onChange={(v) => updateField('contactEmail', v)}
-                type="email"
                 placeholder="email@example.com"
                 error={!!errors.contactEmail}
                 aria-label="Email"
@@ -289,6 +347,14 @@ export function AppointmentCreatePage() {
               />
             </FormField>
           </FormSection>
+
+          <AppointmentRestrictionFields
+            form={form}
+            errors={errors}
+            onToggleRestriction={handleRestrictionToggle}
+            onToggleIsHome={handleRestrictionIsHomeChange}
+            onChangeNotes={handleRestrictionNotesChange}
+          />
 
           <FormSection title="Notes">
             <FormField label="Notes" error={errors.notes}>
@@ -324,6 +390,18 @@ export function AppointmentCreatePage() {
         variant="warning"
         onConfirm={forceBack}
         onClose={cancelDiscard}
+      />
+      <PropertyFormDrawer
+        open={propertyDrawerOpen}
+        onClose={() => setPropertyDrawerOpen(false)}
+        onSaved={() => setPropertyDrawerOpen(false)}
+        tenantIdOverride={effectiveTenantId}
+        initialBranchId={form.branchId}
+        lockBranch
+        onCreated={(propertyId) => {
+          setPropertyDrawerOpen(false);
+          updateField('propertyId', propertyId);
+        }}
       />
     </>
   );

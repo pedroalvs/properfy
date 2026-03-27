@@ -16,7 +16,7 @@ describe('PageHeader', () => {
         primaryAction={{ label: 'Nova Vistoria', onClick: () => {} }}
       />,
     );
-    expect(screen.getByRole('button', { name: 'Nova Vistoria' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Nova Vistoria' })).toHaveLength(2);
   });
 
   it('calls primary action onClick', async () => {
@@ -25,7 +25,7 @@ describe('PageHeader', () => {
     render(
       <PageHeader title="Vistorias" primaryAction={{ label: 'Criar', onClick }} />,
     );
-    await user.click(screen.getByRole('button', { name: 'Criar' }));
+    await user.click(screen.getAllByRole('button', { name: 'Criar' })[0]!);
     expect(onClick).toHaveBeenCalledOnce();
   });
 
@@ -60,6 +60,6 @@ describe('PageHeader', () => {
         primaryAction={{ label: 'Salvando', onClick: () => {}, loading: true }}
       />,
     );
-    expect(screen.getByRole('button', { name: 'Salvando' })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Salvando' })[0]).toBeDisabled();
   });
 });

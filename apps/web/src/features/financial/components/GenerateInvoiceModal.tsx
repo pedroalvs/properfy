@@ -160,7 +160,7 @@ export function GenerateInvoiceModal({ open, onClose, onGenerated, tenantId }: G
             aria-label="Inspector"
           />
         </FormField>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Period Start" required error={errors.periodStart}>
             <DateInput
               value={form.periodStart}

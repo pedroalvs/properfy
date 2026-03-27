@@ -35,7 +35,17 @@ const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 const VALID_DATA: BranchFormData = {
   name: 'Centro',
-  address: 'Rua Augusta, 100',
+  address: {
+    formattedAddress: 'Rua Augusta, 100, Sao Paulo SP 01000-000, BR',
+    street: 'Rua Augusta, 100',
+    suburb: 'Sao Paulo',
+    postcode: '01000-000',
+    state: 'SP',
+    country: 'BR',
+    latitude: -23.55,
+    longitude: -46.63,
+    provider: 'MAPBOX',
+  },
   contactEmail: 'centro@imob.com',
 };
 
@@ -71,7 +81,7 @@ describe('useBranchSave', () => {
   it('validate does not require address or email', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useBranchSave(), { wrapper });
-    const errors = result.current.validate({ name: 'Centro', address: '', contactEmail: '' });
+    const errors = result.current.validate({ name: 'Centro', address: null, contactEmail: '' });
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
@@ -85,7 +95,13 @@ describe('useBranchSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/ten-01/branches', { body: VALID_DATA });
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/ten-01/branches', {
+      body: {
+        name: VALID_DATA.name,
+        address: VALID_DATA.address,
+        contactEmail: VALID_DATA.contactEmail,
+      },
+    });
   });
 
   it('save returns success on edit', async () => {
@@ -98,7 +114,13 @@ describe('useBranchSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/ten-01/branches/br-01', { body: VALID_DATA });
+    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/ten-01/branches/br-01', {
+      body: {
+        name: VALID_DATA.name,
+        address: VALID_DATA.address,
+        contactEmail: VALID_DATA.contactEmail,
+      },
+    });
   });
 
   it('save returns failure on API error', async () => {

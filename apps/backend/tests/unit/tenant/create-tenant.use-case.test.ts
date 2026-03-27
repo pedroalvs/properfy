@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateTenantUseCase } from '../../../src/modules/tenant/application/use-cases/create-tenant.use-case';
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
+import type { IAppointmentTimeSlotRepository } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
@@ -38,6 +39,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 
 describe('CreateTenantUseCase', () => {
   let tenantRepo: ITenantRepository;
+  let timeSlotRepo: IAppointmentTimeSlotRepository;
   let auditService: AuditService;
   let useCase: CreateTenantUseCase;
 
@@ -50,8 +52,16 @@ describe('CreateTenantUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
+    timeSlotRepo = {
+      create: vi.fn(),
+      update: vi.fn(),
+      findById: vi.fn(),
+      findAll: vi.fn(),
+      findEffective: vi.fn(),
+      softDelete: vi.fn(),
+    };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new CreateTenantUseCase(tenantRepo, auditService);
+    useCase = new CreateTenantUseCase(tenantRepo, auditService, timeSlotRepo);
   });
 
   it('should create a tenant with PENDING status when actor is AM', async () => {
@@ -70,6 +80,7 @@ describe('CreateTenantUseCase', () => {
     expect(result.legalName).toBe('New Agency Pty Ltd');
     expect(result.id).toBeDefined();
     expect(tenantRepo.save).toHaveBeenCalled();
+    expect(timeSlotRepo.create).toHaveBeenCalledTimes(2);
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'tenant.created' }),
     );

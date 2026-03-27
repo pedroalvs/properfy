@@ -85,6 +85,17 @@ describe('BranchFormDrawer', () => {
       tenantId: 'ten-01',
       name: 'Centro',
       address: 'Rua Augusta, 100',
+      addressJson: {
+        formattedAddress: 'Rua Augusta, 100, Sao Paulo SP 01000-000, BR',
+        street: 'Rua Augusta, 100',
+        suburb: 'Sao Paulo',
+        postcode: '01000-000',
+        state: 'SP',
+        country: 'BR',
+        latitude: -23.55,
+        longitude: -46.63,
+        provider: 'MAPBOX',
+      },
       contactEmail: 'centro@imob.com',
       status: 'ACTIVE' as const,
       createdAt: '2026-01-01T00:00:00Z',
@@ -97,6 +108,8 @@ describe('BranchFormDrawer', () => {
     );
     expect(screen.getByText('Edit Branch')).toBeInTheDocument();
     expect(screen.getByText('Save')).toBeInTheDocument();
+    expect(screen.getByLabelText('Branch Street')).toHaveValue('Rua Augusta, 100');
+    expect(screen.getByLabelText('Branch State')).toHaveValue('SP');
   });
 
   it('does not render when open is false', () => {

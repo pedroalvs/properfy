@@ -101,6 +101,17 @@ describe('GenerateInvoiceModal', () => {
     expect(screen.getByLabelText('Frequency')).toBeInTheDocument();
   });
 
+  it('uses a stacked layout on mobile for the period fields', () => {
+    const Wrapper = createWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GenerateInvoiceModal open={true} onClose={onClose} onGenerated={onGenerated} />
+      </Wrapper>,
+    );
+    const dateGrid = container.querySelector('.grid.grid-cols-1.sm\\:grid-cols-2');
+    expect(dateGrid).toBeTruthy();
+  });
+
   it('shows validation errors on empty submit', async () => {
     const Wrapper = createWrapper();
     render(

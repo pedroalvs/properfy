@@ -4,6 +4,8 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ITenantRepository } from '../../domain/tenant.repository';
 import { TenantEntity } from '../../domain/tenant.entity';
 import { TenantLegalNameConflictError } from '../../domain/tenant.errors';
+import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
+import { AppointmentTimeSlotEntity } from '../../../appointment-time-slot/domain/appointment-time-slot.entity';
 
 export interface CreateTenantInput {
   name: string;
@@ -29,6 +31,7 @@ export class CreateTenantUseCase {
   constructor(
     private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
+    private readonly timeSlotRepo: IAppointmentTimeSlotRepository,
   ) {}
 
   async execute(input: CreateTenantInput): Promise<CreateTenantOutput> {
@@ -60,6 +63,7 @@ export class CreateTenantUseCase {
     });
 
     await this.tenantRepo.save(tenant);
+    await this.seedDefaultTimeSlots(id, now);
 
     this.auditService.log({
       action: 'tenant.created',
@@ -88,5 +92,30 @@ export class CreateTenantUseCase {
       settingsJson: tenant.settingsJson,
       createdAt: tenant.createdAt,
     };
+  }
+
+  private async seedDefaultTimeSlots(tenantId: string, now: Date): Promise<void> {
+    const defaultSlots = [
+      { label: '09:00 - 12:00', startTime: '09:00', endTime: '12:00', sortOrder: 1 },
+      { label: '14:00 - 17:00', startTime: '14:00', endTime: '17:00', sortOrder: 2 },
+    ];
+
+    for (const slot of defaultSlots) {
+      await this.timeSlotRepo.create(
+        new AppointmentTimeSlotEntity({
+          id: crypto.randomUUID(),
+          tenantId,
+          branchId: null,
+          label: slot.label,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          sortOrder: slot.sortOrder,
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: null,
+        }),
+      );
+    }
   }
 }

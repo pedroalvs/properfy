@@ -1,4 +1,5 @@
 import type { TenantConfirmationStatus } from '@properfy/shared';
+import type { AddressLookupSuggestion } from '@/lib/address';
 
 export interface TenantContact {
   id: string;
@@ -86,6 +87,7 @@ export interface Branch {
   tenantId: string;
   name: string;
   address: string | null;
+  addressJson: Record<string, unknown> | null;
   contactEmail: string | null;
   status: TenantAdminStatus;
   createdAt: string;
@@ -94,7 +96,7 @@ export interface Branch {
 
 export interface BranchFormData {
   name: string;
-  address: string;
+  address: AddressLookupSuggestion | null;
   contactEmail: string;
 }
 
@@ -102,6 +104,6 @@ export type BranchFormErrors = Partial<Record<keyof BranchFormData, string>>;
 
 export const EMPTY_BRANCH_FORM: BranchFormData = {
   name: '',
-  address: '',
+  address: null,
   contactEmail: '',
 };

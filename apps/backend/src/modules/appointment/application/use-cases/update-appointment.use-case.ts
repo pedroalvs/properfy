@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -11,6 +11,7 @@ import {
   AppointmentUpdateNotAllowedError,
 } from '../../domain/appointment.errors';
 import type { RestrictionSource } from '@properfy/shared';
+import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 
 export interface UpdateAppointmentInput {
   appointmentId: string;
@@ -70,6 +71,7 @@ export class UpdateAppointmentUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly tenantRepo?: ITenantRepository,
+    private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
@@ -128,6 +130,22 @@ export class UpdateAppointmentUseCase {
       notes: appointment.notes,
       customFieldsJson: appointment.customFieldsJson,
     };
+
+    // Validate timeSlot against effective catalog
+    if (data.timeSlot !== undefined && this.timeSlotRepo) {
+      const effectiveSlots = await this.timeSlotRepo.findEffective(
+        appointment.tenantId,
+        appointment.branchId,
+      );
+      const valid = effectiveSlots.some(
+        (s) => s.compositeValue === data.timeSlot,
+      );
+      if (!valid) {
+        throw new ValidationError(
+          `Time slot "${data.timeSlot}" is not available for this branch`,
+        );
+      }
+    }
 
     // Build update payload for appointment fields
     const updateData: Parameters<IAppointmentRepository['update']>[2] = {};

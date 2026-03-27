@@ -112,6 +112,13 @@ describe('PropertyFormDrawer', () => {
     expect(screen.getByLabelText('Postcode')).toHaveValue('01000-000');
   });
 
+  it('keeps structured address fields editable after selection', () => {
+    renderDrawer({ propertyId: 'prop-01' });
+    expect(screen.getByLabelText('Street')).not.toBeDisabled();
+    expect(screen.getByLabelText('Suburb')).not.toBeDisabled();
+    expect(screen.getByLabelText('Postcode')).not.toBeDisabled();
+  });
+
   it('shows validation errors and prevents save when validation fails', () => {
     mockValidate.mockReturnValue({ street: 'Required field' });
     renderDrawer();

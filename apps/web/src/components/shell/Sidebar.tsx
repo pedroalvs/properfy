@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { SidebarItem } from './SidebarItem';
 import { SidebarSubmenu } from './SidebarSubmenu';
 import { SidebarUser } from './SidebarUser';
+import { SidebarUserMenu } from './SidebarUserMenu';
 
 interface NavSubmenuItem {
   icon: string;
@@ -46,6 +47,7 @@ const NAV_ITEMS: NavItem[] = [
     roles: [UserRole.AM, UserRole.OP],
     submenu: [
       { icon: 'mdi-clipboard-list-outline', label: 'Service Types', to: '/service-types' },
+      { icon: 'mdi-clock-outline', label: 'Time Slots', to: '/time-slots' },
       { icon: 'mdi-currency-usd', label: 'Pricing Rules', to: '/pricing-rules' },
       { icon: 'mdi-email-outline', label: 'Notification Templates', to: '/notification-templates' },
     ],
@@ -67,20 +69,29 @@ function filterNavItems(items: NavItem[], role: string | undefined): NavItem[] {
     .filter(Boolean) as NavItem[];
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  mobile?: boolean;
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
   const { user } = useAuth();
   const visibleItems = useMemo(() => filterNavItems(NAV_ITEMS, user?.role), [user?.role]);
 
   return (
     <aside
-      className="fixed left-0 top-0 z-30 flex h-screen w-sidebar flex-col bg-transparent"
+      className={
+        mobile
+          ? 'flex h-full min-h-full flex-col bg-white'
+          : 'fixed left-0 top-0 z-30 flex h-screen w-sidebar flex-col bg-transparent'
+      }
       data-testid="sidebar"
     >
-      <div className="flex items-center justify-center py-4">
-        <span className="text-xl font-bold text-secondary">P</span>
+      <div className={`flex items-center ${mobile ? 'justify-between border-b border-border-subtle px-4 py-4' : 'justify-center py-4'}`}>
+        <span className="text-xl font-bold text-secondary">{mobile ? 'Properfy' : 'P'}</span>
       </div>
 
-      <nav className="flex flex-1 flex-col items-center gap-1 py-4">
+      <nav className={`flex flex-1 flex-col ${mobile ? 'gap-3 overflow-y-auto px-3 py-4' : 'items-center gap-1 py-4'}`}>
         {visibleItems.map((item) =>
           item.submenu ? (
             <SidebarSubmenu
@@ -88,6 +99,8 @@ export function Sidebar() {
               icon={item.icon}
               label={item.label}
               items={item.submenu}
+              mobile={mobile}
+              onNavigate={onNavigate}
             />
           ) : (
             <SidebarItem
@@ -95,12 +108,14 @@ export function Sidebar() {
               icon={item.icon}
               label={item.label}
               to={item.to!}
+              mobile={mobile}
+              onNavigate={onNavigate}
             />
           ),
         )}
       </nav>
 
-      <SidebarUser />
+      {mobile ? <SidebarUserMenu mobile onNavigate={onNavigate} /> : <SidebarUser />}
     </aside>
   );
 }

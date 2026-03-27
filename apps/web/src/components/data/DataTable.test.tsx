@@ -101,9 +101,10 @@ describe('DataTable', () => {
         pagination={{ page: 1, pageSize: 10, total: 25, onChange: () => {} }}
       />,
     );
-    expect(screen.getByText(/Showing 1.10 of 25/)).toBeInTheDocument();
-    expect(screen.getByText('Previous')).toBeDisabled();
-    expect(screen.getByText('Next')).not.toBeDisabled();
+    expect(screen.getByLabelText('Items per page')).toBeInTheDocument();
+    expect(screen.getByLabelText('Current page')).toHaveValue('1');
+    expect(screen.getByLabelText('Previous page')).toBeDisabled();
+    expect(screen.getByLabelText('Next page')).not.toBeDisabled();
   });
 
   it('handles pagination page change', async () => {
@@ -116,7 +117,7 @@ describe('DataTable', () => {
         pagination={{ page: 2, pageSize: 10, total: 25, onChange }}
       />,
     );
-    await user.click(screen.getByText('Previous'));
+    await user.click(screen.getByLabelText('Previous page'));
     expect(onChange).toHaveBeenCalledWith(1, 10);
   });
 
@@ -147,5 +148,12 @@ describe('DataTable', () => {
     const row = screen.getByText('Item A').closest('tr')!;
     expect(row.className).toContain('cursor-pointer');
     expect(row.className).toContain('hover:bg-hover-row');
+  });
+
+  it('uses mobile-safe minimum width on the table element', () => {
+    const { container } = render(<DataTable columns={columns} data={data} />);
+    const table = container.querySelector('table');
+    expect(table).toHaveClass('min-w-[640px]');
+    expect(table).toHaveClass('md:min-w-[800px]');
   });
 });

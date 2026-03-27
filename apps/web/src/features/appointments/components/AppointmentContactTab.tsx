@@ -21,8 +21,13 @@ export function AppointmentContactTab({ appointment }: AppointmentContactTabProp
           label="Key Required"
           value={<BooleanIcon value={appointment.keyRequired} />}
         />
+        <DetailRow
+          label="Occupant Home"
+          value={<BooleanIcon value={appointment.restrictions?.[0]?.isHome ?? false} />}
+        />
         <DetailRow label="Meeting Location" value={appointment.meetingLocation} />
         <DetailRow label="Key Location" value={appointment.keyLocation} />
+        <DetailRow label="Restriction Notes" value={appointment.restrictions?.[0]?.notes ?? null} />
       </FormSection>
     </div>
   );

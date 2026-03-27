@@ -1476,6 +1476,49 @@ async function main() {
   });
   console.log('Property imports: 2 created (COMPLETED, PROCESSING)');
 
+  // ── Appointment Time Slots (tenant-wide defaults) ─────────────────────
+  for (const tenantId of [IDS.tenant, IDS.tenant2]) {
+    await prisma.appointmentTimeSlot.upsert({
+      where: {
+        tenant_id_branch_id_start_time_end_time: {
+          tenant_id: tenantId,
+          branch_id: null as any,
+          start_time: '09:00',
+          end_time: '12:00',
+        },
+      },
+      update: {},
+      create: {
+        tenant_id: tenantId,
+        branch_id: null,
+        label: 'Morning',
+        start_time: '09:00',
+        end_time: '12:00',
+        sort_order: 0,
+      },
+    });
+    await prisma.appointmentTimeSlot.upsert({
+      where: {
+        tenant_id_branch_id_start_time_end_time: {
+          tenant_id: tenantId,
+          branch_id: null as any,
+          start_time: '14:00',
+          end_time: '17:00',
+        },
+      },
+      update: {},
+      create: {
+        tenant_id: tenantId,
+        branch_id: null,
+        label: 'Afternoon',
+        start_time: '14:00',
+        end_time: '17:00',
+        sort_order: 1,
+      },
+    });
+  }
+  console.log('Appointment time slots: 2 per tenant (Morning, Afternoon)');
+
   console.log('\n✓ Seeding complete!');
   console.log('─'.repeat(60));
   console.log('Login credentials (all users): password = Admin@1234');

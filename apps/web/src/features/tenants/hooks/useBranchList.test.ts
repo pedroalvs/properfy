@@ -31,8 +31,8 @@ import { createQueryWrapper } from '@/test-utils/test-wrappers';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_BRANCHES = [
-  { id: 'br-01', tenantId: 'ten-01', name: 'Centro', address: 'Rua Augusta, 100', contactEmail: 'centro@imob.com', status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
-  { id: 'br-02', tenantId: 'ten-01', name: 'Zona Sul', address: null, contactEmail: null, status: 'INACTIVE', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+  { id: 'br-01', tenantId: 'ten-01', name: 'Centro', addressJson: { formattedAddress: 'Rua Augusta, 100, Sao Paulo SP 01000-000, BR' }, contactEmail: 'centro@imob.com', status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  { id: 'br-02', tenantId: 'ten-01', name: 'Zona Sul', addressJson: null, contactEmail: null, status: 'INACTIVE', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
 ];
 
 beforeEach(() => {
@@ -56,6 +56,7 @@ describe('useBranchList', () => {
 
     expect(result.current.data).toHaveLength(2);
     expect(result.current.data[0]?.name).toBe('Centro');
+    expect(result.current.data[0]?.address).toContain('Rua Augusta');
   });
 
   it('does not fetch when tenantId is null', async () => {

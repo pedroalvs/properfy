@@ -37,7 +37,6 @@ const VALID_CREATE_DATA: InspectorFormData = {
   name: 'Teste Inspetor',
   email: 'teste@inspecoes.com',
   phone: '11999999999',
-  document: '123.456.789-00',
   status: '',
   regions: 'Zona Norte, Zona Sul',
   serviceTypes: '123e4567-e89b-12d3-a456-426614174000',
@@ -86,7 +85,6 @@ describe('useInspectorSave', () => {
     const errors = result.current.validate({
       ...VALID_CREATE_DATA,
       phone: '',
-      document: '',
       regions: '',
       serviceTypes: '',
     }, 'create');

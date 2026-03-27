@@ -26,11 +26,12 @@ export function TopBar({ title, subtitle, showBack = false, backTo = '/schedule'
   };
 
   return (
-    <header className="flex min-h-[56px] items-center gap-2 bg-card-bg px-page-x shadow-sm">
+    <header className="sticky top-0 z-20 border-b border-border-subtle/70 bg-white/88 px-page-x py-3 backdrop-blur-md">
+      <div className="flex min-h-[52px] items-center gap-3">
       {showBack && (
         <button
           onClick={handleBack}
-          className="flex min-h-touch min-w-touch items-center justify-center rounded-full hover:bg-black/5"
+          className="flex min-h-touch min-w-touch items-center justify-center rounded-full border border-border-subtle bg-app-bg/80 text-text-primary transition-colors hover:bg-black/5"
           aria-label="Go back"
           data-testid="back-button"
         >
@@ -38,18 +39,22 @@ export function TopBar({ title, subtitle, showBack = false, backTo = '/schedule'
         </button>
       )}
       <div className="flex-1 min-w-0">
-        <h1 className="text-lg font-bold text-secondary truncate">{title}</h1>
+        <h1 className="truncate text-lg font-bold tracking-tight text-secondary">{title}</h1>
         {subtitle && (
-          <p className="text-xs text-text-muted truncate" data-testid="topbar-subtitle">
+          <p className="truncate text-xs text-text-muted" data-testid="topbar-subtitle">
             {subtitle}
           </p>
         )}
       </div>
-      <span
-        className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${isOnline ? 'bg-success' : 'bg-error'}`}
-        title={isOnline ? 'Online' : 'Offline'}
-        data-testid="connection-indicator"
-      />
+      <div className="flex items-center gap-2 rounded-full border border-border-subtle bg-app-bg/80 px-2.5 py-1 text-[11px] font-semibold text-text-secondary">
+        <span
+          className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${isOnline ? 'bg-success' : 'bg-error'}`}
+          title={isOnline ? 'Online' : 'Offline'}
+          data-testid="connection-indicator"
+        />
+        <span>{isOnline ? 'Online' : 'Offline'}</span>
+      </div>
+      </div>
     </header>
   );
 }

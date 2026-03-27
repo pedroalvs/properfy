@@ -43,6 +43,14 @@ export interface AppointmentDetail extends Appointment {
   meetingLocation: string | null;
   keyLocation: string | null;
   cancellationReason: string | null;
+  restrictions?: Array<{
+    id: string;
+    isHome: boolean;
+    unavailableDaysJson: string[] | null;
+    unavailableHoursJson: string[] | null;
+    notes: string | null;
+    source: string;
+  }>;
 }
 
 export interface AppointmentTransition {
@@ -66,6 +74,10 @@ export interface AppointmentFormData {
   meetingLocation: string;
   keyLocation: string;
   notes: string;
+  hasRestriction: boolean;
+  restrictionIsHome: boolean;
+  restrictionNotes: string;
+  restrictionTouched: boolean;
 }
 
 export type AppointmentFormErrors = Partial<Record<keyof AppointmentFormData, string>>;
@@ -83,6 +95,10 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
   meetingLocation: '',
   keyLocation: '',
   notes: '',
+  hasRestriction: false,
+  restrictionIsHome: false,
+  restrictionNotes: '',
+  restrictionTouched: false,
 };
 
 export const DEFAULT_FILTERS: AppointmentFiltersState = {

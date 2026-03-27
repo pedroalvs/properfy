@@ -8,7 +8,9 @@ import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { EmailInput } from '@/components/forms/EmailInput';
+import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { buildAddressLabel, formatAddressLabel, toAddressSuggestion } from '@/lib/address';
 import { useBranchSave } from '../hooks/useBranchSave';
 import type { Branch, BranchFormData, BranchFormErrors } from '../types';
 import { EMPTY_BRANCH_FORM } from '../types';
@@ -41,7 +43,7 @@ export function BranchFormDrawer({
     if (isEditMode && branch) {
       const data: BranchFormData = {
         name: branch.name,
-        address: branch.address ?? '',
+        address: toAddressSuggestion(branch.addressJson),
         contactEmail: branch.contactEmail ?? '',
       };
       setForm(data);
@@ -70,6 +72,43 @@ export function BranchFormDrawer({
           return next;
         }
         return prev;
+      });
+    },
+    [],
+  );
+
+  const updateAddressField = useCallback(
+    (field: 'street' | 'suburb' | 'postcode' | 'state' | 'country', value: string) => {
+      setForm((prev) => {
+        const nextAddress = {
+          ...(prev.address ?? {
+            formattedAddress: '',
+            street: '',
+            suburb: '',
+            postcode: '',
+            state: '',
+            country: 'AU',
+            latitude: 0,
+            longitude: 0,
+            provider: 'MAPBOX' as const,
+          }),
+          [field]: value,
+        };
+
+        return {
+          ...prev,
+          address: {
+            ...nextAddress,
+            formattedAddress:
+              buildAddressLabel({
+                street: nextAddress.street,
+                suburb: nextAddress.suburb,
+                postcode: nextAddress.postcode,
+                state: nextAddress.state,
+                country: nextAddress.country,
+              }) ?? nextAddress.formattedAddress,
+          },
+        };
       });
     },
     [],
@@ -130,14 +169,54 @@ export function BranchFormDrawer({
                   />
                 </FormField>
                 <FormField label="Address" error={errors.address}>
-                  <TextInput
-                    value={form.address}
-                    onChange={(v) => updateField('address', v)}
-                    placeholder="Full address"
-                    error={!!errors.address}
-                    aria-label="Address"
+                  <AddressLookupInput
+                    label="Address"
+                    valueLabel={buildAddressLabel(form.address ?? {}) ?? formatAddressLabel(form.address) ?? ''}
+                    onSelect={(value) => updateField('address', value)}
+                    onClear={() => updateField('address', null)}
+                    placeholder="Search verified address"
+                    ariaLabel="Address"
                   />
                 </FormField>
+                {form.address && (
+                  <>
+                    <FormField label="Street">
+                      <TextInput
+                        value={form.address.street}
+                        onChange={(v) => updateAddressField('street', v)}
+                        aria-label="Branch Street"
+                      />
+                    </FormField>
+                    <FormField label="Suburb">
+                      <TextInput
+                        value={form.address.suburb}
+                        onChange={(v) => updateAddressField('suburb', v)}
+                        aria-label="Branch Suburb"
+                      />
+                    </FormField>
+                    <FormField label="Postcode">
+                      <TextInput
+                        value={form.address.postcode}
+                        onChange={(v) => updateAddressField('postcode', v)}
+                        aria-label="Branch Postcode"
+                      />
+                    </FormField>
+                    <FormField label="State">
+                      <TextInput
+                        value={form.address.state}
+                        onChange={(v) => updateAddressField('state', v)}
+                        aria-label="Branch State"
+                      />
+                    </FormField>
+                    <FormField label="Country">
+                      <TextInput
+                        value={form.address.country}
+                        onChange={(v) => updateAddressField('country', v)}
+                        aria-label="Branch Country"
+                      />
+                    </FormField>
+                  </>
+                )}
                 <FormField label="Contact Email" error={errors.contactEmail}>
                   <EmailInput
                     value={form.contactEmail}

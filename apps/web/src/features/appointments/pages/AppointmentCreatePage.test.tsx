@@ -48,6 +48,10 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
+  PropertyFormDrawer: ({ open }: { open: boolean }) => (open ? <div>Property Drawer</div> : null),
+}));
+
 import { api } from '@/services/api';
 import { AppointmentCreatePage } from './AppointmentCreatePage';
 
@@ -106,6 +110,7 @@ describe('AppointmentCreatePage', () => {
     expect(screen.getByText('Appointment Details')).toBeInTheDocument();
     expect(screen.getByText('Tenant Contact')).toBeInTheDocument();
     expect(screen.getByText('Access & Key')).toBeInTheDocument();
+    expect(screen.getByText('Restrictions')).toBeInTheDocument();
     expect(screen.getAllByText('Notes').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -122,6 +127,11 @@ describe('AppointmentCreatePage', () => {
   it('renders Create Appointment button', () => {
     renderPage();
     expect(screen.getByText('Create Appointment')).toBeInTheDocument();
+  });
+
+  it('renders contextual property creation action', () => {
+    renderPage();
+    expect(screen.getByText('Property not listed? Create one')).toBeInTheDocument();
   });
 
   it('renders Cancel button', () => {

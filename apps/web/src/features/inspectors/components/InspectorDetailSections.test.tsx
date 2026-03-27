@@ -31,7 +31,6 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
     serviceTypesCount: 5,
     regions: ['Zona Norte', 'Zona Sul', 'Centro'],
     serviceTypes: ['123e4567-e89b-12d3-a456-426614174000', '123e4567-e89b-12d3-a456-426614174001'],
-    document: '123.456.789-00',
     rating: 4.8,
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
@@ -87,18 +86,6 @@ describe('InspectorDetailSections', () => {
     expect(screen.getByText('11999999999')).toBeInTheDocument();
 
     rerender(<InspectorDetailSections inspector={makeInspector({ phone: null })} />);
-    const dashes = screen.getAllByText('—');
-    expect(dashes.length).toBeGreaterThan(0);
-  });
-
-  it('shows document (CPF) when present, em-dash when null', () => {
-    const { rerender } = render(
-      <InspectorDetailSections inspector={makeInspector({ document: '123.456.789-00' })} />,
-      { wrapper },
-    );
-    expect(screen.getByText('123.456.789-00')).toBeInTheDocument();
-
-    rerender(<InspectorDetailSections inspector={makeInspector({ document: null })} />);
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThan(0);
   });

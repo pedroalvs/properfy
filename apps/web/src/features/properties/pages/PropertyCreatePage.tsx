@@ -8,6 +8,7 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
+import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
@@ -17,6 +18,8 @@ import { usePropertySave } from '../hooks/usePropertySave';
 import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
+import type { AddressLookupSuggestion } from '@/lib/address';
+import { buildAddressLabel } from '@/lib/address';
 
 export function PropertyCreatePage() {
   const navigate = useNavigate();
@@ -77,6 +80,37 @@ export function PropertyCreatePage() {
     },
     [],
   );
+
+  const applyAddressSuggestion = useCallback((suggestion: AddressLookupSuggestion) => {
+    setForm((prev) => ({
+      ...prev,
+      street: suggestion.street,
+      suburb: suggestion.suburb,
+      postcode: suggestion.postcode,
+      state: suggestion.state,
+      country: suggestion.country,
+    }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.street;
+      delete next.suburb;
+      delete next.postcode;
+      delete next.state;
+      delete next.country;
+      return next;
+    });
+  }, []);
+
+  const clearAddressSelection = useCallback(() => {
+    setForm((prev) => ({
+      ...prev,
+      street: '',
+      suburb: '',
+      postcode: '',
+      state: '',
+      country: 'AU',
+    }));
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     const validationErrors = validate(form, 'create');
@@ -194,6 +228,27 @@ export function PropertyCreatePage() {
             </FormSection>
 
             <FormSection title="Address" columns={2}>
+              <FormField
+                label="Verified Address"
+                required
+                hint="Search a verified address, then adjust the structured fields if needed."
+                className="md:col-span-2"
+              >
+                <AddressLookupInput
+                  label="Verified Address"
+                  valueLabel={buildAddressLabel({
+                    street: form.street,
+                    suburb: form.suburb,
+                    postcode: form.postcode,
+                    state: form.state,
+                    country: form.country,
+                  }) ?? ''}
+                  onSelect={applyAddressSuggestion}
+                  onClear={clearAddressSelection}
+                  placeholder="Search verified address"
+                  ariaLabel="Verified Address"
+                />
+              </FormField>
               <FormField label="Street" required error={errors.street}>
                 <TextInput
                   value={form.street}

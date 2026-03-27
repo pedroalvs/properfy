@@ -5,43 +5,125 @@ import { useLocale } from '@/hooks/useLocale';
 import { SUPPORTED_LOCALES, type Locale } from '@/lib/i18n';
 
 interface SidebarUserMenuProps {
-  open: boolean;
-  onClose: () => void;
+  open?: boolean;
+  onClose?: () => void;
+  mobile?: boolean;
+  onNavigate?: () => void;
 }
 
-export function SidebarUserMenu({ open, onClose }: SidebarUserMenuProps) {
+export function SidebarUserMenu({
+  open,
+  onClose,
+  mobile = false,
+  onNavigate,
+}: SidebarUserMenuProps) {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { locale, setLocale, t } = useLocale();
   const [showLanguages, setShowLanguages] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isOpen = open ?? false;
+  const handleClose = onClose ?? (() => {});
 
   useEffect(() => {
-    if (!open) {
+    if (!isOpen) {
       setShowLanguages(false);
       return;
     }
 
     function handleMouseDown(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
+        handleClose();
       }
     }
 
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [open, onClose]);
+  }, [isOpen, handleClose]);
 
-  if (!open) return null;
+  if (!isOpen && !mobile) return null;
 
   function handleNavigate(path: string) {
     navigate(path);
-    onClose();
+    handleClose();
+    onNavigate?.();
   }
 
   function handleSelectLocale(next: Locale) {
     setLocale(next);
-    onClose();
+    handleClose();
+    onNavigate?.();
+  }
+
+  if (mobile) {
+    return (
+      <div className="border-t border-border-subtle px-3 py-4">
+        <div className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
+          Settings
+        </div>
+
+        <div className="space-y-1">
+          <button
+            onClick={() => handleNavigate('/settings/account')}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-text-primary transition-colors hover:bg-black/5"
+          >
+            <i className="mdi mdi-account-edit-outline text-base opacity-65" />
+            {t('menu.editProfile')}
+          </button>
+
+          <button
+            onClick={() => handleNavigate('/settings/security')}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-text-primary transition-colors hover:bg-black/5"
+          >
+            <i className="mdi mdi-lock-reset text-base opacity-65" />
+            {t('menu.changePassword')}
+          </button>
+
+          <div className="rounded-lg border border-border-subtle">
+            <button
+              onClick={() => setShowLanguages((v) => !v)}
+              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-text-primary transition-colors hover:bg-black/5"
+            >
+              <i className="mdi mdi-web text-base opacity-65" />
+              <span className="flex-1">{t('menu.changeLanguage')}</span>
+              <i className={`mdi text-xs opacity-40 transition-transform ${showLanguages ? 'mdi-chevron-up' : 'mdi-chevron-down'}`} />
+            </button>
+
+            {showLanguages && (
+              <div className="border-t border-border-subtle px-2 py-2">
+                {SUPPORTED_LOCALES.map((loc) => (
+                  <button
+                    key={loc.value}
+                    onClick={() => handleSelectLocale(loc.value)}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-black/5"
+                  >
+                    <span className="text-base">{loc.flag}</span>
+                    <span className={locale === loc.value ? 'font-semibold text-realty' : 'text-text-muted'}>
+                      {loc.label}
+                    </span>
+                    {locale === loc.value && (
+                      <i className="mdi mdi-check ml-auto text-sm text-realty" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              logout();
+              handleClose();
+              onNavigate?.();
+            }}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-text-primary transition-colors hover:bg-black/5"
+          >
+            <i className="mdi mdi-logout text-base opacity-65" />
+            {t('menu.logout')}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -97,7 +179,7 @@ export function SidebarUserMenu({ open, onClose }: SidebarUserMenuProps) {
       <div className="border-t border-black/5" />
 
       <button
-        onClick={() => { logout(); onClose(); }}
+        onClick={() => { logout(); handleClose(); onNavigate?.(); }}
         className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-text-primary transition-colors hover:bg-black/5"
       >
         <i className="mdi mdi-logout text-base opacity-65" />

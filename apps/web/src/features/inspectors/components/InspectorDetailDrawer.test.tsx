@@ -55,7 +55,7 @@ vi.mock('../hooks/useInspectorDetail', () => ({
     return {
       inspector: {
         id: 'insp-01', name: 'Carlos Silva', email: 'carlos@inspecoes.com', phone: '11999999999',
-        document: '123.456.789-00', status: 'ACTIVE', regions: ['Zona Sul'], serviceTypes: ['Vistoria'],
+        status: 'ACTIVE', regions: ['Zona Sul'], serviceTypes: ['Vistoria'],
         regionsCount: 1, serviceTypesCount: 1, rating: 4.5,
         createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
       },

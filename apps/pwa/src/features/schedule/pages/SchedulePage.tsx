@@ -49,8 +49,26 @@ export function SchedulePage() {
   }, [data?.appointments]);
 
   return (
-    <div data-testid="schedule-page">
+    <div className="w-full" data-testid="schedule-page">
       <TopBar title="Schedule" />
+      <div className="px-page-x py-4">
+        <section className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(30,64,175,0.96),_rgba(37,99,235,0.78))] px-5 py-5 text-white shadow-[0_20px_50px_rgba(30,64,175,0.22)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Field overview</p>
+          <div className="mt-3 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">
+                {appointmentCounts[selectedDate] ?? 0} appointments
+              </h2>
+              <p className="mt-1 text-sm text-white/80">Plan your day, confirm risks and start on time.</p>
+            </div>
+            <div className="rounded-2xl bg-white/14 px-3 py-2 text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">Selected day</p>
+              <p className="mt-1 text-sm font-semibold">{selectedDate}</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
       <DaySelectorStrip
         days={days}
         selectedDate={selectedDate}
@@ -58,22 +76,26 @@ export function SchedulePage() {
         appointmentCounts={appointmentCounts}
         urgentDays={urgentDays}
       />
-      <ScheduleOfflineBanner />
+      <div className="px-page-x pt-3">
+        <ScheduleOfflineBanner />
+      </div>
 
       <PullToRefresh onRefresh={refetch}>
-        {isLoading && (
-          <div className="px-page-x">
-            <LoadingState rows={4} variant="card" />
-          </div>
-        )}
+        <div className="pb-6 pt-3">
+          {isLoading && (
+            <div className="px-page-x">
+              <LoadingState rows={4} variant="card" />
+            </div>
+          )}
 
-        {isError && (
-          <ErrorState message="Failed to load schedule" onRetry={refetch} />
-        )}
+          {isError && (
+            <ErrorState message="Failed to load schedule" onRetry={refetch} />
+          )}
 
-        {!isLoading && !isError && (
-          <AppointmentDayList appointments={dayAppointments} />
-        )}
+          {!isLoading && !isError && (
+            <AppointmentDayList appointments={dayAppointments} />
+          )}
+        </div>
       </PullToRefresh>
     </div>
   );

@@ -17,6 +17,7 @@ export * from './inspection-execution';
 export * from './billing';
 export * from './notification';
 export * from './report';
+export * from './appointment-time-slot';
 export * from './responses';
 export * from './totp';
 export * from './import';

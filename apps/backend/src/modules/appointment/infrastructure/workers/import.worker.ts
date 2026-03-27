@@ -5,6 +5,7 @@ import type { IReportStorageService } from '../../../report/domain/report-storag
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
+import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
 import type { Logger } from '../../../../shared/infrastructure/logger';
@@ -34,6 +35,7 @@ export class AppointmentImportWorker {
     private readonly propertyRepo: IPropertyRepository,
     private readonly serviceTypeRepo: IServiceTypeRepository,
     private readonly logger: Logger,
+    private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
   ) {}
 
   async execute(data: { importId: string }): Promise<void> {
@@ -68,8 +70,18 @@ export class AppointmentImportWorker {
         const rowNum = i + 2; // 1-indexed + header
 
         try {
-          await this.processRow(row, rowNum, importRecord.tenantId, importRecord.createdByUserId, errors);
-          successCount++;
+          const created = await this.processRow(
+            row,
+            rowNum,
+            importRecord.tenantId,
+            importRecord.createdByUserId,
+            errors,
+          );
+          if (created) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
         } catch {
           errorCount++;
           errors.push({ row: rowNum, field: 'general', message: 'Unexpected error processing row' });
@@ -140,30 +152,48 @@ export class AppointmentImportWorker {
     tenantId: string,
     createdByUserId: string,
     errors: RowError[],
-  ): Promise<void> {
+  ): Promise<boolean> {
     // Validate required fields
     if (!row.propertyCode) {
       errors.push({ row: rowNum, field: 'propertyCode', message: 'Property code is required' });
-      return;
+      return false;
     }
     if (!row.scheduledDate) {
       errors.push({ row: rowNum, field: 'scheduledDate', message: 'Scheduled date is required' });
-      return;
+      return false;
     }
     if (!row.timeSlot) {
       errors.push({ row: rowNum, field: 'timeSlot', message: 'Time slot is required' });
-      return;
+      return false;
     }
     if (!row.tenantName) {
       errors.push({ row: rowNum, field: 'tenantName', message: 'Tenant name is required' });
-      return;
+      return false;
     }
 
     // Resolve property
     const property = await this.propertyRepo.findByPropertyCode(row.propertyCode, tenantId);
     if (!property) {
       errors.push({ row: rowNum, field: 'propertyCode', message: `Property not found: ${row.propertyCode}` });
-      return;
+      return false;
+    }
+
+    // Validate timeSlot against the effective catalog for the property's scope.
+    if (this.timeSlotRepo) {
+      const scopedSlots = property.branchId
+        ? await this.timeSlotRepo.findEffective(tenantId, property.branchId)
+        : await this.timeSlotRepo.findAll({ tenantId, branchId: null });
+      const slotValid = scopedSlots.some((s) => s.compositeValue === row.timeSlot);
+      if (!slotValid) {
+        errors.push({
+          row: rowNum,
+          field: 'timeSlot',
+          message: property.branchId
+            ? `Time slot "${row.timeSlot}" is not in the configured catalog for this branch`
+            : `Time slot "${row.timeSlot}" is not in the tenant default catalog`,
+        });
+        return false;
+      }
     }
 
     // Resolve service type (optional — use first active if not specified)
@@ -172,7 +202,7 @@ export class AppointmentImportWorker {
       const serviceType = await this.serviceTypeRepo.findByCode(row.serviceTypeCode);
       if (!serviceType) {
         errors.push({ row: rowNum, field: 'serviceTypeCode', message: `Service type not found: ${row.serviceTypeCode}` });
-        return;
+        return false;
       }
       serviceTypeId = serviceType.id;
     }
@@ -245,5 +275,6 @@ export class AppointmentImportWorker {
     });
 
     await this.appointmentRepo.saveContact(contact);
+    return true;
   }
 }

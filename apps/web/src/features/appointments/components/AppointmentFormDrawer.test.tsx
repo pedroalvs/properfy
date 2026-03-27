@@ -38,8 +38,14 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+const mockUseFormOptions = vi.fn((..._args: unknown[]) => ({ options: [], isLoading: false }));
+
 vi.mock('@/hooks/useFormOptions', () => ({
-  useFormOptions: () => ({ options: [], isLoading: false }),
+  useFormOptions: (...args: unknown[]) => mockUseFormOptions(...args),
+}));
+
+vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
+  PropertyFormDrawer: ({ open }: { open: boolean }) => (open ? <div>Property Drawer</div> : null),
 }));
 
 const mockSave = vi.fn();
@@ -59,6 +65,7 @@ const MOCK_APPOINTMENT = {
   scheduledDate: '2026-04-01', timeSlot: '09:00-12:00', contactName: 'John Doe',
   contactPhone: '11999999999', contactEmail: 'john@test.com', keyRequired: true,
   meetingLocation: 'Lobby', keyLocation: 'Portaria', notes: 'Test notes',
+  restrictions: [{ id: 'res-1', isHome: true, unavailableDaysJson: null, unavailableHoursJson: null, notes: 'Ring bell', source: 'OPERATOR' }],
 };
 
 vi.mock('../hooks/useAppointmentDetail', () => ({
@@ -94,6 +101,7 @@ describe('AppointmentFormDrawer', () => {
     vi.clearAllMocks();
     mockSave.mockResolvedValue({ success: true });
     mockValidate.mockReturnValue({});
+    mockUseFormOptions.mockImplementation(() => ({ options: [], isLoading: false }));
   });
 
   it('renders create mode with correct title, form sections, and cancel calls onClose', () => {
@@ -123,5 +131,15 @@ describe('AppointmentFormDrawer', () => {
     fireEvent.click(screen.getByText('Create Appointment'));
     expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('filters properties by branch in edit mode', () => {
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    const latestPropertyCall = mockUseFormOptions.mock.calls
+      .filter((call) => call[1] === '/v1/properties')
+      .at(-1);
+
+    expect((latestPropertyCall as unknown[] | undefined)?.[3]).toEqual({ branchId: 'branch-1' });
   });
 });

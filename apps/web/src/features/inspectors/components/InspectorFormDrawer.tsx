@@ -57,7 +57,6 @@ export function InspectorFormDrawer({
         name: inspector.name,
         email: inspector.email,
         phone: inspector.phone ?? '',
-        document: inspector.document ?? '',
         status: inspector.status,
         regions: (inspector.regions ?? []).join(', '),
         serviceTypes: (inspector.serviceTypes ?? []).join(','),
@@ -178,13 +177,6 @@ export function InspectorFormDrawer({
                         onChange={(v) => updateField('phone', v)}
                         error={!!errors.phone}
                         aria-label="Phone"
-                      />
-                    </FormField>
-                    <FormField label="Document" error={errors.document}>
-                      <TextInput
-                        value={form.document}
-                        onChange={(v) => updateField('document', v)}
-                        aria-label="Document"
                       />
                     </FormField>
                   </FormSection>

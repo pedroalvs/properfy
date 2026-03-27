@@ -29,9 +29,9 @@ export function ProfileCard({ name, email, role, phone, totpEnabled, lastLoginAt
   const roleLabel = roleLabelMap[role] ?? role;
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow-sm">
+    <div className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
       <div className="flex items-center gap-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-real-estate/10 text-2xl font-bold text-real-estate">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-real-estate/10 text-2xl font-bold text-real-estate shadow-[inset_0_0_0_1px_rgba(5,150,105,0.10)]">
           {name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0">

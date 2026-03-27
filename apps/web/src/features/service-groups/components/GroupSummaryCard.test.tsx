@@ -101,4 +101,18 @@ describe('GroupSummaryCard', () => {
     );
     expect(screen.getByText('2026-04-10')).toBeInTheDocument();
   });
+
+  it('uses a stacked mobile layout for summary fields', () => {
+    const { container } = render(
+      <GroupSummaryCard
+        appointmentCount={5}
+        serviceType="Inspection"
+        scheduledDate="2026-04-10"
+        timeWindow="08:00 - 17:00"
+        priorityMode="STANDARD"
+      />,
+    );
+    const grid = container.querySelector('.grid.grid-cols-1.sm\\:grid-cols-2');
+    expect(grid).toBeTruthy();
+  });
 });

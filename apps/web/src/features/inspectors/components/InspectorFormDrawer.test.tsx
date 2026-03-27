@@ -50,7 +50,7 @@ vi.mock('../hooks/useInspectorSave', () => ({
 // Stable reference to prevent infinite re-render in useEffect
 const MOCK_INSPECTOR = {
   id: 'insp-01', name: 'Carlos Silva', email: 'carlos@test.com',
-  phone: '11888888888', document: '123.456.789-00', status: 'ACTIVE',
+  phone: '11888888888', status: 'ACTIVE',
   regions: ['Centro', 'Norte'], serviceTypes: ['123e4567-e89b-12d3-a456-426614174000'],
 };
 
@@ -118,7 +118,7 @@ describe('InspectorFormDrawer', () => {
     expect(screen.getByText('Save')).toBeInTheDocument();
     expect(screen.getByLabelText('Name')).toHaveValue('Carlos Silva');
     expect(screen.getByLabelText('Email')).toHaveValue('carlos@test.com');
-    expect(screen.getByLabelText('Document')).toHaveValue('123.456.789-00');
+    expect(screen.queryByLabelText('Document')).not.toBeInTheDocument();
   });
 
   it('renders canonical service type options instead of free-text input', async () => {
