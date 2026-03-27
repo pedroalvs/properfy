@@ -2,7 +2,7 @@ name: Deploy to Cloudflare Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
 
 jobs:
   build-shared:
@@ -27,8 +27,11 @@ jobs:
           name: shared-dist
           path: packages/shared/dist/
 
-  deploy-web:
-    name: Deploy web
+  # ── Staging (push to staging branch) ──────────────────────────────────
+
+  deploy-web-staging:
+    name: Deploy web (staging)
+    if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     needs: build-shared
     steps:
@@ -55,13 +58,14 @@ jobs:
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy apps/web/dist --project-name properfy-web --branch main
+        run: npx wrangler pages deploy apps/web/dist --project-name properfy-web --branch staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  deploy-pwa:
-    name: Deploy PWA
+  deploy-pwa-staging:
+    name: Deploy PWA (staging)
+    if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     needs: build-shared
     steps:
@@ -88,7 +92,77 @@ jobs:
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy apps/pwa/dist --project-name properfy-pwa --branch main
+        run: npx wrangler pages deploy apps/pwa/dist --project-name properfy-pwa --branch staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # ── Production (push to main branch) ──────────────────────────────────
+
+  deploy-web-production:
+    name: Deploy web (production)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: build-shared
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: shared-dist
+          path: packages/shared/dist/
+
+      - name: Build web
+        run: pnpm --filter web build
+        env:
+          VITE_API_BASE_URL: https://properfy-prod.fly.dev
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler pages deploy apps/web/dist --project-name properfy-web-prod --branch main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-pwa-production:
+    name: Deploy PWA (production)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: build-shared
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: shared-dist
+          path: packages/shared/dist/
+
+      - name: Build PWA
+        run: pnpm --filter pwa build
+        env:
+          VITE_API_BASE_URL: https://properfy-prod.fly.dev
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler pages deploy apps/pwa/dist --project-name properfy-pwa-prod --branch main
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
