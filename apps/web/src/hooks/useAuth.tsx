@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import { api } from '@/services/api';
 import { authStorage } from '@/lib/auth-storage';
 import { ApiError } from '@/lib/api-error';
+import { clearPostLoginRedirect } from '@/lib/post-login-redirect';
 
 export interface AuthUser {
   id: string;
@@ -85,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     api.POST('/v1/auth/logout').catch(() => {});
+    clearPostLoginRedirect();
     authStorage.clearTokens();
     setToken(null);
     setUser(null);

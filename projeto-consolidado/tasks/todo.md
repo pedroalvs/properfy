@@ -228,6 +228,14 @@
 - [x] Alinhar a semântica de sessões do PWA ao contrato real do backend
 - [x] Validar perfil/login do PWA com testes focados e `typecheck`
 
+## TODO - Restore Route After Session Expiry 2026-03-27
+
+- [x] Mapear como `PWA` e `web` tratam `401` e redirecionamento para login
+- [x] Implementar persistência segura da rota corrente antes do redirect para `/login`
+- [x] Restaurar a rota anterior após login bem-sucedido em `PWA` e `web`
+- [x] Limpar redirect persistido em logout explícito
+- [x] Validar helpers, login e guards com testes focados e `typecheck`
+
 ## Resultado - Auditoria Appointment Time Slots 2026-03-26
 
 - `appointment.time_slot` permaneceu string snapshot e o catálogo configurável ficou corretamente separado em `appointment_time_slots`.
@@ -252,3 +260,19 @@
 - `SchedulePage`, `AppointmentDetailPage` e `MarketplacePage` ganharam headers/hero cards e cartões mais intencionais, melhorando leitura de agenda, detalhe e ofertas.
 - `EarningsPage` e `ProfilePage` ficaram alinhadas ao shell novo, com resumo superior e cartões mais consistentes visualmente.
 - A validação desta rodada passou em `pnpm --filter pwa typecheck` e em um bloco de `48` testes dirigidos do PWA.
+
+## TODO - Login TOTP no PWA 2026-03-27
+
+- [x] Revisar contrato real de login TOTP no backend/shared
+- [x] Estender `useAuth` do PWA para aceitar `totpCode`
+- [x] Transformar `AUTH_TOTP_REQUIRED` em segunda etapa real na `LoginPage`
+- [x] Cobrir `AUTH_TOTP_REQUIRED` e `AUTH_TOTP_INVALID` com testes
+- [x] Validar `pwa typecheck` e testes focados de login
+
+## TODO - Responsivo Estrutural do Web 2026-03-27
+
+- [x] Auditar shell mobile e componentes-base que forçam largura horizontal
+- [x] Corrigir `AppShell` para não expandir o viewport em telas pequenas
+- [x] Trocar `DataTable` de tabela larga por cards empilhados no mobile
+- [x] Ajustar filtros que quebravam em largura pequena (`FilterDateRange`)
+- [x] Validar com testes focados e `web typecheck`

@@ -58,40 +58,47 @@ function lazyElement(Component: ComponentType) {
   );
 }
 
-export const router = createBrowserRouter([
+export const router = createBrowserRouter(
+  [
+    {
+      path: '/login',
+      element: lazyElement(LoginPage),
+    },
+    {
+      path: '/access-denied',
+      element: lazyElement(AccessDeniedPage),
+    },
+    {
+      element: <ProtectedRoute />,
+      children: [
+        {
+          element: <InspectorAuthGuard />,
+          children: [
+            {
+              element: <PwaLayout />,
+              children: [
+                { index: true, element: <Navigate to="/schedule" replace /> },
+                { path: 'schedule', element: lazyElement(SchedulePage) },
+                { path: 'schedule/:appointmentId', element: lazyElement(AppointmentDetailPage) },
+                { path: 'marketplace', element: lazyElement(MarketplacePage) },
+                { path: 'map', element: <Navigate to="/schedule" replace /> },
+                { path: 'earnings', element: lazyElement(EarningsPage) },
+                { path: 'profile', element: lazyElement(ProfilePage) },
+              ],
+            },
+            { path: 'execution/:appointmentId', element: lazyElement(ExecutionPage) },
+          ],
+        },
+      ],
+    },
+    {
+      path: '*',
+      element: <Navigate to="/schedule" replace />,
+    },
+  ],
   {
-    path: '/login',
-    element: lazyElement(LoginPage),
+    future: {
+      v7_relativeSplatPath: true,
+    },
   },
-  {
-    path: '/access-denied',
-    element: lazyElement(AccessDeniedPage),
-  },
-  {
-    element: <ProtectedRoute />,
-    children: [
-      {
-        element: <InspectorAuthGuard />,
-        children: [
-          {
-            element: <PwaLayout />,
-            children: [
-              { index: true, element: <Navigate to="/schedule" replace /> },
-              { path: 'schedule', element: lazyElement(SchedulePage) },
-              { path: 'schedule/:appointmentId', element: lazyElement(AppointmentDetailPage) },
-              { path: 'marketplace', element: lazyElement(MarketplacePage) },
-              { path: 'map', element: <Navigate to="/schedule" replace /> },
-              { path: 'earnings', element: lazyElement(EarningsPage) },
-              { path: 'profile', element: lazyElement(ProfilePage) },
-            ],
-          },
-          { path: 'execution/:appointmentId', element: lazyElement(ExecutionPage) },
-        ],
-      },
-    ],
-  },
-  {
-    path: '*',
-    element: <Navigate to="/schedule" replace />,
-  },
-]);
+);

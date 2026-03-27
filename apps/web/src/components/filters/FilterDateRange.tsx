@@ -20,23 +20,31 @@ export function FilterDateRange({
   return (
     <div className={filterContainer}>
       {hasValue && <span className={filterLabel}>{label}</span>}
-      <div className="flex items-center gap-2 px-3 py-[7px]">
-        <i className={`mdi mdi-calendar ${filterIcon}`} />
-        <input
-          type="date"
-          className="flex-1 bg-transparent text-sm text-text-primary outline-none"
-          value={startDate}
-          onChange={(e) => onStartChange(e.target.value)}
-          aria-label={`${label} - start`}
-        />
-        <span className="text-xs text-text-muted">to</span>
-        <input
-          type="date"
-          className="flex-1 bg-transparent text-sm text-text-primary outline-none"
-          value={endDate}
-          onChange={(e) => onEndChange(e.target.value)}
-          aria-label={`${label} - end`}
-        />
+      <div className="px-3 py-[7px]">
+        <div className="mb-2 flex items-center gap-2 sm:mb-0 sm:hidden">
+          <i className={`mdi mdi-calendar ${filterIcon}`} />
+          <span className="text-sm text-text-muted">{label}</span>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="hidden items-center gap-2 sm:flex">
+            <i className={`mdi mdi-calendar ${filterIcon}`} />
+          </div>
+          <input
+            type="date"
+            className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
+            value={startDate}
+            onChange={(e) => onStartChange(e.target.value)}
+            aria-label={`${label} - start`}
+          />
+          <span className="px-1 text-xs text-text-muted sm:px-0">to</span>
+          <input
+            type="date"
+            className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
+            value={endDate}
+            onChange={(e) => onEndChange(e.target.value)}
+            aria-label={`${label} - end`}
+          />
+        </div>
       </div>
     </div>
   );

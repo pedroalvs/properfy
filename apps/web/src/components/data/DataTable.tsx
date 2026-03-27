@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -41,11 +41,20 @@ export interface DataTableProps<T> {
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const MOBILE_MEDIA_QUERY = '(max-width: 767px)';
 
 function alignClass(align?: 'left' | 'center' | 'right') {
   if (align === 'center') return 'text-center';
   if (align === 'right') return 'text-right';
   return 'text-left';
+}
+
+function isMobileViewport() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+
+  return window.matchMedia(MOBILE_MEDIA_QUERY).matches;
 }
 
 export function DataTable<T>({
@@ -60,7 +69,30 @@ export function DataTable<T>({
   emptyMessage = 'No records found',
   keyExtractor,
 }: DataTableProps<T>) {
+  const [isMobile, setIsMobile] = useState(isMobileViewport);
   const colSpan = columns.length;
+  const mobileColumns = columns.filter((column) => !column.hideOnMobile);
+  const mobileDataColumns = mobileColumns.filter((column) => column.label.trim() !== '');
+  const mobileActionColumns = mobileColumns.filter((column) => column.label.trim() === '');
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+
+    const mediaQuery = window.matchMedia(MOBILE_MEDIA_QUERY);
+    const sync = (matches: boolean) => setIsMobile(matches);
+
+    sync(mediaQuery.matches);
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      const listener = (event: MediaQueryListEvent) => sync(event.matches);
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    }
+
+    const legacyListener = (event: MediaQueryListEvent) => sync(event.matches);
+    mediaQuery.addListener(legacyListener);
+    return () => mediaQuery.removeListener(legacyListener);
+  }, []);
 
   function handleSort(columnKey: string) {
     if (!sorting) return;
@@ -136,81 +168,150 @@ export function DataTable<T>({
     );
   }
 
+  function renderMobileRows() {
+    if (loading) {
+      return (
+        <div className="rounded-md border border-[#ddd] px-4 py-6">
+          <LoadingState rows={5} />
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="rounded-md border border-[#ddd]">
+          <ErrorState message={error} onRetry={onRetryError ?? (() => {})} />
+        </div>
+      );
+    }
+
+    if (data.length === 0) {
+      return (
+        <div className="rounded-md border border-[#ddd]">
+          <EmptyState title={emptyMessage} />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3" data-testid="data-table-mobile-list">
+        {data.map((row, index) => (
+          <div
+            key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
+            className={`rounded-xl border border-border-subtle bg-card-bg p-4 shadow-sm ${
+              onRowClick ? 'cursor-pointer transition-colors hover:bg-hover-row' : ''
+            }`}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+            data-testid="data-table-mobile-card"
+          >
+            <div className="space-y-3">
+              {mobileDataColumns.map((column) => (
+                <div
+                  key={column.key}
+                  className="flex items-start justify-between gap-3 border-b border-border-light/70 pb-3 last:border-b-0 last:pb-0"
+                >
+                  <span className="min-w-0 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    {column.headerRender ? column.headerRender() : column.label}
+                  </span>
+                  <div className={`min-w-0 flex-1 text-sm text-text-primary ${alignClass(column.align)}`}>
+                    {renderCellValue(row, column, index)}
+                  </div>
+                </div>
+              ))}
+
+              {mobileActionColumns.length > 0 && (
+                <div className="flex flex-wrap justify-end gap-2 border-t border-border-light pt-3">
+                  {mobileActionColumns.map((column) => (
+                    <div key={column.key}>{renderCellValue(row, column, index)}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div className="overflow-x-auto overflow-y-auto rounded-md border border-[#ddd]">
-        <table className="w-full min-w-[640px] border-collapse md:min-w-[800px]">
-          <thead>
-            <tr className="border-b border-border-subtle">
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`px-3 py-3 text-table-header text-text-secondary md:px-4 ${alignClass(col.align)} ${
-                    col.sortable ? 'cursor-pointer select-none hover:text-text-primary' : ''
-                  } ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
-                  style={col.width ? { width: col.width } : undefined}
-                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    {col.headerRender ? col.headerRender() : col.label}
-                    {col.sortable && sorting?.sortBy === col.key && (
-                      <i
-                        className={`mdi ${
-                          sorting.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down'
-                        } text-xs`}
-                        aria-hidden="true"
-                      />
-                    )}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={colSpan} className="px-4 py-6">
-                  <LoadingState rows={5} />
-                </td>
+      {isMobile ? (
+        renderMobileRows()
+      ) : (
+        <div className="overflow-x-auto overflow-y-auto rounded-md border border-[#ddd]">
+          <table className="w-full min-w-[640px] border-collapse md:min-w-[800px]">
+            <thead>
+              <tr className="border-b border-border-subtle">
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`px-3 py-3 text-table-header text-text-secondary md:px-4 ${alignClass(col.align)} ${
+                      col.sortable ? 'cursor-pointer select-none hover:text-text-primary' : ''
+                    } ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
+                    style={col.width ? { width: col.width } : undefined}
+                    onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {col.headerRender ? col.headerRender() : col.label}
+                      {col.sortable && sorting?.sortBy === col.key && (
+                        <i
+                          className={`mdi ${
+                            sorting.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down'
+                          } text-xs`}
+                          aria-hidden="true"
+                        />
+                      )}
+                    </span>
+                  </th>
+                ))}
               </tr>
-            )}
-            {!loading && error && (
-              <tr>
-                <td colSpan={colSpan}>
-                  <ErrorState message={error} onRetry={onRetryError ?? (() => {})} />
-                </td>
-              </tr>
-            )}
-            {!loading && !error && data.length === 0 && (
-              <tr>
-                <td colSpan={colSpan}>
-                  <EmptyState title={emptyMessage} />
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              !error &&
-              data.map((row, index) => (
-                <tr
-                  key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
-                  className={`border-b border-border-light text-table-body text-text-primary ${
-                    onRowClick ? 'cursor-pointer hover:bg-hover-row' : ''
-                  }`}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
-                >
-                  {columns.map((col) => (
-                    <td
-                      key={col.key}
-                      className={`px-3 py-3 md:px-4 ${alignClass(col.align)} ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
-                    >
-                      {renderCellValue(row, col, index)}
-                    </td>
-                  ))}
+            </thead>
+            <tbody>
+              {loading && (
+                <tr>
+                  <td colSpan={colSpan} className="px-4 py-6">
+                    <LoadingState rows={5} />
+                  </td>
                 </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+              )}
+              {!loading && error && (
+                <tr>
+                  <td colSpan={colSpan}>
+                    <ErrorState message={error} onRetry={onRetryError ?? (() => {})} />
+                  </td>
+                </tr>
+              )}
+              {!loading && !error && data.length === 0 && (
+                <tr>
+                  <td colSpan={colSpan}>
+                    <EmptyState title={emptyMessage} />
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                !error &&
+                data.map((row, index) => (
+                  <tr
+                    key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
+                    className={`border-b border-border-light text-table-body text-text-primary ${
+                      onRowClick ? 'cursor-pointer hover:bg-hover-row' : ''
+                    }`}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  >
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className={`px-3 py-3 md:px-4 ${alignClass(col.align)} ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
+                      >
+                        {renderCellValue(row, col, index)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {!loading && !error && data.length > 0 && renderPaginationInfo()}
     </div>
   );

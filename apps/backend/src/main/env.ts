@@ -8,6 +8,8 @@ const envSchema = z.object({
 
   // Required with defaults
   JWT_KEY_ID: z.string().default('properfy-key-v1'),
+  /** Access token TTL in minutes (default: 60) */
+  JWT_ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(60),
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),

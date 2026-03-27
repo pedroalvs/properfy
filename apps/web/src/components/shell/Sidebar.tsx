@@ -82,7 +82,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
     <aside
       className={
         mobile
-          ? 'flex h-full min-h-full flex-col bg-white'
+          ? 'flex h-full min-h-full w-full min-w-0 flex-col bg-white'
           : 'fixed left-0 top-0 z-30 flex h-screen w-sidebar flex-col bg-transparent'
       }
       data-testid="sidebar"

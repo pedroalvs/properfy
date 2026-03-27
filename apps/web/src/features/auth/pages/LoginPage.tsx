@@ -2,6 +2,7 @@ import { useState, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/api-error';
+import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -48,7 +49,7 @@ export function LoginPage() {
       setIsLoading(true);
       try {
         await login(email.trim(), password);
-        navigate('/', { replace: true });
+        navigate(consumePostLoginRedirect() ?? '/', { replace: true });
       } catch (err) {
         setError(getErrorMessage(err));
       } finally {

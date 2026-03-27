@@ -31,7 +31,7 @@ export function MobileDrawer({ open, onClose, children }: MobileDrawerProps) {
 
       {/* Drawer */}
       <div
-        className={`fixed left-0 top-0 z-50 h-screen w-[min(85vw,22rem)] max-w-full transform overflow-y-auto bg-white shadow-lg transition-transform duration-300 ${
+        className={`fixed left-0 top-0 z-50 h-dvh w-[min(78vw,18rem)] max-w-[18rem] min-w-0 transform overflow-y-auto overscroll-contain bg-white shadow-lg transition-transform duration-300 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
         role="dialog"

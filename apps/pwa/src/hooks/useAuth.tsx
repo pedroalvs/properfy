@@ -3,6 +3,7 @@ import { api } from '@/services/api';
 import { authStorage } from '@/lib/auth-storage';
 import { ApiError } from '@/lib/api-error';
 import { UserRole } from '@properfy/shared';
+import { clearPostLoginRedirect } from '@/lib/post-login-redirect';
 
 export interface AuthUser {
   id: string;
@@ -21,7 +22,7 @@ interface AuthContextValue {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -77,9 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, totpCode?: string) => {
     const { data, error, response } = await api.POST('/v1/auth/login', {
-      body: { email, password },
+      body: { email, password, ...(totpCode ? { totpCode } : {}) },
     });
     const err = error as any;
     if (err || !data) {
@@ -96,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(user);
     } catch (roleError) {
       authStorage.clearTokens();
+      clearPostLoginRedirect();
       setToken(null);
       setUser(null);
       throw roleError;
@@ -104,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     api.POST('/v1/auth/logout').catch(() => {});
+    clearPostLoginRedirect();
     authStorage.clearTokens();
     setToken(null);
     setUser(null);

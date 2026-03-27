@@ -54,7 +54,10 @@ function renderSidebar(route = '/appointments') {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>
+      <MemoryRouter
+        initialEntries={[route]}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <Sidebar />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -67,7 +70,10 @@ function renderMobileSidebar(route = '/appointments') {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>
+      <MemoryRouter
+        initialEntries={[route]}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <Sidebar mobile />
       </MemoryRouter>
     </QueryClientProvider>,

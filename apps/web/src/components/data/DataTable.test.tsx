@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DataTable, type DataTableColumn } from './DataTable';
@@ -21,6 +21,23 @@ const data: TestRow[] = [
 ];
 
 describe('DataTable', () => {
+  function mockMatchMedia(matches: boolean) {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation(() => ({
+      matches,
+      media: '(max-width: 767px)',
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('renders column headers', () => {
     render(<DataTable columns={columns} data={data} />);
     expect(screen.getByText('ID')).toBeInTheDocument();
@@ -155,5 +172,15 @@ describe('DataTable', () => {
     const table = container.querySelector('table');
     expect(table).toHaveClass('min-w-[640px]');
     expect(table).toHaveClass('md:min-w-[800px]');
+  });
+
+  it('renders stacked cards instead of a wide table on mobile', () => {
+    mockMatchMedia(true);
+
+    render(<DataTable columns={columns} data={data} />);
+
+    expect(screen.getByTestId('data-table-mobile-list')).toBeInTheDocument();
+    expect(screen.getAllByTestId('data-table-mobile-card')).toHaveLength(2);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 });

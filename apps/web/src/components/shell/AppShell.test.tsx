@@ -44,7 +44,10 @@ function renderWithRouter(route = '/appointments') {
   return render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <MemoryRouter initialEntries={[route]}>
+        <MemoryRouter
+          initialEntries={[route]}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <Routes>
             <Route element={<AppShell />}>
               <Route path="appointments" element={<div>Appointments Content</div>} />

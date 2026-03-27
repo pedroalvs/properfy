@@ -298,6 +298,7 @@ export function createContainer(logger: Logger): AppContainer {
     privateKeyPem: env.JWT_PRIVATE_KEY.replace(/\\n/g, '\n'),
     publicKeyPem: env.JWT_PUBLIC_KEY.replace(/\\n/g, '\n'),
     keyId: env.JWT_KEY_ID,
+    accessTokenTtlMinutes: env.JWT_ACCESS_TOKEN_TTL_MINUTES,
     previousPublicKeyPem: env.JWT_PREVIOUS_PUBLIC_KEY?.replace(/\\n/g, '\n'),
     previousKeyId: env.JWT_PREVIOUS_KEY_ID,
     previousKeyExpiresAt: env.JWT_PREVIOUS_KEY_EXPIRES_AT

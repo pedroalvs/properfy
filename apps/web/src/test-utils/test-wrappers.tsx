@@ -29,7 +29,10 @@ export function createRouterQueryWrapper(initialPath = '/') {
 
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <MemoryRouter initialEntries={[initialPath]}>
+      <MemoryRouter
+        initialEntries={[initialPath]}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <QueryClientProvider client={queryClient}>
           {children}
         </QueryClientProvider>

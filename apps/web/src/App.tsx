@@ -14,7 +14,10 @@ export function App() {
       <QueryProvider>
         <SnackbarProvider>
           <AuthProvider>
-            <RouterProvider router={router} />
+            <RouterProvider
+              router={router}
+              future={{ v7_startTransition: true }}
+            />
           </AuthProvider>
           <Snackbar />
         </SnackbarProvider>

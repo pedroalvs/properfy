@@ -225,6 +225,14 @@
 3. Mudança de senha no PWA deve encerrar a sessão local após sucesso, porque o backend já revoga as sessões do usuário nesse fluxo.
 4. A lista de sessões do PWA não deve falar em “last active” como se houvesse telemetria rica por sessão. Enquanto o backend só refletir `createdAt` como marca efetiva, a UI deve comunicar isso como início da sessão.
 
+## 2026-03-27 - Retorno à Rota Após Expiração de Sessão
+
+1. O retorno pós-login em `PWA` e `web` passa a ser baseado em rota persistida em `sessionStorage`, não em `location.state`, porque a expiração atual redireciona via `window.location.href` e perde estado do router.
+2. Quando refresh falhar em um `401`, a aplicação deve salvar `pathname + search + hash` antes de mandar o usuário para `/login`.
+3. `ProtectedRoute` também deve salvar a rota atual antes do redirect para login quando o app for recarregado já sem sessão válida.
+4. Após login bem-sucedido, a aplicação deve consumir essa rota persistida uma única vez e restaurá-la; se ela for inválida ou não existir, cada app usa seu destino padrão (`/schedule` no PWA, `/` no web).
+5. Apenas rotas internas seguras entram nesse mecanismo. `login`, `access-denied`, URLs absolutas e rotas públicas de portal não devem ser restauradas.
+
 ## 2026-03-26 - Create/Edit de Appointment: Matriz de Campos e Limites do Fluxo
 
 1. No fluxo manual de appointment, `branchId` e `propertyId` sao listas cadastraveis e devem continuar apontando para entidades mestre com telas proprias; `serviceTypeId` e `timeSlot` sao catálogos canônicos do sistema e nao exigem necessariamente uma tela de cadastro especifica para que o fluxo seja valido.
@@ -524,3 +532,16 @@
 2. A decisão visual desta rodada foi começar pelo shell compartilhado (`TopBar`, `BottomNavBar`, `PwaLayout`) e depois alinhar as páginas a esse mesmo ritmo visual com hero cards, bordas suaves e hierarquia de informação mais forte.
 3. O refino foi mantido mobile-first e sem mudança de contrato ou regra de negócio; a prioridade foi leitura, sensação de app instalado e consistência entre páginas.
 4. O ideal era usar o Gemini como executor desta rodada, mas ele não devolveu progresso material pelo Maestri. Para não travar a entrega, a implementação foi finalizada localmente e validada por teste.
+
+## 2026-03-27 - PWA Nao Pode Habilitar 2FA Sem Login com TOTP
+
+1. O backend já exige `totpCode` no login quando o usuário ativa 2FA; portanto, o PWA não pode ficar só com senha simples e confiar em mensagem de erro genérica.
+2. A decisão correta foi transformar `AUTH_TOTP_REQUIRED` em segunda etapa real do login, reaproveitando o mesmo formulário com campo de código de 6 dígitos, sem perder email, senha nem o redirect pós-login.
+3. `totpCode` entrou apenas como parâmetro opcional do `login` no `useAuth`; o contrato principal do app continua email + senha, e o segundo fator só aparece quando o backend realmente exige.
+
+## 2026-03-27 - Web Mobile Deve Trocar Tabela Larga por Cards, Nao Forcar Zoom-Out
+
+1. O problema de responsivo do `web` não era só um drawer largo; as páginas móveis estavam herdando largura horizontal de `DataTable` e de flex items sem `min-w-0`, o que expandia o viewport inteiro.
+2. A decisão correta foi tratar isso como problema estrutural: `AppShell` passou a bloquear expansão horizontal do layout principal e `DataTable` passou a renderizar cards empilhados no mobile, mantendo tabela só em `md+`.
+3. Esse desenho evita exigir zoom-out ou swipe horizontal para ler listas administrativas no celular e corrige várias telas de uma vez (`appointments`, `properties` e quaisquer outras que usam `DataTable`).
+4. Filtros compostos que quebravam a largura, como `FilterDateRange`, devem empilhar no mobile em vez de tentar preservar layout inline de desktop.

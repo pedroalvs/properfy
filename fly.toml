@@ -8,6 +8,7 @@ primary_region = 'iad'
   NODE_ENV = 'production'
   PORT = '3000'
   LOG_LEVEL = 'info'
+  JWT_ACCESS_TOKEN_TTL_MINUTES = '60'
 
 [http_service]
   internal_port = 3000

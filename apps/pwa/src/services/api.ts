@@ -2,6 +2,7 @@ import createClient from 'openapi-fetch';
 import type { paths } from '@properfy/shared';
 import { env } from '@/config/env';
 import { authStorage } from '@/lib/auth-storage';
+import { buildCurrentRedirectTarget, savePostLoginRedirect } from '@/lib/post-login-redirect';
 
 export const api = createClient<paths>({
   baseUrl: env.apiBaseUrl,
@@ -57,6 +58,7 @@ api.use({
 
     const refreshed = await refreshPromise;
     if (!refreshed) {
+      savePostLoginRedirect(buildCurrentRedirectTarget());
       authStorage.clearTokens();
       window.location.href = '/login';
       return response;

@@ -7,7 +7,7 @@ export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden bg-app-bg">
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:block">
         <Sidebar />
@@ -18,9 +18,9 @@ export function AppShell() {
         <Sidebar mobile onNavigate={() => setDrawerOpen(false)} />
       </MobileDrawer>
 
-      <div className="flex-1 bg-app-bg md:ml-sidebar">
+      <div className="min-w-0 flex-1 md:ml-sidebar">
         <main
-          className="min-h-screen bg-card-bg md:rounded-tl-[20px] md:shadow-[0_6px_12px_0_rgba(0,0,0,0.1)]"
+          className="min-h-screen min-w-0 max-w-full overflow-x-hidden bg-card-bg md:rounded-tl-[20px] md:shadow-[0_6px_12px_0_rgba(0,0,0,0.1)]"
           data-testid="main-content"
         >
           {/* Mobile top bar with hamburger */}
@@ -34,7 +34,7 @@ export function AppShell() {
             </button>
             <span className="text-base font-bold text-secondary">Properfy</span>
           </div>
-          <div className="px-4 py-2 md:px-8 md:py-6">
+          <div className="min-w-0 px-4 py-2 md:px-8 md:py-6">
             <Outlet />
           </div>
         </main>

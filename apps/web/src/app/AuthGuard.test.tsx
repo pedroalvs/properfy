@@ -10,7 +10,10 @@ vi.mock('@/hooks/useAuth', () => ({
 
 function renderWithRouter(roles: string[], currentPath = '/protected') {
   return render(
-    <MemoryRouter initialEntries={[currentPath]}>
+    <MemoryRouter
+      initialEntries={[currentPath]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <Routes>
         <Route
           path="/protected"

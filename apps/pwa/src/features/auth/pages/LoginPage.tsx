@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { ApiError } from '@/lib/api-error';
 import { UserRole } from '@properfy/shared';
+import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -15,7 +16,9 @@ function getErrorMessage(error: unknown): string {
       case 'AUTH_USER_INACTIVE':
         return 'Account is inactive. Contact your administrator.';
       case 'AUTH_TOTP_REQUIRED':
-        return 'Two-factor authentication code required.';
+        return 'Enter the 6-digit code from your authenticator app.';
+      case 'AUTH_TOTP_INVALID':
+        return 'Invalid two-factor authentication code.';
       case 'AUTH_ROLE_NOT_SUPPORTED':
         return 'This app is only available for inspectors. Use the web portal for admin or agency access.';
       case 'VALIDATION_ERROR':
@@ -32,10 +35,19 @@ function getErrorMessage(error: unknown): string {
 
 export function LoginPage() {
   const { login, user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [requiresTotp, setRequiresTotp] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== UserRole.INSP) return;
+    const target = consumePostLoginRedirect() ?? '/schedule';
+    navigate(target, { replace: true });
+  }, [isAuthenticated, navigate, user?.role]);
 
   if (authLoading) {
     return (
@@ -47,7 +59,7 @@ export function LoginPage() {
       </div>
     );
   }
-  if (isAuthenticated && user?.role === UserRole.INSP) return <Navigate to="/schedule" replace />;
+  if (isAuthenticated && user?.role === UserRole.INSP) return null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -60,8 +72,11 @@ export function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password, requiresTotp ? totpCode.trim() : undefined);
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'AUTH_TOTP_REQUIRED') {
+        setRequiresTotp(true);
+      }
       setError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
@@ -127,6 +142,30 @@ export function LoginPage() {
                 data-testid="password-input"
               />
             </div>
+
+            {requiresTotp && (
+              <div>
+                <label htmlFor="totp-code" className="mb-1.5 block text-sm font-medium text-text-secondary">
+                  Authentication Code
+                </label>
+                <input
+                  id="totp-code"
+                  type="text"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  required
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="123456"
+                  className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm tracking-[0.3em] text-text-primary shadow-sm outline-none transition-all placeholder:tracking-normal placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  data-testid="totp-input"
+                />
+                <p className="mt-1.5 text-xs text-text-muted">
+                  Open your authenticator app and enter the current 6-digit code.
+                </p>
+              </div>
+            )}
 
             <Button
               type="submit"

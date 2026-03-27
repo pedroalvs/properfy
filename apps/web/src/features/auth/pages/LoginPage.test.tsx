@@ -46,6 +46,7 @@ describe('LoginPage', () => {
   beforeEach(() => {
     mockLogin.mockReset();
     mockNavigate.mockReset();
+    sessionStorage.clear();
   });
 
   it('renders email and password fields and submit button', () => {
@@ -79,6 +80,25 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith('test@example.com', 'password123');
       expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
+    });
+  });
+
+  it('restores a persisted route after successful login', async () => {
+    sessionStorage.setItem('properfy:web:post-login-redirect', '/appointments/123?tab=timeline');
+    mockLogin.mockResolvedValueOnce(undefined);
+    renderLogin();
+
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/appointments/123?tab=timeline', { replace: true });
+      expect(sessionStorage.getItem('properfy:web:post-login-redirect')).toBeNull();
     });
   });
 

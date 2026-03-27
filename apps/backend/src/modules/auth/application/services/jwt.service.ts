@@ -14,6 +14,8 @@ export interface JwtConfig {
   privateKeyPem: string;
   publicKeyPem: string;
   keyId: string;
+  /** Access token TTL in minutes (default: 60) */
+  accessTokenTtlMinutes?: number;
   previousPublicKeyPem?: string;
   previousKeyId?: string;
   /** When the previous key expires (default: 30 days from service creation). Tokens signed with the previous key are rejected after this date. */
@@ -58,7 +60,7 @@ export class JwtService {
       .setProtectedHeader({ alg: 'RS256', kid: this.config.keyId })
       .setSubject(claims.sub)
       .setIssuedAt()
-      .setExpirationTime('15m')
+      .setExpirationTime(`${this.config.accessTokenTtlMinutes ?? 60}m`)
       .sign(this.privateKey!);
   }
 
