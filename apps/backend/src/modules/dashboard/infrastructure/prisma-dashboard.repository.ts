@@ -52,7 +52,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
         take: 5,
         orderBy: { created_at: 'desc' },
         include: {
-          property: { select: { street: true, suburb: true, state: true, postcode: true } },
+          property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true } },
         },
       }),
 
@@ -136,7 +136,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
         .join(', ');
       return {
         id: apt.id,
-        code: `APT-${apt.id.slice(0, 6).toUpperCase()}`,
+        code: prop.property_code,
         propertyAddress: address,
         status: apt.status,
         doneCheckedByUserId: apt.done_checked_by_user_id,

@@ -1,132 +1,158 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 
 const prisma = new PrismaClient();
 
+function stableSeedUuid(key: string): string {
+  const digest = createHash('sha256')
+    .update(`properfy-seed:${key}`)
+    .digest('hex')
+    .slice(0, 32)
+    .split('');
+
+  digest[12] = '4';
+  digest[16] = ((parseInt(digest[16] ?? '0', 16) & 0x3) | 0x8).toString(16);
+
+  const hex = digest.join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+async function withOptionalMissingTable<T>(operation: () => Promise<T>, onMissingTable: () => T): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: any) {
+    if (error?.code === 'P2021') {
+      return onMissingTable();
+    }
+    throw error;
+  }
+}
+
 const IDS = {
   // Tenants
-  tenant: '10000000-0000-0000-0000-000000000001',
-  tenant2: '10000000-0000-0000-0000-000000000002',
+  tenant: stableSeedUuid('tenant'),
+  tenant2: stableSeedUuid('tenant2'),
   // Branches
-  branchCity: '20000000-0000-0000-0000-000000000001',
-  branchNorth: '20000000-0000-0000-0000-000000000002',
-  branchMelb: '20000000-0000-0000-0000-000000000003',
-  branchInactive: '20000000-0000-0000-0000-000000000004',
+  branchCity: stableSeedUuid('branchCity'),
+  branchNorth: stableSeedUuid('branchNorth'),
+  branchMelb: stableSeedUuid('branchMelb'),
+  branchInactive: stableSeedUuid('branchInactive'),
   // Users
-  userAM: '00000000-0000-0000-0000-000000000001',
-  userOP: '00000000-0000-0000-0000-000000000002',
-  userCLAdmin: '00000000-0000-0000-0000-000000000003',
-  userCLUser: '00000000-0000-0000-0000-000000000004',
-  userINSP: '00000000-0000-0000-0000-000000000005',
-  userInactive: '00000000-0000-0000-0000-000000000006',
-  userLocked: '00000000-0000-0000-0000-000000000007',
-  userINSP2: '00000000-0000-0000-0000-000000000008',
-  userCLAdmin2: '00000000-0000-0000-0000-000000000009',
+  userAM: stableSeedUuid('userAM'),
+  userOP: stableSeedUuid('userOP'),
+  userCLAdmin: stableSeedUuid('userCLAdmin'),
+  userCLUser: stableSeedUuid('userCLUser'),
+  userINSP: stableSeedUuid('userINSP'),
+  userInactive: stableSeedUuid('userInactive'),
+  userLocked: stableSeedUuid('userLocked'),
+  userINSP2: stableSeedUuid('userINSP2'),
+  userCLAdmin2: stableSeedUuid('userCLAdmin2'),
   // Inspectors
-  inspectorLinked: '30000000-0000-0000-0000-000000000001',
-  inspectorIndep: '30000000-0000-0000-0000-000000000002',
-  inspectorLinked2: '30000000-0000-0000-0000-000000000003',
-  inspectorInactive: '30000000-0000-0000-0000-000000000004',
+  inspectorLinked: stableSeedUuid('inspectorLinked'),
+  inspectorIndep: stableSeedUuid('inspectorIndep'),
+  inspectorLinked2: stableSeedUuid('inspectorLinked2'),
+  inspectorInactive: stableSeedUuid('inspectorInactive'),
   // Service types
-  stRoutine: '40000000-0000-0000-0000-000000000001',
-  stIngoing: '40000000-0000-0000-0000-000000000002',
-  stOutgoing: '40000000-0000-0000-0000-000000000003',
+  stRoutine: stableSeedUuid('stRoutine'),
+  stIngoing: stableSeedUuid('stIngoing'),
+  stOutgoing: stableSeedUuid('stOutgoing'),
   // Pricing rules
-  prRoutine: '50000000-0000-0000-0000-000000000001',
-  prIngoing: '50000000-0000-0000-0000-000000000002',
-  prOutgoing: '50000000-0000-0000-0000-000000000003',
-  prRoutineNorth: '50000000-0000-0000-0000-000000000004',
-  prRoutineT2: '50000000-0000-0000-0000-000000000005',
+  prRoutine: stableSeedUuid('prRoutine'),
+  prIngoing: stableSeedUuid('prIngoing'),
+  prOutgoing: stableSeedUuid('prOutgoing'),
+  prRoutineNorth: stableSeedUuid('prRoutineNorth'),
+  prRoutineT2: stableSeedUuid('prRoutineT2'),
   // Properties (tenant1)
-  prop1: '60000000-0000-0000-0000-000000000001',
-  prop2: '60000000-0000-0000-0000-000000000002',
-  prop3: '60000000-0000-0000-0000-000000000003',
-  prop4: '60000000-0000-0000-0000-000000000004',
-  prop5: '60000000-0000-0000-0000-000000000005',
-  prop6: '60000000-0000-0000-0000-000000000006', // no geocoding (PENDING)
-  prop7: '60000000-0000-0000-0000-000000000007', // geocoding FAILED
+  prop1: stableSeedUuid('prop1'),
+  prop2: stableSeedUuid('prop2'),
+  prop3: stableSeedUuid('prop3'),
+  prop4: stableSeedUuid('prop4'),
+  prop5: stableSeedUuid('prop5'),
+  prop6: stableSeedUuid('prop6'), // no geocoding (PENDING)
+  prop7: stableSeedUuid('prop7'), // geocoding FAILED
   // Properties (tenant2)
-  prop8: '60000000-0000-0000-0000-000000000008',
-  prop9: '60000000-0000-0000-0000-000000000009',
-  prop10: '60000000-0000-0000-0000-000000000010',
+  prop8: stableSeedUuid('prop8'),
+  prop9: stableSeedUuid('prop9'),
+  prop10: stableSeedUuid('prop10'),
   // Appointments (tenant1)
-  apptDraft: '70000000-0000-0000-0000-000000000001',
-  apptAwaiting: '70000000-0000-0000-0000-000000000002',
-  apptScheduled: '70000000-0000-0000-0000-000000000003',
-  apptDone: '70000000-0000-0000-0000-000000000004',
-  apptCancelled: '70000000-0000-0000-0000-000000000005',
-  apptRejected: '70000000-0000-0000-0000-000000000006',
-  apptScheduled2: '70000000-0000-0000-0000-000000000007',
-  apptDone2: '70000000-0000-0000-0000-000000000008',
-  apptCancelled2: '70000000-0000-0000-0000-000000000009',
-  apptAwaiting2: '70000000-0000-0000-0000-000000000010',
+  apptDraft: stableSeedUuid('apptDraft'),
+  apptAwaiting: stableSeedUuid('apptAwaiting'),
+  apptScheduled: stableSeedUuid('apptScheduled'),
+  apptDone: stableSeedUuid('apptDone'),
+  apptCancelled: stableSeedUuid('apptCancelled'),
+  apptRejected: stableSeedUuid('apptRejected'),
+  apptScheduled2: stableSeedUuid('apptScheduled2'),
+  apptDone2: stableSeedUuid('apptDone2'),
+  apptCancelled2: stableSeedUuid('apptCancelled2'),
+  apptAwaiting2: stableSeedUuid('apptAwaiting2'),
   // Appointments (tenant2)
-  apptDraftT2: '70000000-0000-0000-0000-000000000011',
-  apptScheduledT2: '70000000-0000-0000-0000-000000000012',
-  apptDoneT2: '70000000-0000-0000-0000-000000000013',
-  apptCancelledT2: '70000000-0000-0000-0000-000000000014',
+  apptDraftT2: stableSeedUuid('apptDraftT2'),
+  apptScheduledT2: stableSeedUuid('apptScheduledT2'),
+  apptDoneT2: stableSeedUuid('apptDoneT2'),
+  apptCancelledT2: stableSeedUuid('apptCancelledT2'),
   // Service groups
-  serviceGroup: '80000000-0000-0000-0000-000000000001',
-  sgDraft: '80000000-0000-0000-0000-000000000002',
-  sgAccepted: '80000000-0000-0000-0000-000000000003',
-  sgCancelled: '80000000-0000-0000-0000-000000000004',
+  serviceGroup: stableSeedUuid('serviceGroup'),
+  sgDraft: stableSeedUuid('sgDraft'),
+  sgAccepted: stableSeedUuid('sgAccepted'),
+  sgCancelled: stableSeedUuid('sgCancelled'),
   // Availability slots
-  slot1: '0a000000-0000-0000-0000-000000000001',
-  slot2: '0a000000-0000-0000-0000-000000000002',
-  slot3: '0a000000-0000-0000-0000-000000000003',
-  slot4: '0a000000-0000-0000-0000-000000000004',
-  slot5: '0a000000-0000-0000-0000-000000000005',
+  slot1: stableSeedUuid('slot1'),
+  slot2: stableSeedUuid('slot2'),
+  slot3: stableSeedUuid('slot3'),
+  slot4: stableSeedUuid('slot4'),
+  slot5: stableSeedUuid('slot5'),
   // Financial entries
-  fe1: '0b000000-0000-0000-0000-000000000001',
-  fe2: '0b000000-0000-0000-0000-000000000002',
-  fe3: '0b000000-0000-0000-0000-000000000003',
-  fe4: '0b000000-0000-0000-0000-000000000004',
-  fe5: '0b000000-0000-0000-0000-000000000005',
-  fe6: '0b000000-0000-0000-0000-000000000006',
-  fe7: '0b000000-0000-0000-0000-000000000007',
-  fe8: '0b000000-0000-0000-0000-000000000008',
-  fe9: '0b000000-0000-0000-0000-000000000009',
+  fe1: stableSeedUuid('fe1'),
+  fe2: stableSeedUuid('fe2'),
+  fe3: stableSeedUuid('fe3'),
+  fe4: stableSeedUuid('fe4'),
+  fe5: stableSeedUuid('fe5'),
+  fe6: stableSeedUuid('fe6'),
+  fe7: stableSeedUuid('fe7'),
+  fe8: stableSeedUuid('fe8'),
+  fe9: stableSeedUuid('fe9'),
   // Inspector invoices
-  inv1: '0c000000-0000-0000-0000-000000000001',
-  inv2: '0c000000-0000-0000-0000-000000000002',
-  inv3: '0c000000-0000-0000-0000-000000000003',
+  inv1: stableSeedUuid('inv1'),
+  inv2: stableSeedUuid('inv2'),
+  inv3: stableSeedUuid('inv3'),
   // Inspection executions
-  exec1: '0d000000-0000-0000-0000-000000000001',
-  exec2: '0d000000-0000-0000-0000-000000000002',
-  exec3: '0d000000-0000-0000-0000-000000000003',
+  exec1: stableSeedUuid('exec1'),
+  exec2: stableSeedUuid('exec2'),
+  exec3: stableSeedUuid('exec3'),
   // Inspection assets
-  asset1: '0e000000-0000-0000-0000-000000000001',
-  asset2: '0e000000-0000-0000-0000-000000000002',
-  asset3: '0e000000-0000-0000-0000-000000000003',
-  asset4: '0e000000-0000-0000-0000-000000000004',
+  asset1: stableSeedUuid('asset1'),
+  asset2: stableSeedUuid('asset2'),
+  asset3: stableSeedUuid('asset3'),
+  asset4: stableSeedUuid('asset4'),
   // Notifications
-  notif1: '0f000000-0000-0000-0000-000000000001',
-  notif2: '0f000000-0000-0000-0000-000000000002',
-  notif3: '0f000000-0000-0000-0000-000000000003',
-  notif4: '0f000000-0000-0000-0000-000000000004',
-  notif5: '0f000000-0000-0000-0000-000000000005',
-  notif6: '0f000000-0000-0000-0000-000000000006',
+  notif1: stableSeedUuid('notif1'),
+  notif2: stableSeedUuid('notif2'),
+  notif3: stableSeedUuid('notif3'),
+  notif4: stableSeedUuid('notif4'),
+  notif5: stableSeedUuid('notif5'),
+  notif6: stableSeedUuid('notif6'),
   // Portal tokens
-  pt1: '1a000000-0000-0000-0000-000000000001',
-  pt2: '1a000000-0000-0000-0000-000000000002',
-  pt3: '1a000000-0000-0000-0000-000000000003',
+  pt1: stableSeedUuid('pt1'),
+  pt2: stableSeedUuid('pt2'),
+  pt3: stableSeedUuid('pt3'),
   // Portal activities
-  pa1: '1b000000-0000-0000-0000-000000000001',
-  pa2: '1b000000-0000-0000-0000-000000000002',
-  pa3: '1b000000-0000-0000-0000-000000000003',
+  pa1: stableSeedUuid('pa1'),
+  pa2: stableSeedUuid('pa2'),
+  pa3: stableSeedUuid('pa3'),
   // Reports
-  rpt1: '1c000000-0000-0000-0000-000000000001',
-  rpt2: '1c000000-0000-0000-0000-000000000002',
-  rpt3: '1c000000-0000-0000-0000-000000000003',
-  rpt4: '1c000000-0000-0000-0000-000000000004',
+  rpt1: stableSeedUuid('rpt1'),
+  rpt2: stableSeedUuid('rpt2'),
+  rpt3: stableSeedUuid('rpt3'),
+  rpt4: stableSeedUuid('rpt4'),
   // Restrictions
-  restr1: '1d000000-0000-0000-0000-000000000001',
-  restr2: '1d000000-0000-0000-0000-000000000002',
+  restr1: stableSeedUuid('restr1'),
+  restr2: stableSeedUuid('restr2'),
   // Imports
-  apptImport1: '1e000000-0000-0000-0000-000000000001',
-  apptImport2: '1e000000-0000-0000-0000-000000000002',
-  propImport1: '1f000000-0000-0000-0000-000000000001',
-  propImport2: '1f000000-0000-0000-0000-000000000002',
+  apptImport1: stableSeedUuid('apptImport1'),
+  apptImport2: stableSeedUuid('apptImport2'),
+  propImport1: stableSeedUuid('propImport1'),
+  propImport2: stableSeedUuid('propImport2'),
 } as const;
 
 async function main() {
@@ -262,66 +288,6 @@ async function main() {
   }
   console.log(`Users: ${usersToCreate.length} created`);
 
-  // ─── INSPECTORS ───────────────────────────────────────────────────────────
-
-  await prisma.inspector.upsert({
-    where: { id: IDS.inspectorLinked },
-    update: {},
-    create: {
-      id: IDS.inspectorLinked,
-      user_id: IDS.userINSP,
-      name: 'Mike Inspector',
-      email: 'insp@pedroalvs.com',
-      phone: '+61400111222',
-      status: 'ACTIVE',
-      regions_json: ['Sydney CBD', 'North Shore', 'Inner West'],
-      service_types_json: [IDS.stRoutine, IDS.stIngoing],
-    },
-  });
-
-  await prisma.inspector.upsert({
-    where: { id: IDS.inspectorIndep },
-    update: {},
-    create: {
-      id: IDS.inspectorIndep,
-      name: 'Carlos Mendez',
-      email: 'carlos.mendez@inspectors.com.au',
-      phone: '+61400333444',
-      status: 'ACTIVE',
-      regions_json: ['Eastern Suburbs', 'South Sydney'],
-      service_types_json: [IDS.stRoutine, IDS.stOutgoing],
-    },
-  });
-
-  await prisma.inspector.upsert({
-    where: { id: IDS.inspectorLinked2 },
-    update: {},
-    create: {
-      id: IDS.inspectorLinked2,
-      user_id: IDS.userINSP2,
-      name: 'Lisa Wong',
-      email: 'insp2@pedroalvs.com',
-      phone: '+61400555666',
-      status: 'ACTIVE',
-      regions_json: ['Melbourne CBD', 'Southbank', 'Richmond'],
-      service_types_json: [IDS.stRoutine, IDS.stIngoing, IDS.stOutgoing],
-    },
-  });
-
-  await prisma.inspector.upsert({
-    where: { id: IDS.inspectorInactive },
-    update: {},
-    create: {
-      id: IDS.inspectorInactive,
-      name: 'Tom Retired',
-      email: 'retired@inspectors.com.au',
-      phone: '+61400777888',
-      status: 'INACTIVE',
-      regions_json: ['Parramatta', 'Western Sydney'],
-    },
-  });
-  console.log('Inspectors: 4 created (2 active linked, 1 active independent, 1 inactive)');
-
   // ─── SERVICE TYPES ────────────────────────────────────────────────────────
 
   const serviceTypes = [
@@ -339,14 +305,80 @@ async function main() {
   }
   console.log('Service types: 3 created');
 
+  const serviceTypeIds = {
+    routine: (await prisma.serviceType.findUniqueOrThrow({ where: { code: 'ROUTINE' }, select: { id: true } })).id,
+    ingoing: (await prisma.serviceType.findUniqueOrThrow({ where: { code: 'INGOING' }, select: { id: true } })).id,
+    outgoing: (await prisma.serviceType.findUniqueOrThrow({ where: { code: 'OUTGOING' }, select: { id: true } })).id,
+  } as const;
+
+  // ─── INSPECTORS ───────────────────────────────────────────────────────────
+
+  await prisma.inspector.upsert({
+    where: { id: IDS.inspectorLinked },
+    update: {},
+    create: {
+      id: IDS.inspectorLinked,
+      user_id: IDS.userINSP,
+      name: 'Mike Inspector',
+      email: 'insp@pedroalvs.com',
+      phone: '+61400111222',
+      status: 'ACTIVE',
+      regions_json: ['Sydney CBD', 'North Shore', 'Inner West'],
+      service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing],
+    },
+  });
+
+  await prisma.inspector.upsert({
+    where: { id: IDS.inspectorIndep },
+    update: {},
+    create: {
+      id: IDS.inspectorIndep,
+      name: 'Carlos Mendez',
+      email: 'carlos.mendez@inspectors.com.au',
+      phone: '+61400333444',
+      status: 'ACTIVE',
+      regions_json: ['Eastern Suburbs', 'South Sydney'],
+      service_types_json: [serviceTypeIds.routine, serviceTypeIds.outgoing],
+    },
+  });
+
+  await prisma.inspector.upsert({
+    where: { id: IDS.inspectorLinked2 },
+    update: {},
+    create: {
+      id: IDS.inspectorLinked2,
+      user_id: IDS.userINSP2,
+      name: 'Lisa Wong',
+      email: 'insp2@pedroalvs.com',
+      phone: '+61400555666',
+      status: 'ACTIVE',
+      regions_json: ['Melbourne CBD', 'Southbank', 'Richmond'],
+      service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing, serviceTypeIds.outgoing],
+    },
+  });
+
+  await prisma.inspector.upsert({
+    where: { id: IDS.inspectorInactive },
+    update: {},
+    create: {
+      id: IDS.inspectorInactive,
+      name: 'Tom Retired',
+      email: 'retired@inspectors.com.au',
+      phone: '+61400777888',
+      status: 'INACTIVE',
+      regions_json: ['Parramatta', 'Western Sydney'],
+    },
+  });
+  console.log('Inspectors: 4 created (2 active linked, 1 active independent, 1 inactive)');
+
   // ─── PRICING RULES ────────────────────────────────────────────────────────
 
   const pricingRules = [
-    { id: IDS.prRoutine, tenant_id: IDS.tenant, service_type_id: IDS.stRoutine, branch_id: IDS.branchCity, price_amount: 150.00, payout_type: 'FIXED' as const, payout_value: 80.00 },
-    { id: IDS.prIngoing, tenant_id: IDS.tenant, service_type_id: IDS.stIngoing, branch_id: IDS.branchCity, price_amount: 220.00, payout_type: 'FIXED' as const, payout_value: 120.00 },
-    { id: IDS.prOutgoing, tenant_id: IDS.tenant, service_type_id: IDS.stOutgoing, branch_id: IDS.branchCity, price_amount: 180.00, payout_type: 'FIXED' as const, payout_value: 100.00 },
-    { id: IDS.prRoutineNorth, tenant_id: IDS.tenant, service_type_id: IDS.stRoutine, branch_id: IDS.branchNorth, price_amount: 160.00, payout_type: 'PERCENTAGE' as const, payout_value: 55.00 },
-    { id: IDS.prRoutineT2, tenant_id: IDS.tenant2, service_type_id: IDS.stRoutine, branch_id: IDS.branchMelb, price_amount: 140.00, payout_type: 'FIXED' as const, payout_value: 75.00 },
+    { id: IDS.prRoutine, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.routine, branch_id: IDS.branchCity, price_amount: 150.00, payout_type: 'FIXED' as const, payout_value: 80.00 },
+    { id: IDS.prIngoing, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.ingoing, branch_id: IDS.branchCity, price_amount: 220.00, payout_type: 'FIXED' as const, payout_value: 120.00 },
+    { id: IDS.prOutgoing, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.outgoing, branch_id: IDS.branchCity, price_amount: 180.00, payout_type: 'FIXED' as const, payout_value: 100.00 },
+    { id: IDS.prRoutineNorth, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.routine, branch_id: IDS.branchNorth, price_amount: 160.00, payout_type: 'PERCENTAGE' as const, payout_value: 55.00 },
+    { id: IDS.prRoutineT2, tenant_id: IDS.tenant2, service_type_id: serviceTypeIds.routine, branch_id: IDS.branchMelb, price_amount: 140.00, payout_type: 'FIXED' as const, payout_value: 75.00 },
   ];
 
   for (const pr of pricingRules) {
@@ -410,7 +442,7 @@ async function main() {
   const appointments = [
     {
       id: IDS.apptDraft, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
-      property_id: IDS.prop1, service_type_id: IDS.stRoutine, inspector_id: null,
+      property_id: IDS.prop1, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'DRAFT' as const, scheduled_date: futureDate(14), time_slot: '09:00-12:00',
       tenant_confirmation_status: 'PENDING' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
@@ -418,7 +450,7 @@ async function main() {
     },
     {
       id: IDS.apptAwaiting, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
-      property_id: IDS.prop2, service_type_id: IDS.stRoutine, inspector_id: null,
+      property_id: IDS.prop2, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'AWAITING_INSPECTOR' as const, scheduled_date: futureDate(10), time_slot: '09:00-12:00',
       tenant_confirmation_status: 'PENDING' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
@@ -426,7 +458,7 @@ async function main() {
     },
     {
       id: IDS.apptScheduled, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
-      property_id: IDS.prop3, service_type_id: IDS.stIngoing, inspector_id: IDS.inspectorLinked,
+      property_id: IDS.prop3, service_type_id: serviceTypeIds.ingoing, inspector_id: IDS.inspectorLinked,
       status: 'SCHEDULED' as const, scheduled_date: futureDate(7), time_slot: '13:00-16:00',
       tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 220.00, payout_amount: 120.00, pricing_rule_snapshot_json: pricingSnapshotIngoing,
@@ -434,7 +466,7 @@ async function main() {
     },
     {
       id: IDS.apptDone, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
-      property_id: IDS.prop4, service_type_id: IDS.stRoutine, inspector_id: IDS.inspectorLinked,
+      property_id: IDS.prop4, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorLinked,
       status: 'DONE' as const, scheduled_date: pastDate(3), time_slot: '09:00-12:00',
       tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
@@ -443,7 +475,7 @@ async function main() {
     },
     {
       id: IDS.apptCancelled, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
-      property_id: IDS.prop5, service_type_id: IDS.stOutgoing, inspector_id: null,
+      property_id: IDS.prop5, service_type_id: serviceTypeIds.outgoing, inspector_id: null,
       status: 'CANCELLED' as const, scheduled_date: pastDate(1), time_slot: '09:00-12:00',
       tenant_confirmation_status: 'PENDING' as const,
       price_amount: 180.00, payout_amount: 100.00, pricing_rule_snapshot_json: pricingSnapshotOutgoing,
@@ -453,7 +485,7 @@ async function main() {
     },
     {
       id: IDS.apptRejected, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
-      property_id: IDS.prop6, service_type_id: IDS.stRoutine, inspector_id: null,
+      property_id: IDS.prop6, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'REJECTED' as const, scheduled_date: pastDate(5), time_slot: '09:00-12:00',
       tenant_confirmation_status: 'UNAVAILABLE' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
@@ -463,7 +495,7 @@ async function main() {
     },
     {
       id: IDS.apptScheduled2, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
-      property_id: IDS.prop2, service_type_id: IDS.stRoutine, inspector_id: IDS.inspectorIndep,
+      property_id: IDS.prop2, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorIndep,
       status: 'SCHEDULED' as const, scheduled_date: futureDate(5), time_slot: '09:00-12:00',
       tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
@@ -471,7 +503,7 @@ async function main() {
     },
     {
       id: IDS.apptDone2, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
-      property_id: IDS.prop3, service_type_id: IDS.stRoutine, inspector_id: IDS.inspectorIndep,
+      property_id: IDS.prop3, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorIndep,
       status: 'DONE' as const, scheduled_date: pastDate(7), time_slot: '13:00-16:00',
       tenant_confirmation_status: 'NO_RESPONSE' as const,
       price_amount: 160.00, payout_amount: 88.00, pricing_rule_snapshot_json: { ...pricingSnapshotRoutine, price_amount: 160, payout_value: 88 },
@@ -480,7 +512,7 @@ async function main() {
     },
     {
       id: IDS.apptCancelled2, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
-      property_id: IDS.prop3, service_type_id: IDS.stIngoing, inspector_id: IDS.inspectorLinked,
+      property_id: IDS.prop3, service_type_id: serviceTypeIds.ingoing, inspector_id: IDS.inspectorLinked,
       status: 'CANCELLED' as const, scheduled_date: pastDate(2), time_slot: '10:00-13:00',
       tenant_confirmation_status: 'PENDING' as const,
       price_amount: 220.00, payout_amount: 120.00, pricing_rule_snapshot_json: pricingSnapshotIngoing,
@@ -490,7 +522,7 @@ async function main() {
     },
     {
       id: IDS.apptAwaiting2, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
-      property_id: IDS.prop4, service_type_id: IDS.stRoutine, inspector_id: null,
+      property_id: IDS.prop4, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'AWAITING_INSPECTOR' as const, scheduled_date: futureDate(12), time_slot: '09:00-12:00',
       tenant_confirmation_status: 'PENDING' as const,
       price_amount: 160.00, payout_amount: 88.00, pricing_rule_snapshot_json: { ...pricingSnapshotRoutine, price_amount: 160, payout_value: 88 },
@@ -499,7 +531,7 @@ async function main() {
     // Tenant 2 appointments
     {
       id: IDS.apptDraftT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
-      property_id: IDS.prop8, service_type_id: IDS.stRoutine, inspector_id: null,
+      property_id: IDS.prop8, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'DRAFT' as const, scheduled_date: futureDate(20), time_slot: '09:00-12:00',
       tenant_confirmation_status: 'PENDING' as const,
       price_amount: 140.00, payout_amount: 75.00, pricing_rule_snapshot_json: pricingSnapshotT2,
@@ -507,7 +539,7 @@ async function main() {
     },
     {
       id: IDS.apptScheduledT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
-      property_id: IDS.prop9, service_type_id: IDS.stRoutine, inspector_id: IDS.inspectorLinked2,
+      property_id: IDS.prop9, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorLinked2,
       status: 'SCHEDULED' as const, scheduled_date: futureDate(8), time_slot: '10:00-13:00',
       tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 140.00, payout_amount: 75.00, pricing_rule_snapshot_json: pricingSnapshotT2,
@@ -515,7 +547,7 @@ async function main() {
     },
     {
       id: IDS.apptDoneT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
-      property_id: IDS.prop10, service_type_id: IDS.stRoutine, inspector_id: IDS.inspectorLinked2,
+      property_id: IDS.prop10, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorLinked2,
       status: 'DONE' as const, scheduled_date: pastDate(4), time_slot: '09:00-12:00',
       tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 140.00, payout_amount: 75.00, pricing_rule_snapshot_json: pricingSnapshotT2,
@@ -524,7 +556,7 @@ async function main() {
     },
     {
       id: IDS.apptCancelledT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
-      property_id: IDS.prop8, service_type_id: IDS.stIngoing, inspector_id: null,
+      property_id: IDS.prop8, service_type_id: serviceTypeIds.ingoing, inspector_id: null,
       status: 'CANCELLED' as const, scheduled_date: pastDate(10), time_slot: '14:00-17:00',
       tenant_confirmation_status: 'PENDING' as const,
       price_amount: 220.00, payout_amount: 120.00, pricing_rule_snapshot_json: pricingSnapshotIngoing,
@@ -599,7 +631,7 @@ async function main() {
     create: {
       id: IDS.serviceGroup,
       tenant_id: IDS.tenant,
-      service_type_id: IDS.stRoutine,
+      service_type_id: serviceTypeIds.routine,
       status: 'PUBLISHED',
       group_size: 3,
       offered_count: 0,
@@ -617,7 +649,7 @@ async function main() {
     create: {
       id: IDS.sgDraft,
       tenant_id: IDS.tenant,
-      service_type_id: IDS.stIngoing,
+      service_type_id: serviceTypeIds.ingoing,
       status: 'DRAFT',
       group_size: 2,
       offered_count: 0,
@@ -634,7 +666,7 @@ async function main() {
     create: {
       id: IDS.sgAccepted,
       tenant_id: IDS.tenant,
-      service_type_id: IDS.stRoutine,
+      service_type_id: serviceTypeIds.routine,
       status: 'ACCEPTED',
       group_size: 2,
       offered_count: 1,
@@ -654,7 +686,7 @@ async function main() {
     create: {
       id: IDS.sgCancelled,
       tenant_id: IDS.tenant,
-      service_type_id: IDS.stRoutine,
+      service_type_id: serviceTypeIds.routine,
       status: 'CANCELLED',
       group_size: 2,
       offered_count: 0,
@@ -1477,47 +1509,56 @@ async function main() {
   console.log('Property imports: 2 created (COMPLETED, PROCESSING)');
 
   // ── Appointment Time Slots (tenant-wide defaults) ─────────────────────
-  for (const tenantId of [IDS.tenant, IDS.tenant2]) {
-    await prisma.appointmentTimeSlot.upsert({
-      where: {
-        tenant_id_branch_id_start_time_end_time: {
-          tenant_id: tenantId,
-          branch_id: null as any,
-          start_time: '09:00',
-          end_time: '12:00',
-        },
-      },
-      update: {},
-      create: {
-        tenant_id: tenantId,
-        branch_id: null,
-        label: 'Morning',
-        start_time: '09:00',
-        end_time: '12:00',
-        sort_order: 0,
-      },
-    });
-    await prisma.appointmentTimeSlot.upsert({
-      where: {
-        tenant_id_branch_id_start_time_end_time: {
-          tenant_id: tenantId,
-          branch_id: null as any,
-          start_time: '14:00',
-          end_time: '17:00',
-        },
-      },
-      update: {},
-      create: {
-        tenant_id: tenantId,
-        branch_id: null,
-        label: 'Afternoon',
-        start_time: '14:00',
-        end_time: '17:00',
-        sort_order: 1,
-      },
-    });
+  const timeSlotSeedResult = await withOptionalMissingTable(async () => {
+    for (const tenantId of [IDS.tenant, IDS.tenant2]) {
+      const defaults = [
+        { label: 'Morning', start_time: '09:00', end_time: '12:00', sort_order: 0 },
+        { label: 'Afternoon', start_time: '14:00', end_time: '17:00', sort_order: 1 },
+      ] as const;
+
+      for (const slot of defaults) {
+        const existing = await prisma.appointmentTimeSlot.findFirst({
+          where: {
+            tenant_id: tenantId,
+            branch_id: null,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+          },
+          select: { id: true },
+        });
+
+        if (existing) {
+          await prisma.appointmentTimeSlot.update({
+            where: { id: existing.id },
+            data: {
+              label: slot.label,
+              sort_order: slot.sort_order,
+              is_active: true,
+            },
+          });
+        } else {
+          await prisma.appointmentTimeSlot.create({
+            data: {
+              tenant_id: tenantId,
+              branch_id: null,
+              label: slot.label,
+              start_time: slot.start_time,
+              end_time: slot.end_time,
+              sort_order: slot.sort_order,
+            },
+          });
+        }
+      }
+    }
+
+    return 'seeded' as const;
+  }, () => 'skipped' as const);
+
+  if (timeSlotSeedResult === 'seeded') {
+    console.log('Appointment time slots: 2 per tenant (Morning, Afternoon)');
+  } else {
+    console.log('Appointment time slots: skipped (table not available in current database)');
   }
-  console.log('Appointment time slots: 2 per tenant (Morning, Afternoon)');
 
   console.log('\n✓ Seeding complete!');
   console.log('─'.repeat(60));

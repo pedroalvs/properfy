@@ -545,3 +545,19 @@
 2. A decisão correta foi tratar isso como problema estrutural: `AppShell` passou a bloquear expansão horizontal do layout principal e `DataTable` passou a renderizar cards empilhados no mobile, mantendo tabela só em `md+`.
 3. Esse desenho evita exigir zoom-out ou swipe horizontal para ler listas administrativas no celular e corrige várias telas de uma vez (`appointments`, `properties` e quaisquer outras que usam `DataTable`).
 4. Filtros compostos que quebravam a largura, como `FilterDateRange`, devem empilhar no mobile em vez de tentar preservar layout inline de desktop.
+
+## 2026-03-27 - IDs Tecnicos Nao Devem Virar Codigo Visivel e Seed Nao Deve Parecer Sequencial
+
+1. A auditoria confirmou que os `id` reais do produto usam UUID/text e não há `sequence` pública no banco; a suspeita de sequencialidade vinha de dois pontos errados: UUIDs artificiais do `seed` e um código de dashboard derivado de `apt.id.slice(...)`.
+2. A decisão correta foi parar de expor substring do UUID técnico no dashboard e usar identificador de negócio já existente (`property_code`) na lista de appointments recentes.
+3. No `seed`, os IDs deixaram de ser blocos manuais `00000000.../10000000.../70000000...` e passaram a ser UUIDs estáveis gerados por hash, com aparência aleatória e sem padrão sequencial visível.
+4. Risco residual honesto: ambientes já populados com o seed antigo continuam com esses IDs até serem reseedados ou recriados; a mudança aplicada aqui corrige o código-fonte e os próximos seeds, não reescreve automaticamente registros antigos.
+5. Para evitar reset total, foi criado um caminho operacional separado de `refresh demo seed`: ele faz `dry-run` por padrão, limpa apenas o dataset demo conhecido e depois reaplica o `seed`. No banco atual, o `dry-run` confirmou escopo compatível com a limpeza esperada antes de qualquer mutação.
+
+## 2026-03-27 - Deploy no Fly Deve Aplicar Migrations Antes de Subir a Release
+
+1. O ambiente real estava sem a tabela `appointment_time_slots` porque a migration já existia no repositório, mas nunca foi aplicada no banco; o workflow atual fazia apenas `flyctl deploy`.
+2. A decisão correta foi tratar isso como falha estrutural de deploy, não como exceção pontual do seed: migrations precisam rodar automaticamente em toda release.
+3. O `fly.toml` passou a usar `release_command = 'cd /app/apps/backend && prisma migrate deploy'`.
+4. Para isso funcionar de forma determinística, a imagem final do backend precisa carregar `apps/backend/prisma/` e ter CLI do Prisma disponível.
+5. A migration `20260326000000_add_appointment_time_slots` foi aplicada manualmente no banco atual para reparar o ambiente já publicado, e a prevenção agora fica no próprio deploy.

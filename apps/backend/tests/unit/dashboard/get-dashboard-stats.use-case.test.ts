@@ -13,7 +13,7 @@ const mockStats: DashboardStatsOutput = {
   recentAppointments: [
     {
       id: '00000000-0000-0000-0000-000000000001',
-      code: 'APT-000000',
+      code: 'SPS-001',
       propertyAddress: '1 Test St, Sydney NSW 2000',
       status: 'SCHEDULED',
       doneCheckedByUserId: null,

@@ -276,3 +276,28 @@
 - [x] Trocar `DataTable` de tabela larga por cards empilhados no mobile
 - [x] Ajustar filtros que quebravam em largura pequena (`FilterDateRange`)
 - [x] Validar com testes focados e `web typecheck`
+
+## TODO - Endurecer IDs Seedados e Exposição de UUID 2026-03-27
+
+- [x] Verificar no código e no banco se havia sequência/autoincrement para `id`
+- [x] Remover derivação de código visível a partir de `id.slice(...)`
+- [x] Trocar UUIDs artificiais sequenciais do `seed` por UUIDs estáveis com aparência aleatória
+- [x] Validar backend com testes focados do dashboard e `typecheck`
+- [x] Preparar script de refresh seletivo do dataset demo sem reset total
+- [x] Validar o script com `dry-run` contra o banco atual
+
+## TODO - Corrigir Migrations Pendentes no Fly 2026-03-27
+
+- [x] Verificar no banco real se `appointment_time_slots` faltava por migration não aplicada
+- [x] Aplicar a migration `20260326000000_add_appointment_time_slots` no banco atual
+- [x] Confirmar tabela criada e slots padrão inseridos para os tenants atuais
+- [x] Ajustar deploy para carregar pasta `prisma/` na imagem
+- [x] Configurar `release_command` no Fly para rodar `prisma migrate deploy`
+- [x] Validar `backend typecheck`
+
+## Resultado - Corrigir Migrations Pendentes no Fly 2026-03-27
+
+- A ausência de `appointment_time_slots` no banco atual não era bug do seed nem do script de refresh; a migration `20260326000000_add_appointment_time_slots` simplesmente não havia sido aplicada no ambiente.
+- A migration foi aplicada com sucesso via `prisma migrate deploy` e o banco passou a registrar `appointment_time_slots` com `4` linhas, `2` por tenant demo atual.
+- A causa raiz do drift ficou explícita: o deploy via Fly não rodava migrations e a imagem nem carregava a pasta `prisma/` para permitir um `release_command`.
+- O `Dockerfile` agora copia `apps/backend/prisma/` para a imagem final, instala `prisma` CLI e o `fly.toml` passou a executar `prisma migrate deploy` antes de subir a nova release.

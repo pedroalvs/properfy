@@ -202,6 +202,9 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.37)(jsdom@25.0.1)(terser@5.46.1)
+      workbox-window:
+        specifier: ^7.4.0
+        version: 7.4.0
 
   apps/web:
     dependencies:
