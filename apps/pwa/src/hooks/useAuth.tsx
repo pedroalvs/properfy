@@ -10,6 +10,7 @@ export interface AuthUser {
   email: string;
   role: string;
   tenantId: string | null;
+  status?: string;
   phone?: string | null;
   totpEnabled?: boolean;
   lastLoginAt?: string | null;
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(({ data }) => {
         if (data) {
           const me = data as typeof data & {
+            status?: string;
             phone?: string | null;
             totpEnabled?: boolean;
             lastLoginAt?: string | null;
@@ -60,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: me.email,
             role: me.role,
             tenantId: me.tenantId,
+            status: me.status,
             phone: me.phone,
             totpEnabled: me.totpEnabled,
             lastLoginAt: me.lastLoginAt,

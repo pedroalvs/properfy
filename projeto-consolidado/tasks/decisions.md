@@ -218,6 +218,13 @@
 2. Essa versao deve priorizar visao de dominios, finalidade de cada bloco, relacoes principais e decisoes de schema com linguagem clara, evitando densidade excessiva de engenharia.
 3. O guia detalhado continua sendo a referencia interna principal; a versao para stakeholder nao substitui o schema nem o documento tecnico completo.
 
+## 2026-03-27 - PWA Account Hub sem Self-Edit Falso
+
+1. O PWA do inspetor continua sem self-edit de nome/telefone porque o backend canônico de `update inspector` exige `AM/OP`. A tela de perfil deve ser honesta sobre isso e explicar que dados cadastrais são geridos pela operação.
+2. A `ProfilePage` do PWA passa a ser tratada como hub real de conta: identidade read-only, mudança de senha, setup de 2FA, lista de sessões/dispositivos, instalação do app e logout.
+3. Mudança de senha no PWA deve encerrar a sessão local após sucesso, porque o backend já revoga as sessões do usuário nesse fluxo.
+4. A lista de sessões do PWA não deve falar em “last active” como se houvesse telemetria rica por sessão. Enquanto o backend só refletir `createdAt` como marca efetiva, a UI deve comunicar isso como início da sessão.
+
 ## 2026-03-26 - Create/Edit de Appointment: Matriz de Campos e Limites do Fluxo
 
 1. No fluxo manual de appointment, `branchId` e `propertyId` sao listas cadastraveis e devem continuar apontando para entidades mestre com telas proprias; `serviceTypeId` e `timeSlot` sao catálogos canônicos do sistema e nao exigem necessariamente uma tela de cadastro especifica para que o fluxo seja valido.

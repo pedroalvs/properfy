@@ -2,6 +2,7 @@ interface ProfileCardProps {
   name: string;
   email: string;
   role: string;
+  status?: string;
   phone?: string | null;
   totpEnabled?: boolean;
   lastLoginAt?: string | null;
@@ -25,7 +26,16 @@ function formatLastLogin(value: string | null | undefined): string {
   }).format(date);
 }
 
-export function ProfileCard({ name, email, role, phone, totpEnabled, lastLoginAt }: ProfileCardProps) {
+function formatStatus(value: string | null | undefined): string {
+  if (!value) return 'Unknown';
+  return value
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+export function ProfileCard({ name, email, role, status, phone, totpEnabled, lastLoginAt }: ProfileCardProps) {
   const roleLabel = roleLabelMap[role] ?? role;
 
   return (
@@ -45,6 +55,10 @@ export function ProfileCard({ name, email, role, phone, totpEnabled, lastLoginAt
 
       <div className="mt-5 grid grid-cols-1 gap-3 border-t border-black/5 pt-4 text-sm">
         <div className="flex items-center justify-between gap-4">
+          <span className="text-text-secondary">Account Status</span>
+          <span className="font-medium text-text-primary">{formatStatus(status)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
           <span className="text-text-secondary">Phone</span>
           <span className="font-medium text-text-primary">{phone ?? '—'}</span>
         </div>
@@ -58,6 +72,10 @@ export function ProfileCard({ name, email, role, phone, totpEnabled, lastLoginAt
           <span className="text-text-secondary">Last Login</span>
           <span className="font-medium text-text-primary">{formatLastLogin(lastLoginAt)}</span>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-text-secondary">
+        Profile details are managed by your operations team. Use this screen for account security and device access.
       </div>
     </div>
   );

@@ -25,10 +25,26 @@ function getIsStandalone(): boolean {
 interface InstallPromptContextValue {
   isInstalled: boolean;
   canInstall: boolean;
+  manualInstructions: string | null;
   promptInstall: () => Promise<boolean>;
 }
 
 const InstallPromptContext = createContext<InstallPromptContextValue | null>(null);
+
+function getManualInstructions(): string | null {
+  if (typeof navigator === 'undefined') return null;
+  const userAgent = navigator.userAgent;
+
+  if (/Edg\//i.test(userAgent) || /Chrome\//i.test(userAgent)) {
+    return 'Use the browser menu and choose "Install Properfy" if the install prompt does not appear automatically.';
+  }
+
+  if (/Safari\//i.test(userAgent) && !/Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent)) {
+    return 'This browser does not expose the install prompt directly. Use Safari Share menu > Add to Dock or open Properfy in Chrome or Edge.';
+  }
+
+  return 'If install is unavailable here, open Properfy in Chrome or Edge to install it as a desktop app.';
+}
 
 export function InstallPromptProvider({ children }: { children: ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -67,6 +83,7 @@ export function InstallPromptProvider({ children }: { children: ReactNode }) {
     () => ({
       isInstalled,
       canInstall: !!deferredPrompt && !isInstalled,
+      manualInstructions: !isInstalled ? getManualInstructions() : null,
       promptInstall,
     }),
     [deferredPrompt, isInstalled, promptInstall],

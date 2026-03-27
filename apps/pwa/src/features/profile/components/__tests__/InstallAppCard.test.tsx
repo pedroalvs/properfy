@@ -12,20 +12,25 @@ describe('InstallAppCard', () => {
     vi.clearAllMocks();
   });
 
-  it('renders nothing when install is not available', () => {
+  it('shows manual instructions when the browser does not expose the prompt', () => {
     mockUseInstallPrompt.mockReturnValue({
+      isInstalled: false,
       canInstall: false,
+      manualInstructions: 'Use browser menu to install',
       promptInstall: vi.fn(),
     });
 
-    const { container } = render(<InstallAppCard />);
-    expect(container).toBeEmptyDOMElement();
+    render(<InstallAppCard />);
+    expect(screen.getByText('Install Properfy')).toBeInTheDocument();
+    expect(screen.getByText('Use browser menu to install')).toBeInTheDocument();
   });
 
   it('shows install action and triggers prompt', async () => {
     const promptInstall = vi.fn().mockResolvedValue(true);
     mockUseInstallPrompt.mockReturnValue({
+      isInstalled: false,
       canInstall: true,
+      manualInstructions: null,
       promptInstall,
     });
 

@@ -9,6 +9,7 @@ describe('ProfileCard', () => {
         name="Inspector Jane"
         email="jane@test.com"
         role="INSP"
+        status="ACTIVE"
         phone="+5511999999999"
         totpEnabled
         lastLoginAt="2026-03-24T10:00:00Z"
@@ -18,10 +19,13 @@ describe('ProfileCard', () => {
     expect(screen.getByText('Inspector Jane')).toBeInTheDocument();
     expect(screen.getByText('jane@test.com')).toBeInTheDocument();
     expect(screen.getByText('Inspector')).toBeInTheDocument();
+    expect(screen.getByText('Account Status')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('Phone')).toBeInTheDocument();
     expect(screen.getByText('+5511999999999')).toBeInTheDocument();
     expect(screen.getByText('Two-Factor')).toBeInTheDocument();
     expect(screen.getByText('Enabled')).toBeInTheDocument();
     expect(screen.getByText('Last Login')).toBeInTheDocument();
+    expect(screen.getByText(/managed by your operations team/i)).toBeInTheDocument();
   });
 });

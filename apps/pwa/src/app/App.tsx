@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { QueryProvider } from '@/app/QueryProvider';
@@ -8,6 +9,15 @@ import { SwUpdatePrompt } from '@/app/SwUpdatePrompt';
 import { InstallPromptProvider } from '@/app/useInstallPrompt';
 import { router } from '@/app/router';
 import { useOfflineQueue } from '@/features/execution/hooks/useOfflineQueue';
+import { registerSW } from 'virtual:pwa-register';
+
+function ServiceWorkerRegistration() {
+  useEffect(() => {
+    registerSW({ immediate: true });
+  }, []);
+
+  return null;
+}
 
 function OfflineQueueSync() {
   useOfflineQueue();
@@ -21,6 +31,7 @@ export function App() {
         <SnackbarProvider>
           <InstallPromptProvider>
             <AuthProvider>
+              <ServiceWorkerRegistration />
               <OfflineQueueSync />
               <RouterProvider router={router} />
             </AuthProvider>

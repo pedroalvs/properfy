@@ -219,6 +219,15 @@
 - [x] Adicionar regressão para o worker de import
 - [x] Publicar matriz em `projeto-consolidado/tasks/appointment-time-slots-audit.md`
 
+## TODO - PWA Account Hub 2026-03-27
+
+- [x] Revisar padrões reais de login/perfil para app PWA de operação em campo
+- [x] Validar direção de produto com `Claude Code`
+- [x] Converter `ProfilePage` em hub real de conta sem self-edit falso
+- [x] Ligar ações reais de segurança: senha, 2FA, sessões, instalação e logout
+- [x] Alinhar a semântica de sessões do PWA ao contrato real do backend
+- [x] Validar perfil/login do PWA com testes focados e `typecheck`
+
 ## Resultado - Auditoria Appointment Time Slots 2026-03-26
 
 - `appointment.time_slot` permaneceu string snapshot e o catálogo configurável ficou corretamente separado em `appointment_time_slots`.
