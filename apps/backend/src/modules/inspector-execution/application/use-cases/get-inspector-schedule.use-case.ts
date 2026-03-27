@@ -99,10 +99,7 @@ export class GetInspectorScheduleUseCase {
       return {
         id: appt.id,
         status: appt.status,
-        scheduledDate:
-          appt.scheduledDate instanceof Date
-            ? appt.scheduledDate.toISOString().split('T')[0]!
-            : String(appt.scheduledDate),
+        scheduledDate: targetDateStr,
         timeSlot: appt.timeSlot,
         serviceTypeId: appt.serviceTypeId,
         propertyId: appt.propertyId,

@@ -333,7 +333,7 @@ describe('POST /v1/appointments/:appointmentId/force-confirmation', () => {
   it('should return 200 with confirmation result', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockForceManualConfirmationExecute.mockResolvedValueOnce({
-      ...appointmentResult,
+      id: APPOINTMENT_ID,
       tenantConfirmationStatus: 'CONFIRMED',
     });
 
@@ -343,6 +343,7 @@ describe('POST /v1/appointments/:appointmentId/force-confirmation', () => {
       .send({ tenantConfirmationStatus: 'CONFIRMED', reason: 'Operator confirmed manually' });
 
     expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(APPOINTMENT_ID);
     expect(res.body.data.tenantConfirmationStatus).toBe('CONFIRMED');
   });
 

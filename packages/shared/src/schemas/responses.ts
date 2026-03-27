@@ -241,6 +241,11 @@ export const appointmentResponseSchema = z.object({
   branch: z.unknown().optional(),
 });
 
+export const forceManualConfirmationResponseSchema = z.object({
+  id: z.string().uuid(),
+  tenantConfirmationStatus: z.string(),
+});
+
 export const inspectorAppointmentDetailResponseSchema = z.object({
   id: z.string().uuid(),
   status: z.string(),

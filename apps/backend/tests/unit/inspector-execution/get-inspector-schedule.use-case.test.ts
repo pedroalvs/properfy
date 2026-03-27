@@ -136,6 +136,21 @@ describe('GetInspectorScheduleUseCase', () => {
     expect(result.appointments[1].executionStatus).toBe('NOT_STARTED');
   });
 
+  it('should return the requested date string for items even if the stored timestamp drifts', async () => {
+    const drifted = makeAppointment({
+      scheduledDate: new Date('2026-03-20T23:00:00.000Z'),
+    });
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([drifted]);
+    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
+      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
+    ]);
+
+    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
+
+    expect(result.appointments).toHaveLength(1);
+    expect(result.appointments[0].scheduledDate).toBe('2026-03-21');
+  });
+
   it('should return empty appointments array when no SCHEDULED appointments exist', async () => {
     vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
 

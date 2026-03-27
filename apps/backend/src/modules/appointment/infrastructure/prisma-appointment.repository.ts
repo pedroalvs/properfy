@@ -28,6 +28,15 @@ function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
 
+function parseDateOnlyToUtcStart(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(year!, (month ?? 1) - 1, day ?? 1));
+}
+
+function nextUtcDay(date: Date): Date {
+  return new Date(date.getTime() + 86_400_000);
+}
+
 function mapToEntity(row: any): AppointmentEntity {
   return new AppointmentEntity({
     id: row.id,
@@ -359,8 +368,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     }
     if (filters.fromDate || filters.toDate) {
       const dateFilter: Record<string, unknown> = {};
-      if (filters.fromDate) dateFilter['gte'] = new Date(filters.fromDate);
-      if (filters.toDate) dateFilter['lte'] = new Date(filters.toDate);
+      if (filters.fromDate) dateFilter['gte'] = parseDateOnlyToUtcStart(filters.fromDate);
+      if (filters.toDate) dateFilter['lt'] = nextUtcDay(parseDateOnlyToUtcStart(filters.toDate));
       where['scheduled_date'] = dateFilter;
     }
     return where;

@@ -366,3 +366,16 @@
 - O uso do catálogo ficou consistente nos fluxos operacionais principais: `new appointment`, `edit appointment`, import e rota efetiva do backend.
 - Corrigi dois desvios no `web`: troca de agência agora limpa `timeSlot` no create manual, e o drawer de edição voltou a permitir alteração de `timeSlot`, alinhado ao contrato real do backend.
 - As outras superfícies auditadas usam `timeSlot` como snapshot de domínio, não como catálogo mutável, o que está correto para PWA, detalhe e portal.
+
+## TODO - Fechar Pendencias de Aceite (Force Confirmation + Schedule) 2026-03-27
+
+- [x] Corrigir o `500` de `force-confirmation`
+- [x] Corrigir o drift de timezone/data na agenda do inspetor
+- [x] Adicionar cobertura dirigida para rota, use case e repositório
+- [x] Validar backend/shared/PWA com testes e typecheck
+
+## Resultado - Fechar Pendencias de Aceite (Force Confirmation + Schedule) 2026-03-27
+
+- `force-confirmation` deixou de prometer response errada na rota e agora responde com shape compatível ao use case, eliminando o `500` por `ResponseValidationError`.
+- A agenda do inspetor ficou mais robusta contra drift de data: o backend agora filtra por janela diária inteira e a resposta do endpoint usa a data requisitada como valor canônico dos itens.
+- O bloco crítico de aceite ganhou cobertura em rota, use case e repositório, reduzindo chance de regressão silenciosa.

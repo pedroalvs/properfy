@@ -601,3 +601,9 @@
 1. No `create appointment`, troca de tenant/agência deve limpar todos os campos dependentes do escopo, incluindo `timeSlot`. Manter o slot anterior depois da troca de contexto é drift de formulário.
 2. No `edit appointment`, `branch/property/service type` continuam imutáveis pelo contrato atual, mas `timeSlot` e `scheduledDate` são editáveis. A UI precisa refletir isso e não bloquear `timeSlot` por engano.
 3. Nas outras superfícies, `timeSlot` deve continuar sendo tratado como snapshot textual do agendamento, não como referência viva ao catálogo. Isso vale para PWA, detalhe de appointment, timeline, reports e portal.
+
+## 2026-03-27 - Force Confirmation e Agenda do Inspetor Precisam Usar Contratos e Datas Canonicas
+
+1. A rota de `force-confirmation` não deve reutilizar `appointmentResponseSchema` quando o use case retorna apenas `id + tenantConfirmationStatus`. O contrato HTTP precisa refletir exatamente a shape real para não gerar `500` de validação de resposta.
+2. Filtro de agenda por `fromDate/toDate` não pode usar igualdade de meia-noite (`new Date('YYYY-MM-DD')` em `gte/lte`) para dados de domínio que representam apenas dia. A decisão correta é usar janela completa do dia (`gte start`, `lt next day`).
+3. No endpoint diário da agenda do inspetor, a data canônica do item deve ser a data requisitada/filtrada. Re-serializar `scheduledDate` do banco com `toISOString()` reintroduz drift e pode quebrar agrupamento/seleção no PWA.

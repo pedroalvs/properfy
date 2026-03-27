@@ -7,6 +7,7 @@ import {
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
   appointmentResponseSchema,
+  forceManualConfirmationResponseSchema,
   appointmentContactResponseSchema,
   appointmentContactDetailResponseSchema,
   successResponseSchema,
@@ -235,7 +236,7 @@ export async function registerAppointmentRoutes(
       schema: {
         params: z.object({ appointmentId: z.string().uuid() }),
         body: forceManualConfirmationSchema,
-        response: { 200: successResponseSchema(appointmentResponseSchema) },
+        response: { 200: successResponseSchema(forceManualConfirmationResponseSchema) },
       },
     },
     async (request, reply) => {
