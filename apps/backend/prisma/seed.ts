@@ -62,6 +62,11 @@ const IDS = {
   prIngoing: stableSeedUuid('prIngoing'),
   prOutgoing: stableSeedUuid('prOutgoing'),
   prRoutineNorth: stableSeedUuid('prRoutineNorth'),
+  prIngoingNorth: stableSeedUuid('prIngoingNorth'),
+  prOutgoingNorth: stableSeedUuid('prOutgoingNorth'),
+  prRoutineTenantWide: stableSeedUuid('prRoutineTenantWide'),
+  prIngoingTenantWide: stableSeedUuid('prIngoingTenantWide'),
+  prOutgoingTenantWide: stableSeedUuid('prOutgoingTenantWide'),
   prRoutineT2: stableSeedUuid('prRoutineT2'),
   // Properties (tenant1)
   prop1: stableSeedUuid('prop1'),
@@ -378,6 +383,12 @@ async function main() {
     { id: IDS.prIngoing, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.ingoing, branch_id: IDS.branchCity, price_amount: 220.00, payout_type: 'FIXED' as const, payout_value: 120.00 },
     { id: IDS.prOutgoing, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.outgoing, branch_id: IDS.branchCity, price_amount: 180.00, payout_type: 'FIXED' as const, payout_value: 100.00 },
     { id: IDS.prRoutineNorth, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.routine, branch_id: IDS.branchNorth, price_amount: 160.00, payout_type: 'PERCENTAGE' as const, payout_value: 55.00 },
+    { id: IDS.prIngoingNorth, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.ingoing, branch_id: IDS.branchNorth, price_amount: 220.00, payout_type: 'FIXED' as const, payout_value: 120.00 },
+    { id: IDS.prOutgoingNorth, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.outgoing, branch_id: IDS.branchNorth, price_amount: 180.00, payout_type: 'FIXED' as const, payout_value: 100.00 },
+    // Tenant-wide fallback rules (used by any branch without specific rules)
+    { id: IDS.prRoutineTenantWide, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.routine, branch_id: null, price_amount: 150.00, payout_type: 'FIXED' as const, payout_value: 80.00 },
+    { id: IDS.prIngoingTenantWide, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.ingoing, branch_id: null, price_amount: 220.00, payout_type: 'FIXED' as const, payout_value: 120.00 },
+    { id: IDS.prOutgoingTenantWide, tenant_id: IDS.tenant, service_type_id: serviceTypeIds.outgoing, branch_id: null, price_amount: 180.00, payout_type: 'FIXED' as const, payout_value: 100.00 },
     { id: IDS.prRoutineT2, tenant_id: IDS.tenant2, service_type_id: serviceTypeIds.routine, branch_id: IDS.branchMelb, price_amount: 140.00, payout_type: 'FIXED' as const, payout_value: 75.00 },
   ];
 

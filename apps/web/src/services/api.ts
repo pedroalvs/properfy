@@ -8,7 +8,6 @@ export const api = createClient<paths>({
   baseUrl: env.apiBaseUrl,
 });
 
-let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
@@ -32,6 +31,13 @@ async function refreshAccessToken(): Promise<boolean> {
   }
 }
 
+function redirectToLogin(): void {
+  savePostLoginRedirect(buildCurrentRedirectTarget());
+  authStorage.clearTokens();
+  // Use replace to prevent back-button loop
+  window.location.replace('/login');
+}
+
 api.use({
   async onRequest({ request }) {
     const token = authStorage.getAccessToken();
@@ -49,20 +55,19 @@ api.use({
     const pathname = new URL(request.url).pathname;
     if (pathname.startsWith('/v1/auth/')) return response;
 
-    if (!isRefreshing) {
-      isRefreshing = true;
+    // Deduplicate concurrent refresh attempts — all 401s share the same promise
+    if (!refreshPromise) {
       refreshPromise = refreshAccessToken().finally(() => {
-        isRefreshing = false;
-        refreshPromise = null;
+        // Clear after a tick so all concurrent awaits resolve first
+        setTimeout(() => { refreshPromise = null; }, 0);
       });
     }
 
     const refreshed = await refreshPromise;
     if (!refreshed) {
-      savePostLoginRedirect(buildCurrentRedirectTarget());
-      authStorage.clearTokens();
-      window.location.href = '/login';
-      return response;
+      redirectToLogin();
+      // Return a synthetic response so the caller doesn't process stale data
+      return new Response(null, { status: 401 });
     }
 
     const newToken = authStorage.getAccessToken();
