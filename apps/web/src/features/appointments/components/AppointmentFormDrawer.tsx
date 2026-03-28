@@ -51,13 +51,21 @@ export function AppointmentFormDrawer({
     { enabled: isGlobalRole },
   );
 
+  const isEditMode = !!appointmentId;
+  const { appointment, isLoading: isLoadingDetail } = useAppointmentDetail(
+    isEditMode ? appointmentId : null,
+  );
+
   const [form, setForm] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [initialData, setInitialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [errors, setErrors] = useState<AppointmentFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [propertyDrawerOpen, setPropertyDrawerOpen] = useState(false);
 
-  const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
+  // In edit mode, derive tenantId from the loaded appointment so branch/property options load
+  const effectiveTenantId = isGlobalRole
+    ? (selectedTenantId || (isEditMode && appointment?.tenantId) || '')
+    : undefined;
 
   const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
     ['branches', 'form-options', effectiveTenantId ?? ''],
@@ -86,10 +94,6 @@ export function AppointmentFormDrawer({
     effectiveTenantId,
   );
 
-  const isEditMode = !!appointmentId;
-  const { appointment, isLoading: isLoadingDetail } = useAppointmentDetail(
-    isEditMode ? appointmentId : null,
-  );
   const { save, isSaving, validate } = useAppointmentSave();
   const { showSuccess, showError } = useSnackbar();
 
