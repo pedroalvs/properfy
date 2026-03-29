@@ -434,11 +434,19 @@ async function main() {
   ];
 
   for (const pr of pricingRules) {
-    await prisma.servicePriceRule.upsert({
-      where: { tenant_id_service_type_id_branch_id: { tenant_id: pr.tenant_id, service_type_id: pr.service_type_id, branch_id: pr.branch_id! } },
-      update: {},
-      create: pr,
-    });
+    if (pr.branch_id) {
+      await prisma.servicePriceRule.upsert({
+        where: { tenant_id_service_type_id_branch_id: { tenant_id: pr.tenant_id, service_type_id: pr.service_type_id, branch_id: pr.branch_id } },
+        update: {},
+        create: pr,
+      });
+    } else {
+      await prisma.servicePriceRule.upsert({
+        where: { id: pr.id },
+        update: {},
+        create: pr,
+      });
+    }
   }
   console.log('Pricing rules: 5 created');
 
