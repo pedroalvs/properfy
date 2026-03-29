@@ -85,29 +85,118 @@ describe('DataTable', () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  it('handles sorting interaction', async () => {
-    const user = userEvent.setup();
-    const onChange = vi.fn();
+  it('sorts data client-side by defaultSort on initial render', () => {
+    const unsortedData: TestRow[] = [
+      { id: 2, name: 'Banana', status: 'ativo' },
+      { id: 1, name: 'Apple', status: 'inativo' },
+      { id: 3, name: 'Cherry', status: 'ativo' },
+    ];
     const sortableColumns: DataTableColumn<TestRow>[] = [
       { key: 'name', label: 'Nome', sortable: true },
     ];
+
     render(
       <DataTable
         columns={sortableColumns}
-        data={data}
-        sorting={{ sortBy: 'name', sortOrder: 'asc', onChange }}
+        data={unsortedData}
+        defaultSort={{ key: 'name', order: 'asc' }}
       />,
     );
 
+    const rows = screen.getAllByRole('row');
+    // row 0 is header, rows 1-3 are data
+    expect(within(rows[1]!).getByText('Apple')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('Banana')).toBeInTheDocument();
+    expect(within(rows[3]!).getByText('Cherry')).toBeInTheDocument();
+  });
+
+  it('toggles sort order when clicking a sortable column header', async () => {
+    const user = userEvent.setup();
+    const unsortedData: TestRow[] = [
+      { id: 1, name: 'Apple', status: 'ativo' },
+      { id: 2, name: 'Banana', status: 'inativo' },
+      { id: 3, name: 'Cherry', status: 'ativo' },
+    ];
+    const sortableColumns: DataTableColumn<TestRow>[] = [
+      { key: 'name', label: 'Nome', sortable: true },
+    ];
+
+    render(
+      <DataTable
+        columns={sortableColumns}
+        data={unsortedData}
+        defaultSort={{ key: 'name', order: 'asc' }}
+      />,
+    );
+
+    // Initially ascending — shows up arrow
     const header = screen.getByText('Nome');
-    // Should show ascending indicator
-    const headerContainer = header.closest('th')!;
-    expect(within(headerContainer).getByText('Nome')).toBeInTheDocument();
-    expect(headerContainer.querySelector('.mdi-arrow-up')).toBeTruthy();
+    const th = header.closest('th')!;
+    expect(th.querySelector('.mdi-arrow-up')).toBeTruthy();
 
     // Click to toggle to desc
     await user.click(header);
-    expect(onChange).toHaveBeenCalledWith('name', 'desc');
+
+    expect(th.querySelector('.mdi-arrow-down')).toBeTruthy();
+    const rows = screen.getAllByRole('row');
+    expect(within(rows[1]!).getByText('Cherry')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('Banana')).toBeInTheDocument();
+    expect(within(rows[3]!).getByText('Apple')).toBeInTheDocument();
+  });
+
+  it('sorts numeric values correctly', () => {
+    const numData: TestRow[] = [
+      { id: 10, name: 'X', status: 'a' },
+      { id: 2, name: 'Y', status: 'b' },
+      { id: 100, name: 'Z', status: 'c' },
+    ];
+    const cols: DataTableColumn<TestRow>[] = [
+      { key: 'id', label: 'ID', sortable: true },
+      { key: 'name', label: 'Name' },
+    ];
+
+    render(<DataTable columns={cols} data={numData} defaultSort={{ key: 'id', order: 'asc' }} />);
+
+    const rows = screen.getAllByRole('row');
+    expect(within(rows[1]!).getByText('2')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('10')).toBeInTheDocument();
+    expect(within(rows[3]!).getByText('100')).toBeInTheDocument();
+  });
+
+  it('pushes null values to end regardless of sort order', () => {
+    const nullData = [
+      { id: 1, name: 'Apple', status: 'a' },
+      { id: 2, name: null as unknown as string, status: 'b' },
+      { id: 3, name: 'Cherry', status: 'c' },
+    ];
+    const cols: DataTableColumn<(typeof nullData)[0]>[] = [
+      { key: 'name', label: 'Nome', sortable: true },
+    ];
+
+    render(<DataTable columns={cols} data={nullData} defaultSort={{ key: 'name', order: 'asc' }} />);
+
+    const rows = screen.getAllByRole('row');
+    expect(within(rows[1]!).getByText('Apple')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('Cherry')).toBeInTheDocument();
+    // null row is last
+    expect(rows[3]).toBeInTheDocument();
+  });
+
+  it('does not sort when clicking non-sortable column', async () => {
+    const user = userEvent.setup();
+    const cols: DataTableColumn<TestRow>[] = [
+      { key: 'name', label: 'Nome', sortable: false },
+    ];
+
+    render(<DataTable columns={cols} data={data} />);
+
+    const header = screen.getByText('Nome');
+    await user.click(header);
+
+    // No sort indicator should appear
+    const th = header.closest('th')!;
+    expect(th.querySelector('.mdi-arrow-up')).toBeNull();
+    expect(th.querySelector('.mdi-arrow-down')).toBeNull();
   });
 
   it('renders pagination controls', () => {

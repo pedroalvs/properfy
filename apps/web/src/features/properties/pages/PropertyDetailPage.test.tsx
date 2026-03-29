@@ -86,7 +86,6 @@ vi.mock('../hooks/usePropertyAppointments', () => ({
     errorMessage: null,
     refetch: vi.fn(),
     pagination: { page: 1, pageSize: 10, total: 0, onChange: vi.fn() },
-    sorting: { sortBy: 'createdAt', sortOrder: 'desc', onChange: vi.fn() },
   }),
 }));
 

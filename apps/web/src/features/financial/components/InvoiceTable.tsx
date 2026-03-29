@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { formatDate } from '@/lib/format-date';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
@@ -16,7 +16,6 @@ interface InvoiceTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   resolveInspectorLabel?: (inspectorId: string) => string;
   onView?: (invoice: Invoice) => void;
   onDownload?: (invoice: Invoice) => void;
@@ -28,7 +27,6 @@ export function InvoiceTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   resolveInspectorLabel,
   onView,
   onDownload,
@@ -108,7 +106,7 @@ export function InvoiceTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'createdAt', order: 'desc' }}
       keyExtractor={(row) => row.id}
     />
   );

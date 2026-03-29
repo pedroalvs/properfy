@@ -15,7 +15,6 @@ export function TenantContactListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useTenantContactList();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -43,7 +42,6 @@ export function TenantContactListPage() {
         error={isError ? (errorMessage ?? 'Failed to load tenants') : undefined}
         onRetryError={refetch}
         pagination={pagination}
-        sorting={sorting}
         onView={handleView}
       />
       <TenantContactDetailDrawer

@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { PRIORITY_MODE_MAP } from '@/lib/status-colors';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
@@ -10,7 +10,6 @@ interface ServiceGroupTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onView?: (sg: ServiceGroup) => void;
   onEdit?: (sg: ServiceGroup) => void;
 }
@@ -21,7 +20,6 @@ export function ServiceGroupTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onView,
   onEdit,
 }: ServiceGroupTableProps) {
@@ -105,7 +103,7 @@ export function ServiceGroupTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'name', order: 'asc' }}
       keyExtractor={(row) => row.id}
     />
   );

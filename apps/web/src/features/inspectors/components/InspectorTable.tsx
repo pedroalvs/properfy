@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { InspectorStatusChip } from './InspectorStatusChip';
 import type { Inspector } from '../types';
@@ -9,7 +9,6 @@ interface InspectorTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onView?: (inspector: Inspector) => void;
   onEdit?: (inspector: Inspector) => void;
 }
@@ -20,7 +19,6 @@ export function InspectorTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onView,
   onEdit,
 }: InspectorTableProps) {
@@ -90,7 +88,7 @@ export function InspectorTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'name', order: 'asc' }}
       keyExtractor={(row) => row.id}
     />
   );

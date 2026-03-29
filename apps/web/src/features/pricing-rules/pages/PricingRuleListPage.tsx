@@ -20,7 +20,6 @@ export function PricingRuleListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = usePricingRuleList();
 
   const { data: tenantsResp } = usePaginatedQuery<{ id: string; name: string }>(
@@ -141,7 +140,6 @@ export function PricingRuleListPage() {
           error={isError ? (errorMessage ?? 'Failed to load pricing rules') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onEdit={handleEdit}
         />
       </ListFilterTableTemplate>

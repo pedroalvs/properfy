@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type TenantContact, type TenantContactFiltersState } from '../types';
 
 export interface UseTenantContactListReturn {
@@ -12,21 +12,16 @@ export interface UseTenantContactListReturn {
   filters: TenantContactFiltersState;
   setFilters: (filters: TenantContactFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useTenantContactList(): UseTenantContactListReturn {
   const [filters, setFilters] = useState<TenantContactFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('appointmentDate');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const params: ListParams = {
     page,
     pageSize,
-    sortBy,
-    sortOrder,
     confirmationStatus: filters.confirmationStatus || undefined,
     search: filters.search || undefined,
   };
@@ -47,15 +42,6 @@ export function useTenantContactList(): UseTenantContactListReturn {
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: response?.data ?? [],
     isLoading,
@@ -65,6 +51,5 @@ export function useTenantContactList(): UseTenantContactListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

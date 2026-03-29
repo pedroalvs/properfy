@@ -27,7 +27,6 @@ export function AvailabilitySlotListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useSlotList();
 
   const [selectedView, setSelectedView] = useState<SlotView>('table');
@@ -89,7 +88,6 @@ export function AvailabilitySlotListPage() {
                 error={isError ? (errorMessage ?? 'Failed to load availability slots') : undefined}
                 onRetryError={refetch}
                 pagination={pagination}
-                sorting={sorting}
                 onEdit={handleEditSlot}
               />
             </div>

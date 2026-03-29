@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -21,12 +21,6 @@ export interface DataTablePagination {
   onChange: (page: number, pageSize: number) => void;
 }
 
-export interface DataTableSorting {
-  sortBy: string;
-  sortOrder: 'asc' | 'desc';
-  onChange: (sortBy: string, sortOrder: 'asc' | 'desc') => void;
-}
-
 export interface DataTableProps<T> {
   columns: DataTableColumn<T>[];
   data: T[];
@@ -34,10 +28,27 @@ export interface DataTableProps<T> {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
+  defaultSort?: { key: string; order: 'asc' | 'desc' };
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
   keyExtractor?: (row: T, index: number) => string;
+}
+
+function compareValues(a: unknown, b: unknown, order: 'asc' | 'desc'): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+
+  let result: number;
+  if (typeof a === 'number' && typeof b === 'number') {
+    result = a - b;
+  } else if (typeof a === 'boolean' && typeof b === 'boolean') {
+    result = Number(a) - Number(b);
+  } else {
+    result = String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
+  }
+
+  return order === 'asc' ? result : -result;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -64,16 +75,27 @@ export function DataTable<T>({
   error,
   onRetryError,
   pagination,
-  sorting,
+  defaultSort,
   onRowClick,
   emptyMessage = 'No records found',
   keyExtractor,
 }: DataTableProps<T>) {
   const [isMobile, setIsMobile] = useState(isMobileViewport);
+  const [sortBy, setSortBy] = useState(defaultSort?.key ?? '');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(defaultSort?.order ?? 'asc');
   const colSpan = columns.length;
   const mobileColumns = columns.filter((column) => !column.hideOnMobile);
   const mobileDataColumns = mobileColumns.filter((column) => column.label.trim() !== '');
   const mobileActionColumns = mobileColumns.filter((column) => column.label.trim() === '');
+
+  const sortedData = useMemo(() => {
+    if (!sortBy) return data;
+    return [...data].sort((a, b) => {
+      const aVal = (a as Record<string, unknown>)[sortBy];
+      const bVal = (b as Record<string, unknown>)[sortBy];
+      return compareValues(aVal, bVal, sortOrder);
+    });
+  }, [data, sortBy, sortOrder]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
@@ -95,10 +117,9 @@ export function DataTable<T>({
   }, []);
 
   function handleSort(columnKey: string) {
-    if (!sorting) return;
-    const newOrder =
-      sorting.sortBy === columnKey && sorting.sortOrder === 'asc' ? 'desc' : 'asc';
-    sorting.onChange(columnKey, newOrder);
+    const newOrder = sortBy === columnKey && sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortBy(columnKey);
+    setSortOrder(newOrder);
   }
 
   function renderCellValue(row: T, column: DataTableColumn<T>, index: number): ReactNode {
@@ -185,7 +206,7 @@ export function DataTable<T>({
       );
     }
 
-    if (data.length === 0) {
+    if (sortedData.length === 0) {
       return (
         <div className="rounded-md border border-[#ddd]">
           <EmptyState title={emptyMessage} />
@@ -195,7 +216,7 @@ export function DataTable<T>({
 
     return (
       <div className="space-y-3" data-testid="data-table-mobile-list">
-        {data.map((row, index) => (
+        {sortedData.map((row, index) => (
           <div
             key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
             className={`rounded-xl border border-border-subtle bg-card-bg p-4 shadow-sm ${
@@ -253,10 +274,10 @@ export function DataTable<T>({
                   >
                     <span className="inline-flex items-center gap-1">
                       {col.headerRender ? col.headerRender() : col.label}
-                      {col.sortable && sorting?.sortBy === col.key && (
+                      {col.sortable && sortBy === col.key && (
                         <i
                           className={`mdi ${
-                            sorting.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down'
+                            sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down'
                           } text-xs`}
                           aria-hidden="true"
                         />
@@ -281,7 +302,7 @@ export function DataTable<T>({
                   </td>
                 </tr>
               )}
-              {!loading && !error && data.length === 0 && (
+              {!loading && !error && sortedData.length === 0 && (
                 <tr>
                   <td colSpan={colSpan}>
                     <EmptyState title={emptyMessage} />
@@ -290,7 +311,7 @@ export function DataTable<T>({
               )}
               {!loading &&
                 !error &&
-                data.map((row, index) => (
+                sortedData.map((row, index) => (
                   <tr
                     key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
                     className={`border-b border-border-light text-table-body text-text-primary ${
@@ -312,7 +333,7 @@ export function DataTable<T>({
           </table>
         </div>
       )}
-      {!loading && !error && data.length > 0 && renderPaginationInfo()}
+      {!loading && !error && sortedData.length > 0 && renderPaginationInfo()}
     </div>
   );
 }

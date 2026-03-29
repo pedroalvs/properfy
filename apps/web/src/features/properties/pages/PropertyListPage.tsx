@@ -43,7 +43,6 @@ export function PropertyListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = usePropertyList(effectiveTenantId);
 
   const tenantOptions = useMemo(
@@ -106,7 +105,6 @@ export function PropertyListPage() {
           error={isError ? (errorMessage ?? 'Failed to load properties') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onView={(prop) => {
             navigate(`/properties/${prop.id}`);
           }}

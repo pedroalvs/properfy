@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 
 export interface PropertyAppointment {
@@ -20,14 +20,11 @@ export interface UsePropertyAppointmentsReturn {
   errorMessage: string | null;
   refetch: () => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function usePropertyAppointments(propertyId: string | null): UsePropertyAppointmentsReturn {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const query = usePaginatedQuery<PropertyAppointment>(
     ['property-appointments', propertyId],
@@ -35,8 +32,6 @@ export function usePropertyAppointments(propertyId: string | null): UsePropertyA
     {
       page,
       pageSize,
-      sortBy,
-      sortOrder,
       ...(propertyId ? { propertyId } : {}),
     },
     { enabled: !!propertyId },
@@ -52,15 +47,6 @@ export function usePropertyAppointments(propertyId: string | null): UsePropertyA
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: query.data?.data ?? [],
     isLoading: query.isLoading,
@@ -68,6 +54,5 @@ export function usePropertyAppointments(propertyId: string | null): UsePropertyA
     errorMessage: query.error?.message ?? null,
     refetch: query.refetch,
     pagination,
-    sorting,
   };
 }

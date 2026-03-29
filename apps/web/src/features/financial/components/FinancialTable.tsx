@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { formatDate } from '@/lib/format-date';
 import { FinancialEntryTypeChip } from './FinancialEntryTypeChip';
@@ -11,7 +11,6 @@ interface FinancialTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onView?: (entry: FinancialEntry) => void;
   onEdit?: (entry: FinancialEntry) => void;
   selectedIds?: Set<string>;
@@ -25,7 +24,6 @@ export function FinancialTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onView,
   onEdit,
   selectedIds,
@@ -154,7 +152,7 @@ export function FinancialTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'effectiveAt', order: 'desc' }}
       keyExtractor={(row) => row.id}
     />
   );

@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { FlowTypeChip } from './FlowTypeChip';
@@ -11,7 +11,6 @@ interface ServiceTypeTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onView?: (serviceType: ServiceType) => void;
   onEdit?: (serviceType: ServiceType) => void;
 }
@@ -22,7 +21,6 @@ export function ServiceTypeTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onView,
   onEdit,
 }: ServiceTypeTableProps) {
@@ -101,7 +99,7 @@ export function ServiceTypeTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'createdAt', order: 'desc' }}
       keyExtractor={(row) => row.id}
     />
   );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { DEFAULT_TENANT_ADMIN_FILTERS, type TenantAdmin, type TenantAdminFiltersState } from '../types';
 
 export interface UseTenantAdminListReturn {
@@ -12,21 +12,16 @@ export interface UseTenantAdminListReturn {
   filters: TenantAdminFiltersState;
   setFilters: (filters: TenantAdminFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useTenantAdminList(): UseTenantAdminListReturn {
   const [filters, setFilters] = useState<TenantAdminFiltersState>(DEFAULT_TENANT_ADMIN_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const params: ListParams = {
     page,
     pageSize,
-    sortBy,
-    sortOrder,
     status: filters.status || undefined,
     search: filters.search || undefined,
   };
@@ -47,15 +42,6 @@ export function useTenantAdminList(): UseTenantAdminListReturn {
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: response?.data ?? [],
     isLoading,
@@ -65,6 +51,5 @@ export function useTenantAdminList(): UseTenantAdminListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

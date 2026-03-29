@@ -1,5 +1,5 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type PricingRule, type PricingRuleFiltersState } from '../types';
 
@@ -12,15 +12,12 @@ export interface UsePricingRuleListReturn {
   filters: PricingRuleFiltersState;
   setFilters: Dispatch<SetStateAction<PricingRuleFiltersState>>;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function usePricingRuleList(initialFilters?: Partial<PricingRuleFiltersState>): UsePricingRuleListReturn {
   const [filters, setFilters] = useState<PricingRuleFiltersState>({ ...DEFAULT_FILTERS, ...initialFilters });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const query = usePaginatedQuery<PricingRule>(
     ['pricing-rules'],
@@ -28,8 +25,6 @@ export function usePricingRuleList(initialFilters?: Partial<PricingRuleFiltersSt
     {
       page,
       pageSize,
-      sortBy,
-      sortOrder,
       ...(filters.tenantId ? { tenantId: filters.tenantId } : {}),
       ...(filters.serviceTypeId ? { serviceTypeId: filters.serviceTypeId } : {}),
       ...(filters.branchId ? { branchId: filters.branchId } : {}),
@@ -47,15 +42,6 @@ export function usePricingRuleList(initialFilters?: Partial<PricingRuleFiltersSt
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: query.data?.data ?? [],
     isLoading: query.isLoading,
@@ -65,6 +51,5 @@ export function usePricingRuleList(initialFilters?: Partial<PricingRuleFiltersSt
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

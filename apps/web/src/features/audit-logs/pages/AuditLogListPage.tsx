@@ -16,7 +16,6 @@ export function AuditLogListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useAuditLogList();
 
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
@@ -45,7 +44,6 @@ export function AuditLogListPage() {
           error={isError ? (errorMessage ?? 'Failed to load audit logs') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onView={handleView}
         />
       </ListFilterTableTemplate>

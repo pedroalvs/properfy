@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type Property, type PropertyFiltersState } from '../types';
 
 export interface UsePropertyListReturn {
@@ -12,21 +12,16 @@ export interface UsePropertyListReturn {
   filters: PropertyFiltersState;
   setFilters: (filters: PropertyFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function usePropertyList(tenantId?: string): UsePropertyListReturn {
   const [filters, setFilters] = useState<PropertyFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('propertyCode');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const params: ListParams = {
     page,
     pageSize,
-    sortBy,
-    sortOrder,
     type: filters.type || undefined,
     tenantId: tenantId || undefined,
     branchId: filters.branchId || undefined,
@@ -49,15 +44,6 @@ export function usePropertyList(tenantId?: string): UsePropertyListReturn {
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: response?.data ?? [],
     isLoading,
@@ -67,6 +53,5 @@ export function usePropertyList(tenantId?: string): UsePropertyListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

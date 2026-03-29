@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
 import { DEFAULT_FILTERS, type User, type UserFiltersState, type UserScope } from '../types';
@@ -13,7 +13,6 @@ export interface UseUserListReturn {
   filters: UserFiltersState;
   setFilters: (filters: UserFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useUserList(overrideTenantId?: string, scope: UserScope = 'tenant'): UseUserListReturn {
@@ -23,17 +22,12 @@ export function useUserList(overrideTenantId?: string, scope: UserScope = 'tenan
   const [filters, setFilters] = useState<UserFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
   const query = usePaginatedQuery<User>(
     ['users', scope, tenantId],
     scope === 'internal' ? '/v1/users' : `/v1/tenants/${tenantId}/users`,
     {
       page,
       pageSize,
-      sortBy,
-      sortOrder,
       ...(filters.role ? { role: filters.role } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.search ? { search: filters.search } : {}),
@@ -51,15 +45,6 @@ export function useUserList(overrideTenantId?: string, scope: UserScope = 'tenan
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: query.data?.data ?? [],
     isLoading: query.isLoading,
@@ -69,6 +54,5 @@ export function useUserList(overrideTenantId?: string, scope: UserScope = 'tenan
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

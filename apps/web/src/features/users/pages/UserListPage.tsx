@@ -38,7 +38,6 @@ export function UserListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useUserList(effectiveTenantId, isGlobalRole ? scope : 'tenant');
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -112,7 +111,6 @@ export function UserListPage() {
           error={isError ? (errorMessage ?? 'Failed to load users') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onView={(user) => {
             setSelectedId(user.id);
             setDrawerOpen(true);

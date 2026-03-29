@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type Inspector, type InspectorFiltersState } from '../types';
 
@@ -12,24 +12,18 @@ export interface UseInspectorListReturn {
   filters: InspectorFiltersState;
   setFilters: (filters: InspectorFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useInspectorList(): UseInspectorListReturn {
   const [filters, setFilters] = useState<InspectorFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
   const query = usePaginatedQuery<Inspector>(
     ['inspectors'],
     '/v1/inspectors',
     {
       page,
       pageSize,
-      sortBy,
-      sortOrder,
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.search ? { search: filters.search } : {}),
     },
@@ -42,15 +36,6 @@ export function useInspectorList(): UseInspectorListReturn {
     onChange: (newPage, newPageSize) => {
       setPage(newPage);
       setPageSize(newPageSize);
-    },
-  };
-
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
     },
   };
 
@@ -70,6 +55,5 @@ export function useInspectorList(): UseInspectorListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

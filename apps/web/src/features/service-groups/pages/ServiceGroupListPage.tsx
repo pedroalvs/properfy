@@ -18,7 +18,6 @@ export function ServiceGroupListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useServiceGroupList();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -46,7 +45,6 @@ export function ServiceGroupListPage() {
           error={isError ? (errorMessage ?? 'Failed to load service groups') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onView={(sg) => navigate(`/service-groups/${sg.id}`)}
           onEdit={(sg) => {
             setSelectedId(sg.id);

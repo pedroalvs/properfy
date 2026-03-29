@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { formatDate } from '@/lib/format-date';
@@ -13,7 +13,6 @@ interface AppointmentTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onView?: (appointment: Appointment) => void;
   onEdit?: (appointment: Appointment) => void;
 }
@@ -24,7 +23,6 @@ export function AppointmentTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onView,
   onEdit,
 }: AppointmentTableProps) {
@@ -115,7 +113,7 @@ export function AppointmentTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'scheduledDate', order: 'desc' }}
       keyExtractor={(row) => row.id}
     />
   );

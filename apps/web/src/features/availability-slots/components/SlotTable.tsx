@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { formatDate } from '@/lib/format-date';
 import { SlotStatusChip } from './SlotStatusChip';
@@ -10,7 +10,6 @@ interface SlotTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onEdit?: (slot: AvailabilitySlot) => void;
 }
 
@@ -20,7 +19,6 @@ export function SlotTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onEdit,
 }: SlotTableProps) {
   const columns: DataTableColumn<AvailabilitySlot>[] = [
@@ -92,7 +90,7 @@ export function SlotTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'date', order: 'asc' }}
       keyExtractor={(row) => row.id}
     />
   );

@@ -41,7 +41,6 @@ export function InvoicesPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useInvoiceList();
 
   const { download } = useInvoiceDownload();
@@ -110,7 +109,6 @@ export function InvoicesPage() {
           error={isError ? (errorMessage ?? 'Failed to load invoices') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           resolveInspectorLabel={resolveInspectorLabel}
           onView={handleView}
           onDownload={handleDownload}

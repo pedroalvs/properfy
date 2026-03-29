@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type ServiceType, type ServiceTypeFiltersState } from '../types';
 
@@ -12,15 +12,12 @@ export interface UseServiceTypeListReturn {
   filters: ServiceTypeFiltersState;
   setFilters: (filters: ServiceTypeFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useServiceTypeList(): UseServiceTypeListReturn {
   const [filters, setFilters] = useState<ServiceTypeFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const query = usePaginatedQuery<ServiceType>(
     ['service-types'],
@@ -28,8 +25,6 @@ export function useServiceTypeList(): UseServiceTypeListReturn {
     {
       page,
       pageSize,
-      sortBy,
-      sortOrder,
       ...(filters.search ? { search: filters.search } : {}),
       ...(filters.status ? { status: filters.status } : {}),
     },
@@ -45,15 +40,6 @@ export function useServiceTypeList(): UseServiceTypeListReturn {
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: query.data?.data ?? [],
     isLoading: query.isLoading,
@@ -63,6 +49,5 @@ export function useServiceTypeList(): UseServiceTypeListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

@@ -33,7 +33,6 @@ export function PricingRulesSection({ tenantId, tenantName, currency }: PricingR
     filters,
     setFilters,
     pagination,
-    sorting,
   } = usePricingRuleList({ tenantId });
 
   const { data: serviceTypesResp } = usePaginatedQuery<{ id: string; name: string }>(
@@ -138,7 +137,6 @@ export function PricingRulesSection({ tenantId, tenantName, currency }: PricingR
           error={isError ? (errorMessage ?? 'Failed to load pricing rules') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onEdit={handleEdit}
         />
       </div>

@@ -23,7 +23,6 @@ export function TenantListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useTenantAdminList();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -65,7 +64,6 @@ export function TenantListPage() {
           error={isError ? (errorMessage ?? 'Failed to load agencies') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onView={handleView}
         />
       </ListFilterTableTemplate>

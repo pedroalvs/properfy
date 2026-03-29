@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { PropertyTypeChip } from './PropertyTypeChip';
 import type { Property } from '../types';
@@ -9,7 +9,6 @@ interface PropertyTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onView?: (property: Property) => void;
   onEdit?: (property: Property) => void;
 }
@@ -20,7 +19,6 @@ export function PropertyTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onView,
   onEdit,
 }: PropertyTableProps) {
@@ -92,7 +90,7 @@ export function PropertyTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'propertyCode', order: 'asc' }}
       keyExtractor={(row) => row.id}
     />
   );

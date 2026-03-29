@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { formatDateTime } from '@/lib/format-date';
@@ -11,7 +11,6 @@ interface AuditLogTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onView?: (log: AuditLog) => void;
 }
 
@@ -34,7 +33,6 @@ export function AuditLogTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onView,
 }: AuditLogTableProps) {
   const columns: DataTableColumn<AuditLog>[] = [
@@ -124,7 +122,7 @@ export function AuditLogTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'createdAt', order: 'desc' }}
       keyExtractor={(row) => row.id}
     />
   );

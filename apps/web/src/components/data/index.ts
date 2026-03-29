@@ -2,7 +2,6 @@ export { DataTable } from './DataTable';
 export type {
   DataTableColumn,
   DataTablePagination,
-  DataTableSorting,
   DataTableProps,
 } from './DataTable';
 export { RowActions } from './RowActions';

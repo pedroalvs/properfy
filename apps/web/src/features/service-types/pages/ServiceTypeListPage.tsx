@@ -16,7 +16,6 @@ export function ServiceTypeListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useServiceTypeList();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -56,7 +55,6 @@ export function ServiceTypeListPage() {
           error={isError ? (errorMessage ?? 'Failed to load service types') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onView={handleEdit}
           onEdit={handleEdit}
         />

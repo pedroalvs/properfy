@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type Appointment, type AppointmentFiltersState } from '../types';
 
 export interface UseAppointmentListReturn {
@@ -13,7 +13,6 @@ export interface UseAppointmentListReturn {
   filters: AppointmentFiltersState;
   setFilters: (filters: AppointmentFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useAppointmentList(): UseAppointmentListReturn {
@@ -27,14 +26,10 @@ export function useAppointmentList(): UseAppointmentListReturn {
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('scheduledDate');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const params: ListParams = {
     page,
     pageSize,
-    sortBy,
-    sortOrder,
     status: filters.status || undefined,
     tenantConfirmationStatus: filters.tenantConfirmationStatus || undefined,
     branchId: filters.branchId || undefined,
@@ -60,15 +55,6 @@ export function useAppointmentList(): UseAppointmentListReturn {
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: response?.data ?? [],
     isLoading,
@@ -78,6 +64,5 @@ export function useAppointmentList(): UseAppointmentListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

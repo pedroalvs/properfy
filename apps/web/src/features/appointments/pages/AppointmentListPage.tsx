@@ -48,7 +48,6 @@ export function AppointmentListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useAppointmentList();
 
   const { options: branchOptions } = useBranchFilterOptions();
@@ -81,7 +80,6 @@ export function AppointmentListPage() {
           error={isError ? (errorMessage ?? 'Failed to load appointments') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onView={(apt) => {
             setSelectedId(apt.id);
             setDrawerOpen(true);

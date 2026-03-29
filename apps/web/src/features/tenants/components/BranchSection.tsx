@@ -15,7 +15,7 @@ interface BranchSectionProps {
 }
 
 export function BranchSection({ tenantId }: BranchSectionProps) {
-  const { data, isLoading, isError, refetch, pagination, sorting } = useBranchList(tenantId);
+  const { data, isLoading, isError, refetch, pagination } = useBranchList(tenantId);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
@@ -138,7 +138,7 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
         error={isError ? 'Failed to load branches' : undefined}
         onRetryError={refetch}
         pagination={pagination}
-        sorting={sorting}
+        defaultSort={{ key: 'name', order: 'asc' }}
         keyExtractor={(row) => row.id}
       />
 

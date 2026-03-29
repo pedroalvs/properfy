@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_INVOICE_FILTERS, type Invoice, type InvoiceFiltersState } from '../types';
 
@@ -12,7 +12,6 @@ export interface UseInvoiceListReturn {
   filters: InvoiceFiltersState;
   setFilters: (filters: InvoiceFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useInvoiceList(): UseInvoiceListReturn {
@@ -43,12 +42,6 @@ export function useInvoiceList(): UseInvoiceListReturn {
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
-    onChange: () => {},
-  };
-
   return {
     data: query.data?.data ?? [],
     isLoading: query.isLoading,
@@ -58,6 +51,5 @@ export function useInvoiceList(): UseInvoiceListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

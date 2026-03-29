@@ -37,7 +37,6 @@ export function FinancialEntriesPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useFinancialList(effectiveTenantId, !requiresTenantSelection);
 
   const { showSuccess, showError } = useSnackbar();
@@ -161,7 +160,6 @@ export function FinancialEntriesPage() {
               error={isError ? (errorMessage ?? 'Failed to load financial entries') : undefined}
               onRetryError={refetch}
               pagination={pagination}
-              sorting={sorting}
               onView={handleView}
               selectedIds={selectedIds}
               onToggleSelect={handleToggleSelect}

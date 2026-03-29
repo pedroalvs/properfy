@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type ServiceGroup, type ServiceGroupFiltersState } from '../types';
 
 export interface UseServiceGroupListReturn {
@@ -12,21 +12,16 @@ export interface UseServiceGroupListReturn {
   filters: ServiceGroupFiltersState;
   setFilters: (filters: ServiceGroupFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useServiceGroupList(): UseServiceGroupListReturn {
   const [filters, setFilters] = useState<ServiceGroupFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const params: ListParams = {
     page,
     pageSize,
-    sortBy,
-    sortOrder,
     status: filters.status || undefined,
   };
 
@@ -43,15 +38,6 @@ export function useServiceGroupList(): UseServiceGroupListReturn {
     onChange: (newPage, newPageSize) => {
       setPage(newPage);
       setPageSize(newPageSize);
-    },
-  };
-
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
     },
   };
 
@@ -75,6 +61,5 @@ export function useServiceGroupList(): UseServiceGroupListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

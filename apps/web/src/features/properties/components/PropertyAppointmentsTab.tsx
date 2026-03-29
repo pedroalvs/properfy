@@ -13,7 +13,7 @@ interface PropertyAppointmentsTabProps {
 
 export function PropertyAppointmentsTab({ propertyId }: PropertyAppointmentsTabProps) {
   const navigate = useNavigate();
-  const { data, isLoading, isError, errorMessage, refetch, pagination, sorting } =
+  const { data, isLoading, isError, errorMessage, refetch, pagination } =
     usePropertyAppointments(propertyId);
 
   const handleView = useCallback(
@@ -86,7 +86,7 @@ export function PropertyAppointmentsTab({ propertyId }: PropertyAppointmentsTabP
       error={isError ? (errorMessage ?? 'Failed to load appointments') : undefined}
       onRetryError={refetch}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'createdAt', order: 'desc' }}
       keyExtractor={(row) => row.id}
     />
   );

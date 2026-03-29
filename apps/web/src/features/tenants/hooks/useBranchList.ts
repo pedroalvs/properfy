@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import { formatAddressLabel } from '@/lib/address';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import type { Branch } from '../types';
 
 export interface UseBranchListReturn {
@@ -10,20 +10,15 @@ export interface UseBranchListReturn {
   isError: boolean;
   refetch: () => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useBranchList(tenantId: string | null): UseBranchListReturn {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const params: ListParams = {
     page,
     pageSize,
-    sortBy,
-    sortOrder,
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<Branch>(
@@ -43,15 +38,6 @@ export function useBranchList(tenantId: string | null): UseBranchListReturn {
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: (response?.data ?? []).map((branch: Branch) => ({
       ...branch,
@@ -61,6 +47,5 @@ export function useBranchList(tenantId: string | null): UseBranchListReturn {
     isError,
     refetch,
     pagination,
-    sorting,
   };
 }

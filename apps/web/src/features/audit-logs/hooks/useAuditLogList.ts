@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type AuditLog, type AuditLogFiltersState } from '../types';
 
@@ -12,24 +12,18 @@ export interface UseAuditLogListReturn {
   filters: AuditLogFiltersState;
   setFilters: (filters: AuditLogFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useAuditLogList(): UseAuditLogListReturn {
   const [filters, setFilters] = useState<AuditLogFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
   const query = usePaginatedQuery<AuditLog>(
     ['audit-logs'],
     '/v1/audit-logs',
     {
       page,
       pageSize,
-      sortBy,
-      sortOrder,
       ...(filters.actorId ? { actorId: filters.actorId } : {}),
       ...(filters.entityType ? { entityType: filters.entityType } : {}),
       ...(filters.entityId ? { entityId: filters.entityId } : {}),
@@ -49,15 +43,6 @@ export function useAuditLogList(): UseAuditLogListReturn {
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: query.data?.data ?? [],
     isLoading: query.isLoading,
@@ -67,6 +52,5 @@ export function useAuditLogList(): UseAuditLogListReturn {
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { formatDate } from '@/lib/format-date';
 import { TenantConfirmationStatusChip } from './TenantConfirmationStatusChip';
@@ -10,7 +10,6 @@ interface TenantTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onView?: (contact: TenantContact) => void;
 }
 
@@ -20,7 +19,6 @@ export function TenantTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onView,
 }: TenantTableProps) {
   const columns: DataTableColumn<TenantContact>[] = [
@@ -98,7 +96,7 @@ export function TenantTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'appointmentDate', order: 'desc' }}
       keyExtractor={(row) => row.id}
     />
   );

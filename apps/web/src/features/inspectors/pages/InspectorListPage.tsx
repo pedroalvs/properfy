@@ -16,7 +16,6 @@ export function InspectorListPage() {
     filters,
     setFilters,
     pagination,
-    sorting,
   } = useInspectorList();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -47,7 +46,6 @@ export function InspectorListPage() {
           error={isError ? (errorMessage ?? 'Failed to load inspectors') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          sorting={sorting}
           onView={(insp) => {
             setSelectedId(insp.id);
             setDrawerOpen(true);

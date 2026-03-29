@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { DataTablePagination, DataTableSorting } from '@/components/data/DataTable';
+import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type FinancialEntry, type FinancialFiltersState } from '../types';
 
@@ -13,7 +13,6 @@ export interface UseFinancialListReturn {
   filters: FinancialFiltersState;
   setFilters: (filters: FinancialFiltersState) => void;
   pagination: DataTablePagination;
-  sorting: DataTableSorting;
 }
 
 export function useFinancialList(tenantId?: string, enabled: boolean = true): UseFinancialListReturn {
@@ -25,8 +24,6 @@ export function useFinancialList(tenantId?: string, enabled: boolean = true): Us
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState('effectiveAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const query = usePaginatedQuery<FinancialEntry>(
     ['financial-entries', tenantId ?? ''],
@@ -34,8 +31,6 @@ export function useFinancialList(tenantId?: string, enabled: boolean = true): Us
     {
       page,
       pageSize,
-      sortBy,
-      sortOrder,
       ...(tenantId ? { tenantId } : {}),
       ...(filters.entryType ? { type: filters.entryType } : {}),
       ...(filters.status ? { status: filters.status } : {}),
@@ -53,15 +48,6 @@ export function useFinancialList(tenantId?: string, enabled: boolean = true): Us
     },
   };
 
-  const sorting: DataTableSorting = {
-    sortBy,
-    sortOrder,
-    onChange: (newSortBy, newSortOrder) => {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-    },
-  };
-
   return {
     data: query.data?.data ?? [],
     isLoading: query.isLoading,
@@ -71,6 +57,5 @@ export function useFinancialList(tenantId?: string, enabled: boolean = true): Us
     filters,
     setFilters,
     pagination,
-    sorting,
   };
 }

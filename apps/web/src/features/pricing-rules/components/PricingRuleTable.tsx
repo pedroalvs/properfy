@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn, type DataTablePagination, type DataTableSorting } from '@/components/data/DataTable';
+import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { SERVICE_TYPE_STATUS_MAP } from '@/lib/status-colors';
 import type { PricingRule } from '../types';
@@ -14,7 +14,6 @@ interface PricingRuleTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  sorting?: DataTableSorting;
   onEdit?: (rule: PricingRule) => void;
 }
 
@@ -24,7 +23,6 @@ export function PricingRuleTable({
   error,
   onRetryError,
   pagination,
-  sorting,
   onEdit,
 }: PricingRuleTableProps) {
   const formatCurrency = (value: number, currency: string) =>
@@ -125,7 +123,7 @@ export function PricingRuleTable({
       error={error}
       onRetryError={onRetryError}
       pagination={pagination}
-      sorting={sorting}
+      defaultSort={{ key: 'createdAt', order: 'desc' }}
       keyExtractor={(row) => row.id}
     />
   );
