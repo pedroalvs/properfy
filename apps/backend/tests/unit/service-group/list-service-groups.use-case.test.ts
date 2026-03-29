@@ -69,7 +69,7 @@ describe('ListServiceGroupsUseCase', () => {
   });
 
   it('should return paginated results for AM', async () => {
-    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([makeGroup()]);
+    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([{ group: makeGroup(), assignedInspectorName: null }]);
     vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
 
     const result = await useCase.execute({
@@ -86,7 +86,7 @@ describe('ListServiceGroupsUseCase', () => {
   });
 
   it('should scope OP to their tenant', async () => {
-    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([makeGroup()]);
+    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([{ group: makeGroup(), assignedInspectorName: null }]);
     vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
 
     await useCase.execute({
@@ -178,16 +178,19 @@ describe('ListServiceGroupsUseCase', () => {
   it('should map all summary fields correctly', async () => {
     const publishedAt = new Date('2026-05-15');
     vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([
-      makeGroup({
-        id: 'group-2',
-        status: 'PUBLISHED',
-        offeredCount: 3,
-        confirmedCount: 1,
-        assignedInspectorId: 'insp-1',
-        publishedAt,
-        priorityMode: 'PRIORITY_24H',
-        priorityExpiresAt: new Date('2026-05-31'),
-      }),
+      {
+        group: makeGroup({
+          id: 'group-2',
+          status: 'PUBLISHED',
+          offeredCount: 3,
+          confirmedCount: 1,
+          assignedInspectorId: 'insp-1',
+          publishedAt,
+          priorityMode: 'PRIORITY_24H',
+          priorityExpiresAt: new Date('2026-05-31'),
+        }),
+        assignedInspectorName: 'Carlos Silva',
+      },
     ]);
     vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
 
@@ -203,6 +206,7 @@ describe('ListServiceGroupsUseCase', () => {
     expect(group.offeredCount).toBe(3);
     expect(group.confirmedCount).toBe(1);
     expect(group.assignedInspectorId).toBe('insp-1');
+    expect(group.assignedInspectorName).toBe('Carlos Silva');
     expect(group.publishedAt).toEqual(publishedAt);
     expect(group.priorityMode).toBe('PRIORITY_24H');
     expect(group.priorityExpiresAt).toEqual(new Date('2026-05-31'));

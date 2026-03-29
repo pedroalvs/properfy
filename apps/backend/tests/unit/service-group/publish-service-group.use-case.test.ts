@@ -30,6 +30,9 @@ function makeGroup(
     assignedInspectorId: null,
     publishedAt: null,
     assignedAt: null,
+    name: null,
+    regionName: null,
+    description: null,
     createdByUserId: 'user-1',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -79,6 +82,7 @@ describe('PublishServiceGroupUseCase', () => {
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
+      revertScheduledAppointments: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService);
@@ -138,17 +142,22 @@ describe('PublishServiceGroupUseCase', () => {
     ).rejects.toThrow(ServiceGroupNotFoundError);
   });
 
-  it('should reject non-DRAFT group', async () => {
+  it('should return idempotent success for PUBLISHED group', async () => {
+    const publishedAt = new Date('2026-03-20');
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-      makeGroupWithAppointments({ status: 'PUBLISHED' }),
+      makeGroupWithAppointments({ status: 'PUBLISHED', offeredCount: 2, publishedAt }),
     );
 
-    await expect(
-      useCase.execute({
-        groupId: 'group-1',
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(ServiceGroupInvalidStatusError);
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      actor: makeActor(),
+    });
+
+    expect(result.id).toBe('group-1');
+    expect(result.status).toBe('PUBLISHED');
+    expect(result.offeredCount).toBe(2);
+    expect(result.publishedAt).toBe(publishedAt);
+    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
   });
 
   it('should reject ACCEPTED group', async () => {

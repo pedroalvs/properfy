@@ -24,6 +24,7 @@ export interface GetServiceGroupOutput {
   priorityMode: string;
   priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
+  assignedInspectorName: string | null;
   publishedAt: Date | null;
   assignedAt: Date | null;
   createdByUserId: string;
@@ -51,7 +52,7 @@ export class GetServiceGroupUseCase {
       throw new ServiceGroupNotFoundError();
     }
 
-    const { group, appointments } = result;
+    const { group, assignedInspectorName, appointments } = result;
 
     return {
       id: group.id,
@@ -69,6 +70,7 @@ export class GetServiceGroupUseCase {
       priorityMode: group.priorityMode,
       priorityExpiresAt: group.priorityExpiresAt,
       assignedInspectorId: group.assignedInspectorId,
+      assignedInspectorName: assignedInspectorName ?? null,
       publishedAt: group.publishedAt,
       assignedAt: group.assignedAt,
       createdByUserId: group.createdByUserId,

@@ -18,6 +18,7 @@ export interface PaginationParams {
 
 export interface ServiceGroupWithAppointments {
   group: ServiceGroupEntity;
+  assignedInspectorName?: string | null;
   appointments: Array<{
     id: string;
     status: string;
@@ -41,12 +42,17 @@ export interface MarketplaceOffer {
   suburbs: string[];
 }
 
+export interface ServiceGroupListItem {
+  group: ServiceGroupEntity;
+  assignedInspectorName: string | null;
+}
+
 export interface IServiceGroupRepository {
   findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null>;
   findAll(
     filters: ServiceGroupFilters,
     pagination: PaginationParams,
-  ): Promise<ServiceGroupEntity[]>;
+  ): Promise<ServiceGroupListItem[]>;
   count(filters: ServiceGroupFilters): Promise<number>;
   save(group: ServiceGroupEntity): Promise<void>;
   update(
@@ -81,6 +87,8 @@ export interface IServiceGroupRepository {
   linkAppointments(appointmentIds: string[], groupId: string): Promise<void>;
   /** Clear service_group_id on appointments */
   unlinkAppointments(groupId: string): Promise<void>;
+  /** Revert all SCHEDULED appointments in a group back to AWAITING_INSPECTOR and clear inspector_id */
+  revertScheduledAppointments(groupId: string): Promise<number>;
   /** Atomically transition all group's appointments to SCHEDULED with inspector */
   scheduleAppointments(groupId: string, inspectorId: string): Promise<number>;
 }

@@ -8,6 +8,7 @@ const STATUS_LABELS: Record<ServiceGroupStatus, string> = {
   PUBLISHED: 'Published',
   ACCEPTED: 'Accepted',
   CANCELLED: 'Cancelled',
+  REJECTED: 'Rejected',
 };
 
 describe('ServiceGroupStatusChip', () => {

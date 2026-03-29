@@ -15,7 +15,6 @@ export type CreateServiceGroupInput = z.infer<typeof createServiceGroupSchema>;
 export const updateServiceGroupSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   regionName: z.string().max(255).optional(),
-  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
   description: z.string().max(5000).optional(),
 });
 export type UpdateServiceGroupInput = z.infer<typeof updateServiceGroupSchema>;
@@ -33,12 +32,17 @@ export const cancelServiceGroupSchema = z.object({
 });
 export type CancelServiceGroupInput = z.infer<typeof cancelServiceGroupSchema>;
 
+export const rejectServiceGroupSchema = z.object({
+  reason: z.string().min(1).max(1000),
+});
+export type RejectServiceGroupInput = z.infer<typeof rejectServiceGroupSchema>;
+
 export const acceptOfferSchema = z.object({});
 export type AcceptOfferInput = z.infer<typeof acceptOfferSchema>;
 
 export const listServiceGroupsQuerySchema = paginationSchema.extend({
   tenantId: z.string().uuid().optional(),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ACCEPTED', 'CANCELLED']).optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ACCEPTED', 'CANCELLED', 'REJECTED']).optional(),
   serviceTypeId: z.string().uuid().optional(),
   scheduledDateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   scheduledDateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

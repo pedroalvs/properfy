@@ -78,6 +78,28 @@ export class GroupAlreadyAcceptedError extends ConflictError {
   }
 }
 
+export class AssignedInspectorConflictError extends ConflictError {
+  constructor(currentInspectorId: string) {
+    super(
+      'ASSIGNED_INSPECTOR_CONFLICT',
+      `Service group is already assigned to a different inspector: ${currentInspectorId}`,
+    );
+  }
+}
+
+export class AppointmentsNotAwaitingInspectorError extends DomainError {
+  constructor(invalidAppointments: Array<{ id: string; status: string }>) {
+    const details = invalidAppointments
+      .map((a) => `${a.id} (${a.status})`)
+      .join(', ');
+    super(
+      'APPOINTMENTS_NOT_AWAITING_INSPECTOR',
+      `Cannot accept: appointments no longer in AWAITING_INSPECTOR status: ${details}`,
+      422,
+    );
+  }
+}
+
 export class PriorityDateTooCloseError extends DomainError {
   constructor() {
     super(

@@ -7,24 +7,24 @@ import {
   ServiceGroupInvalidStatusError,
 } from '../../domain/service-group.errors';
 
-export interface CancelServiceGroupInput {
+export interface RejectServiceGroupInput {
   groupId: string;
   reason: string;
   actor: AuthContext;
 }
 
-export interface CancelServiceGroupOutput {
+export interface RejectServiceGroupOutput {
   id: string;
   status: string;
 }
 
-export class CancelServiceGroupUseCase {
+export class RejectServiceGroupUseCase {
   constructor(
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
   ) {}
 
-  async execute(input: CancelServiceGroupInput): Promise<CancelServiceGroupOutput> {
+  async execute(input: RejectServiceGroupInput): Promise<RejectServiceGroupOutput> {
     const { actor, groupId, reason } = input;
 
     if (actor.role !== 'AM' && actor.role !== 'OP') {
@@ -38,8 +38,8 @@ export class CancelServiceGroupUseCase {
 
     const { group } = result;
 
-    if (!group.canCancel()) {
-      throw new ServiceGroupInvalidStatusError('DRAFT, PUBLISHED, or ACCEPTED', group.status);
+    if (!group.canReject()) {
+      throw new ServiceGroupInvalidStatusError('PUBLISHED or ACCEPTED', group.status);
     }
 
     // If group was ACCEPTED, revert SCHEDULED appointments back to AWAITING_INSPECTOR
@@ -49,27 +49,27 @@ export class CancelServiceGroupUseCase {
 
     // Update group status
     await this.serviceGroupRepo.update(groupId, {
-      status: 'CANCELLED',
+      status: 'REJECTED',
     });
 
-    // Unlink appointments (clear service_group_id, they stay in AWAITING_INSPECTOR)
+    // Unlink appointments (clear service_group_id)
     await this.serviceGroupRepo.unlinkAppointments(groupId);
 
     this.auditService.log({
-      action: 'service_group.cancelled',
+      action: 'service_group.rejected',
       actorType: 'USER',
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
       tenantId: group.tenantId,
       before: { status: group.status },
-      after: { status: 'CANCELLED' },
+      after: { status: 'REJECTED' },
       reason,
     });
 
     return {
       id: groupId,
-      status: 'CANCELLED',
+      status: 'REJECTED',
     };
   }
 }

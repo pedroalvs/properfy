@@ -28,6 +28,9 @@ function makeGroup(
     assignedInspectorId: null,
     publishedAt: null,
     assignedAt: null,
+    name: null,
+    regionName: null,
+    description: null,
     createdByUserId: 'user-1',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -76,6 +79,7 @@ describe('CancelServiceGroupUseCase', () => {
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
+      revertScheduledAppointments: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService);
@@ -114,18 +118,25 @@ describe('CancelServiceGroupUseCase', () => {
     expect(result.status).toBe('CANCELLED');
   });
 
-  it('should reject ACCEPTED group', async () => {
+  it('should cancel an ACCEPTED group and revert scheduled appointments', async () => {
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-      makeGroupWithAppointments({ status: 'ACCEPTED' }),
+      makeGroupWithAppointments({ status: 'ACCEPTED', assignedInspectorId: 'insp-1' }),
     );
+    vi.mocked(serviceGroupRepo.revertScheduledAppointments).mockResolvedValue(2);
 
-    await expect(
-      useCase.execute({
-        groupId: 'group-1',
-        reason: 'Cannot cancel',
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(ServiceGroupInvalidStatusError);
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      reason: 'Inspector unavailable',
+      actor: makeActor(),
+    });
+
+    expect(result.id).toBe('group-1');
+    expect(result.status).toBe('CANCELLED');
+    expect(serviceGroupRepo.revertScheduledAppointments).toHaveBeenCalledWith('group-1');
+    expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
+      status: 'CANCELLED',
+    });
+    expect(serviceGroupRepo.unlinkAppointments).toHaveBeenCalledWith('group-1');
   });
 
   it('should reject CANCELLED group (already cancelled)', async () => {

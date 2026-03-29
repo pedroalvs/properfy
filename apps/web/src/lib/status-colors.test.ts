@@ -104,10 +104,11 @@ describe('SERVICE_GROUP_STATUS_MAP', () => {
     ServiceGroupStatus.PUBLISHED,
     ServiceGroupStatus.ACCEPTED,
     ServiceGroupStatus.CANCELLED,
+    ServiceGroupStatus.REJECTED,
   ];
 
-  it('maps all 4 service group statuses', () => {
-    expect(Object.keys(SERVICE_GROUP_STATUS_MAP)).toHaveLength(4);
+  it('maps all 5 service group statuses', () => {
+    expect(Object.keys(SERVICE_GROUP_STATUS_MAP)).toHaveLength(5);
     for (const status of allStatuses) {
       expect(SERVICE_GROUP_STATUS_MAP[status]).toBeDefined();
     }
@@ -125,6 +126,7 @@ describe('SERVICE_GROUP_STATUS_MAP', () => {
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.PUBLISHED].label).toBe('Published');
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.ACCEPTED].label).toBe('Accepted');
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.CANCELLED].label).toBe('Cancelled');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.REJECTED].label).toBe('Rejected');
   });
 });
 

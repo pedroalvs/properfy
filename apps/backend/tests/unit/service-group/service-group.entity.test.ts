@@ -18,6 +18,9 @@ function makeServiceGroup(overrides: Partial<ServiceGroupProps> = {}): ServiceGr
     assignedInspectorId: null,
     publishedAt: null,
     assignedAt: null,
+    name: null,
+    regionName: null,
+    description: null,
     createdByUserId: 'user-1',
     createdAt: new Date('2026-03-01'),
     updatedAt: new Date('2026-03-01'),
@@ -132,12 +135,30 @@ describe('ServiceGroupEntity', () => {
       expect(makeServiceGroup({ status: 'PUBLISHED' }).canCancel()).toBe(true);
     });
 
-    it('returns false for ACCEPTED status', () => {
-      expect(makeServiceGroup({ status: 'ACCEPTED' }).canCancel()).toBe(false);
+    it('returns true for ACCEPTED status', () => {
+      expect(makeServiceGroup({ status: 'ACCEPTED' }).canCancel()).toBe(true);
     });
 
     it('returns false for CANCELLED status', () => {
       expect(makeServiceGroup({ status: 'CANCELLED' }).canCancel()).toBe(false);
+    });
+  });
+
+  describe('canReject()', () => {
+    it('returns true for PUBLISHED status', () => {
+      expect(makeServiceGroup({ status: 'PUBLISHED' }).canReject()).toBe(true);
+    });
+
+    it('returns true for ACCEPTED status', () => {
+      expect(makeServiceGroup({ status: 'ACCEPTED' }).canReject()).toBe(true);
+    });
+
+    it('returns false for DRAFT status', () => {
+      expect(makeServiceGroup({ status: 'DRAFT' }).canReject()).toBe(false);
+    });
+
+    it('returns false for CANCELLED status', () => {
+      expect(makeServiceGroup({ status: 'CANCELLED' }).canReject()).toBe(false);
     });
   });
 

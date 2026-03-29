@@ -77,7 +77,11 @@ export class ServiceGroupEntity extends BaseEntity {
   }
 
   canCancel(): boolean {
-    return this.status === 'DRAFT' || this.status === 'PUBLISHED';
+    return this.status === 'DRAFT' || this.status === 'PUBLISHED' || this.status === 'ACCEPTED';
+  }
+
+  canReject(): boolean {
+    return this.status === 'PUBLISHED' || this.status === 'ACCEPTED';
   }
 
   isPriorityExpired(now: Date = new Date()): boolean {

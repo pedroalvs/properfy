@@ -8,7 +8,6 @@ export interface UpdateServiceGroupInput {
   groupId: string;
   name?: string;
   regionName?: string;
-  priorityMode?: string;
   description?: string;
   actor: AuthContext;
 }

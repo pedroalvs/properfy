@@ -12,6 +12,7 @@ import {
   InspectorServiceTypeIneligibleError,
   InspectorInactiveError,
   PriorityExpiredError,
+  AppointmentsNotAwaitingInspectorError,
 } from '../../domain/service-group.errors';
 
 export interface AcceptOfferInput {
@@ -88,6 +89,18 @@ export class AcceptOfferUseCase {
     const updatedCount = await this.serviceGroupRepo.acceptOptimistic(groupId, inspectorId, now);
     if (updatedCount === 0) {
       throw new GroupAlreadyAcceptedError();
+    }
+
+    // Re-verify all linked appointments are still AWAITING_INSPECTOR after optimistic lock
+    const freshResult = await this.serviceGroupRepo.findById(groupId, null);
+    if (freshResult) {
+      const invalidAppointments = freshResult.appointments
+        .filter((appt) => appt.status !== 'AWAITING_INSPECTOR')
+        .map((appt) => ({ id: appt.id, status: appt.status }));
+
+      if (invalidAppointments.length > 0) {
+        throw new AppointmentsNotAwaitingInspectorError(invalidAppointments);
+      }
     }
 
     const scheduledCount = await this.serviceGroupRepo.scheduleAppointments(groupId, inspectorId);

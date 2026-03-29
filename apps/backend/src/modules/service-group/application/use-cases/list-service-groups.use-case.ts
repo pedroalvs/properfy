@@ -35,6 +35,7 @@ export interface ServiceGroupSummary {
   priorityMode: string;
   priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
+  assignedInspectorName: string | null;
   publishedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -68,7 +69,7 @@ export class ListServiceGroupsUseCase {
     ]);
 
     return {
-      data: data.map((g) => ({
+      data: data.map(({ group: g, assignedInspectorName }) => ({
         id: g.id,
         tenantId: g.tenantId,
         serviceTypeId: g.serviceTypeId,
@@ -84,6 +85,7 @@ export class ListServiceGroupsUseCase {
         priorityMode: g.priorityMode,
         priorityExpiresAt: g.priorityExpiresAt,
         assignedInspectorId: g.assignedInspectorId,
+        assignedInspectorName,
         publishedAt: g.publishedAt,
         createdAt: g.createdAt,
         updatedAt: g.updatedAt,

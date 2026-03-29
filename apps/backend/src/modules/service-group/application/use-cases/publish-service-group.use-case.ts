@@ -41,6 +41,16 @@ export class PublishServiceGroupUseCase {
 
     const { group, appointments } = result;
 
+    // Idempotency: if already PUBLISHED, return current state without side effects
+    if (group.status === 'PUBLISHED') {
+      return {
+        id: groupId,
+        status: 'PUBLISHED',
+        offeredCount: group.offeredCount,
+        publishedAt: group.publishedAt!,
+      };
+    }
+
     if (!group.canPublish()) {
       throw new ServiceGroupInvalidStatusError('DRAFT', group.status);
     }

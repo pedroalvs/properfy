@@ -4,6 +4,7 @@ import { ServiceGroupEntity } from '../domain/service-group.entity';
 import type {
   IServiceGroupRepository,
   ServiceGroupFilters,
+  ServiceGroupListItem,
   PaginationParams,
   ServiceGroupWithAppointments,
   MarketplaceOffer,
@@ -68,6 +69,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const row = await this.prisma.serviceGroup.findFirst({
       where,
       include: {
+        assigned_inspector: {
+          select: { id: true, name: true },
+        },
         appointments: {
           select: {
             id: true,
@@ -85,6 +89,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
     return {
       group: mapToEntity(row),
+      assignedInspectorName: row.assigned_inspector?.name ?? null,
       appointments: row.appointments.map((a: any) => ({
         id: a.id,
         status: a.status,
@@ -99,17 +104,25 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   async findAll(
     filters: ServiceGroupFilters,
     pagination: PaginationParams,
-  ): Promise<ServiceGroupEntity[]> {
+  ): Promise<ServiceGroupListItem[]> {
     const where = this.buildWhere(filters);
     const rows = await this.prisma.serviceGroup.findMany({
       where,
+      include: {
+        assigned_inspector: {
+          select: { id: true, name: true },
+        },
+      },
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: {
         [this.mapSortBy(pagination.sortBy)]: pagination.sortOrder,
       },
     });
-    return rows.map(mapToEntity);
+    return rows.map((row: any) => ({
+      group: mapToEntity(row),
+      assignedInspectorName: row.assigned_inspector?.name ?? null,
+    }));
   }
 
   async count(filters: ServiceGroupFilters): Promise<number> {
@@ -291,6 +304,20 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       where: { service_group_id: groupId },
       data: { service_group_id: null },
     });
+  }
+
+  async revertScheduledAppointments(groupId: string): Promise<number> {
+    const result = await this.prisma.appointment.updateMany({
+      where: {
+        service_group_id: groupId,
+        status: 'SCHEDULED',
+      },
+      data: {
+        status: 'AWAITING_INSPECTOR',
+        inspector_id: null,
+      },
+    });
+    return result.count;
   }
 
   async scheduleAppointments(

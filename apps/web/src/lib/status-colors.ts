@@ -60,6 +60,7 @@ export const SERVICE_GROUP_STATUS_MAP: Record<ServiceGroupStatus, StatusStyle> =
   [ServiceGroupStatus.PUBLISHED]: { bg: 'var(--color-sg-published)', text: 'var(--color-text-primary)', label: 'Published' },
   [ServiceGroupStatus.ACCEPTED]:  { bg: 'var(--color-sg-accepted)',  text: 'var(--color-text-primary)', label: 'Accepted' },
   [ServiceGroupStatus.CANCELLED]: { bg: 'var(--color-sg-cancelled)', text: 'var(--color-text-primary)', label: 'Cancelled' },
+  [ServiceGroupStatus.REJECTED]:  { bg: 'var(--color-sg-cancelled)', text: 'var(--color-text-primary)', label: 'Rejected' },
 };
 
 export const PRIORITY_MODE_MAP: Record<PriorityMode, StatusStyle> = {

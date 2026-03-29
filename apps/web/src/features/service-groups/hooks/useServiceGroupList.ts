@@ -47,7 +47,7 @@ export function useServiceGroupList(): UseServiceGroupListReturn {
     name: item.name ?? '',
     regionName: item.regionName ?? null,
     inspectorId: item.assignedInspectorId ?? null,
-    inspectorName: null,
+    inspectorName: item.assignedInspectorName ?? null,
     appointmentsCount: item.groupSize ?? 0,
     updatedAt: item.updatedAt ?? item.createdAt,
   }));

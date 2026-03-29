@@ -5,6 +5,7 @@ import {
   updateServiceGroupSchema,
   assignInspectorSchema,
   cancelServiceGroupSchema,
+  rejectServiceGroupSchema,
   listServiceGroupsQuerySchema,
   serviceGroupResponseSchema,
   successResponseSchema,
@@ -19,6 +20,7 @@ import type { ListServiceGroupsUseCase } from '../application/use-cases/list-ser
 import type { PublishServiceGroupUseCase } from '../application/use-cases/publish-service-group.use-case';
 import type { AssignInspectorManuallyUseCase } from '../application/use-cases/assign-inspector-manually.use-case';
 import type { CancelServiceGroupUseCase } from '../application/use-cases/cancel-service-group.use-case';
+import type { RejectServiceGroupUseCase } from '../application/use-cases/reject-service-group.use-case';
 import type { UpdateServiceGroupUseCase } from '../application/use-cases/update-service-group.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
@@ -29,6 +31,7 @@ export interface ServiceGroupRouteContainer {
   publishServiceGroupUseCase: PublishServiceGroupUseCase;
   assignInspectorManuallyUseCase: AssignInspectorManuallyUseCase;
   cancelServiceGroupUseCase: CancelServiceGroupUseCase;
+  rejectServiceGroupUseCase: RejectServiceGroupUseCase;
   updateServiceGroupUseCase: UpdateServiceGroupUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
@@ -221,6 +224,35 @@ export async function registerServiceGroupRoutes(
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
       const result = await container.cancelServiceGroupUseCase.execute({
+        groupId: params.data.groupId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/service-groups/:groupId/reject — 200
+  app.post(
+    '/v1/service-groups/:groupId/reject',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: rejectServiceGroupSchema,
+        response: { 200: successResponseSchema(serviceGroupResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const parsed = rejectServiceGroupSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.rejectServiceGroupUseCase.execute({
         groupId: params.data.groupId,
         reason: parsed.data.reason,
         actor: request.authContext!,

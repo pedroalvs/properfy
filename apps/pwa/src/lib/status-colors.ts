@@ -92,6 +92,11 @@ export const SERVICE_GROUP_STATUS_MAP: Record<ServiceGroupStatus, StatusStyle> =
     text: 'var(--color-text-primary)',
     label: 'Cancelled',
   },
+  [ServiceGroupStatus.REJECTED]: {
+    bg: 'var(--color-sg-cancelled)',
+    text: 'var(--color-text-primary)',
+    label: 'Rejected',
+  },
 };
 
 export const FLOW_TYPE_MAP: Record<ServiceTypeFlowType, StatusStyle> = {

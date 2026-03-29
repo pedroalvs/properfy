@@ -37,6 +37,7 @@ function makeGroupWithAppointments(
 ): ServiceGroupWithAppointments {
   return {
     group: makeGroup(groupOverrides),
+    assignedInspectorName: groupOverrides.assignedInspectorId ? 'Test Inspector' : null,
     appointments: appointments.length > 0
       ? appointments
       : [
@@ -158,6 +159,7 @@ describe('GetServiceGroupUseCase', () => {
     expect(result.offeredCount).toBe(2);
     expect(result.confirmedCount).toBe(1);
     expect(result.assignedInspectorId).toBe('insp-1');
+    expect(result.assignedInspectorName).toBe('Test Inspector');
     expect(result.publishedAt).toEqual(publishedAt);
     expect(result.assignedAt).toEqual(assignedAt);
     expect(result.createdByUserId).toBe('user-1');

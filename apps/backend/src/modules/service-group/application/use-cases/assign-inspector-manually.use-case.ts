@@ -8,6 +8,7 @@ import {
   ServiceGroupInvalidStatusError,
   InspectorInactiveError,
   InspectorServiceTypeIneligibleError,
+  AssignedInspectorConflictError,
 } from '../../domain/service-group.errors';
 
 export interface AssignInspectorManuallyInput {
@@ -42,6 +43,21 @@ export class AssignInspectorManuallyUseCase {
       throw new ServiceGroupNotFoundError();
     }
     const { group } = result;
+
+    // Idempotency: if already ACCEPTED with the same inspector, return current state
+    if (group.status === 'ACCEPTED' && group.assignedInspectorId === inspectorId) {
+      return {
+        id: groupId,
+        status: 'ACCEPTED',
+        assignedInspectorId: inspectorId,
+        appointmentsScheduled: group.confirmedCount,
+      };
+    }
+
+    // Conflict: already ACCEPTED with a different inspector
+    if (group.status === 'ACCEPTED' && group.assignedInspectorId !== inspectorId) {
+      throw new AssignedInspectorConflictError(group.assignedInspectorId!);
+    }
 
     if (!group.canAssign()) {
       throw new ServiceGroupInvalidStatusError('DRAFT or PUBLISHED', group.status);

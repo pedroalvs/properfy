@@ -12,6 +12,7 @@ import {
   ServiceGroupInvalidStatusError,
   InspectorInactiveError,
   InspectorServiceTypeIneligibleError,
+  AssignedInspectorConflictError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
 
 function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {}): ServiceGroupEntity {
@@ -30,6 +31,9 @@ function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupE
     assignedInspectorId: null,
     publishedAt: new Date(),
     assignedAt: null,
+    name: null,
+    regionName: null,
+    description: null,
     createdByUserId: 'user-op',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -101,6 +105,7 @@ describe('AssignInspectorManuallyUseCase', () => {
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
+      revertScheduledAppointments: vi.fn(),
     };
     inspectorRepo = {
       findById: vi.fn(),
@@ -191,8 +196,32 @@ describe('AssignInspectorManuallyUseCase', () => {
     ).rejects.toThrow(ServiceGroupNotFoundError);
   });
 
-  it('should throw ServiceGroupInvalidStatusError for ACCEPTED group', async () => {
-    const groupData = makeGroupWithAppointments({ status: 'ACCEPTED' });
+  it('should return idempotent success for ACCEPTED group with same inspector', async () => {
+    const groupData = makeGroupWithAppointments({
+      status: 'ACCEPTED',
+      assignedInspectorId: 'inspector-1',
+      confirmedCount: 5,
+    });
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(groupData);
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      inspectorId: 'inspector-1',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.id).toBe('group-1');
+    expect(result.status).toBe('ACCEPTED');
+    expect(result.assignedInspectorId).toBe('inspector-1');
+    expect(result.appointmentsScheduled).toBe(5);
+    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('should throw AssignedInspectorConflictError for ACCEPTED group with different inspector', async () => {
+    const groupData = makeGroupWithAppointments({
+      status: 'ACCEPTED',
+      assignedInspectorId: 'inspector-other',
+    });
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(groupData);
 
     await expect(
@@ -201,7 +230,7 @@ describe('AssignInspectorManuallyUseCase', () => {
         inspectorId: 'inspector-1',
         actor: makeActor({ role: 'AM' }),
       }),
-    ).rejects.toThrow(ServiceGroupInvalidStatusError);
+    ).rejects.toThrow(AssignedInspectorConflictError);
   });
 
   it('should throw ServiceGroupInvalidStatusError for CANCELLED group', async () => {

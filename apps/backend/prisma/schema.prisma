@@ -109,6 +109,7 @@ enum ServiceGroupStatus {
   PUBLISHED
   ACCEPTED
   CANCELLED
+  REJECTED
 }
 
 enum PriorityMode {
