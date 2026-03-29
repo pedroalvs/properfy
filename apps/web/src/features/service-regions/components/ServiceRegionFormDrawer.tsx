@@ -298,6 +298,7 @@ export function ServiceRegionFormDrawer({
                           onSelect={handleAddressSelect}
                           onClear={() => {}}
                           country={lookupCountry}
+                          searchContext={[filterCity, filterState].filter(Boolean).join(' ') || undefined}
                           placeholder={
                             filterCountry
                               ? `Search suburbs in ${filterCountry}${filterState ? ` / ${filterState}` : ''}${filterCity ? ` / ${filterCity}` : ''}...`
