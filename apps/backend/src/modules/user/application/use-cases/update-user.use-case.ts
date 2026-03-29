@@ -65,6 +65,14 @@ export class UpdateUserUseCase {
       );
     }
 
+    // Inspector accounts are managed through the Inspector module, not User management
+    if (data.role === 'INSP') {
+      throw new ForbiddenError(
+        'AUTH_FORBIDDEN',
+        'Inspector accounts are managed through the Inspector module',
+      );
+    }
+
     if (tenantId === null && actor.role !== 'AM' && actor.role !== 'OP') {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
@@ -79,6 +87,14 @@ export class UpdateUserUseCase {
     );
     if (!user) {
       throw new UserNotFoundError();
+    }
+
+    // Prevent modifying users that currently have role INSP
+    if (user.role === 'INSP') {
+      throw new ForbiddenError(
+        'AUTH_FORBIDDEN',
+        'Inspector accounts are managed through the Inspector module',
+      );
     }
 
     const effectiveIsInternal =

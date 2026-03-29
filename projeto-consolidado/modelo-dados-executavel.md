@@ -71,6 +71,8 @@ Campos principais:
 Observacao:
 
 1. `role` cobre `AM`, `OP`, `CL_ADMIN`, `CL_USER`
+2. Inspetores possuem User record com `role: INSP` para autenticacao, mas sao gerenciados pelo modulo Inspector (secao 2.4), nao pelo modulo de usuarios internos.
+3. `tenant_id` eh null para AM, OP e INSP
 
 ### 2.4 Inspector
 
@@ -79,14 +81,22 @@ Prestador responsavel pelas inspecoes.
 Campos principais:
 
 1. `id`
-2. `name`
-3. `email`
-4. `phone`
-5. `status`
-6. `payment_settings_json`
-7. `regions_json`
-8. `service_types_json`
-9. `client_eligibility_json`
+2. `user_id` (opcional, link para User com role INSP para autenticacao)
+3. `name`
+4. `email`
+5. `phone`
+6. `status`
+7. `payment_settings_json`
+8. `regions_json`
+9. `service_types_json`
+10. `client_eligibility_json`
+
+Observacao:
+
+1. Inspector eh uma entidade cross-tenant; nao possui tenant_id proprio
+2. Acessa a plataforma via PWA mobile
+3. Queries de agenda e marketplace sao scoped por inspector_id, nunca por tenant_id manualmente
+4. client_eligibility_json controla quais tenants o inspetor pode atender
 
 Relacionamentos:
 

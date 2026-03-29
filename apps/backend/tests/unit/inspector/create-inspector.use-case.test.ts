@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateInspectorUseCase } from '../../../src/modules/inspector/application/use-cases/create-inspector.use-case';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
+import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
@@ -40,6 +41,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 
 describe('CreateInspectorUseCase', () => {
   let inspectorRepo: IInspectorRepository;
+  let userManagementRepo: IUserManagementRepository;
   let auditService: AuditService;
   let useCase: CreateInspectorUseCase;
 
@@ -47,16 +49,29 @@ describe('CreateInspectorUseCase', () => {
     inspectorRepo = {
       findById: vi.fn(),
       findByEmail: vi.fn(),
+      findByUserId: vi.fn(),
+      linkUserId: vi.fn(),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
     };
+    userManagementRepo = {
+      findById: vi.fn(),
+      findByIdAndTenantId: vi.fn(),
+      findByEmail: vi.fn(),
+      findByTenantId: vi.fn(),
+      countByTenantId: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      resetPassword: vi.fn(),
+      revokeAllSessions: vi.fn(),
+    };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new CreateInspectorUseCase(inspectorRepo, auditService);
+    useCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService);
   });
 
-  it('should create inspector for AM', async () => {
+  it('should create inspector for AM with auto-created user record', async () => {
     vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
 
     const result = await useCase.execute({
@@ -70,6 +85,16 @@ describe('CreateInspectorUseCase', () => {
     expect(result.name).toBe('John Inspector');
     expect(result.email).toBe('john@example.com');
     expect(result.id).toBeDefined();
+    expect(result.userId).toBeDefined();
+    expect(userManagementRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'INSP',
+        email: 'john@example.com',
+        tenantId: null,
+        branchId: null,
+        status: 'ACTIVE',
+      }),
+    );
     expect(inspectorRepo.save).toHaveBeenCalled();
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'inspector.created' }),

@@ -377,7 +377,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
-  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, auditService);
+  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService);
   const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo);
   const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo);
   const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService);

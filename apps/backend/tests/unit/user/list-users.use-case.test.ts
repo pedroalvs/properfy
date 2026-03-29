@@ -160,7 +160,7 @@ describe('ListUsersUseCase', () => {
     ).toBeUndefined();
   });
 
-  it('should pass filters and pagination to repository', async () => {
+  it('should pass filters and pagination to repository with INSP excluded', async () => {
     vi.mocked(userManagementRepo.findByTenantId).mockResolvedValue([]);
     vi.mocked(userManagementRepo.countByTenantId).mockResolvedValue(0);
 
@@ -179,14 +179,15 @@ describe('ListUsersUseCase', () => {
       actor: amActor,
     });
 
+    const expectedFilters = { ...filters, excludeRoles: ['INSP'] };
     expect(userManagementRepo.findByTenantId).toHaveBeenCalledWith(
       'tenant-1',
-      filters,
+      expectedFilters,
       pagination,
     );
     expect(userManagementRepo.countByTenantId).toHaveBeenCalledWith(
       'tenant-1',
-      filters,
+      expectedFilters,
     );
   });
 
@@ -204,7 +205,7 @@ describe('ListUsersUseCase', () => {
     });
 
     expect(result.data).toHaveLength(1);
-    expect(userManagementRepo.findByTenantId).toHaveBeenCalledWith(null, {}, defaultPagination);
+    expect(userManagementRepo.findByTenantId).toHaveBeenCalledWith(null, { excludeRoles: ['INSP'] }, defaultPagination);
   });
 
   it('should reject CL_ADMIN when listing internal users', async () => {

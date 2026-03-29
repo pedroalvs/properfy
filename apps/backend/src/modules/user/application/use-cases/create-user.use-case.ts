@@ -73,6 +73,14 @@ export class CreateUserUseCase {
       );
     }
 
+    // Inspector accounts are managed through the Inspector module, not User management
+    if (role === 'INSP') {
+      throw new ForbiddenError(
+        'AUTH_FORBIDDEN',
+        'Inspector accounts are managed through the Inspector module',
+      );
+    }
+
     if (isInternalRole) {
       if (tenantId) {
         throw new ValidationError('Internal users cannot be assigned to an agency');

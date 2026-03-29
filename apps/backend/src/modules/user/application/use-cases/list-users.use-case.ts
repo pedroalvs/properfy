@@ -59,9 +59,12 @@ export class ListUsersUseCase {
       );
     }
 
+    // Always exclude INSP users — they are managed through the Inspector module
+    const effectiveFilters = { ...filters, excludeRoles: ['INSP'] };
+
     const [users, total] = await Promise.all([
-      this.userManagementRepo.findByTenantId(tenantId, filters, pagination),
-      this.userManagementRepo.countByTenantId(tenantId, filters),
+      this.userManagementRepo.findByTenantId(tenantId, effectiveFilters, pagination),
+      this.userManagementRepo.countByTenantId(tenantId, effectiveFilters),
     ]);
 
     return {

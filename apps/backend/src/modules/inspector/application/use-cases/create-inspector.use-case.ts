@@ -1,8 +1,11 @@
+import bcrypt from 'bcryptjs';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
+import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import { InspectorEntity } from '../../domain/inspector.entity';
+import { UserEntity } from '../../../auth/domain/user.entity';
 import { InspectorEmailConflictError } from '../../domain/inspector.errors';
 
 export interface CreateInspectorInput {
@@ -18,6 +21,7 @@ export interface CreateInspectorInput {
 
 export interface CreateInspectorOutput {
   id: string;
+  userId: string;
   name: string;
   email: string;
   phone: string | null;
@@ -32,6 +36,7 @@ export interface CreateInspectorOutput {
 export class CreateInspectorUseCase {
   constructor(
     private readonly inspectorRepo: IInspectorRepository,
+    private readonly userManagementRepo: IUserManagementRepository,
     private readonly auditService: AuditService,
   ) {}
 
@@ -50,9 +55,36 @@ export class CreateInspectorUseCase {
     const now = new Date();
     const id = crypto.randomUUID();
 
+    // Auto-create a User record for inspector authentication (role: INSP, no tenant)
+    const userId = crypto.randomUUID();
+    const temporaryPassword = crypto.randomUUID();
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+
+    const user = new UserEntity({
+      id: userId,
+      tenantId: null,
+      branchId: null,
+      role: 'INSP',
+      name,
+      email,
+      phone: phone ?? null,
+      status: 'ACTIVE',
+      passwordHash,
+      totpSecret: null,
+      totpEnabled: false,
+      failedLoginCount: 0,
+      lockedUntil: null,
+      lastLoginAt: null,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    });
+
+    await this.userManagementRepo.save(user);
+
     const inspector = new InspectorEntity({
       id,
-      userId: null,
+      userId,
       name,
       email,
       phone: phone ?? null,
@@ -89,6 +121,7 @@ export class CreateInspectorUseCase {
 
     return {
       id: inspector.id,
+      userId: inspector.userId!,
       name: inspector.name,
       email: inspector.email,
       phone: inspector.phone,

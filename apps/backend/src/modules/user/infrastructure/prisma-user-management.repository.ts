@@ -177,7 +177,19 @@ export class PrismaUserManagementRepository
       deleted_at: null,
     };
     if (filters.status) where['status'] = filters.status;
-    if (filters.role) where['role'] = filters.role;
+    if (filters.role && filters.excludeRoles && filters.excludeRoles.length > 0) {
+      // Both a specific role filter and exclusion — only apply the specific role if it's not excluded
+      if (!filters.excludeRoles.includes(filters.role)) {
+        where['role'] = filters.role;
+      } else {
+        // Requesting an excluded role returns no results — use impossible filter
+        where['role'] = { in: [] };
+      }
+    } else if (filters.role) {
+      where['role'] = filters.role;
+    } else if (filters.excludeRoles && filters.excludeRoles.length > 0) {
+      where['role'] = { notIn: filters.excludeRoles };
+    }
     if (filters.search) {
       where['OR'] = [
         { name: { contains: filters.search, mode: 'insensitive' } },

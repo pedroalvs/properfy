@@ -4,6 +4,7 @@ export interface UserManagementFilters {
   status?: string;
   role?: string;
   search?: string;
+  excludeRoles?: string[];
 }
 
 export interface PaginationParams {

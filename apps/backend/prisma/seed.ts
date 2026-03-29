@@ -269,10 +269,8 @@ async function main() {
     { id: IDS.userOP, tenant_id: null, branch_id: null, role: 'OP' as const, name: 'Sarah Operator', email: 'op@pedroalvs.com', status: 'ACTIVE' as const },
     { id: IDS.userCLAdmin, tenant_id: IDS.tenant, branch_id: IDS.branchCity, role: 'CL_ADMIN' as const, name: 'James Chen', email: 'cl.admin@pedroalvs.com', status: 'ACTIVE' as const },
     { id: IDS.userCLUser, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, role: 'CL_USER' as const, name: 'Emily Park', email: 'cl.user@pedroalvs.com', status: 'ACTIVE' as const },
-    { id: IDS.userINSP, tenant_id: null, branch_id: null, role: 'INSP' as const, name: 'Mike Inspector', email: 'insp@pedroalvs.com', status: 'ACTIVE' as const },
     { id: IDS.userInactive, tenant_id: IDS.tenant, branch_id: IDS.branchCity, role: 'CL_USER' as const, name: 'Deactivated User', email: 'inactive@pedroalvs.com', status: 'INACTIVE' as const },
     { id: IDS.userLocked, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, role: 'CL_USER' as const, name: 'Locked User', email: 'locked@pedroalvs.com', status: 'LOCKED' as const },
-    { id: IDS.userINSP2, tenant_id: null, branch_id: null, role: 'INSP' as const, name: 'Lisa Wong', email: 'insp2@pedroalvs.com', status: 'ACTIVE' as const },
     { id: IDS.userCLAdmin2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, role: 'CL_ADMIN' as const, name: 'Robert Turner', email: 'cl.admin2@pedroalvs.com', status: 'ACTIVE' as const },
   ];
 
@@ -319,7 +317,44 @@ async function main() {
     outgoing: (await prisma.serviceType.findUniqueOrThrow({ where: { code: 'OUTGOING' }, select: { id: true } })).id,
   } as const;
 
-  // ─── INSPECTORS ───────────────────────────────────────────────────────────
+  // ─── INSPECTORS ──────────────────────────────────────────────────────────
+  // Inspector user accounts are created alongside their inspector profiles,
+  // not as internal users. Auth requires a User record with role INSP.
+
+  await prisma.user.upsert({
+    where: { id: IDS.userINSP },
+    update: { email: 'insp@pedroalvs.com' },
+    create: {
+      id: IDS.userINSP,
+      tenant_id: null,
+      branch_id: null,
+      role: 'INSP',
+      name: 'Mike Inspector',
+      email: 'insp@pedroalvs.com',
+      status: 'ACTIVE',
+      password_hash: passwordHash,
+      totp_enabled: false,
+      failed_login_count: 0,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { id: IDS.userINSP2 },
+    update: { email: 'insp2@pedroalvs.com' },
+    create: {
+      id: IDS.userINSP2,
+      tenant_id: null,
+      branch_id: null,
+      role: 'INSP',
+      name: 'Lisa Wong',
+      email: 'insp2@pedroalvs.com',
+      status: 'ACTIVE',
+      password_hash: passwordHash,
+      totp_enabled: false,
+      failed_login_count: 0,
+    },
+  });
+  console.log('Inspector user accounts: 2 created');
 
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorLinked },
