@@ -863,6 +863,7 @@ export function createContainer(logger: Logger): AppContainer {
       getServiceRegionUseCase,
       listServiceRegionsUseCase,
       listSuburbsUseCase,
+      suburbRepo,
       jwtService,
       tenantRepo,
     },

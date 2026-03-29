@@ -30,4 +30,6 @@ export interface ISuburbRepository {
   count(filters: SuburbFilters): Promise<number>;
   findOrphans(pagination: PaginationParams): Promise<SuburbEntity[]>;
   countOrphans(): Promise<number>;
+  distinctStates(country: string): Promise<string[]>;
+  distinctCities(country: string, state: string): Promise<string[]>;
 }

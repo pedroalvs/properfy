@@ -14,6 +14,8 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceRegionDetail } from '../hooks/useServiceRegionDetail';
 import { useServiceRegionSave } from '../hooks/useServiceRegionSave';
 import { useSuburbList } from '../hooks/useSuburbList';
+import { useStateOptions } from '../hooks/useStateOptions';
+import { useCityOptions } from '../hooks/useCityOptions';
 import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
 import { EMPTY_SERVICE_REGION_FORM } from '../types';
 
@@ -51,17 +53,22 @@ export function ServiceRegionFormDrawer({
   const [initialData, setInitialData] = useState<ServiceRegionFormData>(EMPTY_SERVICE_REGION_FORM);
   const [errors, setErrors] = useState<ServiceRegionFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
-  const [suburbSearch, setSuburbSearch] = useState('');
 
-  const { suburbs, isLoading: isLoadingSuburbs } = useSuburbList(suburbSearch);
+  // Cascading data hooks
+  const { options: stateOptions, isLoading: isLoadingStates } = useStateOptions(form.country);
+  const { options: cityOptions, isLoading: isLoadingCities } = useCityOptions(form.country, form.state);
+  const { suburbs, isLoading: isLoadingSuburbs } = useSuburbList(form.country, form.state, form.city);
 
   useEffect(() => {
     if (isEditMode && serviceRegion) {
+      // Derive the city from the first suburb (all suburbs in a region share the same geography filtering context)
+      const firstSuburb = serviceRegion.suburbs?.[0];
       const data: ServiceRegionFormData = {
         name: serviceRegion.name,
         country: serviceRegion.country,
         state: serviceRegion.state,
-        suburbIds: serviceRegion.suburbs?.map(s => s.id) ?? [],
+        city: firstSuburb?.city ?? '',
+        suburbIds: serviceRegion.suburbs?.map((s) => s.id) ?? [],
         status: serviceRegion.status,
       };
       setForm(data);
@@ -75,7 +82,6 @@ export function ServiceRegionFormDrawer({
       setForm(EMPTY_SERVICE_REGION_FORM);
       setInitialData(EMPTY_SERVICE_REGION_FORM);
       setErrors({});
-      setSuburbSearch('');
     }
   }, [open, isEditMode]);
 
@@ -83,7 +89,23 @@ export function ServiceRegionFormDrawer({
 
   const updateField = useCallback(
     <K extends keyof ServiceRegionFormData>(field: K, value: ServiceRegionFormData[K]) => {
-      setForm((prev) => ({ ...prev, [field]: value }));
+      setForm((prev) => {
+        const next = { ...prev, [field]: value };
+
+        // Cascading resets
+        if (field === 'country') {
+          next.state = '';
+          next.city = '';
+          next.suburbIds = [];
+        } else if (field === 'state') {
+          next.city = '';
+          next.suburbIds = [];
+        } else if (field === 'city') {
+          next.suburbIds = [];
+        }
+
+        return next;
+      });
       setErrors((prev) => {
         if (prev[field]) {
           const next = { ...prev };
@@ -138,17 +160,6 @@ export function ServiceRegionFormDrawer({
     setShowConfirm(false);
   }, []);
 
-  // Build a combined list of suburbs: loaded suburbs + any currently selected suburbs from the detail
-  const selectedSuburbNames = new Map<string, string>();
-  if (serviceRegion?.suburbs) {
-    for (const s of serviceRegion.suburbs) {
-      selectedSuburbNames.set(s.id, `${s.name} (${s.city}, ${s.state})`);
-    }
-  }
-  for (const s of suburbs) {
-    selectedSuburbNames.set(s.id, `${s.name} (${s.city}, ${s.state})`);
-  }
-
   return (
     <>
       <DrawerPanel open={open} onClose={handleClose} size="wide">
@@ -187,10 +198,12 @@ export function ServiceRegionFormDrawer({
                       />
                     </FormField>
                     <FormField label="State" required error={errors.state}>
-                      <TextInput
+                      <SelectInput
                         value={form.state}
                         onChange={(v) => updateField('state', v)}
-                        placeholder="e.g. NSW, VIC"
+                        options={stateOptions}
+                        placeholder={isLoadingStates ? 'Loading states...' : 'Select state'}
+                        disabled={!form.country}
                         error={!!errors.state}
                         aria-label="State"
                       />
@@ -208,34 +221,48 @@ export function ServiceRegionFormDrawer({
                   </FormSection>
 
                   <FormSection title="Suburbs">
-                    <FormField label={`Suburbs (${form.suburbIds.length} selected)`} error={errors.suburbIds}>
-                      <div className="flex flex-col gap-3 rounded border border-black/10 px-3 py-3">
-                        <TextInput
-                          value={suburbSearch}
-                          onChange={setSuburbSearch}
-                          placeholder="Search suburbs..."
-                          aria-label="Search suburbs"
+                    <div className="flex flex-col gap-4">
+                      <FormField label="City" required error={errors.city}>
+                        <SelectInput
+                          value={form.city}
+                          onChange={(v) => updateField('city', v)}
+                          options={cityOptions}
+                          placeholder={isLoadingCities ? 'Loading cities...' : 'Select city'}
+                          disabled={!form.country || !form.state}
+                          error={!!errors.city}
+                          aria-label="City"
                         />
-                        <div className="max-h-60 overflow-y-auto">
-                          {suburbs.length > 0 ? (
-                            <div className="grid gap-2">
-                              {suburbs.map((suburb) => (
-                                <Checkbox
-                                  key={suburb.id}
-                                  label={`${suburb.name} (${suburb.city}, ${suburb.state}) ${suburb.postcode ? `- ${suburb.postcode}` : ''}`}
-                                  checked={form.suburbIds.includes(suburb.id)}
-                                  onChange={(checked) => toggleSuburb(suburb.id, checked)}
-                                />
-                              ))}
-                            </div>
-                          ) : (
+                      </FormField>
+
+                      <FormField label={`Suburbs (${form.suburbIds.length} selected)`} error={errors.suburbIds}>
+                        <div className="flex flex-col gap-3 rounded border border-black/10 px-3 py-3">
+                          {!form.country || !form.state || !form.city ? (
                             <p className="text-sm text-text-muted">
-                              {isLoadingSuburbs ? 'Loading suburbs...' : 'No suburbs found.'}
+                              Select country, state and city to view available suburbs.
                             </p>
+                          ) : (
+                            <div className="max-h-60 overflow-y-auto">
+                              {suburbs.length > 0 ? (
+                                <div className="grid gap-2">
+                                  {suburbs.map((suburb) => (
+                                    <Checkbox
+                                      key={suburb.id}
+                                      label={`${suburb.name} ${suburb.postcode ? `- ${suburb.postcode}` : ''}`}
+                                      checked={form.suburbIds.includes(suburb.id)}
+                                      onChange={(checked) => toggleSuburb(suburb.id, checked)}
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-text-muted">
+                                  {isLoadingSuburbs ? 'Loading suburbs...' : 'No suburbs found for this city.'}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
-                      </div>
-                    </FormField>
+                      </FormField>
+                    </div>
                   </FormSection>
                 </div>
               </div>

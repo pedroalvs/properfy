@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
 import type { ISuburbRepository } from '../../domain/suburb.repository';
@@ -38,34 +38,35 @@ export class CreateServiceRegionUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Validate all suburbs exist
+    // Validate all suburbs exist and fetch their data
+    const suburbProps = [];
     for (const suburbId of suburbIds) {
       const suburb = await this.suburbRepo.findById(suburbId);
       if (!suburb) {
         throw new SuburbNotFoundError();
       }
+      suburbProps.push({
+        id: suburb.id,
+        name: suburb.name,
+        city: suburb.city,
+        state: suburb.state,
+        country: suburb.country,
+        postcode: suburb.postcode,
+        status: suburb.status,
+        createdAt: suburb.createdAt,
+      });
+    }
+
+    // Validate all suburbs belong to the region's country
+    const invalidSuburbs = suburbProps.filter((s) => s.country !== country);
+    if (invalidSuburbs.length > 0) {
+      throw new ValidationError(
+        `Suburbs must belong to country ${country}: ${invalidSuburbs.map((s) => s.name).join(', ')}`,
+      );
     }
 
     const now = new Date();
     const id = crypto.randomUUID();
-
-    // Build suburb props for the entity (we only need them for the save)
-    const suburbProps = [];
-    for (const suburbId of suburbIds) {
-      const suburb = await this.suburbRepo.findById(suburbId);
-      if (suburb) {
-        suburbProps.push({
-          id: suburb.id,
-          name: suburb.name,
-          city: suburb.city,
-          state: suburb.state,
-          country: suburb.country,
-          postcode: suburb.postcode,
-          status: suburb.status,
-          createdAt: suburb.createdAt,
-        });
-      }
-    }
 
     const region = new ServiceRegionEntity({
       id,

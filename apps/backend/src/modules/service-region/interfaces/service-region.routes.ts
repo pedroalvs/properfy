@@ -22,6 +22,7 @@ export interface ServiceRegionRouteContainer {
   getServiceRegionUseCase: GetServiceRegionUseCase;
   listServiceRegionsUseCase: ListServiceRegionsUseCase;
   listSuburbsUseCase: ListSuburbsUseCase;
+  suburbRepo: { distinctStates(country: string): Promise<string[]>; distinctCities(country: string, state: string): Promise<string[]> };
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -112,6 +113,37 @@ export async function registerServiceRegionRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/suburbs/states — distinct states for a country
+  app.get(
+    '/v1/suburbs/states',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const query = request.query as Record<string, string>;
+      const country = query.country;
+      if (!country) {
+        throw new ValidationError('country query parameter is required');
+      }
+      const data = await container.suburbRepo.distinctStates(country);
+      return reply.status(200).send(success(data));
+    },
+  );
+
+  // GET /v1/suburbs/cities — distinct cities for a country + state
+  app.get(
+    '/v1/suburbs/cities',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const query = request.query as Record<string, string>;
+      const country = query.country;
+      const state = query.state;
+      if (!country || !state) {
+        throw new ValidationError('country and state query parameters are required');
+      }
+      const data = await container.suburbRepo.distinctCities(country, state);
+      return reply.status(200).send(success(data));
     },
   );
 

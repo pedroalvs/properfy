@@ -108,6 +108,26 @@ export class PrismaSuburbRepository implements ISuburbRepository {
     });
   }
 
+  async distinctStates(country: string): Promise<string[]> {
+    const rows = await this.prisma.suburb.findMany({
+      where: { country, status: 'ACTIVE' },
+      distinct: ['state'],
+      select: { state: true },
+      orderBy: { state: 'asc' },
+    });
+    return rows.map((r) => r.state);
+  }
+
+  async distinctCities(country: string, state: string): Promise<string[]> {
+    const rows = await this.prisma.suburb.findMany({
+      where: { country, state, status: 'ACTIVE' },
+      distinct: ['city'],
+      select: { city: true },
+      orderBy: { city: 'asc' },
+    });
+    return rows.map((r) => r.city);
+  }
+
   private buildWhere(filters: SuburbFilters) {
     const where: Record<string, unknown> = {};
     if (filters.country) where['country'] = filters.country;

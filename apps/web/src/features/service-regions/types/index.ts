@@ -27,6 +27,7 @@ export interface ServiceRegionFormData {
   name: string;
   country: string;
   state: string;
+  city: string;
   suburbIds: string[];
   status: string;
 }
@@ -51,6 +52,7 @@ export const EMPTY_SERVICE_REGION_FORM: ServiceRegionFormData = {
   name: '',
   country: '',
   state: '',
+  city: '',
   suburbIds: [],
   status: 'ACTIVE',
 };
