@@ -1,4 +1,4 @@
-import { todayLocalDateString, type AuthContext, type PropertyType } from '@properfy/shared';
+import { todayUTCDateString, type AuthContext, type PropertyType } from '@properfy/shared';
 import {
   ForbiddenError,
   ValidationError,
@@ -223,7 +223,7 @@ export class CreateAppointmentUseCase {
     }
 
     // 5c. Reject past dates (AM/OP bypass) — use local date string comparison
-    if (input.scheduledDate < todayLocalDateString() && actor.role !== 'AM' && actor.role !== 'OP') {
+    if (input.scheduledDate < todayUTCDateString() && actor.role !== 'AM' && actor.role !== 'OP') {
       throw new AppointmentPastDateError();
     }
 

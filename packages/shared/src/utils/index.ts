@@ -1,2 +1,2 @@
 export { isAppointmentOverdue } from './overdue';
-export { todayLocalDateString, toLocalDateString } from './local-date';
+export { todayLocalDateString, todayUTCDateString, toLocalDateString } from './local-date';

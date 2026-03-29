@@ -1,5 +1,5 @@
 import { AppointmentStatus } from '../enums';
-import { todayLocalDateString, toLocalDateString } from './local-date';
+import { todayUTCDateString } from './local-date';
 
 const OVERDUE_ELIGIBLE_STATUSES: string[] = [
   AppointmentStatus.SCHEDULED,
@@ -19,8 +19,8 @@ export function isAppointmentOverdue(
 
   const scheduledStr = typeof scheduledDate === 'string'
     ? scheduledDate.split('T')[0]!
-    : toLocalDateString(scheduledDate);
-  const todayStr = todayLocalDateString();
+    : scheduledDate.toISOString().split('T')[0]!;
+  const todayStr = todayUTCDateString();
 
   return scheduledStr < todayStr;
 }

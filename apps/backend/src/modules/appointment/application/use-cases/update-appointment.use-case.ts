@@ -1,4 +1,4 @@
-import { todayLocalDateString, type AuthContext } from '@properfy/shared';
+import { todayUTCDateString, type AuthContext } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
@@ -150,7 +150,7 @@ export class UpdateAppointmentUseCase {
 
     // Reject past dates (AM/OP bypass) — use local date string comparison
     if (data.scheduledDate !== undefined) {
-      if (data.scheduledDate < todayLocalDateString() && actor.role !== 'AM' && actor.role !== 'OP') {
+      if (data.scheduledDate < todayUTCDateString() && actor.role !== 'AM' && actor.role !== 'OP') {
         throw new AppointmentPastDateError();
       }
     }

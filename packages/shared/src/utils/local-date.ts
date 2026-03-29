@@ -1,12 +1,24 @@
 /**
  * Returns the current local date as YYYY-MM-DD string.
- * Uses the runtime's local timezone, not UTC.
+ * Uses the runtime's local timezone — intended for frontend (browser) use only.
  */
 export function todayLocalDateString(): string {
   const now = new Date();
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * Returns the current UTC date as YYYY-MM-DD string.
+ * Deterministic regardless of server timezone — intended for backend use.
+ */
+export function todayUTCDateString(): string {
+  const now = new Date();
+  const yyyy = now.getUTCFullYear();
+  const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(now.getUTCDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
 
