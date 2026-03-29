@@ -16,6 +16,7 @@ export interface UpdateInspectorInput {
     status?: string;
     paymentSettings?: Record<string, unknown>;
     regions?: string[];
+    regionIds?: string[];
     serviceTypes?: string[];
     clientEligibility?: string[];
   };
@@ -85,6 +86,11 @@ export class UpdateInspectorUseCase {
     if (data.clientEligibility !== undefined) updateData.clientEligibilityJson = data.clientEligibility;
 
     await this.inspectorRepo.update(inspectorId, updateData);
+
+    // Update service region links if regionIds provided
+    if (data.regionIds !== undefined) {
+      await this.inspectorRepo.setServiceRegions(inspectorId, data.regionIds);
+    }
 
     const after = {
       name: (updateData.name as string) ?? inspector.name,

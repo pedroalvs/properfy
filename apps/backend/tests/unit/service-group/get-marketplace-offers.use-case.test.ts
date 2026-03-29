@@ -71,15 +71,19 @@ describe('GetMarketplaceOffersUseCase', () => {
       countPublishedForInspector: vi.fn(),
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
+      revertScheduledAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
     };
     inspectorRepo = {
       findById: vi.fn(),
       findByEmail: vi.fn(),
+      findByUserId: vi.fn(),
+      linkUserId: vi.fn(),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      setServiceRegions: vi.fn(),
     };
 
     useCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
@@ -184,14 +188,14 @@ describe('GetMarketplaceOffersUseCase', () => {
     });
 
     expect(serviceGroupRepo.findPublishedForInspector).toHaveBeenCalledWith(
+      'inspector-1',
       ['svc-type-1', 'svc-type-2'],
-      ['Sydney', 'Melbourne'],
       ['tenant-1', 'tenant-2'],
       defaultPagination,
     );
     expect(serviceGroupRepo.countPublishedForInspector).toHaveBeenCalledWith(
+      'inspector-1',
       ['svc-type-1', 'svc-type-2'],
-      ['Sydney', 'Melbourne'],
       ['tenant-1', 'tenant-2'],
     );
   });

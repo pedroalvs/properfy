@@ -37,8 +37,8 @@ function mapToEntity(row: any): ServiceGroupEntity {
 }
 
 function buildMarketplaceOfferWhere(
+  inspectorId: string,
   inspectorServiceTypes: string[],
-  inspectorRegions: string[],
   inspectorClientEligibility: string[],
 ): Record<string, unknown> {
   return {
@@ -49,7 +49,19 @@ function buildMarketplaceOfferWhere(
     appointments: {
       some: {
         property: {
-          suburb: { in: inspectorRegions },
+          suburb_ref: {
+            status: 'ACTIVE',
+            region_suburbs: {
+              some: {
+                region: {
+                  status: 'ACTIVE',
+                  inspector_regions: {
+                    some: { inspector_id: inspectorId },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -209,22 +221,21 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   }
 
   async findPublishedForInspector(
+    inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorRegions: string[],
     inspectorClientEligibility: string[],
     pagination: PaginationParams,
   ): Promise<MarketplaceOffer[]> {
     if (
       inspectorServiceTypes.length === 0 ||
-      inspectorRegions.length === 0 ||
       inspectorClientEligibility.length === 0
     ) {
       return [];
     }
 
     const where = buildMarketplaceOfferWhere(
+      inspectorId,
       inspectorServiceTypes,
-      inspectorRegions,
       inspectorClientEligibility,
     );
 
@@ -268,13 +279,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   }
 
   async countPublishedForInspector(
+    inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorRegions: string[],
     inspectorClientEligibility: string[],
   ): Promise<number> {
     if (
       inspectorServiceTypes.length === 0 ||
-      inspectorRegions.length === 0 ||
       inspectorClientEligibility.length === 0
     ) {
       return 0;
@@ -282,8 +292,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
     return this.prisma.serviceGroup.count({
       where: buildMarketplaceOfferWhere(
+        inspectorId,
         inspectorServiceTypes,
-        inspectorRegions,
         inspectorClientEligibility,
       ),
     });

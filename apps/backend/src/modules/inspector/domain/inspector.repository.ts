@@ -40,4 +40,5 @@ export interface IInspectorRepository {
       deletedAt: Date | null;
     }>,
   ): Promise<void>;
+  setServiceRegions(inspectorId: string, regionIds: string[]): Promise<void>;
 }

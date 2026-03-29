@@ -7,6 +7,7 @@ export const createInspectorSchema = z.object({
   phone: z.string().max(20).optional(),
   paymentSettings: z.record(z.unknown()).default({}),
   regions: z.array(z.string()).default([]),
+  regionIds: z.array(z.string().uuid()).default([]),
   serviceTypes: z.array(z.string().uuid()).default([]),
   clientEligibility: z.array(z.string().uuid()).default([]),
 });
@@ -19,6 +20,7 @@ export const updateInspectorSchema = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   paymentSettings: z.record(z.unknown()).optional(),
   regions: z.array(z.string()).optional(),
+  regionIds: z.array(z.string().uuid()).optional(),
   serviceTypes: z.array(z.string().uuid()).optional(),
   clientEligibility: z.array(z.string().uuid()).optional(),
 });

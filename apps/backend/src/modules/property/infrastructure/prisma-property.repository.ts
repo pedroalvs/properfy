@@ -179,6 +179,7 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       notes: string | null;
       rulesJson: Record<string, unknown>;
       deletedAt: Date | null;
+      suburbId: string | null;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
@@ -202,6 +203,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       updateData['rules_json'] = data.rulesJson;
     if (data.deletedAt !== undefined)
       updateData['deleted_at'] = data.deletedAt;
+    if (data.suburbId !== undefined)
+      updateData['suburb_id'] = data.suburbId;
     await this.prisma.property.updateMany({
       where: { id, tenant_id: tenantId },
       data: updateData,

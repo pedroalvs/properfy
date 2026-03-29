@@ -51,14 +51,14 @@ export class GetMarketplaceOffersUseCase {
 
     const [data, total] = await Promise.all([
       this.serviceGroupRepo.findPublishedForInspector(
+        inspector.id,
         inspector.serviceTypesJson,
-        inspector.regionsJson,
         inspector.clientEligibilityJson,
         pagination,
       ),
       this.serviceGroupRepo.countPublishedForInspector(
+        inspector.id,
         inspector.serviceTypesJson,
-        inspector.regionsJson,
         inspector.clientEligibilityJson,
       ),
     ]);

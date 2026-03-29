@@ -11,3 +11,4 @@ export * from './service-type';
 export * from './inspection-execution';
 export * from './import';
 export * from './reason-codes';
+export * from './service-region';

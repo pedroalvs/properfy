@@ -310,6 +310,7 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
     private readonly properties: Map<string, PropertyEntity>,
     private readonly serviceTypes: Map<string, ServiceTypeEntity>,
     private readonly tenants: Map<string, { id: string; name: string }>,
+    private readonly inspectors?: Map<string, InspectorEntity>,
   ) {}
 
   async findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null> {
@@ -370,11 +371,15 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
   }
 
   async findPublishedForInspector(
+    inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorRegions: string[],
     inspectorClientEligibility: string[],
     pagination: ServiceGroupPaginationParams,
   ): Promise<MarketplaceOffer[]> {
+    // Derive regions from the inspector entity (in-memory simulation)
+    const inspector = this.inspectors?.get(inspectorId);
+    const inspectorRegions = inspector?.regionsJson ?? [];
+
     const offers = [...this.groups.values()]
       .filter((group) => group.status === 'PUBLISHED')
       .filter((group) => inspectorServiceTypes.includes(group.serviceTypeId))
@@ -411,13 +416,13 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
   }
 
   async countPublishedForInspector(
+    inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorRegions: string[],
     inspectorClientEligibility: string[],
   ): Promise<number> {
     const offers = await this.findPublishedForInspector(
+      inspectorId,
       inspectorServiceTypes,
-      inspectorRegions,
       inspectorClientEligibility,
       { page: 1, pageSize: 10_000, sortOrder: 'asc' },
     );
@@ -439,6 +444,21 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
         Object.assign(appointment, { serviceGroupId: null, updatedAt: new Date() });
       }
     }
+  }
+
+  async revertScheduledAppointments(groupId: string): Promise<number> {
+    let count = 0;
+    for (const appointment of this.appointments.values()) {
+      if (appointment.serviceGroupId === groupId && appointment.status === 'SCHEDULED') {
+        Object.assign(appointment, {
+          status: 'AWAITING_INSPECTOR',
+          inspectorId: null,
+          updatedAt: new Date(),
+        });
+        count += 1;
+      }
+    }
+    return count;
   }
 
   async scheduleAppointments(groupId: string, inspectorId: string): Promise<number> {
@@ -502,6 +522,7 @@ describe('FASE 1 integrated proof', () => {
       properties,
       new Map([[serviceType.id, serviceType]]),
       new Map([[TENANT_ID, { id: TENANT_ID, name: 'Acme Realty' }]]),
+      inspectors,
     );
 
     const branchRepo = {

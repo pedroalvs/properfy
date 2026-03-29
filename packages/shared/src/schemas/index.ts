@@ -21,3 +21,4 @@ export * from './appointment-time-slot';
 export * from './responses';
 export * from './totp';
 export * from './import';
+export * from './service-region';

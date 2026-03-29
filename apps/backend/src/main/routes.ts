@@ -19,6 +19,7 @@ import { registerReportRoutes } from '../modules/report/interfaces/report.routes
 import { registerNotificationRoutes } from '../modules/notification/interfaces/notification.routes';
 import { registerDashboardRoutes } from '../modules/dashboard/interfaces/dashboard.routes';
 import { registerAppointmentTimeSlotRoutes } from '../modules/appointment-time-slot/interfaces/appointment-time-slot.routes';
+import { registerServiceRegionRoutes } from '../modules/service-region/interfaces/service-region.routes';
 
 export async function registerRoutes(
   app: FastifyInstance,
@@ -97,4 +98,5 @@ export async function registerRoutes(
   await registerNotificationRoutes(app, container.notification);
   await registerDashboardRoutes(app, container.dashboard);
   await registerAppointmentTimeSlotRoutes(app, container.appointmentTimeSlot);
+  await registerServiceRegionRoutes(app, container.serviceRegion);
 }

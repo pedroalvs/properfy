@@ -214,6 +214,16 @@ import { PrismaDashboardRepository } from '../modules/dashboard/infrastructure/p
 import { GetDashboardStatsUseCase } from '../modules/dashboard/application/use-cases/get-dashboard-stats.use-case';
 import type { DashboardRouteContainer } from '../modules/dashboard/interfaces/dashboard.routes';
 
+// Service region module
+import { PrismaSuburbRepository } from '../modules/service-region/infrastructure/prisma-suburb.repository';
+import { PrismaServiceRegionRepository } from '../modules/service-region/infrastructure/prisma-service-region.repository';
+import { CreateServiceRegionUseCase } from '../modules/service-region/application/use-cases/create-service-region.use-case';
+import { UpdateServiceRegionUseCase } from '../modules/service-region/application/use-cases/update-service-region.use-case';
+import { GetServiceRegionUseCase } from '../modules/service-region/application/use-cases/get-service-region.use-case';
+import { ListServiceRegionsUseCase } from '../modules/service-region/application/use-cases/list-service-regions.use-case';
+import { ListSuburbsUseCase } from '../modules/service-region/application/use-cases/list-suburbs.use-case';
+import type { ServiceRegionRouteContainer } from '../modules/service-region/interfaces/service-region.routes';
+
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
@@ -260,6 +270,7 @@ export interface AppContainer {
   report: ReportRouteContainer;
   notification: NotificationRouteContainer;
   dashboard: DashboardRouteContainer;
+  serviceRegion: ServiceRegionRouteContainer;
   geocodeWorker: GeocodeWorker;
   propertyImportWorker: ImportPropertyWorker;
   cleanupSessionsWorker: CleanupSessionsWorker;
@@ -346,10 +357,13 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
-  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo);
+  // suburbRepo is instantiated later in the service-region section, but we need it here.
+  // Create it early for property use cases.
+  const suburbRepoForProperty = new PrismaSuburbRepository(prisma);
+  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, suburbRepoForProperty);
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
-  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
+  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, suburbRepoForProperty);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo);
   const addressLookupService = env.MAPBOX_ACCESS_TOKEN
@@ -597,6 +611,15 @@ export function createContainer(logger: Logger): AppContainer {
   const dashboardRepo = new PrismaDashboardRepository(prisma);
   const getDashboardStatsUseCase = new GetDashboardStatsUseCase(dashboardRepo);
 
+  // Service region repositories and use cases (suburbRepo reuses the one created for property use cases)
+  const suburbRepo = suburbRepoForProperty;
+  const serviceRegionRepo = new PrismaServiceRegionRepository(prisma);
+  const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, suburbRepo, auditService);
+  const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, suburbRepo, auditService);
+  const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo);
+  const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo);
+  const listSuburbsUseCase = new ListSuburbsUseCase(suburbRepo);
+
   // Appointment import (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
   const importJobQueue = env.ENABLE_JOB_QUEUE === 'true'
@@ -831,6 +854,15 @@ export function createContainer(logger: Logger): AppContainer {
     },
     dashboard: {
       getDashboardStatsUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    serviceRegion: {
+      createServiceRegionUseCase,
+      updateServiceRegionUseCase,
+      getServiceRegionUseCase,
+      listServiceRegionsUseCase,
+      listSuburbsUseCase,
       jwtService,
       tenantRepo,
     },

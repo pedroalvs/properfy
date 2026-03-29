@@ -73,14 +73,14 @@ export interface IServiceGroupRepository {
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
   acceptOptimistic(id: string, inspectorId: string, assignedAt: Date): Promise<number>;
   findPublishedForInspector(
+    inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorRegions: string[],
     inspectorClientEligibility: string[],
     pagination: PaginationParams,
   ): Promise<MarketplaceOffer[]>;
   countPublishedForInspector(
+    inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorRegions: string[],
     inspectorClientEligibility: string[],
   ): Promise<number>;
   /** Set service_group_id on appointments */

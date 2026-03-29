@@ -14,6 +14,7 @@ export interface CreateInspectorInput {
   phone?: string | null;
   paymentSettings?: Record<string, unknown>;
   regions?: string[];
+  regionIds?: string[];
   serviceTypes?: string[];
   clientEligibility?: string[];
   actor: AuthContext;
@@ -41,7 +42,7 @@ export class CreateInspectorUseCase {
   ) {}
 
   async execute(input: CreateInspectorInput): Promise<CreateInspectorOutput> {
-    const { name, email, phone, paymentSettings, regions, serviceTypes, clientEligibility, actor } = input;
+    const { name, email, phone, paymentSettings, regions, regionIds, serviceTypes, clientEligibility, actor } = input;
 
     if (actor.role !== 'AM' && actor.role !== 'OP') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
@@ -99,6 +100,11 @@ export class CreateInspectorUseCase {
     });
 
     await this.inspectorRepo.save(inspector);
+
+    // Link inspector to service regions if regionIds provided
+    if (regionIds && regionIds.length > 0) {
+      await this.inspectorRepo.setServiceRegions(id, regionIds);
+    }
 
     this.auditService.log({
       action: 'inspector.created',

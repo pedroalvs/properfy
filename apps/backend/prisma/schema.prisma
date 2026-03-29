@@ -260,14 +260,17 @@ model Property {
   updated_at        DateTime        @updatedAt
   deleted_at        DateTime?
 
+  suburb_id         String?
   tenant            Tenant          @relation(fields: [tenant_id], references: [id])
   branch            Branch?         @relation(fields: [branch_id], references: [id])
+  suburb_ref        Suburb?         @relation(fields: [suburb_id], references: [id])
   appointments      Appointment[]
 
   @@unique([tenant_id, property_code])
   @@index([tenant_id])
   @@index([tenant_id, type])
   @@index([branch_id])
+  @@index([suburb_id])
   @@index([deleted_at])
   @@map("properties")
 }
@@ -336,6 +339,7 @@ model Inspector {
   executions                  InspectionExecution[]
   financial_entries           FinancialEntry[]
   invoices                    InspectorInvoice[]
+  service_regions             InspectorServiceRegion[]
 
   @@index([status])
   @@index([user_id])
@@ -913,4 +917,75 @@ model AppointmentTimeSlot {
   @@index([tenant_id, branch_id, is_active])
   @@index([tenant_id, is_active])
   @@map("appointment_time_slots")
+}
+
+enum RegionStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SuburbStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Suburb {
+  id          String       @id @default(uuid())
+  name        String       @db.VarChar(150)
+  city        String       @db.VarChar(150)
+  state       String       @db.VarChar(100)
+  country     String       @db.VarChar(10)
+  postcode    String?      @db.VarChar(20)
+  status      SuburbStatus @default(ACTIVE)
+  created_at  DateTime     @default(now())
+
+  region_suburbs  RegionSuburb[]
+  properties      Property[]
+
+  @@unique([name, city, state, country])
+  @@index([city, state, country])
+  @@index([country])
+  @@index([status])
+  @@map("suburbs")
+}
+
+model ServiceRegion {
+  id          String       @id @default(uuid())
+  name        String       @db.VarChar(255)
+  state       String       @db.VarChar(100)
+  country     String       @db.VarChar(10)
+  status      RegionStatus @default(ACTIVE)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  region_suburbs     RegionSuburb[]
+  inspector_regions  InspectorServiceRegion[]
+
+  @@index([status])
+  @@index([country, state])
+  @@map("service_regions")
+}
+
+model RegionSuburb {
+  region_id  String
+  suburb_id  String
+
+  region     ServiceRegion @relation(fields: [region_id], references: [id])
+  suburb     Suburb        @relation(fields: [suburb_id], references: [id])
+
+  @@id([region_id, suburb_id])
+  @@index([suburb_id])
+  @@map("region_suburbs")
+}
+
+model InspectorServiceRegion {
+  inspector_id  String
+  region_id     String
+
+  inspector     Inspector     @relation(fields: [inspector_id], references: [id])
+  region        ServiceRegion @relation(fields: [region_id], references: [id])
+
+  @@id([inspector_id, region_id])
+  @@index([region_id])
+  @@map("inspector_service_regions")
 }

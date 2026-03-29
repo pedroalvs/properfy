@@ -166,6 +166,22 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     await this.prisma.inspector.update({ where: { id }, data: updateData });
   }
 
+  async setServiceRegions(inspectorId: string, regionIds: string[]): Promise<void> {
+    // Remove all existing region links, then re-create
+    await this.prisma.inspectorServiceRegion.deleteMany({
+      where: { inspector_id: inspectorId },
+    });
+    if (regionIds.length > 0) {
+      await this.prisma.inspectorServiceRegion.createMany({
+        data: regionIds.map((regionId) => ({
+          inspector_id: inspectorId,
+          region_id: regionId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
   private buildWhere(filters: InspectorFilters) {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.status) where['status'] = filters.status;
