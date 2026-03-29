@@ -331,8 +331,9 @@ async function main() {
       email: 'insp@pedroalvs.com',
       phone: '+61400111222',
       status: 'ACTIVE',
-      regions_json: ['Sydney CBD', 'North Shore', 'Inner West'],
+      regions_json: ['Sydney', 'Surry Hills', 'North Sydney', 'Inner West'],
       service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing],
+      client_eligibility_json: [IDS.tenant, IDS.tenant2],
     },
   });
 
@@ -345,8 +346,9 @@ async function main() {
       email: 'carlos.mendez@inspectors.com.au',
       phone: '+61400333444',
       status: 'ACTIVE',
-      regions_json: ['Eastern Suburbs', 'South Sydney'],
+      regions_json: ['Eastern Suburbs', 'South Sydney', 'Surry Hills', 'North Sydney'],
       service_types_json: [serviceTypeIds.routine, serviceTypeIds.outgoing],
+      client_eligibility_json: [IDS.tenant],
     },
   });
 
@@ -360,8 +362,9 @@ async function main() {
       email: 'insp2@pedroalvs.com',
       phone: '+61400555666',
       status: 'ACTIVE',
-      regions_json: ['Melbourne CBD', 'Southbank', 'Richmond'],
+      regions_json: ['Melbourne', 'Southbank', 'Richmond'],
       service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing, serviceTypeIds.outgoing],
+      client_eligibility_json: [IDS.tenant2],
     },
   });
 
