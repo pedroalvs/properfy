@@ -28,6 +28,7 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
     notes: 'Test observation',
     doneCheckedByUserId: null,
     doneCheckedAt: null,
+    isOverdue: false,
     createdAt: '2026-03-10T10:00:00Z',
     updatedAt: '2026-03-10T10:00:00Z',
     meetingLocation: 'Main entrance',

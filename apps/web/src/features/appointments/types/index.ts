@@ -25,7 +25,7 @@ export interface Appointment {
   notes: string | null;
   doneCheckedByUserId?: string | null;
   doneCheckedAt?: string | null;
-  isOverdue?: boolean;
+  isOverdue: boolean;
   createdAt: string;
   updatedAt: string;
 }

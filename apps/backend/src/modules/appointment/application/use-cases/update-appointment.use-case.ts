@@ -148,7 +148,7 @@ export class UpdateAppointmentUseCase {
       }
     }
 
-    // Reject past dates (AM/OP bypass) — use local date string comparison
+    // Reject past dates (AM/OP bypass) — UTC comparison for server consistency
     if (data.scheduledDate !== undefined) {
       if (data.scheduledDate < todayUTCDateString() && actor.role !== 'AM' && actor.role !== 'OP') {
         throw new AppointmentPastDateError();

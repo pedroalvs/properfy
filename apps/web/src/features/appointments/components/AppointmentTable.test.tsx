@@ -27,6 +27,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     timeSlot: '09:00-12:00',
     keyRequired: false,
     notes: null,
+    isOverdue: false,
     createdAt: '2026-03-10T10:00:00Z',
     updatedAt: '2026-03-10T10:00:00Z',
     ...overrides,

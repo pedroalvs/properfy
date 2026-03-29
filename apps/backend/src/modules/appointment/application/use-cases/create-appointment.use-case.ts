@@ -222,7 +222,7 @@ export class CreateAppointmentUseCase {
       }
     }
 
-    // 5c. Reject past dates (AM/OP bypass) — use local date string comparison
+    // 5c. Reject past dates (AM/OP bypass) — UTC comparison for server consistency
     if (input.scheduledDate < todayUTCDateString() && actor.role !== 'AM' && actor.role !== 'OP') {
       throw new AppointmentPastDateError();
     }

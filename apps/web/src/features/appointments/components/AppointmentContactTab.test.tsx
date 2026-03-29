@@ -24,6 +24,7 @@ const MOCK_APPOINTMENT: AppointmentDetail = {
   timeSlot: '09:00-12:00',
   keyRequired: true,
   notes: null,
+  isOverdue: false,
   createdAt: '2026-03-01T10:00:00Z',
   updatedAt: '2026-03-01T10:00:00Z',
   meetingLocation: 'Front entrance',

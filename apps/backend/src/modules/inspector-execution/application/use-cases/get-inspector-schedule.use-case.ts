@@ -111,7 +111,8 @@ export class GetInspectorScheduleUseCase {
       };
     });
 
-    // When viewing today's schedule, include overdue appointments (scheduled before today)
+    // When viewing today's schedule, include overdue appointments (scheduled before today).
+    // T-1 visibility is intentionally skipped for overdue items — they need operator attention regardless.
     const todayStr = today.toISOString().split('T')[0]!;
     if (targetDateStr === todayStr) {
       const yesterday = new Date(today);

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { todayLocalDateString } from '@properfy/shared';
+import { useState, useEffect, useCallback } from 'react';
+import { AppointmentStatus, todayLocalDateString } from '@properfy/shared';
+import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +19,7 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { api } from '@/services/api';
 import { PropertyFormDrawer } from '@/features/properties/components/PropertyFormDrawer';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
@@ -41,8 +43,11 @@ export function AppointmentFormDrawer({
 }: AppointmentFormDrawerProps) {
   const { user } = useAuth();
   const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
+  const canAssignRole = user?.role === 'AM' || user?.role === 'OP';
+  const queryClient = useQueryClient();
 
   const [selectedTenantId, setSelectedTenantId] = useState('');
+  const [selectedInspectorId, setSelectedInspectorId] = useState('');
 
   const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
     ['tenants', 'form-options'],
@@ -79,6 +84,13 @@ export function AppointmentFormDrawer({
     ['service-types', 'form-options'],
     '/v1/service-types',
     (item) => ({ value: item.id, label: item.name }),
+  );
+  const { options: inspectorOptions } = useFormOptions<{ id: string; name: string }>(
+    ['inspectors', 'appointment-form-options'],
+    '/v1/inspectors',
+    (item) => ({ value: item.id, label: item.name }),
+    { status: 'ACTIVE' },
+    { enabled: canAssignRole },
   );
   const { options: propertyOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
     ['properties', 'form-options', effectiveTenantId ?? '', 'branch', form.branchId],
@@ -121,6 +133,7 @@ export function AppointmentFormDrawer({
       };
       setForm(data);
       setInitialData(data);
+      setSelectedInspectorId(appointment.inspectorId ?? '');
       setErrors({});
     }
   }, [isEditMode, appointment]);
@@ -132,6 +145,7 @@ export function AppointmentFormDrawer({
       setInitialData(EMPTY_FORM_DATA);
       setErrors({});
       setSelectedTenantId('');
+      setSelectedInspectorId('');
     }
   }, [open, isEditMode]);
 
@@ -186,6 +200,19 @@ export function AppointmentFormDrawer({
   }, []);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
+  const canAssignInspector =
+    isEditMode &&
+    canAssignRole &&
+    appointment?.status === AppointmentStatus.AWAITING_INSPECTOR;
+  const hasInspectorAssignmentChange =
+    canAssignInspector &&
+    !!selectedInspectorId &&
+    selectedInspectorId !== (appointment?.inspectorId ?? '');
+  const primaryLabel = hasInspectorAssignmentChange
+    ? 'Save & Assign Inspector'
+    : isEditMode
+      ? 'Save'
+      : 'Create Appointment';
 
   const updateField = useCallback(
     <K extends keyof AppointmentFormData>(field: K, value: AppointmentFormData[K]) => {
@@ -210,14 +237,71 @@ export function AppointmentFormDrawer({
       return;
     }
 
-    const result = await save(form, appointmentId ?? undefined);
-    if (result.success) {
-      showSuccess(isEditMode ? 'Appointment updated successfully' : 'Appointment created successfully');
-      onSaved();
-    } else {
-      showError(result.error ?? 'Failed to save');
+    const shouldSaveAppointment = !isEditMode || isDirty;
+    let savedAppointment = false;
+
+    if (shouldSaveAppointment) {
+      const result = await save(form, appointmentId ?? undefined);
+      if (!result.success) {
+        showError(result.error ?? 'Failed to save');
+        return;
+      }
+      savedAppointment = true;
     }
-  }, [isEditMode, form, validate, save, appointmentId, showSuccess, showError, onSaved]);
+
+    if (hasInspectorAssignmentChange && appointmentId) {
+      const { error } = await api.POST(
+        `/v1/appointments/${appointmentId}/status-transitions` as any,
+        {
+          body: {
+            targetStatus: AppointmentStatus.SCHEDULED,
+            inspectorId: selectedInspectorId,
+          } as any,
+          headers: {
+            'Idempotency-Key': crypto.randomUUID(),
+          },
+        },
+      );
+      if (error) {
+        const message = (error as any)?.error?.message ?? 'Failed to assign inspector';
+        showError(
+          savedAppointment
+            ? `Appointment updated, but inspector assignment failed: ${message}`
+            : message,
+        );
+        return;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      await queryClient.invalidateQueries({ queryKey: ['appointments', appointmentId] });
+    }
+
+    if (isEditMode) {
+      if (hasInspectorAssignmentChange) {
+        showSuccess('Appointment updated and inspector assigned successfully');
+      } else if (savedAppointment) {
+        showSuccess('Appointment updated successfully');
+      } else {
+        showSuccess('Inspector assigned successfully');
+      }
+    } else {
+      showSuccess('Appointment created successfully');
+    }
+    onSaved();
+  }, [
+    isEditMode,
+    form,
+    validate,
+    save,
+    appointmentId,
+    showSuccess,
+    showError,
+    onSaved,
+    isDirty,
+    hasInspectorAssignmentChange,
+    selectedInspectorId,
+    queryClient,
+  ]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -402,6 +486,20 @@ export function AppointmentFormDrawer({
                     onChangeNotes={handleRestrictionNotesChange}
                   />
 
+                  {canAssignInspector && (
+                    <FormSection title="Assignment">
+                      <FormField label="Inspector">
+                        <SelectInput
+                          value={selectedInspectorId}
+                          onChange={setSelectedInspectorId}
+                          options={inspectorOptions}
+                          placeholder="Select inspector"
+                          aria-label="Inspector"
+                        />
+                      </FormField>
+                    </FormSection>
+                  )}
+
                   <FormSection title="Notes">
                     <FormField label="Notes" error={errors.notes}>
                       <Textarea
@@ -422,7 +520,7 @@ export function AppointmentFormDrawer({
                     Cancel
                   </Button>
                   <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
-                    {isEditMode ? 'Save' : 'Create Appointment'}
+                    {primaryLabel}
                   </Button>
                 </FormActions>
               </div>
