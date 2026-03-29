@@ -19,7 +19,7 @@ export function useCountryOptions(): UseCountryOptionsReturn {
       if (error) throw error;
       return data as unknown as { data: { code: string; name: string }[] };
     },
-    staleTime: Infinity,
+    staleTime: 24 * 60 * 60 * 1000,
   });
 
   const countries = query.data?.data ?? [];

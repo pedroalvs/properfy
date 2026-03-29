@@ -22,7 +22,7 @@ export function useStateOptions(country: string): UseStateOptionsReturn {
       return data as unknown as { data: { code: string; name: string }[] };
     },
     enabled: !!country,
-    staleTime: Infinity,
+    staleTime: 24 * 60 * 60 * 1000,
   });
 
   const states = query.data?.data ?? [];

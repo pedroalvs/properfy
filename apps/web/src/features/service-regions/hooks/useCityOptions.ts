@@ -22,7 +22,7 @@ export function useCityOptions(country: string, state: string): UseCityOptionsRe
       return data as unknown as { data: { name: string; latitude: string | null; longitude: string | null }[] };
     },
     enabled: !!country && !!state,
-    staleTime: Infinity,
+    staleTime: 24 * 60 * 60 * 1000,
   });
 
   const cities = query.data?.data ?? [];
