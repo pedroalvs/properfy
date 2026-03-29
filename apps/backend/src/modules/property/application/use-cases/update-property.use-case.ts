@@ -5,7 +5,6 @@ import type { IPropertyRepository } from '../../domain/property.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import {
   PropertyNotFoundError,
-  PropertyCodeConflictError,
   BranchInactiveError,
 } from '../../domain/property.errors';
 import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
@@ -15,7 +14,6 @@ export interface UpdatePropertyInput {
   propertyId: string;
   data: {
     branchId?: string | null;
-    propertyCode?: string;
     type?: PropertyType;
     street?: string;
     addressLine2?: string | null;
@@ -85,10 +83,8 @@ export class UpdatePropertyUseCase {
     if (tenantId) {
       property = await this.propertyRepo.findById(propertyId, tenantId);
     } else {
-      // AM/OP: attempt lookup - repo requires tenantId, so we need a different approach
-      // For now, AM/OP must have context about the tenant; we'll look up without strict scoping
-      // by relying on the property ID being globally unique
-      property = await this.propertyRepo.findById(propertyId, '');
+      // AM/OP: no tenant scope restriction
+      property = await this.propertyRepo.findById(propertyId, null);
     }
 
     if (!property || property.isDeleted()) {
@@ -103,17 +99,6 @@ export class UpdatePropertyUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Check propertyCode uniqueness if changing
-    if (data.propertyCode && data.propertyCode !== property.propertyCode) {
-      const existing = await this.propertyRepo.findByPropertyCode(
-        data.propertyCode,
-        property.tenantId,
-      );
-      if (existing) {
-        throw new PropertyCodeConflictError();
-      }
-    }
-
     // Validate branch if changing
     if (data.branchId !== undefined && data.branchId !== null) {
       const branch = await this.branchRepo.findById(data.branchId, property.tenantId);
@@ -124,8 +109,6 @@ export class UpdatePropertyUseCase {
     // Build update payload
     const updateData: Record<string, unknown> = {};
     if (data.branchId !== undefined) updateData.branchId = data.branchId;
-    if (data.propertyCode !== undefined)
-      updateData.propertyCode = data.propertyCode;
     if (data.type !== undefined) updateData.type = data.type;
     if (data.street !== undefined) updateData.street = data.street;
     if (data.addressLine2 !== undefined)
@@ -173,8 +156,7 @@ export class UpdatePropertyUseCase {
     }
 
     const after = {
-      propertyCode:
-        (updateData.propertyCode as string) ?? property.propertyCode,
+      propertyCode: property.propertyCode,
       type: (updateData.type as string) ?? property.type,
       street: (updateData.street as string) ?? property.street,
       suburb: (updateData.suburb as string) ?? property.suburb,
@@ -200,8 +182,7 @@ export class UpdatePropertyUseCase {
       tenantId: property.tenantId,
       branchId:
         data.branchId !== undefined ? data.branchId ?? null : property.branchId,
-      propertyCode:
-        (updateData.propertyCode as string) ?? property.propertyCode,
+      propertyCode: property.propertyCode,
       type: (updateData.type as string) ?? property.type,
       street: (updateData.street as string) ?? property.street,
       addressLine2:

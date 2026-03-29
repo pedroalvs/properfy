@@ -62,7 +62,7 @@ export class PrismaPropertyRepository implements IPropertyRepository {
 
   async findById(
     id: string,
-    tenantId?: string,
+    tenantId?: string | null,
   ): Promise<PropertyEntity | null> {
     const where: Record<string, unknown> = { id, deleted_at: null };
     if (tenantId) where['tenant_id'] = tenantId;
@@ -72,7 +72,7 @@ export class PrismaPropertyRepository implements IPropertyRepository {
 
   async findByIdWithBranch(
     id: string,
-    tenantId?: string,
+    tenantId?: string | null,
   ): Promise<PropertyWithBranch | null> {
     const where: Record<string, unknown> = { id, deleted_at: null };
     if (tenantId) where['tenant_id'] = tenantId;

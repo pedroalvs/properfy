@@ -48,6 +48,8 @@ const VALID_CREATE_DATA: PropertyFormData = {
   state: 'VIC',
   country: 'AU',
   notes: '',
+  latitude: '',
+  longitude: '',
 };
 
 beforeEach(() => {

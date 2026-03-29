@@ -19,7 +19,6 @@ export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
 
 export const updatePropertySchema = z.object({
   branchId: z.string().uuid().nullable().optional(),
-  propertyCode: z.string().min(1).max(50).trim().optional(),
   type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']).optional(),
   street: z.string().min(1).max(300).trim().optional(),
   addressLine2: z.string().max(200).trim().nullable().optional(),

@@ -47,6 +47,8 @@ export interface PropertyFormData {
   state: string;
   country: string;
   notes: string;
+  latitude: string;
+  longitude: string;
 }
 
 export type PropertyFormErrors = Partial<Record<keyof PropertyFormData, string>>;
@@ -62,4 +64,6 @@ export const EMPTY_PROPERTY_FORM: PropertyFormData = {
   state: '',
   country: 'AU',
   notes: '',
+  latitude: '',
+  longitude: '',
 };

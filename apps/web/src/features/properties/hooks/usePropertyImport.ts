@@ -3,13 +3,19 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
+export interface PropertyImportError {
+  row: number;
+  field?: string;
+  message: string;
+}
+
 export interface PropertyImportStatus {
   id: string;
   status: 'PROCESSING' | 'COMPLETED' | 'FAILED';
   progress: number;
   successCount: number;
   errorCount: number;
-  errors: { row: number; message: string }[];
+  errors: PropertyImportError[];
 }
 
 export interface UsePropertyImportReturn {
@@ -34,7 +40,19 @@ export function usePropertyImport(): UsePropertyImportReturn {
         params: { path: { importId } } as any,
       });
       if (error) throw error;
-      return (data as { data: PropertyImportStatus }).data;
+      const raw = (data as { data: Record<string, unknown> }).data;
+      const errorsJson = (raw.errorsJson ?? []) as { row: number; field?: string; message: string }[];
+      const totalRows = (raw.totalRows as number) ?? 0;
+      const successCount = (raw.successCount as number) ?? 0;
+      const progress = totalRows > 0 ? Math.round(((successCount + (raw.errorCount as number ?? 0)) / totalRows) * 100) : 0;
+      return {
+        id: raw.id as string,
+        status: raw.status as PropertyImportStatus['status'],
+        progress,
+        successCount,
+        errorCount: (raw.errorCount as number) ?? 0,
+        errors: errorsJson,
+      };
     },
     enabled: !!importId && pollingEnabledRef.current,
     refetchInterval: (query) => {

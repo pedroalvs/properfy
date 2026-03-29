@@ -357,7 +357,7 @@ export function createContainer(logger: Logger): AppContainer {
   const geocodingService = env.MAPBOX_ACCESS_TOKEN
     ? new MapboxGeocodingService(env.MAPBOX_ACCESS_TOKEN)
     : new StubGeocodingService();
-  const geocodeWorker = new GeocodeWorker(propertyRepo, geocodingService, logger);
+  const geocodeWorker = new GeocodeWorker(propertyRepo, geocodingService, auditService, logger);
 
   // Property import
   const propertyImportRepo = new PrismaPropertyImportRepository(prisma);

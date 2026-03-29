@@ -7,7 +7,6 @@ import type { AuthContext } from '@properfy/shared';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import {
   PropertyNotFoundError,
-  PropertyCodeConflictError,
   BranchInactiveError,
 } from '../../../src/modules/property/domain/property.errors';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
@@ -144,21 +143,6 @@ describe('UpdatePropertyUseCase', () => {
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(PropertyNotFoundError);
-  });
-
-  it('should throw PROPERTY_CODE_CONFLICT when new code conflicts', async () => {
-    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
-    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(
-      makeProperty({ id: 'prop-2', propertyCode: 'PROP-002' }),
-    );
-
-    await expect(
-      useCase.execute({
-        propertyId: 'prop-1',
-        data: { propertyCode: 'PROP-002' },
-        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
-      }),
-    ).rejects.toThrow(PropertyCodeConflictError);
   });
 
   it('should set geocodingStatus to MANUAL when lat/lng provided', async () => {

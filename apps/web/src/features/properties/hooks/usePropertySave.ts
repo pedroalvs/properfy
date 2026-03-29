@@ -23,7 +23,7 @@ function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenant
     };
   }
 
-  return {
+  const payload: Record<string, unknown> = {
     ...(data.propertyCode.trim() ? { propertyCode: data.propertyCode.trim() } : {}),
     ...(data.type ? { type: data.type } : {}),
     ...(data.street.trim() ? { street: data.street.trim() } : {}),
@@ -35,6 +35,15 @@ function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenant
     branchId: data.branchId || null,
     notes: data.notes.trim() || null,
   };
+
+  if (data.latitude.trim()) {
+    payload.latitude = parseFloat(data.latitude.trim());
+  }
+  if (data.longitude.trim()) {
+    payload.longitude = parseFloat(data.longitude.trim());
+  }
+
+  return payload;
 }
 
 function isRequiredError(issue: { code?: string; message: string }): boolean {

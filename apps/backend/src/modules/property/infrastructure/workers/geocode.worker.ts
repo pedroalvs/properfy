@@ -1,11 +1,13 @@
 import type { IPropertyRepository } from '../../domain/property.repository';
 import type { IGeocodingService } from '../../domain/geocoding.service';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 
 export class GeocodeWorker {
   constructor(
     private readonly propertyRepo: IPropertyRepository,
     private readonly geocodingService: IGeocodingService,
+    private readonly auditService: AuditService,
     private readonly logger: Logger,
   ) {}
 
@@ -28,7 +30,27 @@ export class GeocodeWorker {
       return;
     }
 
-    const result = await this.geocodingService.geocode(property.fullAddress);
+    const fullAddress = property.fullAddress;
+
+    let result: { lat: number; lng: number } | null;
+    try {
+      result = await this.geocodingService.geocode(fullAddress);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      await this.propertyRepo.update(propertyId, property.tenantId, {
+        geocodingStatus: 'FAILED',
+      });
+      this.auditService.log({
+        action: 'property.geocoding_failed',
+        actorType: 'SYSTEM',
+        entityType: 'Property',
+        entityId: property.id,
+        tenantId: property.tenantId,
+        metadata: { address: fullAddress, reason: `Geocoding service error: ${errorMessage}` },
+      });
+      this.logger.error({ propertyId, error: err }, 'Geocoding service threw an error');
+      return;
+    }
 
     if (result) {
       await this.propertyRepo.update(propertyId, property.tenantId, {
@@ -43,6 +65,14 @@ export class GeocodeWorker {
     } else {
       await this.propertyRepo.update(propertyId, property.tenantId, {
         geocodingStatus: 'FAILED',
+      });
+      this.auditService.log({
+        action: 'property.geocoding_failed',
+        actorType: 'SYSTEM',
+        entityType: 'Property',
+        entityId: property.id,
+        tenantId: property.tenantId,
+        metadata: { address: fullAddress, reason: 'Geocoding service returned no results' },
       });
       this.logger.warn({ propertyId }, 'Geocoding failed for property');
     }

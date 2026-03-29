@@ -71,7 +71,7 @@ describe('ProgressStep', () => {
     );
 
     expect(screen.getByText('Import failed')).toBeInTheDocument();
-    expect(screen.getByText('Import Errors')).toBeInTheDocument();
+    expect(screen.getByText('Import Errors (2)')).toBeInTheDocument();
     expect(screen.getByText('Server error on row 1')).toBeInTheDocument();
     expect(screen.getByText('Duplicate entry')).toBeInTheDocument();
   });

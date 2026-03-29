@@ -3,7 +3,7 @@ interface ProgressStepProps {
   progress: number;
   successCount: number;
   errorCount: number;
-  errors: { row: number; message: string }[];
+  errors: { row: number; field?: string; message: string }[];
 }
 
 export function ProgressStep({
@@ -122,14 +122,17 @@ export function ProgressStep({
       {errors.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-bold text-[var(--color-error)]">
-            Import Errors
+            Import Errors ({errors.length})
           </h4>
-          <div className="max-h-48 overflow-y-auto rounded-md border border-red-200 bg-red-50">
+          <div className="max-h-64 overflow-y-auto rounded-md border border-red-200 bg-red-50">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-red-200 bg-red-100">
                   <th className="px-3 py-2 font-bold text-[var(--color-text-secondary)]">
                     Row
+                  </th>
+                  <th className="px-3 py-2 font-bold text-[var(--color-text-secondary)]">
+                    Field
                   </th>
                   <th className="px-3 py-2 font-bold text-[var(--color-text-secondary)]">
                     Error
@@ -144,6 +147,9 @@ export function ProgressStep({
                     data-testid={`error-row-${idx}`}
                   >
                     <td className="px-3 py-2 font-semibold">{err.row}</td>
+                    <td className="px-3 py-2 text-[var(--color-text-secondary)]">
+                      {err.field ?? '-'}
+                    </td>
                     <td className="px-3 py-2">{err.message}</td>
                   </tr>
                 ))}

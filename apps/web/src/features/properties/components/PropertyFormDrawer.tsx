@@ -73,6 +73,8 @@ export function PropertyFormDrawer({
         state: property.state,
         country: property.country,
         notes: property.notes ?? '',
+        latitude: property.latitude != null ? String(property.latitude) : '',
+        longitude: property.longitude != null ? String(property.longitude) : '',
       };
       setForm(data);
       setInitialData(data);
@@ -292,6 +294,34 @@ export function PropertyFormDrawer({
                       />
                     </FormField>
                   </FormSection>
+
+                  {isEditMode && (
+                    <FormSection title="Coordinates" columns={2}>
+                      <FormField
+                        label="Latitude"
+                        hint="Optional. Manually override geocoded coordinates."
+                        error={errors.latitude}
+                      >
+                        <TextInput
+                          value={form.latitude}
+                          onChange={(v) => updateField('latitude', v)}
+                          placeholder="-33.8688"
+                          aria-label="Latitude"
+                        />
+                      </FormField>
+                      <FormField
+                        label="Longitude"
+                        error={errors.longitude}
+                      >
+                        <TextInput
+                          value={form.longitude}
+                          onChange={(v) => updateField('longitude', v)}
+                          placeholder="151.2093"
+                          aria-label="Longitude"
+                        />
+                      </FormField>
+                    </FormSection>
+                  )}
 
                   <FormSection title="Notes">
                     <FormField label="Notes" error={errors.notes}>

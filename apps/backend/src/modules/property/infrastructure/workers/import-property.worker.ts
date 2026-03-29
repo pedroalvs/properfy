@@ -206,7 +206,24 @@ export class ImportPropertyWorker {
       deletedAt: null,
     });
 
-    await this.propertyRepo.save(property);
+    try {
+      await this.propertyRepo.save(property);
+    } catch (err: unknown) {
+      const isPrismaUniqueViolation =
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code: string }).code === 'P2002';
+      if (isPrismaUniqueViolation) {
+        errors.push({
+          row: rowNum,
+          field: 'propertyCode',
+          message: 'Property code already exists in this tenant',
+        });
+        return;
+      }
+      throw err;
+    }
 
     // Enqueue geocoding job for the newly created property
     if (this.jobQueue) {
