@@ -18,7 +18,7 @@ function formatTimeAgo(timestamp: number): string {
 
 export function MarketplacePage() {
   const isOnline = useIsOnline();
-  const { data, isLoading, isError, refetch, dataUpdatedAt } = useMarketplaceOffers();
+  const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useMarketplaceOffers();
   const offers = data?.data ?? [];
   const hasCachedOffers = offers.length > 0;
   const shouldShowFeed = !isLoading && (!isError || hasCachedOffers);
@@ -48,7 +48,11 @@ export function MarketplacePage() {
       )}
 
       {isOnline && isError && !hasCachedOffers && (
-        <ErrorState message="Failed to load offers" onRetry={refetch} />
+        <ErrorState
+          message="Failed to load offers"
+          detail={error instanceof Error ? error.message : undefined}
+          onRetry={refetch}
+        />
       )}
 
       {shouldShowFeed && (

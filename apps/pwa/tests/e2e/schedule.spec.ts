@@ -40,7 +40,7 @@ test.describe('Schedule', () => {
     await expect(page.getByTestId('day-selector-strip')).toBeVisible();
   });
 
-  test('shows bottom navigation with 5 tabs', async ({ page }) => {
+  test('shows bottom navigation with 4 tabs', async ({ page }) => {
     await page.route('**/v1/me', async (route) => {
       await route.fulfill({
         status: 200,
@@ -67,7 +67,6 @@ test.describe('Schedule', () => {
     await expect(page.getByTestId('bottom-nav')).toBeVisible();
     await expect(page.getByTestId('nav-schedule')).toBeVisible();
     await expect(page.getByTestId('nav-offers')).toBeVisible();
-    await expect(page.getByTestId('nav-map')).toBeVisible();
     await expect(page.getByTestId('nav-earnings')).toBeVisible();
     await expect(page.getByTestId('nav-profile')).toBeVisible();
   });

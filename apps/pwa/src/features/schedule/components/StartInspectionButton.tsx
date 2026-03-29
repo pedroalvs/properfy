@@ -62,7 +62,7 @@ export function StartInspectionButton({
 
   useEffect(() => {
     if (resume) return;
-    const interval = setInterval(updateState, 30_000);
+    const interval = setInterval(updateState, 5_000);
     return () => clearInterval(interval);
   }, [resume, updateState]);
 

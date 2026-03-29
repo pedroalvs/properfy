@@ -48,7 +48,7 @@ describe('EarningsPage', () => {
     renderWithProviders(<EarningsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Total Earnings')).toBeInTheDocument();
+      expect(screen.getByText('Earnings')).toBeInTheDocument();
       expect(screen.getAllByText(/A?\$\s*150\.00/).length).toBeGreaterThan(0);
       expect(screen.getByText('Approved')).toBeInTheDocument();
     });

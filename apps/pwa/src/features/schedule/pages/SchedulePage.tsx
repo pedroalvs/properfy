@@ -27,7 +27,7 @@ export function SchedulePage() {
   const lastDay = days[days.length - 1]!;
   const [selectedDate, setSelectedDate] = useState(today);
 
-  const { data, isLoading, isError, refetch } = useScheduleRange(today, lastDay);
+  const { data, isLoading, isError, error, refetch } = useScheduleRange(today, lastDay);
   const dayAppointments = useScheduleDay(data?.appointments, selectedDate);
 
   const appointmentCounts = useMemo(() => {
@@ -89,7 +89,11 @@ export function SchedulePage() {
           )}
 
           {isError && (
-            <ErrorState message="Failed to load schedule" onRetry={refetch} />
+            <ErrorState
+              message="Failed to load schedule"
+              detail={error instanceof Error ? error.message : undefined}
+              onRetry={refetch}
+            />
           )}
 
           {!isLoading && !isError && (

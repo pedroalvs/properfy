@@ -9,11 +9,17 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+let mockQueuedCount = 0;
+vi.mock('@/features/execution/hooks/useQueuedActionCount', () => ({
+  useQueuedActionCount: () => mockQueuedCount,
+}));
+
 describe('TopBar', () => {
   let historyStateSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     mockNavigate.mockClear();
+    mockQueuedCount = 0;
     historyStateSpy = vi.spyOn(window.history, 'state', 'get');
     historyStateSpy.mockReturnValue({ idx: 1 });
   });
@@ -73,5 +79,19 @@ describe('TopBar', () => {
   it('shows subtitle when provided', () => {
     renderWithProviders(<TopBar title="Inspection" subtitle="123 Main St · 9:00 AM" />);
     expect(screen.getByTestId('topbar-subtitle')).toHaveTextContent('123 Main St · 9:00 AM');
+  });
+
+  it('does not show queue badge when count is 0', () => {
+    mockQueuedCount = 0;
+    renderWithProviders(<TopBar title="Schedule" />);
+    expect(screen.queryByTestId('queue-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows queue badge with count when there are queued actions', () => {
+    mockQueuedCount = 3;
+    renderWithProviders(<TopBar title="Schedule" />);
+    const badge = screen.getByTestId('queue-badge');
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent('3 pending');
   });
 });

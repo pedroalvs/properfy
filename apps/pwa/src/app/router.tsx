@@ -81,7 +81,6 @@ export const router = createBrowserRouter(
                 { path: 'schedule', element: lazyElement(SchedulePage) },
                 { path: 'schedule/:appointmentId', element: lazyElement(AppointmentDetailPage) },
                 { path: 'marketplace', element: lazyElement(MarketplacePage) },
-                { path: 'map', element: <Navigate to="/schedule" replace /> },
                 { path: 'earnings', element: lazyElement(EarningsPage) },
                 { path: 'profile', element: lazyElement(ProfilePage) },
               ],

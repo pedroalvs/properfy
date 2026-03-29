@@ -6,11 +6,13 @@ import type { CapturedLocation } from '../types';
 
 interface PreStartPanelProps {
   propertyAddress: string;
+  propertyLatitude?: number | null;
+  propertyLongitude?: number | null;
   onStart: (location: CapturedLocation) => void;
   isStarting: boolean;
 }
 
-export function PreStartPanel({ propertyAddress, onStart, isStarting }: PreStartPanelProps) {
+export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongitude, onStart, isStarting }: PreStartPanelProps) {
   const { location, status, error, requestLocation } = useGeolocation({ autoCapture: true });
   const [addressConfirmed, setAddressConfirmed] = useState(false);
 
@@ -26,6 +28,8 @@ export function PreStartPanel({ propertyAddress, onStart, isStarting }: PreStart
         location={location}
         error={error}
         onRequest={requestLocation}
+        propertyLatitude={propertyLatitude}
+        propertyLongitude={propertyLongitude}
       />
 
       <label className="flex items-center gap-3 rounded-lg bg-card-bg p-4" data-testid="address-confirm-label">

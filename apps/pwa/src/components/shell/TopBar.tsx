@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useIsOnline } from '@/hooks/useIsOnline';
+import { useQueuedActionCount } from '@/features/execution/hooks/useQueuedActionCount';
 
 interface TopBarProps {
   title: string;
@@ -11,6 +12,7 @@ interface TopBarProps {
 export function TopBar({ title, subtitle, showBack = false, backTo = '/schedule' }: TopBarProps) {
   const navigate = useNavigate();
   const isOnline = useIsOnline();
+  const queuedCount = useQueuedActionCount();
 
   const handleBack = () => {
     const historyIndex = typeof window !== 'undefined'
@@ -46,13 +48,24 @@ export function TopBar({ title, subtitle, showBack = false, backTo = '/schedule'
           </p>
         )}
       </div>
-      <div className="flex items-center gap-2 rounded-full border border-border-subtle bg-app-bg/80 px-2.5 py-1 text-[11px] font-semibold text-text-secondary">
-        <span
-          className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${isOnline ? 'bg-success' : 'bg-error'}`}
-          title={isOnline ? 'Online' : 'Offline'}
-          data-testid="connection-indicator"
-        />
-        <span>{isOnline ? 'Online' : 'Offline'}</span>
+      <div className="flex items-center gap-2">
+        {queuedCount > 0 && (
+          <div
+            className="flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2.5 py-1 text-[11px] font-semibold text-warning"
+            data-testid="queue-badge"
+          >
+            <i className="mdi mdi-sync text-xs" aria-hidden="true" />
+            <span>{queuedCount} pending</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2 rounded-full border border-border-subtle bg-app-bg/80 px-2.5 py-1 text-[11px] font-semibold text-text-secondary">
+          <span
+            className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${isOnline ? 'bg-success' : 'bg-error'}`}
+            title={isOnline ? 'Online' : 'Offline'}
+            data-testid="connection-indicator"
+          />
+          <span>{isOnline ? 'Online' : 'Offline'}</span>
+        </div>
       </div>
       </div>
     </header>

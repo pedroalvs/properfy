@@ -178,6 +178,8 @@ export function ExecutionPage() {
       {state.phase === 'PRE_START' && (
         <PreStartPanel
           propertyAddress={appointment?.propertyAddress ?? ''}
+          propertyLatitude={appointment?.propertyLatitude}
+          propertyLongitude={appointment?.propertyLongitude}
           onStart={handleStart}
           isStarting={startMutation.isPending}
         />

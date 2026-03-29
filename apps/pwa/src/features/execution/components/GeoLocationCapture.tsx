@@ -1,17 +1,27 @@
 import type { CapturedLocation } from '../types';
 import type { ReactNode } from 'react';
+import { distanceMeters } from '@/lib/geo';
 
 type GeoStatus = 'idle' | 'requesting' | 'success' | 'error' | 'denied';
+
+const DISTANCE_WARNING_THRESHOLD = 200;
 
 interface GeoLocationCaptureProps {
   status: GeoStatus;
   location: CapturedLocation | null;
   error: string | null;
   onRequest: () => void;
+  propertyLatitude?: number | null;
+  propertyLongitude?: number | null;
   children?: ReactNode;
 }
 
-export function GeoLocationCapture({ status, location, error, onRequest, children }: GeoLocationCaptureProps) {
+export function GeoLocationCapture({ status, location, error, onRequest, propertyLatitude, propertyLongitude, children }: GeoLocationCaptureProps) {
+  const distance =
+    location && propertyLatitude != null && propertyLongitude != null
+      ? distanceMeters(location.latitude, location.longitude, propertyLatitude, propertyLongitude)
+      : null;
+  const showDistanceWarning = distance !== null && distance > DISTANCE_WARNING_THRESHOLD;
   return (
     <div data-testid="geo-capture" className="rounded-lg bg-card-bg p-4">
       <h3 className="text-xs font-bold uppercase text-text-secondary">Location</h3>
@@ -52,6 +62,17 @@ export function GeoLocationCapture({ status, location, error, onRequest, childre
           >
             Accuracy: {Math.round(location.accuracy)}m
           </span>
+          {showDistanceWarning && (
+            <div
+              className="mt-2 flex items-start gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning"
+              data-testid="distance-warning"
+            >
+              <i className="mdi mdi-alert mt-0.5 flex-shrink-0" aria-hidden="true" />
+              <span>
+                You are {Math.round(distance!)}m from the property. Are you at the correct location?
+              </span>
+            </div>
+          )}
         </div>
       )}
 
