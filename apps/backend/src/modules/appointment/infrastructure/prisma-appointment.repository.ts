@@ -351,10 +351,23 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   private buildWhere(filters: AppointmentFilters) {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
-    if (filters.status) {
-      where['status'] = filters.status;
-    } else if (!filters.showCancelled) {
-      where['status'] = { notIn: ['CANCELLED', 'REJECTED'] };
+    if (filters.overdueOnly) {
+      where['status'] = { in: ['SCHEDULED', 'AWAITING_INSPECTOR'] };
+      const todayUtc = new Date();
+      todayUtc.setUTCHours(0, 0, 0, 0);
+      where['scheduled_date'] = { lt: todayUtc };
+    } else {
+      if (filters.status) {
+        where['status'] = filters.status;
+      } else if (!filters.showCancelled) {
+        where['status'] = { notIn: ['CANCELLED', 'REJECTED'] };
+      }
+      if (filters.fromDate || filters.toDate) {
+        const dateFilter: Record<string, unknown> = {};
+        if (filters.fromDate) dateFilter['gte'] = parseDateOnlyToUtcStart(filters.fromDate);
+        if (filters.toDate) dateFilter['lt'] = nextUtcDay(parseDateOnlyToUtcStart(filters.toDate));
+        where['scheduled_date'] = dateFilter;
+      }
     }
     if (filters.serviceTypeId) where['service_type_id'] = filters.serviceTypeId;
     if (filters.branchId) where['branch_id'] = filters.branchId;
@@ -365,12 +378,6 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     }
     if (filters.search) {
       where['notes'] = { contains: filters.search, mode: 'insensitive' };
-    }
-    if (filters.fromDate || filters.toDate) {
-      const dateFilter: Record<string, unknown> = {};
-      if (filters.fromDate) dateFilter['gte'] = parseDateOnlyToUtcStart(filters.fromDate);
-      if (filters.toDate) dateFilter['lt'] = nextUtcDay(parseDateOnlyToUtcStart(filters.toDate));
-      where['scheduled_date'] = dateFilter;
     }
     return where;
   }

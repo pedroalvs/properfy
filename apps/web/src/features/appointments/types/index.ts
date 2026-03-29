@@ -25,6 +25,7 @@ export interface Appointment {
   notes: string | null;
   doneCheckedByUserId?: string | null;
   doneCheckedAt?: string | null;
+  isOverdue?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -37,6 +38,7 @@ export interface AppointmentFiltersState {
   startDate: string;
   endDate: string;
   showCancelled: boolean;
+  overdueOnly: boolean;
 }
 
 export interface AppointmentDetail extends Appointment {
@@ -109,4 +111,5 @@ export const DEFAULT_FILTERS: AppointmentFiltersState = {
   startDate: '',
   endDate: '',
   showCancelled: false,
+  overdueOnly: false,
 };

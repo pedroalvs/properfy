@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import { type AuthContext, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type {
   IAppointmentRepository,
@@ -20,6 +20,7 @@ export interface ListAppointmentsInput {
     toDate?: string;
     tenantConfirmationStatus?: string;
     showCancelled?: boolean;
+    overdueOnly?: boolean;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -57,6 +58,7 @@ export interface ListAppointmentsOutput {
     inspectorName: string | null;
     branchName: string;
     serviceTypeName: string;
+    isOverdue: boolean;
   }>;
   total: number;
   page: number;
@@ -101,6 +103,7 @@ export class ListAppointmentsUseCase {
       toDate: filters.toDate,
       tenantConfirmationStatus: filters.tenantConfirmationStatus,
       showCancelled: filters.showCancelled,
+      overdueOnly: filters.overdueOnly,
     };
 
     const [data, total] = await Promise.all([
@@ -139,6 +142,7 @@ export class ListAppointmentsUseCase {
         inspectorName: item.inspectorName,
         branchName: item.branchName,
         serviceTypeName: item.serviceTypeName,
+        isOverdue: isAppointmentOverdue(item.appointment.status, item.appointment.scheduledDate),
       })),
       total,
       page: pagination.page,

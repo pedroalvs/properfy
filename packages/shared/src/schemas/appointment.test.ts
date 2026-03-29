@@ -114,6 +114,47 @@ describe('createAppointmentSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('should reject a past date (2020-01-01)', () => {
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: '2020-01-01',
+      timeSlot: '09:00-10:00',
+      contact: validContact,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.message === 'Scheduled date cannot be in the past')).toBe(true);
+    }
+  });
+
+  it('should accept today as scheduledDate', () => {
+    const today = new Date().toISOString().split('T')[0];
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: today,
+      timeSlot: '09:00-10:00',
+      contact: validContact,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept tomorrow as scheduledDate', () => {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: tomorrow,
+      timeSlot: '09:00-10:00',
+      contact: validContact,
+    });
+    expect(result.success).toBe(true);
+  });
+
   it('should default keyRequired to false', () => {
     const result = createAppointmentSchema.safeParse({
       branchId: validBranchId,
@@ -149,6 +190,39 @@ describe('updateAppointmentSchema', () => {
       timeSlot: 'invalid',
     });
     expect(result.success).toBe(false);
+  });
+
+  it('should reject a past scheduledDate (2020-01-01)', () => {
+    const result = updateAppointmentSchema.safeParse({
+      scheduledDate: '2020-01-01',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.message === 'Scheduled date cannot be in the past')).toBe(true);
+    }
+  });
+
+  it('should accept today as scheduledDate', () => {
+    const today = new Date().toISOString().split('T')[0];
+    const result = updateAppointmentSchema.safeParse({
+      scheduledDate: today,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept tomorrow as scheduledDate', () => {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const result = updateAppointmentSchema.safeParse({
+      scheduledDate: tomorrow,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept update without scheduledDate (no past date check)', () => {
+    const result = updateAppointmentSchema.safeParse({
+      notes: 'just a note',
+    });
+    expect(result.success).toBe(true);
   });
 
   it('should allow nullable fields to be set to null', () => {

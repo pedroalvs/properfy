@@ -170,6 +170,12 @@ export class AppointmentPropertyTenantMismatchError extends ForbiddenError {
   }
 }
 
+export class AppointmentPastDateError extends DomainError {
+  constructor() {
+    super('APPOINTMENT_PAST_DATE', 'Scheduled date cannot be in the past', 422);
+  }
+}
+
 export class AppointmentTenantConfirmationRequiredError extends DomainError {
   constructor() {
     super(

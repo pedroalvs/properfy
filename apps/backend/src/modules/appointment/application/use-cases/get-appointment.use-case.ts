@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import { type AuthContext, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
 import {
@@ -45,6 +45,7 @@ export interface GetAppointmentOutput {
   inspectorName: string | null;
   branchName: string;
   serviceTypeName: string;
+  isOverdue: boolean;
   cancellationReason: string | null;
   contact: {
     id: string;
@@ -100,6 +101,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     inspectorName: found.inspectorName ?? null,
     branchName: found.branchName ?? '',
     serviceTypeName: found.serviceTypeName ?? '',
+    isOverdue: isAppointmentOverdue(appointment.status, appointment.scheduledDate),
     cancellationReason: appointment.reason,
     contact: contact
       ? {

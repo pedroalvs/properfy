@@ -26,6 +26,7 @@ import {
   AppointmentServiceTypeNotFoundError,
   AppointmentServiceTypeInactiveError,
   AppointmentNoPriceRuleError,
+  AppointmentPastDateError,
 } from '../../domain/appointment.errors';
 import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
@@ -219,6 +220,15 @@ export class CreateAppointmentUseCase {
           `Time slot "${input.timeSlot}" is not available for this branch`,
         );
       }
+    }
+
+    // 5c. Reject past dates (AM/OP bypass)
+    const scheduledDateObj = new Date(input.scheduledDate);
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    scheduledDateObj.setUTCHours(0, 0, 0, 0);
+    if (scheduledDateObj < todayStart && actor.role !== 'AM' && actor.role !== 'OP') {
+      throw new AppointmentPastDateError();
     }
 
     // 6. Resolve pricing rule

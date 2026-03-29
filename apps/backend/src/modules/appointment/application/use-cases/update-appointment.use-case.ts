@@ -9,6 +9,7 @@ import { AppointmentRestrictionEntity } from '../../domain/appointment-restricti
 import {
   AppointmentNotFoundError,
   AppointmentUpdateNotAllowedError,
+  AppointmentPastDateError,
 } from '../../domain/appointment.errors';
 import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
@@ -144,6 +145,17 @@ export class UpdateAppointmentUseCase {
         throw new ValidationError(
           `Time slot "${data.timeSlot}" is not available for this branch`,
         );
+      }
+    }
+
+    // Reject past dates (AM/OP bypass)
+    if (data.scheduledDate !== undefined) {
+      const scheduledDateObj = new Date(data.scheduledDate);
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      scheduledDateObj.setUTCHours(0, 0, 0, 0);
+      if (scheduledDateObj < todayStart && actor.role !== 'AM' && actor.role !== 'OP') {
+        throw new AppointmentPastDateError();
       }
     }
 

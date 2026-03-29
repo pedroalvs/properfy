@@ -24,7 +24,14 @@ export const createAppointmentSchema = z.object({
   propertyId: z.string().uuid().optional(),
   property: inlinePropertySchema.optional(),
   serviceTypeId: z.string().uuid(),
-  scheduledDate: z.string().date(),
+  scheduledDate: z.string().date().refine(
+    (val) => {
+      const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+      const d = new Date(val); d.setUTCHours(0, 0, 0, 0);
+      return d >= today;
+    },
+    { message: 'Scheduled date cannot be in the past' },
+  ),
   timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format'),
   contact: contactSchema,
   restriction: restrictionSchema.optional(),
@@ -49,7 +56,15 @@ export const updateAppointmentSchema = z.object({
   contact: contactSchema.optional(),
   restriction: restrictionSchema.optional(),
   customFields: z.record(z.unknown()).nullable().optional(),
-});
+}).refine(
+  (data) => {
+    if (data.scheduledDate === undefined) return true;
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    const d = new Date(data.scheduledDate); d.setUTCHours(0, 0, 0, 0);
+    return d >= today;
+  },
+  { message: 'Scheduled date cannot be in the past', path: ['scheduledDate'] },
+);
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 
 export const statusTransitionSchema = z.object({
@@ -74,6 +89,10 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   toDate: z.string().date().optional(),
   tenantConfirmationStatus: z.nativeEnum(TenantConfirmationStatus).optional(),
   showCancelled: z
+    .string()
+    .transform((v) => v === 'true')
+    .optional(),
+  overdueOnly: z
     .string()
     .transform((v) => v === 'true')
     .optional(),

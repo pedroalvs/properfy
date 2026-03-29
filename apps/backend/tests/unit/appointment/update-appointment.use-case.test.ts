@@ -8,6 +8,7 @@ import { AppointmentContactEntity } from '../../../src/modules/appointment/domai
 import {
   AppointmentNotFoundError,
   AppointmentUpdateNotAllowedError,
+  AppointmentPastDateError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
@@ -326,6 +327,70 @@ describe('UpdateAppointmentUseCase', () => {
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(AppointmentNotFoundError);
+  });
+
+  // Past date prevention
+  describe('past date prevention', () => {
+    it('should reject past scheduledDate for CL_ADMIN', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      await expect(
+        useCase.execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2020-01-01' },
+          actor: makeActor({ role: 'CL_ADMIN' }),
+        }),
+      ).rejects.toThrow(AppointmentPastDateError);
+    });
+
+    it('should accept past scheduledDate for AM', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2020-01-01' },
+        actor: makeActor({ role: 'AM', tenantId: null }),
+      });
+
+      expect(result.id).toBe('appt-1');
+    });
+
+    it('should accept past scheduledDate for OP', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2020-01-01' },
+        actor: makeActor({ role: 'OP', tenantId: null }),
+      });
+
+      expect(result.id).toBe('appt-1');
+    });
+
+    it('should accept today for CL_ADMIN', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const today = new Date().toISOString().split('T')[0];
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: today },
+        actor: makeActor({ role: 'CL_ADMIN' }),
+      });
+
+      expect(result.id).toBe('appt-1');
+    });
+
+    it('should not check past date when scheduledDate is not provided', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { notes: 'just a note' },
+        actor: makeActor({ role: 'CL_ADMIN' }),
+      });
+
+      expect(result.id).toBe('appt-1');
+    });
   });
 
   // H6: CL_USER reschedule permission

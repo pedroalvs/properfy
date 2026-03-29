@@ -265,7 +265,9 @@ describe('GetInspectorScheduleUseCase', () => {
       tenantConfirmationStatus: 'PENDING',
       keyRequired: false,
     });
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([appt]);
+    vi.mocked(appointmentRepo.findAll)
+      .mockResolvedValueOnce([appt])   // today's schedule query
+      .mockResolvedValueOnce([]);       // overdue query (empty)
     vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
       { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
     ]);
@@ -286,7 +288,9 @@ describe('GetInspectorScheduleUseCase', () => {
       tenantConfirmationStatus: 'UNAVAILABLE',
       keyRequired: false,
     });
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([appt]);
+    vi.mocked(appointmentRepo.findAll)
+      .mockResolvedValueOnce([appt])   // today's schedule query
+      .mockResolvedValueOnce([]);       // overdue query (empty)
     vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
       { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
     ]);

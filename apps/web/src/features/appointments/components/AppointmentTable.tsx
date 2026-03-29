@@ -48,7 +48,7 @@ export function AppointmentTable({
       label: 'Status',
       width: '160px',
       sortable: true,
-      render: (row) => <AppointmentStatusChip status={row.status} doneCheckedByUserId={row.doneCheckedByUserId} />,
+      render: (row) => <AppointmentStatusChip status={row.status} doneCheckedByUserId={row.doneCheckedByUserId} isOverdue={row.isOverdue} />,
     },
     {
       key: 'tenantConfirmationStatus',

@@ -54,6 +54,12 @@ export class AssetNotFoundError extends NotFoundError {
   }
 }
 
+export class ExecutionTimeWindowError extends DomainError {
+  constructor(reason: string) {
+    super('EXECUTION_TIME_WINDOW_EXCEEDED', reason, 422);
+  }
+}
+
 export class AssetUploadExpiredError extends DomainError {
   constructor() {
     super('ASSET_UPLOAD_EXPIRED', 'Presigned upload URL has expired', 410);

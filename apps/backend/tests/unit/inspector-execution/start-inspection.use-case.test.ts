@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { StartInspectionUseCase } from '../../../src/modules/inspector-execution/application/use-cases/start-inspection.use-case';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import {
   ExecutionAppointmentNotFoundError,
   ExecutionAlreadyFinishedError,
   ExecutionT1BlockedError,
+  ExecutionTimeWindowError,
 } from '../../../src/modules/inspector-execution/domain/inspection-execution.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
@@ -93,6 +94,8 @@ function makeSut() {
 describe('StartInspectionUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set fake time within the default appointment time window (09:00-11:00 on 2026-03-21)
+    vi.useFakeTimers({ now: new Date('2026-03-21T10:00:00Z') });
     idempotencyService.get.mockResolvedValue(null);
     executionRepo.findByAppointmentId.mockResolvedValue(null);
     executionRepo.save.mockResolvedValue(undefined);
@@ -103,6 +106,10 @@ describe('StartInspectionUseCase', () => {
       name: 'Routine Inspection',
       flowType: 'ROUTINE',
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('should create InspectionExecution with correct coordinates and timestamps', async () => {
@@ -308,8 +315,7 @@ describe('StartInspectionUseCase', () => {
 
   it('should throw ExecutionT1BlockedError for unconfirmed ROUTINE on the scheduled day', async () => {
     const sut = makeSut();
-    const today = new Date('2026-03-21T12:00:00Z');
-    vi.useFakeTimers({ now: today });
+    vi.setSystemTime(new Date('2026-03-21T12:00:00Z'));
 
     appointmentRepo.findById.mockResolvedValue(
       makeAppointmentWithRelations({
@@ -328,14 +334,11 @@ describe('StartInspectionUseCase', () => {
         actor: inspActor,
       }),
     ).rejects.toThrow(ExecutionT1BlockedError);
-
-    vi.useRealTimers();
   });
 
   it('should throw ExecutionT1BlockedError for ROUTINE marked UNAVAILABLE on the scheduled day', async () => {
     const sut = makeSut();
-    const today = new Date('2026-03-21T12:00:00Z');
-    vi.useFakeTimers({ now: today });
+    vi.setSystemTime(new Date('2026-03-21T12:00:00Z'));
 
     appointmentRepo.findById.mockResolvedValue(
       makeAppointmentWithRelations({
@@ -354,8 +357,6 @@ describe('StartInspectionUseCase', () => {
         actor: inspActor,
       }),
     ).rejects.toThrow(ExecutionT1BlockedError);
-
-    vi.useRealTimers();
   });
 
   it('should throw ForbiddenError when actor is not INSP', async () => {
@@ -410,5 +411,62 @@ describe('StartInspectionUseCase', () => {
 
     expect(idempotencyService.set).toHaveBeenCalledOnce();
     expect(idempotencyService.set).toHaveBeenCalledWith('key-10', 'start', result, 24);
+  });
+
+  it('should throw ExecutionTimeWindowError when starting too early', async () => {
+    const sut = makeSut();
+    // Appointment at 09:00-11:00 on 2026-03-21, window opens at 08:30
+    // Set time to 08:00 (before window)
+    vi.setSystemTime(new Date('2026-03-21T08:00:00Z'));
+
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
+
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        latitude: -33.891,
+        longitude: 151.277,
+        idempotencyKey: 'key-tw-1',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(ExecutionTimeWindowError);
+  });
+
+  it('should throw ExecutionTimeWindowError when starting too late', async () => {
+    const sut = makeSut();
+    // Appointment at 09:00-11:00 on 2026-03-21, window closes at 13:00
+    // Set time to 14:00 (after window)
+    vi.setSystemTime(new Date('2026-03-21T14:00:00Z'));
+
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
+
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        latitude: -33.891,
+        longitude: 151.277,
+        idempotencyKey: 'key-tw-2',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(ExecutionTimeWindowError);
+  });
+
+  it('should allow starting within the time window', async () => {
+    const sut = makeSut();
+    // Appointment at 09:00-11:00 on 2026-03-21, set time to 09:30 (within window)
+    vi.setSystemTime(new Date('2026-03-21T09:30:00Z'));
+
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-tw-3',
+      actor: inspActor,
+    });
+
+    expect(result.status).toBe('IN_PROGRESS');
+    expect(result.appointmentId).toBe('appt-1');
   });
 });

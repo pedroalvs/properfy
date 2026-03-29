@@ -21,6 +21,7 @@ export interface ScheduleAppointmentItem {
   keyRequired: boolean;
   meetingLocation: string | null;
   executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED';
+  isOverdue?: boolean;
 }
 
 export interface GetInspectorScheduleOutput {
@@ -109,6 +110,56 @@ export class GetInspectorScheduleUseCase {
         executionStatus,
       };
     });
+
+    // When viewing today's schedule, include overdue appointments (scheduled before today)
+    const todayStr = today.toISOString().split('T')[0]!;
+    if (targetDateStr === todayStr) {
+      const yesterday = new Date(today);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0]!;
+
+      const overdueAppointments = await this.appointmentRepo.findAll(
+        {
+          inspectorId: actor.inspectorId,
+          status: 'SCHEDULED',
+          toDate: yesterdayStr,
+        },
+        { page: 1, pageSize: 1000, sortBy: 'scheduled_date', sortOrder: 'asc' },
+      );
+
+      // Load execution statuses for overdue appointments
+      const overdueIds = overdueAppointments.map((a) => a.appointment.id);
+      const overdueExecutions =
+        overdueIds.length > 0
+          ? await this.executionRepo.findByAppointmentIds(overdueIds)
+          : [];
+      const overdueExecMap = new Map(overdueExecutions.map((e) => [e.appointmentId, e]));
+
+      const overdueItems: ScheduleAppointmentItem[] = overdueAppointments.map((item) => {
+        const appt = item.appointment;
+        const exec = overdueExecMap.get(appt.id);
+        let executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
+        if (exec) {
+          executionStatus = exec.isFinished() ? 'FINISHED' : 'IN_PROGRESS';
+        }
+
+        return {
+          id: appt.id,
+          status: appt.status,
+          scheduledDate: appt.scheduledDate.toISOString().split('T')[0]!,
+          timeSlot: appt.timeSlot,
+          serviceTypeId: appt.serviceTypeId,
+          propertyId: appt.propertyId,
+          tenantConfirmationStatus: appt.tenantConfirmationStatus,
+          keyRequired: appt.keyRequired,
+          meetingLocation: appt.meetingLocation,
+          executionStatus,
+          isOverdue: true,
+        };
+      });
+
+      items.unshift(...overdueItems);
+    }
 
     return {
       date: targetDateStr,

@@ -6,11 +6,13 @@ import type { IIdempotencyService } from '../../domain/idempotency.service';
 import type { IServiceTypeReader } from '../../domain/service-type-reader';
 import { InspectionExecutionEntity } from '../../domain/inspection-execution.entity';
 import { T1VisibilityService } from '../../domain/t1-visibility.service';
+import { InspectionTimeWindowService } from '../../domain/inspection-time-window.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
   ExecutionAppointmentNotFoundError,
   ExecutionT1BlockedError,
   ExecutionAlreadyFinishedError,
+  ExecutionTimeWindowError,
 } from '../../domain/inspection-execution.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
@@ -33,6 +35,7 @@ export interface StartInspectionOutput {
 
 export class StartInspectionUseCase {
   private readonly t1Service = new T1VisibilityService();
+  private readonly timeWindowService = new InspectionTimeWindowService();
 
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
@@ -87,6 +90,16 @@ export class StartInspectionUseCase {
       today,
     );
     if (!isVisible) throw new ExecutionT1BlockedError();
+
+    // 4b. Apply time window rule
+    const windowCheck = this.timeWindowService.isWithinWindow(
+      appointment.scheduledDate,
+      appointment.timeSlot,
+      new Date(),
+    );
+    if (!windowCheck.allowed) {
+      throw new ExecutionTimeWindowError(windowCheck.reason ?? 'Outside inspection time window');
+    }
 
     // 5. Check existing execution
     const existingExecution = await this.executionRepo.findByAppointmentId(appointmentId);

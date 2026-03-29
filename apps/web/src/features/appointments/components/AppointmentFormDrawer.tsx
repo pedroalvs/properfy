@@ -313,6 +313,7 @@ export function AppointmentFormDrawer({
                       <DateInput
                         value={form.scheduledDate}
                         onChange={(v) => updateField('scheduledDate', v)}
+                        min={new Date().toISOString().split('T')[0]}
                         error={!!errors.scheduledDate}
                         aria-label="Scheduled Date"
                       />

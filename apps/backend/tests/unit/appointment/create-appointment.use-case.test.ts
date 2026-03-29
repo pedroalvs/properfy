@@ -23,6 +23,7 @@ import {
   AppointmentServiceTypeNotFoundError,
   AppointmentServiceTypeInactiveError,
   AppointmentNoPriceRuleError,
+  AppointmentPastDateError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 
 function makeBranch(overrides: Partial<ConstructorParameters<typeof BranchEntity>[0]> = {}): BranchEntity {
@@ -464,6 +465,69 @@ describe('CreateAppointmentUseCase', () => {
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ValidationError);
+  });
+
+  // Past date prevention
+  describe('past date prevention', () => {
+    it('should reject past scheduledDate for CL_ADMIN', async () => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+
+      await expect(
+        useCase.execute({
+          ...baseInput,
+          scheduledDate: '2020-01-01',
+          actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+        }),
+      ).rejects.toThrow(AppointmentPastDateError);
+    });
+
+    it('should accept past scheduledDate for AM', async () => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+      vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+
+      const result = await useCase.execute({
+        ...baseInput,
+        scheduledDate: '2020-01-01',
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.status).toBe('DRAFT');
+    });
+
+    it('should accept past scheduledDate for OP', async () => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+      vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+
+      const result = await useCase.execute({
+        ...baseInput,
+        scheduledDate: '2020-01-01',
+        actor: makeActor({ role: 'OP' }),
+      });
+
+      expect(result.status).toBe('DRAFT');
+    });
+
+    it('should accept today for CL_ADMIN', async () => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+      vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+
+      const today = new Date().toISOString().split('T')[0];
+      const result = await useCase.execute({
+        ...baseInput,
+        scheduledDate: today,
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      });
+
+      expect(result.status).toBe('DRAFT');
+    });
   });
 
   // H4: CL_USER permission check

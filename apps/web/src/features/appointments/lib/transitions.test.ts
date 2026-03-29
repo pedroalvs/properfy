@@ -33,19 +33,21 @@ describe('getAvailableTransitions', () => {
     expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.REJECTED);
   });
 
-  it('OP from AWAITING_INSPECTOR does not see SCHEDULED without assignment context', () => {
+  it('OP from AWAITING_INSPECTOR sees SCHEDULED, CANCELLED, REJECTED', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.AWAITING_INSPECTOR, 'OP');
-    expect(transitions).toHaveLength(2);
+    expect(transitions).toHaveLength(3);
     expect(transitions.map((t) => t.targetStatus)).toEqual([
+      AppointmentStatus.SCHEDULED,
       AppointmentStatus.CANCELLED,
       AppointmentStatus.REJECTED,
     ]);
   });
 
-  it('OP from SCHEDULED hides DONE because the UI cannot provide cross-check context', () => {
+  it('OP from SCHEDULED sees DONE, CANCELLED, REJECTED', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'OP');
-    expect(transitions).toHaveLength(2);
+    expect(transitions).toHaveLength(3);
     expect(transitions.map((t) => t.targetStatus)).toEqual([
+      AppointmentStatus.DONE,
       AppointmentStatus.CANCELLED,
       AppointmentStatus.REJECTED,
     ]);

@@ -37,6 +37,7 @@ export function useAppointmentList(): UseAppointmentListReturn {
     fromDate: filters.startDate || undefined,
     toDate: filters.endDate || undefined,
     showCancelled: filters.showCancelled ? 'true' : undefined,
+    overdueOnly: filters.overdueOnly ? 'true' : undefined,
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<Appointment>(
