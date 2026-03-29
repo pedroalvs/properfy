@@ -36,9 +36,11 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+let mockUserRole = 'AM';
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: 'AM', tenantId: 'tenant-1' },
+    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: mockUserRole, tenantId: 'tenant-1' },
     token: 'mock-token',
     isAuthenticated: true,
     isLoading: false,
@@ -52,16 +54,35 @@ vi.mock('../hooks/useInspectorDetail', () => ({
   useInspectorDetail: (id: string | null) => {
     if (!id) return { inspector: null, isLoading: false, isError: false, refetch: vi.fn() };
     if (id === 'loading') return { inspector: null, isLoading: true, isError: false, refetch: vi.fn() };
+    if (id === 'inactive') {
+      return {
+        inspector: {
+          id: 'insp-02', name: 'Inactive Inspector', email: 'inactive@test.com', phone: null,
+          status: 'INACTIVE', regions: [], serviceTypes: [], clientEligibility: [],
+          regionsCount: 0, serviceTypesCount: 0,
+          createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
+        },
+        isLoading: false, isError: false, refetch: vi.fn(),
+      };
+    }
     return {
       inspector: {
         id: 'insp-01', name: 'Carlos Silva', email: 'carlos@inspecoes.com', phone: '11999999999',
-        status: 'ACTIVE', regions: ['Zona Sul'], serviceTypes: ['Vistoria'],
-        regionsCount: 1, serviceTypesCount: 1, rating: 4.5,
+        status: 'ACTIVE', regions: ['Zona Sul'], serviceTypes: ['Vistoria'], clientEligibility: [],
+        regionsCount: 1, serviceTypesCount: 1,
         createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
       },
       isLoading: false, isError: false, refetch: vi.fn(),
     };
   },
+}));
+
+const mockDeactivate = vi.fn();
+vi.mock('../hooks/useInspectorDeactivate', () => ({
+  useInspectorDeactivate: () => ({
+    deactivate: mockDeactivate,
+    isDeactivating: false,
+  }),
 }));
 
 
@@ -159,4 +180,52 @@ describe('InspectorDetailDrawer', () => {
     expect(onEdit).toHaveBeenCalledWith('insp-01');
   });
 
+  it('shows deactivate button for AM role when inspector is ACTIVE', () => {
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    expect(screen.getByLabelText('Deactivate')).toBeInTheDocument();
+  });
+
+  it('hides deactivate button for non AM/OP roles', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    expect(screen.queryByLabelText('Deactivate')).not.toBeInTheDocument();
+    mockUserRole = 'AM';
+  });
+
+  it('hides deactivate button when inspector is INACTIVE', () => {
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'inactive', open: true });
+    expect(screen.queryByLabelText('Deactivate')).not.toBeInTheDocument();
+  });
+
+  it('opens deactivate dialog on button click and requires reason', () => {
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    fireEvent.click(screen.getByLabelText('Deactivate'));
+    expect(screen.getByText('Deactivate Inspector')).toBeInTheDocument();
+    expect(screen.getByLabelText('Deactivation reason')).toBeInTheDocument();
+
+    // Find the confirm "Deactivate" button by text within the modal dialog
+    const allDeactivateButtons = screen.getAllByText('Deactivate');
+    const confirmButton = allDeactivateButtons.find(
+      (el) => el.tagName === 'BUTTON' && el.textContent === 'Deactivate',
+    )!;
+    fireEvent.click(confirmButton);
+    expect(screen.getByText('Reason is required')).toBeInTheDocument();
+    expect(mockDeactivate).not.toHaveBeenCalled();
+  });
+
+  it('calls deactivate with reason when provided', () => {
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    fireEvent.click(screen.getByLabelText('Deactivate'));
+    fireEvent.change(screen.getByLabelText('Deactivation reason'), { target: { value: 'Poor performance' } });
+    const allDeactivateButtons = screen.getAllByText('Deactivate');
+    const confirmButton = allDeactivateButtons.find(
+      (el) => el.tagName === 'BUTTON' && el.textContent === 'Deactivate',
+    )!;
+    fireEvent.click(confirmButton);
+    expect(mockDeactivate).toHaveBeenCalledWith('Poor performance');
+  });
 });

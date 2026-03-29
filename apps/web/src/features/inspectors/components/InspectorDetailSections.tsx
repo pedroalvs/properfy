@@ -12,10 +12,6 @@ function formatList(items: string[] | undefined | null): string | null {
   return items && items.length > 0 ? items.join(', ') : null;
 }
 
-function formatRating(rating: number | null | undefined): string | null {
-  return rating != null ? `${rating.toFixed(1)} / 5.0` : null;
-}
-
 function useInspectorWorkload(inspectorId: string) {
   const today = toLocalISODate(new Date());
   const weekEnd = toLocalISODate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
@@ -51,6 +47,16 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
   const serviceTypeNameMap = new Map((serviceTypesData?.data ?? []).map((item) => [item.id, item.name]));
   const serviceTypeLabels = inspector.serviceTypes.map((serviceTypeId) => serviceTypeNameMap.get(serviceTypeId) ?? serviceTypeId);
 
+  const { data: tenantsData } = usePaginatedQuery<{ id: string; name: string }>(
+    ['tenants', 'inspector-detail'],
+    '/v1/tenants',
+    { pageSize: 100 },
+  );
+  const tenantNameMap = new Map((tenantsData?.data ?? []).map((item) => [item.id, item.name]));
+  const clientEligibilityLabels = (inspector.clientEligibility ?? []).map(
+    (tenantId) => tenantNameMap.get(tenantId) ?? tenantId,
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <FormSection title="Personal Details">
@@ -62,7 +68,7 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
       <FormSection title="Coverage">
         <DetailRow label="Regions" value={formatList(inspector.regions)} />
         <DetailRow label="Service Types" value={formatList(serviceTypeLabels)} />
-        <DetailRow label="Rating" value={formatRating(inspector.rating)} />
+        <DetailRow label="Client Eligibility" value={formatList(clientEligibilityLabels)} />
       </FormSection>
 
       <FormSection title="Workload">

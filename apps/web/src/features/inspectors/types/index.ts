@@ -15,7 +15,7 @@ export interface Inspector {
 export interface InspectorDetail extends Inspector {
   regions: string[];
   serviceTypes: string[];
-  rating: number | null;
+  clientEligibility: string[];
 }
 
 export interface InspectorFormData {
@@ -25,6 +25,7 @@ export interface InspectorFormData {
   status: string;
   regions: string;
   serviceTypes: string;
+  clientEligibility: string[];
 }
 
 export type InspectorFormErrors = Partial<Record<keyof InspectorFormData, string>>;
@@ -36,6 +37,7 @@ export const EMPTY_INSPECTOR_FORM: InspectorFormData = {
   status: '',
   regions: '',
   serviceTypes: '',
+  clientEligibility: [],
 };
 
 export interface InspectorFiltersState {

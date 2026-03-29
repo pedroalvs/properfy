@@ -191,6 +191,9 @@ export class ExecuteStatusTransitionUseCase {
       updateData.inspectorId = inspectorId;
     }
 
+    // TODO: When transitioning to SCHEDULED with an inspector, find and book the matching
+    // availability slot (inspectorId + scheduledDate + overlapping timeSlot → status = BOOKED)
+
     // Set done check for DONE (optional — set when provided)
     if (doneCheckedByUserId) {
       updateData.doneCheckedByUserId = doneCheckedByUserId;

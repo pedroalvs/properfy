@@ -7,6 +7,7 @@ import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
   InspectorInactiveError,
+  InspectorIneligibleError,
   InspectorServiceTypeIneligibleError,
   AssignedInspectorConflictError,
 } from '../../domain/service-group.errors';
@@ -74,6 +75,10 @@ export class AssignInspectorManuallyUseCase {
 
     if (!inspector.supportsServiceType(group.serviceTypeId)) {
       throw new InspectorServiceTypeIneligibleError();
+    }
+
+    if (!inspector.isEligibleForTenant(group.tenantId)) {
+      throw new InspectorIneligibleError();
     }
 
     const now = new Date();

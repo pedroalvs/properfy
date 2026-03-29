@@ -23,9 +23,9 @@ export function useInspectorDetail(id: string | null): UseInspectorDetailReturn 
       ...raw,
       regions: Array.isArray(raw.regionsJson) ? raw.regionsJson : [],
       serviceTypes: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson : [],
+      clientEligibility: Array.isArray(raw.clientEligibilityJson) ? raw.clientEligibilityJson : [],
       regionsCount: Array.isArray(raw.regionsJson) ? raw.regionsJson.length : 0,
       serviceTypesCount: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson.length : 0,
-      rating: raw.rating ?? null,
     };
   }, [raw]);
 

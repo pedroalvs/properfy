@@ -15,6 +15,7 @@ import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { useAuth } from '@/hooks/useAuth';
 import { useInspectorDetail } from '../hooks/useInspectorDetail';
 import { useInspectorSave } from '../hooks/useInspectorSave';
 import { INSPECTOR_STATUS_OPTIONS } from '../constants/form-options';
@@ -34,10 +35,20 @@ export function InspectorFormDrawer({
   inspectorId,
   onSaved,
 }: InspectorFormDrawerProps) {
+  const { user } = useAuth();
+  const isAmOp = user?.role === 'AM' || user?.role === 'OP';
+
   const { options: serviceTypeOptions, isLoading: isLoadingServiceTypes } = useFormOptions<{ id: string; name: string }>(
     ['service-types', 'inspector-form-options'],
     '/v1/service-types',
     (item) => ({ value: item.id, label: item.name }),
+  );
+  const { options: tenantOptions, isLoading: isLoadingTenants } = useFormOptions<{ id: string; name: string }>(
+    ['tenants', 'inspector-form-options'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+    undefined,
+    { enabled: isAmOp },
   );
   const isEditMode = !!inspectorId;
   const { inspector, isLoading: isLoadingDetail } = useInspectorDetail(
@@ -60,6 +71,7 @@ export function InspectorFormDrawer({
         status: inspector.status,
         regions: (inspector.regions ?? []).join(', '),
         serviceTypes: (inspector.serviceTypes ?? []).join(','),
+        clientEligibility: inspector.clientEligibility ?? [],
       };
       setForm(data);
       setInitialData(data);
@@ -103,6 +115,14 @@ export function InspectorFormDrawer({
       : selectedServiceTypeIds.filter((value) => value !== serviceTypeId);
     updateField('serviceTypes', next.join(','));
   }, [selectedServiceTypeIds, updateField]);
+
+  const toggleClientEligibility = useCallback((tenantId: string, checked: boolean) => {
+    const current = form.clientEligibility;
+    const next = checked
+      ? Array.from(new Set([...current, tenantId]))
+      : current.filter((id) => id !== tenantId);
+    updateField('clientEligibility', next);
+  }, [form.clientEligibility, updateField]);
 
   const handleSubmit = useCallback(async () => {
     const mode = isEditMode ? 'edit' : 'create';
@@ -212,6 +232,31 @@ export function InspectorFormDrawer({
                       </div>
                     </FormField>
                   </FormSection>
+
+                  {isAmOp && (
+                    <FormSection title="Client Eligibility">
+                      <FormField label="Eligible Clients" error={errors.clientEligibility}>
+                        <div className="flex flex-col gap-3 rounded border border-black/10 px-3 py-3">
+                          {tenantOptions.length > 0 ? (
+                            <div className="grid gap-2">
+                              {tenantOptions.map((option) => (
+                                <Checkbox
+                                  key={option.value}
+                                  label={option.label}
+                                  checked={form.clientEligibility.includes(option.value)}
+                                  onChange={(checked) => toggleClientEligibility(option.value, checked)}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-text-muted">
+                              {isLoadingTenants ? 'Loading clients...' : 'No active clients available.'}
+                            </p>
+                          )}
+                        </div>
+                      </FormField>
+                    </FormSection>
+                  )}
 
                   {isEditMode && (
                     <FormSection title="Status">

@@ -94,6 +94,7 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         status: data.status || undefined,
         regions: parseDelimitedValues(data.regions),
         serviceTypes: parseServiceTypeIds(data.serviceTypes),
+        clientEligibility: data.clientEligibility.length > 0 ? data.clientEligibility : undefined,
       };
 
       let apiError: { error?: { code?: string; message?: string } } | undefined;

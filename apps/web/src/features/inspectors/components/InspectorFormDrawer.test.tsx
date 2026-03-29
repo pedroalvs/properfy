@@ -52,6 +52,7 @@ const MOCK_INSPECTOR = {
   id: 'insp-01', name: 'Carlos Silva', email: 'carlos@test.com',
   phone: '11888888888', status: 'ACTIVE',
   regions: ['Centro', 'Norte'], serviceTypes: ['123e4567-e89b-12d3-a456-426614174000'],
+  clientEligibility: ['ten-01'],
 };
 
 vi.mock('../hooks/useInspectorDetail', () => ({
@@ -88,14 +89,27 @@ function renderDrawer(props: Partial<Parameters<typeof InspectorFormDrawer>[0]> 
 describe('InspectorFormDrawer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGet.mockResolvedValue({
-      data: {
-        data: [
-          { id: '123e4567-e89b-12d3-a456-426614174000', name: 'Entry Inspection' },
-          { id: '123e4567-e89b-12d3-a456-426614174001', name: 'Exit Inspection' },
-        ],
-        pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
-      },
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/tenants') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { id: 'ten-01', name: 'Imobiliaria Alpha' },
+              { id: 'ten-02', name: 'Imobiliaria Beta' },
+            ],
+            pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+          },
+        });
+      }
+      return Promise.resolve({
+        data: {
+          data: [
+            { id: '123e4567-e89b-12d3-a456-426614174000', name: 'Entry Inspection' },
+            { id: '123e4567-e89b-12d3-a456-426614174001', name: 'Exit Inspection' },
+          ],
+          pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+        },
+      });
     });
     mockSave.mockResolvedValue({ success: true });
     mockValidate.mockReturnValue({});
@@ -134,5 +148,12 @@ describe('InspectorFormDrawer', () => {
     fireEvent.click(screen.getByText('Create Inspector'));
     expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('renders client eligibility section with tenant checkboxes for AM role', async () => {
+    renderDrawer();
+    expect(await screen.findByText('Client Eligibility')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Imobiliaria Alpha')).toBeInTheDocument();
+    expect(screen.getByLabelText('Imobiliaria Beta')).toBeInTheDocument();
   });
 });

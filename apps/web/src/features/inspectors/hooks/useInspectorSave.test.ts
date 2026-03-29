@@ -40,6 +40,7 @@ const VALID_CREATE_DATA: InspectorFormData = {
   status: '',
   regions: 'Zona Norte, Zona Sul',
   serviceTypes: '123e4567-e89b-12d3-a456-426614174000',
+  clientEligibility: [],
 };
 
 beforeEach(() => {

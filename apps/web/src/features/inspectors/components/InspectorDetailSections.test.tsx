@@ -31,7 +31,7 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
     serviceTypesCount: 5,
     regions: ['Zona Norte', 'Zona Sul', 'Centro'],
     serviceTypes: ['123e4567-e89b-12d3-a456-426614174000', '123e4567-e89b-12d3-a456-426614174001'],
-    rating: 4.8,
+    clientEligibility: [],
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
     ...overrides,
@@ -51,6 +51,19 @@ describe('InspectorDetailSections', () => {
             data: [
               { id: '123e4567-e89b-12d3-a456-426614174000', name: 'Vistoria de Entrada' },
               { id: '123e4567-e89b-12d3-a456-426614174001', name: 'Vistoria de Saída' },
+            ],
+            pagination: { total: 2, page: 1, pageSize: 100, totalPages: 1 },
+          },
+          error: null,
+        });
+      }
+
+      if (path === '/v1/tenants') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { id: 'ten-01', name: 'Imobiliaria Alpha' },
+              { id: 'ten-02', name: 'Imobiliaria Beta' },
             ],
             pagination: { total: 2, page: 1, pageSize: 100, totalPages: 1 },
           },
@@ -100,15 +113,11 @@ describe('InspectorDetailSections', () => {
     expect(screen.getByText('Vistoria de Entrada, Vistoria de Saída')).toBeInTheDocument();
   });
 
-  it('shows rating when present, em-dash when null', () => {
-    const { rerender } = render(
-      <InspectorDetailSections inspector={makeInspector({ rating: 4.8 })} />,
+  it('shows client eligibility when tenants are assigned', () => {
+    render(
+      <InspectorDetailSections inspector={makeInspector({ clientEligibility: ['ten-01', 'ten-02'] })} />,
       { wrapper },
     );
-    expect(screen.getByText('4.8 / 5.0')).toBeInTheDocument();
-
-    rerender(<InspectorDetailSections inspector={makeInspector({ rating: null })} />);
-    const dashes = screen.getAllByText('—');
-    expect(dashes.length).toBeGreaterThan(0);
+    expect(screen.getByText('Imobiliaria Alpha, Imobiliaria Beta')).toBeInTheDocument();
   });
 });

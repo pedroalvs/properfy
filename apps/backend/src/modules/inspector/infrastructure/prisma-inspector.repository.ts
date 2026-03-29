@@ -175,6 +175,12 @@ export class PrismaInspectorRepository implements IInspectorRepository {
         { email: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
+    if (filters.region) {
+      where['regions_json'] = { array_contains: [filters.region] };
+    }
+    if (filters.serviceTypeId) {
+      where['service_types_json'] = { array_contains: [filters.serviceTypeId] };
+    }
     return where;
   }
 }
