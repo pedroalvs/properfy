@@ -53,7 +53,6 @@ export interface IPropertyRepository {
       notes: string | null;
       rulesJson: Record<string, unknown>;
       deletedAt: Date | null;
-      suburbId: string | null;
     }>,
   ): Promise<void>;
 }

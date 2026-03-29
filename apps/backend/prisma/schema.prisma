@@ -211,6 +211,7 @@ model User {
   requested_reports         Report[]
   created_imports           AppointmentImport[] @relation("importCreatedBy")
   created_property_imports  PropertyImport[]    @relation("propertyImportCreatedBy")
+  created_service_regions  ServiceRegion[]     @relation("ServiceRegionCreatedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -260,17 +261,15 @@ model Property {
   updated_at        DateTime        @updatedAt
   deleted_at        DateTime?
 
-  suburb_id         String?
+  coordinates       Unsupported("GEOMETRY(Point, 4326)")?
   tenant            Tenant          @relation(fields: [tenant_id], references: [id])
   branch            Branch?         @relation(fields: [branch_id], references: [id])
-  suburb_ref        Suburb?         @relation(fields: [suburb_id], references: [id])
   appointments      Appointment[]
 
   @@unique([tenant_id, property_code])
   @@index([tenant_id])
   @@index([tenant_id, type])
   @@index([branch_id])
-  @@index([suburb_id])
   @@index([deleted_at])
   @@map("properties")
 }
@@ -339,7 +338,7 @@ model Inspector {
   executions                  InspectionExecution[]
   financial_entries           FinancialEntry[]
   invoices                    InspectorInvoice[]
-  service_regions             InspectorServiceRegion[]
+  inspector_regions           InspectorRegion[]
 
   @@index([status])
   @@index([user_id])
@@ -924,68 +923,34 @@ enum RegionStatus {
   INACTIVE
 }
 
-enum SuburbStatus {
-  ACTIVE
-  INACTIVE
-}
-
-model Suburb {
-  id          String       @id @default(uuid())
-  name        String       @db.VarChar(150)
-  city        String       @db.VarChar(150)
-  state       String       @db.VarChar(100)
-  country     String       @db.VarChar(10)
-  postcode    String?      @db.VarChar(20)
-  status      SuburbStatus @default(ACTIVE)
-  created_at  DateTime     @default(now())
-
-  region_suburbs  RegionSuburb[]
-  properties      Property[]
-
-  @@unique([name, city, state, country])
-  @@index([city, state, country])
-  @@index([country])
-  @@index([status])
-  @@map("suburbs")
-}
-
 model ServiceRegion {
-  id          String       @id @default(uuid())
-  name        String       @db.VarChar(255)
-  state       String       @db.VarChar(100)
-  country     String       @db.VarChar(10)
-  status      RegionStatus @default(ACTIVE)
-  created_at  DateTime     @default(now())
-  updated_at  DateTime     @updatedAt
+  id                  String        @id @default(uuid())
+  name                String        @db.VarChar(255)
+  geom                Unsupported("GEOMETRY(Polygon, 4326)")?
+  geojson             Json          @default("{}")
+  color               String        @default("#3b82f6") @db.VarChar(20)
+  status              RegionStatus  @default(ACTIVE)
+  created_by_user_id  String?
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @updatedAt
 
-  region_suburbs     RegionSuburb[]
-  inspector_regions  InspectorServiceRegion[]
+  created_by          User?         @relation("ServiceRegionCreatedBy", fields: [created_by_user_id], references: [id])
+  inspector_regions   InspectorRegion[]
 
   @@index([status])
-  @@index([country, state])
   @@map("service_regions")
 }
 
-model RegionSuburb {
-  region_id  String
-  suburb_id  String
-
-  region     ServiceRegion @relation(fields: [region_id], references: [id])
-  suburb     Suburb        @relation(fields: [suburb_id], references: [id])
-
-  @@id([region_id, suburb_id])
-  @@index([suburb_id])
-  @@map("region_suburbs")
-}
-
-model InspectorServiceRegion {
+model InspectorRegion {
   inspector_id  String
   region_id     String
+  assigned_at   DateTime      @default(now())
+  assigned_by   String?
 
-  inspector     Inspector     @relation(fields: [inspector_id], references: [id])
-  region        ServiceRegion @relation(fields: [region_id], references: [id])
+  inspector     Inspector     @relation(fields: [inspector_id], references: [id], onDelete: Cascade)
+  region        ServiceRegion @relation(fields: [region_id], references: [id], onDelete: Cascade)
 
   @@id([inspector_id, region_id])
   @@index([region_id])
-  @@map("inspector_service_regions")
+  @@map("inspector_regions")
 }

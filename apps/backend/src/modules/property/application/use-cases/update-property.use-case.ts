@@ -3,7 +3,6 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IPropertyRepository } from '../../domain/property.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
-import type { ISuburbRepository } from '../../../service-region/domain/suburb.repository';
 import {
   PropertyNotFoundError,
   BranchInactiveError,
@@ -58,7 +57,6 @@ export class UpdatePropertyUseCase {
     private readonly propertyRepo: IPropertyRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
-    private readonly suburbRepo?: ISuburbRepository,
   ) {}
 
   async execute(input: UpdatePropertyInput): Promise<UpdatePropertyOutput> {
@@ -134,26 +132,6 @@ export class UpdatePropertyUseCase {
       updateData.geocodingStatus = 'MANUAL';
     } else if (addressChanged) {
       updateData.geocodingStatus = 'PENDING';
-    }
-
-    // Re-resolve suburb_id when address fields change
-    if (addressChanged && this.suburbRepo) {
-      const resolvedSuburb = (data.suburb ?? property.suburb);
-      const resolvedState = (data.state ?? property.state);
-      const resolvedCountry = (data.country ?? property.country);
-      const resolvedPostcode = (data.postcode ?? property.postcode);
-      try {
-        const suburb = await this.suburbRepo.findOrCreate({
-          name: resolvedSuburb,
-          city: resolvedSuburb,
-          state: resolvedState,
-          country: resolvedCountry,
-          postcode: resolvedPostcode,
-        });
-        updateData.suburbId = suburb.id;
-      } catch {
-        // Suburb linking is best-effort; failure does not block property update
-      }
     }
 
     const before = {

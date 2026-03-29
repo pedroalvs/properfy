@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { ServiceRegionFilters } from '../components/ServiceRegionFilters';
 import { ServiceRegionTable } from '../components/ServiceRegionTable';
 import { ServiceRegionFormDrawer } from '../components/ServiceRegionFormDrawer';
+import { RegionMap } from '../components/RegionMap';
 import { useServiceRegionList } from '../hooks/useServiceRegionList';
 import type { ServiceRegion } from '../types';
 
@@ -32,6 +33,21 @@ export function ServiceRegionListPage() {
     refetch();
   }, [refetch]);
 
+  const existingRegions = useMemo(() =>
+    data
+      .filter((r) => {
+        const geo = r.geojson as { type?: string; coordinates?: unknown };
+        return geo?.type === 'Polygon' && geo.coordinates;
+      })
+      .map((r) => ({
+        id: r.id,
+        geojson: r.geojson,
+        color: r.color,
+        name: r.name,
+      })),
+    [data],
+  );
+
   return (
     <>
       <ListFilterTableTemplate
@@ -45,6 +61,15 @@ export function ServiceRegionListPage() {
           },
         }}
       >
+        {existingRegions.length > 0 && (
+          <div className="mb-4">
+            <RegionMap
+              existingRegions={existingRegions}
+              editable={false}
+              height="300px"
+            />
+          </div>
+        )}
         <ServiceRegionFilters
           filters={filters}
           onFiltersChange={setFilters}

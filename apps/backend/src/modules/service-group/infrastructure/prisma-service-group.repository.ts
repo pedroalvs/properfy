@@ -10,6 +10,7 @@ import type {
   MarketplaceOffer,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
+import type { IServiceRegionRepository } from '../../service-region/domain/service-region.repository';
 
 function mapToEntity(row: any): ServiceGroupEntity {
   return new ServiceGroupEntity({
@@ -36,40 +37,11 @@ function mapToEntity(row: any): ServiceGroupEntity {
   });
 }
 
-function buildMarketplaceOfferWhere(
-  inspectorId: string,
-  inspectorServiceTypes: string[],
-  inspectorClientEligibility: string[],
-): Record<string, unknown> {
-  return {
-    status: 'PUBLISHED',
-    service_type_id: { in: inspectorServiceTypes },
-    tenant_id: { in: inspectorClientEligibility },
-    scheduled_date: { gte: new Date() },
-    appointments: {
-      some: {
-        property: {
-          suburb_ref: {
-            status: 'ACTIVE',
-            region_suburbs: {
-              some: {
-                region: {
-                  status: 'ACTIVE',
-                  inspector_regions: {
-                    some: { inspector_id: inspectorId },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  };
-}
-
 export class PrismaServiceGroupRepository implements IServiceGroupRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly serviceRegionRepo?: IServiceRegionRepository,
+  ) {}
 
   async findById(
     id: string,
@@ -233,11 +205,29 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       return [];
     }
 
-    const where = buildMarketplaceOfferWhere(
-      inspectorId,
-      inspectorServiceTypes,
-      inspectorClientEligibility,
-    );
+    // Get property IDs in inspector's regions via PostGIS spatial query
+    const propertyIds = this.serviceRegionRepo
+      ? await this.serviceRegionRepo.findPropertyIdsInInspectorRegions(inspectorId)
+      : [];
+
+    const where: Record<string, unknown> = {
+      status: 'PUBLISHED',
+      service_type_id: { in: inspectorServiceTypes },
+      tenant_id: { in: inspectorClientEligibility },
+      scheduled_date: { gte: new Date() },
+    };
+
+    // Filter by properties in inspector's regions
+    if (propertyIds.length > 0) {
+      where['appointments'] = {
+        some: {
+          property_id: { in: propertyIds },
+        },
+      };
+    } else {
+      // No properties in inspector's regions means no offers
+      return [];
+    }
 
     const rows = await this.prisma.serviceGroup.findMany({
       where,
@@ -290,12 +280,27 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       return 0;
     }
 
+    // Get property IDs in inspector's regions via PostGIS spatial query
+    const propertyIds = this.serviceRegionRepo
+      ? await this.serviceRegionRepo.findPropertyIdsInInspectorRegions(inspectorId)
+      : [];
+
+    if (propertyIds.length === 0) {
+      return 0;
+    }
+
     return this.prisma.serviceGroup.count({
-      where: buildMarketplaceOfferWhere(
-        inspectorId,
-        inspectorServiceTypes,
-        inspectorClientEligibility,
-      ),
+      where: {
+        status: 'PUBLISHED',
+        service_type_id: { in: inspectorServiceTypes },
+        tenant_id: { in: inspectorClientEligibility },
+        scheduled_date: { gte: new Date() },
+        appointments: {
+          some: {
+            property_id: { in: propertyIds },
+          },
+        },
+      },
     });
   }
 

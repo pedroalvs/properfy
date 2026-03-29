@@ -30,23 +30,15 @@ export function ServiceRegionTable({
       sortable: true,
     },
     {
-      key: 'state',
-      label: 'State',
-      width: '120px',
-      sortable: true,
-    },
-    {
-      key: 'country',
-      label: 'Country',
-      width: '100px',
-      sortable: true,
-    },
-    {
-      key: 'suburbCount',
-      label: 'Suburbs',
-      width: '100px',
+      key: 'color',
+      label: 'Color',
+      width: '80px',
       render: (row) => (
-        <span className="text-sm text-text-secondary">{row.suburbCount}</span>
+        <div
+          className="h-5 w-5 rounded border border-black/10"
+          style={{ backgroundColor: row.color }}
+          title={row.color}
+        />
       ),
     },
     {

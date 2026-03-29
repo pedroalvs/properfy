@@ -9,21 +9,27 @@ import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
-import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceRegionDetail } from '../hooks/useServiceRegionDetail';
 import { useServiceRegionSave } from '../hooks/useServiceRegionSave';
-import { useCountryOptions } from '../hooks/useCountryOptions';
-import { useStateOptions } from '../hooks/useStateOptions';
-import { useCityOptions } from '../hooks/useCityOptions';
-import { api } from '@/services/api';
-import type { AddressLookupSuggestion } from '@/lib/address';
-import type { ServiceRegionFormData, ServiceRegionFormErrors, Suburb } from '../types';
+import { RegionMap } from './RegionMap';
+import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
 import { EMPTY_SERVICE_REGION_FORM } from '../types';
 
 const STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
   { value: 'INACTIVE', label: 'Inactive' },
+];
+
+const COLOR_OPTIONS = [
+  { value: '#3b82f6', label: 'Blue' },
+  { value: '#ef4444', label: 'Red' },
+  { value: '#22c55e', label: 'Green' },
+  { value: '#f59e0b', label: 'Amber' },
+  { value: '#8b5cf6', label: 'Purple' },
+  { value: '#ec4899', label: 'Pink' },
+  { value: '#14b8a6', label: 'Teal' },
+  { value: '#f97316', label: 'Orange' },
 ];
 
 interface ServiceRegionFormDrawerProps {
@@ -50,33 +56,17 @@ export function ServiceRegionFormDrawer({
   const [initialData, setInitialData] = useState<ServiceRegionFormData>(EMPTY_SERVICE_REGION_FORM);
   const [errors, setErrors] = useState<ServiceRegionFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
-  const [addedSuburbs, setAddedSuburbs] = useState<Suburb[]>([]);
-  const [isAddingSuburb, setIsAddingSuburb] = useState(false);
-
-  // Geographic filters for narrowing address lookup suggestions
-  const [filterCountry, setFilterCountry] = useState('');
-  const [filterState, setFilterState] = useState('');
-  const [filterCity, setFilterCity] = useState('');
-
-  const { options: countryOptions, isLoading: isLoadingCountries } = useCountryOptions();
-  const { options: stateOptions, isLoading: isLoadingStates } = useStateOptions(filterCountry);
-  const { options: cityOptions, isLoading: isLoadingCities } = useCityOptions(filterCountry, filterState);
 
   useEffect(() => {
     if (isEditMode && serviceRegion) {
       const data: ServiceRegionFormData = {
         name: serviceRegion.name,
-        country: serviceRegion.country,
-        state: serviceRegion.state,
-        city: '',
-        suburbIds: serviceRegion.suburbs?.map((s) => s.id) ?? [],
+        geojson: serviceRegion.geojson ?? null,
+        color: serviceRegion.color ?? '#3b82f6',
         status: serviceRegion.status,
       };
       setForm(data);
       setInitialData(data);
-      setAddedSuburbs(serviceRegion.suburbs ?? []);
-      setFilterCountry(serviceRegion.country);
-      setFilterState(serviceRegion.state);
       setErrors({});
     }
   }, [isEditMode, serviceRegion]);
@@ -85,10 +75,6 @@ export function ServiceRegionFormDrawer({
     if (open && !isEditMode) {
       setForm(EMPTY_SERVICE_REGION_FORM);
       setInitialData(EMPTY_SERVICE_REGION_FORM);
-      setAddedSuburbs([]);
-      setFilterCountry('');
-      setFilterState('');
-      setFilterCity('');
       setErrors({});
     }
   }, [open, isEditMode]);
@@ -110,82 +96,9 @@ export function ServiceRegionFormDrawer({
     [],
   );
 
-  const handleCountryChange = useCallback((value: string) => {
-    setFilterCountry(value);
-    setFilterState('');
-    setFilterCity('');
-  }, []);
-
-  const handleStateChange = useCallback((value: string) => {
-    setFilterState(value);
-    setFilterCity('');
-  }, []);
-
-  const handleAddressSelect = useCallback(async (suggestion: AddressLookupSuggestion) => {
-    setIsAddingSuburb(true);
-    try {
-      const { data, error } = await api.POST('/v1/suburbs/resolve' as any, {
-        body: {
-          name: suggestion.suburb,
-          city: suggestion.suburb,
-          state: suggestion.state,
-          country: suggestion.country,
-          postcode: suggestion.postcode || null,
-        } as any,
-      });
-
-      if (error) {
-        showError('Failed to resolve suburb');
-        return;
-      }
-
-      const resolved = (data as any)?.data;
-      if (!resolved?.id) {
-        showError('Failed to resolve suburb');
-        return;
-      }
-
-      setForm((prev) => {
-        const isFirstSuburb = prev.suburbIds.length === 0;
-        const alreadyAdded = prev.suburbIds.includes(resolved.id);
-        if (alreadyAdded) return prev;
-
-        return {
-          ...prev,
-          country: isFirstSuburb ? suggestion.country : prev.country,
-          state: isFirstSuburb ? suggestion.state : prev.state,
-          suburbIds: [...prev.suburbIds, resolved.id],
-        };
-      });
-
-      setAddedSuburbs((prev) => {
-        if (prev.some((s) => s.id === resolved.id)) return prev;
-        return [...prev, {
-          id: resolved.id,
-          name: resolved.name,
-          city: resolved.city,
-          state: resolved.state,
-          country: resolved.country,
-          postcode: resolved.postcode ?? null,
-          status: resolved.status ?? 'ACTIVE',
-        }];
-      });
-
-      // Auto-set filters from first suburb
-      if (!filterCountry) setFilterCountry(suggestion.country);
-      if (!filterState) setFilterState(suggestion.state);
-    } finally {
-      setIsAddingSuburb(false);
-    }
-  }, [showError, filterCountry, filterState]);
-
-  const removeSuburb = useCallback((suburbId: string) => {
-    setForm((prev) => ({
-      ...prev,
-      suburbIds: prev.suburbIds.filter((id) => id !== suburbId),
-    }));
-    setAddedSuburbs((prev) => prev.filter((s) => s.id !== suburbId));
-  }, []);
+  const handleDraw = useCallback((geojson: object) => {
+    updateField('geojson', geojson);
+  }, [updateField]);
 
   const handleSubmit = useCallback(async () => {
     const validationErrors = validate(form);
@@ -207,9 +120,6 @@ export function ServiceRegionFormDrawer({
     if (isDirty) setShowConfirm(true);
     else onClose();
   }, [isDirty, onClose]);
-
-  // Build address lookup context from filters for better suggestions
-  const lookupCountry = filterCountry || undefined;
 
   return (
     <>
@@ -238,6 +148,20 @@ export function ServiceRegionFormDrawer({
                         aria-label="Name"
                       />
                     </FormField>
+                    <FormField label="Color">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="h-8 w-8 shrink-0 rounded border border-black/10"
+                          style={{ backgroundColor: form.color }}
+                        />
+                        <SelectInput
+                          value={form.color}
+                          onChange={(v) => updateField('color', v)}
+                          options={COLOR_OPTIONS}
+                          aria-label="Color"
+                        />
+                      </div>
+                    </FormField>
                     {isEditMode && (
                       <FormField label="Status">
                         <SelectInput
@@ -250,109 +174,18 @@ export function ServiceRegionFormDrawer({
                     )}
                   </FormSection>
 
-                  <FormSection title="Suburbs">
-                    <div className="flex flex-col gap-4">
-                      {/* Geographic filters to narrow search */}
-                      <div className="grid grid-cols-3 gap-3">
-                        <FormField label="Country">
-                          <SelectInput
-                            value={filterCountry}
-                            onChange={handleCountryChange}
-                            options={[
-                              { value: '', label: isLoadingCountries ? 'Loading...' : 'All countries' },
-                              ...countryOptions,
-                            ]}
-                            aria-label="Filter by country"
-                          />
-                        </FormField>
-                        <FormField label="State">
-                          <SelectInput
-                            value={filterState}
-                            onChange={handleStateChange}
-                            options={[
-                              { value: '', label: filterCountry ? (isLoadingStates ? 'Loading...' : 'All states') : 'Select country first' },
-                              ...stateOptions,
-                            ]}
-                            disabled={!filterCountry}
-                            aria-label="Filter by state"
-                          />
-                        </FormField>
-                        <FormField label="City">
-                          <SelectInput
-                            value={filterCity}
-                            onChange={setFilterCity}
-                            options={[
-                              { value: '', label: filterState ? (isLoadingCities ? 'Loading...' : 'All cities') : 'Select state first' },
-                              ...cityOptions,
-                            ]}
-                            disabled={!filterState}
-                            aria-label="Filter by city"
-                          />
-                        </FormField>
-                      </div>
-
-                      <FormField label="Search and add suburbs" error={errors.suburbIds}>
-                        <AddressLookupInput
-                          label="Search suburb"
-                          valueLabel=""
-                          onSelect={handleAddressSelect}
-                          onClear={() => {}}
-                          country={lookupCountry}
-                          searchContext={[filterCity, filterState].filter(Boolean).join(' ') || undefined}
-                          placeholder={
-                            filterCountry
-                              ? `Search suburbs in ${filterCountry}${filterState ? ` / ${filterState}` : ''}${filterCity ? ` / ${filterCity}` : ''}...`
-                              : 'Search suburb name...'
-                          }
-                          disabled={isAddingSuburb}
-                          ariaLabel="Search suburb to add"
-                        />
-                        {isAddingSuburb && (
-                          <p className="mt-1 text-xs text-text-muted">Adding suburb...</p>
-                        )}
-                      </FormField>
-
-                      {/* Selected suburbs */}
-                      <div className="rounded border border-black/10 px-3 py-3">
-                        {addedSuburbs.length === 0 ? (
-                          <p className="text-sm text-text-muted">
-                            No suburbs added yet. Use the filters above to narrow your search, then add suburbs.
-                          </p>
-                        ) : (
-                          <div className="flex flex-col gap-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                              {addedSuburbs.length} suburb{addedSuburbs.length !== 1 ? 's' : ''} selected
-                            </p>
-                            <div className="max-h-64 overflow-y-auto">
-                              <div className="flex flex-wrap gap-2">
-                                {addedSuburbs.map((suburb) => (
-                                  <span
-                                    key={suburb.id}
-                                    className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm text-primary"
-                                  >
-                                    {suburb.name}
-                                    {suburb.postcode && (
-                                      <span className="text-xs text-primary/60">{suburb.postcode}</span>
-                                    )}
-                                    <span className="text-xs text-primary/60">
-                                      {suburb.state}, {suburb.country}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeSuburb(suburb.id)}
-                                      className="ml-0.5 text-primary/50 hover:text-error"
-                                      aria-label={`Remove ${suburb.name}`}
-                                    >
-                                      <i className="mdi mdi-close text-sm" />
-                                    </button>
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                  <FormSection title="Region Polygon">
+                    <FormField
+                      label="Draw the region polygon on the map"
+                      error={errors.geojson}
+                    >
+                      <RegionMap
+                        geojson={isEditMode && serviceRegion?.geojson ? serviceRegion.geojson : undefined}
+                        onDraw={handleDraw}
+                        editable
+                        height="400px"
+                      />
+                    </FormField>
                   </FormSection>
                 </div>
               </div>

@@ -158,6 +158,14 @@ export class PrismaPropertyRepository implements IPropertyRepository {
         rules_json: property.rulesJson as Prisma.InputJsonValue,
       },
     });
+
+    // Sync PostGIS coordinates column when lat/lng are available
+    if (property.lat != null && property.lng != null) {
+      await this.prisma.$executeRaw`
+        UPDATE properties SET coordinates = ST_SetSRID(ST_Point(${property.lng}::float, ${property.lat}::float), 4326)
+        WHERE id = ${property.id}
+      `;
+    }
   }
 
   async update(
@@ -179,7 +187,6 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       notes: string | null;
       rulesJson: Record<string, unknown>;
       deletedAt: Date | null;
-      suburbId: string | null;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
@@ -203,12 +210,25 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       updateData['rules_json'] = data.rulesJson;
     if (data.deletedAt !== undefined)
       updateData['deleted_at'] = data.deletedAt;
-    if (data.suburbId !== undefined)
-      updateData['suburb_id'] = data.suburbId;
     await this.prisma.property.updateMany({
       where: { id, tenant_id: tenantId },
       data: updateData,
     });
+
+    // Sync PostGIS coordinates column when lat/lng are updated
+    if (data.lat !== undefined && data.lng !== undefined) {
+      if (data.lat != null && data.lng != null) {
+        await this.prisma.$executeRaw`
+          UPDATE properties SET coordinates = ST_SetSRID(ST_Point(${data.lng}::float, ${data.lat}::float), 4326)
+          WHERE id = ${id}
+        `;
+      } else {
+        await this.prisma.$executeRaw`
+          UPDATE properties SET coordinates = NULL
+          WHERE id = ${id}
+        `;
+      }
+    }
   }
 
   private buildWhere(filters: PropertyFilters) {

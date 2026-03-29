@@ -7,7 +7,6 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IPropertyRepository } from '../../domain/property.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
-import type { ISuburbRepository } from '../../../service-region/domain/suburb.repository';
 import { PropertyEntity } from '../../domain/property.entity';
 import { PropertyCodeConflictError, TenantInactiveError, BranchInactiveError } from '../../domain/property.errors';
 import { BranchNotFoundError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
@@ -56,7 +55,6 @@ export class CreatePropertyUseCase {
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
     private readonly tenantRepo?: ITenantRepository,
-    private readonly suburbRepo?: ISuburbRepository,
   ) {}
 
   async execute(input: CreatePropertyInput): Promise<CreatePropertyOutput> {
@@ -132,22 +130,6 @@ export class CreatePropertyUseCase {
     });
 
     await this.propertyRepo.save(property);
-
-    // Auto-expand suburb: findOrCreate suburb record and link to property
-    if (this.suburbRepo && input.suburb) {
-      try {
-        const suburb = await this.suburbRepo.findOrCreate({
-          name: input.suburb,
-          city: input.suburb, // In Australia, suburb name serves as city when no explicit city field
-          state: input.state,
-          country: input.country,
-          postcode: input.postcode,
-        });
-        await this.propertyRepo.update(id, tenantId, { suburbId: suburb.id } as Parameters<IPropertyRepository['update']>[2]);
-      } catch {
-        // Suburb linking is best-effort; failure does not block property creation
-      }
-    }
 
     sendJob('property.geocode', { propertyId: id }).catch(() => {
       // Geocoding is async — queue failure does not fail property creation.

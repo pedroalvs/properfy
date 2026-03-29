@@ -4,6 +4,7 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
+import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import { InspectorEntity } from '../../domain/inspector.entity';
 import { UserEntity } from '../../../auth/domain/user.entity';
 import { InspectorEmailConflictError } from '../../domain/inspector.errors';
@@ -39,6 +40,7 @@ export class CreateInspectorUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly userManagementRepo: IUserManagementRepository,
     private readonly auditService: AuditService,
+    private readonly serviceRegionRepo?: IServiceRegionRepository,
   ) {}
 
   async execute(input: CreateInspectorInput): Promise<CreateInspectorOutput> {
@@ -102,8 +104,8 @@ export class CreateInspectorUseCase {
     await this.inspectorRepo.save(inspector);
 
     // Link inspector to service regions if regionIds provided
-    if (regionIds && regionIds.length > 0) {
-      await this.inspectorRepo.setServiceRegions(id, regionIds);
+    if (regionIds && regionIds.length > 0 && this.serviceRegionRepo) {
+      await this.serviceRegionRepo.setInspectorRegions(id, regionIds);
     }
 
     this.auditService.log({

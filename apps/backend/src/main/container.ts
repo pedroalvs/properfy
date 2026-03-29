@@ -215,13 +215,11 @@ import { GetDashboardStatsUseCase } from '../modules/dashboard/application/use-c
 import type { DashboardRouteContainer } from '../modules/dashboard/interfaces/dashboard.routes';
 
 // Service region module
-import { PrismaSuburbRepository } from '../modules/service-region/infrastructure/prisma-suburb.repository';
 import { PrismaServiceRegionRepository } from '../modules/service-region/infrastructure/prisma-service-region.repository';
 import { CreateServiceRegionUseCase } from '../modules/service-region/application/use-cases/create-service-region.use-case';
 import { UpdateServiceRegionUseCase } from '../modules/service-region/application/use-cases/update-service-region.use-case';
 import { GetServiceRegionUseCase } from '../modules/service-region/application/use-cases/get-service-region.use-case';
 import { ListServiceRegionsUseCase } from '../modules/service-region/application/use-cases/list-service-regions.use-case';
-import { ListSuburbsUseCase } from '../modules/service-region/application/use-cases/list-suburbs.use-case';
 import type { ServiceRegionRouteContainer } from '../modules/service-region/interfaces/service-region.routes';
 
 // Appointment module
@@ -357,13 +355,10 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
-  // suburbRepo is instantiated later in the service-region section, but we need it here.
-  // Create it early for property use cases.
-  const suburbRepoForProperty = new PrismaSuburbRepository(prisma);
-  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, suburbRepoForProperty);
+  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo);
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
-  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, suburbRepoForProperty);
+  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo);
   const addressLookupService = env.MAPBOX_ACCESS_TOKEN
@@ -391,12 +386,15 @@ export function createContainer(logger: Logger): AppContainer {
   const listPricingRulesUseCase = new ListPricingRulesUseCase(pricingRuleRepo, tenantRepo);
   const updatePricingRuleUseCase = new UpdatePricingRuleUseCase(pricingRuleRepo, tenantRepo, auditService);
 
+  // Service region repository (instantiated early for inspector and marketplace use)
+  const serviceRegionRepo = new PrismaServiceRegionRepository(prisma);
+
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
-  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService);
+  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, serviceRegionRepo);
   const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo);
   const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo);
-  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService);
+  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
@@ -519,7 +517,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listAuditLogsUseCase = new ListAuditLogsUseCase(auditLogRepo, userManagementRepo);
 
   // Service group repositories and use cases
-  const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
+  const serviceGroupRepo = new PrismaServiceGroupRepository(prisma, serviceRegionRepo);
   const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService);
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo);
@@ -611,14 +609,11 @@ export function createContainer(logger: Logger): AppContainer {
   const dashboardRepo = new PrismaDashboardRepository(prisma);
   const getDashboardStatsUseCase = new GetDashboardStatsUseCase(dashboardRepo);
 
-  // Service region repositories and use cases (suburbRepo reuses the one created for property use cases)
-  const suburbRepo = suburbRepoForProperty;
-  const serviceRegionRepo = new PrismaServiceRegionRepository(prisma);
-  const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, suburbRepo, auditService);
-  const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, suburbRepo, auditService);
+  // Service region use cases (serviceRegionRepo instantiated earlier for inspector/marketplace use)
+  const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService);
+  const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, auditService);
   const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo);
   const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo);
-  const listSuburbsUseCase = new ListSuburbsUseCase(suburbRepo);
 
   // Appointment import (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
@@ -862,8 +857,6 @@ export function createContainer(logger: Logger): AppContainer {
       updateServiceRegionUseCase,
       getServiceRegionUseCase,
       listServiceRegionsUseCase,
-      listSuburbsUseCase,
-      suburbRepo,
       jwtService,
       tenantRepo,
     },

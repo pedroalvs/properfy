@@ -9,12 +9,6 @@ const STATUS_OPTIONS: FilterSelectOption[] = [
   { label: 'Inactive', value: 'INACTIVE' },
 ];
 
-const COUNTRY_OPTIONS: FilterSelectOption[] = [
-  { label: 'All', value: '' },
-  { label: 'Australia', value: 'AU' },
-  { label: 'Brazil', value: 'BR' },
-];
-
 interface ServiceRegionFiltersProps {
   filters: ServiceRegionFiltersState;
   onFiltersChange: (filters: ServiceRegionFiltersState) => void;
@@ -28,18 +22,6 @@ export function ServiceRegionFilters({ filters, onFiltersChange }: ServiceRegion
         placeholder="Search by name..."
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
-      />
-      <FilterSelect
-        label="Country"
-        value={filters.country}
-        onChange={(country) => onFiltersChange({ ...filters, country })}
-        options={COUNTRY_OPTIONS}
-      />
-      <FilterInput
-        label="State"
-        placeholder="e.g. NSW, VIC"
-        value={filters.state}
-        onChange={(state) => onFiltersChange({ ...filters, state })}
       />
       <FilterSelect
         label="Status"

@@ -2,6 +2,7 @@ import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
+import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import {
   InspectorNotFoundError,
   InspectorEmailConflictError,
@@ -41,6 +42,7 @@ export class UpdateInspectorUseCase {
   constructor(
     private readonly inspectorRepo: IInspectorRepository,
     private readonly auditService: AuditService,
+    private readonly serviceRegionRepo?: IServiceRegionRepository,
   ) {}
 
   async execute(input: UpdateInspectorInput): Promise<UpdateInspectorOutput> {
@@ -88,8 +90,8 @@ export class UpdateInspectorUseCase {
     await this.inspectorRepo.update(inspectorId, updateData);
 
     // Update service region links if regionIds provided
-    if (data.regionIds !== undefined) {
-      await this.inspectorRepo.setServiceRegions(inspectorId, data.regionIds);
+    if (data.regionIds !== undefined && this.serviceRegionRepo) {
+      await this.serviceRegionRepo.setInspectorRegions(inspectorId, data.regionIds);
     }
 
     const after = {

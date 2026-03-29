@@ -15,10 +15,9 @@ export interface ListServiceRegionsInput {
 export interface ServiceRegionListItem {
   id: string;
   name: string;
-  state: string;
-  country: string;
+  geojson: Record<string, unknown>;
+  color: string;
   status: string;
-  suburbCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,10 +43,6 @@ export class ListServiceRegionsUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // INSP sees only their assigned regions -- handled via filters at route level
-    // For now, the repository returns all matching regions; the route layer
-    // can add inspector-specific filtering if needed.
-
     const [data, total] = await Promise.all([
       this.regionRepo.findAll(filters, pagination),
       this.regionRepo.count(filters),
@@ -57,10 +52,9 @@ export class ListServiceRegionsUseCase {
       data: data.map((region) => ({
         id: region.id,
         name: region.name,
-        state: region.state,
-        country: region.country,
+        geojson: region.geojson,
+        color: region.color,
         status: region.status,
-        suburbCount: region.suburbs.length,
         createdAt: region.createdAt,
         updatedAt: region.updatedAt,
       })),

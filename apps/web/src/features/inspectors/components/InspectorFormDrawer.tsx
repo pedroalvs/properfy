@@ -42,10 +42,10 @@ export function InspectorFormDrawer({
     '/v1/service-types',
     (item) => ({ value: item.id, label: item.name }),
   );
-  const { options: serviceRegionOptions, isLoading: isLoadingRegions } = useFormOptions<{ id: string; name: string; state: string; country: string }>(
+  const { options: serviceRegionOptions, isLoading: isLoadingRegions } = useFormOptions<{ id: string; name: string }>(
     ['service-regions', 'inspector-form-options'],
     '/v1/service-regions',
-    (item) => ({ value: item.id, label: `${item.name} (${item.state}, ${item.country})` }),
+    (item) => ({ value: item.id, label: item.name }),
   );
   const { options: tenantOptions, isLoading: isLoadingTenants } = useFormOptions<{ id: string; name: string }>(
     ['tenants', 'inspector-form-options'],

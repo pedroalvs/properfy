@@ -16,8 +16,6 @@ interface AddressLookupInputProps {
   onSelect: (suggestion: AddressLookupSuggestion) => void;
   onClear: () => void;
   country?: string;
-  /** Appended to the user's search text to narrow results geographically (e.g., "Bahia Brazil") */
-  searchContext?: string;
   placeholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
@@ -29,7 +27,6 @@ export function AddressLookupInput({
   onSelect,
   onClear,
   country,
-  searchContext,
   placeholder = 'Search address...',
   disabled = false,
   ariaLabel,
@@ -41,12 +38,8 @@ export function AddressLookupInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const enrichedSearch = searchContext && debouncedSearch
-    ? `${debouncedSearch} ${searchContext}`
-    : debouncedSearch;
-
   const { data: options = [], isLoading } = useAddressSuggestions(
-    enrichedSearch,
+    debouncedSearch,
     !disabled,
     country,
   );

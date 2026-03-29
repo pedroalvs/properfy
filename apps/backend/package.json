@@ -36,7 +36,6 @@
     "@prisma/client": "^5.22.0",
     "@properfy/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
-    "country-state-city": "^3.2.1",
     "csv-parse": "^6.2.0",
     "exceljs": "^4.4.0",
     "fastify": "^4.28.1",

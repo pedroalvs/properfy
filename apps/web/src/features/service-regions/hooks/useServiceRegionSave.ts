@@ -5,23 +5,6 @@ import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
 
-const REQUIRED_FIELDS: (keyof ServiceRegionFormData)[] = [
-  'name',
-  'country',
-  'state',
-];
-
-function validateRequired(data: ServiceRegionFormData, fields: (keyof ServiceRegionFormData)[]): ServiceRegionFormErrors {
-  const errors: ServiceRegionFormErrors = {};
-  for (const field of fields) {
-    const value = data[field];
-    if (typeof value === 'string' && !value.trim()) {
-      errors[field] = REQUIRED_FIELD_MESSAGE;
-    }
-  }
-  return errors;
-}
-
 export interface SaveResult {
   success: boolean;
   error?: string;
@@ -38,7 +21,14 @@ export function useServiceRegionSave(): UseServiceRegionSaveReturn {
   const queryClient = useQueryClient();
 
   const validate = useCallback((data: ServiceRegionFormData): ServiceRegionFormErrors => {
-    return validateRequired(data, REQUIRED_FIELDS);
+    const errors: ServiceRegionFormErrors = {};
+    if (!data.name.trim()) {
+      errors.name = REQUIRED_FIELD_MESSAGE;
+    }
+    if (!data.geojson || !hasCoordinates(data.geojson)) {
+      errors.geojson = 'A polygon must be drawn on the map';
+    }
+    return errors;
   }, []);
 
   const save = useCallback(async (data: ServiceRegionFormData, regionId?: string): Promise<SaveResult> => {
@@ -46,10 +36,9 @@ export function useServiceRegionSave(): UseServiceRegionSaveReturn {
     try {
       const payload = {
         name: data.name.trim(),
-        country: data.country,
-        state: data.state.trim(),
-        suburbIds: data.suburbIds,
-        status: data.status || undefined,
+        geojson: data.geojson,
+        color: data.color,
+        ...(regionId ? { status: data.status || undefined } : {}),
       };
 
       if (regionId) {
@@ -70,4 +59,15 @@ export function useServiceRegionSave(): UseServiceRegionSaveReturn {
   }, [queryClient]);
 
   return { save, isSaving, validate };
+}
+
+function hasCoordinates(geojson: object): boolean {
+  const geo = geojson as { type?: string; coordinates?: unknown[][] };
+  return (
+    geo.type === 'Polygon' &&
+    Array.isArray(geo.coordinates) &&
+    geo.coordinates.length > 0 &&
+    Array.isArray(geo.coordinates[0]) &&
+    geo.coordinates[0].length >= 4
+  );
 }

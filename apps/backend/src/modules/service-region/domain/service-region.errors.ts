@@ -6,12 +6,6 @@ export class ServiceRegionNotFoundError extends NotFoundError {
   }
 }
 
-export class SuburbNotFoundError extends NotFoundError {
-  constructor() {
-    super('SUBURB_NOT_FOUND', 'Suburb not found');
-  }
-}
-
 export class ServiceRegionNameConflictError extends ConflictError {
   constructor() {
     super(

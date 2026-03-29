@@ -1,32 +1,31 @@
 import { BaseEntity } from '../../../shared/domain/entity';
 import type { RegionStatus } from '@properfy/shared';
-import type { SuburbProps } from './suburb.entity';
 
 export interface ServiceRegionProps {
   id: string;
   name: string;
-  state: string;
-  country: string;
+  geojson: Record<string, unknown>;
+  color: string;
   status: RegionStatus;
-  suburbs: SuburbProps[];
+  createdByUserId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export class ServiceRegionEntity extends BaseEntity {
   readonly name: string;
-  readonly state: string;
-  readonly country: string;
+  readonly geojson: Record<string, unknown>;
+  readonly color: string;
   status: RegionStatus;
-  readonly suburbs: SuburbProps[];
+  readonly createdByUserId: string | null;
 
   constructor(props: ServiceRegionProps) {
     super(props.id, props.createdAt, props.updatedAt);
     this.name = props.name;
-    this.state = props.state;
-    this.country = props.country;
+    this.geojson = props.geojson;
+    this.color = props.color;
     this.status = props.status;
-    this.suburbs = props.suburbs;
+    this.createdByUserId = props.createdByUserId;
   }
 
   isActive(): boolean {

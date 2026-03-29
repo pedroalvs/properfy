@@ -6,72 +6,41 @@ import type {
   ServiceRegionFilters,
   PaginationParams,
 } from '../domain/service-region.repository';
-import type { RegionStatus, SuburbStatus } from '@properfy/shared';
+import type { RegionStatus } from '@properfy/shared';
 
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
 
-interface SuburbRow {
-  id: string;
-  name: string;
-  city: string;
-  state: string;
-  country: string;
-  postcode: string | null;
-  status: string;
-  created_at: Date;
-}
-
 interface RegionRow {
   id: string;
   name: string;
-  state: string;
-  country: string;
+  geojson: unknown;
+  color: string;
   status: string;
+  created_by_user_id: string | null;
   created_at: Date;
   updated_at: Date;
-  region_suburbs: Array<{ suburb: SuburbRow }>;
 }
 
 function mapToEntity(row: RegionRow): ServiceRegionEntity {
   return new ServiceRegionEntity({
     id: row.id,
     name: row.name,
-    state: row.state,
-    country: row.country,
+    geojson: (row.geojson as Record<string, unknown>) ?? {},
+    color: row.color,
     status: row.status as RegionStatus,
-    suburbs: row.region_suburbs.map((rs) => ({
-      id: rs.suburb.id,
-      name: rs.suburb.name,
-      city: rs.suburb.city,
-      state: rs.suburb.state,
-      country: rs.suburb.country,
-      postcode: rs.suburb.postcode,
-      status: rs.suburb.status as SuburbStatus,
-      createdAt: rs.suburb.created_at,
-    })),
+    createdByUserId: row.created_by_user_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
 }
 
-const includeSuburbs = {
-  region_suburbs: {
-    include: {
-      suburb: true,
-    },
-  },
-} as const;
-
 export class PrismaServiceRegionRepository implements IServiceRegionRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findById(id: string): Promise<ServiceRegionEntity | null> {
-    const row = await this.prisma.serviceRegion.findFirst({
-      where: { id },
-      include: includeSuburbs,
-    });
+    const row = await this.prisma.serviceRegion.findUnique({ where: { id } });
     return row ? mapToEntity(row) : null;
   }
 
@@ -82,7 +51,6 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     const where = this.buildWhere(filters);
     const rows = await this.prisma.serviceRegion.findMany({
       where,
-      include: includeSuburbs,
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: {
@@ -98,60 +66,87 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
   }
 
   async save(region: ServiceRegionEntity): Promise<void> {
-    await this.prisma.serviceRegion.create({
-      data: {
-        id: region.id,
-        name: region.name,
-        state: region.state,
-        country: region.country,
-        status: region.status as PrismaRegionStatus,
-        region_suburbs: {
-          create: region.suburbs.map((s) => ({
-            suburb_id: s.id,
-          })),
-        },
-      },
-    });
+    const geojsonStr = JSON.stringify(region.geojson);
+    await this.prisma.$executeRaw`
+      INSERT INTO service_regions (id, name, geom, geojson, color, status, created_by_user_id, created_at, updated_at)
+      VALUES (
+        ${region.id},
+        ${region.name},
+        ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
+        ${geojsonStr}::jsonb,
+        ${region.color},
+        'ACTIVE',
+        ${region.createdByUserId},
+        NOW(),
+        NOW()
+      )
+    `;
   }
 
   async update(
     id: string,
     data: Partial<{
       name: string;
+      geojson: Record<string, unknown>;
+      color: string;
       status: string;
     }>,
   ): Promise<void> {
-    const updateData: Record<string, unknown> = {};
-    if (data.name !== undefined) updateData['name'] = data.name;
-    if (data.status !== undefined) updateData['status'] = data.status;
-    await this.prisma.serviceRegion.update({ where: { id }, data: updateData });
+    if (data.geojson) {
+      const geojsonStr = JSON.stringify(data.geojson);
+      await this.prisma.$executeRaw`
+        UPDATE service_regions SET
+          name = COALESCE(${data.name ?? null}, name),
+          geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
+          geojson = ${geojsonStr}::jsonb,
+          color = COALESCE(${data.color ?? null}, color),
+          status = COALESCE(${data.status ?? null}::"RegionStatus", status),
+          updated_at = NOW()
+        WHERE id = ${id}
+      `;
+    } else {
+      const updateData: Record<string, unknown> = {};
+      if (data.name !== undefined) updateData['name'] = data.name;
+      if (data.color !== undefined) updateData['color'] = data.color;
+      if (data.status !== undefined) updateData['status'] = data.status;
+      await this.prisma.serviceRegion.update({
+        where: { id },
+        data: updateData,
+      });
+    }
   }
 
-  async addSuburbs(regionId: string, suburbIds: string[]): Promise<void> {
-    if (suburbIds.length === 0) return;
-    await this.prisma.regionSuburb.createMany({
-      data: suburbIds.map((suburbId) => ({
-        region_id: regionId,
-        suburb_id: suburbId,
-      })),
-      skipDuplicates: true,
-    });
+  async findPropertyIdsInInspectorRegions(inspectorId: string): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT DISTINCT p.id
+      FROM properties p
+      JOIN service_regions sr ON ST_Contains(sr.geom, p.coordinates)
+      JOIN inspector_regions ir ON ir.region_id = sr.id
+      WHERE ir.inspector_id = ${inspectorId}
+        AND sr.status = 'ACTIVE'
+        AND p.deleted_at IS NULL
+        AND p.coordinates IS NOT NULL
+    `;
+    return rows.map((r) => r.id);
   }
 
-  async removeSuburbs(regionId: string, suburbIds: string[]): Promise<void> {
-    if (suburbIds.length === 0) return;
-    await this.prisma.regionSuburb.deleteMany({
-      where: {
-        region_id: regionId,
-        suburb_id: { in: suburbIds },
-      },
+  async setInspectorRegions(inspectorId: string, regionIds: string[]): Promise<void> {
+    await this.prisma.inspectorRegion.deleteMany({
+      where: { inspector_id: inspectorId },
     });
+    if (regionIds.length > 0) {
+      await this.prisma.inspectorRegion.createMany({
+        data: regionIds.map((regionId) => ({
+          inspector_id: inspectorId,
+          region_id: regionId,
+        })),
+        skipDuplicates: true,
+      });
+    }
   }
 
   private buildWhere(filters: ServiceRegionFilters) {
     const where: Record<string, unknown> = {};
-    if (filters.country) where['country'] = filters.country;
-    if (filters.state) where['state'] = filters.state;
     if (filters.status) where['status'] = filters.status;
     if (filters.search) {
       where['OR'] = [

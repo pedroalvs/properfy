@@ -26,8 +26,6 @@ export function useServiceRegionList(): UseServiceRegionListReturn {
       page,
       pageSize,
       ...(filters.search ? { search: filters.search } : {}),
-      ...(filters.country ? { country: filters.country } : {}),
-      ...(filters.state ? { state: filters.state } : {}),
       ...(filters.status ? { status: filters.status } : {}),
     },
   );

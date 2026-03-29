@@ -1,8 +1,6 @@
 import type { ServiceRegionEntity } from './service-region.entity';
 
 export interface ServiceRegionFilters {
-  country?: string;
-  state?: string;
   status?: string;
   search?: string;
 }
@@ -26,9 +24,11 @@ export interface IServiceRegionRepository {
     id: string,
     data: Partial<{
       name: string;
+      geojson: Record<string, unknown>;
+      color: string;
       status: string;
     }>,
   ): Promise<void>;
-  addSuburbs(regionId: string, suburbIds: string[]): Promise<void>;
-  removeSuburbs(regionId: string, suburbIds: string[]): Promise<void>;
+  findPropertyIdsInInspectorRegions(inspectorId: string): Promise<string[]>;
+  setInspectorRegions(inspectorId: string, regionIds: string[]): Promise<void>;
 }
