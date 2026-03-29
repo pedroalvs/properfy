@@ -13,18 +13,13 @@ import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceRegionDetail } from '../hooks/useServiceRegionDetail';
 import { useServiceRegionSave } from '../hooks/useServiceRegionSave';
+import { useCountryOptions } from '../hooks/useCountryOptions';
 import { useStateOptions } from '../hooks/useStateOptions';
 import { useCityOptions } from '../hooks/useCityOptions';
 import { api } from '@/services/api';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import type { ServiceRegionFormData, ServiceRegionFormErrors, Suburb } from '../types';
 import { EMPTY_SERVICE_REGION_FORM } from '../types';
-
-const COUNTRY_OPTIONS = [
-  { value: '', label: 'All countries' },
-  { value: 'AU', label: 'Australia' },
-  { value: 'BR', label: 'Brazil' },
-];
 
 const STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
@@ -63,6 +58,7 @@ export function ServiceRegionFormDrawer({
   const [filterState, setFilterState] = useState('');
   const [filterCity, setFilterCity] = useState('');
 
+  const { options: countryOptions, isLoading: isLoadingCountries } = useCountryOptions();
   const { options: stateOptions, isLoading: isLoadingStates } = useStateOptions(filterCountry);
   const { options: cityOptions, isLoading: isLoadingCities } = useCityOptions(filterCountry, filterState);
 
@@ -262,7 +258,10 @@ export function ServiceRegionFormDrawer({
                           <SelectInput
                             value={filterCountry}
                             onChange={handleCountryChange}
-                            options={COUNTRY_OPTIONS}
+                            options={[
+                              { value: '', label: isLoadingCountries ? 'Loading...' : 'All countries' },
+                              ...countryOptions,
+                            ]}
                             aria-label="Filter by country"
                           />
                         </FormField>

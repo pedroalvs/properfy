@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { Country, State, City } from 'country-state-city';
 import {
   createServiceRegionSchema,
   updateServiceRegionSchema,
@@ -23,8 +24,6 @@ export interface ServiceRegionRouteContainer {
   listServiceRegionsUseCase: ListServiceRegionsUseCase;
   listSuburbsUseCase: ListSuburbsUseCase;
   suburbRepo: {
-    distinctStates(country: string): Promise<string[]>;
-    distinctCities(country: string, state: string): Promise<string[]>;
     findOrCreate(data: { name: string; city: string; state: string; country: string; postcode?: string | null }): Promise<{ id: string; name: string; city: string; state: string; country: string; postcode: string | null; status: string }>;
   };
   jwtService: JwtService;
@@ -120,9 +119,22 @@ export async function registerServiceRegionRoutes(
     },
   );
 
-  // GET /v1/suburbs/states — distinct states for a country
+  // GET /v1/geography/countries — all countries (static data from country-state-city)
   app.get(
-    '/v1/suburbs/states',
+    '/v1/geography/countries',
+    { preHandler: authenticate },
+    async (_request, reply) => {
+      const data = Country.getAllCountries().map((c) => ({
+        code: c.isoCode,
+        name: c.name,
+      }));
+      return reply.status(200).send(success(data));
+    },
+  );
+
+  // GET /v1/geography/states — states for a country (static data from country-state-city)
+  app.get(
+    '/v1/geography/states',
     { preHandler: authenticate },
     async (request, reply) => {
       const query = request.query as Record<string, string>;
@@ -130,14 +142,17 @@ export async function registerServiceRegionRoutes(
       if (!country) {
         throw new ValidationError('country query parameter is required');
       }
-      const data = await container.suburbRepo.distinctStates(country);
+      const data = State.getStatesOfCountry(country).map((s) => ({
+        code: s.isoCode,
+        name: s.name,
+      }));
       return reply.status(200).send(success(data));
     },
   );
 
-  // GET /v1/suburbs/cities — distinct cities for a country + state
+  // GET /v1/geography/cities — cities for a country + state (static data from country-state-city)
   app.get(
-    '/v1/suburbs/cities',
+    '/v1/geography/cities',
     { preHandler: authenticate },
     async (request, reply) => {
       const query = request.query as Record<string, string>;
@@ -146,7 +161,11 @@ export async function registerServiceRegionRoutes(
       if (!country || !state) {
         throw new ValidationError('country and state query parameters are required');
       }
-      const data = await container.suburbRepo.distinctCities(country, state);
+      const data = City.getCitiesOfState(country, state).map((c) => ({
+        name: c.name,
+        latitude: c.latitude ?? null,
+        longitude: c.longitude ?? null,
+      }));
       return reply.status(200).send(success(data));
     },
   );

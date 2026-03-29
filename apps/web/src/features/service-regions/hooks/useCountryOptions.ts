@@ -6,29 +6,26 @@ export interface SelectOption {
   label: string;
 }
 
-export interface UseStateOptionsReturn {
+export interface UseCountryOptionsReturn {
   options: SelectOption[];
   isLoading: boolean;
 }
 
-export function useStateOptions(country: string): UseStateOptionsReturn {
+export function useCountryOptions(): UseCountryOptionsReturn {
   const query = useQuery<{ data: { code: string; name: string }[] }>({
-    queryKey: ['geography', 'states', country],
+    queryKey: ['geography', 'countries'],
     queryFn: async () => {
-      const { data, error } = await api.GET('/v1/geography/states' as any, {
-        params: { query: { country } as any },
-      });
+      const { data, error } = await api.GET('/v1/geography/countries' as any, {});
       if (error) throw error;
       return data as unknown as { data: { code: string; name: string }[] };
     },
-    enabled: !!country,
     staleTime: Infinity,
   });
 
-  const states = query.data?.data ?? [];
+  const countries = query.data?.data ?? [];
 
   return {
-    options: states.map((s) => ({ value: s.code, label: s.name })),
+    options: countries.map((c) => ({ value: c.code, label: c.name })),
     isLoading: query.isLoading,
   };
 }

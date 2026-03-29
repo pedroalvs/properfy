@@ -12,22 +12,23 @@ export interface UseCityOptionsReturn {
 }
 
 export function useCityOptions(country: string, state: string): UseCityOptionsReturn {
-  const query = useQuery<{ data: string[] }>({
-    queryKey: ['suburbs', 'cities', country, state],
+  const query = useQuery<{ data: { name: string; latitude: string | null; longitude: string | null }[] }>({
+    queryKey: ['geography', 'cities', country, state],
     queryFn: async () => {
-      const { data, error } = await api.GET('/v1/suburbs/cities' as any, {
+      const { data, error } = await api.GET('/v1/geography/cities' as any, {
         params: { query: { country, state } as any },
       });
       if (error) throw error;
-      return data as unknown as { data: string[] };
+      return data as unknown as { data: { name: string; latitude: string | null; longitude: string | null }[] };
     },
     enabled: !!country && !!state,
+    staleTime: Infinity,
   });
 
   const cities = query.data?.data ?? [];
 
   return {
-    options: cities.map((c) => ({ value: c, label: c })),
+    options: cities.map((c) => ({ value: c.name, label: c.name })),
     isLoading: query.isLoading,
   };
 }
