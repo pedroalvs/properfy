@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { todayLocalDateString } from '@properfy/shared';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -313,7 +314,7 @@ export function AppointmentFormDrawer({
                       <DateInput
                         value={form.scheduledDate}
                         onChange={(v) => updateField('scheduledDate', v)}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={todayLocalDateString()}
                         error={!!errors.scheduledDate}
                         aria-label="Scheduled Date"
                       />

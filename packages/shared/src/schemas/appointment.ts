@@ -3,6 +3,7 @@ import { paginationSchema } from './pagination';
 import { contactSchema } from './contact';
 import { restrictionSchema } from './restriction';
 import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
+import { todayLocalDateString } from '../utils/local-date';
 
 // Inline property for creation (matches createPropertySchema subset)
 const inlinePropertySchema = z.object({
@@ -25,11 +26,7 @@ export const createAppointmentSchema = z.object({
   property: inlinePropertySchema.optional(),
   serviceTypeId: z.string().uuid(),
   scheduledDate: z.string().date().refine(
-    (val) => {
-      const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-      const d = new Date(val); d.setUTCHours(0, 0, 0, 0);
-      return d >= today;
-    },
+    (val) => val >= todayLocalDateString(),
     { message: 'Scheduled date cannot be in the past' },
   ),
   timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format'),
@@ -59,9 +56,7 @@ export const updateAppointmentSchema = z.object({
 }).refine(
   (data) => {
     if (data.scheduledDate === undefined) return true;
-    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-    const d = new Date(data.scheduledDate); d.setUTCHours(0, 0, 0, 0);
-    return d >= today;
+    return data.scheduledDate >= todayLocalDateString();
   },
   { message: 'Scheduled date cannot be in the past', path: ['scheduledDate'] },
 );
