@@ -13,10 +13,18 @@ import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceRegionDetail } from '../hooks/useServiceRegionDetail';
 import { useServiceRegionSave } from '../hooks/useServiceRegionSave';
+import { useStateOptions } from '../hooks/useStateOptions';
+import { useCityOptions } from '../hooks/useCityOptions';
 import { api } from '@/services/api';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import type { ServiceRegionFormData, ServiceRegionFormErrors, Suburb } from '../types';
 import { EMPTY_SERVICE_REGION_FORM } from '../types';
+
+const COUNTRY_OPTIONS = [
+  { value: '', label: 'All countries' },
+  { value: 'AU', label: 'Australia' },
+  { value: 'BR', label: 'Brazil' },
+];
 
 const STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
@@ -50,6 +58,14 @@ export function ServiceRegionFormDrawer({
   const [addedSuburbs, setAddedSuburbs] = useState<Suburb[]>([]);
   const [isAddingSuburb, setIsAddingSuburb] = useState(false);
 
+  // Geographic filters for narrowing address lookup suggestions
+  const [filterCountry, setFilterCountry] = useState('');
+  const [filterState, setFilterState] = useState('');
+  const [filterCity, setFilterCity] = useState('');
+
+  const { options: stateOptions, isLoading: isLoadingStates } = useStateOptions(filterCountry);
+  const { options: cityOptions, isLoading: isLoadingCities } = useCityOptions(filterCountry, filterState);
+
   useEffect(() => {
     if (isEditMode && serviceRegion) {
       const data: ServiceRegionFormData = {
@@ -63,6 +79,8 @@ export function ServiceRegionFormDrawer({
       setForm(data);
       setInitialData(data);
       setAddedSuburbs(serviceRegion.suburbs ?? []);
+      setFilterCountry(serviceRegion.country);
+      setFilterState(serviceRegion.state);
       setErrors({});
     }
   }, [isEditMode, serviceRegion]);
@@ -72,6 +90,9 @@ export function ServiceRegionFormDrawer({
       setForm(EMPTY_SERVICE_REGION_FORM);
       setInitialData(EMPTY_SERVICE_REGION_FORM);
       setAddedSuburbs([]);
+      setFilterCountry('');
+      setFilterState('');
+      setFilterCity('');
       setErrors({});
     }
   }, [open, isEditMode]);
@@ -93,14 +114,24 @@ export function ServiceRegionFormDrawer({
     [],
   );
 
+  const handleCountryChange = useCallback((value: string) => {
+    setFilterCountry(value);
+    setFilterState('');
+    setFilterCity('');
+  }, []);
+
+  const handleStateChange = useCallback((value: string) => {
+    setFilterState(value);
+    setFilterCity('');
+  }, []);
+
   const handleAddressSelect = useCallback(async (suggestion: AddressLookupSuggestion) => {
     setIsAddingSuburb(true);
     try {
-      // Call backend findOrCreate to ensure suburb exists in the database
       const { data, error } = await api.POST('/v1/suburbs/resolve' as any, {
         body: {
           name: suggestion.suburb,
-          city: suggestion.suburb, // Mapbox suburb = locality
+          city: suggestion.suburb,
           state: suggestion.state,
           country: suggestion.country,
           postcode: suggestion.postcode || null,
@@ -118,7 +149,6 @@ export function ServiceRegionFormDrawer({
         return;
       }
 
-      // Auto-fill region country/state from first suburb if empty
       setForm((prev) => {
         const isFirstSuburb = prev.suburbIds.length === 0;
         const alreadyAdded = prev.suburbIds.includes(resolved.id);
@@ -144,10 +174,14 @@ export function ServiceRegionFormDrawer({
           status: resolved.status ?? 'ACTIVE',
         }];
       });
+
+      // Auto-set filters from first suburb
+      if (!filterCountry) setFilterCountry(suggestion.country);
+      if (!filterState) setFilterState(suggestion.state);
     } finally {
       setIsAddingSuburb(false);
     }
-  }, [showError]);
+  }, [showError, filterCountry, filterState]);
 
   const removeSuburb = useCallback((suburbId: string) => {
     setForm((prev) => ({
@@ -166,7 +200,7 @@ export function ServiceRegionFormDrawer({
 
     const result = await save(form, regionId ?? undefined);
     if (result.success) {
-      showSuccess(isEditMode ? 'Service region updated successfully' : 'Service region created successfully');
+      showSuccess(isEditMode ? 'Service region updated' : 'Service region created');
       onSaved();
     } else {
       showError(result.error ?? 'Failed to save');
@@ -174,21 +208,12 @@ export function ServiceRegionFormDrawer({
   }, [isEditMode, form, validate, save, regionId, showSuccess, showError, onSaved]);
 
   const handleClose = useCallback(() => {
-    if (isDirty) {
-      setShowConfirm(true);
-    } else {
-      onClose();
-    }
+    if (isDirty) setShowConfirm(true);
+    else onClose();
   }, [isDirty, onClose]);
 
-  const forceClose = useCallback(() => {
-    setShowConfirm(false);
-    onClose();
-  }, [onClose]);
-
-  const cancelDiscard = useCallback(() => {
-    setShowConfirm(false);
-  }, []);
+  // Build address lookup context from filters for better suggestions
+  const lookupCountry = filterCountry || undefined;
 
   return (
     <>
@@ -217,24 +242,6 @@ export function ServiceRegionFormDrawer({
                         aria-label="Name"
                       />
                     </FormField>
-                    <FormField label="Country" error={errors.country}>
-                      <TextInput
-                        value={form.country === 'AU' ? 'Australia' : form.country === 'BR' ? 'Brazil' : form.country}
-                        onChange={() => {}}
-                        disabled
-                        placeholder="Auto-filled from suburbs"
-                        aria-label="Country"
-                      />
-                    </FormField>
-                    <FormField label="State" error={errors.state}>
-                      <TextInput
-                        value={form.state}
-                        onChange={() => {}}
-                        disabled
-                        placeholder="Auto-filled from suburbs"
-                        aria-label="State"
-                      />
-                    </FormField>
                     {isEditMode && (
                       <FormField label="Status">
                         <SelectInput
@@ -249,13 +256,54 @@ export function ServiceRegionFormDrawer({
 
                   <FormSection title="Suburbs">
                     <div className="flex flex-col gap-4">
+                      {/* Geographic filters to narrow search */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <FormField label="Country">
+                          <SelectInput
+                            value={filterCountry}
+                            onChange={handleCountryChange}
+                            options={COUNTRY_OPTIONS}
+                            aria-label="Filter by country"
+                          />
+                        </FormField>
+                        <FormField label="State">
+                          <SelectInput
+                            value={filterState}
+                            onChange={handleStateChange}
+                            options={[
+                              { value: '', label: filterCountry ? (isLoadingStates ? 'Loading...' : 'All states') : 'Select country first' },
+                              ...stateOptions,
+                            ]}
+                            disabled={!filterCountry}
+                            aria-label="Filter by state"
+                          />
+                        </FormField>
+                        <FormField label="City">
+                          <SelectInput
+                            value={filterCity}
+                            onChange={setFilterCity}
+                            options={[
+                              { value: '', label: filterState ? (isLoadingCities ? 'Loading...' : 'All cities') : 'Select state first' },
+                              ...cityOptions,
+                            ]}
+                            disabled={!filterState}
+                            aria-label="Filter by city"
+                          />
+                        </FormField>
+                      </div>
+
                       <FormField label="Search and add suburbs" error={errors.suburbIds}>
                         <AddressLookupInput
                           label="Search suburb"
                           valueLabel=""
                           onSelect={handleAddressSelect}
                           onClear={() => {}}
-                          placeholder="Type suburb name to search..."
+                          country={lookupCountry}
+                          placeholder={
+                            filterCountry
+                              ? `Search suburbs in ${filterCountry}${filterState ? ` / ${filterState}` : ''}${filterCity ? ` / ${filterCity}` : ''}...`
+                              : 'Search suburb name...'
+                          }
                           disabled={isAddingSuburb}
                           ariaLabel="Search suburb to add"
                         />
@@ -264,10 +312,11 @@ export function ServiceRegionFormDrawer({
                         )}
                       </FormField>
 
+                      {/* Selected suburbs */}
                       <div className="rounded border border-black/10 px-3 py-3">
                         {addedSuburbs.length === 0 ? (
                           <p className="text-sm text-text-muted">
-                            No suburbs added yet. Use the search above to find and add suburbs.
+                            No suburbs added yet. Use the filters above to narrow your search, then add suburbs.
                           </p>
                         ) : (
                           <div className="flex flex-col gap-2">
@@ -286,7 +335,7 @@ export function ServiceRegionFormDrawer({
                                       <span className="text-xs text-primary/60">{suburb.postcode}</span>
                                     )}
                                     <span className="text-xs text-primary/60">
-                                      {suburb.city}, {suburb.state}
+                                      {suburb.state}, {suburb.country}
                                     </span>
                                     <button
                                       type="button"
@@ -330,8 +379,8 @@ export function ServiceRegionFormDrawer({
         confirmLabel="Discard"
         cancelLabel="Continue editing"
         variant="warning"
-        onConfirm={forceClose}
-        onClose={cancelDiscard}
+        onConfirm={() => { setShowConfirm(false); onClose(); }}
+        onClose={() => setShowConfirm(false)}
       />
     </>
   );
