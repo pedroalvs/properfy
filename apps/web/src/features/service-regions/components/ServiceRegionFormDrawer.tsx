@@ -9,20 +9,14 @@ import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
-import { Checkbox } from '@/components/forms/Checkbox';
+import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceRegionDetail } from '../hooks/useServiceRegionDetail';
 import { useServiceRegionSave } from '../hooks/useServiceRegionSave';
-import { useSuburbList } from '../hooks/useSuburbList';
-import { useStateOptions } from '../hooks/useStateOptions';
-import { useCityOptions } from '../hooks/useCityOptions';
-import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
+import { api } from '@/services/api';
+import type { AddressLookupSuggestion } from '@/lib/address';
+import type { ServiceRegionFormData, ServiceRegionFormErrors, Suburb } from '../types';
 import { EMPTY_SERVICE_REGION_FORM } from '../types';
-
-const COUNTRY_OPTIONS = [
-  { value: 'AU', label: 'Australia' },
-  { value: 'BR', label: 'Brazil' },
-];
 
 const STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
@@ -53,26 +47,22 @@ export function ServiceRegionFormDrawer({
   const [initialData, setInitialData] = useState<ServiceRegionFormData>(EMPTY_SERVICE_REGION_FORM);
   const [errors, setErrors] = useState<ServiceRegionFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
-
-  // Cascading data hooks
-  const { options: stateOptions, isLoading: isLoadingStates } = useStateOptions(form.country);
-  const { options: cityOptions, isLoading: isLoadingCities } = useCityOptions(form.country, form.state);
-  const { suburbs, isLoading: isLoadingSuburbs } = useSuburbList(form.country, form.state, form.city);
+  const [addedSuburbs, setAddedSuburbs] = useState<Suburb[]>([]);
+  const [isAddingSuburb, setIsAddingSuburb] = useState(false);
 
   useEffect(() => {
     if (isEditMode && serviceRegion) {
-      // Derive the city from the first suburb (all suburbs in a region share the same geography filtering context)
-      const firstSuburb = serviceRegion.suburbs?.[0];
       const data: ServiceRegionFormData = {
         name: serviceRegion.name,
         country: serviceRegion.country,
         state: serviceRegion.state,
-        city: firstSuburb?.city ?? '',
+        city: '',
         suburbIds: serviceRegion.suburbs?.map((s) => s.id) ?? [],
         status: serviceRegion.status,
       };
       setForm(data);
       setInitialData(data);
+      setAddedSuburbs(serviceRegion.suburbs ?? []);
       setErrors({});
     }
   }, [isEditMode, serviceRegion]);
@@ -81,6 +71,7 @@ export function ServiceRegionFormDrawer({
     if (open && !isEditMode) {
       setForm(EMPTY_SERVICE_REGION_FORM);
       setInitialData(EMPTY_SERVICE_REGION_FORM);
+      setAddedSuburbs([]);
       setErrors({});
     }
   }, [open, isEditMode]);
@@ -89,23 +80,7 @@ export function ServiceRegionFormDrawer({
 
   const updateField = useCallback(
     <K extends keyof ServiceRegionFormData>(field: K, value: ServiceRegionFormData[K]) => {
-      setForm((prev) => {
-        const next = { ...prev, [field]: value };
-
-        // Cascading resets
-        if (field === 'country') {
-          next.state = '';
-          next.city = '';
-          next.suburbIds = [];
-        } else if (field === 'state') {
-          next.city = '';
-          next.suburbIds = [];
-        } else if (field === 'city') {
-          next.suburbIds = [];
-        }
-
-        return next;
-      });
+      setForm((prev) => ({ ...prev, [field]: value }));
       setErrors((prev) => {
         if (prev[field]) {
           const next = { ...prev };
@@ -118,13 +93,68 @@ export function ServiceRegionFormDrawer({
     [],
   );
 
-  const toggleSuburb = useCallback((suburbId: string, checked: boolean) => {
-    setForm((prev) => {
-      const next = checked
-        ? Array.from(new Set([...prev.suburbIds, suburbId]))
-        : prev.suburbIds.filter((id) => id !== suburbId);
-      return { ...prev, suburbIds: next };
-    });
+  const handleAddressSelect = useCallback(async (suggestion: AddressLookupSuggestion) => {
+    setIsAddingSuburb(true);
+    try {
+      // Call backend findOrCreate to ensure suburb exists in the database
+      const { data, error } = await api.POST('/v1/suburbs/resolve' as any, {
+        body: {
+          name: suggestion.suburb,
+          city: suggestion.suburb, // Mapbox suburb = locality
+          state: suggestion.state,
+          country: suggestion.country,
+          postcode: suggestion.postcode || null,
+        } as any,
+      });
+
+      if (error) {
+        showError('Failed to resolve suburb');
+        return;
+      }
+
+      const resolved = (data as any)?.data;
+      if (!resolved?.id) {
+        showError('Failed to resolve suburb');
+        return;
+      }
+
+      // Auto-fill region country/state from first suburb if empty
+      setForm((prev) => {
+        const isFirstSuburb = prev.suburbIds.length === 0;
+        const alreadyAdded = prev.suburbIds.includes(resolved.id);
+        if (alreadyAdded) return prev;
+
+        return {
+          ...prev,
+          country: isFirstSuburb ? suggestion.country : prev.country,
+          state: isFirstSuburb ? suggestion.state : prev.state,
+          suburbIds: [...prev.suburbIds, resolved.id],
+        };
+      });
+
+      setAddedSuburbs((prev) => {
+        if (prev.some((s) => s.id === resolved.id)) return prev;
+        return [...prev, {
+          id: resolved.id,
+          name: resolved.name,
+          city: resolved.city,
+          state: resolved.state,
+          country: resolved.country,
+          postcode: resolved.postcode ?? null,
+          status: resolved.status ?? 'ACTIVE',
+        }];
+      });
+    } finally {
+      setIsAddingSuburb(false);
+    }
+  }, [showError]);
+
+  const removeSuburb = useCallback((suburbId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      suburbIds: prev.suburbIds.filter((id) => id !== suburbId),
+    }));
+    setAddedSuburbs((prev) => prev.filter((s) => s.id !== suburbId));
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -187,24 +217,21 @@ export function ServiceRegionFormDrawer({
                         aria-label="Name"
                       />
                     </FormField>
-                    <FormField label="Country" required error={errors.country}>
-                      <SelectInput
-                        value={form.country}
-                        onChange={(v) => updateField('country', v)}
-                        options={COUNTRY_OPTIONS}
-                        placeholder="Select country"
-                        error={!!errors.country}
+                    <FormField label="Country" error={errors.country}>
+                      <TextInput
+                        value={form.country === 'AU' ? 'Australia' : form.country === 'BR' ? 'Brazil' : form.country}
+                        onChange={() => {}}
+                        disabled
+                        placeholder="Auto-filled from suburbs"
                         aria-label="Country"
                       />
                     </FormField>
-                    <FormField label="State" required error={errors.state}>
-                      <SelectInput
+                    <FormField label="State" error={errors.state}>
+                      <TextInput
                         value={form.state}
-                        onChange={(v) => updateField('state', v)}
-                        options={stateOptions}
-                        placeholder={isLoadingStates ? 'Loading states...' : 'Select state'}
-                        disabled={!form.country}
-                        error={!!errors.state}
+                        onChange={() => {}}
+                        disabled
+                        placeholder="Auto-filled from suburbs"
                         aria-label="State"
                       />
                     </FormField>
@@ -222,46 +249,60 @@ export function ServiceRegionFormDrawer({
 
                   <FormSection title="Suburbs">
                     <div className="flex flex-col gap-4">
-                      <FormField label="City" required error={errors.city}>
-                        <SelectInput
-                          value={form.city}
-                          onChange={(v) => updateField('city', v)}
-                          options={cityOptions}
-                          placeholder={isLoadingCities ? 'Loading cities...' : 'Select city'}
-                          disabled={!form.country || !form.state}
-                          error={!!errors.city}
-                          aria-label="City"
+                      <FormField label="Search and add suburbs" error={errors.suburbIds}>
+                        <AddressLookupInput
+                          label="Search suburb"
+                          valueLabel=""
+                          onSelect={handleAddressSelect}
+                          onClear={() => {}}
+                          placeholder="Type suburb name to search..."
+                          disabled={isAddingSuburb}
+                          ariaLabel="Search suburb to add"
                         />
+                        {isAddingSuburb && (
+                          <p className="mt-1 text-xs text-text-muted">Adding suburb...</p>
+                        )}
                       </FormField>
 
-                      <FormField label={`Suburbs (${form.suburbIds.length} selected)`} error={errors.suburbIds}>
-                        <div className="flex flex-col gap-3 rounded border border-black/10 px-3 py-3">
-                          {!form.country || !form.state || !form.city ? (
-                            <p className="text-sm text-text-muted">
-                              Select country, state and city to view available suburbs.
+                      <div className="rounded border border-black/10 px-3 py-3">
+                        {addedSuburbs.length === 0 ? (
+                          <p className="text-sm text-text-muted">
+                            No suburbs added yet. Use the search above to find and add suburbs.
+                          </p>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                              {addedSuburbs.length} suburb{addedSuburbs.length !== 1 ? 's' : ''} selected
                             </p>
-                          ) : (
-                            <div className="max-h-60 overflow-y-auto">
-                              {suburbs.length > 0 ? (
-                                <div className="grid gap-2">
-                                  {suburbs.map((suburb) => (
-                                    <Checkbox
-                                      key={suburb.id}
-                                      label={`${suburb.name} ${suburb.postcode ? `- ${suburb.postcode}` : ''}`}
-                                      checked={form.suburbIds.includes(suburb.id)}
-                                      onChange={(checked) => toggleSuburb(suburb.id, checked)}
-                                    />
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-sm text-text-muted">
-                                  {isLoadingSuburbs ? 'Loading suburbs...' : 'No suburbs found for this city.'}
-                                </p>
-                              )}
+                            <div className="max-h-64 overflow-y-auto">
+                              <div className="flex flex-wrap gap-2">
+                                {addedSuburbs.map((suburb) => (
+                                  <span
+                                    key={suburb.id}
+                                    className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm text-primary"
+                                  >
+                                    {suburb.name}
+                                    {suburb.postcode && (
+                                      <span className="text-xs text-primary/60">{suburb.postcode}</span>
+                                    )}
+                                    <span className="text-xs text-primary/60">
+                                      {suburb.city}, {suburb.state}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeSuburb(suburb.id)}
+                                      className="ml-0.5 text-primary/50 hover:text-error"
+                                      aria-label={`Remove ${suburb.name}`}
+                                    >
+                                      <i className="mdi mdi-close text-sm" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      </FormField>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </FormSection>
                 </div>

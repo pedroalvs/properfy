@@ -22,7 +22,11 @@ export interface ServiceRegionRouteContainer {
   getServiceRegionUseCase: GetServiceRegionUseCase;
   listServiceRegionsUseCase: ListServiceRegionsUseCase;
   listSuburbsUseCase: ListSuburbsUseCase;
-  suburbRepo: { distinctStates(country: string): Promise<string[]>; distinctCities(country: string, state: string): Promise<string[]> };
+  suburbRepo: {
+    distinctStates(country: string): Promise<string[]>;
+    distinctCities(country: string, state: string): Promise<string[]>;
+    findOrCreate(data: { name: string; city: string; state: string; country: string; postcode?: string | null }): Promise<{ id: string; name: string; city: string; state: string; country: string; postcode: string | null; status: string }>;
+  };
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -144,6 +148,27 @@ export async function registerServiceRegionRoutes(
       }
       const data = await container.suburbRepo.distinctCities(country, state);
       return reply.status(200).send(success(data));
+    },
+  );
+
+  // POST /v1/suburbs/resolve — findOrCreate a suburb from address lookup data
+  app.post(
+    '/v1/suburbs/resolve',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const body = request.body as Record<string, unknown>;
+      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      const city = typeof body.city === 'string' ? body.city.trim() : '';
+      const state = typeof body.state === 'string' ? body.state.trim() : '';
+      const country = typeof body.country === 'string' ? body.country.trim() : '';
+      const postcode = typeof body.postcode === 'string' ? body.postcode.trim() : null;
+
+      if (!name || !city || !state || !country) {
+        throw new ValidationError('name, city, state, and country are required');
+      }
+
+      const suburb = await container.suburbRepo.findOrCreate({ name, city, state, country, postcode });
+      return reply.status(200).send(success(suburb));
     },
   );
 
