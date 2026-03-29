@@ -67,7 +67,7 @@ export function AppointmentDetailDrawer({
               onClose={onClose}
               actions={
                 <>
-                  <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} />
+                  <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} isOverdue={appointment.isOverdue} />
                   {onEdit && canEditAppointment ? (
                     <Button variant="icon" onClick={handleEdit} aria-label="Edit">
                       <i className="mdi mdi-pencil-outline text-xl" />

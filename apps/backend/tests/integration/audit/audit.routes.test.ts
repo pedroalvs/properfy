@@ -45,6 +45,7 @@ const fullAuditLog = {
   tenantId: '00000000-0000-0000-0000-000000000010',
   actorType: 'USER',
   actorId: 'admin-1',
+  actorName: 'Admin User',
   entityType: 'APPOINTMENT',
   entityId: '00000000-0000-0000-0000-000000000020',
   action: 'STATUS_TRANSITION',

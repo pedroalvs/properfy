@@ -5,6 +5,7 @@ export interface AuditLogEntry {
   tenantId: string | null;
   actorType: string;
   actorId: string | null;
+  actorName: string | null;
   entityType: string;
   entityId: string | null;
   action: string;
@@ -28,7 +29,13 @@ export function useAppointmentAuditLog(appointmentId: string | null): UseAppoint
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<AuditLogEntry>(
     ['audit-logs', 'appointment', appointmentId],
     '/v1/audit-logs',
-    { entityType: 'APPOINTMENT', entityId: appointmentId ?? '', pageSize: 50 },
+    {
+      entityType: 'Appointment',
+      entityId: appointmentId ?? '',
+      pageSize: 100,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    },
     { enabled: !!appointmentId },
   );
 

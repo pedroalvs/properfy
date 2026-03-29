@@ -111,7 +111,7 @@ export class ReportUnavailabilityUseCase {
     this.auditService.log({
       action: 'tenant_portal.unavailability_reported',
       actorType: 'ANONYMOUS',
-      entityType: 'appointment',
+      entityType: 'Appointment',
       entityId: input.appointmentId,
       tenantId: appointment.tenantId,
       before: previousValues,

@@ -293,7 +293,7 @@ describe('RescheduleRequestUseCase', () => {
       expect.objectContaining({
         action: 'tenant_portal.appointment_rescheduled',
         actorType: 'ANONYMOUS',
-        entityType: 'appointment',
+        entityType: 'Appointment',
         entityId: 'appt-1',
         tenantId: 'tenant-1',
       }),

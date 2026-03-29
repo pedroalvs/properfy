@@ -251,7 +251,7 @@ describe('ReportUnavailabilityUseCase', () => {
       expect.objectContaining({
         action: 'tenant_portal.unavailability_reported',
         actorType: 'ANONYMOUS',
-        entityType: 'appointment',
+        entityType: 'Appointment',
         entityId: 'appt-1',
         tenantId: 'tenant-1',
       }),

@@ -153,7 +153,7 @@ export class RescheduleRequestUseCase {
     this.auditService.log({
       action: 'tenant_portal.appointment_rescheduled',
       actorType: 'ANONYMOUS',
-      entityType: 'appointment',
+      entityType: 'Appointment',
       entityId: input.appointmentId,
       tenantId: appointment.tenantId,
       before: previousValues,

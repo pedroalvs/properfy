@@ -359,6 +359,7 @@ export const auditLogResponseSchema = z.object({
   tenantId: z.string().uuid().nullable(),
   actorType: z.string(),
   actorId: z.string().nullable(),
+  actorName: z.string().nullable(),
   entityType: z.string(),
   entityId: z.string().nullable(),
   action: z.string(),

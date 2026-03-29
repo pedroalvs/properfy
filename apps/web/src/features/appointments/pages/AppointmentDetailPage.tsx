@@ -122,7 +122,7 @@ export function AppointmentDetailPage() {
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {appointment.code}
           </h1>
-          <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} />
+          <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} isOverdue={appointment.isOverdue} />
         </div>
         <div className="flex items-center gap-2">
           {canCrossCheckDone && (

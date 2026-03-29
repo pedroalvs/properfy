@@ -21,12 +21,13 @@ describe('AppointmentStatusChip', () => {
     },
   );
 
-  it('passes className through to StatusChip', () => {
+  it('passes className through to wrapper', () => {
     render(
       <AppointmentStatusChip status={AppointmentStatus.DRAFT} className="my-custom" />,
     );
     const chip = screen.getByText('Draft');
-    expect(chip.className).toContain('my-custom');
+    const wrapper = chip.closest('span.inline-flex');
+    expect(wrapper?.className).toContain('my-custom');
   });
 
   it('renders reviewed DONE label when cross-check exists', () => {

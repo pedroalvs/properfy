@@ -162,6 +162,17 @@ export class FinishInspectionUseCase {
       },
     });
 
+    // 9b. Audit log for appointment timeline
+    this.auditService.log({
+      action: 'inspection.finished',
+      actorType: 'USER',
+      actorId: actor.userId,
+      entityType: 'Appointment',
+      entityId: appointmentId,
+      tenantId: appointment.tenantId,
+      metadata: { latitude, longitude },
+    });
+
     // 10. Store idempotency
     const output: FinishInspectionOutput = {
       executionId: execution.id,

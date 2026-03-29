@@ -17,6 +17,19 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
 
   return (
     <div className="flex flex-col gap-6">
+      {appointment.isOverdue && (
+        <div
+          className="flex items-start gap-3 rounded bg-error/10 px-4 py-3 text-sm text-error"
+          role="alert"
+        >
+          <i className="mdi mdi-alert-circle mt-0.5 text-lg" aria-hidden="true" />
+          <div>
+            <span className="font-semibold">This appointment is overdue.</span>
+            {' '}The scheduled date ({formatDate(appointment.scheduledDate)}) has passed and no action was taken.
+            Consider rescheduling, cancelling, or marking as done.
+          </div>
+        </div>
+      )}
       <FormSection title="Inspection Details">
         <DetailRow label="Service Type" value={appointment.serviceTypeName} />
         <DetailRow label="Address" value={appointment.propertyAddress} />

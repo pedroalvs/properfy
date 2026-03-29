@@ -368,7 +368,7 @@ describe('FinishInspectionUseCase', () => {
       actor: inspActor,
     });
 
-    expect(auditService.log).toHaveBeenCalledOnce();
+    expect(auditService.log).toHaveBeenCalledTimes(2);
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'inspection_execution.finished',
@@ -376,6 +376,14 @@ describe('FinishInspectionUseCase', () => {
         actorId: 'insp-1',
         entityType: 'InspectionExecution',
         entityId: 'exec-1',
+        tenantId: 'tenant-1',
+      }),
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'inspection.finished',
+        entityType: 'Appointment',
+        entityId: 'appt-1',
         tenantId: 'tenant-1',
       }),
     );

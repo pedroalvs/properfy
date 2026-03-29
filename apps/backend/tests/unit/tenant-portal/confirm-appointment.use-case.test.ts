@@ -195,7 +195,7 @@ describe('ConfirmAppointmentUseCase', () => {
     expect(auditService.log).toHaveBeenCalledWith({
       action: 'tenant_portal.appointment_confirmed',
       actorType: 'ANONYMOUS',
-      entityType: 'appointment',
+      entityType: 'Appointment',
       entityId: 'appt-1',
       tenantId: 'tenant-1',
       before: { tenantConfirmationStatus: 'PENDING' },

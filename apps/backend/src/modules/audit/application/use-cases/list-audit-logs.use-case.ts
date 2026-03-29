@@ -15,11 +15,16 @@ export interface ListAuditLogsInput {
   actor: AuthContext;
 }
 
+interface UserReader {
+  findById(id: string): Promise<{ id: string; name: string } | null>;
+}
+
 export interface AuditLogOutput {
   id: string;
   tenantId: string | null;
   actorType: string;
   actorId: string | null;
+  actorName: string | null;
   entityType: string;
   entityId: string | null;
   action: string;
@@ -38,7 +43,10 @@ export interface ListAuditLogsOutput {
 }
 
 export class ListAuditLogsUseCase {
-  constructor(private readonly auditLogRepo: IAuditLogRepository) {}
+  constructor(
+    private readonly auditLogRepo: IAuditLogRepository,
+    private readonly userReader?: UserReader,
+  ) {}
 
   async execute(input: ListAuditLogsInput): Promise<ListAuditLogsOutput> {
     const { actor, filters, pagination } = input;
@@ -62,12 +70,36 @@ export class ListAuditLogsUseCase {
       this.auditLogRepo.count(repoFilters),
     ]);
 
+    // Batch-fetch user names for actor resolution
+    const userActorIds = [
+      ...new Set(
+        data
+          .filter((e) => e.actorType === 'USER' && e.actorId)
+          .map((e) => e.actorId!),
+      ),
+    ];
+    const userMap = new Map<string, string>();
+    if (this.userReader && userActorIds.length > 0) {
+      await Promise.all(
+        userActorIds.map(async (uid) => {
+          const user = await this.userReader!.findById(uid);
+          if (user) userMap.set(uid, user.name);
+        }),
+      );
+    }
+
     return {
       data: data.map((entry) => ({
         id: entry.id,
         tenantId: entry.tenantId,
         actorType: entry.actorType,
         actorId: entry.actorId,
+        actorName:
+          entry.actorType === 'USER'
+            ? userMap.get(entry.actorId!) ?? null
+            : entry.actorType === 'SYSTEM'
+              ? 'System'
+              : null,
         entityType: entry.entityType,
         entityId: entry.entityId,
         action: entry.action,

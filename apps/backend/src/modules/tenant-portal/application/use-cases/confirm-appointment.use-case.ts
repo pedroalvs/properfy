@@ -105,7 +105,7 @@ export class ConfirmAppointmentUseCase {
     this.auditService.log({
       action: 'tenant_portal.appointment_confirmed',
       actorType: 'ANONYMOUS',
-      entityType: 'appointment',
+      entityType: 'Appointment',
       entityId: input.appointmentId,
       tenantId: appointment.tenantId,
       before: previousValues,

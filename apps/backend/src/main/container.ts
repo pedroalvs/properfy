@@ -497,7 +497,7 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   // Audit use cases
-  const listAuditLogsUseCase = new ListAuditLogsUseCase(auditLogRepo);
+  const listAuditLogsUseCase = new ListAuditLogsUseCase(auditLogRepo, userManagementRepo);
 
   // Service group repositories and use cases
   const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);

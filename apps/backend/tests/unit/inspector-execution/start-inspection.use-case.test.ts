@@ -385,13 +385,21 @@ describe('StartInspectionUseCase', () => {
       actor: inspActor,
     });
 
-    expect(auditService.log).toHaveBeenCalledOnce();
+    expect(auditService.log).toHaveBeenCalledTimes(2);
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'inspection_execution.started',
         actorType: 'USER',
         actorId: 'insp-1',
         entityType: 'InspectionExecution',
+        tenantId: 'tenant-1',
+      }),
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'inspection.started',
+        entityType: 'Appointment',
+        entityId: 'appt-1',
         tenantId: 'tenant-1',
       }),
     );
