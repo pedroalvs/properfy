@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
+import { api } from '@/services/api';
 
 vi.mock('@properfy/shared', () => ({
   contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
   AppointmentStatus: { DRAFT: 'DRAFT', SCHEDULED: 'SCHEDULED', AWAITING_INSPECTOR: 'AWAITING_INSPECTOR', DONE: 'DONE', CANCELLED: 'CANCELLED', REJECTED: 'REJECTED' },
   TenantConfirmationStatus: { PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', UNAVAILABLE: 'UNAVAILABLE', NO_RESPONSE: 'NO_RESPONSE' },
+  todayLocalDateString: () => '2026-03-29',
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
@@ -74,6 +76,8 @@ const MOCK_APPOINTMENT = {
   scheduledDate: '2026-04-01', timeSlot: '09:00-12:00', contactName: 'John Doe',
   contactPhone: '11999999999', contactEmail: 'john@test.com', keyRequired: true,
   meetingLocation: 'Lobby', keyLocation: 'Portaria', notes: 'Test notes',
+  status: 'AWAITING_INSPECTOR',
+  inspectorId: null,
   restrictions: [{ id: 'res-1', isHome: true, unavailableDaysJson: null, unavailableHoursJson: null, notes: 'Ring bell', source: 'OPERATOR' }],
 };
 
@@ -106,11 +110,14 @@ function renderDrawer(props: Partial<Parameters<typeof AppointmentFormDrawer>[0]
 }
 
 describe('AppointmentFormDrawer', () => {
+  const mockPost = api.POST as ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockSave.mockResolvedValue({ success: true });
     mockValidate.mockReturnValue({});
     mockUseFormOptions.mockImplementation(() => ({ options: [], isLoading: false }));
+    mockPost.mockResolvedValue({ data: { data: { id: 'apt-01', status: 'SCHEDULED' } }, error: null });
   });
 
   it('renders create mode with correct title, form sections, and cancel calls onClose', () => {
@@ -155,5 +162,53 @@ describe('AppointmentFormDrawer', () => {
   it('allows editing the time slot in edit mode', () => {
     renderDrawer({ appointmentId: 'apt-01' });
     expect(screen.getByLabelText('Time Slot')).not.toBeDisabled();
+  });
+
+  it('shows inspector assignment section for awaiting inspector appointments', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/inspectors') {
+        return { options: [{ value: 'insp-01', label: 'Inspector One' }], isLoading: false };
+      }
+      return { options: [], isLoading: false };
+    }) as any);
+
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    expect(screen.getByText('Assignment')).toBeInTheDocument();
+    expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
+  });
+
+  it('assigns inspector from the edit drawer via appointment transition', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/inspectors') {
+        return { options: [{ value: 'insp-01', label: 'Inspector One' }], isLoading: false };
+      }
+      return { options: [], isLoading: false };
+    }) as any);
+
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    fireEvent.click(screen.getByLabelText('Inspector'));
+    fireEvent.click(screen.getByText('Inspector One'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Save & Assign Inspector')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Save & Assign Inspector'));
+
+    expect(mockSave).not.toHaveBeenCalled();
+    expect(mockPost).toHaveBeenCalledWith(
+      '/v1/appointments/apt-01/status-transitions',
+      {
+        body: {
+          targetStatus: 'SCHEDULED',
+          inspectorId: 'insp-01',
+        },
+        headers: { 'Idempotency-Key': expect.any(String) },
+      },
+    );
   });
 });

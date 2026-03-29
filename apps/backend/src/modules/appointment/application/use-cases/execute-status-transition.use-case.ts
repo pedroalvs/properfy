@@ -206,7 +206,27 @@ export class ExecuteStatusTransitionUseCase {
     // 8. Update appointment
     await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData);
 
-    // 9. Audit log
+    // 9. Audit log — capture all fields that changed, resolve names for readability
+    const beforeSnapshot: Record<string, unknown> = { status: appointment.status };
+    const afterSnapshot: Record<string, unknown> = { status: targetStatus };
+    const metadata: Record<string, unknown> = {};
+
+    if (targetStatus === 'SCHEDULED' && inspectorId) {
+      const inspector = await this.inspectorRepo.findById(inspectorId);
+      const inspectorName = inspector?.name ?? inspectorId;
+      afterSnapshot.inspector = inspectorName;
+      metadata.inspectorId = inspectorId;
+      metadata.inspectorName = inspectorName;
+    }
+    if (doneCheckedByUserId) {
+      const reviewer = await this.userRepo.findById(doneCheckedByUserId);
+      afterSnapshot.reviewedBy = reviewer?.name ?? doneCheckedByUserId;
+      metadata.doneCheckedByUserId = doneCheckedByUserId;
+    }
+    if (appointment.status === 'DONE' && targetStatus === 'DRAFT') {
+      afterSnapshot.reviewedBy = null;
+    }
+
     this.auditService.log({
       action: 'appointment.status_transition',
       actorType: 'USER',
@@ -214,9 +234,10 @@ export class ExecuteStatusTransitionUseCase {
       entityType: 'Appointment',
       entityId: appointmentId,
       tenantId: appointment.tenantId,
-      before: { status: appointment.status },
-      after: { status: targetStatus },
+      before: beforeSnapshot,
+      after: afterSnapshot,
       reason: reason ?? undefined,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     });
 
     // 9b. Side effect: INSP marked DONE without operator cross-check — flag pending review

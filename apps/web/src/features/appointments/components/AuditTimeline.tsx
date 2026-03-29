@@ -52,6 +52,15 @@ function formatActor(entry: AuditLogEntry): string {
   return entry.actorId ? `User (${entry.actorId.slice(0, 8)}...)` : entry.actorType;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  status: 'Status',
+  inspector: 'Inspector',
+  reviewedBy: 'Reviewed by',
+  scheduledDate: 'Scheduled date',
+  timeSlot: 'Time slot',
+  tenantConfirmationStatus: 'Tenant confirmation',
+};
+
 function summarizeChanges(beforeJson: unknown, afterJson: unknown): string | null {
   if (
     !beforeJson ||
@@ -70,11 +79,12 @@ function summarizeChanges(beforeJson: unknown, afterJson: unknown): string | nul
 
   const changes = keys
     .filter((key) => JSON.stringify(beforeRecord[key]) !== JSON.stringify(afterRecord[key]))
-    .slice(0, 3)
+    .slice(0, 4)
     .map((key) => {
+      const label = FIELD_LABELS[key] ?? key;
       const beforeValue = beforeRecord[key] == null ? '—' : String(beforeRecord[key]);
       const afterValue = afterRecord[key] == null ? '—' : String(afterRecord[key]);
-      return `${key}: ${beforeValue} \u2192 ${afterValue}`;
+      return `${label}: ${beforeValue} \u2192 ${afterValue}`;
     });
 
   return changes.length > 0 ? changes.join(' | ') : null;
