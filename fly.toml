@@ -5,7 +5,7 @@ primary_region = 'iad'
   dockerfile = 'apps/backend/Dockerfile'
 
 [deploy]
-  release_command = 'cd /app/apps/backend && prisma migrate deploy'
+  release_command = 'sh -c "cd /app/apps/backend && npx prisma migrate deploy"'
 
 [env]
   NODE_ENV = 'staging'
