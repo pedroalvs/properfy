@@ -101,6 +101,17 @@ describe('InspectorFormDrawer', () => {
           },
         });
       }
+      if (path === '/v1/service-regions') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { id: 'reg-01', name: 'North Region' },
+              { id: 'reg-02', name: 'South Region' },
+            ],
+            pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+          },
+        });
+      }
       return Promise.resolve({
         data: {
           data: [

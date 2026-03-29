@@ -63,10 +63,19 @@ function createWrapper() {
 
 beforeEach(() => {
   mockGet.mockReset();
-  mockGet.mockResolvedValue({ data: {
-    data: MOCK_INSPECTORS,
-    pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
-  } });
+  mockGet.mockImplementation((path: string) => {
+    if (path === '/v1/inspectors') {
+      return Promise.resolve({ data: {
+        data: MOCK_INSPECTORS,
+        pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+      } });
+    }
+    // Return empty lists for service-types, service-regions, tenants, etc.
+    return Promise.resolve({ data: {
+      data: [],
+      pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 },
+    } });
+  });
 });
 
 function renderPage() {
