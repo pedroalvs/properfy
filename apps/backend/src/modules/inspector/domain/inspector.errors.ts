@@ -18,6 +18,19 @@ export class InspectorAlreadyInactiveError extends ConflictError {
   }
 }
 
+export class InspectorHasOpenAppointmentsError extends ConflictError {
+  constructor(total: number, breakdown: Record<string, number>) {
+    const parts = Object.entries(breakdown)
+      .filter(([, count]) => count > 0)
+      .map(([status, count]) => `${count} ${status}`);
+    const detail = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+    super(
+      'INSPECTOR_HAS_OPEN_APPOINTMENTS',
+      `Cannot deactivate inspector with ${total} open appointment${total !== 1 ? 's' : ''}${detail}`,
+    );
+  }
+}
+
 export class AvailabilitySlotNotFoundError extends NotFoundError {
   constructor() {
     super('AVAILABILITY_SLOT_NOT_FOUND', 'Availability slot not found');

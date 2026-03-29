@@ -12,6 +12,7 @@ import {
   ExecutionAlreadyFinishedError,
   ExecutionAssetUploadPendingError,
   ExecutionInsufficientAssetsError,
+  ExecutionEmptyChecklistError,
 } from '../../domain/inspection-execution.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
@@ -90,6 +91,13 @@ export class FinishInspectionUseCase {
       throw new ExecutionAppointmentNotFoundError();
     }
     const { appointment } = appointmentResult;
+
+    // 5a. Validate checklist has at least one response if provided
+    if (checklistJson !== undefined && checklistJson !== null) {
+      if (Object.keys(checklistJson).length === 0) {
+        throw new ExecutionEmptyChecklistError();
+      }
+    }
 
     // 5. Validate minimum assets (configurable per service type, default: 1 PHOTO)
     const uploadedAssets = await this.assetRepo.findUploadedByExecutionId(execution.id);

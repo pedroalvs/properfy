@@ -71,3 +71,9 @@ export class AssetUploadNotFoundInStorageError extends DomainError {
     super('ASSET_UPLOAD_NOT_FOUND_IN_STORAGE', 'Upload not found in storage', 422);
   }
 }
+
+export class ExecutionEmptyChecklistError extends DomainError {
+  constructor() {
+    super('EXECUTION_EMPTY_CHECKLIST', 'Checklist must contain at least one response', 422);
+  }
+}

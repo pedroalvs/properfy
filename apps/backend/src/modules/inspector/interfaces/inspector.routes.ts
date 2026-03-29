@@ -8,6 +8,7 @@ import {
   updateAvailabilitySlotSchema,
   listAvailabilitySlotsQuerySchema,
   linkInspectorToUserSchema,
+  deactivateSchema,
   inspectorResponseSchema,
   availabilitySlotResponseSchema,
   successResponseSchema,
@@ -24,6 +25,7 @@ import type { CreateAvailabilitySlotUseCase } from '../application/use-cases/cre
 import type { ListAvailabilitySlotsUseCase } from '../application/use-cases/list-availability-slots.use-case';
 import type { UpdateAvailabilitySlotUseCase } from '../application/use-cases/update-availability-slot.use-case';
 import type { LinkInspectorToUserUseCase } from '../application/use-cases/link-inspector-to-user.use-case';
+import type { DeactivateInspectorUseCase } from '../application/use-cases/deactivate-inspector.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface InspectorRouteContainer {
@@ -35,6 +37,7 @@ export interface InspectorRouteContainer {
   listAvailabilitySlotsUseCase: ListAvailabilitySlotsUseCase;
   updateAvailabilitySlotUseCase: UpdateAvailabilitySlotUseCase;
   linkInspectorToUserUseCase: LinkInspectorToUserUseCase;
+  deactivateInspectorUseCase: DeactivateInspectorUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
   slotRepo: { findByIdAny(id: string): Promise<{ inspectorId: string } | null> };
@@ -466,6 +469,32 @@ export async function registerInspectorRoutes(
         actor: request.authContext!,
       });
       return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/inspectors/:inspectorId/deactivate
+  app.post(
+    '/v1/inspectors/:inspectorId/deactivate',
+    { preHandler: authenticate, schema: { params: z.object({ inspectorId: z.string().uuid() }), body: deactivateSchema } },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid inspector ID',
+          params.error.errors,
+        );
+      const parsed = deactivateSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.deactivateInspectorUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 }

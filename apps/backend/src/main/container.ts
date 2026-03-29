@@ -91,6 +91,8 @@ import { CreateAvailabilitySlotUseCase } from '../modules/inspector/application/
 import { ListAvailabilitySlotsUseCase } from '../modules/inspector/application/use-cases/list-availability-slots.use-case';
 import { UpdateAvailabilitySlotUseCase } from '../modules/inspector/application/use-cases/update-availability-slot.use-case';
 import { LinkInspectorToUserUseCase } from '../modules/inspector/application/use-cases/link-inspector-to-user.use-case';
+import { DeactivateInspectorUseCase } from '../modules/inspector/application/use-cases/deactivate-inspector.use-case';
+import { PrismaInspectorAppointmentChecker } from '../modules/inspector/infrastructure/prisma-inspector-appointment-checker';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
 
 // Audit module
@@ -385,6 +387,8 @@ export function createContainer(logger: Logger): AppContainer {
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
   const linkInspectorToUserUseCase = new LinkInspectorToUserUseCase(inspectorRepo, userManagementRepo, auditService);
+  const inspectorAppointmentChecker = new PrismaInspectorAppointmentChecker(prisma);
+  const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService);
 
   // Notification repositories and create use case (needed before appointments for handler wiring)
   const notificationRepo = new PrismaNotificationRepository(prisma);
@@ -711,6 +715,7 @@ export function createContainer(logger: Logger): AppContainer {
       listAvailabilitySlotsUseCase,
       updateAvailabilitySlotUseCase,
       linkInspectorToUserUseCase,
+      deactivateInspectorUseCase,
       jwtService,
       tenantRepo,
       slotRepo: availabilitySlotRepo,
