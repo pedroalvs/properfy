@@ -358,7 +358,11 @@ async function main() {
 
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorLinked },
-    update: {},
+    update: {
+      regions_json: ['Sydney', 'Surry Hills', 'North Sydney', 'Inner West'],
+      service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing],
+      client_eligibility_json: [IDS.tenant, IDS.tenant2],
+    },
     create: {
       id: IDS.inspectorLinked,
       user_id: IDS.userINSP,
@@ -374,7 +378,11 @@ async function main() {
 
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorIndep },
-    update: {},
+    update: {
+      regions_json: ['Eastern Suburbs', 'South Sydney', 'Surry Hills', 'North Sydney'],
+      service_types_json: [serviceTypeIds.routine, serviceTypeIds.outgoing],
+      client_eligibility_json: [IDS.tenant],
+    },
     create: {
       id: IDS.inspectorIndep,
       name: 'Carlos Mendez',
@@ -389,7 +397,11 @@ async function main() {
 
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorLinked2 },
-    update: {},
+    update: {
+      regions_json: ['Melbourne', 'Southbank', 'Richmond'],
+      service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing, serviceTypeIds.outgoing],
+      client_eligibility_json: [IDS.tenant2],
+    },
     create: {
       id: IDS.inspectorLinked2,
       user_id: IDS.userINSP2,
