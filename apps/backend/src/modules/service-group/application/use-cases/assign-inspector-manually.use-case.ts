@@ -3,6 +3,7 @@ import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors'
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
+import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
@@ -30,6 +31,7 @@ export class AssignInspectorManuallyUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly inspectorRepo: IInspectorRepository,
     private readonly auditService: AuditService,
+    private readonly serviceRegionRepo: IServiceRegionRepository,
   ) {}
 
   async execute(input: AssignInspectorManuallyInput): Promise<AssignInspectorManuallyOutput> {
@@ -79,6 +81,17 @@ export class AssignInspectorManuallyUseCase {
 
     if (!inspector.isEligibleForTenant(group.tenantId)) {
       throw new InspectorIneligibleError();
+    }
+
+    // Validate inspector's regions cover the service group's properties
+    const propertyIds = result.appointments.map((a) => a.propertyId);
+    if (propertyIds.length > 0) {
+      const coveredPropertyIds = await this.serviceRegionRepo.findPropertyIdsInInspectorRegions(inspectorId);
+      const coveredSet = new Set(coveredPropertyIds);
+      const uncoveredProperties = propertyIds.filter((pid) => !coveredSet.has(pid));
+      if (uncoveredProperties.length > 0) {
+        throw new InspectorIneligibleError();
+      }
     }
 
     const now = new Date();

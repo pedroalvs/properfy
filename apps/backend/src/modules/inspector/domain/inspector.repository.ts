@@ -34,7 +34,6 @@ export interface IInspectorRepository {
       phone: string | null;
       status: string;
       paymentSettingsJson: Record<string, unknown>;
-      regionsJson: string[];
       serviceTypesJson: string[];
       clientEligibilityJson: string[];
       deletedAt: Date | null;

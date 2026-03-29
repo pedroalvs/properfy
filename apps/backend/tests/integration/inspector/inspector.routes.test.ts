@@ -70,7 +70,7 @@ const fullInspector = {
   phone: null,
   status: 'ACTIVE',
   paymentSettingsJson: {},
-  regionsJson: [],
+  regionIds: [],
   serviceTypesJson: [],
   clientEligibilityJson: [],
   createdAt: new Date().toISOString(),

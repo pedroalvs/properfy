@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
+import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import { InspectorNotFoundError } from '../../domain/inspector.errors';
 
 export interface GetInspectorInput {
@@ -15,7 +16,7 @@ export interface GetInspectorOutput {
   phone: string | null;
   status: string;
   paymentSettingsJson: Record<string, unknown>;
-  regionsJson: string[];
+  regionIds: string[];
   serviceTypesJson: string[];
   clientEligibilityJson: string[];
   createdAt: Date;
@@ -23,7 +24,10 @@ export interface GetInspectorOutput {
 }
 
 export class GetInspectorUseCase {
-  constructor(private readonly inspectorRepo: IInspectorRepository) {}
+  constructor(
+    private readonly inspectorRepo: IInspectorRepository,
+    private readonly serviceRegionRepo: IServiceRegionRepository,
+  ) {}
 
   async execute(input: GetInspectorInput): Promise<GetInspectorOutput> {
     const { inspectorId, actor } = input;
@@ -49,6 +53,8 @@ export class GetInspectorUseCase {
       }
     }
 
+    const regionIds = await this.serviceRegionRepo.getInspectorRegionIds(inspector.id);
+
     return {
       id: inspector.id,
       name: inspector.name,
@@ -56,7 +62,7 @@ export class GetInspectorUseCase {
       phone: inspector.phone,
       status: inspector.status,
       paymentSettingsJson: inspector.paymentSettingsJson,
-      regionsJson: inspector.regionsJson,
+      regionIds,
       serviceTypesJson: inspector.serviceTypesJson,
       clientEligibilityJson: inspector.clientEligibilityJson,
       createdAt: inspector.createdAt,

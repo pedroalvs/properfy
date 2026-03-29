@@ -170,7 +170,7 @@ export const inspectorResponseSchema = z.object({
   phone: z.string().nullable(),
   status: z.string(),
   paymentSettingsJson: z.unknown(),
-  regionsJson: z.unknown(),
+  regionIds: z.array(z.string()).optional(),
   serviceTypesJson: z.unknown(),
   clientEligibilityJson: z.unknown(),
   createdAt: dateStr(),

@@ -29,7 +29,7 @@ export interface CreateInspectorOutput {
   phone: string | null;
   status: string;
   paymentSettingsJson: Record<string, unknown>;
-  regionsJson: string[];
+  regionIds: string[];
   serviceTypesJson: string[];
   clientEligibilityJson: string[];
   createdAt: Date;
@@ -93,7 +93,6 @@ export class CreateInspectorUseCase {
       phone: phone ?? null,
       status: 'ACTIVE',
       paymentSettingsJson: paymentSettings ?? {},
-      regionsJson: regions ?? [],
       serviceTypesJson: serviceTypes ?? [],
       clientEligibilityJson: clientEligibility ?? [],
       createdAt: now,
@@ -121,7 +120,7 @@ export class CreateInspectorUseCase {
         phone: inspector.phone,
         status: 'ACTIVE',
         paymentSettingsJson: inspector.paymentSettingsJson,
-        regionsJson: inspector.regionsJson,
+        regionIds: regionIds ?? [],
         serviceTypesJson: inspector.serviceTypesJson,
         clientEligibilityJson: inspector.clientEligibilityJson,
       },
@@ -135,7 +134,7 @@ export class CreateInspectorUseCase {
       phone: inspector.phone,
       status: inspector.status,
       paymentSettingsJson: inspector.paymentSettingsJson,
-      regionsJson: inspector.regionsJson,
+      regionIds: regionIds ?? [],
       serviceTypesJson: inspector.serviceTypesJson,
       clientEligibilityJson: inspector.clientEligibilityJson,
       createdAt: inspector.createdAt,

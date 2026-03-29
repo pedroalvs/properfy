@@ -42,7 +42,7 @@ export function useInspectorList(): UseInspectorListReturn {
   const rawData: any[] = query.data?.data ?? [];
   const data: Inspector[] = rawData.map((item) => ({
     ...item,
-    regionsCount: Array.isArray(item.regionsJson) ? item.regionsJson.length : 0,
+    regionsCount: Array.isArray(item.regionIds) ? item.regionIds.length : 0,
     serviceTypesCount: Array.isArray(item.serviceTypesJson) ? item.serviceTypesJson.length : 0,
   }));
 

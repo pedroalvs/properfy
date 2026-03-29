@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ListInspectorsUseCase } from '../../../src/modules/inspector/application/use-cases/list-inspectors.use-case';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
+import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 import type { AuthContext } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
@@ -15,7 +16,6 @@ function makeInspector(
     phone: '+61400000000',
     status: 'ACTIVE',
     paymentSettingsJson: {},
-    regionsJson: ['region-1'],
     serviceTypesJson: ['service-1'],
     clientEligibilityJson: ['tenant-1'],
     createdAt: new Date(),
@@ -38,6 +38,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 
 describe('ListInspectorsUseCase', () => {
   let inspectorRepo: IInspectorRepository;
+  let serviceRegionRepo: IServiceRegionRepository;
   let useCase: ListInspectorsUseCase;
 
   beforeEach(() => {
@@ -51,7 +52,18 @@ describe('ListInspectorsUseCase', () => {
       update: vi.fn(),
       linkUserId: vi.fn(),
     };
-    useCase = new ListInspectorsUseCase(inspectorRepo);
+    serviceRegionRepo = {
+      findById: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      findPropertyIdsInInspectorRegions: vi.fn(),
+      setInspectorRegions: vi.fn(),
+      getInspectorRegionIds: vi.fn().mockResolvedValue(['region-1']),
+      getInspectorRegionIdsBatch: vi.fn().mockResolvedValue(new Map([['inspector-1', ['region-1']]])),
+    };
+    useCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo);
   });
 
   it('should return all for AM', async () => {

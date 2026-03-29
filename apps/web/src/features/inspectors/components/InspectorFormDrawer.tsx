@@ -73,7 +73,6 @@ export function InspectorFormDrawer({
         email: inspector.email,
         phone: inspector.phone ?? '',
         status: inspector.status,
-        regions: (inspector.regions ?? []).join(', '),
         regionIds: inspector.regionIds ?? [],
         serviceTypes: (inspector.serviceTypes ?? []).join(','),
         clientEligibility: inspector.clientEligibility ?? [],

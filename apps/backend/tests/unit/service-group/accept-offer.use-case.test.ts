@@ -48,7 +48,6 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
     phone: null,
     status: 'ACTIVE',
     paymentSettingsJson: {},
-    regionsJson: ['Sydney', 'Bondi'],
     serviceTypesJson: ['svc-type-1'],
     clientEligibilityJson: ['tenant-1'],
     createdAt: new Date(),

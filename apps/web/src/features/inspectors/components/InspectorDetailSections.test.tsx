@@ -29,8 +29,7 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
     status: InspectorStatus.ACTIVE,
     regionsCount: 3,
     serviceTypesCount: 5,
-    regions: ['Zona Norte', 'Zona Sul', 'Centro'],
-    regionIds: [],
+    regionIds: ['region-1', 'region-2', 'region-3'],
     serviceTypes: ['123e4567-e89b-12d3-a456-426614174000', '123e4567-e89b-12d3-a456-426614174001'],
     clientEligibility: [],
     createdAt: '2026-01-10T10:00:00Z',
@@ -54,6 +53,20 @@ describe('InspectorDetailSections', () => {
               { id: '123e4567-e89b-12d3-a456-426614174001', name: 'Vistoria de Saída' },
             ],
             pagination: { total: 2, page: 1, pageSize: 100, totalPages: 1 },
+          },
+          error: null,
+        });
+      }
+
+      if (path === '/v1/service-regions') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { id: 'region-1', name: 'Zona Norte' },
+              { id: 'region-2', name: 'Zona Sul' },
+              { id: 'region-3', name: 'Centro' },
+            ],
+            pagination: { total: 3, page: 1, pageSize: 100, totalPages: 1 },
           },
           error: null,
         });

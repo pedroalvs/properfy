@@ -47,6 +47,16 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
   const serviceTypeNameMap = new Map((serviceTypesData?.data ?? []).map((item) => [item.id, item.name]));
   const serviceTypeLabels = inspector.serviceTypes.map((serviceTypeId) => serviceTypeNameMap.get(serviceTypeId) ?? serviceTypeId);
 
+  const { data: regionsData } = usePaginatedQuery<{ id: string; name: string }>(
+    ['service-regions', 'inspector-detail'],
+    '/v1/service-regions',
+    { pageSize: 100 },
+  );
+  const regionNameMap = new Map((regionsData?.data ?? []).map((item) => [item.id, item.name]));
+  const regionLabels = (inspector.regionIds ?? []).map(
+    (regionId) => regionNameMap.get(regionId) ?? regionId,
+  );
+
   const { data: tenantsData } = usePaginatedQuery<{ id: string; name: string }>(
     ['tenants', 'inspector-detail'],
     '/v1/tenants',
@@ -66,7 +76,7 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
       </FormSection>
 
       <FormSection title="Coverage">
-        <DetailRow label="Regions" value={formatList(inspector.regions)} />
+        <DetailRow label="Regions" value={formatList(regionLabels)} />
         <DetailRow label="Service Types" value={formatList(serviceTypeLabels)} />
         <DetailRow label="Client Eligibility" value={formatList(clientEligibilityLabels)} />
       </FormSection>

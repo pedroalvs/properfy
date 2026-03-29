@@ -38,7 +38,6 @@ const VALID_CREATE_DATA: InspectorFormData = {
   email: 'teste@inspecoes.com',
   phone: '11999999999',
   status: '',
-  regions: 'Zona Norte, Zona Sul',
   regionIds: [],
   serviceTypes: '123e4567-e89b-12d3-a456-426614174000',
   clientEligibility: [],
@@ -87,7 +86,6 @@ describe('useInspectorSave', () => {
     const errors = result.current.validate({
       ...VALID_CREATE_DATA,
       phone: '',
-      regions: '',
       serviceTypes: '',
     }, 'create');
     expect(Object.keys(errors)).toHaveLength(0);

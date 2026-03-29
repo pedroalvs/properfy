@@ -392,8 +392,8 @@ export function createContainer(logger: Logger): AppContainer {
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
   const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, serviceRegionRepo);
-  const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo);
-  const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo);
+  const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo);
+  const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo);
   const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
@@ -522,7 +522,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo);
   const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService);
-  const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService);
+  const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo);
   const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService);
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
   const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService);

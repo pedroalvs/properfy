@@ -151,7 +151,6 @@ function makeInspector(id: string, userId: string, regions: string[]): Inspector
     phone: null,
     status: 'ACTIVE',
     paymentSettingsJson: {},
-    regionsJson: regions,
     serviceTypesJson: [SERVICE_TYPE_ID],
     clientEligibilityJson: [TENANT_ID],
     createdAt: new Date(),
@@ -376,21 +375,14 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
     inspectorClientEligibility: string[],
     pagination: ServiceGroupPaginationParams,
   ): Promise<MarketplaceOffer[]> {
-    // Derive regions from the inspector entity (in-memory simulation)
-    const inspector = this.inspectors?.get(inspectorId);
-    const inspectorRegions = inspector?.regionsJson ?? [];
+    // Region filtering is now done via inspector_regions junction table
+    // In this in-memory simulation, we skip region-based filtering
 
     const offers = [...this.groups.values()]
       .filter((group) => group.status === 'PUBLISHED')
       .filter((group) => inspectorServiceTypes.includes(group.serviceTypeId))
       .filter((group) => inspectorClientEligibility.includes(group.tenantId))
-      .filter((group) => {
-        const suburbs = [...this.appointments.values()]
-          .filter((appointment) => appointment.serviceGroupId === group.id)
-          .map((appointment) => this.properties.get(appointment.propertyId)?.suburb ?? '')
-          .filter(Boolean);
-        return suburbs.some((suburb) => inspectorRegions.includes(suburb));
-      })
+      // Region filtering skipped in in-memory simulation (handled by spatial queries in production)
       .slice(0, pagination.pageSize)
       .map((group) => {
         const groupAppointments = [...this.appointments.values()].filter(

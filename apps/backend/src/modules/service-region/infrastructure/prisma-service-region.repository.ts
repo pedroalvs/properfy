@@ -145,6 +145,29 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     }
   }
 
+  async getInspectorRegionIds(inspectorId: string): Promise<string[]> {
+    const rows = await this.prisma.inspectorRegion.findMany({
+      where: { inspector_id: inspectorId },
+      select: { region_id: true },
+    });
+    return rows.map((r) => r.region_id);
+  }
+
+  async getInspectorRegionIdsBatch(inspectorIds: string[]): Promise<Map<string, string[]>> {
+    if (inspectorIds.length === 0) return new Map();
+    const rows = await this.prisma.inspectorRegion.findMany({
+      where: { inspector_id: { in: inspectorIds } },
+      select: { inspector_id: true, region_id: true },
+    });
+    const map = new Map<string, string[]>();
+    for (const row of rows) {
+      const existing = map.get(row.inspector_id) ?? [];
+      existing.push(row.region_id);
+      map.set(row.inspector_id, existing);
+    }
+    return map;
+  }
+
   private buildWhere(filters: ServiceRegionFilters) {
     const where: Record<string, unknown> = {};
     if (filters.status) where['status'] = filters.status;

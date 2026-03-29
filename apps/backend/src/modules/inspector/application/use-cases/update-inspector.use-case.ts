@@ -31,7 +31,7 @@ export interface UpdateInspectorOutput {
   phone: string | null;
   status: string;
   paymentSettingsJson: Record<string, unknown>;
-  regionsJson: string[];
+  regionIds: string[];
   serviceTypesJson: string[];
   clientEligibilityJson: string[];
   createdAt: Date;
@@ -71,7 +71,6 @@ export class UpdateInspectorUseCase {
       phone: inspector.phone,
       status: inspector.status,
       paymentSettingsJson: inspector.paymentSettingsJson,
-      regionsJson: inspector.regionsJson,
       serviceTypesJson: inspector.serviceTypesJson,
       clientEligibilityJson: inspector.clientEligibilityJson,
     };
@@ -83,7 +82,6 @@ export class UpdateInspectorUseCase {
     if (data.phone !== undefined) updateData.phone = data.phone;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.paymentSettings !== undefined) updateData.paymentSettingsJson = data.paymentSettings;
-    if (data.regions !== undefined) updateData.regionsJson = data.regions;
     if (data.serviceTypes !== undefined) updateData.serviceTypesJson = data.serviceTypes;
     if (data.clientEligibility !== undefined) updateData.clientEligibilityJson = data.clientEligibility;
 
@@ -94,13 +92,17 @@ export class UpdateInspectorUseCase {
       await this.serviceRegionRepo.setInspectorRegions(inspectorId, data.regionIds);
     }
 
+    const resolvedRegionIds = this.serviceRegionRepo
+      ? await this.serviceRegionRepo.getInspectorRegionIds(inspectorId)
+      : [];
+
     const after = {
       name: (updateData.name as string) ?? inspector.name,
       email: (updateData.email as string) ?? inspector.email,
       phone: (updateData.phone as string | null) ?? inspector.phone,
       status: (updateData.status as string) ?? inspector.status,
       paymentSettingsJson: (updateData.paymentSettingsJson as Record<string, unknown>) ?? inspector.paymentSettingsJson,
-      regionsJson: (updateData.regionsJson as string[]) ?? inspector.regionsJson,
+      regionIds: resolvedRegionIds,
       serviceTypesJson: (updateData.serviceTypesJson as string[]) ?? inspector.serviceTypesJson,
       clientEligibilityJson: (updateData.clientEligibilityJson as string[]) ?? inspector.clientEligibilityJson,
     };
@@ -122,7 +124,7 @@ export class UpdateInspectorUseCase {
       phone: after.phone,
       status: after.status,
       paymentSettingsJson: after.paymentSettingsJson,
-      regionsJson: after.regionsJson,
+      regionIds: after.regionIds,
       serviceTypesJson: after.serviceTypesJson,
       clientEligibilityJson: after.clientEligibilityJson,
       createdAt: inspector.createdAt,

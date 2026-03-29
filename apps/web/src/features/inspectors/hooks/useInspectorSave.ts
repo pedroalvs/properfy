@@ -69,7 +69,7 @@ export function useInspectorSave(): UseInspectorSaveReturn {
       email: data.email.trim() || undefined,
       phone: data.phone.trim() || undefined,
       status: data.status || undefined,
-      regions: parseDelimitedValues(data.regions),
+      regionIds: data.regionIds,
       serviceTypes,
     });
     if (!result.success) {
@@ -92,8 +92,7 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         email: data.email.trim(),
         phone: data.phone.trim() || undefined,
         status: data.status || undefined,
-        regions: parseDelimitedValues(data.regions),
-        regionIds: data.regionIds.length > 0 ? data.regionIds : undefined,
+        regionIds: data.regionIds.length > 0 ? data.regionIds : [],
         serviceTypes: parseServiceTypeIds(data.serviceTypes),
         clientEligibility: data.clientEligibility.length > 0 ? data.clientEligibility : undefined,
       };

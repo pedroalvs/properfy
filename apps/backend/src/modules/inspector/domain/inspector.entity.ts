@@ -9,7 +9,6 @@ export interface InspectorProps {
   phone: string | null;
   status: InspectorStatus;
   paymentSettingsJson: Record<string, unknown>;
-  regionsJson: string[];
   serviceTypesJson: string[];
   clientEligibilityJson: string[];
   createdAt: Date;
@@ -24,7 +23,6 @@ export class InspectorEntity extends BaseEntity {
   readonly phone: string | null;
   status: InspectorStatus;
   readonly paymentSettingsJson: Record<string, unknown>;
-  readonly regionsJson: string[];
   readonly serviceTypesJson: string[];
   readonly clientEligibilityJson: string[];
   readonly deletedAt: Date | null;
@@ -37,7 +35,6 @@ export class InspectorEntity extends BaseEntity {
     this.phone = props.phone;
     this.status = props.status;
     this.paymentSettingsJson = props.paymentSettingsJson;
-    this.regionsJson = props.regionsJson;
     this.serviceTypesJson = props.serviceTypesJson;
     this.clientEligibilityJson = props.clientEligibilityJson;
     this.deletedAt = props.deletedAt;

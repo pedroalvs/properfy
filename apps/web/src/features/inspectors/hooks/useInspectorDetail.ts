@@ -19,12 +19,13 @@ export function useInspectorDetail(id: string | null): UseInspectorDetailReturn 
   const raw: any = query.data?.data ?? null;
   const inspector = useMemo<InspectorDetail | null>(() => {
     if (!raw) return null;
+    const regionIds = Array.isArray(raw.regionIds) ? raw.regionIds : [];
     return {
       ...raw,
-      regions: Array.isArray(raw.regionsJson) ? raw.regionsJson : [],
+      regionIds,
       serviceTypes: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson : [],
       clientEligibility: Array.isArray(raw.clientEligibilityJson) ? raw.clientEligibilityJson : [],
-      regionsCount: Array.isArray(raw.regionsJson) ? raw.regionsJson.length : 0,
+      regionsCount: regionIds.length,
       serviceTypesCount: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson.length : 0,
     };
   }, [raw]);

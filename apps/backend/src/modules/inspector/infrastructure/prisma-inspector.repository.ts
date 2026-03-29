@@ -36,7 +36,6 @@ function mapToEntity(row: {
     status: row.status as InspectorStatus,
     paymentSettingsJson:
       (row.payment_settings_json as Record<string, unknown>) ?? {},
-    regionsJson: (row.regions_json as string[]) ?? [],
     serviceTypesJson: (row.service_types_json as string[]) ?? [],
     clientEligibilityJson: (row.client_eligibility_json as string[]) ?? [],
     createdAt: row.created_at,
@@ -126,7 +125,6 @@ export class PrismaInspectorRepository implements IInspectorRepository {
         phone: inspector.phone,
         status: inspector.status as PrismaInspectorStatus,
         payment_settings_json: inspector.paymentSettingsJson as Prisma.InputJsonValue,
-        regions_json: inspector.regionsJson,
         service_types_json: inspector.serviceTypesJson,
         client_eligibility_json: inspector.clientEligibilityJson,
       },
@@ -142,7 +140,6 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       phone: string | null;
       status: string;
       paymentSettingsJson: Record<string, unknown>;
-      regionsJson: string[];
       serviceTypesJson: string[];
       clientEligibilityJson: string[];
       deletedAt: Date | null;
@@ -155,8 +152,6 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     if (data.status !== undefined) updateData['status'] = data.status;
     if (data.paymentSettingsJson !== undefined)
       updateData['payment_settings_json'] = data.paymentSettingsJson;
-    if (data.regionsJson !== undefined)
-      updateData['regions_json'] = data.regionsJson;
     if (data.serviceTypesJson !== undefined)
       updateData['service_types_json'] = data.serviceTypesJson;
     if (data.clientEligibilityJson !== undefined)
@@ -176,7 +171,7 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       ];
     }
     if (filters.region) {
-      where['regions_json'] = { array_contains: [filters.region] };
+      where['inspector_regions'] = { some: { region_id: filters.region } };
     }
     if (filters.serviceTypeId) {
       where['service_types_json'] = { array_contains: [filters.serviceTypeId] };

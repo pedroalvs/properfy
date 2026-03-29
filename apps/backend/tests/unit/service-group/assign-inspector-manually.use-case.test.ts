@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssignInspectorManuallyUseCase } from '../../../src/modules/service-group/application/use-cases/assign-inspector-manually.use-case';
 import type { IServiceGroupRepository } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
+import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
@@ -49,7 +50,6 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
     phone: null,
     status: 'ACTIVE',
     paymentSettingsJson: {},
-    regionsJson: ['Sydney', 'Bondi'],
     serviceTypesJson: ['svc-type-1'],
     clientEligibilityJson: ['tenant-1'],
     createdAt: new Date(),
@@ -89,6 +89,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 describe('AssignInspectorManuallyUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
   let inspectorRepo: IInspectorRepository;
+  let serviceRegionRepo: IServiceRegionRepository;
   let auditService: AuditService;
   let useCase: AssignInspectorManuallyUseCase;
 
@@ -115,12 +116,24 @@ describe('AssignInspectorManuallyUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
+    serviceRegionRepo = {
+      findById: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue(['prop-1', 'prop-2', 'prop-3', 'prop-4', 'prop-5']),
+      setInspectorRegions: vi.fn(),
+      getInspectorRegionIds: vi.fn().mockResolvedValue([]),
+      getInspectorRegionIdsBatch: vi.fn().mockResolvedValue(new Map()),
+    };
     auditService = { log: vi.fn() } as unknown as AuditService;
 
     useCase = new AssignInspectorManuallyUseCase(
       serviceGroupRepo,
       inspectorRepo,
       auditService,
+      serviceRegionRepo,
     );
   });
 

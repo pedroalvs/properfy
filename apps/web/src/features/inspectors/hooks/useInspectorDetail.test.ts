@@ -35,7 +35,7 @@ const MOCK_INSPECTOR = {
   name: 'Carlos Silva',
   email: 'carlos@inspecoes.com',
   status: 'ACTIVE',
-  regionsJson: ['Zona Sul'],
+  regionIds: ['region-01'],
   serviceTypesJson: ['svc-01'],
   clientEligibilityJson: ['ten-01', 'ten-02'],
 };
@@ -56,7 +56,7 @@ describe('useInspectorDetail', () => {
 
     expect(result.current.inspector).not.toBeNull();
     expect(result.current.inspector?.name).toBe('Carlos Silva');
-    expect(result.current.inspector?.regions).toEqual(['Zona Sul']);
+    expect(result.current.inspector?.regionIds).toEqual(['region-01']);
     expect(result.current.inspector?.serviceTypes).toEqual(['svc-01']);
     expect(result.current.inspector?.clientEligibility).toEqual(['ten-01', 'ten-02']);
   });

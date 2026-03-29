@@ -5,6 +5,7 @@ import type {
   InspectorFilters,
   PaginationParams,
 } from '../../domain/inspector.repository';
+import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 
 export interface ListInspectorsInput {
   filters: InspectorFilters;
@@ -19,7 +20,7 @@ export interface ListInspectorsOutput {
     email: string;
     phone: string | null;
     status: string;
-    regionsJson: string[];
+    regionIds: string[];
     serviceTypesJson: string[];
     createdAt: Date;
     updatedAt: Date;
@@ -30,7 +31,10 @@ export interface ListInspectorsOutput {
 }
 
 export class ListInspectorsUseCase {
-  constructor(private readonly inspectorRepo: IInspectorRepository) {}
+  constructor(
+    private readonly inspectorRepo: IInspectorRepository,
+    private readonly serviceRegionRepo: IServiceRegionRepository,
+  ) {}
 
   async execute(input: ListInspectorsInput): Promise<ListInspectorsOutput> {
     const { pagination, actor } = input;
@@ -42,23 +46,25 @@ export class ListInspectorsUseCase {
       }
       const inspector = await this.inspectorRepo.findById(actor.inspectorId);
       const item = inspector && !inspector.isDeleted() ? inspector : null;
+      if (!item) {
+        return { data: [], total: 0, page: pagination.page, pageSize: pagination.pageSize };
+      }
+      const regionIds = await this.serviceRegionRepo.getInspectorRegionIds(item.id);
       return {
-        data: item
-          ? [
-              {
-                id: item.id,
-                name: item.name,
-                email: item.email,
-                phone: item.phone,
-                status: item.status,
-                regionsJson: item.regionsJson,
-                serviceTypesJson: item.serviceTypesJson,
-                createdAt: item.createdAt,
-                updatedAt: item.updatedAt,
-              },
-            ]
-          : [],
-        total: item ? 1 : 0,
+        data: [
+          {
+            id: item.id,
+            name: item.name,
+            email: item.email,
+            phone: item.phone,
+            status: item.status,
+            regionIds,
+            serviceTypesJson: item.serviceTypesJson,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          },
+        ],
+        total: 1,
         page: pagination.page,
         pageSize: pagination.pageSize,
       };
@@ -77,6 +83,9 @@ export class ListInspectorsUseCase {
       this.inspectorRepo.count(filters),
     ]);
 
+    const inspectorIds = data.map((i) => i.id);
+    const regionIdsMap = await this.serviceRegionRepo.getInspectorRegionIdsBatch(inspectorIds);
+
     return {
       data: data.map((i) => ({
         id: i.id,
@@ -84,7 +93,7 @@ export class ListInspectorsUseCase {
         email: i.email,
         phone: i.phone,
         status: i.status,
-        regionsJson: i.regionsJson,
+        regionIds: regionIdsMap.get(i.id) ?? [],
         serviceTypesJson: i.serviceTypesJson,
         createdAt: i.createdAt,
         updatedAt: i.updatedAt,

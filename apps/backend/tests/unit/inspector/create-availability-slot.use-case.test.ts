@@ -22,7 +22,6 @@ function makeInspector(
     phone: '+61400000000',
     status: 'ACTIVE',
     paymentSettingsJson: {},
-    regionsJson: ['region-1'],
     serviceTypesJson: ['service-1'],
     clientEligibilityJson: ['tenant-1'],
     createdAt: new Date(),
