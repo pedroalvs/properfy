@@ -126,4 +126,17 @@ describe('AppointmentCard', () => {
     const card = screen.getByTestId('appointment-card-apt-1');
     expect(card.className).toContain('border-l-error');
   });
+
+  it('shows overdue badge when isOverdue is true', () => {
+    const apt: InspectorAppointment = { ...baseAppointment, isOverdue: true };
+    renderWithProviders(<AppointmentCard appointment={apt} />);
+    expect(screen.getByTestId('overdue-badge')).toBeInTheDocument();
+    expect(screen.getByText('Overdue')).toBeInTheDocument();
+  });
+
+  it('does not show overdue badge when isOverdue is false', () => {
+    const apt: InspectorAppointment = { ...baseAppointment, isOverdue: false };
+    renderWithProviders(<AppointmentCard appointment={apt} />);
+    expect(screen.queryByTestId('overdue-badge')).not.toBeInTheDocument();
+  });
 });

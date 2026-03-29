@@ -52,6 +52,15 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment }: Ap
               data-testid="t1-warning"
             />
           )}
+          {appointment.isOverdue && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-error/10 px-2 py-0.5 text-[11px] font-semibold text-error"
+              data-testid="overdue-badge"
+            >
+              <i className="mdi mdi-clock-alert-outline text-xs" aria-hidden="true" />
+              Overdue
+            </span>
+          )}
         </div>
         <StatusChip status={appointment.status} />
       </div>

@@ -48,6 +48,18 @@ export function AppointmentDetailPage() {
       <TopBar title="Appointment" showBack />
 
       <div className="flex flex-col gap-4 px-page-x py-4">
+        {apt.isOverdue && (
+          <section
+            className="flex items-center gap-3 rounded-2xl border border-error/20 bg-error/10 px-4 py-3"
+            data-testid="overdue-banner"
+          >
+            <i className="mdi mdi-clock-alert-outline text-xl text-error" aria-hidden="true" />
+            <p className="text-sm font-medium text-error">
+              This appointment is overdue. The scheduled date has passed.
+            </p>
+          </section>
+        )}
+
         <section className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(30,64,175,0.82))] px-5 py-5 text-white shadow-[0_18px_44px_rgba(15,23,42,0.20)]">
           <div className="flex items-start justify-between gap-3">
             <div>

@@ -121,4 +121,26 @@ describe('AppointmentDetailPage', () => {
 
     expect(screen.getByTestId('start-inspection-cta')).toHaveTextContent('Resume Inspection');
   });
+
+  it('shows overdue banner when appointment is overdue', () => {
+    mockUseInspectorAppointment.mockReturnValue({
+      data: {
+        data: { ...appointmentData.data, isOverdue: true },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByTestId('overdue-banner')).toBeInTheDocument();
+    expect(screen.getByText('This appointment is overdue. The scheduled date has passed.')).toBeInTheDocument();
+  });
+
+  it('does not show overdue banner when appointment is not overdue', () => {
+    renderPage();
+
+    expect(screen.queryByTestId('overdue-banner')).not.toBeInTheDocument();
+  });
 });

@@ -48,6 +48,19 @@ api.use({
   },
 
   async onResponse({ response, request }) {
+    if (response.status === 403) {
+      try {
+        const body = await response.clone().json();
+        if (body?.error?.code === 'INSPECTOR_INACTIVE') {
+          window.location.replace('/deactivated');
+          return new Response(null, { status: 403 });
+        }
+      } catch {
+        // Not JSON or no error code — fall through
+      }
+      return response;
+    }
+
     if (response.status !== 401) return response;
 
     const pathname = new URL(request.url).pathname;

@@ -41,12 +41,16 @@ export function SchedulePage() {
   const urgentDays = useMemo(() => {
     const days = new Set<string>();
     for (const apt of data?.appointments ?? []) {
-      if (isScheduleRisk(apt)) {
+      if (isScheduleRisk(apt) || apt.isOverdue) {
         days.add(apt.scheduledDate);
       }
     }
     return days;
   }, [data?.appointments]);
+
+  const overdueCount = useMemo(() => {
+    return dayAppointments.filter((apt) => apt.isOverdue).length;
+  }, [dayAppointments]);
 
   return (
     <div className="w-full" data-testid="schedule-page">
@@ -59,7 +63,11 @@ export function SchedulePage() {
               <h2 className="text-2xl font-bold tracking-tight">
                 {appointmentCounts[selectedDate] ?? 0} appointments
               </h2>
-              <p className="mt-1 text-sm text-white/80">Plan your day, confirm risks and start on time.</p>
+              <p className="mt-1 text-sm text-white/80">
+                {overdueCount > 0
+                  ? `${overdueCount} overdue — attend to these first.`
+                  : 'Plan your day, confirm risks and start on time.'}
+              </p>
             </div>
             <div className="rounded-2xl bg-white/14 px-3 py-2 text-right">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">Selected day</p>

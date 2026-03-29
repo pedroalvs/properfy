@@ -45,5 +45,6 @@ export function mapInspectorAppointmentDetail(
     propertyLatitude: detail.propertyLatitude,
     propertyLongitude: detail.propertyLongitude,
     notes: detail.notes,
+    isOverdue: detail.isOverdue ?? false,
   };
 }

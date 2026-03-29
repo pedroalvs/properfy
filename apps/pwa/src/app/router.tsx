@@ -11,6 +11,9 @@ const LoginPage = lazy(() =>
 const AccessDeniedPage = lazy(() =>
   import('@/features/auth/pages/AccessDeniedPage').then((module) => ({ default: module.AccessDeniedPage })),
 );
+const DeactivatedPage = lazy(() =>
+  import('@/features/auth/pages/DeactivatedPage').then((module) => ({ default: module.DeactivatedPage })),
+);
 const SchedulePage = lazy(() =>
   import('@/features/schedule/pages/SchedulePage').then((module) => ({
     default: module.SchedulePage,
@@ -67,6 +70,10 @@ export const router = createBrowserRouter(
     {
       path: '/access-denied',
       element: lazyElement(AccessDeniedPage),
+    },
+    {
+      path: '/deactivated',
+      element: lazyElement(DeactivatedPage),
     },
     {
       element: <ProtectedRoute />,
