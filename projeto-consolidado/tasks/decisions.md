@@ -619,3 +619,9 @@
 1. A rota `GET /v1/time-slots` já tinha `querystring` validado e transformado pelo schema do Fastify/Zod. Reexecutar `safeParse` no handler contra o schema de entrada reabria incompatibilidade em `includeInactive`.
 2. A decisão correta foi consumir `request.query` já validado, em vez de revalidar um valor que pode ter mudado de shape após transformação.
 3. Para esse tipo de rota, o teste certo é de integração HTTP com query real, porque o bug só aparece no caminho completo framework + schema + handler.
+
+## 2026-03-27 - Nenhuma Acao em Production ou Main Sem Pedido Explicito do Usuario
+
+1. A partir desta data, qualquer ação que toque `production` ou a branch `main` fica proibida por padrão.
+2. Essa proibição inclui deploy, alteração de banco, execução operacional, merge, push, commit promovido para `main` e qualquer mutação equivalente.
+3. Só é permitido agir em `production` ou `main` quando o usuário pedir isso explicitamente no turno atual.

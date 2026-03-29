@@ -96,11 +96,14 @@ const IDS = {
   apptScheduledT2: stableSeedUuid('apptScheduledT2'),
   apptDoneT2: stableSeedUuid('apptDoneT2'),
   apptCancelledT2: stableSeedUuid('apptCancelledT2'),
-  // Service groups
+  // Service groups (tenant1)
   serviceGroup: stableSeedUuid('serviceGroup'),
   sgDraft: stableSeedUuid('sgDraft'),
   sgAccepted: stableSeedUuid('sgAccepted'),
   sgCancelled: stableSeedUuid('sgCancelled'),
+  // Service groups (tenant2)
+  sgPublishedT2: stableSeedUuid('sgPublishedT2'),
+  sgAcceptedT2: stableSeedUuid('sgAcceptedT2'),
   // Availability slots
   slot1: stableSeedUuid('slot1'),
   slot2: stableSeedUuid('slot2'),
@@ -649,6 +652,10 @@ async function main() {
       confirmed_count: 0,
       scheduled_date: futureDate(10),
       time_window: '09:00-17:00',
+      name: 'Sydney CBD Routine Batch',
+      region_name: 'Sydney CBD',
+      description: 'Routine inspections for Sydney CBD properties, standard priority.',
+      priority_mode: 'STANDARD',
       published_at: new Date(),
       created_by_user_id: IDS.userOP,
     },
@@ -667,6 +674,10 @@ async function main() {
       confirmed_count: 0,
       scheduled_date: futureDate(20),
       time_window: '08:00-16:00',
+      name: 'North Shore Ingoing',
+      region_name: 'North Shore',
+      description: 'Ingoing inspections for new tenants moving in.',
+      priority_mode: 'STANDARD',
       created_by_user_id: IDS.userOP,
     },
   });
@@ -684,6 +695,11 @@ async function main() {
       confirmed_count: 1,
       scheduled_date: futureDate(5),
       time_window: '09:00-17:00',
+      name: 'Inner West Routine',
+      region_name: 'Inner West',
+      description: 'Accepted routine inspections for Inner West area.',
+      priority_mode: 'PRIORITY_24H',
+      priority_expires_at: futureDate(1),
       assigned_inspector_id: IDS.inspectorIndep,
       published_at: pastDate(2),
       assigned_at: pastDate(1),
@@ -704,11 +720,64 @@ async function main() {
       confirmed_count: 0,
       scheduled_date: pastDate(2),
       time_window: '09:00-17:00',
+      name: 'Eastern Suburbs Cancelled',
+      region_name: 'Eastern Suburbs',
+      description: 'Cancelled due to inspector unavailability.',
+      priority_mode: 'STANDARD',
       published_at: pastDate(5),
       created_by_user_id: IDS.userOP,
     },
   });
-  console.log('Service groups: 4 created (PUBLISHED, DRAFT, ACCEPTED, CANCELLED)');
+
+  // Service groups for tenant2
+  await prisma.serviceGroup.upsert({
+    where: { id: IDS.sgPublishedT2 },
+    update: {},
+    create: {
+      id: IDS.sgPublishedT2,
+      tenant_id: IDS.tenant2,
+      service_type_id: serviceTypeIds.routine,
+      status: 'PUBLISHED',
+      group_size: 2,
+      offered_count: 0,
+      confirmed_count: 0,
+      scheduled_date: futureDate(12),
+      time_window: '09:00-17:00',
+      name: 'Melbourne CBD Routine',
+      region_name: 'Melbourne CBD',
+      description: 'Routine inspections for Melbourne CBD properties.',
+      priority_mode: 'STANDARD',
+      published_at: new Date(),
+      created_by_user_id: IDS.userOP,
+    },
+  });
+
+  await prisma.serviceGroup.upsert({
+    where: { id: IDS.sgAcceptedT2 },
+    update: {},
+    create: {
+      id: IDS.sgAcceptedT2,
+      tenant_id: IDS.tenant2,
+      service_type_id: serviceTypeIds.routine,
+      status: 'ACCEPTED',
+      group_size: 2,
+      offered_count: 1,
+      confirmed_count: 1,
+      scheduled_date: futureDate(6),
+      time_window: '08:00-16:00',
+      name: 'Richmond Routine',
+      region_name: 'Richmond',
+      description: 'Accepted routine inspections for Richmond area.',
+      priority_mode: 'PRIORITY_24H',
+      priority_expires_at: futureDate(2),
+      assigned_inspector_id: IDS.inspectorLinked2,
+      published_at: pastDate(3),
+      assigned_at: pastDate(1),
+      created_by_user_id: IDS.userOP,
+    },
+  });
+
+  console.log('Service groups: 6 created (4 tenant1 + 2 tenant2, all statuses + priority modes)');
 
   // Link appointments to service groups
   await prisma.appointment.update({ where: { id: IDS.apptAwaiting }, data: { service_group_id: IDS.serviceGroup } });
@@ -717,6 +786,10 @@ async function main() {
   await prisma.appointment.update({ where: { id: IDS.apptScheduled2 }, data: { service_group_id: IDS.sgAccepted } });
   await prisma.appointment.update({ where: { id: IDS.apptDone2 }, data: { service_group_id: IDS.sgAccepted } });
   await prisma.appointment.update({ where: { id: IDS.apptCancelled2 }, data: { service_group_id: IDS.sgCancelled } });
+  // Link tenant2 appointments to tenant2 service groups
+  await prisma.appointment.update({ where: { id: IDS.apptDraftT2 }, data: { service_group_id: IDS.sgPublishedT2 } });
+  await prisma.appointment.update({ where: { id: IDS.apptScheduledT2 }, data: { service_group_id: IDS.sgAcceptedT2 } });
+  await prisma.appointment.update({ where: { id: IDS.apptDoneT2 }, data: { service_group_id: IDS.sgAcceptedT2 } });
 
   // ─── AVAILABILITY SLOTS ───────────────────────────────────────────────────
 
