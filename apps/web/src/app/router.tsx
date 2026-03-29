@@ -57,6 +57,7 @@ const AvailabilitySlotListPage = Loadable(lazyRetry(() => import('@/features/ava
 const TimeSlotConfigPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/TimeSlotConfigPage').then(m => ({ default: m.TimeSlotConfigPage }))));
 const NotificationTemplateListPage = Loadable(lazyRetry(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
 const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
+const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
 
 import { ProtectedRoute } from './ProtectedRoute';
 import { AuthGuard } from './AuthGuard';
@@ -296,6 +297,14 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <PricingRuleListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'service-regions',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <ServiceRegionListPage />
               </AuthGuard>
             ),
           },

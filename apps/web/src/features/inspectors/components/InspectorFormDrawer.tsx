@@ -11,7 +11,6 @@ import { TextInput } from '@/components/forms/TextInput';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { PhoneInput } from '@/components/forms/PhoneInput';
 import { SelectInput } from '@/components/forms/SelectInput';
-import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -43,6 +42,11 @@ export function InspectorFormDrawer({
     '/v1/service-types',
     (item) => ({ value: item.id, label: item.name }),
   );
+  const { options: serviceRegionOptions, isLoading: isLoadingRegions } = useFormOptions<{ id: string; name: string; state: string; country: string }>(
+    ['service-regions', 'inspector-form-options'],
+    '/v1/service-regions',
+    (item) => ({ value: item.id, label: `${item.name} (${item.state}, ${item.country})` }),
+  );
   const { options: tenantOptions, isLoading: isLoadingTenants } = useFormOptions<{ id: string; name: string }>(
     ['tenants', 'inspector-form-options'],
     '/v1/tenants',
@@ -70,6 +74,7 @@ export function InspectorFormDrawer({
         phone: inspector.phone ?? '',
         status: inspector.status,
         regions: (inspector.regions ?? []).join(', '),
+        regionIds: inspector.regionIds ?? [],
         serviceTypes: (inspector.serviceTypes ?? []).join(','),
         clientEligibility: inspector.clientEligibility ?? [],
       };
@@ -115,6 +120,14 @@ export function InspectorFormDrawer({
       : selectedServiceTypeIds.filter((value) => value !== serviceTypeId);
     updateField('serviceTypes', next.join(','));
   }, [selectedServiceTypeIds, updateField]);
+
+  const toggleRegion = useCallback((regionId: string, checked: boolean) => {
+    const current = form.regionIds;
+    const next = checked
+      ? Array.from(new Set([...current, regionId]))
+      : current.filter((id) => id !== regionId);
+    updateField('regionIds', next);
+  }, [form.regionIds, updateField]);
 
   const toggleClientEligibility = useCallback((tenantId: string, checked: boolean) => {
     const current = form.clientEligibility;
@@ -202,14 +215,25 @@ export function InspectorFormDrawer({
                   </FormSection>
 
                   <FormSection title="Coverage" columns={2}>
-                    <FormField label="Regions" error={errors.regions}>
-                      <Textarea
-                        value={form.regions}
-                        onChange={(v) => updateField('regions', v)}
-                        rows={2}
-                        placeholder="Comma-separated"
-                        aria-label="Regions"
-                      />
+                    <FormField label="Service Regions" error={errors.regionIds}>
+                      <div className="flex flex-col gap-3 rounded border border-black/10 px-3 py-3">
+                        {serviceRegionOptions.length > 0 ? (
+                          <div className="grid gap-2">
+                            {serviceRegionOptions.map((option) => (
+                              <Checkbox
+                                key={option.value}
+                                label={option.label}
+                                checked={form.regionIds.includes(option.value)}
+                                onChange={(checked) => toggleRegion(option.value, checked)}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-text-muted">
+                            {isLoadingRegions ? 'Loading service regions...' : 'No active service regions available.'}
+                          </p>
+                        )}
+                      </div>
                     </FormField>
                     <FormField label="Service Types" error={errors.serviceTypes}>
                       <div className="flex flex-col gap-3 rounded border border-black/10 px-3 py-3">

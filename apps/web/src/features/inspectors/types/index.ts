@@ -14,6 +14,7 @@ export interface Inspector {
 
 export interface InspectorDetail extends Inspector {
   regions: string[];
+  regionIds: string[];
   serviceTypes: string[];
   clientEligibility: string[];
 }
@@ -24,6 +25,7 @@ export interface InspectorFormData {
   phone: string;
   status: string;
   regions: string;
+  regionIds: string[];
   serviceTypes: string;
   clientEligibility: string[];
 }
@@ -36,6 +38,7 @@ export const EMPTY_INSPECTOR_FORM: InspectorFormData = {
   phone: '',
   status: '',
   regions: '',
+  regionIds: [],
   serviceTypes: '',
   clientEligibility: [],
 };

@@ -39,6 +39,7 @@ const VALID_CREATE_DATA: InspectorFormData = {
   phone: '11999999999',
   status: '',
   regions: 'Zona Norte, Zona Sul',
+  regionIds: [],
   serviceTypes: '123e4567-e89b-12d3-a456-426614174000',
   clientEligibility: [],
 };

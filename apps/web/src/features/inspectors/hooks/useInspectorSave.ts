@@ -93,6 +93,7 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         phone: data.phone.trim() || undefined,
         status: data.status || undefined,
         regions: parseDelimitedValues(data.regions),
+        regionIds: data.regionIds.length > 0 ? data.regionIds : undefined,
         serviceTypes: parseServiceTypeIds(data.serviceTypes),
         clientEligibility: data.clientEligibility.length > 0 ? data.clientEligibility : undefined,
       };

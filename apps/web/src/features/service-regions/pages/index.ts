@@ -1,0 +1,1 @@
+export { ServiceRegionListPage } from './ServiceRegionListPage';

@@ -161,6 +161,21 @@ const IDS = {
   apptImport2: stableSeedUuid('apptImport2'),
   propImport1: stableSeedUuid('propImport1'),
   propImport2: stableSeedUuid('propImport2'),
+  // Suburbs
+  suburbSydney: stableSeedUuid('suburb-sydney'),
+  suburbSurryHills: stableSeedUuid('suburb-surry-hills'),
+  suburbNorthSydney: stableSeedUuid('suburb-north-sydney'),
+  suburbCrowsNest: stableSeedUuid('suburb-crows-nest'),
+  suburbGlebe: stableSeedUuid('suburb-glebe'),
+  suburbChatswood: stableSeedUuid('suburb-chatswood'),
+  suburbAlexandria: stableSeedUuid('suburb-alexandria'),
+  suburbMelbourne: stableSeedUuid('suburb-melbourne'),
+  suburbRichmond: stableSeedUuid('suburb-richmond'),
+  suburbSouthbank: stableSeedUuid('suburb-southbank'),
+  // Service regions
+  regionSydneyCbd: stableSeedUuid('region-sydney-cbd'),
+  regionNorthShore: stableSeedUuid('region-north-shore'),
+  regionMelbourneMetro: stableSeedUuid('region-melbourne-metro'),
 } as const;
 
 async function main() {
@@ -429,6 +444,90 @@ async function main() {
   });
   console.log('Inspectors: 4 created (2 active linked, 1 active independent, 1 inactive)');
 
+  // ─── SUBURBS ──────────────────────────────────────────────────────────
+  const suburbsData = [
+    // NSW
+    { id: IDS.suburbSydney, name: 'Sydney', city: 'Sydney', state: 'NSW', country: 'AU', postcode: '2000' },
+    { id: IDS.suburbSurryHills, name: 'Surry Hills', city: 'Sydney', state: 'NSW', country: 'AU', postcode: '2010' },
+    { id: IDS.suburbNorthSydney, name: 'North Sydney', city: 'Sydney', state: 'NSW', country: 'AU', postcode: '2060' },
+    { id: IDS.suburbCrowsNest, name: 'Crows Nest', city: 'Sydney', state: 'NSW', country: 'AU', postcode: '2065' },
+    { id: IDS.suburbGlebe, name: 'Glebe', city: 'Sydney', state: 'NSW', country: 'AU', postcode: '2037' },
+    { id: IDS.suburbChatswood, name: 'Chatswood', city: 'Sydney', state: 'NSW', country: 'AU', postcode: '2067' },
+    { id: IDS.suburbAlexandria, name: 'Alexandria', city: 'Sydney', state: 'NSW', country: 'AU', postcode: '2015' },
+    // VIC
+    { id: IDS.suburbMelbourne, name: 'Melbourne', city: 'Melbourne', state: 'VIC', country: 'AU', postcode: '3000' },
+    { id: IDS.suburbRichmond, name: 'Richmond', city: 'Melbourne', state: 'VIC', country: 'AU', postcode: '3121' },
+    { id: IDS.suburbSouthbank, name: 'Southbank', city: 'Melbourne', state: 'VIC', country: 'AU', postcode: '3006' },
+  ];
+
+  for (const s of suburbsData) {
+    await prisma.suburb.upsert({
+      where: { name_city_state_country: { name: s.name, city: s.city, state: s.state, country: s.country } },
+      update: { postcode: s.postcode },
+      create: s,
+    });
+  }
+  console.log(`Suburbs: ${suburbsData.length} created`);
+
+  // ─── SERVICE REGIONS ──────────────────────────────────────────────────
+  const regions = [
+    {
+      id: IDS.regionSydneyCbd,
+      name: 'Sydney CBD & Surrounds',
+      state: 'NSW',
+      country: 'AU',
+      suburbIds: [IDS.suburbSydney, IDS.suburbSurryHills, IDS.suburbGlebe, IDS.suburbAlexandria],
+    },
+    {
+      id: IDS.regionNorthShore,
+      name: 'North Shore',
+      state: 'NSW',
+      country: 'AU',
+      suburbIds: [IDS.suburbNorthSydney, IDS.suburbCrowsNest, IDS.suburbChatswood],
+    },
+    {
+      id: IDS.regionMelbourneMetro,
+      name: 'Melbourne Metro',
+      state: 'VIC',
+      country: 'AU',
+      suburbIds: [IDS.suburbMelbourne, IDS.suburbRichmond, IDS.suburbSouthbank],
+    },
+  ];
+
+  for (const r of regions) {
+    await prisma.serviceRegion.upsert({
+      where: { id: r.id },
+      update: { name: r.name },
+      create: { id: r.id, name: r.name, state: r.state, country: r.country },
+    });
+    // Link suburbs
+    for (const suburbId of r.suburbIds) {
+      await prisma.regionSuburb.upsert({
+        where: { region_id_suburb_id: { region_id: r.id, suburb_id: suburbId } },
+        update: {},
+        create: { region_id: r.id, suburb_id: suburbId },
+      });
+    }
+  }
+  console.log(`Service regions: ${regions.length} created`);
+
+  // ─── INSPECTOR REGION ASSOCIATIONS ────────────────────────────────────
+  const inspectorRegions = [
+    { inspector_id: IDS.inspectorLinked, region_id: IDS.regionSydneyCbd },
+    { inspector_id: IDS.inspectorLinked, region_id: IDS.regionNorthShore },
+    { inspector_id: IDS.inspectorIndep, region_id: IDS.regionSydneyCbd },
+    { inspector_id: IDS.inspectorLinked2, region_id: IDS.regionMelbourneMetro },
+  ];
+
+  for (const ir of inspectorRegions) {
+    await prisma.inspectorServiceRegion.upsert({
+      where: { inspector_id_region_id: { inspector_id: ir.inspector_id, region_id: ir.region_id } },
+      update: {},
+      create: ir,
+    });
+  }
+  console.log('Inspector region associations: created');
+
   // ─── PRICING RULES ────────────────────────────────────────────────────────
 
   const pricingRules = [
@@ -502,6 +601,18 @@ async function main() {
     });
   }
   console.log(`Properties: ${properties.length} created (geocoded + pending + failed + tenant2)`);
+
+  // Link properties to suburbs
+  for (const p of properties) {
+    const suburb = suburbsData.find(s => s.name === p.suburb);
+    if (suburb) {
+      await prisma.property.update({
+        where: { id: p.id },
+        data: { suburb_id: suburb.id },
+      });
+    }
+  }
+  console.log('Properties linked to suburbs');
 
   // ─── APPOINTMENTS ─────────────────────────────────────────────────────────
 
