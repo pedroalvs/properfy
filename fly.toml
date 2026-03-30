@@ -5,7 +5,7 @@ primary_region = 'iad'
   dockerfile = 'apps/backend/Dockerfile'
 
 [deploy]
-  release_command = 'echo "Skipping migration - manual migration pending"'
+  release_command = 'sh -c "cd /app/apps/backend && npx prisma migrate deploy"'
 
 [env]
   NODE_ENV = 'staging'
