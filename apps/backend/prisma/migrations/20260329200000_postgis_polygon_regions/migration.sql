@@ -18,7 +18,7 @@ ALTER TABLE "properties" DROP COLUMN IF EXISTS "suburb_id";
 ALTER TABLE "service_regions" ADD COLUMN IF NOT EXISTS "geom" GEOMETRY(Polygon, 4326);
 ALTER TABLE "service_regions" ADD COLUMN IF NOT EXISTS "geojson" JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE "service_regions" ADD COLUMN IF NOT EXISTS "color" VARCHAR(20) DEFAULT '#3b82f6';
-ALTER TABLE "service_regions" ADD COLUMN IF NOT EXISTS "created_by_user_id" UUID REFERENCES "users"("id");
+ALTER TABLE "service_regions" ADD COLUMN IF NOT EXISTS "created_by_user_id" TEXT REFERENCES "users"("id");
 
 -- Drop old columns from service_regions
 ALTER TABLE "service_regions" DROP COLUMN IF EXISTS "state";
@@ -29,10 +29,10 @@ CREATE INDEX IF NOT EXISTS "service_regions_geom_idx" ON "service_regions" USING
 
 -- Create inspector_regions junction table
 CREATE TABLE IF NOT EXISTS "inspector_regions" (
-  "inspector_id" UUID NOT NULL REFERENCES "inspectors"("id") ON DELETE CASCADE,
-  "region_id" UUID NOT NULL REFERENCES "service_regions"("id") ON DELETE CASCADE,
+  "inspector_id" TEXT NOT NULL REFERENCES "inspectors"("id") ON DELETE CASCADE,
+  "region_id" TEXT NOT NULL REFERENCES "service_regions"("id") ON DELETE CASCADE,
   "assigned_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "assigned_by" UUID REFERENCES "users"("id"),
+  "assigned_by" TEXT REFERENCES "users"("id"),
   PRIMARY KEY ("inspector_id", "region_id")
 );
 CREATE INDEX IF NOT EXISTS "inspector_regions_region_idx" ON "inspector_regions"("region_id");
