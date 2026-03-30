@@ -17,6 +17,7 @@ describe('AppointmentFilters', () => {
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
         branchOptions={branchOptions}
+        serviceTypeOptions={[]}
       />,
     );
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
@@ -34,6 +35,7 @@ describe('AppointmentFilters', () => {
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
         branchOptions={branchOptions}
+        serviceTypeOptions={[]}
       />,
     );
     const input = screen.getByLabelText('Search');
@@ -47,6 +49,7 @@ describe('AppointmentFilters', () => {
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
         branchOptions={branchOptions}
+        serviceTypeOptions={[]}
       />,
     );
     await user.click(screen.getByLabelText('Status'));
@@ -66,6 +69,7 @@ describe('AppointmentFilters', () => {
         filters={DEFAULT_FILTERS}
         onFiltersChange={() => {}}
         branchOptions={branchOptions}
+        serviceTypeOptions={[]}
       />,
     );
     const checkbox = screen.getByLabelText('Show cancelled');
@@ -80,6 +84,7 @@ describe('AppointmentFilters', () => {
         filters={DEFAULT_FILTERS}
         onFiltersChange={onChange}
         branchOptions={branchOptions}
+        serviceTypeOptions={[]}
       />,
     );
     await user.click(screen.getByLabelText('Show cancelled'));
@@ -94,6 +99,7 @@ describe('AppointmentFilters', () => {
         filters={DEFAULT_FILTERS}
         onFiltersChange={onChange}
         branchOptions={branchOptions}
+        serviceTypeOptions={[]}
       />,
     );
     await user.click(screen.getByLabelText('Status'));
@@ -109,6 +115,7 @@ describe('AppointmentFilters', () => {
         filters={DEFAULT_FILTERS}
         onFiltersChange={onChange}
         branchOptions={branchOptions}
+        serviceTypeOptions={[]}
       />,
     );
 

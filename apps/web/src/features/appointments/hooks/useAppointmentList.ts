@@ -17,13 +17,14 @@ export interface UseAppointmentListReturn {
 
 export function useAppointmentList(): UseAppointmentListReturn {
   const [searchParams] = useSearchParams();
-  const [filters, setFilters] = useState<AppointmentFiltersState>({
+  const [filters, setFiltersRaw] = useState<AppointmentFiltersState>({
     ...DEFAULT_FILTERS,
     status: searchParams.get('status') ?? '',
     tenantConfirmationStatus: searchParams.get('tenantConfirmationStatus') ?? '',
     startDate: searchParams.get('fromDate') ?? '',
     endDate: searchParams.get('toDate') ?? '',
   });
+  const setFilters = (f: AppointmentFiltersState) => { setFiltersRaw(f); setPage(1); };
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -32,7 +33,9 @@ export function useAppointmentList(): UseAppointmentListReturn {
     pageSize,
     status: filters.status || undefined,
     tenantConfirmationStatus: filters.tenantConfirmationStatus || undefined,
+    tenantId: filters.tenantId || undefined,
     branchId: filters.branchId || undefined,
+    serviceTypeId: filters.serviceTypeId || undefined,
     search: filters.search || undefined,
     fromDate: filters.startDate || undefined,
     toDate: filters.endDate || undefined,
@@ -63,7 +66,7 @@ export function useAppointmentList(): UseAppointmentListReturn {
     errorMessage: null,
     refetch,
     filters,
-    setFilters,
+    setFilters: setFilters,
     pagination,
   };
 }

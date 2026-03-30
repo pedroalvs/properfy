@@ -35,7 +35,9 @@ export interface AppointmentFiltersState {
   search: string;
   status: string;
   tenantConfirmationStatus: string;
+  tenantId: string;
   branchId: string;
+  serviceTypeId: string;
   startDate: string;
   endDate: string;
   showCancelled: boolean;
@@ -108,7 +110,9 @@ export const DEFAULT_FILTERS: AppointmentFiltersState = {
   search: '',
   status: '',
   tenantConfirmationStatus: '',
+  tenantId: '',
   branchId: '',
+  serviceTypeId: '',
   startDate: '',
   endDate: '',
   showCancelled: false,

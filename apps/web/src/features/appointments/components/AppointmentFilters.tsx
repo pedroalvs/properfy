@@ -26,18 +26,24 @@ interface AppointmentFiltersProps {
   filters: AppointmentFiltersState;
   onFiltersChange: (filters: AppointmentFiltersState) => void;
   branchOptions: FilterSelectOption[];
+  serviceTypeOptions: FilterSelectOption[];
+  tenantOptions?: FilterSelectOption[];
+  isGlobalRole?: boolean;
 }
 
 export function AppointmentFilters({
   filters,
   onFiltersChange,
   branchOptions,
+  serviceTypeOptions,
+  tenantOptions = [],
+  isGlobalRole = false,
 }: AppointmentFiltersProps) {
   return (
     <FilterBar>
       <FilterInput
         label="Search"
-        placeholder="Code, address, tenant..."
+        placeholder="Code, address, tenant, phone..."
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />
@@ -48,16 +54,30 @@ export function AppointmentFilters({
         options={STATUS_OPTIONS}
       />
       <FilterSelect
-        label="Tenant Response"
-        value={filters.tenantConfirmationStatus}
-        onChange={(tenantConfirmationStatus) => onFiltersChange({ ...filters, tenantConfirmationStatus })}
-        options={TENANT_CONFIRMATION_OPTIONS}
+        label="Service Type"
+        value={filters.serviceTypeId}
+        onChange={(serviceTypeId) => onFiltersChange({ ...filters, serviceTypeId })}
+        options={serviceTypeOptions}
       />
+      {isGlobalRole && (
+        <FilterSelect
+          label="Client"
+          value={filters.tenantId}
+          onChange={(tenantId) => onFiltersChange({ ...filters, tenantId })}
+          options={tenantOptions}
+        />
+      )}
       <FilterSelect
         label="Branch"
         value={filters.branchId}
         onChange={(branchId) => onFiltersChange({ ...filters, branchId })}
         options={branchOptions}
+      />
+      <FilterSelect
+        label="Confirmation"
+        value={filters.tenantConfirmationStatus}
+        onChange={(tenantConfirmationStatus) => onFiltersChange({ ...filters, tenantConfirmationStatus })}
+        options={TENANT_CONFIRMATION_OPTIONS}
       />
       <FilterDateRange
         label="Period"

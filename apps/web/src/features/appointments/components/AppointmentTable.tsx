@@ -48,6 +48,14 @@ export function AppointmentTable({
       label: 'Tenant',
       width: '160px',
       sortable: true,
+      render: (row) => (
+        <div className="flex flex-col gap-0.5">
+          <span>{row.contactName}</span>
+          {row.contactPhone && (
+            <span className="text-xs text-text-muted">{row.contactPhone}</span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'status',

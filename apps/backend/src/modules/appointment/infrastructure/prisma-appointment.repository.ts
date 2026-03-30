@@ -378,7 +378,14 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where['tenant_confirmation_status'] = filters.tenantConfirmationStatus;
     }
     if (filters.search) {
-      where['notes'] = { contains: filters.search, mode: 'insensitive' };
+      where['OR'] = [
+        { notes: { contains: filters.search, mode: 'insensitive' } },
+        { property: { property_code: { contains: filters.search, mode: 'insensitive' } } },
+        { property: { street: { contains: filters.search, mode: 'insensitive' } } },
+        { contact: { tenant_name: { contains: filters.search, mode: 'insensitive' } } },
+        { contact: { primary_phone: { contains: filters.search, mode: 'insensitive' } } },
+        { contact: { primary_email: { contains: filters.search, mode: 'insensitive' } } },
+      ];
     }
     if (filters.ungroupedOnly) {
       where['service_group_id'] = null;

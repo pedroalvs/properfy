@@ -10,31 +10,24 @@ import { AppointmentDetailDrawer } from '../components/AppointmentDetailDrawer';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { useAppointmentList } from '../hooks/useAppointmentList';
 
-interface BranchItem {
-  id: string;
-  name: string;
-}
-
-function useBranchFilterOptions() {
-  const { data: response, isLoading } = usePaginatedQuery<BranchItem>(
-    ['branches'],
-    '/v1/branches',
-    { pageSize: 100 },
-  );
-
-  const options = useMemo(
+function useFilterOptions<T extends { id: string; name: string }>(
+  queryKey: unknown[],
+  path: string,
+  enabled = true,
+) {
+  const { data: response } = usePaginatedQuery<T>(queryKey, path, { pageSize: 100 }, { enabled });
+  return useMemo(
     () => [
       { label: 'All', value: '' },
-      ...(response?.data ?? []).map((b) => ({ label: b.name, value: b.id })),
+      ...(response?.data ?? []).map((item) => ({ label: item.name, value: item.id })),
     ],
     [response],
   );
-
-  return { options, isLoading };
 }
 
 const CAN_CREATE_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 const CAN_MAP_IMPORT_ROLES: string[] = [UserRole.AM, UserRole.OP];
+const GLOBAL_ROLES: string[] = [UserRole.AM, UserRole.OP];
 
 export function AppointmentListPage() {
   const navigate = useNavigate();
@@ -50,7 +43,21 @@ export function AppointmentListPage() {
     pagination,
   } = useAppointmentList();
 
-  const { options: branchOptions } = useBranchFilterOptions();
+  const isGlobalRole = user ? GLOBAL_ROLES.includes(user.role) : false;
+
+  const branchOptions = useFilterOptions<{ id: string; name: string }>(
+    ['branches', 'filter'],
+    '/v1/branches',
+  );
+  const serviceTypeOptions = useFilterOptions<{ id: string; name: string }>(
+    ['service-types', 'filter'],
+    '/v1/service-types',
+  );
+  const tenantOptions = useFilterOptions<{ id: string; name: string }>(
+    ['tenants', 'filter'],
+    '/v1/tenants',
+    isGlobalRole,
+  );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -73,6 +80,9 @@ export function AppointmentListPage() {
           filters={filters}
           onFiltersChange={setFilters}
           branchOptions={branchOptions}
+          serviceTypeOptions={serviceTypeOptions}
+          tenantOptions={tenantOptions}
+          isGlobalRole={isGlobalRole}
         />
         <AppointmentTable
           data={data}
