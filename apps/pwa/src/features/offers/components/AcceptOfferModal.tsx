@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/format-date';
+import { formatCurrency } from '@/lib/format-currency';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
 
 function formatTimeWindow(timeWindow: string): string {
-  return timeWindow.replace('-', ' - ');
+  return timeWindow.replace('-', ' – ');
 }
 
 interface AcceptOfferModalProps {
@@ -17,58 +18,83 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
   if (state !== 'CONFIRMING' && state !== 'ACCEPTING') return null;
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/40" data-testid="accept-modal">
-      <div className="w-full max-w-lg rounded-t-2xl bg-card-bg p-6 shadow-xl">
-        <h3 className="text-lg font-bold text-secondary">Accept Offer?</h3>
-
-        <div className="mt-4 space-y-2 text-sm text-text-primary">
-          <div className="flex justify-between">
-            <span className="text-text-secondary">Service</span>
-            <span className="font-semibold">{offer.serviceTypeName}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-text-secondary">Date</span>
-            <span className="font-semibold">{formatDate(offer.scheduledDate)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-text-secondary">Time</span>
-            <span className="font-semibold">{formatTimeWindow(offer.timeWindow)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-text-secondary">Inspections</span>
-            <span className="font-semibold">{offer.groupSize}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-text-secondary">Client</span>
-            <span className="font-semibold">{offer.tenantName}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-text-secondary">Suburbs</span>
-            <span className="font-semibold">{offer.suburbs.join(', ') || 'Not informed'}</span>
-          </div>
+    <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/50" data-testid="accept-modal">
+      <div className="w-full max-w-lg rounded-t-3xl bg-white shadow-2xl">
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full bg-black/10" />
         </div>
 
-        <div className="mt-6 flex gap-3">
-          <Button
-            variant="secondary"
-            onClick={onCancel}
-            disabled={state === 'ACCEPTING'}
-            className="flex-1"
-            data-testid="modal-cancel"
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={onConfirm}
-            loading={state === 'ACCEPTING'}
-            className="flex-1 !bg-success"
-            data-testid="modal-confirm"
-          >
-            Accept Group
-          </Button>
+        <div className="px-6 pb-8 pt-3">
+          <h3 className="text-lg font-bold text-secondary">Confirm acceptance</h3>
+          <p className="mt-0.5 text-sm text-text-secondary">
+            Once accepted, these inspections are assigned to you.
+          </p>
+
+          {/* Key required warning */}
+          {offer.keyRequired && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-warning/10 px-3 py-2.5">
+              <i className="mdi mdi-key-outline text-lg text-warning" />
+              <p className="text-sm font-semibold text-warning">Key collection required for this group</p>
+            </div>
+          )}
+
+          {/* Summary details */}
+          <div className="mt-4 space-y-2.5 text-sm">
+            <Row label="Service" value={offer.serviceTypeName} />
+            <Row label="Client" value={offer.tenantName} />
+            <Row label="Date" value={formatDate(offer.scheduledDate)} />
+            <Row label="Time window" value={formatTimeWindow(offer.timeWindow)} />
+            <Row
+              label="Inspections"
+              value={`${offer.groupSize} ${offer.groupSize === 1 ? 'inspection' : 'inspections'}`}
+            />
+            {offer.suburbs.length > 0 && (
+              <Row label="Area" value={offer.suburbs.join(', ')} />
+            )}
+          </div>
+
+          {/* Payout highlight */}
+          {offer.payoutEstimate != null && (
+            <div className="mt-4 rounded-xl bg-success/8 px-4 py-3 flex items-center justify-between">
+              <span className="text-sm font-semibold text-success">Estimated payout</span>
+              <span className="text-xl font-bold text-success" data-testid="modal-payout">
+                {formatCurrency(offer.payoutEstimate)}
+              </span>
+            </div>
+          )}
+
+          <div className="mt-6 flex gap-3">
+            <Button
+              variant="secondary"
+              onClick={onCancel}
+              disabled={state === 'ACCEPTING'}
+              className="flex-1"
+              data-testid="modal-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={onConfirm}
+              loading={state === 'ACCEPTING'}
+              className="flex-1 !bg-success !font-bold"
+              data-testid="modal-confirm"
+            >
+              Accept
+            </Button>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-text-secondary shrink-0">{label}</span>
+      <span className="font-semibold text-text-primary text-right">{value}</span>
     </div>
   );
 }

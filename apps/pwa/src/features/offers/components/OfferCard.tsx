@@ -1,6 +1,7 @@
 import { memo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { formatDate, toLocalISODate } from '@/lib/format-date';
+import { formatCurrency } from '@/lib/format-currency';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
 
 interface OfferCardProps {
@@ -14,8 +15,34 @@ function isToday(dateStr: string): boolean {
   return dateStr === today;
 }
 
+function isTomorrow(dateStr: string): boolean {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return dateStr === toLocalISODate(tomorrow);
+}
+
 function formatTimeWindow(timeWindow: string): string {
-  return timeWindow.replace('-', ' - ');
+  return timeWindow.replace('-', ' – ');
+}
+
+function usePriorityCountdown(expiresAt: string | null): { label: string; isUrgent: boolean } | null {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (ms <= 0) return { label: 'Priority expired', isUrgent: true };
+  const totalMins = Math.floor(ms / 60_000);
+  const hours = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  const isUrgent = ms < 2 * 60 * 60 * 1000;
+  const label = hours > 0 ? `${hours}h ${mins}m left` : `${mins}m left`;
+  return { label, isUrgent };
 }
 
 const stateLabels: Partial<Record<OfferAcceptState, { label: string; className: string }>> = {
@@ -27,9 +54,11 @@ const stateLabels: Partial<Record<OfferAcceptState, { label: string; className: 
 
 export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: OfferCardProps) {
   const today = isToday(offer.scheduledDate);
+  const tomorrow = isTomorrow(offer.scheduledDate);
   const resolved = stateLabels[state];
-  const [expanded, setExpanded] = useState(false);
+  const [showAddresses, setShowAddresses] = useState(false);
   const [faded, setFaded] = useState(false);
+  const countdown = usePriorityCountdown(offer.priorityExpiresAt);
 
   useEffect(() => {
     if (state === 'ACCEPTED') {
@@ -39,81 +68,137 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
     setFaded(false);
   }, [state]);
 
+  const dayLabel = today ? 'TODAY' : tomorrow ? 'TOMORROW' : null;
+
   return (
     <div
-      className={`rounded-[24px] border border-white/70 bg-white/92 p-4 shadow-[0_14px_30px_rgba(15,23,42,0.06)] transition-opacity duration-500 ${faded ? 'opacity-50' : ''}`}
+      className={`overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-opacity duration-500 ${faded ? 'opacity-40' : ''}`}
       data-testid={`offer-card-${offer.groupId}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-text-primary">{offer.serviceTypeName}</span>
-            {today && (
-              <span className="rounded bg-warning px-1.5 py-0.5 text-[10px] font-bold text-white" data-testid="today-badge">
-                TODAY
-              </span>
+      {/* Header strip: date + time */}
+      <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-black/[0.05]">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          {dayLabel && (
+            <span
+              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white ${today ? 'bg-warning' : 'bg-primary'}`}
+              data-testid="day-badge"
+            >
+              {dayLabel}
+            </span>
+          )}
+          <span className="text-xs font-semibold text-text-secondary truncate">
+            {formatDate(offer.scheduledDate)}
+          </span>
+        </div>
+        <span className="shrink-0 text-xs font-bold text-text-primary">
+          {formatTimeWindow(offer.timeWindow)}
+        </span>
+      </div>
+
+      <div className="px-4 pt-3 pb-4">
+        {/* Service + payout */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[15px] font-bold text-text-primary leading-tight">{offer.serviceTypeName}</p>
+            <p className="mt-0.5 text-xs text-text-muted">{offer.tenantName}</p>
+          </div>
+          <div className="shrink-0 text-right">
+            {offer.payoutEstimate != null ? (
+              <>
+                <p className="text-lg font-bold text-success leading-none" data-testid="payout-estimate">
+                  {formatCurrency(offer.payoutEstimate)}
+                </p>
+                <p className="text-[10px] text-text-muted">est. payout</p>
+              </>
+            ) : (
+              <span className="text-sm font-bold text-text-muted">—</span>
             )}
           </div>
-          <p className="mt-1 text-xs text-text-secondary">
-            {formatDate(offer.scheduledDate)} | {formatTimeWindow(offer.timeWindow)}
+        </div>
+
+        {/* Inspection count */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+            <i className="mdi mdi-home-outline text-[13px]" />
+            {offer.groupSize} {offer.groupSize === 1 ? 'inspection' : 'inspections'}
+          </span>
+          {offer.keyRequired && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning"
+              data-testid="key-required-badge"
+            >
+              <i className="mdi mdi-key-outline text-[13px]" />
+              Key required
+            </span>
+          )}
+        </div>
+
+        {/* Location summary */}
+        {offer.suburbs.length > 0 && (
+          <p className="mt-2.5 text-sm text-text-secondary">
+            <i className="mdi mdi-map-marker-outline mr-1 text-text-muted" />
+            {offer.suburbs.join(' · ')}
           </p>
-          <p className="mt-0.5 text-xs text-text-muted">{offer.tenantName}</p>
-        </div>
-        <span className="text-sm font-bold text-primary">
-          {offer.groupSize} {offer.groupSize === 1 ? 'inspection' : 'inspections'}
-        </span>
-      </div>
-
-      <p className="mt-2 text-sm text-text-primary">
-        {offer.suburbs.length > 0 ? offer.suburbs.join(', ') : 'Suburbs not informed'}
-      </p>
-      <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
-        <span data-testid="priority-expiration">
-          {offer.priorityExpiresAt ? `Priority until ${formatDate(offer.priorityExpiresAt)}` : 'Standard availability'}
-        </span>
-      </div>
-
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="mt-2 flex items-center gap-1 text-xs font-semibold text-primary"
-        data-testid="expand-details-button"
-      >
-        Details
-        <i className={`mdi ${expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'}`} />
-      </button>
-
-      {expanded && (
-        <div className="mt-2 rounded-2xl bg-app-bg p-3" data-testid="offer-details-expanded">
-          <p className="mb-1 text-xs font-bold uppercase text-text-secondary">Suburbs</p>
-          <ul className="list-disc pl-4 text-xs text-text-primary">
-            {offer.suburbs.map((suburb) => (
-              <li key={suburb}>{suburb}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="mt-3">
-        {resolved ? (
-          <div
-            className={`rounded px-3 py-2 text-center text-sm font-semibold ${resolved.className}`}
-            data-testid="offer-state-label"
-            role="alert"
-          >
-            {resolved.label}
-          </div>
-        ) : (
-          <Button
-            variant="primary"
-            onClick={onAccept}
-            loading={state === 'ACCEPTING'}
-            disabled={state === 'ACCEPTING' || state === 'CONFIRMING'}
-            className="!w-full !min-h-touch !rounded-2xl !bg-success"
-            data-testid="accept-button"
-          >
-            Accept
-          </Button>
         )}
+
+        {/* Priority countdown */}
+        {countdown && (
+          <div
+            className={`mt-2 flex items-center gap-1 text-xs font-semibold ${countdown.isUrgent ? 'text-error' : 'text-warning'}`}
+            data-testid="priority-countdown"
+          >
+            <i className={`mdi ${countdown.isUrgent ? 'mdi-clock-alert-outline' : 'mdi-clock-outline'}`} />
+            Priority: {countdown.label}
+          </div>
+        )}
+
+        {/* Addresses toggle */}
+        {offer.addresses.length > 0 && (
+          <div className="mt-3">
+            <button
+              onClick={() => setShowAddresses((v) => !v)}
+              className="flex items-center gap-1 text-xs font-semibold text-primary"
+              data-testid="toggle-addresses"
+            >
+              <i className={`mdi ${showAddresses ? 'mdi-chevron-up' : 'mdi-chevron-down'} text-sm`} />
+              {showAddresses ? 'Hide addresses' : `Show ${offer.addresses.length} ${offer.addresses.length === 1 ? 'address' : 'addresses'}`}
+            </button>
+            {showAddresses && (
+              <ul className="mt-2 space-y-1" data-testid="addresses-list">
+                {offer.addresses.map((addr) => (
+                  <li key={addr} className="flex items-start gap-1.5 text-xs text-text-secondary">
+                    <i className="mdi mdi-circle-small shrink-0 text-text-muted" />
+                    {addr}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* Action */}
+        <div className="mt-4">
+          {resolved ? (
+            <div
+              className={`rounded-xl px-3 py-2.5 text-center text-sm font-semibold ${resolved.className}`}
+              data-testid="offer-state-label"
+              role="alert"
+            >
+              {resolved.label}
+            </div>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={onAccept}
+              loading={state === 'ACCEPTING'}
+              disabled={state === 'ACCEPTING' || state === 'CONFIRMING'}
+              className="!w-full !min-h-touch !rounded-xl !bg-success !text-base !font-bold"
+              data-testid="accept-button"
+            >
+              Accept offer
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

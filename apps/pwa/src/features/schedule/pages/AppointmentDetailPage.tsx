@@ -11,6 +11,7 @@ import { KeyDetailsSection } from '../components/KeyDetailsSection';
 import { StartInspectionButton } from '../components/StartInspectionButton';
 import { useInspectorAppointment } from '../hooks/useInspectorAppointment';
 import { useLocalExecutionState } from '@/features/execution/hooks/useLocalExecutionState';
+import { FLOW_TYPE_MAP } from '@/lib/status-colors';
 import { formatScheduleDate, formatTimeWindow } from '../lib/time-slot';
 
 export function AppointmentDetailPage() {
@@ -43,67 +44,98 @@ export function AppointmentDetailPage() {
     isRestored &&
     ['IN_PROGRESS', 'FINISHING', 'SUBMITTING', 'ERROR'].includes(localExecutionState.phase);
 
+  const showCTA = hasResumableExecution || apt.status === AppointmentStatus.SCHEDULED;
+  const flowStyle = FLOW_TYPE_MAP[apt.flowType];
+
   return (
     <div className="w-full" data-testid="appointment-detail-page">
-      <TopBar title="Appointment" showBack />
+      <TopBar title={apt.serviceTypeName} showBack />
 
-      <div className="flex flex-col gap-4 px-page-x py-4">
+      <div className="flex flex-col gap-3 px-page-x py-4">
+        {/* Overdue banner — critical, shown first */}
         {apt.isOverdue && (
           <section
-            className="flex items-center gap-3 rounded-2xl border border-error/20 bg-error/10 px-4 py-3"
+            className="flex items-center gap-3 rounded-[20px] border border-error/20 bg-error/10 px-4 py-3.5"
             data-testid="overdue-banner"
           >
-            <i className="mdi mdi-clock-alert-outline text-xl text-error" aria-hidden="true" />
-            <p className="text-sm font-medium text-error">
-              This appointment is overdue. The scheduled date has passed.
+            <i className="mdi mdi-clock-alert-outline text-xl text-error shrink-0" aria-hidden="true" />
+            <p className="text-sm font-semibold text-error">
+              Overdue — the scheduled date has passed. Contact your coordinator.
             </p>
           </section>
         )}
 
+        {/* Header: date, time, status */}
         <section className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(30,64,175,0.82))] px-5 py-5 text-white shadow-[0_18px_44px_rgba(15,23,42,0.20)]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">Appointment window</p>
-              <p className="mt-2 text-base font-bold">
-              {formatScheduleDate(apt.scheduledDate)}
+              <div className="flex items-center gap-2">
+                <p className="text-lg font-bold">{apt.serviceTypeName}</p>
+                <span
+                  className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                  style={{ backgroundColor: flowStyle.bg, color: flowStyle.text ?? '#333' }}
+                >
+                  {flowStyle.label}
+                </span>
+              </div>
+              <p className="mt-2 text-sm font-semibold text-white/90">
+                {formatScheduleDate(apt.scheduledDate)}
               </p>
-              <p className="mt-1 text-sm text-white/80">
-              {formatTimeWindow(apt.timeSlot)}
+              <p className="mt-0.5 text-base font-bold text-white">
+                {formatTimeWindow(apt.timeSlot)}
               </p>
             </div>
             <StatusChip status={apt.status} />
           </div>
         </section>
 
+        {/* Key required — shown early so inspector doesn't miss it */}
+        {apt.keyRequired && (
+          <KeyDetailsSection
+            keyRequired={apt.keyRequired}
+            meetingLocation={null}
+            restrictions={null}
+          />
+        )}
+
+        {/* Property location */}
         <PropertyAddressSection
           address={apt.propertyAddress}
+          suburb={apt.suburb}
           latitude={apt.propertyLatitude}
           longitude={apt.propertyLongitude}
         />
 
+        {/* Tenant confirmation status */}
         <TenantConfirmationBanner status={apt.tenantConfirmation} />
 
+        {/* Tenant contact */}
         <TenantContactSection
           name={apt.tenantName}
           phone={apt.tenantPhone}
           email={apt.tenantEmail}
         />
 
-        <KeyDetailsSection
-          keyRequired={apt.keyRequired}
-          meetingLocation={apt.meetingLocation}
-          restrictions={apt.restrictions}
-        />
+        {/* On-site details (meeting location + restrictions, no key duplication) */}
+        {(apt.meetingLocation || apt.restrictions) && (
+          <KeyDetailsSection
+            keyRequired={false}
+            meetingLocation={apt.meetingLocation}
+            restrictions={apt.restrictions}
+          />
+        )}
 
+        {/* Notes */}
         {apt.notes && (
-          <section className="rounded-[24px] border border-white/70 bg-white/92 p-4 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
-            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-text-secondary">Notes</h3>
+          <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Notes</p>
             <p className="mt-1 text-sm text-text-primary">{apt.notes}</p>
           </section>
         )}
 
-        {(hasResumableExecution || apt.status === AppointmentStatus.SCHEDULED) && (
-          <div className="mt-2">
+        {/* CTA */}
+        {showCTA && (
+          <div className="mt-2 pb-2">
             <StartInspectionButton
               appointmentId={apt.id}
               scheduledDate={apt.scheduledDate}

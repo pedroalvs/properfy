@@ -6,12 +6,13 @@ describe('PropertyAddressSection', () => {
     render(
       <PropertyAddressSection
         address="Equator St"
+        suburb=""
         latitude={0}
         longitude={0}
       />,
     );
 
-    expect(screen.getByRole('link', { name: /open in maps/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /navigate to property/i })).toHaveAttribute(
       'href',
       'https://maps.google.com/?q=0,0',
     );
@@ -26,9 +27,21 @@ describe('PropertyAddressSection', () => {
       />,
     );
 
-    expect(screen.getByRole('link', { name: /open in maps/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /navigate to property/i })).toHaveAttribute(
       'href',
       'https://maps.google.com/?q=123%20Main%20St%2C%20Brisbane',
     );
+  });
+
+  it('shows suburb when provided', () => {
+    render(
+      <PropertyAddressSection
+        address="123 King St"
+        suburb="Sydney"
+        latitude={null}
+        longitude={null}
+      />,
+    );
+    expect(screen.getByText('Sydney')).toBeInTheDocument();
   });
 });

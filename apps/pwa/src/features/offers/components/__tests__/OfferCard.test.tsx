@@ -14,6 +14,9 @@ const baseOffer: MarketplaceOffer = {
   priorityMode: 'STANDARD',
   priorityExpiresAt: null,
   suburbs: ['Brunswick', 'Fitzroy'],
+  payoutEstimate: null,
+  addresses: [],
+  keyRequired: false,
 };
 
 describe('OfferCard', () => {
@@ -31,10 +34,9 @@ describe('OfferCard', () => {
   it('renders offer details', () => {
     render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
-    expect(screen.getByText('Brunswick, Fitzroy')).toBeInTheDocument();
+    expect(screen.getByText(/Brunswick/)).toBeInTheDocument();
     expect(screen.getByText('Acme Realty')).toBeInTheDocument();
     expect(screen.getByText('3 inspections')).toBeInTheDocument();
-    expect(screen.getByText('Standard availability')).toBeInTheDocument();
   });
 
   it('shows Accept button for IDLE state', () => {
@@ -65,12 +67,12 @@ describe('OfferCard', () => {
     expect(screen.getByTestId('offer-state-label')).toHaveTextContent('No longer available');
   });
 
-  it('shows TODAY badge when date is today', () => {
+  it('shows day badge when date is today', () => {
     vi.useRealTimers();
     const today = toLocalISODate(new Date());
     const todayOffer = { ...baseOffer, scheduledDate: today };
     render(<OfferCard offer={todayOffer} state="IDLE" onAccept={onAccept} />);
-    expect(screen.getByTestId('today-badge')).toBeInTheDocument();
+    expect(screen.getByTestId('day-badge')).toHaveTextContent('TODAY');
   });
 
   it('shows "1 inspection" singular', () => {
@@ -80,16 +82,39 @@ describe('OfferCard', () => {
     expect(screen.getByText('1 inspection')).toBeInTheDocument();
   });
 
-  it('has expand/collapse details button', async () => {
+  it('shows key required badge when keyRequired is true', () => {
+    render(
+      <OfferCard offer={{ ...baseOffer, keyRequired: true }} state="IDLE" onAccept={onAccept} />,
+    );
+    expect(screen.getByTestId('key-required-badge')).toBeInTheDocument();
+  });
+
+  it('shows payout estimate when provided', () => {
+    render(
+      <OfferCard offer={{ ...baseOffer, payoutEstimate: 220 }} state="IDLE" onAccept={onAccept} />,
+    );
+    expect(screen.getByTestId('payout-estimate')).toBeInTheDocument();
+  });
+
+  it('shows address toggle and list when addresses are present', async () => {
     vi.useRealTimers();
     const user = userEvent.setup();
-    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
-    expect(screen.queryByTestId('offer-details-expanded')).not.toBeInTheDocument();
+    const offerWithAddresses = {
+      ...baseOffer,
+      addresses: ['12 Smith St, Brunswick', '45 King St, Fitzroy'],
+    };
+    render(<OfferCard offer={offerWithAddresses} state="IDLE" onAccept={onAccept} />);
+    expect(screen.queryByTestId('addresses-list')).not.toBeInTheDocument();
 
-    await user.click(screen.getByTestId('expand-details-button'));
-    expect(screen.getByTestId('offer-details-expanded')).toBeInTheDocument();
-    expect(screen.getByText('Brunswick')).toBeInTheDocument();
-    expect(screen.getByText('Fitzroy')).toBeInTheDocument();
+    await user.click(screen.getByTestId('toggle-addresses'));
+    expect(screen.getByTestId('addresses-list')).toBeInTheDocument();
+    expect(screen.getByText('12 Smith St, Brunswick')).toBeInTheDocument();
+    expect(screen.getByText('45 King St, Fitzroy')).toBeInTheDocument();
+  });
+
+  it('does not show address toggle when no addresses provided', () => {
+    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
+    expect(screen.queryByTestId('toggle-addresses')).not.toBeInTheDocument();
   });
 
   it('has role="alert" on state label', () => {
@@ -97,20 +122,28 @@ describe('OfferCard', () => {
     expect(screen.getByTestId('offer-state-label')).toHaveAttribute('role', 'alert');
   });
 
-  it('fades to 50% opacity after 3s when ACCEPTED', () => {
+  it('fades after 3s when ACCEPTED', () => {
     render(<OfferCard offer={baseOffer} state="ACCEPTED" onAccept={onAccept} />);
     const card = screen.getByTestId(`offer-card-${baseOffer.groupId}`);
-    expect(card.className).not.toContain('opacity-50');
+    expect(card.className).not.toContain('opacity-40');
 
     act(() => {
       vi.advanceTimersByTime(3000);
     });
 
-    expect(card.className).toContain('opacity-50');
+    expect(card.className).toContain('opacity-40');
   });
 
-  it('shows priority expiration fallback', () => {
-    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
-    expect(screen.getByTestId('priority-expiration')).toHaveTextContent('Standard availability');
+  it('shows priority countdown when priorityExpiresAt is set', () => {
+    vi.useRealTimers();
+    const future = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    render(
+      <OfferCard
+        offer={{ ...baseOffer, priorityExpiresAt: future }}
+        state="IDLE"
+        onAccept={onAccept}
+      />,
+    );
+    expect(screen.getByTestId('priority-countdown')).toBeInTheDocument();
   });
 });

@@ -13,7 +13,7 @@ interface StartInspectionButtonProps {
 const MINUTES_BEFORE = 30;
 const HOURS_AFTER = 2;
 
-function getWindowState(scheduledDate: string, timeSlot: string): { enabled: boolean; label: string } {
+function getWindowState(scheduledDate: string, timeSlot: string): { enabled: boolean; label: string; sublabel?: string } {
   const now = new Date();
   const start = getScheduleStartDateTime(scheduledDate, timeSlot);
   const today = new Date();
@@ -24,7 +24,7 @@ function getWindowState(scheduledDate: string, timeSlot: string): { enabled: boo
     start.getFullYear() === today.getFullYear();
 
   if (!isSameDay) {
-    return { enabled: false, label: 'Available on inspection day' };
+    return { enabled: false, label: 'Start Inspection', sublabel: 'Available on inspection day' };
   }
 
   const windowStart = new Date(start.getTime() - MINUTES_BEFORE * 60 * 1000);
@@ -33,15 +33,15 @@ function getWindowState(scheduledDate: string, timeSlot: string): { enabled: boo
   if (now < windowStart) {
     const diffMs = windowStart.getTime() - now.getTime();
     const diffMin = Math.ceil(diffMs / 60000);
-    if (diffMin > 60) {
-      const hours = Math.floor(diffMin / 60);
-      return { enabled: false, label: `Available in ${hours}h ${diffMin % 60}min` };
-    }
-    return { enabled: false, label: `Available in ${diffMin} min` };
+    const timeLabel =
+      diffMin > 60
+        ? `${Math.floor(diffMin / 60)}h ${diffMin % 60}m`
+        : `${diffMin} min`;
+    return { enabled: false, label: 'Start Inspection', sublabel: `Available in ${timeLabel}` };
   }
 
   if (now > windowEnd) {
-    return { enabled: false, label: 'Start window has passed' };
+    return { enabled: false, label: 'Start Inspection', sublabel: 'Start window has passed' };
   }
 
   return { enabled: true, label: 'Start Inspection' };
@@ -54,10 +54,10 @@ export function StartInspectionButton({
   resume = false,
 }: StartInspectionButtonProps) {
   const navigate = useNavigate();
-  const [state, setState] = useState(() => getWindowState(scheduledDate, timeSlot));
+  const [windowState, setWindowState] = useState(() => getWindowState(scheduledDate, timeSlot));
 
   const updateState = useCallback(() => {
-    setState(getWindowState(scheduledDate, timeSlot));
+    setWindowState(getWindowState(scheduledDate, timeSlot));
   }, [scheduledDate, timeSlot]);
 
   useEffect(() => {
@@ -66,20 +66,28 @@ export function StartInspectionButton({
     return () => clearInterval(interval);
   }, [resume, updateState]);
 
-  const buttonState = resume
-    ? { enabled: true, label: 'Resume Inspection' }
-    : state;
+  const { enabled, label, sublabel } = resume
+    ? { enabled: true, label: 'Resume Inspection', sublabel: 'Continue where you left off' }
+    : windowState;
 
   return (
-    <Button
-      variant="primary"
-      disabled={!buttonState.enabled}
-      onClick={() => navigate(`/execution/${appointmentId}`)}
-      className="!w-full !min-h-[48px]"
-      data-testid="start-inspection-button"
-    >
-      <i className="mdi mdi-play-circle-outline text-lg" aria-hidden="true" />
-      {buttonState.label}
-    </Button>
+    <div className="flex flex-col gap-1">
+      <Button
+        variant="primary"
+        disabled={!enabled}
+        onClick={() => navigate(`/execution/${appointmentId}`)}
+        className={`!w-full !min-h-[56px] !rounded-2xl !text-base !font-bold ${resume ? '!bg-warning' : ''}`}
+        data-testid="start-inspection-button"
+      >
+        <i
+          className={`mdi ${resume ? 'mdi-play-circle' : 'mdi-play-circle-outline'} text-xl`}
+          aria-hidden="true"
+        />
+        {label}
+      </Button>
+      {sublabel && (
+        <p className="text-center text-xs text-text-muted" data-testid="start-inspection-sublabel">{sublabel}</p>
+      )}
+    </div>
   );
 }

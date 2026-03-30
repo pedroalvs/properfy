@@ -18,7 +18,11 @@ export function parseScheduleDate(dateStr: string): Date {
 }
 
 export function formatScheduleDate(dateStr: string): string {
-  return parseScheduleDate(dateStr).toLocaleDateString('en-AU');
+  return parseScheduleDate(dateStr).toLocaleDateString('en-AU', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 export function getTimeWindowParts(timeSlot: string): { startTime: string; endTime: string } {
@@ -28,7 +32,7 @@ export function getTimeWindowParts(timeSlot: string): { startTime: string; endTi
 
 export function formatTimeWindow(timeSlot: string): string {
   const { startTime, endTime } = getTimeWindowParts(timeSlot);
-  return `${startTime} - ${endTime}`;
+  return `${startTime} – ${endTime}`;
 }
 
 export function getScheduleStartDateTime(scheduledDate: string, timeSlot: string): Date {

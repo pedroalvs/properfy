@@ -38,7 +38,7 @@ describe('StartInspectionButton', () => {
     );
     const button = screen.getByTestId('start-inspection-button');
     expect(button).toBeDisabled();
-    expect(button).toHaveTextContent('Available on inspection day');
+    expect(screen.getByTestId('start-inspection-sublabel')).toHaveTextContent('Available on inspection day');
   });
 
   it('is enabled when within time window', () => {
@@ -75,7 +75,7 @@ describe('StartInspectionButton', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/execution/apt-1');
   });
 
-  it('shows countdown when before window', () => {
+  it('shows countdown sublabel when before window', () => {
     const now = new Date();
     const start = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour in future
 
@@ -89,7 +89,7 @@ describe('StartInspectionButton', () => {
 
     const button = screen.getByTestId('start-inspection-button');
     expect(button).toBeDisabled();
-    expect(button.textContent).toMatch(/Available in \d+ min/);
+    expect(screen.getByTestId('start-inspection-sublabel').textContent).toMatch(/Available in \d+ min/);
   });
 
   it('shows resume state when a local inspection is already in progress', () => {

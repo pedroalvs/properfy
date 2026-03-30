@@ -342,6 +342,9 @@ export const marketplaceOfferResponseSchema = z.object({
   priorityMode: z.string(),
   priorityExpiresAt: dateStrNullable(),
   suburbs: z.array(z.string()),
+  payoutEstimate: z.number().nullable(),
+  addresses: z.array(z.string()),
+  keyRequired: z.boolean(),
 });
 
 export const marketplaceOfferAcceptResponseSchema = z.object({

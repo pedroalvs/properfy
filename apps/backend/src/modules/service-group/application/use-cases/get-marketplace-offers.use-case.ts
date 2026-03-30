@@ -20,6 +20,9 @@ export interface MarketplaceOfferOutput {
   priorityMode: string;
   priorityExpiresAt: Date | null;
   suburbs: string[];
+  payoutEstimate: number | null;
+  addresses: string[];
+  keyRequired: boolean;
 }
 
 export interface GetMarketplaceOffersOutput {
@@ -74,6 +77,9 @@ export class GetMarketplaceOffersUseCase {
         priorityMode: offer.priorityMode,
         priorityExpiresAt: offer.priorityExpiresAt,
         suburbs: offer.suburbs,
+        payoutEstimate: offer.payoutEstimate,
+        addresses: offer.addresses,
+        keyRequired: offer.keyRequired,
       })),
       total,
     };

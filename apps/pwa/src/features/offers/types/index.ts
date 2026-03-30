@@ -10,4 +10,7 @@ export interface MarketplaceOffer {
   priorityMode: string;
   priorityExpiresAt: string | null;
   suburbs: string[];
+  payoutEstimate: number | null;
+  addresses: string[];
+  keyRequired: boolean;
 }

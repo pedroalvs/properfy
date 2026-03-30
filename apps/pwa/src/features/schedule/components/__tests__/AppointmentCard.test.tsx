@@ -41,9 +41,13 @@ describe('AppointmentCard', () => {
 
   it('renders appointment details', () => {
     renderWithProviders(<AppointmentCard appointment={baseAppointment} />);
-    expect(screen.getByText('123 Collins St')).toBeInTheDocument();
-    expect(screen.getByText('Melbourne')).toBeInTheDocument();
-    expect(screen.getByText('Scheduled')).toBeInTheDocument();
+    expect(screen.getByText('123 Collins St, Melbourne')).toBeInTheDocument();
+    expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
+  });
+
+  it('shows time window', () => {
+    renderWithProviders(<AppointmentCard appointment={baseAppointment} />);
+    expect(screen.getByText('09:00 – 11:00')).toBeInTheDocument();
   });
 
   it('shows confirmation badge', () => {
@@ -97,7 +101,7 @@ describe('AppointmentCard', () => {
     renderWithProviders(
       <AppointmentCard appointment={{ ...baseAppointment, keyRequired: true }} />,
     );
-    expect(screen.getByText('Key')).toBeInTheDocument();
+    expect(screen.getByText('Key required')).toBeInTheDocument();
   });
 
   it('navigates to detail on click', async () => {

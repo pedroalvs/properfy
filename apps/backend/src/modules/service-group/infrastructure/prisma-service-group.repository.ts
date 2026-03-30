@@ -235,8 +235,10 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         tenant: { select: { name: true } },
         service_type: { select: { name: true } },
         appointments: {
-          include: {
-            property: { select: { suburb: true } },
+          select: {
+            key_required: true,
+            payout_amount: true,
+            property: { select: { suburb: true, street: true } },
           },
         },
       },
@@ -246,13 +248,27 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     });
 
     return rows.map((row: any) => {
+      const appts = row.appointments as any[];
       const suburbs = [
+        ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
+      ] as string[];
+      const addresses = [
         ...new Set(
-          row.appointments
-            .map((a: any) => a.property?.suburb)
+          appts
+            .map((a) => {
+              const p = a.property;
+              if (!p) return null;
+              return [p.street, p.suburb].filter(Boolean).join(', ');
+            })
             .filter(Boolean),
         ),
       ] as string[];
+      const keyRequired = appts.some((a) => a.key_required === true);
+      const payoutTotal = appts.reduce((sum: number, a) => {
+        const val = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : 0;
+        return sum + val;
+      }, 0);
+      const payoutEstimate = payoutTotal > 0 ? payoutTotal : null;
       return {
         groupId: row.id,
         tenantId: row.tenant_id,
@@ -264,6 +280,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         priorityMode: row.priority_mode,
         priorityExpiresAt: row.priority_expires_at,
         suburbs,
+        addresses,
+        keyRequired,
+        payoutEstimate,
       };
     });
   }
