@@ -2,6 +2,12 @@ import { AppointmentStatus, VALID_TRANSITIONS } from '@properfy/shared';
 import type { AppointmentTransition } from '../types';
 
 const TRANSITION_META: Record<string, Omit<AppointmentTransition, 'targetStatus'>> = {
+  [AppointmentStatus.AWAITING_INSPECTOR]: {
+    label: 'Release for Inspection',
+    icon: 'mdi-send-check',
+    variant: 'primary',
+    requiresReason: false,
+  },
   [AppointmentStatus.SCHEDULED]: {
     label: 'Schedule',
     icon: 'mdi-calendar-check',
@@ -51,22 +57,27 @@ function filterByRole(
   switch (userRole) {
     case 'AM':
       return targets.filter((t) => {
-        if (currentStatus === AppointmentStatus.DRAFT && t === AppointmentStatus.AWAITING_INSPECTOR)
+        // AM cannot directly mark SCHEDULED → DONE or SCHEDULED → REJECTED (inspector/OP actions)
+        if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.DONE)
           return false;
+        if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.REJECTED)
+          return false;
+        // AWAITING_INSPECTOR → SCHEDULED requires assigning an inspector (separate button)
         if (
           currentStatus === AppointmentStatus.AWAITING_INSPECTOR &&
           t === AppointmentStatus.SCHEDULED
         )
           return false;
-        if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.DONE)
-          return false;
-        if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.REJECTED)
-          return false;
         return true;
       });
     case 'OP':
       return targets.filter((t) => {
-        if (t === AppointmentStatus.AWAITING_INSPECTOR) return false;
+        // AWAITING_INSPECTOR → SCHEDULED requires the Assign Inspector flow (separate button)
+        if (
+          currentStatus === AppointmentStatus.AWAITING_INSPECTOR &&
+          t === AppointmentStatus.SCHEDULED
+        )
+          return false;
         if (currentStatus === AppointmentStatus.DONE && t === AppointmentStatus.DRAFT) return false;
         return true;
       });
