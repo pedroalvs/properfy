@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, ServiceGroupExceptionType } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
@@ -15,6 +15,8 @@ export interface CreateServiceGroupInput {
   scheduledDate: string; // YYYY-MM-DD
   timeWindow: string; // HH:mm-HH:mm
   priorityMode: PriorityMode;
+  exceptionType?: ServiceGroupExceptionType;
+  exceptionReason?: string;
   actor: AuthContext;
 }
 
@@ -76,7 +78,7 @@ export class CreateServiceGroupUseCase {
     }
 
     // 3. Validate via domain validator
-    ServiceGroupValidator.validate(appointments, input.serviceTypeId, tenantId!);
+    ServiceGroupValidator.validate(appointments, input.serviceTypeId, tenantId!, input.exceptionType);
 
     // 4. Calculate priority expiry
     let priorityExpiresAt: Date | null = null;
@@ -110,6 +112,8 @@ export class CreateServiceGroupUseCase {
       description: null,
       priorityMode: input.priorityMode,
       priorityExpiresAt,
+      exceptionType: input.exceptionType ?? null,
+      exceptionReason: input.exceptionReason ?? null,
       assignedInspectorId: null,
       publishedAt: null,
       assignedAt: null,

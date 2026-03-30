@@ -3,13 +3,39 @@ import { paginationSchema } from './pagination';
 
 const timeWindowRegex = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
 
-export const createServiceGroupSchema = z.object({
-  appointmentIds: z.array(z.string().uuid()).min(5).max(25),
-  serviceTypeId: z.string().uuid(),
-  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  timeWindow: z.string().regex(timeWindowRegex),
-  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
-});
+const exceptionTypeEnum = z.enum(['LOW_DENSITY_REGION', 'ISOLATED_SERVICE', 'PRIORITY_CLIENT']);
+
+/**
+ * Schema for creating a service group.
+ *
+ * Size limits:
+ *   - Standard (no exception): min 5, max 25
+ *   - LOW_DENSITY_REGION: min 1, max 25
+ *   - ISOLATED_SERVICE: min 1, max 3
+ *   - PRIORITY_CLIENT: min 1, max 8
+ *
+ * The shared schema enforces the hard boundary (min 1, max 25).
+ * Business-rule limits per exception type are enforced by the domain validator.
+ * See: projeto-consolidado/service-group-exceptions.md
+ */
+export const createServiceGroupSchema = z
+  .object({
+    appointmentIds: z.array(z.string().uuid()).min(1).max(25),
+    serviceTypeId: z.string().uuid(),
+    scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    timeWindow: z.string().regex(timeWindowRegex),
+    priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
+    exceptionType: exceptionTypeEnum.optional(),
+    exceptionReason: z.string().min(10).max(1000).optional(),
+  })
+  .refine(
+    (data) => {
+      const hasType = data.exceptionType !== undefined;
+      const hasReason = data.exceptionReason !== undefined;
+      return hasType === hasReason;
+    },
+    { message: 'exceptionType and exceptionReason must both be provided or both omitted' },
+  );
 export type CreateServiceGroupInput = z.infer<typeof createServiceGroupSchema>;
 
 export const updateServiceGroupSchema = z.object({

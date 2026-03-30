@@ -117,6 +117,12 @@ enum PriorityMode {
   PRIORITY_24H
 }
 
+enum ServiceGroupExceptionType {
+  LOW_DENSITY_REGION
+  ISOLATED_SERVICE
+  PRIORITY_CLIENT
+}
+
 enum AuditActorType {
   USER
   SYSTEM
@@ -437,8 +443,10 @@ model ServiceGroup {
   name                  String?            @db.VarChar(255)
   region_name           String?            @db.VarChar(255)
   description           String?            @db.Text
-  priority_mode         PriorityMode       @default(STANDARD)
+  priority_mode         PriorityMode            @default(STANDARD)
   priority_expires_at   DateTime?
+  exception_type        ServiceGroupExceptionType?
+  exception_reason      String?                   @db.Text
   assigned_inspector_id String?
   published_at          DateTime?
   assigned_at           DateTime?

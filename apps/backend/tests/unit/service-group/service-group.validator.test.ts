@@ -160,4 +160,76 @@ describe('ServiceGroupValidator', () => {
       ).toThrow(ServiceTypeMismatchError);
     });
   });
+
+  describe('exception type size limits', () => {
+    it('LOW_DENSITY_REGION: accepts 1 appointment', () => {
+      const appointments = makeAppointments(1);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'LOW_DENSITY_REGION'),
+      ).not.toThrow();
+    });
+
+    it('LOW_DENSITY_REGION: accepts 25 appointments', () => {
+      const appointments = makeAppointments(25);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'LOW_DENSITY_REGION'),
+      ).not.toThrow();
+    });
+
+    it('LOW_DENSITY_REGION: rejects 26 appointments', () => {
+      const appointments = makeAppointments(26);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'LOW_DENSITY_REGION'),
+      ).toThrow(GroupSizeTooLargeError);
+    });
+
+    it('ISOLATED_SERVICE: accepts 1 appointment', () => {
+      const appointments = makeAppointments(1);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'ISOLATED_SERVICE'),
+      ).not.toThrow();
+    });
+
+    it('ISOLATED_SERVICE: accepts 3 appointments', () => {
+      const appointments = makeAppointments(3);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'ISOLATED_SERVICE'),
+      ).not.toThrow();
+    });
+
+    it('ISOLATED_SERVICE: rejects 4 appointments', () => {
+      const appointments = makeAppointments(4);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'ISOLATED_SERVICE'),
+      ).toThrow(GroupSizeTooLargeError);
+    });
+
+    it('PRIORITY_CLIENT: accepts 1 appointment', () => {
+      const appointments = makeAppointments(1);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'PRIORITY_CLIENT'),
+      ).not.toThrow();
+    });
+
+    it('PRIORITY_CLIENT: accepts 8 appointments', () => {
+      const appointments = makeAppointments(8);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'PRIORITY_CLIENT'),
+      ).not.toThrow();
+    });
+
+    it('PRIORITY_CLIENT: rejects 9 appointments', () => {
+      const appointments = makeAppointments(9);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'PRIORITY_CLIENT'),
+      ).toThrow(GroupSizeTooLargeError);
+    });
+
+    it('no exception: rejects 4 appointments (standard min is 5)', () => {
+      const appointments = makeAppointments(4);
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1'),
+      ).toThrow(GroupSizeTooSmallError);
+    });
+  });
 });

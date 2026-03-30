@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { ServiceGroupStatus as PrismaServiceGroupStatus, PriorityMode as PrismaPriorityMode } from '@prisma/client';
+import { ServiceGroupStatus as PrismaServiceGroupStatus, PriorityMode as PrismaPriorityMode, ServiceGroupExceptionType as PrismaExceptionType } from '@prisma/client';
 import { ServiceGroupEntity } from '../domain/service-group.entity';
 import type {
   IServiceGroupRepository,
@@ -9,7 +9,7 @@ import type {
   ServiceGroupWithAppointments,
   MarketplaceOffer,
 } from '../domain/service-group.repository';
-import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
+import type { ServiceGroupStatus, PriorityMode, ServiceGroupExceptionType } from '@properfy/shared';
 import type { IServiceRegionRepository } from '../../service-region/domain/service-region.repository';
 
 function mapToEntity(row: any): ServiceGroupEntity {
@@ -28,6 +28,8 @@ function mapToEntity(row: any): ServiceGroupEntity {
     description: row.description ?? null,
     priorityMode: row.priority_mode as PriorityMode,
     priorityExpiresAt: row.priority_expires_at,
+    exceptionType: (row.exception_type as ServiceGroupExceptionType) ?? null,
+    exceptionReason: row.exception_reason ?? null,
     assignedInspectorId: row.assigned_inspector_id,
     publishedAt: row.published_at,
     assignedAt: row.assigned_at,
@@ -128,6 +130,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         time_window: group.timeWindow,
         priority_mode: group.priorityMode as PrismaPriorityMode,
         priority_expires_at: group.priorityExpiresAt,
+        exception_type: group.exceptionType ? (group.exceptionType as PrismaExceptionType) : null,
+        exception_reason: group.exceptionReason,
         assigned_inspector_id: group.assignedInspectorId,
         published_at: group.publishedAt,
         assigned_at: group.assignedAt,
