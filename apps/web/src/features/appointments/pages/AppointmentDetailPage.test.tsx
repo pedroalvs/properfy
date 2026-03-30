@@ -36,9 +36,11 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+let mockUserRole = 'AM';
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: 'AM', tenantId: 'tenant-1' },
+    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: mockUserRole, tenantId: 'tenant-1' },
     token: 'mock-token',
     isAuthenticated: true,
     isLoading: false,
@@ -55,6 +57,42 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     if (!id) return { appointment: null, isLoading: false, isError: false, refetch: mockRefetch };
     if (id === 'loading') return { appointment: null, isLoading: true, isError: false, refetch: mockRefetch };
     if (id === 'error') return { appointment: null, isLoading: false, isError: true, refetch: mockRefetch };
+    if (id === 'awaiting') {
+      return {
+        appointment: {
+          id: 'awaiting',
+          code: 'VST-003',
+          status: 'AWAITING_INSPECTOR',
+          branchName: 'Downtown Branch',
+          branchId: 'branch-1',
+          propertyId: 'prop-1',
+          propertyAddress: '123 Flower Street',
+          serviceTypeId: 'st-1',
+          serviceTypeName: 'Inspection',
+          tenantId: 'tenant-1',
+          tenantConfirmationStatus: 'PENDING',
+          contactName: 'John',
+          scheduledDate: '2026-04-01',
+          timeSlot: '09:00-12:00',
+          contactPhone: '11999',
+          contactEmail: 'john@test.com',
+          inspectorId: null,
+          inspectorName: null,
+          keyRequired: false,
+          meetingLocation: null,
+          keyLocation: null,
+          cancellationReason: null,
+          notes: '',
+          doneCheckedByUserId: null,
+          doneCheckedAt: null,
+          createdAt: '2026-03-01T10:00:00Z',
+          updatedAt: '2026-03-01T10:00:00Z',
+        },
+        isLoading: false,
+        isError: false,
+        refetch: mockRefetch,
+      };
+    }
     if (id === 'done') {
       return {
         appointment: {
@@ -153,6 +191,11 @@ vi.mock('../components/AppointmentFormDrawer', () => ({
   }) => (open ? <div>Edit Drawer {appointmentId}</div> : null),
 }));
 
+vi.mock('../components/AssignInspectorModal', () => ({
+  AssignInspectorModal: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="assign-inspector-modal">Assign Inspector Modal</div> : null,
+}));
+
 import { AppointmentDetailPage } from './AppointmentDetailPage';
 
 function createWrapper(initialEntry: string = '/appointments/apt-01') {
@@ -191,6 +234,7 @@ function renderPage(initialEntry?: string) {
 describe('AppointmentDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUserRole = 'AM';
   });
 
   it('renders appointment code in header', () => {
@@ -275,5 +319,30 @@ describe('AppointmentDetailPage', () => {
     // AM can Cancel and Reject from DRAFT; cannot Release to Inspector (OP/SYS only)
     expect(screen.getByText('Cancel')).toBeInTheDocument();
     expect(screen.getByText('Reject')).toBeInTheDocument();
+  });
+
+  it('shows Assign Inspector button for OP on AWAITING_INSPECTOR appointment', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('assign-inspector-button')).toBeInTheDocument();
+  });
+
+  it('does not show Assign Inspector button for AM on AWAITING_INSPECTOR appointment', () => {
+    mockUserRole = 'AM';
+    renderPage('/appointments/awaiting');
+    expect(screen.queryByTestId('assign-inspector-button')).not.toBeInTheDocument();
+  });
+
+  it('does not show Assign Inspector button for OP on DRAFT appointment', () => {
+    mockUserRole = 'OP';
+    renderPage();
+    expect(screen.queryByTestId('assign-inspector-button')).not.toBeInTheDocument();
+  });
+
+  it('opens assign inspector modal when button clicked', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('assign-inspector-button'));
+    expect(screen.getByTestId('assign-inspector-modal')).toBeInTheDocument();
   });
 });

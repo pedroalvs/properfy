@@ -21,6 +21,7 @@ import { AppointmentNotificationsTab } from '../components/AppointmentNotificati
 import { AppointmentFinancialTab } from '../components/AppointmentFinancialTab';
 import { AppointmentTransitionActions } from '../components/AppointmentTransitionActions';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
+import { AssignInspectorModal } from '../components/AssignInspectorModal';
 
 const BASE_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -46,6 +47,7 @@ export function AppointmentDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [editOpen, setEditOpen] = useState(false);
   const [confirmCrossCheckOpen, setConfirmCrossCheckOpen] = useState(false);
+  const [assignInspectorOpen, setAssignInspectorOpen] = useState(false);
 
   const isPrivileged = user ? isPrivilegedRole(user.role) : false;
   const canEdit = user ? CAN_EDIT_ROLES.includes(user.role) : false;
@@ -65,6 +67,9 @@ export function AppointmentDetailPage() {
     isPrivileged &&
     appointment.status === 'DONE' &&
     !appointment.doneCheckedByUserId;
+  const canAssignInspector = !!appointment &&
+    appointment.status === 'AWAITING_INSPECTOR' &&
+    user?.role === 'OP';
 
   const handleEdit = useCallback(() => {
     if (!canEditAppointment) {
@@ -125,6 +130,16 @@ export function AppointmentDetailPage() {
           <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} isOverdue={appointment.isOverdue} />
         </div>
         <div className="flex items-center gap-2">
+          {canAssignInspector && (
+            <Button
+              variant="primary"
+              onClick={() => setAssignInspectorOpen(true)}
+              data-testid="assign-inspector-button"
+            >
+              <i className="mdi mdi-account-check text-base" aria-hidden="true" />
+              Assign Inspector
+            </Button>
+          )}
           {canCrossCheckDone && (
             <Button
               variant="primary"
@@ -188,6 +203,17 @@ export function AppointmentDetailPage() {
           refetch();
         }}
       />
+      {canAssignInspector && (
+        <AssignInspectorModal
+          open={assignInspectorOpen}
+          appointmentId={appointment.id}
+          onClose={() => setAssignInspectorOpen(false)}
+          onSuccess={() => {
+            setAssignInspectorOpen(false);
+            refetch();
+          }}
+        />
+      )}
       <ConfirmDialog
         open={confirmCrossCheckOpen}
         onClose={() => setConfirmCrossCheckOpen(false)}
