@@ -84,16 +84,13 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   toDate: z.string().date().optional(),
   tenantConfirmationStatus: z.nativeEnum(TenantConfirmationStatus).optional(),
   showCancelled: z
-    .string()
-    .transform((v) => v === 'true')
+    .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),
   overdueOnly: z
-    .string()
-    .transform((v) => v === 'true')
+    .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),
   ungroupedOnly: z
-    .string()
-    .transform((v) => v === 'true')
+    .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),
 });
 export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySchema>;

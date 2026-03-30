@@ -73,7 +73,7 @@ export function AppointmentDetailPage() {
     appointment.status === 'DONE' &&
     !appointment.doneCheckedByUserId;
   const canAssignInspector = !!appointment &&
-    appointment.status === 'AWAITING_INSPECTOR' &&
+    (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'DRAFT') &&
     !appointment.inspectorId &&
     (user?.role === 'OP' || user?.role === 'AM');
 
