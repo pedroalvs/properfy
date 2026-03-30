@@ -10,6 +10,7 @@ import {
   AppointmentDoneCheckerInvalidRoleError,
   AppointmentInspectorRequiredError,
   AppointmentTenantConfirmationRequiredError,
+  AppointmentServiceGroupRequiredError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import type { AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
@@ -192,7 +193,7 @@ beforeEach(() => {
 
 describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
   it('DRAFT → AWAITING_INSPECTOR (OP actor)', async () => {
-    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT' }));
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-1' }));
     const uc = makeUseCase();
     const result = await uc.execute({
       appointmentId: 'appt-1',
@@ -335,7 +336,7 @@ describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
 
   it('REJECTED → AWAITING_INSPECTOR with reason (OP actor)', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'REJECTED' }),
+      makeWithRelations({ status: 'REJECTED', serviceGroupId: 'sg-1' }),
     );
     const uc = makeUseCase();
     const result = await uc.execute({
@@ -435,6 +436,18 @@ describe('ExecuteStatusTransitionUseCase – error cases', () => {
         actor: makeActor('CL_USER'),
       }),
     ).rejects.toThrow(AppointmentTransitionNotPermittedError);
+  });
+
+  it('throws AppointmentServiceGroupRequiredError when DRAFT → AWAITING_INSPECTOR with no serviceGroupId', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT', serviceGroupId: null }));
+    const uc = makeUseCase();
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'AWAITING_INSPECTOR',
+        actor: makeActor('OP'),
+      }),
+    ).rejects.toThrow(AppointmentServiceGroupRequiredError);
   });
 
   it('throws AppointmentReasonRequiredError when reason is missing for DRAFT → CANCELLED', async () => {
@@ -594,7 +607,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
 
   it('sets reason on REJECTED → AWAITING_INSPECTOR (requiresReason is true)', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'REJECTED', reason: 'previous reason', inspectorId: 'insp-1' }),
+      makeWithRelations({ status: 'REJECTED', reason: 'previous reason', inspectorId: 'insp-1', serviceGroupId: 'sg-1' }),
     );
     const uc = makeUseCase();
     const result = await uc.execute({
@@ -608,7 +621,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
 
   it('clears reason on DRAFT → AWAITING_INSPECTOR (no requiresReason, targetStatus is not DRAFT)', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'DRAFT', reason: null }),
+      makeWithRelations({ status: 'DRAFT', reason: null, serviceGroupId: 'sg-1' }),
     );
     const uc = makeUseCase();
     const result = await uc.execute({
@@ -690,7 +703,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
   });
 
   it('calls audit log with correct from/to status', async () => {
-    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT' }));
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-1' }));
     const uc = makeUseCase();
     await uc.execute({
       appointmentId: 'appt-1',

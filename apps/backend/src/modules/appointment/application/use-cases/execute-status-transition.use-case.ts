@@ -19,6 +19,7 @@ import {
   AppointmentDoneCheckerSelfCheckError,
   AppointmentInspectorRequiredError,
   AppointmentTenantConfirmationRequiredError,
+  AppointmentServiceGroupRequiredError,
 } from '../../domain/appointment.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
@@ -121,6 +122,11 @@ export class ExecuteStatusTransitionUseCase {
       if (targetStatus === 'REJECTED') {
         await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'reject_appointments');
       }
+    }
+
+    // 3c. AWAITING_INSPECTOR requires a service group — direct release bypasses the marketplace flow
+    if (targetStatus === 'AWAITING_INSPECTOR' && !appointment.serviceGroupId) {
+      throw new AppointmentServiceGroupRequiredError();
     }
 
     // 4. Check reason requirement

@@ -185,3 +185,13 @@ export class AppointmentTenantConfirmationRequiredError extends DomainError {
     );
   }
 }
+
+export class AppointmentServiceGroupRequiredError extends DomainError {
+  constructor() {
+    super(
+      'APPOINTMENT_SERVICE_GROUP_REQUIRED',
+      'Appointment must be added to a service group and published before releasing to inspectors',
+      422,
+    );
+  }
+}

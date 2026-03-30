@@ -93,12 +93,19 @@ describe('ServiceGroupValidator', () => {
   });
 
   describe('appointment status', () => {
-    it('rejects appointment not in AWAITING_INSPECTOR status', () => {
-      const appointments = makeAppointments(5);
-      appointments[2] = makeAppointment({ id: 'appt-bad', status: 'DRAFT' });
+    it('accepts DRAFT appointments (grouping transitions them to AWAITING_INSPECTOR)', () => {
+      const appointments = makeAppointments(5).map((a) => ({ ...a, status: 'DRAFT' }));
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1'),
-      ).toThrow(AppointmentInvalidStatusError);
+      ).not.toThrow();
+    });
+
+    it('accepts a mix of DRAFT and AWAITING_INSPECTOR appointments', () => {
+      const appointments = makeAppointments(5);
+      appointments[0] = makeAppointment({ id: 'appt-draft', status: 'DRAFT' });
+      expect(() =>
+        ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1'),
+      ).not.toThrow();
     });
 
     it('rejects SCHEDULED appointment', () => {

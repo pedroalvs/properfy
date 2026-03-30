@@ -54,6 +54,9 @@ const marketplaceOffer = {
   priorityMode: 'STANDARD',
   priorityExpiresAt: null,
   suburbs: ['Surry Hills', 'Redfern'],
+  payoutEstimate: null,
+  addresses: [],
+  keyRequired: false,
 };
 
 const acceptedOffer = {

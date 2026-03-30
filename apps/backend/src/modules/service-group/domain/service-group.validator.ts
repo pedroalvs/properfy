@@ -29,8 +29,8 @@ export class ServiceGroupValidator {
     }
 
     for (const appt of appointments) {
-      // Status must be AWAITING_INSPECTOR
-      if (appt.status !== 'AWAITING_INSPECTOR') {
+      // Status must be DRAFT or AWAITING_INSPECTOR (grouping transitions DRAFT → AWAITING_INSPECTOR)
+      if (appt.status !== 'AWAITING_INSPECTOR' && appt.status !== 'DRAFT') {
         throw new AppointmentInvalidStatusError(appt.id);
       }
 

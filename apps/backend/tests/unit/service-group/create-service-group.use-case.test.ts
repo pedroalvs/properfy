@@ -193,16 +193,16 @@ describe('CreateServiceGroupUseCase', () => {
     ).rejects.toThrow(AppointmentNotFoundError);
   });
 
-  it('should throw when appointment is not AWAITING_INSPECTOR (validator)', async () => {
+  it('should throw when appointment is in invalid status (e.g. SCHEDULED)', async () => {
     const appointmentIds = makeAppointmentIds(5);
     for (let i = 0; i < 4; i++) {
       vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
         makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
       );
     }
-    // 5th appointment has wrong status
+    // 5th appointment has invalid status
     vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-      makeAppointmentWithRelations({ id: 'appt-5', status: 'DRAFT' }),
+      makeAppointmentWithRelations({ id: 'appt-5', status: 'SCHEDULED' }),
     );
 
     await expect(

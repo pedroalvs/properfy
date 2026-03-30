@@ -3,8 +3,17 @@ import { AppointmentStatus } from '@properfy/shared';
 import { getAvailableTransitions } from './transitions';
 
 describe('getAvailableTransitions', () => {
-  it('AM from DRAFT sees 2 transitions (REJECTED, CANCELLED) — release is OP/SYS only', () => {
+  it('AM from DRAFT sees 2 transitions (REJECTED, CANCELLED) — release only via service group', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.DRAFT, 'AM');
+    expect(transitions).toHaveLength(2);
+    expect(transitions.map((t) => t.targetStatus)).toEqual([
+      AppointmentStatus.REJECTED,
+      AppointmentStatus.CANCELLED,
+    ]);
+  });
+
+  it('OP from DRAFT sees 2 transitions (REJECTED, CANCELLED) — direct release removed, must go via service group', () => {
+    const transitions = getAvailableTransitions(AppointmentStatus.DRAFT, 'OP');
     expect(transitions).toHaveLength(2);
     expect(transitions.map((t) => t.targetStatus)).toEqual([
       AppointmentStatus.REJECTED,

@@ -635,15 +635,7 @@ describe('FASE 1 integrated proof', () => {
     expect(createdAppointments.every((appointment) => appointment.tenantId === TENANT_ID)).toBe(true);
     expect(createdAppointments.every((appointment) => appointment.branchId === BRANCH_ID)).toBe(true);
 
-    for (const appointment of createdAppointments) {
-      const transitioned = await executeStatusTransitionUseCase.execute({
-        appointmentId: appointment.id,
-        targetStatus: 'AWAITING_INSPECTOR',
-        actor: opActor,
-      });
-      expect(transitioned.status).toBe('AWAITING_INSPECTOR');
-    }
-
+    // Creating the service group transitions DRAFT appointments to AWAITING_INSPECTOR
     const group = await createServiceGroupUseCase.execute({
       appointmentIds: createdAppointments.map((appointment) => appointment.id),
       serviceTypeId: SERVICE_TYPE_ID,

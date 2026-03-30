@@ -121,8 +121,18 @@ export class CreateServiceGroupUseCase {
     // 6. Save group
     await this.serviceGroupRepo.save(group);
 
-    // 7. Link appointments to group
+    // 7. Link appointments to group and transition DRAFT ones to AWAITING_INSPECTOR
     await this.serviceGroupRepo.linkAppointments(input.appointmentIds, groupId);
+
+    const draftIds = appointments
+      .filter((appt) => appt.status === 'DRAFT')
+      .map((appt) => appt.id);
+
+    for (const id of draftIds) {
+      await this.appointmentRepo.update(id, appointments.find((a) => a.id === id)!.tenantId, {
+        status: 'AWAITING_INSPECTOR',
+      });
+    }
 
     // 8. Audit log
     this.auditService.log({

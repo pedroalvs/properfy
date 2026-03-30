@@ -2,12 +2,6 @@ import { AppointmentStatus, VALID_TRANSITIONS } from '@properfy/shared';
 import type { AppointmentTransition } from '../types';
 
 const TRANSITION_META: Record<string, Omit<AppointmentTransition, 'targetStatus'>> = {
-  [AppointmentStatus.AWAITING_INSPECTOR]: {
-    label: 'Release to Inspector',
-    icon: 'mdi-account-search',
-    variant: 'primary',
-    requiresReason: false,
-  },
   [AppointmentStatus.SCHEDULED]: {
     label: 'Schedule',
     icon: 'mdi-calendar-check',
@@ -72,6 +66,7 @@ function filterByRole(
       });
     case 'OP':
       return targets.filter((t) => {
+        if (t === AppointmentStatus.AWAITING_INSPECTOR) return false;
         if (currentStatus === AppointmentStatus.DONE && t === AppointmentStatus.DRAFT) return false;
         return true;
       });
