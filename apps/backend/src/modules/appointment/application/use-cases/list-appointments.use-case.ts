@@ -21,6 +21,7 @@ export interface ListAppointmentsInput {
     tenantConfirmationStatus?: string;
     showCancelled?: boolean;
     overdueOnly?: boolean;
+    ungroupedOnly?: boolean;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -104,6 +105,7 @@ export class ListAppointmentsUseCase {
       tenantConfirmationStatus: filters.tenantConfirmationStatus,
       showCancelled: filters.showCancelled,
       overdueOnly: filters.overdueOnly,
+      ungroupedOnly: filters.ungroupedOnly,
     };
 
     const [data, total] = await Promise.all([

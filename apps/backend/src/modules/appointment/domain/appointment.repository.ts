@@ -15,6 +15,7 @@ export interface AppointmentFilters {
   tenantConfirmationStatus?: string;
   showCancelled?: boolean;
   overdueOnly?: boolean;
+  ungroupedOnly?: boolean;
 }
 
 export interface PaginationParams {

@@ -379,6 +379,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (filters.search) {
       where['notes'] = { contains: filters.search, mode: 'insensitive' };
     }
+    if (filters.ungroupedOnly) {
+      where['service_group_id'] = null;
+    }
     return where;
   }
 

@@ -91,6 +91,10 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
     .string()
     .transform((v) => v === 'true')
     .optional(),
+  ungroupedOnly: z
+    .string()
+    .transform((v) => v === 'true')
+    .optional(),
 });
 export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySchema>;
 

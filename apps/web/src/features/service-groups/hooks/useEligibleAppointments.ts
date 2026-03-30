@@ -17,9 +17,10 @@ export function useEligibleAppointments(
     ['appointments', 'eligible', serviceTypeId, tenantId ?? null],
     '/v1/appointments',
     {
-      status: 'AWAITING_INSPECTOR',
+      status: 'DRAFT',
       serviceTypeId: serviceTypeId || undefined,
       tenantId: tenantId || undefined,
+      ungroupedOnly: 'true',
       pageSize: 100,
     },
     { enabled: !!serviceTypeId && tenantReady },
