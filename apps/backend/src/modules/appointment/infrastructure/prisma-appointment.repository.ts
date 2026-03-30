@@ -382,6 +382,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     }
     if (filters.ungroupedOnly) {
       where['service_group_id'] = null;
+      if (!filters.status) {
+        where['status'] = { in: ['DRAFT', 'AWAITING_INSPECTOR'] };
+      }
     }
     return where;
   }

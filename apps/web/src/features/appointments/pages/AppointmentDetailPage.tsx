@@ -58,10 +58,15 @@ export function AppointmentDetailPage() {
     ...(isPrivileged ? [FINANCIAL_TAB] : []),
   ];
 
-  const transitions =
+  const rawTransitions =
     appointment && user
       ? getAvailableTransitions(appointment.status, user.role)
       : [];
+  // SCHEDULED requires an inspector — hide that transition when none is assigned;
+  // the "Assign Inspector" button handles this case instead.
+  const transitions = appointment?.inspectorId
+    ? rawTransitions
+    : rawTransitions.filter((t) => t.targetStatus !== 'SCHEDULED');
   const canEditAppointment = canEdit && !!appointment && isAppointmentEditable(appointment.status);
   const canCrossCheckDone = !!appointment &&
     isPrivileged &&
@@ -69,7 +74,8 @@ export function AppointmentDetailPage() {
     !appointment.doneCheckedByUserId;
   const canAssignInspector = !!appointment &&
     appointment.status === 'AWAITING_INSPECTOR' &&
-    user?.role === 'OP';
+    !appointment.inspectorId &&
+    (user?.role === 'OP' || user?.role === 'AM');
 
   const handleEdit = useCallback(() => {
     if (!canEditAppointment) {

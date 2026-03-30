@@ -17,7 +17,6 @@ export function useEligibleAppointments(
     ['appointments', 'eligible', serviceTypeId, tenantId ?? null],
     '/v1/appointments',
     {
-      status: 'DRAFT',
       serviceTypeId: serviceTypeId || undefined,
       tenantId: tenantId || undefined,
       ungroupedOnly: 'true',
