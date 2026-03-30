@@ -528,8 +528,8 @@ async function main() {
     { id: IDS.prop4, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-004', type: 'COMMERCIAL' as const, street: '200 Pacific Hwy', suburb: 'Crows Nest', postcode: '2065', state: 'NSW', lat: -33.8268, lng: 151.2022, geocoding_status: 'SUCCESS' as const },
     { id: IDS.prop5, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-005', type: 'RESIDENTIAL' as const, street: '33 Glebe Point Rd', suburb: 'Glebe', postcode: '2037', state: 'NSW', lat: -33.8785, lng: 151.1867, geocoding_status: 'SUCCESS' as const },
     // Tenant 1 — no geocoding
-    { id: IDS.prop6, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-006', type: 'RESIDENTIAL' as const, street: '14 Miller St', suburb: 'Chatswood', postcode: '2067', state: 'NSW', lat: null, lng: null, geocoding_status: 'PENDING' as const },
-    { id: IDS.prop7, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-007', type: 'INDUSTRIAL' as const, street: '9 Bourke Rd', suburb: 'Alexandria', postcode: '2015', state: 'NSW', lat: null, lng: null, geocoding_status: 'FAILED' as const },
+    { id: IDS.prop6, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-006', type: 'RESIDENTIAL' as const, street: '14 Miller St', suburb: 'Chatswood', postcode: '2067', state: 'NSW', lat: -33.7969, lng: 151.1803, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop7, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-007', type: 'INDUSTRIAL' as const, street: '9 Bourke Rd', suburb: 'Alexandria', postcode: '2015', state: 'NSW', lat: -33.8993, lng: 151.1955, geocoding_status: 'SUCCESS' as const },
     // Tenant 2
     { id: IDS.prop8, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-001', type: 'RESIDENTIAL' as const, street: '12 Swanston St', suburb: 'Melbourne', postcode: '3000', state: 'VIC', lat: -37.8136, lng: 144.9631, geocoding_status: 'SUCCESS' as const },
     { id: IDS.prop9, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-002', type: 'RESIDENTIAL' as const, street: '5 Church St', suburb: 'Richmond', postcode: '3121', state: 'VIC', lat: -37.8183, lng: 144.9971, geocoding_status: 'SUCCESS' as const },
@@ -539,7 +539,7 @@ async function main() {
   for (const p of properties) {
     await prisma.property.upsert({
       where: { tenant_id_property_code: { tenant_id: p.tenant_id, property_code: p.property_code } },
-      update: {},
+      update: { lat: p.lat, lng: p.lng, geocoding_status: p.geocoding_status },
       create: {
         id: p.id,
         tenant_id: p.tenant_id,
@@ -557,7 +557,12 @@ async function main() {
       },
     });
   }
-  console.log(`Properties: ${properties.length} created (geocoded + pending + failed + tenant2)`);
+  // Sync PostGIS coordinates from lat/lng
+  await prisma.$executeRawUnsafe(`
+    UPDATE properties SET coordinates = ST_SetSRID(ST_Point(lng::float, lat::float), 4326)
+    WHERE lat IS NOT NULL AND lng IS NOT NULL
+  `);
+  console.log(`Properties: ${properties.length} created + coordinates synced`);
 
   // ─── APPOINTMENTS ─────────────────────────────────────────────────────────
 
@@ -755,7 +760,7 @@ async function main() {
 
   await prisma.serviceGroup.upsert({
     where: { id: IDS.serviceGroup },
-    update: {},
+    update: { status: 'PUBLISHED', scheduled_date: futureDate(10), published_at: new Date() },
     create: {
       id: IDS.serviceGroup,
       tenant_id: IDS.tenant,
@@ -846,7 +851,7 @@ async function main() {
   // Service groups for tenant2
   await prisma.serviceGroup.upsert({
     where: { id: IDS.sgPublishedT2 },
-    update: {},
+    update: { status: 'PUBLISHED', scheduled_date: futureDate(12), published_at: new Date() },
     create: {
       id: IDS.sgPublishedT2,
       tenant_id: IDS.tenant2,
