@@ -3,6 +3,10 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
 import { ServiceRegionNotFoundError } from '../../domain/service-region.errors';
 
+interface UserReader {
+  findById(id: string): Promise<{ id: string; name: string } | null>;
+}
+
 export interface GetServiceRegionInput {
   regionId: string;
   actor: AuthContext;
@@ -15,6 +19,7 @@ export interface GetServiceRegionOutput {
   color: string;
   status: string;
   createdByUserId: string | null;
+  createdByUserName: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +27,7 @@ export interface GetServiceRegionOutput {
 export class GetServiceRegionUseCase {
   constructor(
     private readonly regionRepo: IServiceRegionRepository,
+    private readonly userReader?: UserReader,
   ) {}
 
   async execute(input: GetServiceRegionInput): Promise<GetServiceRegionOutput> {
@@ -40,6 +46,12 @@ export class GetServiceRegionUseCase {
       throw new ServiceRegionNotFoundError();
     }
 
+    let createdByUserName: string | null = null;
+    if (region.createdByUserId && this.userReader) {
+      const user = await this.userReader.findById(region.createdByUserId);
+      createdByUserName = user?.name ?? null;
+    }
+
     return {
       id: region.id,
       name: region.name,
@@ -47,6 +59,7 @@ export class GetServiceRegionUseCase {
       color: region.color,
       status: region.status,
       createdByUserId: region.createdByUserId,
+      createdByUserName,
       createdAt: region.createdAt,
       updatedAt: region.updatedAt,
     };

@@ -614,7 +614,7 @@ export function createContainer(logger: Logger): AppContainer {
   // Service region use cases (serviceRegionRepo instantiated earlier for inspector/marketplace use)
   const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService);
   const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, auditService);
-  const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo);
+  const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo, userRepo);
   const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo);
   const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService);
   const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService);

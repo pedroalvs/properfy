@@ -4,22 +4,21 @@ import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Dialog } from '@/components/ui/Dialog';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
+import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceRegionDetail } from '../hooks/useServiceRegionDetail';
 import { useServiceRegionSave } from '../hooks/useServiceRegionSave';
+import { useServiceRegionDeactivate } from '../hooks/useServiceRegionDeactivate';
 import { RegionMap } from './RegionMap';
+import { formatDateTime } from '@/lib/format-date';
 import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
 import { EMPTY_SERVICE_REGION_FORM } from '../types';
-
-const STATUS_OPTIONS = [
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'INACTIVE', label: 'Inactive' },
-];
 
 const COLOR_OPTIONS = [
   { value: '#3b82f6', label: 'Blue' },
@@ -46,7 +45,7 @@ export function ServiceRegionFormDrawer({
   onSaved,
 }: ServiceRegionFormDrawerProps) {
   const isEditMode = !!regionId;
-  const { serviceRegion, isLoading: isLoadingDetail } = useServiceRegionDetail(
+  const { serviceRegion, isLoading: isLoadingDetail, refetch } = useServiceRegionDetail(
     isEditMode ? regionId : null,
   );
   const { save, isSaving, validate } = useServiceRegionSave();
@@ -56,6 +55,24 @@ export function ServiceRegionFormDrawer({
   const [initialData, setInitialData] = useState<ServiceRegionFormData>(EMPTY_SERVICE_REGION_FORM);
   const [errors, setErrors] = useState<ServiceRegionFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // Deactivate dialog state
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [deactivateReason, setDeactivateReason] = useState('');
+  const [reasonError, setReasonError] = useState('');
+
+  const { deactivate, isDeactivating } = useServiceRegionDeactivate(
+    regionId ?? null,
+    () => {
+      setShowDeactivateDialog(false);
+      setDeactivateReason('');
+      setReasonError('');
+      refetch();
+    },
+  );
+
+  // Activating state
+  const [isActivating, setIsActivating] = useState(false);
 
   useEffect(() => {
     if (isEditMode && serviceRegion) {
@@ -121,6 +138,49 @@ export function ServiceRegionFormDrawer({
     else onClose();
   }, [isDirty, onClose]);
 
+  const handleDeactivateClick = useCallback(() => {
+    setDeactivateReason('');
+    setReasonError('');
+    setShowDeactivateDialog(true);
+  }, []);
+
+  const handleConfirmDeactivate = useCallback(() => {
+    if (!deactivateReason.trim()) {
+      setReasonError('Reason is required');
+      return;
+    }
+    deactivate(deactivateReason.trim());
+  }, [deactivateReason, deactivate]);
+
+  const handleCancelDeactivate = useCallback(() => {
+    setShowDeactivateDialog(false);
+    setDeactivateReason('');
+    setReasonError('');
+  }, []);
+
+  const handleActivate = useCallback(async () => {
+    if (!serviceRegion || !regionId) return;
+    setIsActivating(true);
+    try {
+      const result = await save(
+        { name: serviceRegion.name, geojson: serviceRegion.geojson, color: serviceRegion.color, status: 'ACTIVE' },
+        regionId,
+      );
+      if (result.success) {
+        showSuccess(`Region "${serviceRegion.name}" activated`);
+        refetch();
+      } else {
+        showError(result.error ?? 'Failed to activate region');
+      }
+    } finally {
+      setIsActivating(false);
+    }
+  }, [serviceRegion, regionId, save, showSuccess, showError, refetch]);
+
+  const regionStatus = serviceRegion?.status;
+  const isActive = regionStatus === 'ACTIVE';
+  const isInactive = regionStatus === 'INACTIVE';
+
   return (
     <>
       <DrawerPanel open={open} onClose={handleClose} size="wide">
@@ -162,17 +222,67 @@ export function ServiceRegionFormDrawer({
                         />
                       </div>
                     </FormField>
-                    {isEditMode && (
-                      <FormField label="Status">
-                        <SelectInput
-                          value={form.status}
-                          onChange={(v) => updateField('status', v)}
-                          options={STATUS_OPTIONS}
-                          aria-label="Status"
-                        />
-                      </FormField>
-                    )}
                   </FormSection>
+
+                  {isEditMode && serviceRegion && (
+                    <FormSection title="Information">
+                      <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                        <div>
+                          <span className="text-text-muted">Created by</span>
+                          <p className="font-medium text-text-primary">
+                            {serviceRegion.createdByUserName ?? 'Unknown'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-text-muted">Created at</span>
+                          <p className="font-medium text-text-primary">
+                            {formatDateTime(serviceRegion.createdAt)}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-text-muted">Last updated</span>
+                          <p className="font-medium text-text-primary">
+                            {formatDateTime(serviceRegion.updatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </FormSection>
+                  )}
+
+                  {isEditMode && serviceRegion && (
+                    <FormSection title="Status">
+                      <div className="flex items-center gap-4">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
+                            isActive
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {isActive && (
+                          <Button
+                            variant="secondary"
+                            className="border-error text-error hover:bg-error/5"
+                            onClick={handleDeactivateClick}
+                          >
+                            Deactivate Region
+                          </Button>
+                        )}
+                        {isInactive && (
+                          <Button
+                            variant="secondary"
+                            className="border-success text-success hover:bg-success/5"
+                            onClick={handleActivate}
+                            loading={isActivating}
+                          >
+                            Activate Region
+                          </Button>
+                        )}
+                      </div>
+                    </FormSection>
+                  )}
 
                   <FormSection title="Region Polygon">
                     <FormField
@@ -215,6 +325,43 @@ export function ServiceRegionFormDrawer({
         onConfirm={() => { setShowConfirm(false); onClose(); }}
         onClose={() => setShowConfirm(false)}
       />
+
+      {/* Deactivate dialog with reason */}
+      <Dialog
+        open={showDeactivateDialog}
+        onClose={handleCancelDeactivate}
+        title="Deactivate Service Region"
+        actions={
+          <>
+            <Button variant="secondary" onClick={handleCancelDeactivate}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-error text-white hover:brightness-95 active:brightness-90"
+              onClick={handleConfirmDeactivate}
+              loading={isDeactivating}
+            >
+              Deactivate
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-text-secondary">
+            Are you sure you want to deactivate this region? Please provide a reason.
+          </p>
+          <Textarea
+            value={deactivateReason}
+            onChange={setDeactivateReason}
+            rows={3}
+            placeholder="Reason for deactivation"
+            aria-label="Deactivation reason"
+          />
+          {reasonError && (
+            <p className="text-sm text-error">{reasonError}</p>
+          )}
+        </div>
+      </Dialog>
     </>
   );
 }

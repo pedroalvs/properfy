@@ -4,6 +4,8 @@ export interface ServiceRegion {
   geojson: object;
   color: string;
   status: string;
+  createdByUserId?: string | null;
+  createdByUserName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
