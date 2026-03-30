@@ -168,6 +168,11 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     return map;
   }
 
+  async delete(id: string): Promise<void> {
+    await this.prisma.inspectorRegion.deleteMany({ where: { region_id: id } });
+    await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id}`;
+  }
+
   private buildWhere(filters: ServiceRegionFilters) {
     const where: Record<string, unknown> = {};
     if (filters.status) where['status'] = filters.status;

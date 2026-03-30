@@ -220,6 +220,8 @@ import { CreateServiceRegionUseCase } from '../modules/service-region/applicatio
 import { UpdateServiceRegionUseCase } from '../modules/service-region/application/use-cases/update-service-region.use-case';
 import { GetServiceRegionUseCase } from '../modules/service-region/application/use-cases/get-service-region.use-case';
 import { ListServiceRegionsUseCase } from '../modules/service-region/application/use-cases/list-service-regions.use-case';
+import { DeactivateServiceRegionUseCase } from '../modules/service-region/application/use-cases/deactivate-service-region.use-case';
+import { DeleteServiceRegionUseCase } from '../modules/service-region/application/use-cases/delete-service-region.use-case';
 import type { ServiceRegionRouteContainer } from '../modules/service-region/interfaces/service-region.routes';
 
 // Appointment module
@@ -614,6 +616,8 @@ export function createContainer(logger: Logger): AppContainer {
   const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, auditService);
   const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo);
   const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo);
+  const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService);
+  const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService);
 
   // Appointment import (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
@@ -857,6 +861,8 @@ export function createContainer(logger: Logger): AppContainer {
       updateServiceRegionUseCase,
       getServiceRegionUseCase,
       listServiceRegionsUseCase,
+      deactivateServiceRegionUseCase,
+      deleteServiceRegionUseCase,
       jwtService,
       tenantRepo,
     },

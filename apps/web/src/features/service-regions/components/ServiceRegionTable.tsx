@@ -11,6 +11,9 @@ interface ServiceRegionTableProps {
   pagination?: DataTablePagination;
   onView?: (region: ServiceRegion) => void;
   onEdit?: (region: ServiceRegion) => void;
+  onDeactivate?: (region: ServiceRegion) => void;
+  onActivate?: (region: ServiceRegion) => void;
+  onDelete?: (region: ServiceRegion) => void;
 }
 
 export function ServiceRegionTable({
@@ -21,6 +24,9 @@ export function ServiceRegionTable({
   pagination,
   onView,
   onEdit,
+  onDeactivate,
+  onActivate,
+  onDelete,
 }: ServiceRegionTableProps) {
   const columns: DataTableColumn<ServiceRegion>[] = [
     {
@@ -76,6 +82,30 @@ export function ServiceRegionTable({
               label: 'Edit',
               onClick: () => onEdit?.(row),
             },
+            ...(row.status === 'ACTIVE'
+              ? [
+                  {
+                    icon: 'mdi-close-circle-outline',
+                    label: 'Deactivate',
+                    onClick: () => onDeactivate?.(row),
+                  },
+                ]
+              : []),
+            ...(row.status === 'INACTIVE'
+              ? [
+                  {
+                    icon: 'mdi-check-circle-outline',
+                    label: 'Activate',
+                    onClick: () => onActivate?.(row),
+                  },
+                  {
+                    icon: 'mdi-delete-outline',
+                    label: 'Delete',
+                    onClick: () => onDelete?.(row),
+                    variant: 'delete' as const,
+                  },
+                ]
+              : []),
           ]}
         />
       ),

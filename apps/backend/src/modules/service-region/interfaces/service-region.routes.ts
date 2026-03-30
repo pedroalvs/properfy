@@ -12,6 +12,8 @@ import type { CreateServiceRegionUseCase } from '../application/use-cases/create
 import type { UpdateServiceRegionUseCase } from '../application/use-cases/update-service-region.use-case';
 import type { GetServiceRegionUseCase } from '../application/use-cases/get-service-region.use-case';
 import type { ListServiceRegionsUseCase } from '../application/use-cases/list-service-regions.use-case';
+import type { DeactivateServiceRegionUseCase } from '../application/use-cases/deactivate-service-region.use-case';
+import type { DeleteServiceRegionUseCase } from '../application/use-cases/delete-service-region.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface ServiceRegionRouteContainer {
@@ -19,6 +21,8 @@ export interface ServiceRegionRouteContainer {
   updateServiceRegionUseCase: UpdateServiceRegionUseCase;
   getServiceRegionUseCase: GetServiceRegionUseCase;
   listServiceRegionsUseCase: ListServiceRegionsUseCase;
+  deactivateServiceRegionUseCase: DeactivateServiceRegionUseCase;
+  deleteServiceRegionUseCase: DeleteServiceRegionUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -109,6 +113,45 @@ export async function registerServiceRegionRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/service-regions/:id/deactivate — deactivate
+  app.post(
+    '/v1/service-regions/:id/deactivate',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = regionIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid region ID', params.error.errors);
+      }
+      const body = z.object({ reason: z.string().min(1) }).safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError('Request payload is invalid', body.error.errors);
+      }
+      const result = await container.deactivateServiceRegionUseCase.execute({
+        regionId: params.data.id,
+        reason: body.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // DELETE /v1/service-regions/:id — delete (must be INACTIVE)
+  app.delete(
+    '/v1/service-regions/:id',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = regionIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid region ID', params.error.errors);
+      }
+      await container.deleteServiceRegionUseCase.execute({
+        regionId: params.data.id,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
     },
   );
 }

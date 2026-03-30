@@ -13,6 +13,7 @@ function createMockServiceRegionRepo(propertyIds: string[]): IServiceRegionRepos
     setInspectorRegions: vi.fn(),
     getInspectorRegionIds: vi.fn().mockResolvedValue([]),
     getInspectorRegionIdsBatch: vi.fn().mockResolvedValue(new Map()),
+    delete: vi.fn(),
   };
 }
 

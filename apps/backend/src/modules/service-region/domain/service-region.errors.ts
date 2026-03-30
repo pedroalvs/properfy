@@ -14,3 +14,21 @@ export class ServiceRegionNameConflictError extends ConflictError {
     );
   }
 }
+
+export class ServiceRegionAlreadyInactiveError extends ConflictError {
+  constructor() {
+    super(
+      'SERVICE_REGION_ALREADY_INACTIVE',
+      'Region is already inactive',
+    );
+  }
+}
+
+export class ServiceRegionStillActiveError extends ConflictError {
+  constructor() {
+    super(
+      'SERVICE_REGION_STILL_ACTIVE',
+      'Region must be deactivated before it can be deleted',
+    );
+  }
+}
