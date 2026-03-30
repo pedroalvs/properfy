@@ -58,7 +58,7 @@ export class PublishServiceGroupUseCase {
     // Verify all appointments are still AWAITING_INSPECTOR
     for (const appt of appointments) {
       if (appt.status !== 'AWAITING_INSPECTOR') {
-        throw new AppointmentInvalidStatusError(appt.id);
+        throw new AppointmentInvalidStatusError(appt.appointmentNumber);
       }
     }
 

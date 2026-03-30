@@ -9,6 +9,7 @@ import {
 
 export interface AppointmentForValidation {
   id: string;
+  appointmentNumber: number;
   status: string;
   serviceTypeId: string;
   tenantId: string;
@@ -49,12 +50,12 @@ export class ServiceGroupValidator {
     for (const appt of appointments) {
       // Status must be DRAFT or AWAITING_INSPECTOR (grouping transitions DRAFT → AWAITING_INSPECTOR)
       if (appt.status !== 'AWAITING_INSPECTOR' && appt.status !== 'DRAFT') {
-        throw new AppointmentInvalidStatusError(appt.id);
+        throw new AppointmentInvalidStatusError(appt.appointmentNumber);
       }
 
       // Must not already be in a group
       if (appt.serviceGroupId !== null) {
-        throw new AppointmentAlreadyInGroupError(appt.id);
+        throw new AppointmentAlreadyInGroupError(appt.appointmentNumber);
       }
 
       // Must match the expected service type

@@ -8,6 +8,7 @@ import type { Appointment } from '../types';
 function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
   return {
     id: 'apt-1',
+    appointmentNumber: 1001,
     code: 'VST-001',
     tenantId: 'tenant-1',
     branchId: 'branch-1',

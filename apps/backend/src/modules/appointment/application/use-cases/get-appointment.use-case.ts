@@ -13,6 +13,7 @@ export interface GetAppointmentInput {
 
 export interface GetAppointmentOutput {
   id: string;
+  appointmentNumber: number;
   tenantId: string;
   branchId: string;
   propertyId: string;
@@ -69,6 +70,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
   const { appointment, contact, restrictions } = found;
   return {
     id: appointment.id,
+    appointmentNumber: appointment.appointmentNumber,
     tenantId: appointment.tenantId,
     branchId: appointment.branchId,
     propertyId: appointment.propertyId,

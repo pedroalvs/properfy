@@ -126,6 +126,7 @@ export function AppointmentDetailPage() {
           </button>
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {appointment.code}
+            <span className="ml-2 text-base font-normal text-text-muted">#{appointment.appointmentNumber}</span>
           </h1>
           <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} isOverdue={appointment.isOverdue} />
         </div>

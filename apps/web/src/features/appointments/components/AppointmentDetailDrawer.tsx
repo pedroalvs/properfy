@@ -63,7 +63,7 @@ export function AppointmentDetailDrawer({
         ) : appointment ? (
           <>
             <DrawerHeader
-              title={appointment.code}
+              title={`${appointment.code} · #${appointment.appointmentNumber}`}
               onClose={onClose}
               actions={
                 <>

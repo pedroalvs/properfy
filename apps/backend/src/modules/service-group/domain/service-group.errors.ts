@@ -25,20 +25,20 @@ export class GroupSizeTooLargeError extends DomainError {
 }
 
 export class AppointmentInvalidStatusError extends DomainError {
-  constructor(appointmentId: string) {
+  constructor(appointmentNumber: number) {
     super(
       'APPOINTMENT_INVALID_STATUS',
-      `Appointment ${appointmentId} is not in AWAITING_INSPECTOR status`,
+      `Appointment #${appointmentNumber} is not in AWAITING_INSPECTOR or DRAFT status`,
       422,
     );
   }
 }
 
 export class AppointmentAlreadyInGroupError extends DomainError {
-  constructor(appointmentId: string) {
+  constructor(appointmentNumber: number) {
     super(
       'APPOINTMENT_ALREADY_IN_GROUP',
-      `Appointment ${appointmentId} already belongs to a service group`,
+      `Appointment #${appointmentNumber} already belongs to a service group`,
       422,
     );
   }
@@ -79,18 +79,18 @@ export class GroupAlreadyAcceptedError extends ConflictError {
 }
 
 export class AssignedInspectorConflictError extends ConflictError {
-  constructor(currentInspectorId: string) {
+  constructor(_currentInspectorId: string) {
     super(
       'ASSIGNED_INSPECTOR_CONFLICT',
-      `Service group is already assigned to a different inspector: ${currentInspectorId}`,
+      'Service group is already assigned to a different inspector',
     );
   }
 }
 
 export class AppointmentsNotAwaitingInspectorError extends DomainError {
-  constructor(invalidAppointments: Array<{ id: string; status: string }>) {
+  constructor(invalidAppointments: Array<{ appointmentNumber: number; status: string }>) {
     const details = invalidAppointments
-      .map((a) => `${a.id} (${a.status})`)
+      .map((a) => `#${a.appointmentNumber} (${a.status})`)
       .join(', ');
     super(
       'APPOINTMENTS_NOT_AWAITING_INSPECTOR',

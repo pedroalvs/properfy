@@ -30,6 +30,7 @@ export interface ListAppointmentsInput {
 export interface ListAppointmentsOutput {
   data: Array<{
     id: string;
+    appointmentNumber: number;
     tenantId: string;
     branchId: string;
     propertyId: string;
@@ -116,6 +117,7 @@ export class ListAppointmentsUseCase {
     return {
       data: data.map((item: AppointmentListItem) => ({
         id: item.appointment.id,
+        appointmentNumber: item.appointment.appointmentNumber,
         tenantId: item.appointment.tenantId,
         branchId: item.appointment.branchId,
         propertyId: item.appointment.propertyId,

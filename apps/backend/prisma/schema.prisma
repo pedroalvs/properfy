@@ -374,6 +374,7 @@ model InspectorAvailabilitySlot {
 
 model Appointment {
   id                          String                   @id @default(uuid())
+  appointment_number          Int                      @unique @default(autoincrement())
   tenant_id                   String
   branch_id                   String
   property_id                 String

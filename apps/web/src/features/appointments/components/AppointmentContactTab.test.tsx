@@ -5,6 +5,7 @@ import type { AppointmentDetail } from '../types';
 
 const MOCK_APPOINTMENT: AppointmentDetail = {
   id: 'apt-01',
+  appointmentNumber: 1001,
   code: 'VST-001',
   tenantId: 'tenant-1',
   branchId: 'branch-1',

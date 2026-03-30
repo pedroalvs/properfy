@@ -21,6 +21,7 @@ export interface ServiceGroupWithAppointments {
   assignedInspectorName?: string | null;
   appointments: Array<{
     id: string;
+    appointmentNumber: number;
     status: string;
     serviceTypeId: string;
     tenantId: string;

@@ -30,8 +30,14 @@ export function AppointmentTable({
     {
       key: 'code',
       label: 'Code',
-      width: '120px',
+      width: '140px',
       sortable: true,
+      render: (row) => (
+        <div className="flex flex-col gap-0.5">
+          <span>{row.code}</span>
+          <span className="text-xs text-text-muted">#{row.appointmentNumber}</span>
+        </div>
+      ),
     },
     {
       key: 'propertyAddress',

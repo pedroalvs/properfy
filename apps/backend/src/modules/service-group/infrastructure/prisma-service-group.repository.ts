@@ -61,6 +61,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         appointments: {
           select: {
             id: true,
+            appointment_number: true,
             status: true,
             service_type_id: true,
             tenant_id: true,
@@ -78,6 +79,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       assignedInspectorName: row.assigned_inspector?.name ?? null,
       appointments: row.appointments.map((a: any) => ({
         id: a.id,
+        appointmentNumber: a.appointment_number,
         status: a.status,
         serviceTypeId: a.service_type_id,
         tenantId: a.tenant_id,

@@ -70,6 +70,7 @@ export class CreateServiceGroupUseCase {
 
       appointments.push({
         id: appt.id,
+        appointmentNumber: appt.appointmentNumber,
         status: appt.status,
         serviceTypeId: appt.serviceTypeId,
         tenantId: appt.tenantId,

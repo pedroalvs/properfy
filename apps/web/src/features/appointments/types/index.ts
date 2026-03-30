@@ -4,6 +4,7 @@ export type { AppointmentStatus } from '@properfy/shared';
 
 export interface Appointment {
   id: string;
+  appointmentNumber: number;
   code: string;
   tenantId: string;
   branchId: string;

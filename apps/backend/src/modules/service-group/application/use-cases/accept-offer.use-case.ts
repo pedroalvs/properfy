@@ -96,7 +96,7 @@ export class AcceptOfferUseCase {
     if (freshResult) {
       const invalidAppointments = freshResult.appointments
         .filter((appt) => appt.status !== 'AWAITING_INSPECTOR')
-        .map((appt) => ({ id: appt.id, status: appt.status }));
+        .map((appt) => ({ appointmentNumber: appt.appointmentNumber, status: appt.status }));
 
       if (invalidAppointments.length > 0) {
         throw new AppointmentsNotAwaitingInspectorError(invalidAppointments);

@@ -40,6 +40,7 @@ function nextUtcDay(date: Date): Date {
 function mapToEntity(row: any): AppointmentEntity {
   return new AppointmentEntity({
     id: row.id,
+    appointmentNumber: row.appointment_number,
     tenantId: row.tenant_id,
     branchId: row.branch_id,
     propertyId: row.property_id,

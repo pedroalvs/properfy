@@ -10,6 +10,7 @@ import { ServiceTypeMismatchError } from '../../../src/modules/service-group/dom
 function makeAppointment(overrides: Partial<AppointmentForValidation> = {}): AppointmentForValidation {
   return {
     id: `appt-${Math.random().toString(36).slice(2, 8)}`,
+    appointmentNumber: Math.floor(Math.random() * 9000) + 1000,
     status: 'AWAITING_INSPECTOR',
     serviceTypeId: 'st-1',
     tenantId: 'tenant-1',
@@ -116,15 +117,15 @@ describe('ServiceGroupValidator', () => {
       ).toThrow(AppointmentInvalidStatusError);
     });
 
-    it('includes appointment id in error', () => {
+    it('includes appointment number in error', () => {
       const appointments = makeAppointments(5);
-      appointments[1] = makeAppointment({ id: 'appt-xyz', status: 'DONE' });
+      appointments[1] = makeAppointment({ id: 'appt-xyz', appointmentNumber: 9999, status: 'DONE' });
       try {
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(AppointmentInvalidStatusError);
-        expect((err as AppointmentInvalidStatusError).message).toContain('appt-xyz');
+        expect((err as AppointmentInvalidStatusError).message).toContain('#9999');
       }
     });
   });
@@ -138,15 +139,15 @@ describe('ServiceGroupValidator', () => {
       ).toThrow(AppointmentAlreadyInGroupError);
     });
 
-    it('includes appointment id in error', () => {
+    it('includes appointment number in error', () => {
       const appointments = makeAppointments(5);
-      appointments[0] = makeAppointment({ id: 'appt-dup', serviceGroupId: 'sg-old' });
+      appointments[0] = makeAppointment({ id: 'appt-dup', appointmentNumber: 8888, serviceGroupId: 'sg-old' });
       try {
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(AppointmentAlreadyInGroupError);
-        expect((err as AppointmentAlreadyInGroupError).message).toContain('appt-dup');
+        expect((err as AppointmentAlreadyInGroupError).message).toContain('#8888');
       }
     });
   });
