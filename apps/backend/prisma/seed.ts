@@ -435,9 +435,9 @@ async function main() {
 
   // ─── SERVICE REGIONS (polygon-based) ─────────────────────────────────
 
-  const sydneyCBD = { type: 'Polygon', coordinates: [[[151.19, -33.875], [151.22, -33.875], [151.22, -33.855], [151.19, -33.855], [151.19, -33.875]]] };
-  const northShore = { type: 'Polygon', coordinates: [[[151.18, -33.845], [151.22, -33.845], [151.22, -33.82], [151.18, -33.82], [151.18, -33.845]]] };
-  const melbourneInner = { type: 'Polygon', coordinates: [[[144.94, -37.825], [144.98, -37.825], [144.98, -37.805], [144.94, -37.805], [144.94, -37.825]]] };
+  const sydneyCBD = { type: 'Polygon', coordinates: [[[151.15, -33.91], [151.23, -33.91], [151.23, -33.85], [151.15, -33.85], [151.15, -33.91]]] };
+  const northShore = { type: 'Polygon', coordinates: [[[151.16, -33.85], [151.22, -33.85], [151.22, -33.78], [151.16, -33.78], [151.16, -33.85]]] };
+  const melbourneInner = { type: 'Polygon', coordinates: [[[144.93, -37.84], [145.01, -37.84], [145.01, -37.80], [144.93, -37.80], [144.93, -37.84]]] };
 
   const polygonRegions = [
     { id: IDS.regionSydneyCbd, name: 'Sydney CBD', geojson: sydneyCBD, color: '#3b82f6' },
