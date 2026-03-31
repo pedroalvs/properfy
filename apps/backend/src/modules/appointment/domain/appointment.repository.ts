@@ -45,6 +45,7 @@ export interface AppointmentListItem {
   contact: AppointmentContactEntity | null;
   propertyCode: string;
   propertyAddress: string;
+  tenantName: string;
   branchName: string;
   serviceTypeName: string;
   inspectorName: string | null;

@@ -7,6 +7,7 @@ export interface Appointment {
   appointmentNumber: number;
   code: string;
   tenantId: string;
+  tenantName: string;
   branchId: string;
   branchName: string;
   propertyId: string;

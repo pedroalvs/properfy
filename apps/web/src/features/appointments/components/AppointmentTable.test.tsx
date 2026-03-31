@@ -11,6 +11,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     appointmentNumber: 1001,
     code: 'VST-001',
     tenantId: 'tenant-1',
+    tenantName: 'Test Agency',
     branchId: 'branch-1',
     branchName: 'Downtown Branch',
     propertyId: 'prop-1',

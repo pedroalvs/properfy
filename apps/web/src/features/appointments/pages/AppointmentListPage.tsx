@@ -3,27 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { UserRole } from '@properfy/shared';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { useAuth } from '@/hooks/useAuth';
-import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentTable } from '../components/AppointmentTable';
 import { AppointmentDetailDrawer } from '../components/AppointmentDetailDrawer';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { useAppointmentList } from '../hooks/useAppointmentList';
-
-function useFilterOptions<T extends { id: string; name: string }>(
-  queryKey: unknown[],
-  path: string,
-  enabled = true,
-) {
-  const { data: response } = usePaginatedQuery<T>(queryKey, path, { pageSize: 100 }, { enabled });
-  return useMemo(
-    () => [
-      { label: 'All', value: '' },
-      ...(response?.data ?? []).map((item) => ({ label: item.name, value: item.id })),
-    ],
-    [response],
-  );
-}
 
 const CAN_CREATE_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 const CAN_MAP_IMPORT_ROLES: string[] = [UserRole.AM, UserRole.OP];
@@ -45,19 +29,33 @@ export function AppointmentListPage() {
 
   const isGlobalRole = user ? GLOBAL_ROLES.includes(user.role) : false;
 
-  const branchOptions = useFilterOptions<{ id: string; name: string }>(
-    ['branches', 'filter'],
-    '/v1/branches',
-  );
-  const serviceTypeOptions = useFilterOptions<{ id: string; name: string }>(
-    ['service-types', 'filter'],
-    '/v1/service-types',
-  );
-  const tenantOptions = useFilterOptions<{ id: string; name: string }>(
-    ['tenants', 'filter'],
-    '/v1/tenants',
-    isGlobalRole,
-  );
+  const branchOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const apt of data) seen.set(apt.branchId, apt.branchName);
+    return [
+      { label: 'All', value: '' },
+      ...Array.from(seen.entries()).map(([value, label]) => ({ label, value })),
+    ];
+  }, [data]);
+
+  const serviceTypeOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const apt of data) seen.set(apt.serviceTypeId, apt.serviceTypeName);
+    return [
+      { label: 'All', value: '' },
+      ...Array.from(seen.entries()).map(([value, label]) => ({ label, value })),
+    ];
+  }, [data]);
+
+  const tenantOptions = useMemo(() => {
+    if (!isGlobalRole) return [];
+    const seen = new Map<string, string>();
+    for (const apt of data) seen.set(apt.tenantId, apt.tenantName);
+    return [
+      { label: 'All', value: '' },
+      ...Array.from(seen.entries()).map(([value, label]) => ({ label, value })),
+    ];
+  }, [data, isGlobalRole]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
