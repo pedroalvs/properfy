@@ -14,6 +14,9 @@ export interface CreateServiceGroupInput {
   serviceTypeId: string;
   scheduledDate: string; // YYYY-MM-DD
   timeWindow: string; // HH:mm-HH:mm
+  name?: string;
+  regionName?: string;
+  description?: string;
   priorityMode: PriorityMode;
   exceptionType?: ServiceGroupExceptionType;
   exceptionReason?: string;
@@ -26,11 +29,21 @@ export interface CreateServiceGroupOutput {
   serviceTypeId: string;
   status: string;
   groupSize: number;
+  offeredCount: number;
+  confirmedCount: number;
   scheduledDate: Date;
   timeWindow: string;
+  name: string | null;
+  regionName: string | null;
+  description: string | null;
   priorityMode: string;
   priorityExpiresAt: Date | null;
+  assignedInspectorId: string | null;
+  publishedAt: Date | null;
+  assignedAt: Date | null;
+  createdByUserId: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class CreateServiceGroupUseCase {
@@ -108,9 +121,9 @@ export class CreateServiceGroupUseCase {
       confirmedCount: 0,
       scheduledDate: new Date(input.scheduledDate),
       timeWindow: input.timeWindow,
-      name: null,
-      regionName: null,
-      description: null,
+      name: input.name ?? null,
+      regionName: input.regionName ?? null,
+      description: input.description ?? null,
       priorityMode: input.priorityMode,
       priorityExpiresAt,
       exceptionType: input.exceptionType ?? null,
@@ -163,11 +176,21 @@ export class CreateServiceGroupUseCase {
       serviceTypeId: group.serviceTypeId,
       status: group.status,
       groupSize: group.groupSize,
+      offeredCount: group.offeredCount,
+      confirmedCount: group.confirmedCount,
       scheduledDate: group.scheduledDate,
       timeWindow: group.timeWindow,
+      name: group.name,
+      regionName: group.regionName,
+      description: group.description,
       priorityMode: group.priorityMode,
       priorityExpiresAt: group.priorityExpiresAt,
+      assignedInspectorId: group.assignedInspectorId,
+      publishedAt: group.publishedAt,
+      assignedAt: group.assignedAt,
+      createdByUserId: group.createdByUserId,
       createdAt: group.createdAt,
+      updatedAt: group.updatedAt,
     };
   }
 }

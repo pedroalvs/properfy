@@ -7,6 +7,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { SelectInput } from '@/components/forms/SelectInput';
+import { TextInput } from '@/components/forms/TextInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Button } from '@/components/ui/Button';
@@ -61,6 +62,9 @@ export function ServiceGroupCreatePage() {
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
   const [priorityMode, setPriorityMode] = useState('STANDARD');
+  const [groupName, setGroupName] = useState('');
+  const [regionName, setRegionName] = useState('');
+  const [description, setDescription] = useState('');
   const [exceptionType, setExceptionType] = useState('');
   const [exceptionReason, setExceptionReason] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -79,6 +83,9 @@ export function ServiceGroupCreatePage() {
     serviceTypeId,
     scheduledDate,
     timeWindow: `${startTime}-${endTime}`,
+    ...(groupName ? { name: groupName } : {}),
+    ...(regionName ? { regionName } : {}),
+    ...(description ? { description } : {}),
     priorityMode,
     ...(exceptionType ? { exceptionType, exceptionReason: exceptionReason || undefined } : {}),
   };
@@ -88,7 +95,7 @@ export function ServiceGroupCreatePage() {
     (selectedIds.length >= MIN_APPOINTMENTS && selectedIds.length <= MAX_APPOINTMENTS) ||
     (needsException && !!exceptionType && exceptionReason.length >= 10);
 
-  const isDirty = selectedTenantId !== '' || serviceTypeId !== '' || selectedIds.length > 0 || scheduledDate !== '' || exceptionType !== '' || exceptionReason !== '';
+  const isDirty = selectedTenantId !== '' || serviceTypeId !== '' || selectedIds.length > 0 || scheduledDate !== '' || groupName !== '' || regionName !== '' || description !== '' || exceptionType !== '' || exceptionReason !== '';
 
   const handleNext = useCallback(() => {
     setStep(2);
@@ -295,6 +302,37 @@ export function ServiceGroupCreatePage() {
         {/* Step 2: Configure & confirm */}
         {step === 2 && (
           <div className="flex flex-col gap-6">
+            <FormSection title="Group Details" columns={2}>
+              <FormField label="Name">
+                <TextInput
+                  value={groupName}
+                  onChange={setGroupName}
+                  placeholder="e.g. Bondi Beach Routine"
+                  aria-label="Group Name"
+                />
+              </FormField>
+              <FormField label="Region">
+                <TextInput
+                  value={regionName}
+                  onChange={setRegionName}
+                  placeholder="e.g. Eastern Suburbs"
+                  aria-label="Region"
+                />
+              </FormField>
+            </FormSection>
+
+            <FormSection title="Notes">
+              <FormField label="Description">
+                <Textarea
+                  value={description}
+                  onChange={setDescription}
+                  placeholder="Optional notes about this service group"
+                  rows={3}
+                  aria-label="Description"
+                />
+              </FormField>
+            </FormSection>
+
             <FormSection title="Schedule">
               <FormField label="Scheduled Date" required>
                 <DateInput
