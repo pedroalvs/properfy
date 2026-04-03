@@ -9,6 +9,7 @@ import { FormActions } from '@/components/forms/FormActions';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { TextInput } from '@/components/forms/TextInput';
 import { DateInput } from '@/components/forms/DateInput';
+import { RegionSelector } from '../components/RegionSelector';
 import { Textarea } from '@/components/forms/Textarea';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -63,7 +64,7 @@ export function ServiceGroupCreatePage() {
   const [endTime, setEndTime] = useState('17:00');
   const [priorityMode, setPriorityMode] = useState('STANDARD');
   const [groupName, setGroupName] = useState('');
-  const [regionName, setRegionName] = useState('');
+  const [serviceRegionId, setServiceRegionId] = useState('');
   const [description, setDescription] = useState('');
   const [exceptionType, setExceptionType] = useState('');
   const [exceptionReason, setExceptionReason] = useState('');
@@ -84,7 +85,7 @@ export function ServiceGroupCreatePage() {
     scheduledDate,
     timeWindow: `${startTime}-${endTime}`,
     ...(groupName ? { name: groupName } : {}),
-    ...(regionName ? { regionName } : {}),
+    ...(serviceRegionId ? { serviceRegionId } : {}),
     ...(description ? { description } : {}),
     priorityMode,
     ...(exceptionType ? { exceptionType, exceptionReason: exceptionReason || undefined } : {}),
@@ -95,7 +96,7 @@ export function ServiceGroupCreatePage() {
     (selectedIds.length >= MIN_APPOINTMENTS && selectedIds.length <= MAX_APPOINTMENTS) ||
     (needsException && !!exceptionType && exceptionReason.length >= 10);
 
-  const isDirty = selectedTenantId !== '' || serviceTypeId !== '' || selectedIds.length > 0 || scheduledDate !== '' || groupName !== '' || regionName !== '' || description !== '' || exceptionType !== '' || exceptionReason !== '';
+  const isDirty = selectedTenantId !== '' || serviceTypeId !== '' || selectedIds.length > 0 || scheduledDate !== '' || groupName !== '' || serviceRegionId !== '' || description !== '' || exceptionType !== '' || exceptionReason !== '';
 
   const handleNext = useCallback(() => {
     setStep(2);
@@ -104,6 +105,7 @@ export function ServiceGroupCreatePage() {
   const handleBack = useCallback(() => {
     if (step === 2) {
       setStep(1);
+      setServiceRegionId('');
     } else if (isDirty) {
       setShowConfirm(true);
     } else {
@@ -311,14 +313,15 @@ export function ServiceGroupCreatePage() {
                   aria-label="Group Name"
                 />
               </FormField>
-              <FormField label="Region">
-                <TextInput
-                  value={regionName}
-                  onChange={setRegionName}
-                  placeholder="e.g. Eastern Suburbs"
-                  aria-label="Region"
-                />
-              </FormField>
+              <div />
+            </FormSection>
+
+            <FormSection title="Region">
+              <RegionSelector
+                appointmentIds={selectedIds}
+                selectedRegionId={serviceRegionId}
+                onRegionChange={setServiceRegionId}
+              />
             </FormSection>
 
             <FormSection title="Notes">

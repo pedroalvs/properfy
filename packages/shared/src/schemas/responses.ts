@@ -321,6 +321,7 @@ export const serviceGroupResponseSchema = z.object({
   priorityMode: z.string(),
   priorityExpiresAt: dateStrNullable(),
   assignedInspectorId: z.string().uuid().nullable(),
+  serviceRegionId: z.string().uuid().nullable().optional(),
   publishedAt: dateStrNullable(),
   assignedAt: dateStrNullable().optional(),
   createdByUserId: z.string().uuid().optional(),

@@ -5,6 +5,7 @@ import type {
   IServiceRegionRepository,
   ServiceRegionFilters,
   PaginationParams,
+  ResolvedRegion,
 } from '../domain/service-region.repository';
 import type { RegionStatus } from '@properfy/shared';
 
@@ -128,6 +129,45 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
         AND p.coordinates IS NOT NULL
     `;
     return rows.map((r) => r.id);
+  }
+
+  async resolveRegionsForAppointments(appointmentIds: string[]): Promise<ResolvedRegion[]> {
+    if (appointmentIds.length === 0) return [];
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{ region_id: string; region_name: string; color: string; matched_appointment_ids: string[] }>
+    >`
+      SELECT sr.id AS region_id, sr.name AS region_name, sr.color,
+             array_agg(DISTINCT a.id) AS matched_appointment_ids
+      FROM service_regions sr
+      JOIN properties p ON ST_Contains(sr.geom, p.coordinates)
+      JOIN appointments a ON a.property_id = p.id
+      WHERE a.id = ANY(${appointmentIds}::uuid[])
+        AND sr.status = 'ACTIVE'
+        AND p.coordinates IS NOT NULL
+        AND p.deleted_at IS NULL
+        AND a.deleted_at IS NULL
+      GROUP BY sr.id, sr.name, sr.color
+      ORDER BY COUNT(DISTINCT a.id) DESC
+    `;
+
+    return rows.map((r) => ({
+      regionId: r.region_id,
+      regionName: r.region_name,
+      color: r.color,
+      matchedAppointmentIds: r.matched_appointment_ids,
+    }));
+  }
+
+  async countActiveInspectorsInRegion(regionId: string): Promise<number> {
+    const rows = await this.prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(DISTINCT ir.inspector_id) AS count
+      FROM inspector_regions ir
+      JOIN inspectors i ON i.id = ir.inspector_id
+      WHERE ir.region_id = ${regionId}
+        AND i.status = 'ACTIVE'
+    `;
+    return Number(rows[0]?.count ?? 0);
   }
 
   async setInspectorRegions(inspectorId: string, regionIds: string[]): Promise<void> {

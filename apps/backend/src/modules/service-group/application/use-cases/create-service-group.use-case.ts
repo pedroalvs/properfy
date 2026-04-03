@@ -3,10 +3,12 @@ import { ForbiddenError, ValidationError } from '../../../../shared/domain/error
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import { ServiceGroupEntity } from '../../domain/service-group.entity';
 import { ServiceGroupValidator } from '../../domain/service-group.validator';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
-import { PriorityDateTooCloseError } from '../../domain/service-group.errors';
+import { PriorityDateTooCloseError, ServiceRegionInactiveError } from '../../domain/service-group.errors';
+import { NotFoundError } from '../../../../shared/domain/errors';
 import type { PriorityMode } from '@properfy/shared';
 
 export interface CreateServiceGroupInput {
@@ -15,7 +17,7 @@ export interface CreateServiceGroupInput {
   scheduledDate: string; // YYYY-MM-DD
   timeWindow: string; // HH:mm-HH:mm
   name?: string;
-  regionName?: string;
+  serviceRegionId?: string;
   description?: string;
   priorityMode: PriorityMode;
   exceptionType?: ServiceGroupExceptionType;
@@ -39,6 +41,7 @@ export interface CreateServiceGroupOutput {
   priorityMode: string;
   priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
+  serviceRegionId: string | null;
   publishedAt: Date | null;
   assignedAt: Date | null;
   createdByUserId: string;
@@ -51,6 +54,7 @@ export class CreateServiceGroupUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly serviceRegionRepo?: IServiceRegionRepository,
   ) {}
 
   async execute(input: CreateServiceGroupInput): Promise<CreateServiceGroupOutput> {
@@ -107,7 +111,26 @@ export class CreateServiceGroupUseCase {
       }
     }
 
-    // 5. Create entity
+    // 5. Resolve service region if provided
+    let serviceRegionId: string | null = null;
+    let regionName: string | null = null;
+
+    if (input.serviceRegionId) {
+      if (!this.serviceRegionRepo) {
+        throw new Error('Service region repository is required when serviceRegionId is provided');
+      }
+      const region = await this.serviceRegionRepo.findById(input.serviceRegionId);
+      if (!region) {
+        throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
+      }
+      if (region.status !== 'ACTIVE') {
+        throw new ServiceRegionInactiveError();
+      }
+      serviceRegionId = region.id;
+      regionName = region.name;
+    }
+
+    // 6. Create entity
     const now = new Date();
     const groupId = crypto.randomUUID();
 
@@ -122,13 +145,14 @@ export class CreateServiceGroupUseCase {
       scheduledDate: new Date(input.scheduledDate),
       timeWindow: input.timeWindow,
       name: input.name ?? null,
-      regionName: input.regionName ?? null,
+      regionName,
       description: input.description ?? null,
       priorityMode: input.priorityMode,
       priorityExpiresAt,
       exceptionType: input.exceptionType ?? null,
       exceptionReason: input.exceptionReason ?? null,
       assignedInspectorId: null,
+      serviceRegionId,
       publishedAt: null,
       assignedAt: null,
       createdByUserId: actor.userId,
@@ -186,6 +210,7 @@ export class CreateServiceGroupUseCase {
       priorityMode: group.priorityMode,
       priorityExpiresAt: group.priorityExpiresAt,
       assignedInspectorId: group.assignedInspectorId,
+      serviceRegionId: group.serviceRegionId,
       publishedAt: group.publishedAt,
       assignedAt: group.assignedAt,
       createdByUserId: group.createdByUserId,

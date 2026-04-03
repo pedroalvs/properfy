@@ -121,3 +121,15 @@ export class InvalidTimeWindowFormatError extends DomainError {
     super('INVALID_TIME_WINDOW_FORMAT', 'Time window must match format HH:mm-HH:mm', 422);
   }
 }
+
+export class ServiceRegionRequiredError extends DomainError {
+  constructor() {
+    super('SERVICE_REGION_REQUIRED', 'A service region must be assigned before publishing', 422);
+  }
+}
+
+export class ServiceRegionInactiveError extends DomainError {
+  constructor() {
+    super('SERVICE_REGION_INACTIVE', 'The assigned service region is no longer active', 422);
+  }
+}

@@ -10,7 +10,10 @@ import {
   ServiceGroupInvalidStatusError,
   AppointmentInvalidStatusError,
   PriorityExpiredError,
+  ServiceRegionRequiredError,
+  ServiceRegionInactiveError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
+import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 
 function makeGroup(
   overrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {},
@@ -28,6 +31,7 @@ function makeGroup(
     priorityMode: 'STANDARD',
     priorityExpiresAt: null,
     assignedInspectorId: null,
+    serviceRegionId: 'region-1',
     publishedAt: null,
     assignedAt: null,
     name: null,
@@ -66,6 +70,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 
 describe('PublishServiceGroupUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
+  let serviceRegionRepo: IServiceRegionRepository;
   let auditService: AuditService;
   let useCase: PublishServiceGroupUseCase;
 
@@ -84,8 +89,22 @@ describe('PublishServiceGroupUseCase', () => {
       scheduleAppointments: vi.fn(),
       revertScheduledAppointments: vi.fn(),
     };
+    serviceRegionRepo = {
+      findById: vi.fn().mockResolvedValue({ id: 'region-1', name: 'Test Region', status: 'ACTIVE' }),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue([]),
+      resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+      countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
+      setInspectorRegions: vi.fn(),
+      getInspectorRegionIds: vi.fn().mockResolvedValue([]),
+      getInspectorRegionIdsBatch: vi.fn().mockResolvedValue(new Map()),
+      delete: vi.fn(),
+    };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService);
+    useCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo);
   });
 
   it('should publish a DRAFT group successfully', async () => {
@@ -239,5 +258,35 @@ describe('PublishServiceGroupUseCase', () => {
     });
 
     expect(result.status).toBe('PUBLISHED');
+  });
+
+  it('should reject when service region is not assigned', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ serviceRegionId: null }),
+    );
+
+    await expect(
+      useCase.execute({ groupId: 'group-1', actor: makeActor() }),
+    ).rejects.toThrow(ServiceRegionRequiredError);
+  });
+
+  it('should reject when service region is inactive', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+    vi.mocked(serviceRegionRepo.findById).mockResolvedValue({
+      id: 'region-1', name: 'Test', status: 'INACTIVE',
+    } as any);
+
+    await expect(
+      useCase.execute({ groupId: 'group-1', actor: makeActor() }),
+    ).rejects.toThrow(ServiceRegionInactiveError);
+  });
+
+  it('should reject when service region was deleted', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+    vi.mocked(serviceRegionRepo.findById).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({ groupId: 'group-1', actor: makeActor() }),
+    ).rejects.toThrow(ServiceRegionInactiveError);
   });
 });

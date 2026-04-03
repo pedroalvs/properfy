@@ -222,6 +222,7 @@ import { GetServiceRegionUseCase } from '../modules/service-region/application/u
 import { ListServiceRegionsUseCase } from '../modules/service-region/application/use-cases/list-service-regions.use-case';
 import { DeactivateServiceRegionUseCase } from '../modules/service-region/application/use-cases/deactivate-service-region.use-case';
 import { DeleteServiceRegionUseCase } from '../modules/service-region/application/use-cases/delete-service-region.use-case';
+import { ResolveRegionsUseCase } from '../modules/service-region/application/use-cases/resolve-regions.use-case';
 import type { ServiceRegionRouteContainer } from '../modules/service-region/interfaces/service-region.routes';
 
 // Appointment module
@@ -520,10 +521,10 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Service group repositories and use cases
   const serviceGroupRepo = new PrismaServiceGroupRepository(prisma, serviceRegionRepo);
-  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService);
+  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, serviceRegionRepo);
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo);
-  const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService);
+  const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo);
   const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo);
   const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService);
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
@@ -618,6 +619,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo);
   const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService);
   const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService);
+  const resolveRegionsUseCase = new ResolveRegionsUseCase(serviceRegionRepo);
 
   // Appointment import (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
@@ -863,6 +865,7 @@ export function createContainer(logger: Logger): AppContainer {
       listServiceRegionsUseCase,
       deactivateServiceRegionUseCase,
       deleteServiceRegionUseCase,
+      resolveRegionsUseCase,
       jwtService,
       tenantRepo,
     },

@@ -1,0 +1,65 @@
+import type { AuthContext } from '@properfy/shared';
+import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { IServiceRegionRepository } from '../../domain/service-region.repository';
+
+export interface ResolveRegionsInput {
+  appointmentIds: string[];
+  actor: AuthContext;
+}
+
+export interface ResolvedRegionItem {
+  regionId: string;
+  regionName: string;
+  color: string;
+  matchedAppointmentCount: number;
+  inspectorCount: number;
+}
+
+export interface ResolveRegionsOutput {
+  regions: ResolvedRegionItem[];
+  totalAppointments: number;
+  unmatchedAppointmentIds: string[];
+}
+
+export class ResolveRegionsUseCase {
+  constructor(
+    private readonly serviceRegionRepo: IServiceRegionRepository,
+  ) {}
+
+  async execute(input: ResolveRegionsInput): Promise<ResolveRegionsOutput> {
+    const { actor, appointmentIds } = input;
+
+    if (actor.role !== 'AM' && actor.role !== 'OP') {
+      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+    }
+
+    const resolved = await this.serviceRegionRepo.resolveRegionsForAppointments(appointmentIds);
+
+    // Collect all matched appointment IDs across all regions (deduplicated)
+    const allMatchedIds = new Set<string>();
+    for (const region of resolved) {
+      for (const id of region.matchedAppointmentIds) {
+        allMatchedIds.add(id);
+      }
+    }
+
+    const unmatchedAppointmentIds = appointmentIds.filter((id) => !allMatchedIds.has(id));
+
+    // Fetch inspector counts for each matched region
+    const regions: ResolvedRegionItem[] = await Promise.all(
+      resolved.map(async (r) => ({
+        regionId: r.regionId,
+        regionName: r.regionName,
+        color: r.color,
+        matchedAppointmentCount: r.matchedAppointmentIds.length,
+        inspectorCount: await this.serviceRegionRepo.countActiveInspectorsInRegion(r.regionId),
+      })),
+    );
+
+    return {
+      regions,
+      totalAppointments: appointmentIds.length,
+      unmatchedAppointmentIds,
+    };
+  }
+}

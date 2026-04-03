@@ -28,3 +28,23 @@ export const listServiceRegionsQuerySchema = paginationSchema.extend({
   search: z.string().max(255).optional(),
 });
 export type ListServiceRegionsQueryInput = z.infer<typeof listServiceRegionsQuerySchema>;
+
+export const resolveRegionsSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(25),
+});
+export type ResolveRegionsInput = z.infer<typeof resolveRegionsSchema>;
+
+export const resolvedRegionItemSchema = z.object({
+  regionId: z.string().uuid(),
+  regionName: z.string(),
+  color: z.string(),
+  matchedAppointmentCount: z.number(),
+  inspectorCount: z.number(),
+});
+
+export const resolveRegionsResponseSchema = z.object({
+  regions: z.array(resolvedRegionItemSchema),
+  totalAppointments: z.number(),
+  unmatchedAppointmentIds: z.array(z.string().uuid()),
+});
+export type ResolveRegionsResponse = z.infer<typeof resolveRegionsResponseSchema>;

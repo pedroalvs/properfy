@@ -10,6 +10,8 @@ function createMockServiceRegionRepo(propertyIds: string[]): IServiceRegionRepos
     save: vi.fn(),
     update: vi.fn(),
     findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue(propertyIds),
+    resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+    countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
     setInspectorRegions: vi.fn(),
     getInspectorRegionIds: vi.fn().mockResolvedValue([]),
     getInspectorRegionIdsBatch: vi.fn().mockResolvedValue(new Map()),
@@ -38,14 +40,16 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     );
 
     expect(serviceRegionRepo.findPropertyIdsInInspectorRegions).toHaveBeenCalledWith('inspector-1');
+    expect(serviceRegionRepo.getInspectorRegionIds).toHaveBeenCalledWith('inspector-1');
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          appointments: {
-            some: {
-              property_id: { in: ['prop-1', 'prop-2'] },
-            },
-          },
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              service_region_id: null,
+              appointments: { some: { property_id: { in: ['prop-1', 'prop-2'] } } },
+            }),
+          ]),
         }),
       }),
     );

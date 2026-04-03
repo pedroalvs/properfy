@@ -2,11 +2,14 @@ import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
+import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
   AppointmentInvalidStatusError,
   PriorityExpiredError,
+  ServiceRegionRequiredError,
+  ServiceRegionInactiveError,
 } from '../../domain/service-group.errors';
 
 export interface PublishServiceGroupInput {
@@ -25,6 +28,7 @@ export class PublishServiceGroupUseCase {
   constructor(
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
+    private readonly serviceRegionRepo: IServiceRegionRepository,
   ) {}
 
   async execute(input: PublishServiceGroupInput): Promise<PublishServiceGroupOutput> {
@@ -53,6 +57,19 @@ export class PublishServiceGroupUseCase {
 
     if (!group.canPublish()) {
       throw new ServiceGroupInvalidStatusError('DRAFT', group.status);
+    }
+
+    // Validate service region is assigned and active
+    if (!group.serviceRegionId) {
+      throw new ServiceRegionRequiredError();
+    }
+
+    const region = await this.serviceRegionRepo.findById(group.serviceRegionId);
+    if (!region) {
+      throw new ServiceRegionInactiveError();
+    }
+    if (region.status !== 'ACTIVE') {
+      throw new ServiceRegionInactiveError();
     }
 
     // Verify all appointments are still AWAITING_INSPECTOR

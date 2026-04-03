@@ -12,6 +12,13 @@ export interface PaginationParams {
   sortOrder: 'asc' | 'desc';
 }
 
+export interface ResolvedRegion {
+  regionId: string;
+  regionName: string;
+  color: string;
+  matchedAppointmentIds: string[];
+}
+
 export interface IServiceRegionRepository {
   findById(id: string): Promise<ServiceRegionEntity | null>;
   findAll(
@@ -30,6 +37,8 @@ export interface IServiceRegionRepository {
     }>,
   ): Promise<void>;
   findPropertyIdsInInspectorRegions(inspectorId: string): Promise<string[]>;
+  resolveRegionsForAppointments(appointmentIds: string[]): Promise<ResolvedRegion[]>;
+  countActiveInspectorsInRegion(regionId: string): Promise<number>;
   setInspectorRegions(inspectorId: string, regionIds: string[]): Promise<void>;
   getInspectorRegionIds(inspectorId: string): Promise<string[]>;
   getInspectorRegionIdsBatch(inspectorIds: string[]): Promise<Map<string, string[]>>;

@@ -4,6 +4,7 @@ import {
   createServiceRegionSchema,
   updateServiceRegionSchema,
   listServiceRegionsQuerySchema,
+  resolveRegionsSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -14,6 +15,7 @@ import type { GetServiceRegionUseCase } from '../application/use-cases/get-servi
 import type { ListServiceRegionsUseCase } from '../application/use-cases/list-service-regions.use-case';
 import type { DeactivateServiceRegionUseCase } from '../application/use-cases/deactivate-service-region.use-case';
 import type { DeleteServiceRegionUseCase } from '../application/use-cases/delete-service-region.use-case';
+import type { ResolveRegionsUseCase } from '../application/use-cases/resolve-regions.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface ServiceRegionRouteContainer {
@@ -23,6 +25,7 @@ export interface ServiceRegionRouteContainer {
   listServiceRegionsUseCase: ListServiceRegionsUseCase;
   deactivateServiceRegionUseCase: DeactivateServiceRegionUseCase;
   deleteServiceRegionUseCase: DeleteServiceRegionUseCase;
+  resolveRegionsUseCase: ResolveRegionsUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -152,6 +155,23 @@ export async function registerServiceRegionRoutes(
         actor: request.authContext!,
       });
       return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/service-regions/resolve — resolve regions for appointments
+  app.post(
+    '/v1/service-regions/resolve',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const parsed = resolveRegionsSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.resolveRegionsUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 }

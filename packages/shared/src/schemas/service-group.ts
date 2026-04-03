@@ -25,7 +25,7 @@ export const createServiceGroupSchema = z
     scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     timeWindow: z.string().regex(timeWindowRegex),
     name: z.string().min(1).max(255).optional(),
-    regionName: z.string().max(255).optional(),
+    serviceRegionId: z.string().uuid().optional(),
     description: z.string().max(5000).optional(),
     priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
     exceptionType: exceptionTypeEnum.optional(),
@@ -43,7 +43,7 @@ export type CreateServiceGroupInput = z.infer<typeof createServiceGroupSchema>;
 
 export const updateServiceGroupSchema = z.object({
   name: z.string().min(1).max(255).optional(),
-  regionName: z.string().max(255).optional(),
+  serviceRegionId: z.string().uuid().nullable().optional(),
   description: z.string().max(5000).optional(),
 });
 export type UpdateServiceGroupInput = z.infer<typeof updateServiceGroupSchema>;

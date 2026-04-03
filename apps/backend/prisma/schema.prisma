@@ -449,6 +449,7 @@ model ServiceGroup {
   exception_type        ServiceGroupExceptionType?
   exception_reason      String?                   @db.Text
   assigned_inspector_id String?
+  service_region_id     String?
   published_at          DateTime?
   assigned_at           DateTime?
   created_by_user_id    String
@@ -458,6 +459,7 @@ model ServiceGroup {
   tenant                Tenant             @relation(fields: [tenant_id], references: [id])
   service_type          ServiceType        @relation(fields: [service_type_id], references: [id])
   assigned_inspector    Inspector?         @relation(fields: [assigned_inspector_id], references: [id])
+  service_region        ServiceRegion?     @relation(fields: [service_region_id], references: [id], onDelete: Restrict)
   created_by            User               @relation("ServiceGroupCreatedBy", fields: [created_by_user_id], references: [id])
   appointments          Appointment[]
 
@@ -465,6 +467,7 @@ model ServiceGroup {
   @@index([status])
   @@index([scheduled_date])
   @@index([assigned_inspector_id])
+  @@index([service_region_id])
   @@index([tenant_id, status])
   @@map("service_groups")
 }
@@ -945,6 +948,7 @@ model ServiceRegion {
 
   created_by          User?         @relation("ServiceRegionCreatedBy", fields: [created_by_user_id], references: [id])
   inspector_regions   InspectorRegion[]
+  service_groups      ServiceGroup[]
 
   @@index([status])
   @@map("service_regions")

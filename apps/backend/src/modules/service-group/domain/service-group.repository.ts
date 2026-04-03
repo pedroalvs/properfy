@@ -72,6 +72,7 @@ export interface IServiceGroupRepository {
       name: string | null;
       regionName: string | null;
       description: string | null;
+      serviceRegionId: string | null;
     }>,
   ): Promise<void>;
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */

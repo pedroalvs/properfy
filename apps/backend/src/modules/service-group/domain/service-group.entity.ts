@@ -19,6 +19,7 @@ export interface ServiceGroupProps {
   exceptionType: ServiceGroupExceptionType | null;
   exceptionReason: string | null;
   assignedInspectorId: string | null;
+  serviceRegionId: string | null;
   publishedAt: Date | null;
   assignedAt: Date | null;
   createdByUserId: string;
@@ -43,6 +44,7 @@ export class ServiceGroupEntity extends BaseEntity {
   readonly exceptionType: ServiceGroupExceptionType | null;
   readonly exceptionReason: string | null;
   assignedInspectorId: string | null;
+  serviceRegionId: string | null;
   publishedAt: Date | null;
   assignedAt: Date | null;
   readonly createdByUserId: string;
@@ -65,6 +67,7 @@ export class ServiceGroupEntity extends BaseEntity {
     this.exceptionType = props.exceptionType ?? null;
     this.exceptionReason = props.exceptionReason ?? null;
     this.assignedInspectorId = props.assignedInspectorId;
+    this.serviceRegionId = props.serviceRegionId;
     this.publishedAt = props.publishedAt;
     this.assignedAt = props.assignedAt;
     this.createdByUserId = props.createdByUserId;

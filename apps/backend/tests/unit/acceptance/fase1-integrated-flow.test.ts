@@ -578,15 +578,32 @@ describe('FASE 1 integrated proof', () => {
       auditService as any,
     );
 
+    const mockServiceRegionRepo = {
+      findById: vi.fn().mockResolvedValue({ id: 'region-1', name: 'Test Region', status: 'ACTIVE', isActive: () => true }),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue([]),
+      resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+      countActiveInspectorsInRegion: vi.fn().mockResolvedValue(1),
+      setInspectorRegions: vi.fn(),
+      getInspectorRegionIds: vi.fn().mockResolvedValue([]),
+      getInspectorRegionIdsBatch: vi.fn().mockResolvedValue(new Map()),
+      delete: vi.fn(),
+    };
+
     createServiceGroupUseCase = new CreateServiceGroupUseCase(
       serviceGroupRepo,
       appointmentRepo,
       auditService as any,
+      mockServiceRegionRepo as any,
     );
 
     publishServiceGroupUseCase = new PublishServiceGroupUseCase(
       serviceGroupRepo,
       auditService as any,
+      mockServiceRegionRepo as any,
     );
 
     getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(
@@ -642,6 +659,7 @@ describe('FASE 1 integrated proof', () => {
       scheduledDate: today,
       timeWindow: '08:00-12:00',
       priorityMode: 'STANDARD',
+      serviceRegionId: 'region-1',
       actor: opActor,
     });
 

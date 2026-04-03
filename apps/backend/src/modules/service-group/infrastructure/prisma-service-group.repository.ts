@@ -31,6 +31,7 @@ function mapToEntity(row: any): ServiceGroupEntity {
     exceptionType: (row.exception_type as ServiceGroupExceptionType) ?? null,
     exceptionReason: row.exception_reason ?? null,
     assignedInspectorId: row.assigned_inspector_id,
+    serviceRegionId: row.service_region_id ?? null,
     publishedAt: row.published_at,
     assignedAt: row.assigned_at,
     createdByUserId: row.created_by_user_id,
@@ -138,6 +139,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         exception_type: group.exceptionType ? (group.exceptionType as PrismaExceptionType) : null,
         exception_reason: group.exceptionReason,
         assigned_inspector_id: group.assignedInspectorId,
+        service_region_id: group.serviceRegionId,
         published_at: group.publishedAt,
         assigned_at: group.assignedAt,
         created_by_user_id: group.createdByUserId,
@@ -158,6 +160,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       name: string | null;
       regionName: string | null;
       description: string | null;
+      serviceRegionId: string | null;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
@@ -177,6 +180,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     if (data.name !== undefined) updateData['name'] = data.name;
     if (data.regionName !== undefined) updateData['region_name'] = data.regionName;
     if (data.description !== undefined) updateData['description'] = data.description;
+    if (data.serviceRegionId !== undefined) updateData['service_region_id'] = data.serviceRegionId;
 
     await this.prisma.serviceGroup.update({
       where: { id },
@@ -214,29 +218,17 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       return [];
     }
 
-    // Get property IDs in inspector's regions via PostGIS spatial query
-    const propertyIds = this.serviceRegionRepo
-      ? await this.serviceRegionRepo.findPropertyIdsInInspectorRegions(inspectorId)
-      : [];
+    // Build dual-path region filter: region-based (new) + property-based (legacy)
+    const orConditions = await this.buildRegionOrConditions(inspectorId);
+    if (orConditions.length === 0) return [];
 
     const where: Record<string, unknown> = {
       status: 'PUBLISHED',
       service_type_id: { in: inspectorServiceTypes },
       tenant_id: { in: inspectorClientEligibility },
       scheduled_date: { gte: new Date() },
+      OR: orConditions,
     };
-
-    // Filter by properties in inspector's regions
-    if (propertyIds.length > 0) {
-      where['appointments'] = {
-        some: {
-          property_id: { in: propertyIds },
-        },
-      };
-    } else {
-      // No properties in inspector's regions means no offers
-      return [];
-    }
 
     const rows = await this.prisma.serviceGroup.findMany({
       where,
@@ -308,14 +300,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       return 0;
     }
 
-    // Get property IDs in inspector's regions via PostGIS spatial query
-    const propertyIds = this.serviceRegionRepo
-      ? await this.serviceRegionRepo.findPropertyIdsInInspectorRegions(inspectorId)
-      : [];
-
-    if (propertyIds.length === 0) {
-      return 0;
-    }
+    const orConditions = await this.buildRegionOrConditions(inspectorId);
+    if (orConditions.length === 0) return 0;
 
     return this.prisma.serviceGroup.count({
       where: {
@@ -323,13 +309,42 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         service_type_id: { in: inspectorServiceTypes },
         tenant_id: { in: inspectorClientEligibility },
         scheduled_date: { gte: new Date() },
-        appointments: {
-          some: {
-            property_id: { in: propertyIds },
-          },
-        },
+        OR: orConditions,
       },
     });
+  }
+
+  /**
+   * Build dual-path OR conditions for marketplace filtering:
+   * 1. Groups WITH service_region_id → match against inspector's assigned regions
+   * 2. Groups WITHOUT service_region_id (legacy) → match via PostGIS property coordinates
+   */
+  private async buildRegionOrConditions(inspectorId: string): Promise<Record<string, unknown>[]> {
+    if (!this.serviceRegionRepo) return [];
+
+    const [inspectorRegionIds, propertyIds] = await Promise.all([
+      this.serviceRegionRepo.getInspectorRegionIds(inspectorId),
+      this.serviceRegionRepo.findPropertyIdsInInspectorRegions(inspectorId),
+    ]);
+
+    const conditions: Record<string, unknown>[] = [];
+
+    // New path: groups with explicit region targeting
+    if (inspectorRegionIds.length > 0) {
+      conditions.push({
+        service_region_id: { in: inspectorRegionIds },
+      });
+    }
+
+    // Legacy path: groups without region, matched via property coordinates
+    if (propertyIds.length > 0) {
+      conditions.push({
+        service_region_id: null,
+        appointments: { some: { property_id: { in: propertyIds } } },
+      });
+    }
+
+    return conditions;
   }
 
   async linkAppointments(
