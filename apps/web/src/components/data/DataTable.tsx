@@ -147,6 +147,9 @@ export function DataTable<T>({
               </option>
             ))}
           </select>
+          <span className="text-sm text-text-secondary">
+            Showing {Math.min((page - 1) * pageSize + 1, total)}-{Math.min(page * pageSize, total)} of {total}
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
