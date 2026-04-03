@@ -19,9 +19,26 @@ export interface PublishServiceGroupInput {
 
 export interface PublishServiceGroupOutput {
   id: string;
+  tenantId: string;
+  serviceTypeId: string;
   status: string;
+  groupSize: number;
   offeredCount: number;
-  publishedAt: Date;
+  confirmedCount: number;
+  scheduledDate: Date;
+  timeWindow: string;
+  name: string | null;
+  regionName: string | null;
+  description: string | null;
+  priorityMode: string;
+  priorityExpiresAt: Date | null;
+  assignedInspectorId: string | null;
+  serviceRegionId: string | null;
+  publishedAt: Date | null;
+  assignedAt: Date | null;
+  createdByUserId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class PublishServiceGroupUseCase {
@@ -47,12 +64,7 @@ export class PublishServiceGroupUseCase {
 
     // Idempotency: if already PUBLISHED, return current state without side effects
     if (group.status === 'PUBLISHED') {
-      return {
-        id: groupId,
-        status: 'PUBLISHED',
-        offeredCount: group.offeredCount,
-        publishedAt: group.publishedAt!,
-      };
+      return mapGroupToOutput(group);
     }
 
     if (!group.canPublish()) {
@@ -104,11 +116,37 @@ export class PublishServiceGroupUseCase {
       after: { status: 'PUBLISHED', offeredCount: newOfferedCount },
     });
 
-    return {
-      id: groupId,
-      status: 'PUBLISHED',
-      offeredCount: newOfferedCount,
-      publishedAt: now,
-    };
+    // Reflect the updates on the in-memory entity for the response
+    group.status = 'PUBLISHED';
+    group.offeredCount = newOfferedCount;
+    group.publishedAt = now;
+
+    return mapGroupToOutput(group);
   }
+}
+
+function mapGroupToOutput(group: import('../../domain/service-group.entity').ServiceGroupEntity): PublishServiceGroupOutput {
+  return {
+    id: group.id,
+    tenantId: group.tenantId,
+    serviceTypeId: group.serviceTypeId,
+    status: group.status,
+    groupSize: group.groupSize,
+    offeredCount: group.offeredCount,
+    confirmedCount: group.confirmedCount,
+    scheduledDate: group.scheduledDate,
+    timeWindow: group.timeWindow,
+    name: group.name,
+    regionName: group.regionName,
+    description: group.description,
+    priorityMode: group.priorityMode,
+    priorityExpiresAt: group.priorityExpiresAt,
+    assignedInspectorId: group.assignedInspectorId,
+    serviceRegionId: group.serviceRegionId,
+    publishedAt: group.publishedAt,
+    assignedAt: group.assignedAt,
+    createdByUserId: group.createdByUserId,
+    createdAt: group.createdAt,
+    updatedAt: group.updatedAt,
+  };
 }
