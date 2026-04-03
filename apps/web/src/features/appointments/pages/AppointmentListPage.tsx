@@ -80,10 +80,6 @@ export function AppointmentListPage() {
             setSelectedId(apt.id);
             setDrawerOpen(true);
           }}
-          onEdit={(apt) => {
-            setSelectedId(apt.id);
-            setDrawerOpen(true);
-          }}
         />
       </ListFilterTableTemplate>
       <AppointmentDetailDrawer

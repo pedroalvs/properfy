@@ -120,19 +120,4 @@ describe('AppointmentTable', () => {
     expect(onView).toHaveBeenCalledWith(apt);
   });
 
-  it('edit action calls onEdit with correct appointment', async () => {
-    const user = userEvent.setup();
-    const onEdit = vi.fn();
-    const apt = makeAppointment({ status: AppointmentStatus.DRAFT });
-    render(<AppointmentTable data={[apt]} onEdit={onEdit} />);
-    await user.click(screen.getByLabelText('Edit'));
-    expect(onEdit).toHaveBeenCalledWith(apt);
-  });
-
-  it('hides edit action for non-editable statuses', () => {
-    const onEdit = vi.fn();
-    const apt = makeAppointment({ status: AppointmentStatus.DONE });
-    render(<AppointmentTable data={[apt]} onEdit={onEdit} />);
-    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
-  });
 });

@@ -5,8 +5,6 @@ import { formatDate } from '@/lib/format-date';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
 import { TenantConfirmationChip } from './TenantConfirmationChip';
 import type { Appointment } from '../types';
-import { isAppointmentEditable } from '../lib/editability';
-
 interface AppointmentTableProps {
   data: Appointment[];
   loading?: boolean;
@@ -14,7 +12,6 @@ interface AppointmentTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (appointment: Appointment) => void;
-  onEdit?: (appointment: Appointment) => void;
 }
 
 export function AppointmentTable({
@@ -24,7 +21,6 @@ export function AppointmentTable({
   onRetryError,
   pagination,
   onView,
-  onEdit,
 }: AppointmentTableProps) {
   const columns: DataTableColumn<Appointment>[] = [
     {
@@ -106,13 +102,6 @@ export function AppointmentTable({
               label: 'View',
               onClick: () => onView?.(row),
             },
-            ...(onEdit && isAppointmentEditable(row.status)
-              ? [{
-                  icon: 'mdi-pencil-outline',
-                  label: 'Edit',
-                  onClick: () => onEdit(row),
-                }]
-              : []),
           ]}
         />
       ),
