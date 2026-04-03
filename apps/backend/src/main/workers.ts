@@ -159,4 +159,26 @@ export async function registerWorkers(
   }));
 
   logger.info('pg-boss workers registered: report.generate, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, report.expire-files, property.geocode, appointment.import, property.import, billing.generate-invoice-file, tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, system.dlq-monitor');
+
+  // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
+  const pendingProperties = await prisma.property.findMany({
+    where: {
+      geocoding_status: { in: ['PENDING', 'FAILED'] },
+      lat: null,
+      deleted_at: null,
+    },
+    select: { id: true },
+  });
+  if (pendingProperties.length > 0) {
+    let enqueued = 0;
+    for (const p of pendingProperties) {
+      try {
+        await boss.send('property.geocode', { propertyId: p.id }, { retryLimit: 3, retryBackoff: true });
+        enqueued++;
+      } catch {
+        // Skip if already enqueued
+      }
+    }
+    logger.info({ total: pendingProperties.length, enqueued }, 'Re-enqueued geocoding for properties with pending/failed status');
+  }
 }
