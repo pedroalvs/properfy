@@ -142,7 +142,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
       FROM service_regions sr
       JOIN properties p ON ST_Contains(sr.geom, p.coordinates)
       JOIN appointments a ON a.property_id = p.id
-      WHERE a.id = ANY(${appointmentIds}::uuid[])
+      WHERE a.id = ANY(${appointmentIds}::text[])
         AND sr.status = 'ACTIVE'
         AND p.coordinates IS NOT NULL
         AND p.deleted_at IS NULL
