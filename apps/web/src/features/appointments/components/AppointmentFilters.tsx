@@ -27,8 +27,6 @@ interface AppointmentFiltersProps {
   onFiltersChange: (filters: AppointmentFiltersState) => void;
   branchOptions: FilterSelectOption[];
   serviceTypeOptions: FilterSelectOption[];
-  tenantOptions?: FilterSelectOption[];
-  isGlobalRole?: boolean;
 }
 
 export function AppointmentFilters({
@@ -36,8 +34,6 @@ export function AppointmentFilters({
   onFiltersChange,
   branchOptions,
   serviceTypeOptions,
-  tenantOptions = [],
-  isGlobalRole = false,
 }: AppointmentFiltersProps) {
   return (
     <FilterBar>
@@ -59,14 +55,6 @@ export function AppointmentFilters({
         onChange={(serviceTypeId) => onFiltersChange({ ...filters, serviceTypeId })}
         options={serviceTypeOptions}
       />
-      {isGlobalRole && (
-        <FilterSelect
-          label="Client"
-          value={filters.tenantId}
-          onChange={(tenantId) => onFiltersChange({ ...filters, tenantId })}
-          options={tenantOptions}
-        />
-      )}
       <FilterSelect
         label="Branch"
         value={filters.branchId}

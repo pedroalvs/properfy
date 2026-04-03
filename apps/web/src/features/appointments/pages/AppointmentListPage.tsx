@@ -47,16 +47,6 @@ export function AppointmentListPage() {
     ];
   }, [data]);
 
-  const tenantOptions = useMemo(() => {
-    if (!isGlobalRole) return [];
-    const seen = new Map<string, string>();
-    for (const apt of data) seen.set(apt.tenantId, apt.tenantName);
-    return [
-      { label: 'All', value: '' },
-      ...Array.from(seen.entries()).map(([value, label]) => ({ label, value })),
-    ];
-  }, [data, isGlobalRole]);
-
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -79,8 +69,6 @@ export function AppointmentListPage() {
           onFiltersChange={setFilters}
           branchOptions={branchOptions}
           serviceTypeOptions={serviceTypeOptions}
-          tenantOptions={tenantOptions}
-          isGlobalRole={isGlobalRole}
         />
         <AppointmentTable
           data={data}
