@@ -21,6 +21,12 @@ export class TenantAlreadyInactiveError extends ConflictError {
   }
 }
 
+export class TenantAlreadyActiveError extends ConflictError {
+  constructor() {
+    super('TENANT_ALREADY_ACTIVE', 'Tenant is already active');
+  }
+}
+
 export class TenantHasOpenAppointmentsError extends ConflictError {
   constructor() {
     super(
@@ -63,5 +69,11 @@ export class BranchHasOpenAppointmentsError extends ConflictError {
       'BRANCH_HAS_OPEN_APPOINTMENTS',
       'Cannot deactivate branch with open appointments',
     );
+  }
+}
+
+export class BranchAlreadyActiveError extends ConflictError {
+  constructor() {
+    super('BRANCH_ALREADY_ACTIVE', 'Branch is already active');
   }
 }

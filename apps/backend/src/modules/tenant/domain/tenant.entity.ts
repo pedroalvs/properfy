@@ -53,4 +53,8 @@ export class TenantEntity extends BaseEntity {
   canBeDeactivated(): boolean {
     return this.status !== 'INACTIVE' && this.deletedAt === null;
   }
+
+  canBeActivated(): boolean {
+    return this.status !== 'ACTIVE' && this.deletedAt === null;
+  }
 }

@@ -3,12 +3,14 @@ import {
   createTenantSchema,
   updateTenantSchema,
   deactivateSchema,
+  validateBillingSettings,
   createBranchSchema,
   updateBranchSchema,
   listTenantsQuerySchema,
   listBranchesQuerySchema,
   tenantSettingsSchema,
 } from './tenant';
+import { branchAddressSchema } from './address';
 
 describe('createTenantSchema', () => {
   const validInput = {
@@ -101,17 +103,36 @@ describe('deactivateSchema', () => {
 });
 
 describe('createBranchSchema', () => {
+  const validAddress = {
+    street: '123 Main St',
+    suburb: 'CBD',
+    city: 'Sydney',
+    state: 'NSW',
+    postcode: '2000',
+  };
+
   it('should accept valid input', () => {
     const result = createBranchSchema.safeParse({ name: 'Downtown Branch' });
     expect(result.success).toBe(true);
   });
 
-  it('should accept input with address', () => {
+  it('should accept input with structured address', () => {
     const result = createBranchSchema.safeParse({
       name: 'Downtown Branch',
-      address: { street: '123 Main St', city: 'Sydney' },
+      address: validAddress,
     });
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.address?.country).toBe('AU');
+    }
+  });
+
+  it('should reject freeform address object', () => {
+    const result = createBranchSchema.safeParse({
+      name: 'Downtown Branch',
+      address: { foo: 'bar' },
+    });
+    expect(result.success).toBe(false);
   });
 
   it('should reject missing name', () => {
@@ -126,6 +147,14 @@ describe('createBranchSchema', () => {
 });
 
 describe('updateBranchSchema', () => {
+  const validAddress = {
+    street: '456 Oak Ave',
+    suburb: 'Surry Hills',
+    city: 'Sydney',
+    state: 'NSW',
+    postcode: '2010',
+  };
+
   it('should accept partial input', () => {
     const result = updateBranchSchema.safeParse({ name: 'Updated Branch' });
     expect(result.success).toBe(true);
@@ -136,9 +165,138 @@ describe('updateBranchSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should accept address only', () => {
+  it('should accept structured address', () => {
+    const result = updateBranchSchema.safeParse({ address: validAddress });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject address missing required fields', () => {
     const result = updateBranchSchema.safeParse({
       address: { street: '456 Oak Ave' },
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('branchAddressSchema', () => {
+  const validFullAddress = {
+    street: '123 Main St',
+    number: '42A',
+    complement: 'Suite 5',
+    suburb: 'CBD',
+    city: 'Sydney',
+    state: 'NSW',
+    postcode: '2000',
+    country: 'AU',
+    latitude: -33.8688,
+    longitude: 151.2093,
+  };
+
+  it('should accept valid full address', () => {
+    const result = branchAddressSchema.safeParse(validFullAddress);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual(validFullAddress);
+    }
+  });
+
+  it('should pass with optional fields omitted', () => {
+    const result = branchAddressSchema.safeParse({
+      street: '10 George St',
+      suburb: 'The Rocks',
+      city: 'Sydney',
+      state: 'NSW',
+      postcode: '2000',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.country).toBe('AU');
+      expect(result.data.number).toBeUndefined();
+      expect(result.data.complement).toBeUndefined();
+      expect(result.data.latitude).toBeUndefined();
+      expect(result.data.longitude).toBeUndefined();
+    }
+  });
+
+  it('should reject missing required field (street)', () => {
+    const { street: _, ...noStreet } = validFullAddress;
+    const result = branchAddressSchema.safeParse(noStreet);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing required field (suburb)', () => {
+    const { suburb: _, ...noSuburb } = validFullAddress;
+    const result = branchAddressSchema.safeParse(noSuburb);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing required field (city)', () => {
+    const { city: _, ...noCity } = validFullAddress;
+    const result = branchAddressSchema.safeParse(noCity);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid country code (3 chars)', () => {
+    const result = branchAddressSchema.safeParse({
+      ...validFullAddress,
+      country: 'AUS',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid country code (1 char)', () => {
+    const result = branchAddressSchema.safeParse({
+      ...validFullAddress,
+      country: 'A',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject latitude out of range (too low)', () => {
+    const result = branchAddressSchema.safeParse({
+      ...validFullAddress,
+      latitude: -91,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject latitude out of range (too high)', () => {
+    const result = branchAddressSchema.safeParse({
+      ...validFullAddress,
+      latitude: 91,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject longitude out of range (too low)', () => {
+    const result = branchAddressSchema.safeParse({
+      ...validFullAddress,
+      longitude: -181,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject longitude out of range (too high)', () => {
+    const result = branchAddressSchema.safeParse({
+      ...validFullAddress,
+      longitude: 181,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject street exceeding max length', () => {
+    const result = branchAddressSchema.safeParse({
+      ...validFullAddress,
+      street: 'a'.repeat(201),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept boundary latitude and longitude values', () => {
+    const result = branchAddressSchema.safeParse({
+      ...validFullAddress,
+      latitude: -90,
+      longitude: 180,
     });
     expect(result.success).toBe(true);
   });
@@ -213,12 +371,12 @@ describe('tenantSettingsSchema', () => {
     }
   });
 
-  it('should reject extra fields (strict mode)', () => {
+  it('should allow extra fields (passthrough mode)', () => {
     const result = tenantSettingsSchema.safeParse({
       billingPeriod: 'MONTHLY',
       unknownField: 'value',
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('should reject invalid email', () => {
@@ -226,5 +384,98 @@ describe('tenantSettingsSchema', () => {
       notificationEmail: 'not-an-email',
     });
     expect(result.success).toBe(false);
+  });
+
+  it('should accept all new settings keys with valid values', () => {
+    const result = tenantSettingsSchema.safeParse({
+      billingPeriod: 'WEEKLY',
+      billingDayOfWeek: 1,
+      notificationFromName: 'Properfy',
+      notificationFromEmail: 'noreply@properfy.com',
+      smsFromName: 'Properfy',
+      logoUrl: 'https://storage.example.com/logo.png',
+      primaryColor: '#FF5733',
+      allowClientCancellation: false,
+      allowClientRescheduling: true,
+      allowClientFinancialView: true,
+      allowClientReportExport: false,
+      allowClientUserManagement: true,
+      priorityOfferHours: 48,
+      inspectorOfferRadiusKm: 5,
+      clUserPermissions: ['create_appointments', 'cancel_appointments'],
+      emailTemplates: {
+        initial: { subject: 'Inspection Notice', headerText: 'Hello' },
+        reminder7d: { subject: '7 Day Reminder' },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid primaryColor', () => {
+    const result = tenantSettingsSchema.safeParse({ primaryColor: 'red' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid clUserPermissions value', () => {
+    const result = tenantSettingsSchema.safeParse({ clUserPermissions: ['invalid_permission'] });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject billingDayOfWeek out of range', () => {
+    const result = tenantSettingsSchema.safeParse({ billingDayOfWeek: 7 });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject billingDayOfMonth out of range', () => {
+    const result = tenantSettingsSchema.safeParse({ billingDayOfMonth: 29 });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject non-alphanumeric smsFromName', () => {
+    const result = tenantSettingsSchema.safeParse({ smsFromName: 'Hello World!' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should default feature flags correctly', () => {
+    const result = tenantSettingsSchema.parse({});
+    expect(result.allowClientCancellation).toBe(true);
+    expect(result.allowClientRescheduling).toBe(true);
+    expect(result.allowClientFinancialView).toBe(false);
+    expect(result.allowClientReportExport).toBe(false);
+    expect(result.allowClientUserManagement).toBe(false);
+    expect(result.priorityOfferHours).toBe(24);
+    expect(result.inspectorOfferRadiusKm).toBe(2);
+    expect(result.clUserPermissions).toEqual([]);
+  });
+});
+
+describe('validateBillingSettings', () => {
+  it('should pass when WEEKLY with billingDayOfWeek', () => {
+    expect(validateBillingSettings({ billingPeriod: 'WEEKLY', billingDayOfWeek: 1 }).valid).toBe(true);
+  });
+
+  it('should fail when WEEKLY without billingDayOfWeek', () => {
+    const result = validateBillingSettings({ billingPeriod: 'WEEKLY' });
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('billingDayOfWeek');
+  });
+
+  it('should fail when BIWEEKLY without billingDayOfWeek', () => {
+    const result = validateBillingSettings({ billingPeriod: 'BIWEEKLY' });
+    expect(result.valid).toBe(false);
+  });
+
+  it('should pass when MONTHLY with billingDayOfMonth', () => {
+    expect(validateBillingSettings({ billingPeriod: 'MONTHLY', billingDayOfMonth: 15 }).valid).toBe(true);
+  });
+
+  it('should fail when MONTHLY without billingDayOfMonth', () => {
+    const result = validateBillingSettings({ billingPeriod: 'MONTHLY' });
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('billingDayOfMonth');
+  });
+
+  it('should pass when no billingPeriod specified', () => {
+    expect(validateBillingSettings({}).valid).toBe(true);
   });
 });

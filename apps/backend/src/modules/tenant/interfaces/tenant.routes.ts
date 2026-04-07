@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
+  activateSchema,
   createTenantSchema,
   updateTenantSchema,
   deactivateSchema,
@@ -20,11 +21,16 @@ import type { CreateTenantUseCase } from '../application/use-cases/create-tenant
 import type { GetTenantUseCase } from '../application/use-cases/get-tenant.use-case';
 import type { ListTenantsUseCase } from '../application/use-cases/list-tenants.use-case';
 import type { UpdateTenantUseCase } from '../application/use-cases/update-tenant.use-case';
+import type { ActivateTenantUseCase } from '../application/use-cases/activate-tenant.use-case';
 import type { DeactivateTenantUseCase } from '../application/use-cases/deactivate-tenant.use-case';
 import type { CreateBranchUseCase } from '../application/use-cases/create-branch.use-case';
+import type { GetBranchUseCase } from '../application/use-cases/get-branch.use-case';
 import type { ListBranchesUseCase } from '../application/use-cases/list-branches.use-case';
 import type { UpdateBranchUseCase } from '../application/use-cases/update-branch.use-case';
 import type { DeactivateBranchUseCase } from '../application/use-cases/deactivate-branch.use-case';
+import type { ActivateBranchUseCase } from '../application/use-cases/activate-branch.use-case';
+import type { GenerateLogoUploadUrlUseCase } from '../application/use-cases/generate-logo-upload-url.use-case';
+import type { ConfirmLogoUploadUseCase } from '../application/use-cases/confirm-logo-upload.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface TenantRouteContainer {
@@ -32,11 +38,16 @@ export interface TenantRouteContainer {
   getTenantUseCase: GetTenantUseCase;
   listTenantsUseCase: ListTenantsUseCase;
   updateTenantUseCase: UpdateTenantUseCase;
+  activateTenantUseCase: ActivateTenantUseCase;
   deactivateTenantUseCase: DeactivateTenantUseCase;
   createBranchUseCase: CreateBranchUseCase;
+  getBranchUseCase: GetBranchUseCase;
   listBranchesUseCase: ListBranchesUseCase;
   updateBranchUseCase: UpdateBranchUseCase;
   deactivateBranchUseCase: DeactivateBranchUseCase;
+  activateBranchUseCase: ActivateBranchUseCase;
+  generateLogoUploadUrlUseCase: GenerateLogoUploadUrlUseCase;
+  confirmLogoUploadUseCase: ConfirmLogoUploadUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -203,6 +214,38 @@ export async function registerTenantRoutes(
     },
   );
 
+  // POST /v1/tenants/:tenantId/activate
+  app.post(
+    '/v1/tenants/:tenantId/activate',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        body: activateSchema,
+      },
+    },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid tenant ID',
+          params.error.errors,
+        );
+      const parsed = activateSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.activateTenantUseCase.execute({
+        tenantId: params.data.tenantId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
   // POST /v1/tenants/:tenantId/branches
   app.post(
     '/v1/tenants/:tenantId/branches',
@@ -305,6 +348,32 @@ export async function registerTenantRoutes(
     },
   );
 
+  // GET /v1/tenants/:tenantId/branches/:branchId
+  app.get(
+    '/v1/tenants/:tenantId/branches/:branchId',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: branchIdParam,
+        response: { 200: successResponseSchema(branchResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = branchIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const result = await container.getBranchUseCase.execute({
+        tenantId: params.data.tenantId,
+        branchId: params.data.branchId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
   // PATCH /v1/tenants/:tenantId/branches/:branchId
   app.patch(
     '/v1/tenants/:tenantId/branches/:branchId',
@@ -366,6 +435,103 @@ export async function registerTenantRoutes(
         tenantId: params.data.tenantId,
         branchId: params.data.branchId,
         reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/branches/:branchId/activate
+  app.post(
+    '/v1/tenants/:tenantId/branches/:branchId/activate',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: branchIdParam,
+      },
+    },
+    async (request, reply) => {
+      const params = branchIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const result = await container.activateBranchUseCase.execute({
+        tenantId: params.data.tenantId,
+        branchId: params.data.branchId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/branding/logo/presign
+  const presignBodySchema = z.object({
+    contentType: z.string().min(1),
+  });
+
+  app.post(
+    '/v1/tenants/:tenantId/branding/logo/presign',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        body: presignBodySchema,
+      },
+    },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid tenant ID',
+          params.error.errors,
+        );
+      const parsed = presignBodySchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.generateLogoUploadUrlUseCase.execute({
+        tenantId: params.data.tenantId,
+        contentType: parsed.data.contentType,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/branding/logo/confirm
+  const confirmBodySchema = z.object({
+    storageKey: z.string().min(1),
+  });
+
+  app.post(
+    '/v1/tenants/:tenantId/branding/logo/confirm',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        body: confirmBodySchema,
+      },
+    },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid tenant ID',
+          params.error.errors,
+        );
+      const parsed = confirmBodySchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.confirmLogoUploadUseCase.execute({
+        tenantId: params.data.tenantId,
+        storageKey: parsed.data.storageKey,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

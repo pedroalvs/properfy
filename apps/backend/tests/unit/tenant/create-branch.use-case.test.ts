@@ -155,6 +155,20 @@ describe('CreateBranchUseCase', () => {
     ).rejects.toThrow(BranchNameConflictError);
   });
 
+  it('should throw BRANCH_NAME_CONFLICT when name differs only by case (case-insensitive uniqueness)', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    // findByName is case-insensitive and returns the existing "Main Branch"
+    vi.mocked(branchRepo.findByName).mockResolvedValue(makeBranch({ name: 'Main Branch' }));
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        name: 'main branch',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(BranchNameConflictError);
+  });
+
   it('should create branch with contactEmail', async () => {
     vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
     vi.mocked(branchRepo.findByName).mockResolvedValue(null);

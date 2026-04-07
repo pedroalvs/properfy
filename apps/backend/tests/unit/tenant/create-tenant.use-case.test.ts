@@ -4,6 +4,7 @@ import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenan
 import type { IAppointmentTimeSlotRepository } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
+import { DomainEventBus, TENANT_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { TenantLegalNameConflictError } from '../../../src/modules/tenant/domain/tenant.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
@@ -41,6 +42,7 @@ describe('CreateTenantUseCase', () => {
   let tenantRepo: ITenantRepository;
   let timeSlotRepo: IAppointmentTimeSlotRepository;
   let auditService: AuditService;
+  let eventBus: DomainEventBus;
   let useCase: CreateTenantUseCase;
 
   beforeEach(() => {
@@ -61,7 +63,8 @@ describe('CreateTenantUseCase', () => {
       softDelete: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new CreateTenantUseCase(tenantRepo, auditService, timeSlotRepo);
+    eventBus = new DomainEventBus();
+    useCase = new CreateTenantUseCase(tenantRepo, auditService, timeSlotRepo, eventBus);
   });
 
   it('should create a tenant with PENDING status when actor is AM', async () => {
@@ -83,6 +86,33 @@ describe('CreateTenantUseCase', () => {
     expect(timeSlotRepo.create).toHaveBeenCalledTimes(2);
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'tenant.created' }),
+    );
+  });
+
+  it('should emit tenant.created.v1 domain event after successful creation', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    const handler = vi.fn();
+    eventBus.subscribe(TENANT_EVENTS.CREATED, handler);
+
+    const result = await useCase.execute({
+      name: 'Event Agency',
+      legalName: 'Event Agency Pty Ltd',
+      timezone: 'Australia/Sydney',
+      currency: 'AUD',
+      actor: makeActor(),
+    });
+
+    expect(handler).toHaveBeenCalledOnce();
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: TENANT_EVENTS.CREATED,
+        payload: expect.objectContaining({
+          tenantId: result.id,
+          name: 'Event Agency',
+          legalName: 'Event Agency Pty Ltd',
+        }),
+      }),
     );
   });
 

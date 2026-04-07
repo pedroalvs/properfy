@@ -6,6 +6,8 @@ import { TenantEntity } from '../../domain/tenant.entity';
 import { TenantLegalNameConflictError } from '../../domain/tenant.errors';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import { AppointmentTimeSlotEntity } from '../../../appointment-time-slot/domain/appointment-time-slot.entity';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { TENANT_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 
 export interface CreateTenantInput {
   name: string;
@@ -32,6 +34,7 @@ export class CreateTenantUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
     private readonly timeSlotRepo: IAppointmentTimeSlotRepository,
+    private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: CreateTenantInput): Promise<CreateTenantOutput> {
@@ -80,6 +83,12 @@ export class CreateTenantUseCase {
         currency,
         settingsJson: tenant.settingsJson,
       },
+    });
+
+    this.eventBus?.emit({
+      type: TENANT_EVENTS.CREATED,
+      payload: { tenantId: id, name, legalName },
+      occurredAt: new Date(),
     });
 
     return {

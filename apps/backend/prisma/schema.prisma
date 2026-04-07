@@ -179,7 +179,8 @@ model Branch {
   appointments           Appointment[]
   appointment_time_slots AppointmentTimeSlot[]
 
-  @@unique([tenant_id, name])
+  // Case-insensitive unique index on (tenant_id, lower(name)) managed via raw SQL migration
+  @@index([tenant_id, name])
   @@index([tenant_id])
   @@index([tenant_id, status])
   @@index([deleted_at])

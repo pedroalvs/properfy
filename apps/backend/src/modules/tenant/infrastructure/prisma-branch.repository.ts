@@ -51,7 +51,11 @@ export class PrismaBranchRepository implements IBranchRepository {
     name: string,
   ): Promise<BranchEntity | null> {
     const row = await this.prisma.branch.findFirst({
-      where: { tenant_id: tenantId, name, deleted_at: null },
+      where: {
+        tenant_id: tenantId,
+        name: { equals: name, mode: 'insensitive' },
+        deleted_at: null,
+      },
     });
     return row ? mapToEntity(row) : null;
   }

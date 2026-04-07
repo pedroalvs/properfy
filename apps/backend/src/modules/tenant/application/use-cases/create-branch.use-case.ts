@@ -9,6 +9,8 @@ import {
   TenantInactiveError,
   BranchNameConflictError,
 } from '../../domain/tenant.errors';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { BRANCH_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 
 export interface CreateBranchInput {
   tenantId: string;
@@ -33,6 +35,7 @@ export class CreateBranchUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
+    private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: CreateBranchInput): Promise<CreateBranchOutput> {
@@ -91,6 +94,12 @@ export class CreateBranchUseCase {
         contactEmail: branch.contactEmail,
         status: 'ACTIVE',
       },
+    });
+
+    this.eventBus?.emit({
+      type: BRANCH_EVENTS.CREATED,
+      payload: { branchId: id, tenantId, name },
+      occurredAt: new Date(),
     });
 
     return {

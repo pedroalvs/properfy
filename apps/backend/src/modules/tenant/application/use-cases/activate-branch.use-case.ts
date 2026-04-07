@@ -3,42 +3,38 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ITenantRepository } from '../../domain/tenant.repository';
 import type { IBranchRepository } from '../../domain/branch.repository';
-import type { IAppointmentChecker } from '../../domain/appointment-checker';
 import {
   TenantNotFoundError,
   BranchNotFoundError,
-  BranchAlreadyInactiveError,
-  BranchHasOpenAppointmentsError,
+  BranchAlreadyActiveError,
 } from '../../domain/tenant.errors';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { BRANCH_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 
-export interface DeactivateBranchInput {
+export interface ActivateBranchInput {
   tenantId: string;
   branchId: string;
-  reason: string;
   actor: AuthContext;
 }
 
-export interface DeactivateBranchOutput {
+export interface ActivateBranchOutput {
   id: string;
   tenantId: string;
   name: string;
   status: string;
-  deactivatedAt: Date;
+  activatedAt: Date;
 }
 
-export class DeactivateBranchUseCase {
+export class ActivateBranchUseCase {
   constructor(
     private readonly tenantRepo: ITenantRepository,
     private readonly branchRepo: IBranchRepository,
-    private readonly appointmentChecker: IAppointmentChecker,
     private readonly auditService: AuditService,
     private readonly eventBus?: DomainEventBus,
   ) {}
 
-  async execute(input: DeactivateBranchInput): Promise<DeactivateBranchOutput> {
-    const { tenantId, branchId, reason, actor } = input;
+  async execute(input: ActivateBranchInput): Promise<ActivateBranchOutput> {
+    const { tenantId, branchId, actor } = input;
 
     if (actor.role !== 'AM') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
@@ -54,36 +50,29 @@ export class DeactivateBranchUseCase {
       throw new BranchNotFoundError();
     }
 
-    if (!branch.isActive()) {
-      throw new BranchAlreadyInactiveError();
-    }
-
-    const hasOpenAppointments =
-      await this.appointmentChecker.hasOpenAppointmentsForBranch(branchId);
-    if (hasOpenAppointments) {
-      throw new BranchHasOpenAppointmentsError();
+    if (branch.isActive()) {
+      throw new BranchAlreadyActiveError();
     }
 
     const now = new Date();
     await this.branchRepo.update(branchId, tenantId, {
-      status: 'INACTIVE',
+      status: 'ACTIVE',
     });
 
     this.auditService.log({
-      action: 'branch.deactivated',
+      action: 'branch.activated',
       actorType: 'USER',
       actorId: actor.userId,
       entityType: 'Branch',
       entityId: branchId,
       tenantId,
       before: { status: branch.status },
-      after: { status: 'INACTIVE' },
-      reason,
+      after: { status: 'ACTIVE' },
     });
 
     this.eventBus?.emit({
-      type: BRANCH_EVENTS.DEACTIVATED,
-      payload: { branchId, tenantId, reason },
+      type: BRANCH_EVENTS.ACTIVATED,
+      payload: { branchId, tenantId },
       occurredAt: new Date(),
     });
 
@@ -91,8 +80,8 @@ export class DeactivateBranchUseCase {
       id: branchId,
       tenantId,
       name: branch.name,
-      status: 'INACTIVE',
-      deactivatedAt: now,
+      status: 'ACTIVE',
+      activatedAt: now,
     };
   }
 }

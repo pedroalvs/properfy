@@ -148,6 +148,40 @@ describe('UpdateBranchUseCase', () => {
     ).rejects.toThrow(BranchNameConflictError);
   });
 
+  it('should throw BRANCH_NAME_CONFLICT when renaming to a name that differs only by case', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch({ name: 'Alpha' }));
+    // findByName is case-insensitive and returns the existing "beta" branch
+    vi.mocked(branchRepo.findByName).mockResolvedValue(
+      makeBranch({ id: 'branch-other', name: 'beta' }),
+    );
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        branchId: 'branch-1',
+        data: { name: 'BETA' },
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(BranchNameConflictError);
+  });
+
+  it('should allow renaming to same name with different casing (own branch)', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch({ name: 'Main Branch' }));
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      branchId: 'branch-1',
+      data: { name: 'main branch' },
+      actor: makeActor(),
+    });
+
+    // Case-insensitive comparison sees these as the same name, so no uniqueness check needed
+    expect(result.name).toBe('main branch');
+    expect(branchRepo.findByName).not.toHaveBeenCalled();
+  });
+
   it('should update branch contactEmail', async () => {
     vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
     vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());

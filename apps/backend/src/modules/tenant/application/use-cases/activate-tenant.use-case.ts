@@ -2,37 +2,34 @@ import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ITenantRepository } from '../../domain/tenant.repository';
-import type { IAppointmentChecker } from '../../domain/appointment-checker';
 import {
   TenantNotFoundError,
-  TenantAlreadyInactiveError,
-  TenantHasOpenAppointmentsError,
+  TenantAlreadyActiveError,
 } from '../../domain/tenant.errors';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { TENANT_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 
-export interface DeactivateTenantInput {
+export interface ActivateTenantInput {
   tenantId: string;
-  reason: string;
+  reason?: string;
   actor: AuthContext;
 }
 
-export interface DeactivateTenantOutput {
+export interface ActivateTenantOutput {
   id: string;
   name: string;
   status: string;
-  deactivatedAt: Date;
+  activatedAt: Date;
 }
 
-export class DeactivateTenantUseCase {
+export class ActivateTenantUseCase {
   constructor(
     private readonly tenantRepo: ITenantRepository,
-    private readonly appointmentChecker: IAppointmentChecker,
     private readonly auditService: AuditService,
     private readonly eventBus?: DomainEventBus,
   ) {}
 
-  async execute(input: DeactivateTenantInput): Promise<DeactivateTenantOutput> {
+  async execute(input: ActivateTenantInput): Promise<ActivateTenantOutput> {
     const { tenantId, reason, actor } = input;
 
     if (actor.role !== 'AM') {
@@ -44,44 +41,38 @@ export class DeactivateTenantUseCase {
       throw new TenantNotFoundError();
     }
 
-    if (!tenant.canBeDeactivated()) {
-      throw new TenantAlreadyInactiveError();
-    }
-
-    const hasOpenAppointments =
-      await this.appointmentChecker.hasOpenAppointmentsForTenant(tenantId);
-    if (hasOpenAppointments) {
-      throw new TenantHasOpenAppointmentsError();
+    if (tenant.isActive()) {
+      throw new TenantAlreadyActiveError();
     }
 
     const now = new Date();
     await this.tenantRepo.update(tenantId, {
-      status: 'INACTIVE',
+      status: 'ACTIVE',
     });
 
     this.auditService.log({
-      action: 'tenant.deactivated',
+      action: 'tenant.activated',
       actorType: 'USER',
       actorId: actor.userId,
       entityType: 'Tenant',
       entityId: tenantId,
       tenantId,
       before: { status: tenant.status },
-      after: { status: 'INACTIVE' },
+      after: { status: 'ACTIVE' },
       reason,
     });
 
     this.eventBus?.emit({
-      type: TENANT_EVENTS.DEACTIVATED,
-      payload: { tenantId, reason },
+      type: TENANT_EVENTS.ACTIVATED,
+      payload: { tenantId },
       occurredAt: new Date(),
     });
 
     return {
       id: tenantId,
       name: tenant.name,
-      status: 'INACTIVE',
-      deactivatedAt: now,
+      status: 'ACTIVE',
+      activatedAt: now,
     };
   }
 }

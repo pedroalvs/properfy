@@ -178,13 +178,99 @@ describe('UpdateTenantUseCase', () => {
     ).rejects.toThrow(TenantNotFoundError);
   });
 
-  it('should reject non-AM and non-owner CL_ADMIN with AUTH_FORBIDDEN', async () => {
+  it('should reject CL_ADMIN updating another tenant', async () => {
     await expect(
       useCase.execute({
         tenantId: 'tenant-1',
         data: { name: 'X' },
-        actor: makeActor({ role: 'OP' }),
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-other' }),
       }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should reject CL_USER', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        data: { name: 'X' },
+        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should allow OP to update own tenant (name + settings only)', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      data: { name: 'OP Updated', settings: { logoUrl: 'https://example.com/logo.png' } },
+      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.name).toBe('OP Updated');
+  });
+
+  it('should reject OP updating another tenant', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        data: { name: 'X' },
+        actor: makeActor({ role: 'OP', tenantId: 'tenant-other' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should filter settings keys for CL_ADMIN — only allow-listed keys pass through', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ settingsJson: {} }));
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      data: {
+        settings: {
+          logoUrl: 'https://example.com/logo.png',
+          primaryColor: '#FF5733',
+          notificationFromName: 'Agency',
+          billingPeriod: 'WEEKLY',
+          clUserPermissions: ['create_appointments'],
+          allowClientCancellation: false,
+          priorityOfferHours: 48,
+        },
+      },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+    const mergedSettings = updateCall.settingsJson as Record<string, unknown>;
+    // Allowed keys should be present
+    expect(mergedSettings).toHaveProperty('logoUrl', 'https://example.com/logo.png');
+    expect(mergedSettings).toHaveProperty('primaryColor', '#FF5733');
+    expect(mergedSettings).toHaveProperty('notificationFromName', 'Agency');
+    // Blocked keys should NOT be present
+    expect(mergedSettings).not.toHaveProperty('billingPeriod');
+    expect(mergedSettings).not.toHaveProperty('clUserPermissions');
+    expect(mergedSettings).not.toHaveProperty('allowClientCancellation');
+    expect(mergedSettings).not.toHaveProperty('priorityOfferHours');
+  });
+
+  it('should NOT filter settings keys for AM — all keys pass through', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ settingsJson: {} }));
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      data: {
+        settings: {
+          billingPeriod: 'WEEKLY',
+          clUserPermissions: ['create_appointments'],
+          allowClientCancellation: false,
+        },
+      },
+      actor: makeActor(),
+    });
+
+    const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+    const mergedSettings = updateCall.settingsJson as Record<string, unknown>;
+    expect(mergedSettings).toHaveProperty('billingPeriod', 'WEEKLY');
+    expect(mergedSettings).toHaveProperty('clUserPermissions');
+    expect(mergedSettings).toHaveProperty('allowClientCancellation', false);
   });
 });

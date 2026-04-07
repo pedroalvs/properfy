@@ -8,6 +8,8 @@ import {
   BranchNotFoundError,
   BranchNameConflictError,
 } from '../../domain/tenant.errors';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { BRANCH_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 
 export interface UpdateBranchInput {
   tenantId: string;
@@ -36,6 +38,7 @@ export class UpdateBranchUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
+    private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: UpdateBranchInput): Promise<UpdateBranchOutput> {
@@ -59,8 +62,8 @@ export class UpdateBranchUseCase {
       throw new BranchNotFoundError();
     }
 
-    // Check name uniqueness if changing
-    if (data.name && data.name !== branch.name) {
+    // Check name uniqueness if changing (case-insensitive)
+    if (data.name && data.name.toLowerCase() !== branch.name.toLowerCase()) {
       const existing = await this.branchRepo.findByName(tenantId, data.name);
       if (existing) {
         throw new BranchNameConflictError();
@@ -100,6 +103,12 @@ export class UpdateBranchUseCase {
       tenantId,
       before,
       after,
+    });
+
+    this.eventBus?.emit({
+      type: BRANCH_EVENTS.UPDATED,
+      payload: { branchId, tenantId, changedFields: Object.keys(updateData) },
+      occurredAt: new Date(),
     });
 
     return {

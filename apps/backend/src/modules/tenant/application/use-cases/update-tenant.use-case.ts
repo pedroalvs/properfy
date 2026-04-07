@@ -7,6 +7,33 @@ import {
   TenantLegalNameConflictError,
 } from '../../domain/tenant.errors';
 import { deepMerge } from '../../../../shared/domain/utils';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { TENANT_EVENTS } from '../../../../shared/application/events/domain-event-bus';
+
+/**
+ * CL_ADMIN and OP can only update branding, notification sender, and email template keys.
+ * All other settings keys (billing, feature flags, permissions, inspector config) are AM-only.
+ */
+const CL_ADMIN_SETTINGS_ALLOW_LIST = new Set([
+  'logoUrl',
+  'primaryColor',
+  'notificationFromName',
+  'notificationFromEmail',
+  'smsFromName',
+  'emailTemplates',
+]);
+
+function filterClAdminSettings(
+  settings: Record<string, unknown>,
+): Record<string, unknown> {
+  const filtered: Record<string, unknown> = {};
+  for (const key of Object.keys(settings)) {
+    if (CL_ADMIN_SETTINGS_ALLOW_LIST.has(key)) {
+      filtered[key] = settings[key];
+    }
+  }
+  return filtered;
+}
 
 export interface UpdateTenantInput {
   tenantId: string;
@@ -36,20 +63,26 @@ export class UpdateTenantUseCase {
   constructor(
     private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
+    private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: UpdateTenantInput): Promise<UpdateTenantOutput> {
     const { tenantId, actor } = input;
     let { data } = input;
 
-    // RBAC: AM can update all fields; CL_ADMIN own tenant, limited to name and settings
+    // RBAC: AM can update all fields; OP/CL_ADMIN own tenant, limited to name and settings
     if (actor.role === 'AM') {
       // Full access
-    } else if (actor.role === 'CL_ADMIN' && actor.tenantId === tenantId) {
-      // Strip fields CL_ADMIN cannot update
+    } else if (
+      (actor.role === 'CL_ADMIN' || actor.role === 'OP') &&
+      actor.tenantId === tenantId
+    ) {
+      // Strip top-level fields and filter settings keys
       data = {
         name: data.name,
-        settings: data.settings,
+        settings: data.settings
+          ? filterClAdminSettings(data.settings)
+          : undefined,
       };
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
@@ -107,6 +140,12 @@ export class UpdateTenantUseCase {
       tenantId,
       before,
       after,
+    });
+
+    this.eventBus?.emit({
+      type: TENANT_EVENTS.UPDATED,
+      payload: { tenantId, changedFields: Object.keys(updateData) },
+      occurredAt: new Date(),
     });
 
     return {

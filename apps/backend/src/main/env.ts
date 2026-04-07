@@ -27,6 +27,7 @@ const envSchema = z.object({
   SUPABASE_S3_ACCESS_KEY_ID: z.string().optional(),
   SUPABASE_S3_SECRET_ACCESS_KEY: z.string().optional(),
   SUPABASE_STORAGE_BUCKET: z.string().default('properfy-assets'),
+  SUPABASE_STORAGE_PUBLIC_URL: z.string().optional(),
 
   // Optional Resend
   RESEND_API_KEY: z.string().optional(),

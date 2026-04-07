@@ -27,6 +27,9 @@ import { PrismaPasswordResetTokenRepository } from '../modules/auth/infrastructu
 import { PrismaPasswordHistoryRepository } from '../modules/auth/infrastructure/prisma-password-history.repository';
 import type { AuthRouteContainer } from '../modules/auth/interfaces/auth.routes';
 
+// Domain event bus
+import { DomainEventBus } from '../shared/application/events/domain-event-bus';
+
 // Tenant module
 import { PrismaTenantRepository } from '../modules/tenant/infrastructure/prisma-tenant.repository';
 import { PrismaBranchRepository } from '../modules/tenant/infrastructure/prisma-branch.repository';
@@ -35,11 +38,18 @@ import { CreateTenantUseCase } from '../modules/tenant/application/use-cases/cre
 import { GetTenantUseCase } from '../modules/tenant/application/use-cases/get-tenant.use-case';
 import { ListTenantsUseCase } from '../modules/tenant/application/use-cases/list-tenants.use-case';
 import { UpdateTenantUseCase } from '../modules/tenant/application/use-cases/update-tenant.use-case';
+import { ActivateTenantUseCase } from '../modules/tenant/application/use-cases/activate-tenant.use-case';
 import { DeactivateTenantUseCase } from '../modules/tenant/application/use-cases/deactivate-tenant.use-case';
 import { CreateBranchUseCase } from '../modules/tenant/application/use-cases/create-branch.use-case';
+import { GetBranchUseCase } from '../modules/tenant/application/use-cases/get-branch.use-case';
 import { ListBranchesUseCase } from '../modules/tenant/application/use-cases/list-branches.use-case';
 import { UpdateBranchUseCase } from '../modules/tenant/application/use-cases/update-branch.use-case';
 import { DeactivateBranchUseCase } from '../modules/tenant/application/use-cases/deactivate-branch.use-case';
+import { ActivateBranchUseCase } from '../modules/tenant/application/use-cases/activate-branch.use-case';
+import { GenerateLogoUploadUrlUseCase } from '../modules/tenant/application/use-cases/generate-logo-upload-url.use-case';
+import { ConfirmLogoUploadUseCase } from '../modules/tenant/application/use-cases/confirm-logo-upload.use-case';
+import { SupabaseBrandingStorageService } from '../modules/tenant/infrastructure/supabase-branding-storage.service';
+import { StubBrandingStorageService } from '../modules/tenant/infrastructure/stub-branding-storage.service';
 import type { TenantRouteContainer } from '../modules/tenant/interfaces/tenant.routes';
 
 // User module
@@ -266,6 +276,7 @@ import type { AppointmentTimeSlotRouteContainer } from '../modules/appointment-t
 export interface AppContainer {
   prisma: typeof prisma;
   auditService: PersistentAuditService;
+  domainEventBus: DomainEventBus;
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
   user: UserRouteContainer;
@@ -359,15 +370,29 @@ export function createContainer(logger: Logger): AppContainer {
   const confirmTotpUseCase = new ConfirmTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
   const passwordResetTokenRepo = new PrismaPasswordResetTokenRepository(prisma);
 
+  // Domain event bus (single instance shared across modules)
+  const domainEventBus = new DomainEventBus();
+
   // Tenant use cases
   const getTenantUseCase = new GetTenantUseCase(tenantRepo);
   const listTenantsUseCase = new ListTenantsUseCase(tenantRepo, branchRepo);
-  const updateTenantUseCase = new UpdateTenantUseCase(tenantRepo, auditService);
-  const deactivateTenantUseCase = new DeactivateTenantUseCase(tenantRepo, appointmentChecker, auditService);
-  const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService);
+  const updateTenantUseCase = new UpdateTenantUseCase(tenantRepo, auditService, domainEventBus);
+  const activateTenantUseCase = new ActivateTenantUseCase(tenantRepo, auditService, domainEventBus);
+  const deactivateTenantUseCase = new DeactivateTenantUseCase(tenantRepo, appointmentChecker, auditService, domainEventBus);
+  const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
+  const getBranchUseCase = new GetBranchUseCase(tenantRepo, branchRepo);
   const listBranchesUseCase = new ListBranchesUseCase(tenantRepo, branchRepo);
-  const updateBranchUseCase = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService);
-  const deactivateBranchUseCase = new DeactivateBranchUseCase(tenantRepo, branchRepo, appointmentChecker, auditService);
+  const updateBranchUseCase = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
+  const deactivateBranchUseCase = new DeactivateBranchUseCase(tenantRepo, branchRepo, appointmentChecker, auditService, domainEventBus);
+  const activateBranchUseCase = new ActivateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
+
+  // Branding storage service
+  const brandingStorageService = s3Client && env.SUPABASE_STORAGE_PUBLIC_URL
+    ? new SupabaseBrandingStorageService(s3Client, env.SUPABASE_STORAGE_PUBLIC_URL)
+    : new StubBrandingStorageService();
+
+  const generateLogoUploadUrlUseCase = new GenerateLogoUploadUrlUseCase(tenantRepo, brandingStorageService);
+  const confirmLogoUploadUseCase = new ConfirmLogoUploadUseCase(tenantRepo, brandingStorageService, auditService);
 
   // User use cases
   const createUserUseCase = new CreateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService);
@@ -459,7 +484,7 @@ export function createContainer(logger: Logger): AppContainer {
     branchRepo,
   );
   const deleteAppointmentTimeSlotUseCase = new DeleteAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
-  const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, appointmentTimeSlotRepo);
+  const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, appointmentTimeSlotRepo, domainEventBus);
 
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
@@ -697,6 +722,7 @@ export function createContainer(logger: Logger): AppContainer {
   return {
     prisma,
     auditService,
+    domainEventBus,
     auth: {
       loginUseCase,
       refreshTokenUseCase,
@@ -718,11 +744,16 @@ export function createContainer(logger: Logger): AppContainer {
       getTenantUseCase,
       listTenantsUseCase,
       updateTenantUseCase,
+      activateTenantUseCase,
       deactivateTenantUseCase,
       createBranchUseCase,
+      getBranchUseCase,
       listBranchesUseCase,
       updateBranchUseCase,
       deactivateBranchUseCase,
+      activateBranchUseCase,
+      generateLogoUploadUrlUseCase,
+      confirmLogoUploadUseCase,
       jwtService,
       tenantRepo,
     },
