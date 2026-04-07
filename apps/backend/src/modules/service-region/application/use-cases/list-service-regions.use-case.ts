@@ -43,9 +43,11 @@ export class ListServiceRegionsUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
+    const tenantId = this.resolveTenantId(actor);
+
     const [data, total] = await Promise.all([
-      this.regionRepo.findAll(filters, pagination),
-      this.regionRepo.count(filters),
+      this.regionRepo.findAll(tenantId, filters, pagination),
+      this.regionRepo.count(tenantId, filters),
     ]);
 
     return {
@@ -60,5 +62,12 @@ export class ListServiceRegionsUseCase {
       })),
       total,
     };
+  }
+
+  private resolveTenantId(actor: AuthContext): string {
+    if (!actor.tenantId) {
+      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
+    }
+    return actor.tenantId;
   }
 }

@@ -249,6 +249,8 @@ import { ListServiceRegionsUseCase } from '../modules/service-region/application
 import { DeactivateServiceRegionUseCase } from '../modules/service-region/application/use-cases/deactivate-service-region.use-case';
 import { DeleteServiceRegionUseCase } from '../modules/service-region/application/use-cases/delete-service-region.use-case';
 import { ResolveRegionsUseCase } from '../modules/service-region/application/use-cases/resolve-regions.use-case';
+import { NotifyInspectorsOnRegionDeactivationHandler } from '../modules/service-region/application/handlers/notify-inspectors-on-region-deactivation.handler';
+import { SERVICE_REGION_EVENTS } from '../shared/application/events/domain-event-bus';
 import type { ServiceRegionRouteContainer } from '../modules/service-region/interfaces/service-region.routes';
 
 // Appointment module
@@ -678,9 +680,18 @@ export function createContainer(logger: Logger): AppContainer {
   const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, auditService);
   const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo, userRepo);
   const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo);
-  const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService);
+  const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService, domainEventBus);
   const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService);
   const resolveRegionsUseCase = new ResolveRegionsUseCase(serviceRegionRepo);
+
+  // Service region event handlers
+  const notifyInspectorsOnRegionDeactivationHandler = new NotifyInspectorsOnRegionDeactivationHandler(
+    inspectorRepo, createNotificationUseCase,
+  );
+  domainEventBus.subscribe(
+    SERVICE_REGION_EVENTS.DEACTIVATED,
+    (event) => notifyInspectorsOnRegionDeactivationHandler.handle(event),
+  );
 
   // Appointment import (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);

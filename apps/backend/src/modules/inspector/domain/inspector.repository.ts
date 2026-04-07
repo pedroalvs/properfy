@@ -39,4 +39,5 @@ export interface IInspectorRepository {
       deletedAt: Date | null;
     }>,
   ): Promise<void>;
+  findByRegionId(regionId: string): Promise<InspectorEntity[]>;
 }

@@ -76,7 +76,7 @@ export class PublishServiceGroupUseCase {
       throw new ServiceRegionRequiredError();
     }
 
-    const region = await this.serviceRegionRepo.findById(group.serviceRegionId);
+    const region = await this.serviceRegionRepo.findById(group.serviceRegionId, group.tenantId);
     if (!region) {
       throw new ServiceRegionInactiveError();
     }

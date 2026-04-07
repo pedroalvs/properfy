@@ -54,6 +54,7 @@ describe('CreateInspectorUseCase', () => {
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      findByRegionId: vi.fn(),
     };
     userManagementRepo = {
       findById: vi.fn(),

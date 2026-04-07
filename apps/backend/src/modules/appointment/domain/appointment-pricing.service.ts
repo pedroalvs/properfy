@@ -1,3 +1,4 @@
+import type { BonusRule } from '@properfy/shared';
 import type { PricingRuleEntity } from '../../pricing-rule/domain/pricing-rule.entity';
 
 export interface PricingSnapshot {
@@ -8,7 +9,7 @@ export interface PricingSnapshot {
   priceAmount: number;
   payoutType: string;
   payoutValue: number;
-  bonusRuleJson: Record<string, unknown> | null;
+  bonusRuleJson: BonusRule | null;
   snapshotAt: string;
 }
 

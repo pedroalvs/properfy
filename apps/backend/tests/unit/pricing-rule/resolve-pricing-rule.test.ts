@@ -8,6 +8,7 @@ function makePricingRule(
   return new PricingRuleEntity({
     id: 'pr-1',
     tenantId: 'tenant-1',
+    currency: 'AUD',
     serviceTypeId: 'st-1',
     branchId: null,
     priceAmount: 15000,

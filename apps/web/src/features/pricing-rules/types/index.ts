@@ -1,3 +1,5 @@
+import type { BonusRule } from '@properfy/shared';
+
 export interface PricingRule {
   id: string;
   tenantId: string;
@@ -10,7 +12,7 @@ export interface PricingRule {
   priceAmount: number;
   payoutType: 'FIXED' | 'PERCENTAGE';
   payoutValue: number;
-  bonusRuleJson: unknown | null;
+  bonusRuleJson: BonusRule | null;
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: string;
   updatedAt: string;

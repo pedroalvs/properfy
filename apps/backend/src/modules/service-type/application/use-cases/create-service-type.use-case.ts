@@ -9,7 +9,7 @@ export interface CreateServiceTypeInput {
   code: string;
   name: string;
   flowType: ServiceTypeFlowType;
-  requiresTenantConfirmation?: boolean;
+  requiresTenantConfirmation: boolean;
   actor: AuthContext;
 }
 
@@ -49,7 +49,7 @@ export class CreateServiceTypeUseCase {
       code,
       name,
       flowType,
-      requiresTenantConfirmation: requiresTenantConfirmation ?? false,
+      requiresTenantConfirmation,
       status: 'ACTIVE',
       createdAt: now,
       updatedAt: now,

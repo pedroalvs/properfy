@@ -51,17 +51,23 @@ describe('ListInspectorsUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
       linkUserId: vi.fn(),
+      findByRegionId: vi.fn(),
     };
     serviceRegionRepo = {
       findById: vi.fn(),
+      findByName: vi.fn().mockResolvedValue(null),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
       findPropertyIdsInInspectorRegions: vi.fn(),
+      resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+      findContainingPoint: vi.fn().mockResolvedValue([]),
+      countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
       setInspectorRegions: vi.fn(),
       getInspectorRegionIds: vi.fn().mockResolvedValue(['region-1']),
       getInspectorRegionIdsBatch: vi.fn().mockResolvedValue(new Map([['inspector-1', ['region-1']]])),
+      delete: vi.fn(),
     };
     useCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo);
   });

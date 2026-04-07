@@ -76,6 +76,7 @@ describe('CreateAvailabilitySlotUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
       linkUserId: vi.fn(),
+      findByRegionId: vi.fn(),
     };
     slotRepo = {
       findById: vi.fn(),

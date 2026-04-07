@@ -1,5 +1,4 @@
 import type { PrismaClient } from '@prisma/client';
-import { RegionStatus as PrismaRegionStatus } from '@prisma/client';
 import { ServiceRegionEntity } from '../domain/service-region.entity';
 import type {
   IServiceRegionRepository,
@@ -15,6 +14,7 @@ function toSnakeCase(s: string): string {
 
 interface RegionRow {
   id: string;
+  tenant_id: string;
   name: string;
   geojson: unknown;
   color: string;
@@ -27,6 +27,7 @@ interface RegionRow {
 function mapToEntity(row: RegionRow): ServiceRegionEntity {
   return new ServiceRegionEntity({
     id: row.id,
+    tenantId: row.tenant_id,
     name: row.name,
     geojson: (row.geojson as Record<string, unknown>) ?? {},
     color: row.color,
@@ -40,16 +41,29 @@ function mapToEntity(row: RegionRow): ServiceRegionEntity {
 export class PrismaServiceRegionRepository implements IServiceRegionRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findById(id: string): Promise<ServiceRegionEntity | null> {
-    const row = await this.prisma.serviceRegion.findUnique({ where: { id } });
+  async findById(id: string, tenantId: string): Promise<ServiceRegionEntity | null> {
+    const row = await this.prisma.serviceRegion.findFirst({
+      where: { id, tenant_id: tenantId },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  async findByName(tenantId: string, name: string): Promise<ServiceRegionEntity | null> {
+    const row = await this.prisma.serviceRegion.findFirst({
+      where: {
+        tenant_id: tenantId,
+        name: { equals: name, mode: 'insensitive' },
+      },
+    });
     return row ? mapToEntity(row) : null;
   }
 
   async findAll(
+    tenantId: string,
     filters: ServiceRegionFilters,
     pagination: PaginationParams,
   ): Promise<ServiceRegionEntity[]> {
-    const where = this.buildWhere(filters);
+    const where = this.buildWhere(tenantId, filters);
     const rows = await this.prisma.serviceRegion.findMany({
       where,
       skip: (pagination.page - 1) * pagination.pageSize,
@@ -61,17 +75,18 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     return rows.map(mapToEntity);
   }
 
-  async count(filters: ServiceRegionFilters): Promise<number> {
-    const where = this.buildWhere(filters);
+  async count(tenantId: string, filters: ServiceRegionFilters): Promise<number> {
+    const where = this.buildWhere(tenantId, filters);
     return this.prisma.serviceRegion.count({ where });
   }
 
   async save(region: ServiceRegionEntity): Promise<void> {
     const geojsonStr = JSON.stringify(region.geojson);
     await this.prisma.$executeRaw`
-      INSERT INTO service_regions (id, name, geom, geojson, color, status, created_by_user_id, created_at, updated_at)
+      INSERT INTO service_regions (id, tenant_id, name, geom, geojson, color, status, created_by_user_id, created_at, updated_at)
       VALUES (
         ${region.id},
+        ${region.tenantId},
         ${region.name},
         ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
         ${geojsonStr}::jsonb,
@@ -86,6 +101,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
 
   async update(
     id: string,
+    tenantId: string,
     data: Partial<{
       name: string;
       geojson: Record<string, unknown>;
@@ -103,15 +119,15 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
           color = COALESCE(${data.color ?? null}, color),
           status = COALESCE(${data.status ?? null}::"RegionStatus", status),
           updated_at = NOW()
-        WHERE id = ${id}
+        WHERE id = ${id} AND tenant_id = ${tenantId}
       `;
     } else {
       const updateData: Record<string, unknown> = {};
       if (data.name !== undefined) updateData['name'] = data.name;
       if (data.color !== undefined) updateData['color'] = data.color;
       if (data.status !== undefined) updateData['status'] = data.status;
-      await this.prisma.serviceRegion.update({
-        where: { id },
+      await this.prisma.serviceRegion.updateMany({
+        where: { id, tenant_id: tenantId },
         data: updateData,
       });
     }
@@ -121,7 +137,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT DISTINCT p.id
       FROM properties p
-      JOIN service_regions sr ON ST_Contains(sr.geom, p.coordinates)
+      JOIN service_regions sr ON ST_Intersects(sr.geom, p.coordinates)
       JOIN inspector_regions ir ON ir.region_id = sr.id
       WHERE ir.inspector_id = ${inspectorId}
         AND sr.status = 'ACTIVE'
@@ -131,7 +147,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     return rows.map((r) => r.id);
   }
 
-  async resolveRegionsForAppointments(appointmentIds: string[]): Promise<ResolvedRegion[]> {
+  async resolveRegionsForAppointments(tenantId: string, appointmentIds: string[]): Promise<ResolvedRegion[]> {
     if (appointmentIds.length === 0) return [];
 
     const rows = await this.prisma.$queryRaw<
@@ -140,10 +156,12 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
       SELECT sr.id AS region_id, sr.name AS region_name, sr.color,
              array_agg(DISTINCT a.id) AS matched_appointment_ids
       FROM service_regions sr
-      JOIN properties p ON ST_Contains(sr.geom, p.coordinates)
+      JOIN properties p ON ST_Intersects(sr.geom, p.coordinates)
       JOIN appointments a ON a.property_id = p.id
       WHERE a.id = ANY(${appointmentIds}::text[])
+        AND sr.tenant_id = ${tenantId}
         AND sr.status = 'ACTIVE'
+        AND sr.geom IS NOT NULL
         AND p.coordinates IS NOT NULL
         AND p.deleted_at IS NULL
         AND a.deleted_at IS NULL
@@ -157,6 +175,19 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
       color: r.color,
       matchedAppointmentIds: r.matched_appointment_ids,
     }));
+  }
+
+  async findContainingPoint(tenantId: string, lat: number, lng: number): Promise<ServiceRegionEntity[]> {
+    const rows = await this.prisma.$queryRaw<RegionRow[]>`
+      SELECT id, tenant_id, name, geojson, color, status::text, created_by_user_id, created_at, updated_at
+      FROM service_regions
+      WHERE tenant_id = ${tenantId}
+        AND status = 'ACTIVE'
+        AND geom IS NOT NULL
+        AND ST_Intersects(geom, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))
+      ORDER BY name
+    `;
+    return rows.map(mapToEntity);
   }
 
   async countActiveInspectorsInRegion(regionId: string): Promise<number> {
@@ -208,13 +239,13 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     return map;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, tenantId: string): Promise<void> {
     await this.prisma.inspectorRegion.deleteMany({ where: { region_id: id } });
-    await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id}`;
+    await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id} AND tenant_id = ${tenantId}`;
   }
 
-  private buildWhere(filters: ServiceRegionFilters) {
-    const where: Record<string, unknown> = {};
+  private buildWhere(tenantId: string, filters: ServiceRegionFilters) {
+    const where: Record<string, unknown> = { tenant_id: tenantId };
     if (filters.status) where['status'] = filters.status;
     if (filters.search) {
       where['OR'] = [

@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, BonusRule } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type {
   IPricingRuleRepository,
@@ -29,7 +29,7 @@ export interface ListPricingRulesOutput {
     priceAmount: number;
     payoutType: string;
     payoutValue: number;
-    bonusRuleJson: Record<string, unknown> | null;
+    bonusRuleJson: BonusRule | null;
     status: string;
     createdAt: Date;
     updatedAt: Date;
@@ -86,7 +86,7 @@ export class ListPricingRulesUseCase {
       data: data.map((r) => ({
         id: r.id,
         tenantId: r.tenantId,
-        currency: tenant.currency,
+        currency: r.currency,
         serviceTypeId: r.serviceTypeId,
         branchId: r.branchId,
         priceAmount: r.priceAmount,

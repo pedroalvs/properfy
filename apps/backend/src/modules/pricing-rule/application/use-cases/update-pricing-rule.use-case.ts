@@ -1,4 +1,4 @@
-import type { AuthContext, PayoutType, PriceRuleStatus } from '@properfy/shared';
+import type { AuthContext, PayoutType, PriceRuleStatus, BonusRule } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IPricingRuleRepository } from '../../domain/pricing-rule.repository';
@@ -13,7 +13,7 @@ export interface UpdatePricingRuleInput {
     priceAmount?: number;
     payoutType?: PayoutType;
     payoutValue?: number;
-    bonusRuleJson?: Record<string, unknown> | null;
+    bonusRuleJson?: BonusRule | null;
     status?: PriceRuleStatus;
   };
   actor: AuthContext;
@@ -28,7 +28,7 @@ export interface UpdatePricingRuleOutput {
   priceAmount: number;
   payoutType: string;
   payoutValue: number;
-  bonusRuleJson: Record<string, unknown> | null;
+  bonusRuleJson: BonusRule | null;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -73,6 +73,7 @@ export class UpdatePricingRuleUseCase {
     }
 
     const before = {
+      currency: rule.currency,
       priceAmount: rule.priceAmount,
       payoutType: rule.payoutType,
       payoutValue: rule.payoutValue,
@@ -90,11 +91,12 @@ export class UpdatePricingRuleUseCase {
     await this.pricingRuleRepo.update(pricingRuleId, rule.tenantId, updateData);
 
     const after = {
+      currency: rule.currency,
       priceAmount: (updateData.priceAmount as number) ?? rule.priceAmount,
       payoutType: (updateData.payoutType as string) ?? rule.payoutType,
       payoutValue: (updateData.payoutValue as number) ?? rule.payoutValue,
       bonusRuleJson:
-        (updateData.bonusRuleJson as Record<string, unknown> | null) ??
+        (updateData.bonusRuleJson as BonusRule | null) ??
         rule.bonusRuleJson,
       status: (updateData.status as string) ?? rule.status,
     };
@@ -113,7 +115,7 @@ export class UpdatePricingRuleUseCase {
     return {
       id: rule.id,
       tenantId: rule.tenantId,
-      currency: tenant.currency,
+      currency: rule.currency,
       serviceTypeId: rule.serviceTypeId,
       branchId: rule.branchId,
       priceAmount: after.priceAmount,

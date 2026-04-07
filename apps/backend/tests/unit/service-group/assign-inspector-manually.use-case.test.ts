@@ -115,17 +115,23 @@ describe('AssignInspectorManuallyUseCase', () => {
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      findByRegionId: vi.fn(),
     };
     serviceRegionRepo = {
       findById: vi.fn(),
+      findByName: vi.fn().mockResolvedValue(null),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
       findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue(['prop-1', 'prop-2', 'prop-3', 'prop-4', 'prop-5']),
+      resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+      findContainingPoint: vi.fn().mockResolvedValue([]),
+      countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
       setInspectorRegions: vi.fn(),
       getInspectorRegionIds: vi.fn().mockResolvedValue([]),
       getInspectorRegionIdsBatch: vi.fn().mockResolvedValue(new Map()),
+      delete: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
 

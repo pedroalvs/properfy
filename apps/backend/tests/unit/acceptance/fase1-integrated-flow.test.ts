@@ -128,6 +128,7 @@ function makePricingRule(): PricingRuleEntity {
   return new PricingRuleEntity({
     id: 'pricing-rule-1',
     tenantId: TENANT_ID,
+    currency: 'AUD',
     serviceTypeId: SERVICE_TYPE_ID,
     branchId: BRANCH_ID,
     priceAmount: 150,
@@ -579,13 +580,15 @@ describe('FASE 1 integrated proof', () => {
     );
 
     const mockServiceRegionRepo = {
-      findById: vi.fn().mockResolvedValue({ id: 'region-1', name: 'Test Region', status: 'ACTIVE', isActive: () => true }),
+      findById: vi.fn().mockResolvedValue({ id: 'region-1', tenantId: 'tenant-1', name: 'Test Region', status: 'ACTIVE', isActive: () => true }),
+      findByName: vi.fn().mockResolvedValue(null),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
       findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue([]),
       resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+      findContainingPoint: vi.fn().mockResolvedValue([]),
       countActiveInspectorsInRegion: vi.fn().mockResolvedValue(1),
       setInspectorRegions: vi.fn(),
       getInspectorRegionIds: vi.fn().mockResolvedValue([]),

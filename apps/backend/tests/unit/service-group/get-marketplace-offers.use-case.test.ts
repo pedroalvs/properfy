@@ -83,6 +83,7 @@ describe('GetMarketplaceOffersUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
       setServiceRegions: vi.fn(),
+      findByRegionId: vi.fn(),
     };
 
     useCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);

@@ -5,12 +5,14 @@ import type { IServiceRegionRepository } from '../../service-region/domain/servi
 function createMockServiceRegionRepo(propertyIds: string[]): IServiceRegionRepository {
   return {
     findById: vi.fn(),
+    findByName: vi.fn(),
     findAll: vi.fn(),
     count: vi.fn(),
     save: vi.fn(),
     update: vi.fn(),
     findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue(propertyIds),
     resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+    findContainingPoint: vi.fn().mockResolvedValue([]),
     countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
     setInspectorRegions: vi.fn(),
     getInspectorRegionIds: vi.fn().mockResolvedValue([]),

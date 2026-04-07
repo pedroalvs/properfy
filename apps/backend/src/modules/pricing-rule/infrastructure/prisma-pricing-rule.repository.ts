@@ -6,7 +6,7 @@ import type {
   PricingRuleFilters,
   PaginationParams,
 } from '../domain/pricing-rule.repository';
-import type { PayoutType, PriceRuleStatus } from '@properfy/shared';
+import type { PayoutType, PriceRuleStatus, BonusRule } from '@properfy/shared';
 
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
@@ -15,6 +15,7 @@ function toSnakeCase(s: string): string {
 function mapToEntity(row: {
   id: string;
   tenant_id: string;
+  currency: string;
   service_type_id: string;
   branch_id: string | null;
   price_amount: unknown;
@@ -28,12 +29,13 @@ function mapToEntity(row: {
   return new PricingRuleEntity({
     id: row.id,
     tenantId: row.tenant_id,
+    currency: row.currency,
     serviceTypeId: row.service_type_id,
     branchId: row.branch_id,
     priceAmount: Number(row.price_amount),
     payoutType: row.payout_type as PayoutType,
     payoutValue: Number(row.payout_value),
-    bonusRuleJson: (row.bonus_rule_json as Record<string, unknown>) ?? null,
+    bonusRuleJson: (row.bonus_rule_json as BonusRule) ?? null,
     status: row.status as PriceRuleStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -94,6 +96,7 @@ export class PrismaPricingRuleRepository implements IPricingRuleRepository {
       data: {
         id: rule.id,
         tenant_id: rule.tenantId,
+        currency: rule.currency,
         service_type_id: rule.serviceTypeId,
         branch_id: rule.branchId,
         price_amount: rule.priceAmount,
@@ -112,7 +115,7 @@ export class PrismaPricingRuleRepository implements IPricingRuleRepository {
       priceAmount: number;
       payoutType: string;
       payoutValue: number;
-      bonusRuleJson: Record<string, unknown> | null;
+      bonusRuleJson: BonusRule | null;
       status: string;
     }>,
   ): Promise<void> {

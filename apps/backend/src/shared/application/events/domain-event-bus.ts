@@ -46,3 +46,7 @@ export const BRANCH_EVENTS = {
   ACTIVATED: 'branch.activated.v1',
   DEACTIVATED: 'branch.deactivated.v1',
 } as const;
+
+export const SERVICE_REGION_EVENTS = {
+  DEACTIVATED: 'service_region.deactivated.v1',
+} as const;

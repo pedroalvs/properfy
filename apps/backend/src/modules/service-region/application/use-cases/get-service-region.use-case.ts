@@ -41,7 +41,9 @@ export class GetServiceRegionUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    const region = await this.regionRepo.findById(regionId);
+    const tenantId = this.resolveTenantId(actor);
+
+    const region = await this.regionRepo.findById(regionId, tenantId);
     if (!region) {
       throw new ServiceRegionNotFoundError();
     }
@@ -63,5 +65,12 @@ export class GetServiceRegionUseCase {
       createdAt: region.createdAt,
       updatedAt: region.updatedAt,
     };
+  }
+
+  private resolveTenantId(actor: AuthContext): string {
+    if (!actor.tenantId) {
+      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
+    }
+    return actor.tenantId;
   }
 }

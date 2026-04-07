@@ -12,6 +12,7 @@ function makePricingRule(
   return new PricingRuleEntity({
     id: 'pr-1',
     tenantId: 'tenant-1',
+    currency: 'AUD',
     serviceTypeId: 'st-1',
     branchId: null,
     priceAmount: 15000,
@@ -92,7 +93,7 @@ describe('ListPricingRulesUseCase', () => {
     });
 
     expect(result.data).toHaveLength(2);
-    expect(result.data[0]?.currency).toBe('USD');
+    expect(result.data[0]?.currency).toBe('AUD');
     expect(result.total).toBe(2);
     expect(result.page).toBe(1);
     expect(result.pageSize).toBe(10);

@@ -119,7 +119,7 @@ export class CreateServiceGroupUseCase {
       if (!this.serviceRegionRepo) {
         throw new Error('Service region repository is required when serviceRegionId is provided');
       }
-      const region = await this.serviceRegionRepo.findById(input.serviceRegionId);
+      const region = await this.serviceRegionRepo.findById(input.serviceRegionId, tenantId!);
       if (!region) {
         throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
       }

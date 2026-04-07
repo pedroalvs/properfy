@@ -111,6 +111,7 @@ describe('LoginUseCase', () => {
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      findByRegionId: vi.fn(),
     } as unknown as IInspectorRepository;
     totpEncryptionService = {
       encrypt: vi.fn((s: string) => `encrypted:${s}`),

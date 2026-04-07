@@ -59,6 +59,7 @@ const inspectorRepo = {
   save: vi.fn(),
   update: vi.fn(),
   linkUserId: vi.fn(),
+  findByRegionId: vi.fn(),
 };
 
 const opActor = {

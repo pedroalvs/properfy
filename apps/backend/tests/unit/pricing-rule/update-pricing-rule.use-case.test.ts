@@ -15,6 +15,7 @@ function makePricingRule(
   return new PricingRuleEntity({
     id: 'pr-1',
     tenantId: 'tenant-1',
+    currency: 'AUD',
     serviceTypeId: 'st-1',
     branchId: null,
     priceAmount: 15000,
@@ -93,7 +94,7 @@ describe('UpdatePricingRuleUseCase', () => {
     });
 
     expect(result.priceAmount).toBe(20000);
-    expect(result.currency).toBe('USD');
+    expect(result.currency).toBe('AUD');
     expect(result.status).toBe('INACTIVE');
     expect(pricingRuleRepo.update).toHaveBeenCalledWith('pr-1', 'tenant-1', {
       priceAmount: 20000,

@@ -85,6 +85,7 @@ function makePricingRule(overrides: Partial<ConstructorParameters<typeof Pricing
   return new PricingRuleEntity({
     id: 'pricing-1',
     tenantId: 'tenant-1',
+    currency: 'AUD',
     serviceTypeId: 'svc-type-1',
     branchId: null,
     priceAmount: 150,

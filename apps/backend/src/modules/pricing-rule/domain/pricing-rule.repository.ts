@@ -1,3 +1,4 @@
+import type { BonusRule } from '@properfy/shared';
 import type { PricingRuleEntity } from './pricing-rule.entity';
 
 export interface PricingRuleFilters {
@@ -34,7 +35,7 @@ export interface IPricingRuleRepository {
       priceAmount: number;
       payoutType: string;
       payoutValue: number;
-      bonusRuleJson: Record<string, unknown> | null;
+      bonusRuleJson: BonusRule | null;
       status: string;
     }>,
   ): Promise<void>;

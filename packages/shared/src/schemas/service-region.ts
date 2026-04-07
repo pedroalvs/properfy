@@ -1,23 +1,32 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
 
-const geojsonPolygonSchema = z.object({
+const ringSchema = z.array(z.tuple([z.number(), z.number()])).min(4);
+
+export const geojsonPolygonSchema = z.object({
   type: z.literal('Polygon'),
+  coordinates: z.array(ringSchema).min(1),
+});
+
+export const geojsonMultiPolygonSchema = z.object({
+  type: z.literal('MultiPolygon'),
   coordinates: z.array(
-    z.array(z.tuple([z.number(), z.number()])).min(4),
+    z.array(ringSchema).min(1),
   ).min(1),
 });
 
+export const geojsonGeometrySchema = geojsonPolygonSchema.or(geojsonMultiPolygonSchema);
+
 export const createServiceRegionSchema = z.object({
   name: z.string().min(1).max(255).trim(),
-  geojson: geojsonPolygonSchema,
+  geojson: geojsonGeometrySchema,
   color: z.string().max(20).trim().optional(),
 });
 export type CreateServiceRegionInput = z.infer<typeof createServiceRegionSchema>;
 
 export const updateServiceRegionSchema = z.object({
   name: z.string().min(1).max(255).trim().optional(),
-  geojson: geojsonPolygonSchema.optional(),
+  geojson: geojsonGeometrySchema.optional(),
   color: z.string().max(20).trim().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 });
@@ -30,7 +39,7 @@ export const listServiceRegionsQuerySchema = paginationSchema.extend({
 export type ListServiceRegionsQueryInput = z.infer<typeof listServiceRegionsQuerySchema>;
 
 export const resolveRegionsSchema = z.object({
-  appointmentIds: z.array(z.string().uuid()).min(1).max(25),
+  appointmentIds: z.array(z.string().uuid()).min(1).max(200),
 });
 export type ResolveRegionsInput = z.infer<typeof resolveRegionsSchema>;
 

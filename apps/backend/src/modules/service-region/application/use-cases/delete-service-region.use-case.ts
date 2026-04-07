@@ -25,7 +25,9 @@ export class DeleteServiceRegionUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    const region = await this.regionRepo.findById(regionId);
+    const tenantId = this.resolveTenantId(actor);
+
+    const region = await this.regionRepo.findById(regionId, tenantId);
     if (!region) {
       throw new ServiceRegionNotFoundError();
     }
@@ -34,7 +36,7 @@ export class DeleteServiceRegionUseCase {
       throw new ServiceRegionStillActiveError();
     }
 
-    await this.regionRepo.delete(regionId);
+    await this.regionRepo.delete(regionId, tenantId);
 
     this.auditService.log({
       action: 'service_region.deleted',
@@ -45,5 +47,12 @@ export class DeleteServiceRegionUseCase {
       before: { id: region.id, name: region.name, status: region.status },
       after: null,
     });
+  }
+
+  private resolveTenantId(actor: AuthContext): string {
+    if (!actor.tenantId) {
+      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
+    }
+    return actor.tenantId;
   }
 }

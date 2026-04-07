@@ -80,6 +80,7 @@ describe('LinkInspectorToUserUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
       linkUserId: vi.fn(),
+      findByRegionId: vi.fn(),
     };
     userRepo = {
       findById: vi.fn(),

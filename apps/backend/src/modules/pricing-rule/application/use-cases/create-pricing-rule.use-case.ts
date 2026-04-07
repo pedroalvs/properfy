@@ -1,4 +1,4 @@
-import type { AuthContext, PayoutType, PriceRuleStatus } from '@properfy/shared';
+import type { AuthContext, PayoutType, PriceRuleStatus, BonusRule } from '@properfy/shared';
 import {
   ForbiddenError,
   ValidationError,
@@ -20,7 +20,7 @@ export interface CreatePricingRuleInput {
   priceAmount: number;
   payoutType: PayoutType;
   payoutValue: number;
-  bonusRuleJson?: Record<string, unknown>;
+  bonusRuleJson?: BonusRule;
   status?: PriceRuleStatus;
   actor: AuthContext;
 }
@@ -34,7 +34,7 @@ export interface CreatePricingRuleOutput {
   priceAmount: number;
   payoutType: string;
   payoutValue: number;
-  bonusRuleJson: Record<string, unknown> | null;
+  bonusRuleJson: BonusRule | null;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -102,9 +102,15 @@ export class CreatePricingRuleUseCase {
     const now = new Date();
     const id = crypto.randomUUID();
 
+    // Freeze the tenant's current currency on the rule at creation time.
+    // This ensures existing rules keep their original currency even if
+    // the tenant's currency changes later.
+    const currency = tenant.currency;
+
     const rule = new PricingRuleEntity({
       id,
       tenantId: resolvedTenantId,
+      currency,
       serviceTypeId,
       branchId: resolvedBranchId,
       priceAmount,
@@ -128,6 +134,7 @@ export class CreatePricingRuleUseCase {
       after: {
         id,
         tenantId: resolvedTenantId,
+        currency,
         serviceTypeId,
         branchId: resolvedBranchId,
         priceAmount,
@@ -141,7 +148,7 @@ export class CreatePricingRuleUseCase {
     return {
       id: rule.id,
       tenantId: rule.tenantId,
-      currency: tenant.currency,
+      currency: rule.currency,
       serviceTypeId: rule.serviceTypeId,
       branchId: rule.branchId,
       priceAmount: rule.priceAmount,

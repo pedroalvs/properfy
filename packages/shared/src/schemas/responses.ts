@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { propertyRulesSchema } from './property';
+import { bonusRuleSchema } from './pricing-rule';
 
 /** Accepts Date objects or ISO strings, coerces to string */
 const dateStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
@@ -156,7 +157,7 @@ export const pricingRuleResponseSchema = z.object({
   priceAmount: z.number(),
   payoutType: z.string(),
   payoutValue: z.number(),
-  bonusRuleJson: z.unknown().nullable(),
+  bonusRuleJson: bonusRuleSchema.nullable(),
   status: z.string(),
   createdAt: dateStr(),
   updatedAt: dateStr(),

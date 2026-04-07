@@ -59,6 +59,7 @@ describe('CreateServiceTypeUseCase', () => {
       code: 'INGOING',
       name: 'Ingoing Inspection',
       flowType: 'INGOING',
+      requiresTenantConfirmation: false,
       actor: makeActor(),
     });
 
@@ -72,6 +73,28 @@ describe('CreateServiceTypeUseCase', () => {
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'service_type.created' }),
     );
+  });
+
+  it('should default requiresTenantConfirmation to true via Zod schema', async () => {
+    vi.mocked(serviceTypeRepo.findByCode).mockResolvedValue(null);
+
+    // Simulate what happens when the Zod schema parses input without requiresTenantConfirmation:
+    // the schema defaults it to true, so the use case always receives it.
+    const { createServiceTypeSchema } = await import('@properfy/shared');
+    const parsed = createServiceTypeSchema.parse({
+      code: 'OUTGOING',
+      name: 'Outgoing Inspection',
+      flowType: 'OUTGOING',
+    });
+
+    expect(parsed.requiresTenantConfirmation).toBe(true);
+
+    const result = await useCase.execute({
+      ...parsed,
+      actor: makeActor(),
+    });
+
+    expect(result.requiresTenantConfirmation).toBe(true);
   });
 
   it('should reject non-AM roles', async () => {

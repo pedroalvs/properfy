@@ -20,15 +20,18 @@ export interface ResolvedRegion {
 }
 
 export interface IServiceRegionRepository {
-  findById(id: string): Promise<ServiceRegionEntity | null>;
+  findById(id: string, tenantId: string): Promise<ServiceRegionEntity | null>;
+  findByName(tenantId: string, name: string): Promise<ServiceRegionEntity | null>;
   findAll(
+    tenantId: string,
     filters: ServiceRegionFilters,
     pagination: PaginationParams,
   ): Promise<ServiceRegionEntity[]>;
-  count(filters: ServiceRegionFilters): Promise<number>;
+  count(tenantId: string, filters: ServiceRegionFilters): Promise<number>;
   save(region: ServiceRegionEntity): Promise<void>;
   update(
     id: string,
+    tenantId: string,
     data: Partial<{
       name: string;
       geojson: Record<string, unknown>;
@@ -37,10 +40,11 @@ export interface IServiceRegionRepository {
     }>,
   ): Promise<void>;
   findPropertyIdsInInspectorRegions(inspectorId: string): Promise<string[]>;
-  resolveRegionsForAppointments(appointmentIds: string[]): Promise<ResolvedRegion[]>;
+  resolveRegionsForAppointments(tenantId: string, appointmentIds: string[]): Promise<ResolvedRegion[]>;
+  findContainingPoint(tenantId: string, lat: number, lng: number): Promise<ServiceRegionEntity[]>;
   countActiveInspectorsInRegion(regionId: string): Promise<number>;
   setInspectorRegions(inspectorId: string, regionIds: string[]): Promise<void>;
   getInspectorRegionIds(inspectorId: string): Promise<string[]>;
   getInspectorRegionIdsBatch(inspectorIds: string[]): Promise<Map<string, string[]>>;
-  delete(id: string): Promise<void>;
+  delete(id: string, tenantId: string): Promise<void>;
 }

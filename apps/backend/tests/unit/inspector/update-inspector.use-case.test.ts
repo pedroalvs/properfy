@@ -53,6 +53,7 @@ describe('UpdateInspectorUseCase', () => {
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      findByRegionId: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new UpdateInspectorUseCase(inspectorRepo, auditService);

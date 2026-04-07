@@ -56,6 +56,7 @@ describe('RefreshTokenUseCase', () => {
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      findByRegionId: vi.fn(),
     } as unknown as IInspectorRepository;
     sessionRateLimiter = new SlidingWindowRateLimiter({ maxRequests: 10, windowMs: 5 * 60 * 1000, cleanupIntervalMs: 0 });
     useCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo, sessionRateLimiter);

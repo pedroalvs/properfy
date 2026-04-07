@@ -91,12 +91,14 @@ describe('PublishServiceGroupUseCase', () => {
     };
     serviceRegionRepo = {
       findById: vi.fn().mockResolvedValue({ id: 'region-1', name: 'Test Region', status: 'ACTIVE' }),
+      findByName: vi.fn().mockResolvedValue(null),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
       findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue([]),
       resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+      findContainingPoint: vi.fn().mockResolvedValue([]),
       countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
       setInspectorRegions: vi.fn(),
       getInspectorRegionIds: vi.fn().mockResolvedValue([]),

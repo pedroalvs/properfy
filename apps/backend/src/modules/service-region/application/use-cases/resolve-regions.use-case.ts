@@ -33,7 +33,9 @@ export class ResolveRegionsUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    const resolved = await this.serviceRegionRepo.resolveRegionsForAppointments(appointmentIds);
+    const tenantId = this.resolveTenantId(actor);
+
+    const resolved = await this.serviceRegionRepo.resolveRegionsForAppointments(tenantId, appointmentIds);
 
     // Collect all matched appointment IDs across all regions (deduplicated)
     const allMatchedIds = new Set<string>();
@@ -61,5 +63,12 @@ export class ResolveRegionsUseCase {
       totalAppointments: appointmentIds.length,
       unmatchedAppointmentIds,
     };
+  }
+
+  private resolveTenantId(actor: AuthContext): string {
+    if (!actor.tenantId) {
+      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
+    }
+    return actor.tenantId;
   }
 }

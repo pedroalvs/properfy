@@ -2,7 +2,10 @@ import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
-import { ServiceRegionNotFoundError } from '../../domain/service-region.errors';
+import {
+  ServiceRegionNotFoundError,
+  ServiceRegionNameConflictError,
+} from '../../domain/service-region.errors';
 
 export interface UpdateServiceRegionInput {
   regionId: string;
@@ -35,9 +38,19 @@ export class UpdateServiceRegionUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    const region = await this.regionRepo.findById(regionId);
+    const tenantId = this.resolveTenantId(actor);
+
+    const region = await this.regionRepo.findById(regionId, tenantId);
     if (!region) {
       throw new ServiceRegionNotFoundError();
+    }
+
+    // Check name uniqueness within tenant if changing name
+    if (name !== undefined && name.toLowerCase() !== region.name.toLowerCase()) {
+      const existing = await this.regionRepo.findByName(tenantId, name);
+      if (existing) {
+        throw new ServiceRegionNameConflictError();
+      }
     }
 
     const before = {
@@ -58,10 +71,10 @@ export class UpdateServiceRegionUseCase {
     if (status !== undefined) updateData.status = status;
 
     if (Object.keys(updateData).length > 0) {
-      await this.regionRepo.update(regionId, updateData);
+      await this.regionRepo.update(regionId, tenantId, updateData);
     }
 
-    const updated = await this.regionRepo.findById(regionId);
+    const updated = await this.regionRepo.findById(regionId, tenantId);
 
     const after = {
       name: updated?.name ?? region.name,
@@ -87,5 +100,12 @@ export class UpdateServiceRegionUseCase {
       status: updated?.status ?? region.status,
       updatedAt: new Date(),
     };
+  }
+
+  private resolveTenantId(actor: AuthContext): string {
+    if (!actor.tenantId) {
+      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
+    }
+    return actor.tenantId;
   }
 }

@@ -54,6 +54,7 @@ function makePricingRule(
   return new PricingRuleEntity({
     id: 'pr-1',
     tenantId: 'tenant-1',
+    currency: 'USD',
     serviceTypeId: 'st-1',
     branchId: null,
     priceAmount: 15000,
@@ -251,5 +252,103 @@ describe('CreatePricingRuleUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(BranchNotFoundError);
+  });
+
+  it('should throw PRICING_RULE_DUPLICATE for tenant-level rule (no branch) when one already exists', async () => {
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findByUnique).mockResolvedValue(
+      makePricingRule({ branchId: null }),
+    );
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        serviceTypeId: 'st-1',
+        priceAmount: 20000,
+        payoutType: 'FIXED',
+        payoutValue: 10000,
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(PricingRuleDuplicateError);
+
+    expect(pricingRuleRepo.findByUnique).toHaveBeenCalledWith(
+      'tenant-1',
+      'st-1',
+      null,
+    );
+    expect(pricingRuleRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should pass null (not undefined) to findByUnique when branchId is omitted', async () => {
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findByUnique).mockResolvedValue(null);
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'st-1',
+      priceAmount: 15000,
+      payoutType: 'FIXED',
+      payoutValue: 8000,
+      actor: makeActor(),
+    });
+
+    // Verify that findByUnique receives explicit null, not undefined.
+    // Prisma translates null to IS NULL, but undefined would skip the field entirely,
+    // which would NOT filter by branch_id and could miss existing duplicates.
+    expect(pricingRuleRepo.findByUnique).toHaveBeenCalledWith(
+      'tenant-1',
+      'st-1',
+      null,
+    );
+  });
+
+  it('should freeze currency from tenant at creation time', async () => {
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findByUnique).mockResolvedValue(null);
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({ currency: 'BRL' }),
+    );
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'st-1',
+      priceAmount: 15000,
+      payoutType: 'FIXED',
+      payoutValue: 8000,
+      actor: makeActor(),
+    });
+
+    expect(result.currency).toBe('BRL');
+
+    // Verify the entity saved to the repository includes the frozen currency
+    const savedEntity = vi.mocked(pricingRuleRepo.save).mock.calls[0][0];
+    expect(savedEntity.currency).toBe('BRL');
+  });
+
+  it('should persist currency on the entity independent of tenant', async () => {
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findByUnique).mockResolvedValue(null);
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({ currency: 'GBP' }),
+    );
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'st-1',
+      priceAmount: 10000,
+      payoutType: 'PERCENTAGE',
+      payoutValue: 60,
+      actor: makeActor(),
+    });
+
+    // Currency comes from the entity, not from tenant lookup at read time
+    expect(result.currency).toBe('GBP');
+
+    // Audit log should include currency
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        after: expect.objectContaining({ currency: 'GBP' }),
+      }),
+    );
   });
 });

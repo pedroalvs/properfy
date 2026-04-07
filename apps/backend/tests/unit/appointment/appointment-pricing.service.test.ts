@@ -11,6 +11,7 @@ function makePricingRule(
   return new PricingRuleEntity({
     id: 'rule-1',
     tenantId: 'tenant-1',
+    currency: 'AUD',
     serviceTypeId: 'st-1',
     branchId: null,
     priceAmount: 200,
@@ -35,7 +36,7 @@ describe('snapshotPricing()', () => {
   });
 
   it('creates a snapshot with all rule fields', () => {
-    const rule = makePricingRule({ bonusRuleJson: { threshold: 10 } });
+    const rule = makePricingRule({ bonusRuleJson: { type: 'VOLUME_TIER', volumeThreshold: 10 } });
     const snapshot = snapshotPricing(rule);
 
     expect(snapshot.ruleId).toBe('rule-1');
@@ -45,7 +46,7 @@ describe('snapshotPricing()', () => {
     expect(snapshot.priceAmount).toBe(200);
     expect(snapshot.payoutType).toBe('PERCENTAGE');
     expect(snapshot.payoutValue).toBe(70);
-    expect(snapshot.bonusRuleJson).toEqual({ threshold: 10 });
+    expect(snapshot.bonusRuleJson).toEqual({ type: 'VOLUME_TIER', volumeThreshold: 10 });
   });
 
   it('sets snapshotAt to the current ISO timestamp', () => {

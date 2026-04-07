@@ -141,6 +141,7 @@ const inspectorRepo = {
   count: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
+  findByRegionId: vi.fn(),
 };
 
 const idempotencyService = {

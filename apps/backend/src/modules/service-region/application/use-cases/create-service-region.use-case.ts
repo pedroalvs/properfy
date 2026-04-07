@@ -3,6 +3,7 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
 import { ServiceRegionEntity } from '../../domain/service-region.entity';
+import { ServiceRegionNameConflictError } from '../../domain/service-region.errors';
 
 export interface CreateServiceRegionInput {
   name: string;
@@ -33,12 +34,21 @@ export class CreateServiceRegionUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
+    const tenantId = this.resolveTenantId(actor);
+
+    // Check name uniqueness within tenant
+    const existing = await this.regionRepo.findByName(tenantId, name);
+    if (existing) {
+      throw new ServiceRegionNameConflictError();
+    }
+
     const now = new Date();
     const id = crypto.randomUUID();
     const resolvedColor = color ?? '#3b82f6';
 
     const region = new ServiceRegionEntity({
       id,
+      tenantId,
       name,
       geojson,
       color: resolvedColor,
@@ -58,6 +68,7 @@ export class CreateServiceRegionUseCase {
       entityId: id,
       after: {
         id,
+        tenantId,
         name,
         color: resolvedColor,
         status: 'ACTIVE',
@@ -72,5 +83,12 @@ export class CreateServiceRegionUseCase {
       status: 'ACTIVE',
       createdAt: now,
     };
+  }
+
+  private resolveTenantId(actor: AuthContext): string {
+    if (!actor.tenantId) {
+      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
+    }
+    return actor.tenantId;
   }
 }

@@ -161,6 +161,16 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     await this.prisma.inspector.update({ where: { id }, data: updateData });
   }
 
+  async findByRegionId(regionId: string): Promise<InspectorEntity[]> {
+    const rows = await this.prisma.inspector.findMany({
+      where: {
+        deleted_at: null,
+        inspector_regions: { some: { region_id: regionId } },
+      },
+    });
+    return rows.map(mapToEntity);
+  }
+
   private buildWhere(filters: InspectorFilters) {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.status) where['status'] = filters.status;
