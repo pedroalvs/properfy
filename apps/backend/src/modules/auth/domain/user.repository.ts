@@ -9,4 +9,5 @@ export interface IUserRepository {
   updatePassword(userId: string, passwordHash: string): Promise<void>;
   updateTotpSecret(userId: string, totpSecret: string): Promise<void>;
   updateTotpEnabled(userId: string, totpEnabled: boolean): Promise<void>;
+  activateUser(userId: string, passwordHash: string): Promise<void>;
 }

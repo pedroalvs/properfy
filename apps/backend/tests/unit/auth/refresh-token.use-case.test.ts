@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RefreshTokenUseCase } from '../../../src/modules/auth/application/use-cases/refresh-token.use-case';
 import type { IUserRepository } from '../../../src/modules/auth/domain/user.repository';
 import type { ISessionRepository } from '../../../src/modules/auth/domain/session.repository';
@@ -7,7 +7,8 @@ import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { SessionEntity } from '../../../src/modules/auth/domain/session.entity';
-import { InvalidRefreshTokenError, SessionInvalidError } from '../../../src/modules/auth/domain/auth.errors';
+import { InvalidRefreshTokenError, SessionInvalidError, SessionRefreshRateLimitError } from '../../../src/modules/auth/domain/auth.errors';
+import { SlidingWindowRateLimiter } from '../../../src/shared/infrastructure/sliding-window-rate-limiter';
 import { createHash } from 'crypto';
 
 function makeUser(overrides = {}): UserEntity {
@@ -38,6 +39,7 @@ describe('RefreshTokenUseCase', () => {
   let jwtService: JwtService;
   let auditService: AuditService;
   let inspectorRepo: IInspectorRepository;
+  let sessionRateLimiter: SlidingWindowRateLimiter;
   let useCase: RefreshTokenUseCase;
 
   beforeEach(() => {
@@ -55,7 +57,12 @@ describe('RefreshTokenUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     } as unknown as IInspectorRepository;
-    useCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
+    sessionRateLimiter = new SlidingWindowRateLimiter({ maxRequests: 10, windowMs: 5 * 60 * 1000, cleanupIntervalMs: 0 });
+    useCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo, sessionRateLimiter);
+  });
+
+  afterEach(() => {
+    sessionRateLimiter.destroy();
   });
 
   it('should return new token pair for valid refresh token', async () => {
@@ -127,5 +134,64 @@ describe('RefreshTokenUseCase', () => {
     expect(jwtService.signAccessToken).toHaveBeenCalledWith(
       expect.objectContaining({ inspector_id: null }),
     );
+  });
+
+  describe('per-session refresh rate limit', () => {
+    it('should allow up to 10 refresh requests for the same session', async () => {
+      vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(makeSession());
+      vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+
+      for (let i = 0; i < 10; i++) {
+        const result = await useCase.execute({ refreshToken: 'valid-token' });
+        expect(result.accessToken).toBe('new-access-token');
+      }
+    });
+
+    it('should reject the 11th refresh request within 5 minutes for the same session', async () => {
+      vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(makeSession());
+      vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+
+      for (let i = 0; i < 10; i++) {
+        await useCase.execute({ refreshToken: 'valid-token' });
+      }
+
+      await expect(useCase.execute({ refreshToken: 'valid-token' })).rejects.toThrow(SessionRefreshRateLimitError);
+    });
+
+    it('should not block a different session when one session hits the limit', async () => {
+      const sessionA = makeSession({ id: 'session-a' });
+      const sessionB = makeSession({ id: 'session-b' });
+      vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+
+      // Exhaust session A
+      vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(sessionA);
+      for (let i = 0; i < 10; i++) {
+        await useCase.execute({ refreshToken: 'valid-token' });
+      }
+      await expect(useCase.execute({ refreshToken: 'valid-token' })).rejects.toThrow(SessionRefreshRateLimitError);
+
+      // Session B should still work
+      vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(sessionB);
+      const result = await useCase.execute({ refreshToken: 'valid-token' });
+      expect(result.accessToken).toBe('new-access-token');
+    });
+
+    it('should return 429 status code in the rate limit error', async () => {
+      vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(makeSession());
+      vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+
+      for (let i = 0; i < 10; i++) {
+        await useCase.execute({ refreshToken: 'valid-token' });
+      }
+
+      try {
+        await useCase.execute({ refreshToken: 'valid-token' });
+        expect.unreachable('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(SessionRefreshRateLimitError);
+        expect((error as SessionRefreshRateLimitError).statusCode).toBe(429);
+        expect((error as SessionRefreshRateLimitError).code).toBe('AUTH_SESSION_REFRESH_RATE_LIMIT');
+      }
+    });
   });
 });

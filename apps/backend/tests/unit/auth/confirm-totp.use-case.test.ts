@@ -116,6 +116,30 @@ describe('ConfirmTotpUseCase', () => {
     );
   });
 
+  it('should allow OP user to confirm TOTP', async () => {
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ role: 'OP', tenantId: null }));
+
+    await useCase.execute({ userId: 'user-1', totpCode: '123456' });
+
+    expect(userRepo.updateTotpEnabled).toHaveBeenCalledWith('user-1', true);
+  });
+
+  it('should allow CL_ADMIN user to confirm TOTP', async () => {
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ role: 'CL_ADMIN', tenantId: 'tenant-1' }));
+
+    await useCase.execute({ userId: 'user-1', totpCode: '123456' });
+
+    expect(userRepo.updateTotpEnabled).toHaveBeenCalledWith('user-1', true);
+  });
+
+  it('should allow CL_USER user to confirm TOTP', async () => {
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ role: 'CL_USER', tenantId: 'tenant-1' }));
+
+    await useCase.execute({ userId: 'user-1', totpCode: '123456' });
+
+    expect(userRepo.updateTotpEnabled).toHaveBeenCalledWith('user-1', true);
+  });
+
   it('should always decrypt secret via encryption service', async () => {
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ totpSecret: 'encrypted-value' }));
 

@@ -15,6 +15,7 @@ import {
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import type { AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuthContext } from '@properfy/shared';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 // --- Helpers ---
 
@@ -165,7 +166,7 @@ const serviceTypeRepo = {
   update: vi.fn(),
 };
 
-function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean; withTenantRepo?: boolean; withServiceTypeRepo?: boolean } = {}) {
+function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean; withTenantRepo?: boolean; withAuthorizationService?: boolean; withServiceTypeRepo?: boolean } = {}) {
   return new ExecuteStatusTransitionUseCase(
     appointmentRepo as any,
     userRepo as any,
@@ -174,7 +175,7 @@ function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandle
     auditService as any,
     opts.withOnDoneHandler ? onDoneHandler : undefined,
     opts.withOnTransitionHandler ? onTransitionHandler : undefined,
-    opts.withTenantRepo ? (tenantRepo as any) : undefined,
+    opts.withAuthorizationService ? new AuthorizationService() : undefined,
     opts.withServiceTypeRepo ? (serviceTypeRepo as any) : undefined,
   );
 }
@@ -932,15 +933,12 @@ describe('ExecuteStatusTransitionUseCase – CL_USER cancel permission', () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'AWAITING_INSPECTOR' }),
     );
-    tenantRepo.findById.mockResolvedValue({
-      settingsJson: { clUserPermissions: ['cancel_appointments'] },
-    });
-    const uc = makeUseCase({ withTenantRepo: true });
+    const uc = makeUseCase({ withAuthorizationService: true });
     const result = await uc.execute({
       appointmentId: 'appt-1',
       targetStatus: 'CANCELLED',
       reason: 'No longer needed',
-      actor: makeActor('CL_USER'),
+      actor: makeActor('CL_USER', { clUserPermissions: ['cancel_appointments'] }),
     });
     expect(result.status).toBe('CANCELLED');
   });
@@ -949,16 +947,13 @@ describe('ExecuteStatusTransitionUseCase – CL_USER cancel permission', () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'AWAITING_INSPECTOR' }),
     );
-    tenantRepo.findById.mockResolvedValue({
-      settingsJson: { clUserPermissions: [] },
-    });
-    const uc = makeUseCase({ withTenantRepo: true });
+    const uc = makeUseCase({ withAuthorizationService: true });
     await expect(
       uc.execute({
         appointmentId: 'appt-1',
         targetStatus: 'CANCELLED',
         reason: 'No longer needed',
-        actor: makeActor('CL_USER'),
+        actor: makeActor('CL_USER', { clUserPermissions: [] }),
       }),
     ).rejects.toThrow('CL_USER does not have cancel_appointments permission');
   });

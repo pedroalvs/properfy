@@ -8,6 +8,7 @@ import type { IPricingRuleRepository } from '../../../src/modules/pricing-rule/d
 import type { CreatePropertyUseCase } from '../../../src/modules/property/application/use-cases/create-property.use-case';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
@@ -112,7 +113,7 @@ const baseInput = {
   branchId: 'branch-1',
   propertyId: 'property-1',
   serviceTypeId: 'svc-type-1',
-  scheduledDate: '2026-04-01',
+  scheduledDate: '2026-12-01',
   timeSlot: '09:00-10:00',
   contact: {
     tenantName: 'John Smith',
@@ -250,7 +251,7 @@ describe('CreateAppointmentUseCase', () => {
         country: 'AU',
       },
       serviceTypeId: 'svc-type-1',
-      scheduledDate: '2026-04-01',
+      scheduledDate: '2026-12-01',
       timeSlot: '09:00-10:00',
       contact: { tenantName: 'Jane Doe' },
       keyRequired: false,
@@ -532,23 +533,12 @@ describe('CreateAppointmentUseCase', () => {
 
   // H4: CL_USER permission check
   describe('CL_USER create_appointments permission', () => {
-    const tenantRepoMock = {
-      findById: vi.fn(),
-      findByLegalName: vi.fn(),
-      findAll: vi.fn(),
-      count: vi.fn(),
-      save: vi.fn(),
-      update: vi.fn(),
-    };
 
     it('should allow CL_USER with create_appointments permission', async () => {
       const uc = new CreateAppointmentUseCase(
         appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo,
-        pricingRuleRepo, createPropertyUseCase, auditService, tenantRepoMock as any,
+        pricingRuleRepo, createPropertyUseCase, auditService, undefined, undefined, new AuthorizationService(),
       );
-      tenantRepoMock.findById.mockResolvedValue({
-        settingsJson: { clUserPermissions: ['create_appointments'] },
-      });
       vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
       vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
       vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
@@ -556,7 +546,7 @@ describe('CreateAppointmentUseCase', () => {
 
       const result = await uc.execute({
         ...baseInput,
-        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1', clUserPermissions: ['create_appointments'] }),
       });
       expect(result.status).toBe('DRAFT');
     });
@@ -564,16 +554,13 @@ describe('CreateAppointmentUseCase', () => {
     it('should throw ForbiddenError for CL_USER without create_appointments permission', async () => {
       const uc = new CreateAppointmentUseCase(
         appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo,
-        pricingRuleRepo, createPropertyUseCase, auditService, tenantRepoMock as any,
+        pricingRuleRepo, createPropertyUseCase, auditService, undefined, undefined, new AuthorizationService(),
       );
-      tenantRepoMock.findById.mockResolvedValue({
-        settingsJson: { clUserPermissions: [] },
-      });
 
       await expect(
         uc.execute({
           ...baseInput,
-          actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+          actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1', clUserPermissions: [] }),
         }),
       ).rejects.toThrow('CL_USER does not have create_appointments permission');
     });

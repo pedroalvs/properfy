@@ -8,10 +8,12 @@ import { UnauthorizedError } from '../domain/errors';
 
 export type JwtVerifier = (token: string) => Promise<AuthContext>;
 export type TenantActiveChecker = (tenantId: string) => Promise<boolean>;
+export type ClUserPermissionsResolver = (tenantId: string) => Promise<string[]>;
 
 export function createAuthMiddleware(
   verifyJwt: JwtVerifier,
   checkTenantActive?: TenantActiveChecker,
+  resolveClUserPermissions?: ClUserPermissionsResolver,
 ) {
   return async function authenticate(
     request: FastifyRequest,
@@ -24,11 +26,17 @@ export function createAuthMiddleware(
     const token = authHeader.slice(7);
     const ctx = await verifyJwt(token);
 
-    // Check tenant status for client roles
-    if (checkTenantActive && ctx.tenantId && (ctx.role === 'CL_ADMIN' || ctx.role === 'CL_USER')) {
-      const isActive = await checkTenantActive(ctx.tenantId);
-      if (!isActive) {
-        throw new UnauthorizedError('AUTH_TENANT_INACTIVE', 'Tenant account is not active');
+    // Check tenant status for client roles and resolve CL_USER permissions
+    if (ctx.tenantId && (ctx.role === 'CL_ADMIN' || ctx.role === 'CL_USER')) {
+      if (checkTenantActive) {
+        const isActive = await checkTenantActive(ctx.tenantId);
+        if (!isActive) {
+          throw new UnauthorizedError('AUTH_TENANT_INACTIVE', 'Tenant account is not active');
+        }
+      }
+
+      if (ctx.role === 'CL_USER' && resolveClUserPermissions) {
+        ctx.clUserPermissions = await resolveClUserPermissions(ctx.tenantId);
       }
     }
 

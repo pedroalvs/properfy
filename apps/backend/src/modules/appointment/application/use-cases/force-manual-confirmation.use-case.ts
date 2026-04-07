@@ -3,8 +3,7 @@ import type { IAppointmentRepository } from '../../domain/appointment.repository
 import { AppointmentNotFoundError } from '../../domain/appointment.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
-import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
-import { assertClUserPermission } from '../../../../shared/domain/cl-user-permissions';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
 export interface ForceManualConfirmationInput {
   appointmentId: string;
@@ -22,7 +21,7 @@ export class ForceManualTenantConfirmationUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
-    private readonly tenantRepo?: ITenantRepository,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: ForceManualConfirmationInput): Promise<ForceManualConfirmationOutput> {
@@ -30,8 +29,8 @@ export class ForceManualTenantConfirmationUseCase {
 
     // 1. RBAC: AM/OP allowed, CL_USER with force_confirmation permission
     if (actor.role !== 'AM' && actor.role !== 'OP') {
-      if (actor.role === 'CL_USER' && this.tenantRepo) {
-        await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'force_confirmation');
+      if (actor.role === 'CL_USER' && this.authorizationService) {
+        this.authorizationService.assertClUserPermission(actor, 'force_confirmation');
       } else {
         throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
       }

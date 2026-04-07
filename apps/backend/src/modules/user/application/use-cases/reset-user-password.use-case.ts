@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import type { AuthContext } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
+import type { IPasswordHistoryRepository } from '../../../auth/domain/password-history.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { UserNotFoundError } from '../../domain/user-management.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
@@ -9,8 +10,10 @@ import {
   PasswordTooCommonError,
   PasswordSameAsCurrentError,
   PasswordTooWeakError,
+  PasswordRecentlyUsedError,
 } from '../../../auth/domain/auth.errors';
 import { COMMON_PASSWORDS } from '../../../auth/application/constants/common-passwords';
+import { checkPasswordHistory } from '../../../auth/application/helpers/check-password-history';
 
 export interface ResetUserPasswordInput {
   tenantId: string | null;
@@ -23,6 +26,7 @@ export class ResetUserPasswordUseCase {
   constructor(
     private readonly userManagementRepo: IUserManagementRepository,
     private readonly auditService: AuditService,
+    private readonly passwordHistoryRepo: IPasswordHistoryRepository,
   ) {}
 
   async execute(input: ResetUserPasswordInput): Promise<void> {
@@ -61,8 +65,17 @@ export class ResetUserPasswordUseCase {
       throw new PasswordSameAsCurrentError();
     }
 
+    const recentlyUsed = await checkPasswordHistory(this.passwordHistoryRepo, userId, newPassword);
+    if (recentlyUsed) {
+      throw new PasswordRecentlyUsedError();
+    }
+
+    const oldHash = user.passwordHash;
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.userManagementRepo.resetPassword(userId, tenantId, passwordHash);
+
+    await this.passwordHistoryRepo.save(userId, oldHash);
+    await this.passwordHistoryRepo.pruneOldEntries(userId, 5);
     await this.userManagementRepo.revokeAllSessions(userId);
 
     this.auditService.log({

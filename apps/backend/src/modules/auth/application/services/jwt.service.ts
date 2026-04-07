@@ -64,6 +64,12 @@ export class JwtService {
       .sign(this.privateKey!);
   }
 
+  getPreviousKeyDaysRemaining(): number | null {
+    if (!this.config.previousKeyExpiresAt) return null;
+    const msRemaining = this.config.previousKeyExpiresAt.getTime() - Date.now();
+    return Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000)));
+  }
+
   async verify(token: string): Promise<AuthContext> {
     await this.init();
     // Decode header first to find the correct key by kid
@@ -101,6 +107,7 @@ export class JwtService {
         role: payload['role'] as UserRole,
         branchId: (payload['branch_id'] as string | null) ?? null,
         inspectorId: (payload['inspector_id'] as string | null) ?? null,
+        clUserPermissions: [],
       };
     } catch {
       throw new UnauthorizedError('AUTH_UNAUTHORIZED', 'Authentication required');

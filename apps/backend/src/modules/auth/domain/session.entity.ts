@@ -6,6 +6,8 @@ export interface SessionProps {
   refreshTokenHash: string;
   ipAddress: string | null;
   userAgent: string | null;
+  countryCode: string | null;
+  deviceFingerprint: string | null;
   expiresAt: Date;
   revokedAt: Date | null;
   createdAt: Date;
@@ -16,6 +18,8 @@ export class SessionEntity extends BaseEntity {
   readonly refreshTokenHash: string;
   readonly ipAddress: string | null;
   readonly userAgent: string | null;
+  readonly countryCode: string | null;
+  readonly deviceFingerprint: string | null;
   readonly expiresAt: Date;
   revokedAt: Date | null;
 
@@ -25,6 +29,8 @@ export class SessionEntity extends BaseEntity {
     this.refreshTokenHash = props.refreshTokenHash;
     this.ipAddress = props.ipAddress;
     this.userAgent = props.userAgent;
+    this.countryCode = props.countryCode;
+    this.deviceFingerprint = props.deviceFingerprint;
     this.expiresAt = props.expiresAt;
     this.revokedAt = props.revokedAt;
   }

@@ -48,5 +48,6 @@ export interface IUserManagementRepository {
     tenantId: string | null,
     passwordHash: string,
   ): Promise<void>;
+  unlock(userId: string, tenantId: string): Promise<void>;
   revokeAllSessions(userId: string): Promise<void>;
 }

@@ -5,6 +5,7 @@ import { AppointmentNotFoundError } from '../../../src/modules/appointment/domai
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import type { AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuthContext } from '@properfy/shared';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 // --- Helpers ---
 
@@ -162,7 +163,7 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
   });
 
   // H7: CL_USER with force_confirmation permission
-  it('CL_USER without tenantRepo is forbidden', async () => {
+  it('CL_USER without authorizationService is forbidden', async () => {
     const uc = makeUseCase();
     await expect(
       uc.execute({
@@ -175,45 +176,32 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
   });
 
   describe('CL_USER with force_confirmation permission', () => {
-    const tenantRepoMock = {
-      findById: vi.fn(),
-      findByLegalName: vi.fn(),
-      findAll: vi.fn(),
-      count: vi.fn(),
-      save: vi.fn(),
-      update: vi.fn(),
-    };
+    const authzService = new AuthorizationService();
 
     it('CL_USER with force_confirmation permission can force confirm', async () => {
       appointmentRepo.findById.mockResolvedValue(makeWithRelations());
-      tenantRepoMock.findById.mockResolvedValue({
-        settingsJson: { clUserPermissions: ['force_confirmation'] },
-      });
       const uc = new ForceManualTenantConfirmationUseCase(
-        appointmentRepo as any, auditService as any, tenantRepoMock as any,
+        appointmentRepo as any, auditService as any, authzService,
       );
       const result = await uc.execute({
         appointmentId: 'appt-1',
         tenantConfirmationStatus: 'CONFIRMED',
         reason: 'Tenant confirmed by phone',
-        actor: makeActor('CL_USER'),
+        actor: makeActor('CL_USER', { clUserPermissions: ['force_confirmation'] }),
       });
       expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
     });
 
     it('CL_USER without force_confirmation permission is forbidden', async () => {
-      tenantRepoMock.findById.mockResolvedValue({
-        settingsJson: { clUserPermissions: [] },
-      });
       const uc = new ForceManualTenantConfirmationUseCase(
-        appointmentRepo as any, auditService as any, tenantRepoMock as any,
+        appointmentRepo as any, auditService as any, authzService,
       );
       await expect(
         uc.execute({
           appointmentId: 'appt-1',
           tenantConfirmationStatus: 'CONFIRMED',
           reason: 'Some reason',
-          actor: makeActor('CL_USER'),
+          actor: makeActor('CL_USER', { clUserPermissions: [] }),
         }),
       ).rejects.toThrow('CL_USER does not have force_confirmation permission');
     });

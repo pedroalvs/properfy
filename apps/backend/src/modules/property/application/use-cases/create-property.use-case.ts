@@ -7,6 +7,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IPropertyRepository } from '../../domain/property.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { PropertyEntity } from '../../domain/property.entity';
 import { PropertyCodeConflictError, TenantInactiveError, BranchInactiveError } from '../../domain/property.errors';
 import { BranchNotFoundError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
@@ -55,6 +56,7 @@ export class CreatePropertyUseCase {
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
     private readonly tenantRepo?: ITenantRepository,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: CreatePropertyInput): Promise<CreatePropertyOutput> {
@@ -71,6 +73,11 @@ export class CreatePropertyUseCase {
       tenantId = actor.tenantId!;
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+    }
+
+    // CL_USER must have create_properties permission
+    if (this.authorizationService) {
+      this.authorizationService.assertClUserPermission(actor, 'create_properties');
     }
 
     // Validate tenant is ACTIVE

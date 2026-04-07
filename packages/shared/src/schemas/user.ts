@@ -40,9 +40,19 @@ export const resetUserPasswordSchema = z.object({
 });
 export type ResetUserPasswordInput = z.infer<typeof resetUserPasswordSchema>;
 
+// Invite user (no password — user sets it via invite link)
+export const inviteUserSchema = z.object({
+  name: z.string().min(1).max(200).trim(),
+  email: z.string().email().max(254).transform((v) => v.toLowerCase().trim()),
+  role: z.enum(['CL_ADMIN', 'CL_USER']),
+  branchId: z.string().uuid().optional(),
+  phone: z.string().max(20).optional(),
+});
+export type InviteUserInput = z.infer<typeof inviteUserSchema>;
+
 // List users query
 export const listUsersQuerySchema = paginationSchema.extend({
-  status: z.enum(['ACTIVE', 'INACTIVE', 'LOCKED']).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'LOCKED', 'PENDING_INVITE']).optional(),
   role: z.enum(['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP']).optional(),
   search: z.string().max(200).optional(),
 });

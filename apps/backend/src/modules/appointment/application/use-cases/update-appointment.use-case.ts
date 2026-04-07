@@ -3,7 +3,7 @@ import { ForbiddenError, ValidationError } from '../../../../shared/domain/error
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
-import { assertClUserPermission } from '../../../../shared/domain/cl-user-permissions';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../domain/appointment-restriction.entity';
 import {
@@ -73,6 +73,7 @@ export class UpdateAppointmentUseCase {
     private readonly auditService: AuditService,
     private readonly tenantRepo?: ITenantRepository,
     private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
@@ -90,11 +91,10 @@ export class UpdateAppointmentUseCase {
 
     // CL_USER must have reschedule_appointments permission when changing date/time
     if (
-      actor.role === 'CL_USER' &&
       (data.scheduledDate !== undefined || data.timeSlot !== undefined) &&
-      this.tenantRepo
+      this.authorizationService
     ) {
-      await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'reschedule_appointments');
+      this.authorizationService.assertClUserPermission(actor, 'reschedule_appointments');
     }
 
     // Resolve tenantId for lookup (null = global access for AM/OP)

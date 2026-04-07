@@ -31,7 +31,7 @@ import {
 import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
-import { assertClUserPermission } from '../../../../shared/domain/cl-user-permissions';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
 export interface CreateAppointmentInput {
   branchId: string;
@@ -124,6 +124,7 @@ export class CreateAppointmentUseCase {
     private readonly auditService: AuditService,
     private readonly tenantRepo?: ITenantRepository,
     private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<CreateAppointmentOutput> {
@@ -140,8 +141,8 @@ export class CreateAppointmentUseCase {
     }
 
     // 1b. CL_USER must have create_appointments permission
-    if (actor.role === 'CL_USER' && this.tenantRepo) {
-      await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'create_appointments');
+    if (this.authorizationService) {
+      this.authorizationService.assertClUserPermission(actor, 'create_appointments');
     }
 
     // 2. Resolve tenantId and validate branch

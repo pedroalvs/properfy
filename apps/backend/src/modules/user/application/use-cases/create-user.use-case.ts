@@ -13,7 +13,11 @@ import {
 } from '../../../tenant/domain/tenant.errors';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import { validatePasswordStrength } from '../../../auth/domain/password-policy';
-import { PasswordTooWeakError } from '../../../auth/domain/auth.errors';
+import {
+  PasswordTooWeakError,
+  PasswordTooCommonError,
+} from '../../../auth/domain/auth.errors';
+import { COMMON_PASSWORDS } from '../../../auth/application/constants/common-passwords';
 
 export interface CreateUserInput {
   tenantId?: string | null;
@@ -115,10 +119,14 @@ export class CreateUserUseCase {
       throw new UserEmailConflictError();
     }
 
-    // Validate password strength
+    // Validate password strength and blacklist
     const strengthResult = validatePasswordStrength(password);
     if (!strengthResult.valid) {
       throw new PasswordTooWeakError(strengthResult.violations);
+    }
+
+    if (COMMON_PASSWORDS.has(password.toLowerCase())) {
+      throw new PasswordTooCommonError();
     }
 
     // Hash password

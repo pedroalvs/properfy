@@ -26,7 +26,7 @@ export interface ReportRouteContainer {
   listReportsUseCase: ListReportsUseCase;
   processReportJobUseCase: ProcessReportJobUseCase;
   jwtService: JwtService;
-  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
 }
 
 const reportIdParam = z.object({ reportId: z.string().uuid() });
@@ -40,6 +40,10 @@ export async function registerReportRoutes(
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
+    },
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
     },
   );
 

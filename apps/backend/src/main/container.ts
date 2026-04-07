@@ -18,6 +18,13 @@ import { ListSessionsUseCase } from '../modules/auth/application/use-cases/list-
 import { SetupTotpUseCase } from '../modules/auth/application/use-cases/setup-totp.use-case';
 import { ConfirmTotpUseCase } from '../modules/auth/application/use-cases/confirm-totp.use-case';
 import { TotpEncryptionService } from '../modules/auth/infrastructure/totp-encryption.service';
+import { SessionTrustService } from '../modules/auth/application/services/session-trust.service';
+import { StubGeoIpService } from '../shared/infrastructure/geoip.service';
+import { RequestPasswordResetUseCase } from '../modules/auth/application/use-cases/request-password-reset.use-case';
+import { ConsumePasswordResetUseCase } from '../modules/auth/application/use-cases/consume-password-reset.use-case';
+import { AcceptInviteUseCase } from '../modules/auth/application/use-cases/accept-invite.use-case';
+import { PrismaPasswordResetTokenRepository } from '../modules/auth/infrastructure/prisma-password-reset-token.repository';
+import { PrismaPasswordHistoryRepository } from '../modules/auth/infrastructure/prisma-password-history.repository';
 import type { AuthRouteContainer } from '../modules/auth/interfaces/auth.routes';
 
 // Tenant module
@@ -42,7 +49,9 @@ import { GetUserUseCase } from '../modules/user/application/use-cases/get-user.u
 import { ListUsersUseCase } from '../modules/user/application/use-cases/list-users.use-case';
 import { UpdateUserUseCase } from '../modules/user/application/use-cases/update-user.use-case';
 import { DeactivateUserUseCase } from '../modules/user/application/use-cases/deactivate-user.use-case';
+import { UnlockUserUseCase } from '../modules/user/application/use-cases/unlock-user.use-case';
 import { ResetUserPasswordUseCase } from '../modules/user/application/use-cases/reset-user-password.use-case';
+import { InviteUserUseCase } from '../modules/user/application/use-cases/invite-user.use-case';
 import type { UserRouteContainer } from '../modules/user/interfaces/user.routes';
 
 // Property module
@@ -94,6 +103,9 @@ import { LinkInspectorToUserUseCase } from '../modules/inspector/application/use
 import { DeactivateInspectorUseCase } from '../modules/inspector/application/use-cases/deactivate-inspector.use-case';
 import { PrismaInspectorAppointmentChecker } from '../modules/inspector/infrastructure/prisma-inspector-appointment-checker';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
+
+// Authorization service
+import { AuthorizationService } from '../shared/domain/authorization.service';
 
 // Audit module
 import { PrismaAuditLogRepository } from '../modules/audit/infrastructure/prisma-audit-log.repository';
@@ -203,6 +215,7 @@ import { NotifyOnTenantPortalActionHandler } from '../modules/notification/appli
 
 // Workers
 import { CleanupSessionsWorker } from '../modules/auth/infrastructure/workers/cleanup-sessions.worker';
+import { KeyExpiryCheckWorker } from '../modules/auth/infrastructure/workers/key-expiry-check.worker';
 import { ExpireFilesWorker } from '../modules/report/infrastructure/workers/expire-files.worker';
 import { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
 import { ExpireTokensWorker } from '../modules/tenant-portal/infrastructure/workers/expire-tokens.worker';
@@ -275,6 +288,7 @@ export interface AppContainer {
   geocodeWorker: GeocodeWorker;
   propertyImportWorker: ImportPropertyWorker;
   cleanupSessionsWorker: CleanupSessionsWorker;
+  keyExpiryCheckWorker: KeyExpiryCheckWorker;
   expireFilesWorker: ExpireFilesWorker;
   appointmentImportWorker: AppointmentImportWorker;
   generateInvoiceFileWorker: GenerateInvoiceFileWorker;
@@ -285,6 +299,7 @@ export interface AppContainer {
 
 export function createContainer(logger: Logger): AppContainer {
   const env = getEnv();
+  const authorizationService = new AuthorizationService();
   const auditLogRepo = new PrismaAuditLogRepository(prisma);
   const auditService = new PersistentAuditService(auditLogRepo, logger);
 
@@ -327,16 +342,22 @@ export function createContainer(logger: Logger): AppContainer {
     ?? '0000000000000000000000000000000000000000000000000000000000000000';
   const totpEncryptionService = new TotpEncryptionService(totpEncryptionKey);
 
+  // Trust signals
+  const geoIpService = new StubGeoIpService();
+  const sessionTrustService = new SessionTrustService(sessionRepo, geoIpService);
+
   // Auth use cases
-  const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo, totpEncryptionService);
+  const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo, totpEncryptionService, sessionTrustService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
   const getMeUseCase = new GetMeUseCase(userRepo);
-  const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService);
+  const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
+  const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
   const listSessionsUseCase = new ListSessionsUseCase(sessionRepo);
   const setupTotpUseCase = new SetupTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
   const confirmTotpUseCase = new ConfirmTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
+  const passwordResetTokenRepo = new PrismaPasswordResetTokenRepository(prisma);
 
   // Tenant use cases
   const getTenantUseCase = new GetTenantUseCase(tenantRepo);
@@ -354,11 +375,12 @@ export function createContainer(logger: Logger): AppContainer {
   const listUsersUseCase = new ListUsersUseCase(userManagementRepo);
   const updateUserUseCase = new UpdateUserUseCase(userManagementRepo, branchRepo, auditService);
   const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, auditService);
-  const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService);
+  const unlockUserUseCase = new UnlockUserUseCase(userManagementRepo, auditService);
+  const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo);
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
-  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo);
+  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService);
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
@@ -412,6 +434,14 @@ export function createContainer(logger: Logger): AppContainer {
     : new StubJobQueue();
   const createNotificationUseCase = new CreateNotificationUseCase(notificationRepo, notificationJobQueue);
 
+  // Password reset use cases (depend on createNotificationUseCase)
+  const requestPasswordResetUseCase = new RequestPasswordResetUseCase(userRepo, passwordResetTokenRepo, createNotificationUseCase, auditService);
+  const consumePasswordResetUseCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo);
+  const acceptInviteUseCase = new AcceptInviteUseCase(passwordResetTokenRepo, userRepo, auditService);
+
+  // Invite user use case (depends on createNotificationUseCase)
+  const inviteUserUseCase = new InviteUserUseCase(userManagementRepo, tenantRepo, branchRepo, passwordResetTokenRepo, createNotificationUseCase, auditService);
+
   // Shared idempotency service (used across modules)
   const idempotencyService = new PrismaIdempotencyService(prisma);
 
@@ -438,11 +468,11 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
-    createPropertyUseCase, auditService, tenantRepo, appointmentTimeSlotRepo,
+    createPropertyUseCase, auditService, tenantRepo, appointmentTimeSlotRepo, authorizationService,
   );
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo);
-  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepo, appointmentTimeSlotRepo);
+  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepo, appointmentTimeSlotRepo, authorizationService);
   // Notification handlers (depend on appointmentRepo, propertyRepo, createNotificationUseCase)
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
     appointmentRepo, propertyRepo, createNotificationUseCase,
@@ -455,10 +485,10 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, userManagementRepo, inspectorRepo, idempotencyService, auditService,
     createFinancialEntriesOnDoneUseCase,
     notifyOnStatusTransitionHandler,
-    tenantRepo,
+    authorizationService,
     serviceTypeRepo,
   );
-  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, tenantRepo);
+  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService);
 
   // Tenant portal repositories and use cases
   const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
@@ -567,7 +597,7 @@ export function createContainer(logger: Logger): AppContainer {
   const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
-  const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService, tenantRepo);
+  const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService, tenantRepo, authorizationService);
   const getReportStatusUseCase = new GetReportStatusUseCase(reportRepo, userManagementRepo);
   const downloadReportUseCase = new DownloadReportUseCase(reportRepo, reportStorageService);
   const listReportsUseCase = new ListReportsUseCase(reportRepo, userManagementRepo);
@@ -634,6 +664,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Workers
   const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
+  const keyExpiryCheckWorker = new KeyExpiryCheckWorker(jwtService, auditService, logger);
   const expireFilesWorker = new ExpireFilesWorker(reportRepo, reportStorageService, logger);
   const generateInvoiceFileWorker = new GenerateInvoiceFileWorker(
     inspectorInvoiceRepo, financialEntryRepo, xlsxGenerator, reportStorageService, logger,
@@ -676,6 +707,9 @@ export function createContainer(logger: Logger): AppContainer {
       listSessionsUseCase,
       setupTotpUseCase,
       confirmTotpUseCase,
+      requestPasswordResetUseCase,
+      consumePasswordResetUseCase,
+      acceptInviteUseCase,
       jwtService,
       tenantRepo,
     },
@@ -698,7 +732,9 @@ export function createContainer(logger: Logger): AppContainer {
       listUsersUseCase,
       updateUserUseCase,
       deactivateUserUseCase,
+      unlockUserUseCase,
       resetUserPasswordUseCase,
+      inviteUserUseCase,
       jwtService,
       tenantRepo,
     },
@@ -870,6 +906,7 @@ export function createContainer(logger: Logger): AppContainer {
       tenantRepo,
     },
     cleanupSessionsWorker,
+    keyExpiryCheckWorker,
     expireFilesWorker,
     geocodeWorker,
     propertyImportWorker,

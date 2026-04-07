@@ -87,6 +87,65 @@ describe('JwtService', () => {
     expect(ctx.inspectorId).toBeNull();
   });
 
+  describe('getPreviousKeyDaysRemaining', () => {
+    it('should return null when no previous key is configured', () => {
+      const service = new JwtService({
+        privateKeyPem,
+        publicKeyPem,
+        keyId: 'test-key-v1',
+      });
+      expect(service.getPreviousKeyDaysRemaining()).toBeNull();
+    });
+
+    it('should return correct days when previous key expires in 30 days', () => {
+      const service = new JwtService({
+        privateKeyPem,
+        publicKeyPem,
+        keyId: 'test-key-v1',
+        previousPublicKeyPem: publicKeyPem,
+        previousKeyId: 'prev-key',
+        previousKeyExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      expect(service.getPreviousKeyDaysRemaining()).toBe(30);
+    });
+
+    it('should return 0 when previous key has already expired', () => {
+      const service = new JwtService({
+        privateKeyPem,
+        publicKeyPem,
+        keyId: 'test-key-v1',
+        previousPublicKeyPem: publicKeyPem,
+        previousKeyId: 'prev-key',
+        previousKeyExpiresAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      });
+      expect(service.getPreviousKeyDaysRemaining()).toBe(0);
+    });
+
+    it('should return 1 when previous key expires in less than 24 hours', () => {
+      const service = new JwtService({
+        privateKeyPem,
+        publicKeyPem,
+        keyId: 'test-key-v1',
+        previousPublicKeyPem: publicKeyPem,
+        previousKeyId: 'prev-key',
+        previousKeyExpiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours
+      });
+      expect(service.getPreviousKeyDaysRemaining()).toBe(1);
+    });
+
+    it('should return null when previousKeyExpiresAt is not set even with previous key', () => {
+      const service = new JwtService({
+        privateKeyPem,
+        publicKeyPem,
+        keyId: 'test-key-v1',
+        previousPublicKeyPem: publicKeyPem,
+        previousKeyId: 'prev-key',
+        // no previousKeyExpiresAt
+      });
+      expect(service.getPreviousKeyDaysRemaining()).toBeNull();
+    });
+  });
+
   describe('key rotation with expiration', () => {
     it('should verify token signed with previous key when not expired', async () => {
       const { privateKey: prevPriv, publicKey: prevPub } = generateKeyPairSync('rsa', { modulusLength: 2048 });

@@ -37,7 +37,7 @@ export interface PropertyRouteContainer {
   importPropertiesUseCase: ImportPropertiesUseCase;
   getPropertyImportStatusUseCase: GetPropertyImportStatusUseCase;
   jwtService: JwtService;
-  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
 }
 
 const propertyIdParam = z.object({ propertyId: z.string().uuid() });
@@ -51,6 +51,10 @@ export async function registerPropertyRoutes(
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
+    },
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
     },
   );
 

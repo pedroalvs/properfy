@@ -154,4 +154,14 @@ export class PrismaUserRepository implements IUserRepository {
       data: { totp_enabled: totpEnabled },
     });
   }
+
+  async activateUser(userId: string, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        password_hash: passwordHash,
+        status: 'ACTIVE',
+      },
+    });
+  }
 }

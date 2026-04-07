@@ -28,3 +28,38 @@ export const changePasswordSchema = z.object({
     .regex(/[^A-Za-z0-9]/, 'Must contain special character'),
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .email()
+    .max(254)
+    .transform((v) => v.toLowerCase().trim()),
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/[A-Z]/, 'Must contain uppercase letter')
+    .regex(/[a-z]/, 'Must contain lowercase letter')
+    .regex(/[0-9]/, 'Must contain number')
+    .regex(/[^A-Za-z0-9]/, 'Must contain special character'),
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const acceptInviteSchema = z.object({
+  token: z.string().min(1),
+  password: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/[A-Z]/, 'Must contain uppercase letter')
+    .regex(/[a-z]/, 'Must contain lowercase letter')
+    .regex(/[0-9]/, 'Must contain number')
+    .regex(/[^A-Za-z0-9]/, 'Must contain special character'),
+});
+export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;

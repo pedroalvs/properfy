@@ -25,6 +25,9 @@ export async function registerRoutes(
   app: FastifyInstance,
   container: AppContainer,
 ): Promise<void> {
+  // Register JWT key expiry gauge for metrics endpoint
+  metrics.setJwtGaugeProvider(() => container.auth.jwtService.getPreviousKeyDaysRemaining());
+
   // Health check with DB connectivity
   app.get('/health', async (_request, reply) => {
     const timestamp = new Date().toISOString();

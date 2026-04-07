@@ -106,6 +106,7 @@ async function start() {
       container.notification.dispatchRemindersUseCase,
       container.notification.dispatchEscalationsUseCase,
       container.cleanupSessionsWorker,
+      container.keyExpiryCheckWorker,
       container.expireFilesWorker,
       container.geocodeWorker,
       container.propertyImportWorker,

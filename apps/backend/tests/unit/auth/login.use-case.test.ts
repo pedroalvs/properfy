@@ -9,6 +9,8 @@ import type { IInspectorRepository } from '../../../src/modules/inspector/domain
 import type { TotpEncryptionService } from '../../../src/modules/auth/infrastructure/totp-encryption.service';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { SessionEntity } from '../../../src/modules/auth/domain/session.entity';
+import { SessionTrustService } from '../../../src/modules/auth/application/services/session-trust.service';
+import type { IGeoIpService } from '../../../src/shared/infrastructure/geoip.service';
 import {
   InvalidCredentialsError,
   AccountLockedError,
@@ -41,16 +43,19 @@ function makeUser(overrides: Partial<ConstructorParameters<typeof UserEntity>[0]
   });
 }
 
-function makeSession(): SessionEntity {
+function makeSession(overrides: Partial<ConstructorParameters<typeof SessionEntity>[0]> = {}): SessionEntity {
   return new SessionEntity({
     id: 'session-1',
     userId: 'user-1',
     refreshTokenHash: 'hash',
     ipAddress: null,
     userAgent: null,
+    countryCode: null,
+    deviceFingerprint: null,
     expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
     revokedAt: null,
     createdAt: new Date(),
+    ...overrides,
   });
 }
 
@@ -81,6 +86,8 @@ describe('LoginUseCase', () => {
       updateRefreshToken: vi.fn(),
       revoke: vi.fn(),
       revokeAllForUser: vi.fn(),
+      findRecentByUserId: vi.fn().mockResolvedValue([]),
+      deleteExpiredBefore: vi.fn(),
     };
     jwtService = {
       signAccessToken: vi.fn().mockResolvedValue('access-token'),
@@ -216,6 +223,58 @@ describe('LoginUseCase', () => {
     expect(result.user.role).toBe('AM');
   });
 
+  it('should return AUTH_TOTP_REQUIRED for CL_ADMIN user with totp_enabled=true and no totpCode', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(
+      makeUser({ role: 'CL_ADMIN', totpEnabled: true, totpSecret: 'encrypted:secret' })
+    );
+    await expect(
+      useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' })
+    ).rejects.toThrow(TotpRequiredError);
+  });
+
+  it('should return AUTH_TOTP_REQUIRED for OP user with totp_enabled=true and no totpCode', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(
+      makeUser({ role: 'OP', totpEnabled: true, totpSecret: 'encrypted:secret', tenantId: null })
+    );
+    await expect(
+      useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' })
+    ).rejects.toThrow(TotpRequiredError);
+  });
+
+  it('should return AUTH_TOTP_INVALID for CL_ADMIN user with invalid totpCode', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(
+      makeUser({ role: 'CL_ADMIN', totpEnabled: true, totpSecret: 'encrypted:secret' })
+    );
+    vi.mocked(totpService.verify).mockReturnValue(false);
+    await expect(
+      useCase.execute({ email: 'test@example.com', password: 'ValidPass1!', totpCode: '000000' })
+    ).rejects.toThrow(TotpInvalidError);
+  });
+
+  it('should login successfully for CL_ADMIN user with valid totpCode', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(
+      makeUser({ role: 'CL_ADMIN', totpEnabled: true, totpSecret: 'encrypted:secret' })
+    );
+    vi.mocked(totpService.verify).mockReturnValue(true);
+
+    const result = await useCase.execute({ email: 'test@example.com', password: 'ValidPass1!', totpCode: '123456' });
+
+    expect(result.accessToken).toBeDefined();
+    expect(result.user.role).toBe('CL_ADMIN');
+    expect(result.totpSetupRequired).toBeUndefined();
+  });
+
+  it('should not require TOTP setup for non-AM user with totp_enabled=false', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(
+      makeUser({ role: 'CL_ADMIN', totpEnabled: false })
+    );
+
+    const result = await useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' });
+
+    expect(result.accessToken).toBeDefined();
+    expect(result.totpSetupRequired).toBeUndefined();
+  });
+
   it('should reset failed_login_count on successful login', async () => {
     vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser({ failedLoginCount: 2 }));
     await useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' });
@@ -271,5 +330,104 @@ describe('LoginUseCase', () => {
     expect(jwtService.signAccessToken).toHaveBeenCalledWith(
       expect.objectContaining({ inspector_id: null }),
     );
+  });
+
+  describe('trust signals', () => {
+    let geoIpService: IGeoIpService;
+    let sessionTrustService: SessionTrustService;
+    let useCaseWithTrust: LoginUseCase;
+
+    beforeEach(() => {
+      geoIpService = {
+        resolveCountry: vi.fn().mockResolvedValue('AU'),
+      };
+      sessionTrustService = new SessionTrustService(sessionRepo, geoIpService);
+      useCaseWithTrust = new LoginUseCase(
+        userRepo, sessionRepo, jwtService, totpService, auditService,
+        inspectorRepo, totpEncryptionService, sessionTrustService,
+      );
+    });
+
+    it('should require step-up TOTP when new country + new device and TOTP enabled', async () => {
+      vi.mocked(userRepo.findByEmail).mockResolvedValue(
+        makeUser({ totpEnabled: true, totpSecret: 'encrypted:secret' }),
+      );
+      vi.mocked(geoIpService.resolveCountry).mockResolvedValue('BR');
+      vi.mocked(sessionRepo.findRecentByUserId).mockResolvedValue([
+        makeSession({ countryCode: 'AU', deviceFingerprint: 'known-fingerprint' }),
+      ]);
+
+      await expect(
+        useCaseWithTrust.execute({
+          email: 'test@example.com',
+          password: 'ValidPass1!',
+          ipAddress: '200.100.50.1',
+          userAgent: 'Completely Different Agent',
+        }),
+      ).rejects.toThrow(TotpRequiredError);
+    });
+
+    it('should audit anomaly when login from new country', async () => {
+      vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser());
+      vi.mocked(geoIpService.resolveCountry).mockResolvedValue('BR');
+      const { computeDeviceFingerprint } = await import('../../../src/shared/infrastructure/device-fingerprint.service');
+      const knownFingerprint = computeDeviceFingerprint('Mozilla/5.0 Chrome/125');
+      vi.mocked(sessionRepo.findRecentByUserId).mockResolvedValue([
+        makeSession({ countryCode: 'AU', deviceFingerprint: knownFingerprint }),
+      ]);
+
+      await useCaseWithTrust.execute({
+        email: 'test@example.com',
+        password: 'ValidPass1!',
+        ipAddress: '200.100.50.1',
+        userAgent: 'Mozilla/5.0 Chrome/125',
+      });
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'auth.login_anomaly',
+          metadata: expect.objectContaining({
+            isNewCountry: true,
+          }),
+        }),
+      );
+    });
+
+    it('should store countryCode and deviceFingerprint on session', async () => {
+      vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser());
+      vi.mocked(geoIpService.resolveCountry).mockResolvedValue('AU');
+      vi.mocked(sessionRepo.findRecentByUserId).mockResolvedValue([]);
+
+      await useCaseWithTrust.execute({
+        email: 'test@example.com',
+        password: 'ValidPass1!',
+        ipAddress: '1.2.3.4',
+        userAgent: 'Mozilla/5.0',
+      });
+
+      const createCall = vi.mocked(sessionRepo.create).mock.calls[0]![0]!;
+      expect(createCall.countryCode).toBe('AU');
+      expect(createCall.deviceFingerprint).toBeDefined();
+      expect(createCall.deviceFingerprint).toMatch(/^[a-f0-9]{16}$/);
+    });
+
+    it('should not require step-up TOTP when user has no TOTP enabled even with anomaly', async () => {
+      vi.mocked(userRepo.findByEmail).mockResolvedValue(
+        makeUser({ totpEnabled: false }),
+      );
+      vi.mocked(geoIpService.resolveCountry).mockResolvedValue('BR');
+      vi.mocked(sessionRepo.findRecentByUserId).mockResolvedValue([
+        makeSession({ countryCode: 'AU', deviceFingerprint: 'known-fingerprint' }),
+      ]);
+
+      const result = await useCaseWithTrust.execute({
+        email: 'test@example.com',
+        password: 'ValidPass1!',
+        ipAddress: '200.100.50.1',
+        userAgent: 'Completely Different Agent',
+      });
+
+      expect(result.accessToken).toBeDefined();
+    });
   });
 });

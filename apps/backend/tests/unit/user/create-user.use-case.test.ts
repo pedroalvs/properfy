@@ -15,6 +15,7 @@ import {
   BranchNotFoundError,
 } from '../../../src/modules/tenant/domain/tenant.errors';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
+import { PasswordTooCommonError } from '../../../src/modules/auth/domain/auth.errors';
 import type { AuthContext } from '@properfy/shared';
 
 function makeUser(
@@ -346,6 +347,93 @@ describe('CreateUserUseCase', () => {
     });
 
     expect(result.branchId).toBe('branch-1');
+  });
+
+  it('should reject common blacklisted password on create', async () => {
+    // Common passwords like 'password123' fail strength first (no uppercase/special).
+    // This test verifies that the password is rejected — the blacklist check acts as
+    // a second defense layer after strength validation.
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        name: 'New User',
+        email: 'new@example.com',
+        password: 'password123',
+        role: 'CL_USER',
+        actor: amActor,
+      }),
+    ).rejects.toThrow('Password does not meet strength requirements');
+  });
+
+  it('should check blacklist after strength validation passes', async () => {
+    // Directly verify the blacklist code path by importing and checking
+    // that COMMON_PASSWORDS is used in the use case. We mock it to include
+    // a strong password to isolate the blacklist check.
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+
+    const { COMMON_PASSWORDS } = await import(
+      '../../../src/modules/auth/application/constants/common-passwords'
+    );
+    // Temporarily add a strong password to the blacklist
+    COMMON_PASSWORDS.add('blacklisted1!strong');
+
+    try {
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-1',
+          name: 'New User',
+          email: 'new@example.com',
+          password: 'Blacklisted1!Strong',
+          role: 'CL_USER',
+          actor: amActor,
+        }),
+      ).rejects.toThrow(PasswordTooCommonError);
+    } finally {
+      COMMON_PASSWORDS.delete('blacklisted1!strong');
+    }
+  });
+
+  it('should allow creating a user with an email that belongs to a soft-deleted user', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    // findByEmail returns null because the existing user is soft-deleted
+    // (repository filters deleted_at: null)
+    vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      name: 'Reusing Email User',
+      email: 'deleted-user@example.com',
+      password: 'StrongPass1!',
+      role: 'CL_USER',
+      actor: amActor,
+    });
+
+    expect(result.email).toBe('deleted-user@example.com');
+    expect(result.status).toBe('ACTIVE');
+    expect(userManagementRepo.save).toHaveBeenCalled();
+  });
+
+  it('should still throw USER_EMAIL_CONFLICT when email belongs to an active user', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+    // findByEmail returns a non-deleted user (active)
+    vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(
+      makeUser({ email: 'active@example.com', deletedAt: null }),
+    );
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        name: 'Duplicate Email User',
+        email: 'active@example.com',
+        password: 'StrongPass1!',
+        role: 'CL_USER',
+        actor: amActor,
+      }),
+    ).rejects.toThrow(UserEmailConflictError);
   });
 
   it('should never return passwordHash in the output', async () => {

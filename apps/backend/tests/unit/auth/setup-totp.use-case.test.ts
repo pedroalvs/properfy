@@ -112,6 +112,36 @@ describe('SetupTotpUseCase', () => {
     expect(userRepo.updateTotpSecret).toHaveBeenCalledWith('user-1', 'ENCRYPTED_SECRET');
   });
 
+  it('should allow OP user to set up TOTP', async () => {
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ role: 'OP', tenantId: null }));
+
+    const result = await useCase.execute({ userId: 'user-1' });
+
+    expect(result.secret).toBe('TOTP_SECRET_ABC');
+    expect(result.qrUri).toBeDefined();
+    expect(userRepo.updateTotpSecret).toHaveBeenCalledWith('user-1', 'ENCRYPTED_SECRET');
+  });
+
+  it('should allow CL_ADMIN user to set up TOTP', async () => {
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ role: 'CL_ADMIN', tenantId: 'tenant-1' }));
+
+    const result = await useCase.execute({ userId: 'user-1' });
+
+    expect(result.secret).toBe('TOTP_SECRET_ABC');
+    expect(result.qrUri).toBeDefined();
+    expect(userRepo.updateTotpSecret).toHaveBeenCalledWith('user-1', 'ENCRYPTED_SECRET');
+  });
+
+  it('should allow CL_USER user to set up TOTP', async () => {
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ role: 'CL_USER', tenantId: 'tenant-1' }));
+
+    const result = await useCase.execute({ userId: 'user-1' });
+
+    expect(result.secret).toBe('TOTP_SECRET_ABC');
+    expect(result.qrUri).toBeDefined();
+    expect(userRepo.updateTotpSecret).toHaveBeenCalledWith('user-1', 'ENCRYPTED_SECRET');
+  });
+
   it('should always use encryption service to store secret', async () => {
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
 

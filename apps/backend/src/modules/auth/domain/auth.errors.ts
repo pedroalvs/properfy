@@ -98,6 +98,49 @@ export class PasswordSameAsCurrentError extends DomainError {
   }
 }
 
+export class SessionRefreshRateLimitError extends TooManyRequestsError {
+  constructor(retryAfterMs: number) {
+    const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
+    super('AUTH_SESSION_REFRESH_RATE_LIMIT', 'Too many refresh requests for this session', `${retryAfterSeconds}`);
+    this.name = 'SessionRefreshRateLimitError';
+  }
+}
+
+export class InvalidPasswordResetTokenError extends DomainError {
+  constructor() {
+    super('AUTH_INVALID_RESET_TOKEN', 'Password reset token is invalid, expired, or already used', 400);
+    this.name = 'InvalidPasswordResetTokenError';
+  }
+}
+
+export class PasswordResetRateLimitError extends TooManyRequestsError {
+  constructor() {
+    super('AUTH_PASSWORD_RESET_RATE_LIMIT', 'Too many password reset requests. Please try again later.', '3600');
+    this.name = 'PasswordResetRateLimitError';
+  }
+}
+
+export class PasswordRecentlyUsedError extends DomainError {
+  constructor() {
+    super('AUTH_PASSWORD_RECENTLY_USED', 'Password was recently used. Please choose a different password.', 400);
+    this.name = 'PasswordRecentlyUsedError';
+  }
+}
+
+export class InvalidInviteTokenError extends DomainError {
+  constructor() {
+    super('AUTH_INVALID_INVITE_TOKEN', 'Invite token is invalid, expired, or already used', 400);
+    this.name = 'InvalidInviteTokenError';
+  }
+}
+
+export class UserNotPendingInviteError extends DomainError {
+  constructor() {
+    super('AUTH_USER_NOT_PENDING_INVITE', 'User is not in pending invite status', 400);
+    this.name = 'UserNotPendingInviteError';
+  }
+}
+
 export class PasswordTooWeakError extends DomainError {
   constructor(violations: string[]) {
     super('AUTH_PASSWORD_TOO_WEAK', 'Password does not meet strength requirements', 400, violations);

@@ -51,6 +51,13 @@ class MetricsCollector {
   private activeRequests = 0;
   private jobCounts = new Map<string, number>();
   private jobDurations = new Map<string, DurationBucket>();
+  private jwtPreviousKeyDaysRemaining: number | null = null;
+  private jwtGaugeProvider: (() => number | null) | null = null;
+
+  /** Register a function that returns the current JWT previous key days remaining. Called on each snapshot. */
+  setJwtGaugeProvider(provider: () => number | null): void {
+    this.jwtGaugeProvider = provider;
+  }
 
   httpRequestStart(): () => number {
     this.activeRequests += 1;
@@ -173,6 +180,9 @@ class MetricsCollector {
         executions: jobs,
         durations: jobDurations,
       },
+      jwt: {
+        previousKeyDaysRemaining: this.jwtGaugeProvider ? this.jwtGaugeProvider() : this.jwtPreviousKeyDaysRemaining,
+      },
     };
   }
 }
@@ -226,6 +236,9 @@ export interface MetricsSnapshot {
   jobs: {
     executions: JobMetric[];
     durations: JobDurationMetric[];
+  };
+  jwt?: {
+    previousKeyDaysRemaining: number | null;
   };
 }
 

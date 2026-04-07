@@ -5,7 +5,13 @@ import type { JwtService } from '../services/jwt.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { RefreshInput, RefreshOutput } from '../dtos/refresh.dto';
-import { InvalidRefreshTokenError, SessionInvalidError } from '../../domain/auth.errors';
+import { InvalidRefreshTokenError, SessionInvalidError, SessionRefreshRateLimitError } from '../../domain/auth.errors';
+import { SlidingWindowRateLimiter } from '../../../../shared/infrastructure/sliding-window-rate-limiter';
+
+const SESSION_REFRESH_RATE_LIMITER = new SlidingWindowRateLimiter({
+  maxRequests: 10,
+  windowMs: 5 * 60 * 1000, // 5 minutes
+});
 
 export class RefreshTokenUseCase {
   constructor(
@@ -14,6 +20,7 @@ export class RefreshTokenUseCase {
     private readonly jwtService: JwtService,
     private readonly auditService: AuditService,
     private readonly inspectorRepo: IInspectorRepository,
+    private readonly sessionRateLimiter: SlidingWindowRateLimiter = SESSION_REFRESH_RATE_LIMITER,
   ) {}
 
   async execute(input: RefreshInput): Promise<RefreshOutput> {
@@ -22,6 +29,12 @@ export class RefreshTokenUseCase {
 
     if (!session || !session.isValid()) {
       throw new InvalidRefreshTokenError();
+    }
+
+    // Per-session refresh rate limit: 10 requests per 5 minutes
+    const rateLimitResult = this.sessionRateLimiter.check(session.id);
+    if (!rateLimitResult.allowed) {
+      throw new SessionRefreshRateLimitError(rateLimitResult.retryAfterMs!);
     }
 
     const user = await this.userRepo.findById(session.userId);

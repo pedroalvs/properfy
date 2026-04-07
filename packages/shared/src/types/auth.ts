@@ -17,4 +17,6 @@ export interface AuthContext {
   role: UserRole;
   branchId: string | null;
   inspectorId: string | null;
+  /** CL_USER permission flags from tenant settings. Empty array for non-CL_USER roles. */
+  clUserPermissions?: string[];
 }

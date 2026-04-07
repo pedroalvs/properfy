@@ -7,6 +7,7 @@ import type { TotpService } from '../services/totp.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { TotpEncryptionService } from '../../infrastructure/totp-encryption.service';
+import type { SessionTrustService } from '../services/session-trust.service';
 import type { LoginInput, LoginOutput } from '../dtos/login.dto';
 import {
   InvalidCredentialsError,
@@ -28,6 +29,7 @@ export class LoginUseCase {
     private readonly auditService: AuditService,
     private readonly inspectorRepo: IInspectorRepository,
     private readonly totpEncryptionService: TotpEncryptionService,
+    private readonly sessionTrustService?: SessionTrustService,
   ) {}
 
   async execute(input: LoginInput): Promise<LoginOutput> {
@@ -54,7 +56,7 @@ export class LoginUseCase {
       user.lockedUntil = null;
     }
 
-    if (user.isInactive()) {
+    if (user.isInactive() || user.isPendingInvite()) {
       throw new UserInactiveError();
     }
 
@@ -95,6 +97,11 @@ export class LoginUseCase {
       throw new InvalidCredentialsError();
     }
 
+    // Evaluate trust signals (when service is available)
+    const trustSignal = this.sessionTrustService
+      ? await this.sessionTrustService.evaluate(user.id, input.ipAddress, input.userAgent)
+      : null;
+
     // TOTP checks for AM
     if (user.requiresTotpSetup()) {
       // Issue a limited session so the user can access 2FA setup endpoints
@@ -109,6 +116,8 @@ export class LoginUseCase {
         refreshTokenHash,
         ipAddress: input.ipAddress ?? null,
         userAgent: input.userAgent ?? null,
+        countryCode: trustSignal?.countryCode ?? null,
+        deviceFingerprint: trustSignal?.deviceFingerprint ?? null,
         expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes for setup only
         revokedAt: null,
         createdAt: new Date(),
@@ -149,7 +158,9 @@ export class LoginUseCase {
       };
     }
 
-    if (user.requiresTotpCode()) {
+    // Step-up auth: require TOTP when trust signals detect anomaly AND user has TOTP enabled
+    const needsStepUp = trustSignal?.requiresStepUp && user.totpEnabled;
+    if (user.requiresTotpCode() || needsStepUp) {
       if (!input.totpCode) {
         throw new TotpRequiredError();
       }
@@ -174,10 +185,33 @@ export class LoginUseCase {
       refreshTokenHash,
       ipAddress: input.ipAddress ?? null,
       userAgent: input.userAgent ?? null,
+      countryCode: trustSignal?.countryCode ?? null,
+      deviceFingerprint: trustSignal?.deviceFingerprint ?? null,
       expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
       revokedAt: null,
       createdAt: new Date(),
     });
+
+    // Audit anomalous login signals
+    if (trustSignal && (trustSignal.isNewCountry || trustSignal.isNewDevice)) {
+      this.auditService.log({
+        action: 'auth.login_anomaly',
+        actorType: 'SYSTEM',
+        actorId: user.id,
+        entityType: 'USER',
+        entityId: user.id,
+        tenantId: user.tenantId ?? undefined,
+        ipAddress: input.ipAddress,
+        metadata: {
+          isNewCountry: trustSignal.isNewCountry,
+          isNewDevice: trustSignal.isNewDevice,
+          requiresStepUp: trustSignal.requiresStepUp,
+          countryCode: trustSignal.countryCode,
+          deviceFingerprint: trustSignal.deviceFingerprint,
+          sessionId: session.id,
+        },
+      });
+    }
 
     let inspectorId: string | null = null;
     if (user.role === 'INSP') {

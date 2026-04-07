@@ -43,7 +43,7 @@ export interface AppointmentRouteContainer {
   listAppointmentContactsUseCase: ListAppointmentContactsUseCase;
   appointmentRepo: { findContactById(id: string): Promise<object | null> };
   jwtService: JwtService;
-  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
 }
 
 const appointmentIdParam = z.object({ appointmentId: z.string().uuid() });
@@ -67,6 +67,10 @@ export async function registerAppointmentRoutes(
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
+    },
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
     },
   );
 

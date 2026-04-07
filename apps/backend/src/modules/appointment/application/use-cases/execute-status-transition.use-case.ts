@@ -3,11 +3,10 @@ import type { IAppointmentRepository } from '../../domain/appointment.repository
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
-import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { AppointmentStateMachine } from '../../domain/appointment-state-machine';
 import { ForbiddenError, DomainError } from '../../../../shared/domain/errors';
-import { assertClUserPermission } from '../../../../shared/domain/cl-user-permissions';
 import {
   AppointmentNotFoundError,
   AppointmentAccessDeniedError,
@@ -65,7 +64,7 @@ export class ExecuteStatusTransitionUseCase {
     private readonly auditService: AuditService,
     private readonly onDoneHandler?: OnDoneHandler,
     private readonly onTransitionHandler?: OnTransitionHandler,
-    private readonly tenantRepo?: ITenantRepository,
+    private readonly authorizationService?: AuthorizationService,
     private readonly serviceTypeRepo?: IServiceTypeRepository,
   ) {}
 
@@ -115,12 +114,12 @@ export class ExecuteStatusTransitionUseCase {
     const rule = validation.rule!;
 
     // 3b. CL_USER permission check — configurable permissions per tenant
-    if (actor.role === 'CL_USER' && this.tenantRepo) {
+    if (actor.role === 'CL_USER' && this.authorizationService) {
       if (targetStatus === 'CANCELLED') {
-        await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'cancel_appointments');
+        this.authorizationService.assertClUserPermission(actor, 'cancel_appointments');
       }
       if (targetStatus === 'REJECTED') {
-        await assertClUserPermission(this.tenantRepo, actor.tenantId!, 'reject_appointments');
+        this.authorizationService.assertClUserPermission(actor, 'reject_appointments');
       }
     }
 

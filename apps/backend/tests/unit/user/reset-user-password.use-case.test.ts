@@ -4,12 +4,14 @@ import type { AuthContext } from '@properfy/shared';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { ResetUserPasswordUseCase } from '../../../src/modules/user/application/use-cases/reset-user-password.use-case';
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
+import type { IPasswordHistoryRepository } from '../../../src/modules/auth/domain/password-history.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { UserNotFoundError } from '../../../src/modules/user/domain/user-management.errors';
 import {
   PasswordSameAsCurrentError,
   PasswordTooWeakError,
+  PasswordRecentlyUsedError,
 } from '../../../src/modules/auth/domain/auth.errors';
 
 function makeUser(
@@ -40,6 +42,7 @@ function makeUser(
 describe('ResetUserPasswordUseCase', () => {
   let userManagementRepo: IUserManagementRepository;
   let auditService: AuditService;
+  let passwordHistoryRepo: IPasswordHistoryRepository;
   let useCase: ResetUserPasswordUseCase;
 
   const amActor: AuthContext = {
@@ -63,7 +66,8 @@ describe('ResetUserPasswordUseCase', () => {
       revokeAllSessions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new ResetUserPasswordUseCase(userManagementRepo, auditService);
+    passwordHistoryRepo = { findRecentByUserId: vi.fn().mockResolvedValue([]), save: vi.fn(), pruneOldEntries: vi.fn() };
+    useCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo);
   });
 
   it('allows AM to reset password, unlock account and revoke sessions', async () => {
@@ -158,6 +162,37 @@ describe('ResetUserPasswordUseCase', () => {
     ).rejects.toMatchObject({
       code: 'AUTH_PASSWORD_TOO_COMMON',
     });
+  });
+
+  it('rejects recently used password from history', async () => {
+    const reusedHash = bcrypt.hashSync('NewStrong1!', 4);
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(makeUser());
+    vi.mocked(passwordHistoryRepo.findRecentByUserId).mockResolvedValue([{ passwordHash: reusedHash }]);
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        newPassword: 'NewStrong1!',
+        actor: amActor,
+      }),
+    ).rejects.toThrow(PasswordRecentlyUsedError);
+
+    expect(userManagementRepo.resetPassword).not.toHaveBeenCalled();
+  });
+
+  it('saves old hash to history after successful reset', async () => {
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(makeUser());
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      newPassword: 'NewStrong1!',
+      actor: amActor,
+    });
+
+    expect(passwordHistoryRepo.save).toHaveBeenCalledWith('user-1', expect.any(String));
+    expect(passwordHistoryRepo.pruneOldEntries).toHaveBeenCalledWith('user-1', 5);
   });
 
   it('rejects resetting to the same password', async () => {

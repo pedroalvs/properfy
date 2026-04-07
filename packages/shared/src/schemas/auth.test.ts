@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loginSchema, refreshSchema, changePasswordSchema } from './auth';
+import { loginSchema, refreshSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from './auth';
 
 describe('loginSchema', () => {
   it('should validate valid login input', () => {
@@ -111,6 +111,57 @@ describe('refreshSchema', () => {
 
   it('should reject empty refresh token', () => {
     const result = refreshSchema.safeParse({ refreshToken: '' });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('forgotPasswordSchema', () => {
+  it('should accept valid email', () => {
+    const result = forgotPasswordSchema.safeParse({ email: 'user@example.com' });
+    expect(result.success).toBe(true);
+  });
+
+  it('should normalize email to lowercase', () => {
+    const result = forgotPasswordSchema.parse({ email: 'USER@EXAMPLE.COM' });
+    expect(result.email).toBe('user@example.com');
+  });
+
+  it('should reject invalid email', () => {
+    const result = forgotPasswordSchema.safeParse({ email: 'not-an-email' });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('resetPasswordSchema', () => {
+  it('should accept valid token and strong password', () => {
+    const result = resetPasswordSchema.safeParse({
+      token: 'abc123',
+      newPassword: 'NewPass1!',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject empty token', () => {
+    const result = resetPasswordSchema.safeParse({
+      token: '',
+      newPassword: 'NewPass1!',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject weak password', () => {
+    const result = resetPasswordSchema.safeParse({
+      token: 'abc123',
+      newPassword: 'weak',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject password without special char', () => {
+    const result = resetPasswordSchema.safeParse({
+      token: 'abc123',
+      newPassword: 'NewPass12',
+    });
     expect(result.success).toBe(false);
   });
 });

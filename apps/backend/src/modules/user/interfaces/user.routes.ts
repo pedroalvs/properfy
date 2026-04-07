@@ -5,6 +5,7 @@ import {
   updateUserSchema,
   resetUserPasswordSchema,
   listUsersQuerySchema,
+  inviteUserSchema,
   deactivateSchema,
   userResponseSchema,
   successResponseSchema,
@@ -18,7 +19,9 @@ import type { GetUserUseCase } from '../application/use-cases/get-user.use-case'
 import type { ListUsersUseCase } from '../application/use-cases/list-users.use-case';
 import type { UpdateUserUseCase } from '../application/use-cases/update-user.use-case';
 import type { DeactivateUserUseCase } from '../application/use-cases/deactivate-user.use-case';
+import type { UnlockUserUseCase } from '../application/use-cases/unlock-user.use-case';
 import type { ResetUserPasswordUseCase } from '../application/use-cases/reset-user-password.use-case';
+import type { InviteUserUseCase } from '../application/use-cases/invite-user.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface UserRouteContainer {
@@ -27,7 +30,9 @@ export interface UserRouteContainer {
   listUsersUseCase: ListUsersUseCase;
   updateUserUseCase: UpdateUserUseCase;
   deactivateUserUseCase: DeactivateUserUseCase;
+  unlockUserUseCase: UnlockUserUseCase;
   resetUserPasswordUseCase: ResetUserPasswordUseCase;
+  inviteUserUseCase: InviteUserUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -103,6 +108,39 @@ export async function registerUserRoutes(
         );
       const result = await container.createUserUseCase.execute({
         tenantId: null,
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(201).send(success(result));
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/users/invite
+  app.post(
+    '/v1/tenants/:tenantId/users/invite',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        body: inviteUserSchema,
+        response: { 201: successResponseSchema(userResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid tenant ID',
+          params.error.errors,
+        );
+      const parsed = inviteUserSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      const result = await container.inviteUserUseCase.execute({
+        tenantId: params.data.tenantId,
         ...parsed.data,
         actor: request.authContext!,
       });
@@ -325,6 +363,32 @@ export async function registerUserRoutes(
         tenantId: params.data.tenantId,
         userId: params.data.userId,
         reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/users/:userId/unlock
+  app.post(
+    '/v1/tenants/:tenantId/users/:userId/unlock',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: userIdParam,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const params = userIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      await container.unlockUserUseCase.execute({
+        tenantId: params.data.tenantId,
+        userId: params.data.userId,
         actor: request.authContext!,
       });
       return reply.status(204).send();

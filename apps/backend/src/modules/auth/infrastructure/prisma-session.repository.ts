@@ -8,6 +8,8 @@ function mapToEntity(row: {
   refresh_token_hash: string;
   ip_address: string | null;
   user_agent: string | null;
+  country_code: string | null;
+  device_fingerprint: string | null;
   expires_at: Date;
   revoked_at: Date | null;
   created_at: Date;
@@ -18,6 +20,8 @@ function mapToEntity(row: {
     refreshTokenHash: row.refresh_token_hash,
     ipAddress: row.ip_address,
     userAgent: row.user_agent,
+    countryCode: row.country_code,
+    deviceFingerprint: row.device_fingerprint,
     expiresAt: row.expires_at,
     revokedAt: row.revoked_at,
     createdAt: row.created_at,
@@ -37,6 +41,8 @@ export class PrismaSessionRepository implements ISessionRepository {
         refresh_token_hash: session.refreshTokenHash,
         ip_address: session.ipAddress,
         user_agent: session.userAgent,
+        country_code: session.countryCode,
+        device_fingerprint: session.deviceFingerprint,
         expires_at: session.expiresAt,
         revoked_at: session.revokedAt,
       },
@@ -97,6 +103,19 @@ export class PrismaSessionRepository implements ISessionRepository {
       },
       data: { revoked_at: revokedAt },
     });
+  }
+
+  async findRecentByUserId(userId: string, days: number): Promise<SessionEntity[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const rows = await this.prisma.session.findMany({
+      where: {
+        user_id: userId,
+        created_at: { gte: since },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    return rows.map(mapToEntity);
   }
 
   async deleteExpiredBefore(date: Date): Promise<number> {

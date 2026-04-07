@@ -23,6 +23,7 @@ enum UserStatus {
   ACTIVE
   INACTIVE
   LOCKED
+  PENDING_INVITE
 }
 
 enum TenantStatus {
@@ -191,7 +192,7 @@ model User {
   branch_id           String?
   role                UserRole
   name                String      @db.VarChar(200)
-  email               String      @unique @db.VarChar(254)
+  email               String      @db.VarChar(254)
   phone               String?     @db.VarChar(20)
   status              UserStatus  @default(ACTIVE)
   password_hash       String
@@ -205,6 +206,8 @@ model User {
   deleted_at          DateTime?
 
   sessions                  Session[]
+  password_reset_tokens     PasswordResetToken[]
+  password_history          PasswordHistory[]
   tenant                    Tenant?       @relation(fields: [tenant_id], references: [id])
   branch                    Branch?       @relation(fields: [branch_id], references: [id])
   inspector                 Inspector?
@@ -223,6 +226,7 @@ model User {
   @@index([tenant_id, role])
   @@index([tenant_id, status])
   @@index([branch_id])
+  @@index([email])
   @@index([deleted_at])
   @@map("users")
 }
@@ -233,6 +237,8 @@ model Session {
   refresh_token_hash  String
   ip_address          String?   @db.VarChar(45)
   user_agent          String?   @db.VarChar(500)
+  country_code        String?   @db.VarChar(2)
+  device_fingerprint  String?   @db.VarChar(64)
   expires_at          DateTime
   revoked_at          DateTime?
   created_at          DateTime  @default(now())
@@ -244,6 +250,35 @@ model Session {
   @@index([expires_at])
   @@index([user_id, revoked_at])
   @@map("sessions")
+}
+
+model PasswordResetToken {
+  id          String    @id @default(uuid())
+  user_id     String
+  token_hash  String
+  expires_at  DateTime
+  used_at     DateTime?
+  created_at  DateTime  @default(now())
+
+  user        User      @relation(fields: [user_id], references: [id])
+
+  @@index([token_hash])
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("password_reset_tokens")
+}
+
+model PasswordHistory {
+  id              String    @id @default(uuid())
+  user_id         String
+  password_hash   String
+  created_at      DateTime  @default(now())
+
+  user            User      @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([user_id, created_at])
+  @@map("password_history")
 }
 
 model Property {

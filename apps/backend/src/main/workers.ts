@@ -7,6 +7,7 @@ import type { PollRetryableNotificationsUseCase } from '../modules/notification/
 import type { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
 import type { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
 import type { CleanupSessionsWorker } from '../modules/auth/infrastructure/workers/cleanup-sessions.worker';
+import type { KeyExpiryCheckWorker } from '../modules/auth/infrastructure/workers/key-expiry-check.worker';
 import type { ExpireFilesWorker } from '../modules/report/infrastructure/workers/expire-files.worker';
 import type { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
 import type { ImportPropertyWorker } from '../modules/property/infrastructure/workers/import-property.worker';
@@ -45,6 +46,7 @@ export async function registerWorkers(
   dispatchRemindersUseCase: DispatchRemindersUseCase,
   dispatchEscalationsUseCase: DispatchEscalationsUseCase,
   cleanupSessionsWorker: CleanupSessionsWorker,
+  keyExpiryCheckWorker: KeyExpiryCheckWorker,
   expireFilesWorker: ExpireFilesWorker,
   geocodeWorker: GeocodeWorker,
   propertyImportWorker: ImportPropertyWorker,
@@ -95,6 +97,13 @@ export async function registerWorkers(
     logger.info({ jobId: job.id }, 'Processing auth.cleanup-sessions job');
     const result = await cleanupSessionsWorker.execute();
     logger.info({ jobId: job.id, deletedCount: result.deletedCount }, 'Session cleanup completed');
+  }));
+
+  await boss.schedule('auth.check-key-expiry', '0 3 * * *', {});
+  await boss.work('auth.check-key-expiry', withJobMetrics('auth.check-key-expiry', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing auth.check-key-expiry job');
+    const result = keyExpiryCheckWorker.execute();
+    logger.info({ jobId: job.id, daysRemaining: result.daysRemaining, level: result.level }, 'Key expiry check completed');
   }));
 
   await boss.schedule('report.expire-files', '0 3 * * *', {});
@@ -158,7 +167,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, report.expire-files, property.geocode, appointment.import, property.import, billing.generate-invoice-file, tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, report.expire-files, property.geocode, appointment.import, property.import, billing.generate-invoice-file, tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

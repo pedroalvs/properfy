@@ -12,6 +12,9 @@ vi.mock('../../src/shared/infrastructure/queue', () => ({
 vi.mock('../../src/shared/infrastructure/prisma', () => ({
   prisma: {
     $queryRawUnsafe: vi.fn().mockResolvedValue([]),
+    property: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 
@@ -56,6 +59,8 @@ describe('registerWorkers', () => {
   const mockExpireTokensWorker = { execute: mockExpireTokensExecute } as any;
   const mockExpireAssetsWorker = { execute: mockExpireAssetsExecute } as any;
   const mockNotifyStuckWorker = { execute: mockNotifyStuckExecute } as any;
+  const mockKeyExpiryCheckExecute = vi.fn().mockResolvedValue({ daysRemaining: null, level: 'none' });
+  const mockKeyExpiryCheckWorker = { execute: mockKeyExpiryCheckExecute } as any;
   const mockLogger = {
     info: vi.fn(),
     error: vi.fn(),
@@ -74,6 +79,7 @@ describe('registerWorkers', () => {
       mockDispatchRemindersUseCase,
       mockDispatchEscalationsUseCase,
       mockCleanupSessionsWorker,
+      mockKeyExpiryCheckWorker,
       mockExpireFilesWorker,
       mockGeocodeWorker,
       mockPropertyImportWorker,
@@ -93,13 +99,14 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(15);
+    expect(mockWork).toHaveBeenCalledTimes(16);
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.dispatch-reminders', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.dispatch-escalations', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('auth.cleanup-sessions', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('auth.check-key-expiry', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.expire-files', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('property.geocode', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.import', expect.any(Function));
@@ -109,11 +116,12 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.notify-not-started', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
-    expect(mockSchedule).toHaveBeenCalledTimes(9);
+    expect(mockSchedule).toHaveBeenCalledTimes(10);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 8 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 8 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('auth.cleanup-sessions', '0 2 * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('auth.check-key-expiry', '0 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('tenant-portal.expire-tokens', '*/15 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', '*/5 * * * *', {});

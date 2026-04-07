@@ -8,10 +8,16 @@ import type { RevokeSessionUseCase } from '../application/use-cases/revoke-sessi
 import type { ListSessionsUseCase } from '../application/use-cases/list-sessions.use-case';
 import type { SetupTotpUseCase } from '../application/use-cases/setup-totp.use-case';
 import type { ConfirmTotpUseCase } from '../application/use-cases/confirm-totp.use-case';
+import type { RequestPasswordResetUseCase } from '../application/use-cases/request-password-reset.use-case';
+import type { ConsumePasswordResetUseCase } from '../application/use-cases/consume-password-reset.use-case';
+import type { AcceptInviteUseCase } from '../application/use-cases/accept-invite.use-case';
 import {
   loginSchema,
   refreshSchema,
   changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  acceptInviteSchema,
   loginResponseSchema,
   refreshResponseSchema,
   meResponseSchema,
@@ -31,8 +37,11 @@ export interface AuthRouteContainer {
   listSessionsUseCase: ListSessionsUseCase;
   setupTotpUseCase: SetupTotpUseCase;
   confirmTotpUseCase: ConfirmTotpUseCase;
+  requestPasswordResetUseCase: RequestPasswordResetUseCase;
+  consumePasswordResetUseCase: ConsumePasswordResetUseCase;
+  acceptInviteUseCase: AcceptInviteUseCase;
   jwtService: JwtService;
-  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
+  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
 }
 
 export async function registerAuthRoutes(
@@ -44,6 +53,10 @@ export async function registerAuthRoutes(
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
+    },
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
     },
   );
 
@@ -234,4 +247,75 @@ export async function registerAuthRoutes(
       return reply.status(204).send();
     },
   );
+
+  // POST /v1/auth/forgot-password (public)
+  app.post('/v1/auth/forgot-password', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute',
+      },
+    },
+    schema: {
+      body: forgotPasswordSchema,
+      response: { 204: z.null() },
+    },
+  }, async (request, reply) => {
+    const parsed = forgotPasswordSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError('Request payload is invalid', parsed.error.errors);
+    }
+    await container.requestPasswordResetUseCase.execute({
+      email: parsed.data.email,
+    });
+    return reply.status(204).send();
+  });
+
+  // POST /v1/auth/reset-password (public)
+  app.post('/v1/auth/reset-password', {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+      },
+    },
+    schema: {
+      body: resetPasswordSchema,
+      response: { 204: z.null() },
+    },
+  }, async (request, reply) => {
+    const parsed = resetPasswordSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError('Request payload is invalid', parsed.error.errors);
+    }
+    await container.consumePasswordResetUseCase.execute({
+      token: parsed.data.token,
+      newPassword: parsed.data.newPassword,
+    });
+    return reply.status(204).send();
+  });
+
+  // POST /v1/auth/accept-invite (public)
+  app.post('/v1/auth/accept-invite', {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+      },
+    },
+    schema: {
+      body: acceptInviteSchema,
+      response: { 204: z.null() },
+    },
+  }, async (request, reply) => {
+    const parsed = acceptInviteSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError('Request payload is invalid', parsed.error.errors);
+    }
+    await container.acceptInviteUseCase.execute({
+      token: parsed.data.token,
+      password: parsed.data.password,
+    });
+    return reply.status(204).send();
+  });
 }

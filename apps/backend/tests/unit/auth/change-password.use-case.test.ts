@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ChangePasswordUseCase } from '../../../src/modules/auth/application/use-cases/change-password.use-case';
 import type { IUserRepository } from '../../../src/modules/auth/domain/user.repository';
 import type { ISessionRepository } from '../../../src/modules/auth/domain/session.repository';
+import type { IPasswordHistoryRepository } from '../../../src/modules/auth/domain/password-history.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import {
   InvalidCurrentPasswordError,
   PasswordTooCommonError,
   PasswordSameAsCurrentError,
+  PasswordRecentlyUsedError,
 } from '../../../src/modules/auth/domain/auth.errors';
 import bcrypt from 'bcryptjs';
 
@@ -27,13 +29,15 @@ describe('ChangePasswordUseCase', () => {
   let userRepo: IUserRepository;
   let sessionRepo: ISessionRepository;
   let auditService: AuditService;
+  let passwordHistoryRepo: IPasswordHistoryRepository;
   let useCase: ChangePasswordUseCase;
 
   beforeEach(() => {
     userRepo = { findByEmail: vi.fn(), findById: vi.fn(), save: vi.fn(), updateLoginSuccess: vi.fn(), updateFailedLogin: vi.fn(), updatePassword: vi.fn() };
     sessionRepo = { create: vi.fn(), findByRefreshTokenHash: vi.fn(), findById: vi.fn(), findActiveByUserId: vi.fn().mockResolvedValue([]), updateRefreshToken: vi.fn(), revoke: vi.fn(), revokeAllForUser: vi.fn() };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService);
+    passwordHistoryRepo = { findRecentByUserId: vi.fn().mockResolvedValue([]), save: vi.fn(), pruneOldEntries: vi.fn() };
+    useCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
   });
 
   it('should update password hash on valid input', async () => {
@@ -80,6 +84,23 @@ describe('ChangePasswordUseCase', () => {
     await expect(
       useCase.execute({ userId: 'user-1', currentPassword: 'OldPass1!', newPassword: 'weak' })
     ).rejects.toThrow('Password does not meet strength requirements');
+  });
+
+  it('should reject recently used password', async () => {
+    const oldHash = bcrypt.hashSync('NewPass2@', 4);
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+    vi.mocked(passwordHistoryRepo.findRecentByUserId).mockResolvedValue([{ passwordHash: oldHash }]);
+    await expect(
+      useCase.execute({ userId: 'user-1', currentPassword: 'OldPass1!', newPassword: 'NewPass2@' })
+    ).rejects.toThrow(PasswordRecentlyUsedError);
+    expect(userRepo.updatePassword).not.toHaveBeenCalled();
+  });
+
+  it('should save old hash to history and prune after successful change', async () => {
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+    await useCase.execute({ userId: 'user-1', currentPassword: 'OldPass1!', newPassword: 'NewPass2@' });
+    expect(passwordHistoryRepo.save).toHaveBeenCalledWith('user-1', expect.any(String));
+    expect(passwordHistoryRepo.pruneOldEntries).toHaveBeenCalledWith('user-1', 5);
   });
 
   it('should emit audit event', async () => {

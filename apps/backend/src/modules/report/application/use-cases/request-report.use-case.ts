@@ -11,6 +11,7 @@ import {
 } from '../../domain/report.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   MAX_DATE_RANGE_MONTHS,
   MAX_CONCURRENT_REPORTS,
@@ -35,11 +36,7 @@ export interface RequestReportInput {
   format: ReportFormat;
 }
 
-export interface AuthContext {
-  userId: string;
-  tenantId: string | null;
-  role: string;
-}
+import type { AuthContext } from '@properfy/shared';
 
 export interface RequestReportOutput {
   reportId: string;
@@ -54,6 +51,7 @@ export class RequestReportUseCase {
     private readonly jobQueue: IJobQueue,
     private readonly auditService: AuditService,
     private readonly tenantRepo?: ITenantRepository,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: RequestReportInput, auth: AuthContext): Promise<RequestReportOutput> {
@@ -70,12 +68,8 @@ export class RequestReportUseCase {
       if (!tenantId) {
         throw new ForbiddenError('FORBIDDEN', 'Missing tenant context');
       }
-      if (this.tenantRepo) {
-        const tenant = await this.tenantRepo.findById(tenantId);
-        const clUserPermissions = (tenant?.settingsJson?.clUserPermissions as string[]) ?? [];
-        if (!clUserPermissions.includes('export_reports')) {
-          throw new ForbiddenError('FORBIDDEN', 'CL_USER does not have export_reports permission');
-        }
+      if (this.authorizationService) {
+        this.authorizationService.assertClUserPermission(auth, 'export_reports');
       }
     }
 

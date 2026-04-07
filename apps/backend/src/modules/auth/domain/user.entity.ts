@@ -73,6 +73,10 @@ export class UserEntity extends BaseEntity {
     return this.status === 'INACTIVE';
   }
 
+  isPendingInvite(): boolean {
+    return this.status === 'PENDING_INVITE';
+  }
+
   isDeleted(): boolean {
     return this.deletedAt !== null;
   }
@@ -82,6 +86,6 @@ export class UserEntity extends BaseEntity {
   }
 
   requiresTotpCode(): boolean {
-    return this.role === 'AM' && this.totpEnabled;
+    return this.totpEnabled;
   }
 }
