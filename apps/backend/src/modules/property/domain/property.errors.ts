@@ -51,3 +51,12 @@ export class PropertyGeocodingManualOverrideError extends DomainError {
     );
   }
 }
+
+export class IdempotencyPayloadMismatchError extends ConflictError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_PAYLOAD_MISMATCH',
+      'Idempotency key has already been used with a different payload',
+    );
+  }
+}

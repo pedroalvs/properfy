@@ -62,6 +62,8 @@ describe('ListPropertiesUseCase', () => {
       findAll: vi.fn(),
       findAllWithBranch: vi.fn().mockResolvedValue([]),
       count: vi.fn(),
+      findFailedGeocoding: vi.fn(),
+      countFailedGeocoding: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
     };
@@ -133,5 +135,41 @@ describe('ListPropertiesUseCase', () => {
         actor: makeActor({ role: 'INSP', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should pass nearLocation filter to repository when all radius params are provided', async () => {
+    vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue([]);
+    vi.mocked(propertyRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      filters: { nearLat: -33.8688, nearLng: 151.2093, nearRadiusKm: 10 },
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor(),
+    });
+
+    expect(propertyRepo.findAllWithBranch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nearLocation: { lat: -33.8688, lng: 151.2093, radiusKm: 10 },
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('should not pass nearLocation filter when radius params are incomplete', async () => {
+    vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue([]);
+    vi.mocked(propertyRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      filters: { nearLat: -33.8688, nearLng: 151.2093 },
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor(),
+    });
+
+    expect(propertyRepo.findAllWithBranch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nearLocation: undefined,
+      }),
+      expect.any(Object),
+    );
   });
 });

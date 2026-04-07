@@ -125,11 +125,25 @@ export class UpdatePropertyUseCase {
       (field) => (data as Record<string, unknown>)[field] !== undefined,
     );
 
-    // Manual coordinate override: if lat/lng explicitly provided, set MANUAL status
-    if (data.latitude !== undefined && data.longitude !== undefined) {
+    // Manual coordinate unlock: clearing both coords on a MANUAL property resets to PENDING
+    const isManualCoordinateUnlock =
+      data.latitude === null &&
+      data.longitude === null &&
+      property.geocodingStatus === 'MANUAL';
+
+    // Manual coordinate override: if lat/lng explicitly provided (non-null), set MANUAL status
+    if (
+      data.latitude !== undefined &&
+      data.longitude !== undefined &&
+      !isManualCoordinateUnlock
+    ) {
       updateData.lat = data.latitude;
       updateData.lng = data.longitude;
       updateData.geocodingStatus = 'MANUAL';
+    } else if (isManualCoordinateUnlock) {
+      updateData.lat = null;
+      updateData.lng = null;
+      updateData.geocodingStatus = 'PENDING';
     } else if (addressChanged) {
       updateData.geocodingStatus = 'PENDING';
     }
@@ -151,8 +165,11 @@ export class UpdatePropertyUseCase {
     );
 
     // Enqueue geocoding job on address change (skip if manual coordinates provided)
-    if (addressChanged && !(data.latitude !== undefined && data.longitude !== undefined)) {
-      await sendJob('property.geocode', { propertyId });
+    // or on manual coordinate unlock (clearing coords on a MANUAL property)
+    if (isManualCoordinateUnlock) {
+      await sendJob('property.geocode', { propertyId }, { retryLimit: 6, retryBackoff: true });
+    } else if (addressChanged && !(data.latitude !== undefined && data.longitude !== undefined)) {
+      await sendJob('property.geocode', { propertyId }, { retryLimit: 6, retryBackoff: true });
     }
 
     const after = {

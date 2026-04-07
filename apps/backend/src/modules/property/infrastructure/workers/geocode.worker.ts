@@ -2,6 +2,7 @@ import type { IPropertyRepository } from '../../domain/property.repository';
 import type { IGeocodingService } from '../../domain/geocoding.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
+import { metrics } from '../../../../shared/infrastructure/metrics';
 
 export class GeocodeWorker {
   constructor(
@@ -49,6 +50,7 @@ export class GeocodeWorker {
         metadata: { address: fullAddress, reason: `Geocoding service error: ${errorMessage}` },
       });
       this.logger.error({ propertyId, error: err }, 'Geocoding service threw an error');
+      await this.updateFailedGauge();
       return;
     }
 
@@ -75,6 +77,16 @@ export class GeocodeWorker {
         metadata: { address: fullAddress, reason: 'Geocoding service returned no results' },
       });
       this.logger.warn({ propertyId }, 'Geocoding failed for property');
+      await this.updateFailedGauge();
+    }
+  }
+
+  private async updateFailedGauge(): Promise<void> {
+    try {
+      const count = await this.propertyRepo.countFailedGeocoding();
+      metrics.setGeocodingFailedCount(count);
+    } catch {
+      // Non-critical — metric update failure should not affect the worker
     }
   }
 }

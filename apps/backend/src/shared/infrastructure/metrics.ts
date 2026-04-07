@@ -53,10 +53,16 @@ class MetricsCollector {
   private jobDurations = new Map<string, DurationBucket>();
   private jwtPreviousKeyDaysRemaining: number | null = null;
   private jwtGaugeProvider: (() => number | null) | null = null;
+  private geocodingFailedCount = 0;
 
   /** Register a function that returns the current JWT previous key days remaining. Called on each snapshot. */
   setJwtGaugeProvider(provider: () => number | null): void {
     this.jwtGaugeProvider = provider;
+  }
+
+  /** Update the cached count of properties in FAILED geocoding status. */
+  setGeocodingFailedCount(count: number): void {
+    this.geocodingFailedCount = count;
   }
 
   httpRequestStart(): () => number {
@@ -183,6 +189,9 @@ class MetricsCollector {
       jwt: {
         previousKeyDaysRemaining: this.jwtGaugeProvider ? this.jwtGaugeProvider() : this.jwtPreviousKeyDaysRemaining,
       },
+      geocoding: {
+        failedCount: this.geocodingFailedCount,
+      },
     };
   }
 }
@@ -239,6 +248,9 @@ export interface MetricsSnapshot {
   };
   jwt?: {
     previousKeyDaysRemaining: number | null;
+  };
+  geocoding?: {
+    failedCount: number;
   };
 }
 

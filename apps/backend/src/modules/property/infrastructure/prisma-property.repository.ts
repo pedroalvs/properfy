@@ -6,6 +6,7 @@ import type {
   PropertyFilters,
   PaginationParams,
   PropertyWithBranch,
+  NearLocationFilter,
 } from '../domain/property.repository';
 import type { PropertyType, GeocodingStatus } from '@properfy/shared';
 
@@ -102,6 +103,9 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     filters: PropertyFilters,
     pagination: PaginationParams,
   ): Promise<PropertyEntity[]> {
+    if (filters.nearLocation) {
+      return this.findAllWithSpatialFilter(filters, pagination);
+    }
     const where = this.buildWhere(filters);
     const rows = await this.prisma.property.findMany({
       where,
@@ -118,6 +122,9 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     filters: PropertyFilters,
     pagination: PaginationParams,
   ): Promise<PropertyWithBranch[]> {
+    if (filters.nearLocation) {
+      return this.findAllWithBranchSpatialFilter(filters, pagination);
+    }
     const where = this.buildWhere(filters);
     const rows = await this.prisma.property.findMany({
       where,
@@ -133,6 +140,9 @@ export class PrismaPropertyRepository implements IPropertyRepository {
   }
 
   async count(filters: PropertyFilters): Promise<number> {
+    if (filters.nearLocation) {
+      return this.countWithSpatialFilter(filters);
+    }
     const where = this.buildWhere(filters);
     return this.prisma.property.count({ where });
   }
@@ -159,13 +169,7 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       },
     });
 
-    // Sync PostGIS coordinates column when lat/lng are available
-    if (property.lat != null && property.lng != null) {
-      await this.prisma.$executeRaw`
-        UPDATE properties SET coordinates = ST_SetSRID(ST_Point(${property.lng}::float, ${property.lat}::float), 4326)
-        WHERE id = ${property.id}
-      `;
-    }
+    await this.syncCoordinates(property.id, property.lat, property.lng);
   }
 
   async update(
@@ -215,20 +219,30 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       data: updateData,
     });
 
-    // Sync PostGIS coordinates column when lat/lng are updated
-    if (data.lat !== undefined && data.lng !== undefined) {
-      if (data.lat != null && data.lng != null) {
-        await this.prisma.$executeRaw`
-          UPDATE properties SET coordinates = ST_SetSRID(ST_Point(${data.lng}::float, ${data.lat}::float), 4326)
-          WHERE id = ${id}
-        `;
-      } else {
-        await this.prisma.$executeRaw`
-          UPDATE properties SET coordinates = NULL
-          WHERE id = ${id}
-        `;
-      }
+    if (data.lat !== undefined || data.lng !== undefined) {
+      await this.syncCoordinates(id, data.lat ?? null, data.lng ?? null);
     }
+  }
+
+  async findFailedGeocoding(updatedBefore: Date): Promise<Array<{ id: string; tenantId: string }>> {
+    const rows = await this.prisma.property.findMany({
+      where: {
+        geocoding_status: 'FAILED',
+        updated_at: { lt: updatedBefore },
+        deleted_at: null,
+      },
+      select: { id: true, tenant_id: true },
+    });
+    return rows.map((r) => ({ id: r.id, tenantId: r.tenant_id }));
+  }
+
+  async countFailedGeocoding(): Promise<number> {
+    return this.prisma.property.count({
+      where: {
+        geocoding_status: 'FAILED',
+        deleted_at: null,
+      },
+    });
   }
 
   private buildWhere(filters: PropertyFilters) {
@@ -254,5 +268,143 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       ];
     }
     return where;
+  }
+
+  private buildSpatialWhereClause(filters: PropertyFilters): { clause: string; params: unknown[] } {
+    const conditions: string[] = ['p.deleted_at IS NULL'];
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (filters.tenantId) {
+      conditions.push(`p.tenant_id = $${paramIndex++}`);
+      params.push(filters.tenantId);
+    }
+    if (filters.branchId) {
+      conditions.push(`p.branch_id = $${paramIndex++}`);
+      params.push(filters.branchId);
+    }
+    if (filters.type) {
+      conditions.push(`p.type = $${paramIndex++}::"PropertyType"`);
+      params.push(filters.type);
+    }
+    if (filters.hasCoordinates === true) {
+      conditions.push('p.lat IS NOT NULL AND p.lng IS NOT NULL');
+    } else if (filters.hasCoordinates === false) {
+      conditions.push('(p.lat IS NULL OR p.lng IS NULL)');
+    }
+    if (filters.search) {
+      const searchParam = `$${paramIndex++}`;
+      conditions.push(
+        `(p.property_code ILIKE ${searchParam} OR p.street ILIKE ${searchParam} OR p.suburb ILIKE ${searchParam})`,
+      );
+      params.push(`%${filters.search}%`);
+    }
+    if (filters.nearLocation) {
+      const { lng, lat, radiusKm } = filters.nearLocation;
+      const radiusMeters = radiusKm * 1000;
+      conditions.push(
+        `ST_DWithin(p.coordinates::geography, ST_SetSRID(ST_MakePoint($${paramIndex++}, $${paramIndex++}), 4326)::geography, $${paramIndex++})`,
+      );
+      params.push(lng, lat, radiusMeters);
+    }
+
+    return { clause: conditions.join(' AND '), params };
+  }
+
+  private async findAllWithSpatialFilter(
+    filters: PropertyFilters,
+    pagination: PaginationParams,
+  ): Promise<PropertyEntity[]> {
+    const { clause, params } = this.buildSpatialWhereClause(filters);
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    const sortCol = toSnakeCase(pagination.sortBy ?? 'created_at');
+    const sortDir = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const paramIndex = params.length + 1;
+    params.push(pagination.pageSize, offset);
+
+    const sql = `
+      SELECT p.id, p.tenant_id, p.branch_id, p.property_code, p.type,
+             p.street, p.address_line_2, p.suburb, p.postcode, p.state, p.country,
+             p.lat, p.lng, p.geocoding_status, p.notes, p.rules_json,
+             p.created_at, p.updated_at, p.deleted_at
+      FROM properties p
+      WHERE ${clause}
+      ORDER BY p.${sortCol} ${sortDir}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    const rows: Array<{
+      id: string; tenant_id: string; branch_id: string | null; property_code: string;
+      type: string; street: string; address_line_2: string | null; suburb: string;
+      postcode: string; state: string; country: string; lat: unknown; lng: unknown;
+      geocoding_status: string; notes: string | null; rules_json: unknown;
+      created_at: Date; updated_at: Date; deleted_at: Date | null;
+    }> = await this.prisma.$queryRawUnsafe(sql, ...params);
+
+    return rows.map(mapToEntity);
+  }
+
+  private async findAllWithBranchSpatialFilter(
+    filters: PropertyFilters,
+    pagination: PaginationParams,
+  ): Promise<PropertyWithBranch[]> {
+    const { clause, params } = this.buildSpatialWhereClause(filters);
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    const sortCol = toSnakeCase(pagination.sortBy ?? 'created_at');
+    const sortDir = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const paramIndex = params.length + 1;
+    params.push(pagination.pageSize, offset);
+
+    const sql = `
+      SELECT p.id, p.tenant_id, p.branch_id, p.property_code, p.type,
+             p.street, p.address_line_2, p.suburb, p.postcode, p.state, p.country,
+             p.lat, p.lng, p.geocoding_status, p.notes, p.rules_json,
+             p.created_at, p.updated_at, p.deleted_at,
+             b.name AS branch_name
+      FROM properties p
+      LEFT JOIN branches b ON b.id = p.branch_id
+      WHERE ${clause}
+      ORDER BY p.${sortCol} ${sortDir}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    const rows: Array<{
+      id: string; tenant_id: string; branch_id: string | null; property_code: string;
+      type: string; street: string; address_line_2: string | null; suburb: string;
+      postcode: string; state: string; country: string; lat: unknown; lng: unknown;
+      geocoding_status: string; notes: string | null; rules_json: unknown;
+      created_at: Date; updated_at: Date; deleted_at: Date | null;
+      branch_name: string | null;
+    }> = await this.prisma.$queryRawUnsafe(sql, ...params);
+
+    return rows.map((row) => ({
+      property: mapToEntity(row),
+      branchName: row.branch_name ?? null,
+    }));
+  }
+
+  private async countWithSpatialFilter(filters: PropertyFilters): Promise<number> {
+    const { clause, params } = this.buildSpatialWhereClause(filters);
+    const sql = `SELECT COUNT(*)::int AS count FROM properties p WHERE ${clause}`;
+    const result: Array<{ count: number }> = await this.prisma.$queryRawUnsafe(sql, ...params);
+    return result[0]?.count ?? 0;
+  }
+
+  private async syncCoordinates(
+    propertyId: string,
+    lat: number | null | undefined,
+    lng: number | null | undefined,
+  ): Promise<void> {
+    if (lat != null && lng != null) {
+      await this.prisma.$executeRaw`
+        UPDATE properties SET coordinates = ST_SetSRID(ST_MakePoint(${lng}::float, ${lat}::float), 4326)
+        WHERE id = ${propertyId}
+      `;
+    } else {
+      await this.prisma.$executeRaw`
+        UPDATE properties SET coordinates = NULL
+        WHERE id = ${propertyId}
+      `;
+    }
   }
 }

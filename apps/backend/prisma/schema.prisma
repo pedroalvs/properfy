@@ -717,12 +717,13 @@ model InspectionAsset {
 }
 
 model IdempotencyKey {
-  id          String   @id @default(uuid())
-  key         String   @unique
-  scope       String
-  response    Json
-  expires_at  DateTime
-  created_at  DateTime @default(now())
+  id            String   @id @default(uuid())
+  key           String   @unique
+  scope         String
+  response      Json
+  payload_hash  String?  @db.VarChar(64)
+  expires_at    DateTime
+  created_at    DateTime @default(now())
 
   @@index([key, scope])
   @@index([expires_at])

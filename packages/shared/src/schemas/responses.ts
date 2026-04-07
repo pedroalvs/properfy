@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { propertyRulesSchema } from './property';
 
 /** Accepts Date objects or ISO strings, coerces to string */
 const dateStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
@@ -126,7 +127,7 @@ export const propertyResponseSchema = z.object({
   longitude: z.number().nullable().optional(),
   geocodingStatus: z.string(),
   notes: z.string().nullable(),
-  rulesJson: z.unknown().optional(),
+  rulesJson: propertyRulesSchema.optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });

@@ -39,6 +39,7 @@ describe('registerWorkers', () => {
   const mockCleanupSessionsExecute = vi.fn().mockResolvedValue({ deletedCount: 0 });
   const mockExpireFilesExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
   const mockGeocodeExecute = vi.fn().mockResolvedValue(undefined);
+  const mockGeocodeRetryExecute = vi.fn().mockResolvedValue({ reenqueuedCount: 0, failedGeocodingCount: 0 });
   const mockImportExecute = vi.fn().mockResolvedValue(undefined);
   const mockPropertyImportExecute = vi.fn().mockResolvedValue(undefined);
   const mockGenerateInvoiceFileExecute = vi.fn().mockResolvedValue(undefined);
@@ -53,6 +54,7 @@ describe('registerWorkers', () => {
   const mockCleanupSessionsWorker = { execute: mockCleanupSessionsExecute } as any;
   const mockExpireFilesWorker = { execute: mockExpireFilesExecute } as any;
   const mockGeocodeWorker = { execute: mockGeocodeExecute } as any;
+  const mockGeocodeRetryWorker = { execute: mockGeocodeRetryExecute } as any;
   const mockImportWorker = { execute: mockImportExecute } as any;
   const mockPropertyImportWorker = { execute: mockPropertyImportExecute } as any;
   const mockGenerateInvoiceFileWorker = { execute: mockGenerateInvoiceFileExecute } as any;
@@ -82,6 +84,7 @@ describe('registerWorkers', () => {
       mockKeyExpiryCheckWorker,
       mockExpireFilesWorker,
       mockGeocodeWorker,
+      mockGeocodeRetryWorker,
       mockPropertyImportWorker,
       mockImportWorker,
       mockGenerateInvoiceFileWorker,
@@ -99,7 +102,7 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(16);
+    expect(mockWork).toHaveBeenCalledTimes(17);
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));
@@ -109,6 +112,7 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('auth.check-key-expiry', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.expire-files', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('property.geocode', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('property.geocode-retry', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.import', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('property.import', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('billing.generate-invoice-file', expect.any(Function));
@@ -116,13 +120,14 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.notify-not-started', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
-    expect(mockSchedule).toHaveBeenCalledTimes(10);
+    expect(mockSchedule).toHaveBeenCalledTimes(11);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 8 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 8 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('auth.cleanup-sessions', '0 2 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('auth.check-key-expiry', '0 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '0 */6 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('tenant-portal.expire-tokens', '*/15 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {});

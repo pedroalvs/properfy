@@ -138,7 +138,7 @@ export class CreatePropertyUseCase {
 
     await this.propertyRepo.save(property);
 
-    sendJob('property.geocode', { propertyId: id }).catch(() => {
+    sendJob('property.geocode', { propertyId: id }, { retryLimit: 6, retryBackoff: true }).catch(() => {
       // Geocoding is async — queue failure does not fail property creation.
       // The property stays PENDING and can be re-queued later.
     });

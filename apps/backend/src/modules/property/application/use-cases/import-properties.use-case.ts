@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { IPropertyImportRepository } from '../../domain/property-import.repository';
@@ -5,6 +6,7 @@ import type { IReportStorageService } from '../../../report/domain/report-storag
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import { PropertyImportEntity } from '../../domain/property-import.entity';
+import { IdempotencyPayloadMismatchError } from '../../domain/property.errors';
 
 export interface ImportPropertiesInput {
   fileBuffer: Buffer;
@@ -46,10 +48,14 @@ export class ImportPropertiesUseCase {
       throw new ValidationError('Tenant context is required for import');
     }
 
-    // Idempotency check
-    const cached = await this.idempotencyService.get<ImportPropertiesOutput>(idempotencyKey, 'property.import');
+    // Idempotency check with payload hash verification
+    const fileHash = createHash('sha256').update(fileBuffer).digest('hex');
+    const cached = await this.idempotencyService.getWithHash<ImportPropertiesOutput>(idempotencyKey, 'property.import');
     if (cached) {
-      return cached;
+      if (cached.payloadHash && cached.payloadHash !== fileHash) {
+        throw new IdempotencyPayloadMismatchError();
+      }
+      return cached.response;
     }
 
     const id = crypto.randomUUID();
@@ -86,7 +92,7 @@ export class ImportPropertiesUseCase {
       errorCount: 0,
     };
 
-    await this.idempotencyService.set(idempotencyKey, 'property.import', result, 24);
+    await this.idempotencyService.set(idempotencyKey, 'property.import', result, 24, fileHash);
 
     return result;
   }

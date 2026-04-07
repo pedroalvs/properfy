@@ -109,6 +109,7 @@ async function start() {
       container.keyExpiryCheckWorker,
       container.expireFilesWorker,
       container.geocodeWorker,
+      container.geocodeRetryWorker,
       container.propertyImportWorker,
       container.appointmentImportWorker,
       container.generateInvoiceFileWorker,

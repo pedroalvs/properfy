@@ -27,6 +27,31 @@ export const branchAddressSchema = z.object({
 });
 export type BranchAddressInput = z.infer<typeof branchAddressSchema>;
 
+// Property address schema — flat address fields for property entities.
+// Aligned with branchAddressSchema validation constraints but keeps the
+// property-specific field set (addressLine2 instead of number/complement,
+// no city field) to preserve the existing API contract and DB columns.
+export const propertyAddressSchema = z.object({
+  street: z.string().min(1).max(300).trim(),
+  addressLine2: z.string().max(200).trim().optional(),
+  suburb: z.string().min(1).max(100).trim(),
+  postcode: z.string().min(1).max(20).trim(),
+  state: z.string().min(1).max(100).trim(),
+  country: z.string().min(2).max(100).trim().default('AU'),
+});
+export type PropertyAddressInput = z.infer<typeof propertyAddressSchema>;
+
+// Partial version for update operations (all fields optional)
+export const propertyAddressUpdateSchema = z.object({
+  street: z.string().min(1).max(300).trim().optional(),
+  addressLine2: z.string().max(200).trim().nullable().optional(),
+  suburb: z.string().min(1).max(100).trim().optional(),
+  postcode: z.string().min(1).max(20).trim().optional(),
+  state: z.string().min(1).max(100).trim().optional(),
+  country: z.string().min(2).max(100).trim().optional(),
+});
+export type PropertyAddressUpdateInput = z.infer<typeof propertyAddressUpdateSchema>;
+
 export const addressSuggestionQuerySchema = z.object({
   q: z.string().min(3).max(200).trim(),
   limit: z.coerce.number().int().min(1).max(10).default(5),

@@ -75,7 +75,7 @@ describe('GeocodePropertyUseCase', () => {
     expect(result.propertyId).toBe('property-1');
     expect(result.geocodingStatus).toBe('PENDING');
     expect(propertyRepo.update).toHaveBeenCalledWith('property-1', 'tenant-1', { geocodingStatus: 'PENDING' });
-    expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'property-1' });
+    expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'property-1' }, { retryLimit: 6, retryBackoff: true });
   });
 
   it('should throw PropertyNotFoundError when property not found', async () => {

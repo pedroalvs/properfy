@@ -5,12 +5,19 @@ export interface PropertyWithBranch {
   branchName: string | null;
 }
 
+export interface NearLocationFilter {
+  lat: number;
+  lng: number;
+  radiusKm: number;
+}
+
 export interface PropertyFilters {
   tenantId?: string;
   branchId?: string;
   type?: string;
   search?: string;
   hasCoordinates?: boolean;
+  nearLocation?: NearLocationFilter;
 }
 
 export interface PaginationParams {
@@ -33,6 +40,10 @@ export interface IPropertyRepository {
   ): Promise<PropertyEntity[]>;
   findAllWithBranch(filters: PropertyFilters, pagination: PaginationParams): Promise<PropertyWithBranch[]>;
   count(filters: PropertyFilters): Promise<number>;
+  /** Find properties with FAILED geocoding status that were last updated before the given date. */
+  findFailedGeocoding(updatedBefore: Date): Promise<Array<{ id: string; tenantId: string }>>;
+  /** Count properties currently in FAILED geocoding status. */
+  countFailedGeocoding(): Promise<number>;
   save(property: PropertyEntity): Promise<void>;
   update(
     id: string,

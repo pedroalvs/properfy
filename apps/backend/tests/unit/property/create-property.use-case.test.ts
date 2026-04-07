@@ -225,7 +225,7 @@ describe('CreatePropertyUseCase', () => {
 
     expect(sendJob).toHaveBeenCalledWith('property.geocode', {
       propertyId: result.id,
-    });
+    }, { retryLimit: 6, retryBackoff: true });
   });
 
   it('should validate branch and create property with branchId', async () => {

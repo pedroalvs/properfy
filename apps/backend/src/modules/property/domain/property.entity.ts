@@ -1,5 +1,5 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { PropertyType, GeocodingStatus } from '@properfy/shared';
+import type { PropertyType, GeocodingStatus, PropertyRules } from '@properfy/shared';
 
 export interface PropertyProps {
   id: string;
@@ -17,7 +17,7 @@ export interface PropertyProps {
   lng: number | null;
   geocodingStatus: GeocodingStatus;
   notes: string | null;
-  rulesJson: Record<string, unknown>;
+  rulesJson: PropertyRules;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;

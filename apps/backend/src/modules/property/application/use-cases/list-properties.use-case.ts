@@ -13,6 +13,9 @@ export interface ListPropertiesInput {
     type?: string;
     search?: string;
     hasCoordinates?: boolean;
+    nearLat?: number;
+    nearLng?: number;
+    nearRadiusKm?: number;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -60,12 +63,18 @@ export class ListPropertiesUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
+    const nearLocation =
+      filters.nearLat !== undefined && filters.nearLng !== undefined && filters.nearRadiusKm !== undefined
+        ? { lat: filters.nearLat, lng: filters.nearLng, radiusKm: filters.nearRadiusKm }
+        : undefined;
+
     const repoFilters: PropertyFilters = {
       tenantId,
       branchId: filters.branchId,
       type: filters.type,
       search: filters.search,
       hasCoordinates: filters.hasCoordinates,
+      nearLocation,
     };
 
     const [data, total] = await Promise.all([

@@ -241,7 +241,7 @@ describe('UpdatePropertyUseCase', () => {
       actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
     });
 
-    expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'prop-1' });
+    expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'prop-1' }, { retryLimit: 6, retryBackoff: true });
   });
 
   it('should NOT enqueue geocoding job when manual coordinates provided', async () => {
@@ -309,6 +309,67 @@ describe('UpdatePropertyUseCase', () => {
 
     expect(result.branchId).toBeNull();
     expect(branchRepo.findById).not.toHaveBeenCalled();
+  });
+
+  // GAP-002: Manual coordinate unlock
+  describe('manual coordinate unlock', () => {
+    it('should reset MANUAL property to PENDING and enqueue geocode job when both coords cleared', async () => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(
+        makeProperty({ geocodingStatus: 'MANUAL', lat: -33.87, lng: 151.21 }),
+      );
+
+      const result = await useCase.execute({
+        propertyId: 'prop-1',
+        data: { latitude: null, longitude: null },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      });
+
+      expect(result.geocodingStatus).toBe('PENDING');
+      expect(result.latitude).toBeNull();
+      expect(result.longitude).toBeNull();
+      expect(propertyRepo.update).toHaveBeenCalledWith(
+        'prop-1',
+        'tenant-1',
+        expect.objectContaining({
+          lat: null,
+          lng: null,
+          geocodingStatus: 'PENDING',
+        }),
+      );
+      expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'prop-1' }, { retryLimit: 6, retryBackoff: true });
+    });
+
+    it('should NOT reset status when only latitude is cleared (not both)', async () => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(
+        makeProperty({ geocodingStatus: 'MANUAL', lat: -33.87, lng: 151.21 }),
+      );
+
+      const result = await useCase.execute({
+        propertyId: 'prop-1',
+        data: { latitude: null },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      });
+
+      // longitude was not in data, so isManualCoordinateUnlock is false
+      expect(result.geocodingStatus).toBe('MANUAL');
+      expect(sendJob).not.toHaveBeenCalled();
+    });
+
+    it('should NOT reset status when coords cleared on non-MANUAL property', async () => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(
+        makeProperty({ geocodingStatus: 'SUCCESS', lat: -33.87, lng: 151.21 }),
+      );
+
+      const result = await useCase.execute({
+        propertyId: 'prop-1',
+        data: { latitude: null, longitude: null },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      });
+
+      // Non-MANUAL property: clearing coords sets MANUAL status (existing behavior)
+      expect(result.geocodingStatus).toBe('MANUAL');
+      expect(sendJob).not.toHaveBeenCalled();
+    });
   });
 
   it('should accept valid active branch on update', async () => {

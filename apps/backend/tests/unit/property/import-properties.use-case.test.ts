@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ImportPropertiesUseCase } from '../../../src/modules/property/application/use-cases/import-properties.use-case';
 import type { IPropertyImportRepository } from '../../../src/modules/property/domain/property-import.repository';
@@ -6,6 +7,7 @@ import type { IJobQueue } from '../../../src/shared/domain/job-queue';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
+import { IdempotencyPayloadMismatchError } from '../../../src/modules/property/domain/property.errors';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -47,6 +49,7 @@ describe('ImportPropertiesUseCase', () => {
     } as unknown as IJobQueue;
     idempotencyService = {
       get: vi.fn().mockResolvedValue(null),
+      getWithHash: vi.fn().mockResolvedValue(null),
       set: vi.fn().mockResolvedValue(undefined),
     } as unknown as IIdempotencyService;
 
@@ -68,7 +71,7 @@ describe('ImportPropertiesUseCase', () => {
     expect(storageService.upload).toHaveBeenCalledOnce();
   });
 
-  it('should return cached result on duplicate idempotency key', async () => {
+  it('should return cached result on duplicate idempotency key with same payload', async () => {
     const cachedResult = {
       importId: 'cached-import',
       status: 'PENDING',
@@ -76,7 +79,11 @@ describe('ImportPropertiesUseCase', () => {
       warningCount: 0,
       errorCount: 0,
     };
-    vi.mocked(idempotencyService.get).mockResolvedValue(cachedResult);
+    const fileHash = createHash('sha256').update(baseInput.fileBuffer).digest('hex');
+    vi.mocked(idempotencyService.getWithHash).mockResolvedValue({
+      response: cachedResult,
+      payloadHash: fileHash,
+    });
 
     const result = await useCase.execute({
       ...baseInput,
@@ -86,6 +93,52 @@ describe('ImportPropertiesUseCase', () => {
     expect(result).toEqual(cachedResult);
     expect(importRepo.save).not.toHaveBeenCalled();
     expect(jobQueue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('should throw IdempotencyPayloadMismatchError when same key used with different payload', async () => {
+    const cachedResult = {
+      importId: 'cached-import',
+      status: 'PENDING',
+      acceptedCount: 0,
+      warningCount: 0,
+      errorCount: 0,
+    };
+    vi.mocked(idempotencyService.getWithHash).mockResolvedValue({
+      response: cachedResult,
+      payloadHash: 'different-hash-from-original-file',
+    });
+
+    await expect(
+      useCase.execute({
+        ...baseInput,
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(IdempotencyPayloadMismatchError);
+
+    expect(importRepo.save).not.toHaveBeenCalled();
+    expect(jobQueue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('should return cached result when stored hash is null (legacy record)', async () => {
+    const cachedResult = {
+      importId: 'cached-import',
+      status: 'PENDING',
+      acceptedCount: 0,
+      warningCount: 0,
+      errorCount: 0,
+    };
+    vi.mocked(idempotencyService.getWithHash).mockResolvedValue({
+      response: cachedResult,
+      payloadHash: null,
+    });
+
+    const result = await useCase.execute({
+      ...baseInput,
+      actor: makeActor(),
+    });
+
+    expect(result).toEqual(cachedResult);
+    expect(importRepo.save).not.toHaveBeenCalled();
   });
 
   it('should scope import to actor tenant', async () => {
@@ -152,12 +205,13 @@ describe('ImportPropertiesUseCase', () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it('should cache result after successful execution', async () => {
+  it('should cache result with file hash after successful execution', async () => {
     await useCase.execute({
       ...baseInput,
       actor: makeActor(),
     });
 
+    const expectedHash = createHash('sha256').update(baseInput.fileBuffer).digest('hex');
     expect(idempotencyService.set).toHaveBeenCalledWith(
       'idem-key-1',
       'property.import',
@@ -166,7 +220,30 @@ describe('ImportPropertiesUseCase', () => {
         status: 'PENDING',
       }),
       24,
+      expectedHash,
     );
+  });
+
+  it('should start new import when a different idempotency key is used', async () => {
+    const result1 = await useCase.execute({
+      ...baseInput,
+      actor: makeActor(),
+    });
+
+    vi.mocked(importRepo.save).mockClear();
+    vi.mocked(jobQueue.enqueue).mockClear();
+    vi.mocked(idempotencyService.set).mockClear();
+
+    const result2 = await useCase.execute({
+      ...baseInput,
+      idempotencyKey: 'idem-key-2',
+      actor: makeActor(),
+    });
+
+    expect(result2.importId).toBeDefined();
+    expect(result2.importId).not.toBe(result1.importId);
+    expect(importRepo.save).toHaveBeenCalledOnce();
+    expect(jobQueue.enqueue).toHaveBeenCalledOnce();
   });
 
   it('should allow CL_ADMIN role', async () => {

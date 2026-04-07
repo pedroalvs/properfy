@@ -75,12 +75,15 @@ import { GeocodePropertyUseCase } from '../modules/property/application/use-case
 import { SearchAddressesUseCase } from '../modules/property/application/use-cases/search-addresses.use-case';
 import { ImportPropertiesUseCase } from '../modules/property/application/use-cases/import-properties.use-case';
 import { GetPropertyImportStatusUseCase } from '../modules/property/application/use-cases/get-property-import-status.use-case';
+import { ExportImportErrorsUseCase } from '../modules/property/application/use-cases/export-import-errors.use-case';
 import { MapboxAddressLookupService } from '../modules/property/infrastructure/mapbox-address-lookup.service';
 import { MapboxGeocodingService } from '../modules/property/infrastructure/mapbox-geocoding.service';
+import { CachedAddressLookupService } from '../modules/property/infrastructure/cached-address-lookup.service';
 import { StubAddressLookupService } from '../modules/property/infrastructure/stub-address-lookup.service';
 import { StubGeocodingService } from '../modules/property/infrastructure/stub-geocoding.service';
 import { PrismaPropertyImportRepository } from '../modules/property/infrastructure/prisma-property-import.repository';
 import { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
+import { GeocodeRetryWorker } from '../modules/property/infrastructure/workers/geocode-retry.worker';
 import { ImportPropertyWorker } from '../modules/property/infrastructure/workers/import-property.worker';
 import type { PropertyRouteContainer } from '../modules/property/interfaces/property.routes';
 
@@ -297,6 +300,7 @@ export interface AppContainer {
   dashboard: DashboardRouteContainer;
   serviceRegion: ServiceRegionRouteContainer;
   geocodeWorker: GeocodeWorker;
+  geocodeRetryWorker: GeocodeRetryWorker;
   propertyImportWorker: ImportPropertyWorker;
   cleanupSessionsWorker: CleanupSessionsWorker;
   keyExpiryCheckWorker: KeyExpiryCheckWorker;
@@ -411,14 +415,16 @@ export function createContainer(logger: Logger): AppContainer {
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo);
-  const addressLookupService = env.MAPBOX_ACCESS_TOKEN
+  const rawAddressLookupService = env.MAPBOX_ACCESS_TOKEN
     ? new MapboxAddressLookupService(env.MAPBOX_ACCESS_TOKEN)
     : new StubAddressLookupService();
+  const addressLookupService = new CachedAddressLookupService(rawAddressLookupService);
   const searchAddressesUseCase = new SearchAddressesUseCase(addressLookupService);
   const geocodingService = env.MAPBOX_ACCESS_TOKEN
     ? new MapboxGeocodingService(env.MAPBOX_ACCESS_TOKEN)
     : new StubGeocodingService();
   const geocodeWorker = new GeocodeWorker(propertyRepo, geocodingService, auditService, logger);
+  const geocodeRetryWorker = new GeocodeRetryWorker(propertyRepo, logger);
 
   // Property import
   const propertyImportRepo = new PrismaPropertyImportRepository(prisma);
@@ -712,11 +718,12 @@ export function createContainer(logger: Logger): AppContainer {
     propertyImportRepo, reportStorageService, propertyImportJobQueue, idempotencyService,
   );
   const getPropertyImportStatusUseCase = new GetPropertyImportStatusUseCase(propertyImportRepo);
+  const exportImportErrorsUseCase = new ExportImportErrorsUseCase(propertyImportRepo);
   const geocodeJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
   const propertyImportWorker = new ImportPropertyWorker(
-    propertyImportRepo, reportStorageService, propertyRepo, logger, geocodeJobQueue,
+    propertyImportRepo, reportStorageService, propertyRepo, logger, auditService, geocodeJobQueue,
   );
 
   return {
@@ -779,6 +786,7 @@ export function createContainer(logger: Logger): AppContainer {
       searchAddressesUseCase,
       importPropertiesUseCase,
       getPropertyImportStatusUseCase,
+      exportImportErrorsUseCase,
       jwtService,
       tenantRepo,
     },
@@ -940,6 +948,7 @@ export function createContainer(logger: Logger): AppContainer {
     keyExpiryCheckWorker,
     expireFilesWorker,
     geocodeWorker,
+    geocodeRetryWorker,
     propertyImportWorker,
     appointmentImportWorker,
     generateInvoiceFileWorker,

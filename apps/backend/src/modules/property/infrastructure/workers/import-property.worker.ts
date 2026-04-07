@@ -7,6 +7,7 @@ import { PropertyEntity } from '../../domain/property.entity';
 import type { PropertyType } from '@properfy/shared';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 
 const VALID_PROPERTY_TYPES = ['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL'];
 
@@ -34,6 +35,7 @@ export class ImportPropertyWorker {
     private readonly storageService: IReportStorageService,
     private readonly propertyRepo: IPropertyRepository,
     private readonly logger: Logger,
+    private readonly auditService: AuditService,
     private readonly jobQueue?: IJobQueue,
   ) {}
 
@@ -63,14 +65,18 @@ export class ImportPropertyWorker {
       let successCount = 0;
       let errorCount = 0;
       const errors: RowError[] = [];
+      const createdPropertyIds: string[] = [];
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]!;
         const rowNum = i + 2; // 1-indexed + header
 
         try {
-          await this.processRow(row, rowNum, importRecord.tenantId, errors);
-          successCount++;
+          const propertyId = await this.processRow(row, rowNum, importRecord.tenantId, errors);
+          if (propertyId) {
+            successCount++;
+            createdPropertyIds.push(propertyId);
+          }
         } catch {
           errorCount++;
           errors.push({ row: rowNum, field: 'general', message: 'Unexpected error processing row' });
@@ -84,6 +90,22 @@ export class ImportPropertyWorker {
         successCount,
         errorCount,
         errorsJson: errors.length > 0 ? errors : undefined,
+      });
+
+      this.auditService.log({
+        action: 'property.imported.batch',
+        actorType: 'USER',
+        actorId: importRecord.createdByUserId,
+        entityType: 'PropertyImport',
+        entityId: importId,
+        tenantId: importRecord.tenantId,
+        after: {
+          importId,
+          totalRows: rows.length,
+          successCount,
+          errorCount: errors.length,
+          propertyIds: createdPropertyIds,
+        },
       });
 
       this.logger.info(
@@ -140,46 +162,46 @@ export class ImportPropertyWorker {
     rowNum: number,
     tenantId: string,
     errors: RowError[],
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     // Validate required fields
     if (!row.propertyCode) {
       errors.push({ row: rowNum, field: 'propertyCode', message: 'Property code is required' });
-      return;
+      return undefined;
     }
     if (!row.type) {
       errors.push({ row: rowNum, field: 'type', message: 'Property type is required' });
-      return;
+      return undefined;
     }
     if (!VALID_PROPERTY_TYPES.includes(row.type.toUpperCase())) {
       errors.push({ row: rowNum, field: 'type', message: `Invalid property type: ${row.type}` });
-      return;
+      return undefined;
     }
     if (!row.street) {
       errors.push({ row: rowNum, field: 'street', message: 'Street is required' });
-      return;
+      return undefined;
     }
     if (!row.suburb) {
       errors.push({ row: rowNum, field: 'suburb', message: 'Suburb is required' });
-      return;
+      return undefined;
     }
     if (!row.postcode) {
       errors.push({ row: rowNum, field: 'postcode', message: 'Postcode is required' });
-      return;
+      return undefined;
     }
     if (!row.state) {
       errors.push({ row: rowNum, field: 'state', message: 'State is required' });
-      return;
+      return undefined;
     }
     if (!row.country) {
       errors.push({ row: rowNum, field: 'country', message: 'Country is required' });
-      return;
+      return undefined;
     }
 
     // Check uniqueness
     const existing = await this.propertyRepo.findByPropertyCode(row.propertyCode, tenantId);
     if (existing) {
       errors.push({ row: rowNum, field: 'propertyCode', message: `Property code already exists: ${row.propertyCode}` });
-      return;
+      return undefined;
     }
 
     // Create property
@@ -220,7 +242,7 @@ export class ImportPropertyWorker {
           field: 'propertyCode',
           message: 'Property code already exists in this tenant',
         });
-        return;
+        return undefined;
       }
       throw err;
     }
@@ -234,5 +256,7 @@ export class ImportPropertyWorker {
         this.logger.warn({ propertyId: property.id, rowNum, error: err }, 'Failed to enqueue geocoding job (non-fatal)');
       }
     }
+
+    return property.id;
   }
 }

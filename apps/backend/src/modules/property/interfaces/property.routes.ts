@@ -22,6 +22,7 @@ import type { GeocodePropertyUseCase } from '../application/use-cases/geocode-pr
 import type { SearchAddressesUseCase } from '../application/use-cases/search-addresses.use-case';
 import type { ImportPropertiesUseCase } from '../application/use-cases/import-properties.use-case';
 import type { GetPropertyImportStatusUseCase } from '../application/use-cases/get-property-import-status.use-case';
+import type { ExportImportErrorsUseCase } from '../application/use-cases/export-import-errors.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 const importIdParam = z.object({ importId: z.string().uuid() });
@@ -36,6 +37,7 @@ export interface PropertyRouteContainer {
   searchAddressesUseCase: SearchAddressesUseCase;
   importPropertiesUseCase: ImportPropertiesUseCase;
   getPropertyImportStatusUseCase: GetPropertyImportStatusUseCase;
+  exportImportErrorsUseCase: ExportImportErrorsUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
 }
@@ -62,6 +64,12 @@ export async function registerPropertyRoutes(
     '/v1/address/suggestions',
     {
       preHandler: authenticate,
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
       schema: {
         querystring: addressSuggestionQuerySchema,
         response: { 200: successResponseSchema(z.array(addressSuggestionSchema)) },
@@ -264,6 +272,35 @@ export async function registerPropertyRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/properties/import/:importId/errors.csv — download import errors as CSV
+  app.get(
+    '/v1/properties/import/:importId/errors.csv',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: importIdParam,
+      },
+    },
+    async (request, reply) => {
+      const params = importIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid import ID', params.error.errors);
+      }
+      const csv = await container.exportImportErrorsUseCase.execute({
+        importId: params.data.importId,
+        actor: request.authContext!,
+      });
+      return reply
+        .status(200)
+        .header('Content-Type', 'text/csv')
+        .header(
+          'Content-Disposition',
+          `attachment; filename="import-${params.data.importId}-errors.csv"`,
+        )
+        .send(csv);
     },
   );
 }

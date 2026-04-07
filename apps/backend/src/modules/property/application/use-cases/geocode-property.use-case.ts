@@ -34,7 +34,7 @@ export class GeocodePropertyUseCase {
     await this.propertyRepo.update(propertyId, property.tenantId, {
       geocodingStatus: 'PENDING',
     });
-    await sendJob('property.geocode', { propertyId });
+    await sendJob('property.geocode', { propertyId }, { retryLimit: 6, retryBackoff: true });
 
     return { propertyId, geocodingStatus: 'PENDING' };
   }
