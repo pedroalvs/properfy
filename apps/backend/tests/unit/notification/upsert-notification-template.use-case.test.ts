@@ -60,10 +60,21 @@ describe('UpsertNotificationTemplateUseCase', () => {
     useCase = new UpsertNotificationTemplateUseCase(templateRepo, templateRenderer, auditService);
   });
 
-  it('should throw NotificationForbiddenError for OP role', async () => {
+  it('should throw NotificationForbiddenError for OP with null tenantId (platform default)', async () => {
     await expect(
-      useCase.execute(makeInput({ actor: makeActor({ role: 'OP' }) })),
+      useCase.execute(makeInput({ actor: makeActor({ role: 'OP', tenantId: null }) })),
     ).rejects.toThrow(NotificationForbiddenError);
+  });
+
+  it('should allow OP to upsert template with own tenantId', async () => {
+    vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+    const result = await useCase.execute(
+      makeInput({ actor: makeActor({ role: 'OP', tenantId: 'tenant-op-1' }) }),
+    );
+
+    expect(result.tenantId).toBe('tenant-op-1');
+    expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
   });
 
   it('should throw NotificationForbiddenError for CL_USER role', async () => {

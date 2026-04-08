@@ -220,8 +220,17 @@ export function createMockContainer(
       getNotificationUseCase: { execute: vi.fn() },
       upsertNotificationTemplateUseCase: { execute: vi.fn() },
       listNotificationTemplatesUseCase: { execute: vi.fn() },
+      createNotificationUseCase: { execute: vi.fn() },
+      pollRetryableNotificationsUseCase: { execute: vi.fn() },
+      dispatchRemindersUseCase: { execute: vi.fn() },
+      dispatchEscalationsUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
+      webhookSignatureValidator: {
+        validateResend: vi.fn().mockReturnValue(true),
+        validateTwilio: vi.fn().mockReturnValue(true),
+        validateZenvia: vi.fn().mockReturnValue(true),
+      },
     } as AppContainer['notification'],
     dashboard: {
       getDashboardStatsUseCase: { execute: vi.fn() },

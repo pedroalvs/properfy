@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { NotificationChannel } from '@properfy/shared';
+import type { NotificationChannel, WhatsAppApprovalStatus } from '@properfy/shared';
 import { NotificationTemplateEntity } from '../domain/notification-template.entity';
 import type {
   INotificationTemplateRepository,
@@ -17,6 +17,8 @@ function mapToEntity(row: any): NotificationTemplateEntity {
     bodyText: row.body_text,
     variablesJson: row.variables_json as string[],
     isActive: row.is_active,
+    whatsappApprovalStatus: (row.whatsapp_approval_status ?? 'PENDING') as WhatsAppApprovalStatus,
+    whatsappApprovalReference: row.whatsapp_approval_reference ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -80,6 +82,8 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
           body_text: template.bodyText,
           variables_json: template.variablesJson,
           is_active: template.active,
+          whatsapp_approval_status: template.whatsappApprovalStatus,
+          whatsapp_approval_reference: template.whatsappApprovalReference,
         },
       });
       return;
@@ -96,6 +100,8 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
         body_text: template.bodyText,
         variables_json: template.variablesJson,
         is_active: template.active,
+        whatsapp_approval_status: template.whatsappApprovalStatus,
+        whatsapp_approval_reference: template.whatsappApprovalReference,
       },
     });
   }

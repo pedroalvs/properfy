@@ -1,6 +1,7 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { prisma } from '../shared/infrastructure/prisma';
 import type { Logger } from '../shared/infrastructure/logger';
+import { metrics } from '../shared/infrastructure/metrics';
 import { getEnv } from './env';
 
 // Auth module
@@ -208,6 +209,8 @@ import type { ReportRouteContainer } from '../modules/report/interfaces/report.r
 // Notification module
 import { PrismaNotificationRepository } from '../modules/notification/infrastructure/prisma-notification.repository';
 import { PrismaNotificationTemplateRepository } from '../modules/notification/infrastructure/prisma-notification-template.repository';
+import { PrismaNotificationAttemptRepository } from '../modules/notification/infrastructure/prisma-notification-attempt.repository';
+import { PrismaNotificationConsentRepository } from '../modules/notification/infrastructure/prisma-notification-consent.repository';
 import { StubEmailProvider } from '../modules/notification/infrastructure/stub-email.provider';
 import { ResendEmailProvider } from '../modules/notification/infrastructure/resend-email.provider';
 import { StubSmsProvider } from '../modules/notification/infrastructure/stub-sms.provider';
@@ -226,7 +229,9 @@ import { CreateNotificationUseCase } from '../modules/notification/application/u
 import { PollRetryableNotificationsUseCase } from '../modules/notification/application/use-cases/poll-retryable-notifications.use-case';
 import { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
+import { ProcessUnsubscribeUseCase } from '../modules/notification/application/use-cases/process-unsubscribe.use-case';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
+import { createWebhookSignatureValidator } from '../modules/notification/infrastructure/webhook-signature-validator';
 
 // Notification handlers
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
@@ -521,10 +526,10 @@ export function createContainer(logger: Logger): AppContainer {
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService);
   // Notification handlers (depend on appointmentRepo, propertyRepo, createNotificationUseCase)
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
-    appointmentRepo, propertyRepo, createNotificationUseCase,
+    appointmentRepo, propertyRepo, createNotificationUseCase, logger, metrics,
   );
   const notifyOnTenantPortalActionHandler = new NotifyOnTenantPortalActionHandler(
-    appointmentRepo, propertyRepo, createNotificationUseCase,
+    appointmentRepo, propertyRepo, createNotificationUseCase, logger, metrics,
   );
 
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(
@@ -667,6 +672,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification providers and services (notificationRepo created above)
   const notificationTemplateRepo = new PrismaNotificationTemplateRepository(prisma);
+  const notificationAttemptRepo = new PrismaNotificationAttemptRepository(prisma);
   const emailProvider = env.RESEND_API_KEY && env.RESEND_FROM_EMAIL
     ? new ResendEmailProvider(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL)
     : new StubEmailProvider();
@@ -682,11 +688,31 @@ export function createContainer(logger: Logger): AppContainer {
   const templateRenderer = new TemplateRendererService();
 
   // Notification use cases
-  const sendNotificationUseCase = new SendNotificationUseCase(
-    notificationRepo, notificationTemplateRepo, emailProvider, smsProvider, whatsAppProvider, templateRenderer,
-  );
+  const consentRepo = new PrismaNotificationConsentRepository(prisma);
+  const getTenantSettings = async (tenantId: string): Promise<Record<string, unknown>> => {
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings_json: true } });
+    return (tenant?.settings_json as Record<string, unknown>) ?? {};
+  };
+  const sendNotificationUseCase = new SendNotificationUseCase({
+    notificationRepo,
+    templateRepo: notificationTemplateRepo,
+    consentRepo,
+    attemptRepo: notificationAttemptRepo,
+    emailProvider,
+    smsProvider,
+    whatsAppProvider,
+    templateRenderer,
+    logger,
+    metrics,
+    getTenantSettings,
+  });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo);
+  const webhookSignatureValidator = createWebhookSignatureValidator({
+    resendWebhookSecret: env.RESEND_WEBHOOK_SECRET,
+    twilioAuthToken: env.TWILIO_AUTH_TOKEN,
+    zenviaWebhookSecret: env.ZENVIA_WEBHOOK_SECRET,
+  });
   const listNotificationsUseCase = new ListNotificationsUseCase(notificationRepo);
   const getNotificationUseCase = new GetNotificationUseCase(notificationRepo);
   const upsertNotificationTemplateUseCase = new UpsertNotificationTemplateUseCase(
@@ -694,9 +720,10 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo);
   // createNotificationUseCase and notificationJobQueue created above (before appointments)
-  const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue);
+  const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue, logger);
   const dispatchRemindersUseCase = new DispatchRemindersUseCase(appointmentRepo, notificationRepo, createNotificationUseCase);
   const dispatchEscalationsUseCase = new DispatchEscalationsUseCase(appointmentRepo, branchRepo, notificationRepo, createNotificationUseCase);
+  const processUnsubscribeUseCase = new ProcessUnsubscribeUseCase(consentRepo, env.NOTIFICATION_UNSUBSCRIBE_SECRET);
 
   // Dashboard repositories and use cases
   const dashboardRepo = new PrismaDashboardRepository(prisma);
@@ -980,8 +1007,10 @@ export function createContainer(logger: Logger): AppContainer {
       pollRetryableNotificationsUseCase,
       dispatchRemindersUseCase,
       dispatchEscalationsUseCase,
+      processUnsubscribeUseCase,
       jwtService,
       tenantRepo,
+      webhookSignatureValidator,
     },
     dashboard: {
       getDashboardStatsUseCase,

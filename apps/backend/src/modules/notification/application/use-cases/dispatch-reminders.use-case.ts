@@ -1,6 +1,7 @@
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { CreateNotificationUseCase } from './create-notification.use-case';
+import type { NotificationChannel } from '@properfy/shared';
 
 export interface DispatchRemindersOutput {
   dispatched: number;
@@ -32,14 +33,29 @@ export class DispatchRemindersUseCase {
       const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
 
       for (const { appointment, contact } of appointments) {
-        if (!contact?.primaryEmail) {
+        // Determine channel and recipient
+        let channel: NotificationChannel;
+        let recipient: string;
+        let effectiveTemplateCode: string;
+
+        if (contact?.primaryEmail) {
+          channel = 'EMAIL';
+          recipient = contact.primaryEmail;
+          effectiveTemplateCode = templateCode;
+        } else if (contact?.primaryPhone) {
+          // GAP-010: SMS fallback when email is missing but phone is present
+          channel = 'SMS';
+          recipient = contact.primaryPhone;
+          effectiveTemplateCode = `${templateCode}_SMS`;
+        } else {
+          // No email and no phone: skip entirely
           skipped++;
           continue;
         }
 
         const alreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
           appointment.id,
-          templateCode,
+          effectiveTemplateCode,
         );
         if (alreadySent) {
           skipped++;
@@ -49,9 +65,9 @@ export class DispatchRemindersUseCase {
         await this.createNotification.execute({
           tenantId: appointment.tenantId,
           appointmentId: appointment.id,
-          recipient: contact.primaryEmail,
-          channel: 'EMAIL',
-          templateCode,
+          recipient,
+          channel,
+          templateCode: effectiveTemplateCode,
           payloadJson: {
             tenantName: contact.tenantName,
             scheduledDate: appointment.scheduledDate.toISOString().split('T')[0] ?? '',

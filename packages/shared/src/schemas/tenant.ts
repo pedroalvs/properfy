@@ -80,6 +80,10 @@ export const tenantSettingsSchema = z.object({
   inspectionWindowBeforeMinutes: z.number().int().min(0).max(120).default(30),
   inspectionWindowAfterMinutes: z.number().int().min(0).max(120).default(30),
 
+  // Notification daily budget caps
+  notificationDailyCapEmail: z.number().int().min(0).default(500),
+  notificationDailyCapSms: z.number().int().min(0).default(100),
+
   // Freeform escape hatch
   customFields: z.record(z.unknown()).optional(),
 }).passthrough();

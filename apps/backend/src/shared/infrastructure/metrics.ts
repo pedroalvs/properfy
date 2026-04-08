@@ -45,7 +45,7 @@ function recordDuration(bucket: DurationBucket, durationMs: number): void {
   if (durationMs > bucket.maxMs) bucket.maxMs = durationMs;
 }
 
-class MetricsCollector {
+export class MetricsCollector {
   private httpRequestCounts = new Map<string, number>();
   private httpDurations = new Map<string, DurationBucket>();
   private activeRequests = 0;
@@ -54,6 +54,8 @@ class MetricsCollector {
   private jwtPreviousKeyDaysRemaining: number | null = null;
   private jwtGaugeProvider: (() => number | null) | null = null;
   private geocodingFailedCount = 0;
+  private notificationHandlerErrorCount = 0;
+  private notificationMissingVariableCount = 0;
 
   /** Register a function that returns the current JWT previous key days remaining. Called on each snapshot. */
   setJwtGaugeProvider(provider: () => number | null): void {
@@ -63,6 +65,16 @@ class MetricsCollector {
   /** Update the cached count of properties in FAILED geocoding status. */
   setGeocodingFailedCount(count: number): void {
     this.geocodingFailedCount = count;
+  }
+
+  /** Increment the notification handler error counter. */
+  incrementNotificationHandlerErrorCount(): void {
+    this.notificationHandlerErrorCount += 1;
+  }
+
+  /** Increment the count of missing template variable occurrences. */
+  incrementMissingVariableCount(count: number = 1): void {
+    this.notificationMissingVariableCount += count;
   }
 
   httpRequestStart(): () => number {
@@ -116,6 +128,8 @@ class MetricsCollector {
     this.activeRequests = 0;
     this.jobCounts.clear();
     this.jobDurations.clear();
+    this.notificationHandlerErrorCount = 0;
+    this.notificationMissingVariableCount = 0;
   }
 
   getSnapshot(): MetricsSnapshot {
@@ -192,6 +206,10 @@ class MetricsCollector {
       geocoding: {
         failedCount: this.geocodingFailedCount,
       },
+      notification: {
+        handlerErrorCount: this.notificationHandlerErrorCount,
+        missingVariableCount: this.notificationMissingVariableCount,
+      },
     };
   }
 }
@@ -251,6 +269,10 @@ export interface MetricsSnapshot {
   };
   geocoding?: {
     failedCount: number;
+  };
+  notification?: {
+    handlerErrorCount: number;
+    missingVariableCount: number;
   };
 }
 

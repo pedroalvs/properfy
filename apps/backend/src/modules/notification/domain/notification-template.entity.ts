@@ -1,5 +1,5 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { NotificationChannel } from '@properfy/shared';
+import type { NotificationChannel, WhatsAppApprovalStatus } from '@properfy/shared';
 
 export interface NotificationTemplateProps {
   id: string;
@@ -11,6 +11,8 @@ export interface NotificationTemplateProps {
   bodyText: string;
   variablesJson: string[];
   isActive: boolean;
+  whatsappApprovalStatus: WhatsAppApprovalStatus;
+  whatsappApprovalReference: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +26,8 @@ export class NotificationTemplateEntity extends BaseEntity {
   bodyText: string;
   readonly variablesJson: string[];
   active: boolean;
+  whatsappApprovalStatus: WhatsAppApprovalStatus;
+  whatsappApprovalReference: string | null;
 
   constructor(props: NotificationTemplateProps) {
     super(props.id, props.createdAt, props.updatedAt);
@@ -35,6 +39,8 @@ export class NotificationTemplateEntity extends BaseEntity {
     this.bodyText = props.bodyText;
     this.variablesJson = props.variablesJson;
     this.active = props.isActive;
+    this.whatsappApprovalStatus = props.whatsappApprovalStatus;
+    this.whatsappApprovalReference = props.whatsappApprovalReference;
   }
 
   isActive(): boolean {
@@ -43,5 +49,9 @@ export class NotificationTemplateEntity extends BaseEntity {
 
   isPlatformDefault(): boolean {
     return this.tenantId === null;
+  }
+
+  isWhatsAppApproved(): boolean {
+    return this.whatsappApprovalStatus === 'APPROVED';
   }
 }

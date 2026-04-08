@@ -40,6 +40,7 @@
     "exceljs": "^4.4.0",
     "fastify": "^4.28.1",
     "fastify-type-provider-zod": "^2.1.0",
+    "handlebars": "^4.7.9",
     "jose": "^5.9.6",
     "otplib": "^12.0.1",
     "pg-boss": "^9.0.3",

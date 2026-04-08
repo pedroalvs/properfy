@@ -30,6 +30,7 @@ function makeAppointment(
     customFieldsJson: null,
     reason: null,
     createdByUserId: 'user-1',
+    doneMarkedByUserId: null,
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     serviceGroupId: null,
@@ -161,18 +162,6 @@ describe('DispatchRemindersUseCase', () => {
     expect(mockCreateNotification.execute).not.toHaveBeenCalled();
   });
 
-  it('skips appointment with contact but no primaryEmail (increments skipped)', async () => {
-    mockAppointmentRepo.findScheduledOnDate
-      .mockResolvedValueOnce([makeRelation({}, { primaryEmail: null })])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-
-    const result = await useCase.execute(today);
-
-    expect(result).toEqual({ dispatched: 0, skipped: 1 });
-    expect(mockCreateNotification.execute).not.toHaveBeenCalled();
-  });
-
   it('skips appointment where existsByAppointmentAndTemplate returns true (increments skipped)', async () => {
     mockAppointmentRepo.findScheduledOnDate
       .mockResolvedValueOnce([makeRelation()])
@@ -277,5 +266,137 @@ describe('DispatchRemindersUseCase', () => {
     mockCreateNotification.execute.mockRejectedValueOnce(new Error('DB write failed'));
 
     await expect(useCase.execute(today)).rejects.toThrow('DB write failed');
+  });
+
+  // GAP-010: SMS fallback when email missing
+  describe('GAP-010: SMS fallback when email missing', () => {
+    it('creates SMS notification when no email but phone is present', async () => {
+      mockAppointmentRepo.findScheduledOnDate
+        .mockResolvedValueOnce([
+          makeRelation(
+            { id: 'appt-sms', tenantId: 'tenant-sms' },
+            { primaryEmail: null, primaryPhone: '+61400000000', tenantName: 'SMS Tenant' },
+          ),
+        ])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await useCase.execute(today);
+
+      expect(result).toEqual({ dispatched: 1, skipped: 0 });
+      expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'SMS',
+          recipient: '+61400000000',
+          templateCode: 'REMINDER_7_DAYS_SMS',
+        }),
+      );
+    });
+
+    it('skips appointment when no email and no phone', async () => {
+      mockAppointmentRepo.findScheduledOnDate
+        .mockResolvedValueOnce([
+          makeRelation(
+            { id: 'appt-skip' },
+            { primaryEmail: null, primaryPhone: null },
+          ),
+        ])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await useCase.execute(today);
+
+      expect(result).toEqual({ dispatched: 0, skipped: 1 });
+      expect(mockCreateNotification.execute).not.toHaveBeenCalled();
+    });
+
+    it('uses EMAIL when email is present (no SMS fallback needed)', async () => {
+      mockAppointmentRepo.findScheduledOnDate
+        .mockResolvedValueOnce([
+          makeRelation(
+            { id: 'appt-email' },
+            { primaryEmail: 'test@example.com', primaryPhone: '+61400000000' },
+          ),
+        ])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await useCase.execute(today);
+
+      expect(result).toEqual({ dispatched: 1, skipped: 0 });
+      expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'EMAIL',
+          recipient: 'test@example.com',
+          templateCode: 'REMINDER_7_DAYS',
+        }),
+      );
+    });
+
+    it('uses correct SMS template code for each reminder window', async () => {
+      // T+5 appointment with phone only
+      mockAppointmentRepo.findScheduledOnDate
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          makeRelation(
+            { id: 'appt-5d' },
+            { primaryEmail: null, primaryPhone: '+61400000000' },
+          ),
+        ])
+        .mockResolvedValueOnce([
+          makeRelation(
+            { id: 'appt-3d' },
+            { primaryEmail: null, primaryPhone: '+61400000001' },
+          ),
+        ]);
+
+      const result = await useCase.execute(today);
+
+      expect(result).toEqual({ dispatched: 2, skipped: 0 });
+      expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          templateCode: 'REMINDER_5_DAYS_SMS',
+          channel: 'SMS',
+        }),
+      );
+      expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          templateCode: 'REMINDER_3_DAYS_SMS',
+          channel: 'SMS',
+        }),
+      );
+    });
+
+    it('checks dedup with SMS template code for phone-only contacts', async () => {
+      mockAppointmentRepo.findScheduledOnDate
+        .mockResolvedValueOnce([
+          makeRelation(
+            { id: 'appt-dup' },
+            { primaryEmail: null, primaryPhone: '+61400000000' },
+          ),
+        ])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+      mockNotificationRepo.existsByAppointmentAndTemplate.mockResolvedValueOnce(true);
+
+      const result = await useCase.execute(today);
+
+      expect(result).toEqual({ dispatched: 0, skipped: 1 });
+      expect(mockNotificationRepo.existsByAppointmentAndTemplate).toHaveBeenCalledWith(
+        'appt-dup',
+        'REMINDER_7_DAYS_SMS',
+      );
+    });
+
+    it('skips when contact is null (no contact at all)', async () => {
+      mockAppointmentRepo.findScheduledOnDate
+        .mockResolvedValueOnce([makeRelation({}, null)])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await useCase.execute(today);
+
+      expect(result).toEqual({ dispatched: 0, skipped: 1 });
+    });
   });
 });

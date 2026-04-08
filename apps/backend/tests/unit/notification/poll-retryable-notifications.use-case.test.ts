@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PollRetryableNotificationsUseCase } from '../../../src/modules/notification/application/use-cases/poll-retryable-notifications.use-case';
 import type { INotificationRepository } from '../../../src/modules/notification/domain/notification.repository';
 import type { IJobQueue } from '../../../src/shared/domain/job-queue';
+import type { Logger } from '../../../src/shared/infrastructure/logger';
 import { NotificationEntity } from '../../../src/modules/notification/domain/notification.entity';
 
 function makeNotification(id: string): NotificationEntity {
@@ -27,8 +28,11 @@ function makeNotification(id: string): NotificationEntity {
   });
 }
 
+function makeNotifications(count: number): NotificationEntity[] {
+  return Array.from({ length: count }, (_, i) => makeNotification(`notif-${i + 1}`));
+}
+
 describe('PollRetryableNotificationsUseCase', () => {
-  let useCase: PollRetryableNotificationsUseCase;
   let mockRepo: {
     findById: ReturnType<typeof vi.fn>;
     findByProviderMessageId: ReturnType<typeof vi.fn>;
@@ -37,8 +41,10 @@ describe('PollRetryableNotificationsUseCase', () => {
     findRetryable: ReturnType<typeof vi.fn>;
     save: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    existsByAppointmentAndTemplate: ReturnType<typeof vi.fn>;
   };
   let mockJobQueue: { enqueue: ReturnType<typeof vi.fn> };
+  let mockLogger: { warn: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,31 +61,45 @@ describe('PollRetryableNotificationsUseCase', () => {
     mockJobQueue = {
       enqueue: vi.fn().mockResolvedValue(undefined),
     };
-    useCase = new PollRetryableNotificationsUseCase(
-      mockRepo as unknown as INotificationRepository,
-      mockJobQueue as unknown as IJobQueue,
-    );
+    mockLogger = {
+      warn: vi.fn(),
+      info: vi.fn(),
+    };
   });
 
+  function createUseCase(batchLimit?: number) {
+    return new PollRetryableNotificationsUseCase(
+      mockRepo as unknown as INotificationRepository,
+      mockJobQueue as unknown as IJobQueue,
+      mockLogger as unknown as Logger,
+      batchLimit,
+    );
+  }
+
   it('returns enqueuedCount: 0 when no retryable notifications', async () => {
+    const useCase = createUseCase();
     const result = await useCase.execute();
 
     expect(result.enqueuedCount).toBe(0);
+    expect(result.hasMore).toBe(false);
     expect(mockJobQueue.enqueue).not.toHaveBeenCalled();
   });
 
-  it('calls findRetryable with current time', async () => {
+  it('calls findRetryable with current time and limit + 1', async () => {
+    const useCase = createUseCase(10);
     const before = new Date();
     await useCase.execute();
     const after = new Date();
 
     expect(mockRepo.findRetryable).toHaveBeenCalledOnce();
-    const passedDate = mockRepo.findRetryable.mock.calls[0][0] as Date;
-    expect(passedDate.getTime()).toBeGreaterThanOrEqual(before.getTime());
-    expect(passedDate.getTime()).toBeLessThanOrEqual(after.getTime());
+    const [passedDate, passedLimit] = mockRepo.findRetryable.mock.calls[0];
+    expect((passedDate as Date).getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect((passedDate as Date).getTime()).toBeLessThanOrEqual(after.getTime());
+    expect(passedLimit).toBe(11); // limit + 1 to detect overflow
   });
 
   it('enqueues notification.send for each retryable notification', async () => {
+    const useCase = createUseCase();
     mockRepo.findRetryable.mockResolvedValueOnce([
       makeNotification('notif-1'),
       makeNotification('notif-2'),
@@ -101,6 +121,7 @@ describe('PollRetryableNotificationsUseCase', () => {
   });
 
   it('returns correct enqueuedCount matching list length', async () => {
+    const useCase = createUseCase();
     mockRepo.findRetryable.mockResolvedValueOnce([
       makeNotification('notif-1'),
       makeNotification('notif-2'),
@@ -113,6 +134,7 @@ describe('PollRetryableNotificationsUseCase', () => {
   });
 
   it('enqueues with retryLimit: 0', async () => {
+    const useCase = createUseCase();
     mockRepo.findRetryable.mockResolvedValueOnce([makeNotification('notif-1')]);
 
     await useCase.execute();
@@ -122,6 +144,7 @@ describe('PollRetryableNotificationsUseCase', () => {
   });
 
   it('handles single retryable notification correctly', async () => {
+    const useCase = createUseCase();
     mockRepo.findRetryable.mockResolvedValueOnce([makeNotification('notif-solo')]);
 
     const result = await useCase.execute();
@@ -133,5 +156,76 @@ describe('PollRetryableNotificationsUseCase', () => {
       { notificationId: 'notif-solo' },
       { retryLimit: 0 },
     );
+  });
+
+  describe('batch cap', () => {
+    it('caps batch at configured limit', async () => {
+      const batchLimit = 3;
+      const useCase = createUseCase(batchLimit);
+      // Return limit + 1 to indicate more exist
+      mockRepo.findRetryable.mockResolvedValueOnce(makeNotifications(batchLimit + 1));
+
+      const result = await useCase.execute();
+
+      expect(result.enqueuedCount).toBe(batchLimit);
+      expect(result.hasMore).toBe(true);
+      expect(mockJobQueue.enqueue).toHaveBeenCalledTimes(batchLimit);
+    });
+
+    it('logs warning when batch overflows', async () => {
+      const batchLimit = 3;
+      const useCase = createUseCase(batchLimit);
+      mockRepo.findRetryable.mockResolvedValueOnce(makeNotifications(batchLimit + 1));
+
+      await useCase.execute();
+
+      expect(mockLogger.warn).toHaveBeenCalledOnce();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { batchLimit },
+        expect.stringContaining('exceeded batch limit'),
+      );
+    });
+
+    it('does not log warning when batch fits within limit', async () => {
+      const batchLimit = 5;
+      const useCase = createUseCase(batchLimit);
+      mockRepo.findRetryable.mockResolvedValueOnce(makeNotifications(3));
+
+      const result = await useCase.execute();
+
+      expect(result.enqueuedCount).toBe(3);
+      expect(result.hasMore).toBe(false);
+      expect(mockLogger.warn).not.toHaveBeenCalled();
+    });
+
+    it('uses default batch limit of 500 when not configured', async () => {
+      const useCase = createUseCase();
+      await useCase.execute();
+
+      expect(mockRepo.findRetryable).toHaveBeenCalledWith(expect.any(Date), 501);
+    });
+
+    it('processes exactly the limit when results equal limit + 1', async () => {
+      const batchLimit = 2;
+      const useCase = createUseCase(batchLimit);
+      const notifications = makeNotifications(3); // limit + 1
+      mockRepo.findRetryable.mockResolvedValueOnce(notifications);
+
+      const result = await useCase.execute();
+
+      expect(result.enqueuedCount).toBe(2);
+      expect(result.hasMore).toBe(true);
+      // Should only enqueue the first 2, not the 3rd
+      expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
+        'notification.send',
+        { notificationId: 'notif-1' },
+        { retryLimit: 0 },
+      );
+      expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
+        'notification.send',
+        { notificationId: 'notif-2' },
+        { retryLimit: 0 },
+      );
+    });
   });
 });

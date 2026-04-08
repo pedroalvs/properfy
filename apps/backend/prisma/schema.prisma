@@ -621,6 +621,18 @@ enum InspectionAssetStatus {
   UPLOAD_FAILED
 }
 
+enum WhatsAppApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationAttemptStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
 enum NotificationChannel {
   EMAIL
   SMS
@@ -632,6 +644,7 @@ enum NotificationStatus {
   SENT
   DELIVERED
   FAILED
+  SKIPPED
 }
 
 model TenantPortalToken {
@@ -823,6 +836,7 @@ model Notification {
 
   tenant               Tenant             @relation(fields: [tenant_id], references: [id])
   appointment          Appointment?       @relation(fields: [appointment_id], references: [id])
+  attempts             NotificationAttempt[]
 
   @@index([tenant_id])
   @@index([appointment_id])
@@ -834,24 +848,42 @@ model Notification {
 }
 
 model NotificationTemplate {
-  id             String              @id @default(uuid())
-  tenant_id      String?
-  template_code  String              @db.VarChar(100)
-  channel        NotificationChannel
-  subject        String?             @db.VarChar(255)
-  body_html      String?             @db.Text
-  body_text      String              @db.Text
-  variables_json Json
-  is_active      Boolean             @default(true)
-  created_at     DateTime            @default(now())
-  updated_at     DateTime            @updatedAt
+  id                          String                  @id @default(uuid())
+  tenant_id                   String?
+  template_code               String                  @db.VarChar(100)
+  channel                     NotificationChannel
+  subject                     String?                 @db.VarChar(255)
+  body_html                   String?                 @db.Text
+  body_text                   String                  @db.Text
+  variables_json              Json
+  is_active                   Boolean                 @default(true)
+  whatsapp_approval_status    WhatsAppApprovalStatus  @default(PENDING)
+  whatsapp_approval_reference String?                 @db.VarChar(255)
+  created_at                  DateTime                @default(now())
+  updated_at                  DateTime                @updatedAt
 
-  tenant         Tenant?             @relation(fields: [tenant_id], references: [id])
+  tenant                      Tenant?                 @relation(fields: [tenant_id], references: [id])
 
   @@unique([tenant_id, template_code, channel])
   @@index([template_code, channel])
   @@index([tenant_id])
   @@map("notification_templates")
+}
+
+model NotificationAttempt {
+  id                String                    @id @default(uuid())
+  notification_id   String
+  attempt_number    Int
+  status            NotificationAttemptStatus @default(PENDING)
+  provider_error    String?                   @db.Text
+  started_at        DateTime
+  finished_at       DateTime?
+
+  notification      Notification              @relation(fields: [notification_id], references: [id])
+
+  @@index([notification_id])
+  @@index([notification_id, attempt_number])
+  @@map("notification_attempts")
 }
 
 enum ReportType {
@@ -1015,4 +1047,19 @@ model InspectorRegion {
   @@id([inspector_id, region_id])
   @@index([region_id])
   @@map("inspector_regions")
+}
+
+model NotificationConsent {
+  id            String              @id @default(uuid())
+  recipient     String              @db.VarChar(320)
+  channel       NotificationChannel
+  tenant_id     String
+  opted_out     Boolean             @default(false)
+  opted_out_at  DateTime?
+  created_at    DateTime            @default(now())
+  updated_at    DateTime            @updatedAt
+
+  @@unique([recipient, channel, tenant_id])
+  @@index([tenant_id])
+  @@map("notification_consents")
 }

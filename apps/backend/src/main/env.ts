@@ -42,11 +42,18 @@ const envSchema = z.object({
   WHATSAPP_API_KEY: z.string().optional(),
   WHATSAPP_API_URL: z.string().optional(),
 
+  // Optional webhook signature secrets (skip validation when absent — dev mode)
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
+  ZENVIA_WEBHOOK_SECRET: z.string().optional(),
+
   // Optional Mapbox
   MAPBOX_ACCESS_TOKEN: z.string().optional(),
 
   // Optional TOTP encryption
   TOTP_ENCRYPTION_KEY: z.string().optional(),
+
+  // Notification unsubscribe token secret (HMAC-SHA256)
+  NOTIFICATION_UNSUBSCRIBE_SECRET: z.string().default('dev-unsubscribe-secret'),
 
   // Optional direct DB URL (migrations)
   DIRECT_URL: z.string().optional(),

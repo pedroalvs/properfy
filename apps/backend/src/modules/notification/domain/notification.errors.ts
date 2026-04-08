@@ -23,3 +23,9 @@ export class NotificationForbiddenError extends ForbiddenError {
     super('FORBIDDEN', 'Not permitted for this operation');
   }
 }
+
+export class WhatsAppTemplateNotApprovedError extends DomainError {
+  constructor() {
+    super('WHATSAPP_TEMPLATE_NOT_APPROVED', 'WhatsApp template is not approved', 422);
+  }
+}

@@ -1,15 +1,40 @@
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
 import type { CreateNotificationUseCase } from '../use-cases/create-notification.use-case';
+import type { Logger } from '../../../../shared/infrastructure/logger';
+import type { MetricsCollector } from '../../../../shared/infrastructure/metrics';
 
 export class NotifyOnTenantPortalActionHandler {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly propertyRepo: IPropertyRepository,
     private readonly createNotification: CreateNotificationUseCase,
+    private readonly logger?: Logger,
+    private readonly metrics?: MetricsCollector,
   ) {}
 
   async execute(input: {
+    appointmentId: string;
+    action: string;
+  }): Promise<void> {
+    try {
+      await this.executeInternal(input);
+    } catch (error) {
+      this.logger?.error(
+        {
+          err: error,
+          handler: 'NotifyOnTenantPortalActionHandler',
+          appointmentId: input.appointmentId,
+          action: input.action,
+        },
+        'Notification handler failed',
+      );
+      this.metrics?.incrementNotificationHandlerErrorCount();
+      throw error;
+    }
+  }
+
+  private async executeInternal(input: {
     appointmentId: string;
     action: string;
   }): Promise<void> {

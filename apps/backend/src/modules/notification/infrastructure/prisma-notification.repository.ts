@@ -136,6 +136,21 @@ export class PrismaNotificationRepository implements INotificationRepository {
     return count > 0;
   }
 
+  async countByTenantChannelSince(
+    tenantId: string,
+    channel: string,
+    since: Date,
+  ): Promise<number> {
+    return this.prisma.notification.count({
+      where: {
+        tenant_id: tenantId,
+        channel: channel as any,
+        created_at: { gte: since },
+        status: { not: 'SKIPPED' },
+      },
+    });
+  }
+
   async update(notification: NotificationEntity): Promise<void> {
     await this.prisma.notification.update({
       where: { id: notification.id },

@@ -28,6 +28,7 @@ function makeAppointment(
     customFieldsJson: null,
     reason: null,
     createdByUserId: 'user-1',
+    doneMarkedByUserId: null,
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     serviceGroupId: null,
@@ -104,11 +105,29 @@ const createNotification = {
   execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
 };
 
+const logger = {
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+  trace: vi.fn(),
+  fatal: vi.fn(),
+  child: vi.fn().mockReturnThis(),
+  silent: vi.fn(),
+  level: 'info',
+};
+
+const metricsCollector = {
+  incrementNotificationHandlerErrorCount: vi.fn(),
+};
+
 function makeHandler() {
   return new NotifyOnStatusTransitionHandler(
     appointmentRepo as any,
     propertyRepo as any,
     createNotification as any,
+    logger as any,
+    metricsCollector as any,
   );
 }
 
@@ -218,7 +237,7 @@ describe('NotifyOnStatusTransitionHandler', () => {
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
-  it('does not throw when createNotification.execute throws', async () => {
+  it('logs error and increments metric when handler throws', async () => {
     createNotification.execute.mockRejectedValueOnce(new Error('Queue failure'));
 
     const handler = makeHandler();
@@ -229,6 +248,30 @@ describe('NotifyOnStatusTransitionHandler', () => {
         targetStatus: 'SCHEDULED',
       }),
     ).rejects.toThrow('Queue failure');
+
+    expect(logger.error).toHaveBeenCalledOnce();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        handler: 'NotifyOnStatusTransitionHandler',
+        appointmentId: 'appt-1',
+        previousStatus: 'AWAITING_INSPECTOR',
+        targetStatus: 'SCHEDULED',
+      }),
+      'Notification handler failed',
+    );
+    expect(metricsCollector.incrementNotificationHandlerErrorCount).toHaveBeenCalledOnce();
+  });
+
+  it('does not log error or increment metric on success', async () => {
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(metricsCollector.incrementNotificationHandlerErrorCount).not.toHaveBeenCalled();
   });
 
   it('passes correct payloadJson with all expected keys', async () => {

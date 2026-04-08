@@ -41,6 +41,11 @@ vi.mock('../../../src/main/container', () => ({
       upsertNotificationTemplateUseCase: { execute: mockUpsertNotificationTemplateExecute },
       listNotificationTemplatesUseCase: { execute: mockListNotificationTemplatesExecute },
       jwtService: { verify: mockJwtVerify },
+      webhookSignatureValidator: {
+        validateResend: vi.fn().mockReturnValue(true),
+        validateTwilio: vi.fn().mockReturnValue(true),
+        validateZenvia: vi.fn().mockReturnValue(true),
+      },
     },
   }),
 }));

@@ -45,6 +45,13 @@ export class UpsertNotificationTemplateUseCase {
     let tenantId: string | null;
     if (actor.role === 'AM') {
       tenantId = null;
+    } else if (actor.role === 'OP') {
+      // OP may edit tenant-specific overrides but never platform defaults.
+      // OP is cross-tenant (tenantId is null in JWT), so platform-default writes are forbidden.
+      if (!actor.tenantId) {
+        throw new NotificationForbiddenError();
+      }
+      tenantId = actor.tenantId;
     } else if (actor.role === 'CL_ADMIN') {
       tenantId = actor.tenantId;
     } else {
@@ -90,6 +97,8 @@ export class UpsertNotificationTemplateUseCase {
       bodyText: input.bodyText,
       variablesJson,
       isActive: input.isActive,
+      whatsappApprovalStatus: 'PENDING',
+      whatsappApprovalReference: null,
       createdAt: now,
       updatedAt: now,
     });

@@ -27,4 +27,5 @@ export interface INotificationRepository {
   save(notification: NotificationEntity): Promise<void>;
   update(notification: NotificationEntity): Promise<void>;
   existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
+  countByTenantChannelSince(tenantId: string, channel: NotificationChannel, since: Date): Promise<number>;
 }
