@@ -44,7 +44,9 @@ vi.mock('../../../src/main/container', () => ({
         save: vi.fn(),
         updateStatus: vi.fn(),
         updateLastAccessedAt: vi.fn(),
+        markUsed: vi.fn(),
         revokeAllForAppointment: vi.fn(),
+        expireActiveTokens: vi.fn(),
       },
       tokenService: { generateRawToken: vi.fn(), hashToken: mockHashToken },
       jwtService: { verify: mockJwtVerify },
@@ -72,6 +74,7 @@ function createMockToken() {
     tokenHash: 'hashed-token',
     expiresAt: new Date(Date.now() + 86400000),
     status: 'ACTIVE',
+    usedAt: null,
     lastAccessedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -104,7 +107,7 @@ describe('GET /v1/tenant-portal/:token', () => {
   it('should return 200 with portal data', async () => {
     setupPortalAuth();
     const mockResult = {
-      token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' },
       appointment: {},
       contact: null,
       restrictions: [],

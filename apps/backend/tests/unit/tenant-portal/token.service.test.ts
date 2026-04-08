@@ -98,5 +98,69 @@ describe('TokenService', () => {
       expect(result.getUTCMonth()).toBe(3); // April = 3
       expect(result.getUTCFullYear()).toBe(2026);
     });
+
+    it('should use custom cutoff hour when provided (17:00)', () => {
+      // 2026-04-10 scheduled, day-before is 2026-04-09
+      // 17:00 UTC
+      const result = service.computeExpiresAt('2026-04-10', 'UTC', 17);
+
+      expect(result.getUTCHours()).toBe(17);
+      expect(result.getUTCDate()).toBe(9);
+      expect(result.getUTCMonth()).toBe(3);
+      expect(result.getUTCFullYear()).toBe(2026);
+    });
+
+    it('should default to 19:00 cutoff when not specified', () => {
+      const resultDefault = service.computeExpiresAt('2026-04-10', 'UTC');
+      const resultExplicit = service.computeExpiresAt('2026-04-10', 'UTC', 19);
+
+      expect(resultDefault.getTime()).toBe(resultExplicit.getTime());
+    });
+
+    it('should use custom cutoff hour with timezone (17:00 AEST)', () => {
+      // 2026-04-10 scheduled, day-before is 2026-04-09
+      // Australia/Sydney in April is AEST (UTC+10)
+      // 17:00 AEST = 07:00 UTC
+      const result = service.computeExpiresAt('2026-04-10', 'Australia/Sydney', 17);
+
+      expect(result.getUTCHours()).toBe(7);
+      expect(result.getUTCDate()).toBe(9);
+      expect(result.getUTCMonth()).toBe(3);
+      expect(result.getUTCFullYear()).toBe(2026);
+    });
+
+    it('should use custom daysBefore when provided (2 days before)', () => {
+      // 2026-04-10 scheduled, 2 days before is 2026-04-08
+      // 19:00 UTC
+      const result = service.computeExpiresAt('2026-04-10', 'UTC', 19, 2);
+
+      expect(result.getUTCHours()).toBe(19);
+      expect(result.getUTCDate()).toBe(8);
+      expect(result.getUTCMonth()).toBe(3);
+      expect(result.getUTCFullYear()).toBe(2026);
+    });
+
+    it('should handle daysBefore = 0 (same day as scheduled)', () => {
+      // 2026-04-10 scheduled, 0 days before is 2026-04-10
+      // 19:00 UTC
+      const result = service.computeExpiresAt('2026-04-10', 'UTC', 19, 0);
+
+      expect(result.getUTCHours()).toBe(19);
+      expect(result.getUTCDate()).toBe(10);
+      expect(result.getUTCMonth()).toBe(3);
+      expect(result.getUTCFullYear()).toBe(2026);
+    });
+
+    it('should handle custom cutoff and daysBefore together with timezone', () => {
+      // 2026-04-10 scheduled, 3 days before is 2026-04-07
+      // Australia/Sydney in April is AEST (UTC+10)
+      // 15:00 AEST = 05:00 UTC
+      const result = service.computeExpiresAt('2026-04-10', 'Australia/Sydney', 15, 3);
+
+      expect(result.getUTCHours()).toBe(5);
+      expect(result.getUTCDate()).toBe(7);
+      expect(result.getUTCMonth()).toBe(3);
+      expect(result.getUTCFullYear()).toBe(2026);
+    });
   });
 });

@@ -1,6 +1,8 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { TENANT_PORTAL_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import {
   PortalActionBlockedError,
@@ -29,6 +31,7 @@ export class UpdateContactUseCase {
     private readonly activityRepo: ITenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly domainEventBus?: DomainEventBus,
   ) {}
 
   async execute(input: UpdateContactInput) {
@@ -116,7 +119,21 @@ export class UpdateContactUseCase {
       ipAddress: input.ipAddress ?? undefined,
     });
 
-    // 8. Return the updated contact fields merged with existing
+    // 8. Emit domain event
+    if (this.domainEventBus) {
+      await this.domainEventBus.emit({
+        type: TENANT_PORTAL_EVENTS.CONTACT_UPDATED,
+        payload: {
+          appointmentId: input.appointmentId,
+          tenantId: appointment.tenantId,
+          tokenId: input.tokenId,
+          updatedFields: Object.keys(newValues),
+        },
+        occurredAt: new Date(),
+      });
+    }
+
+    // 9. Return the updated contact fields merged with existing
     return {
       tenantName: contact?.tenantName ?? null,
       primaryEmail:

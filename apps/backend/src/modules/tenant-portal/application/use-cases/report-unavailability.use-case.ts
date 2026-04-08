@@ -1,12 +1,16 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { TENANT_PORTAL_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IInspectionExecutionRepository } from '../../../inspector-execution/domain/inspection-execution.repository';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
+import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
 import {
   PortalAppointmentInactiveError,
   PortalInspectionAlreadyStartedError,
+  PortalTokenAlreadyUsedError,
 } from '../../domain/tenant-portal.errors';
 import { NotFoundError } from '../../../../shared/domain/errors';
 
@@ -14,6 +18,7 @@ export interface ReportUnavailabilityInput {
   tokenId: string;
   appointmentId: string;
   isReadOnly: boolean;
+  isUsed: boolean;
   restrictions?: {
     isHome: boolean;
     unavailableDaysJson: string[] | null;
@@ -33,6 +38,8 @@ export class ReportUnavailabilityUseCase {
     private readonly auditService: AuditService,
     private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
     private readonly executionRepo?: IInspectionExecutionRepository,
+    private readonly domainEventBus?: DomainEventBus,
+    private readonly tokenRepo?: ITenantPortalTokenRepository,
   ) {}
 
   async execute(input: ReportUnavailabilityInput) {
@@ -50,6 +57,11 @@ export class ReportUnavailabilityUseCase {
         tenantConfirmationStatus: 'UNAVAILABLE' as const,
         urgentMode: false,
       };
+    }
+
+    // 2b. Block if token has already been used for a mutation
+    if (input.isUsed) {
+      throw new PortalTokenAlreadyUsedError();
     }
 
     // 3. Block for inactive appointment statuses
@@ -74,6 +86,11 @@ export class ReportUnavailabilityUseCase {
     await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
       tenantConfirmationStatus: 'UNAVAILABLE',
     });
+
+    // 5b. Mark token as used (replay detection)
+    if (this.tokenRepo) {
+      await this.tokenRepo.markUsed(input.tokenId);
+    }
 
     // 6. Save restrictions if provided
     if (input.restrictions) {
@@ -130,6 +147,19 @@ export class ReportUnavailabilityUseCase {
       } catch {
         // fire-and-forget — notification failure must not affect the action
       }
+    }
+
+    // 10. Emit domain event
+    if (this.domainEventBus) {
+      await this.domainEventBus.emit({
+        type: TENANT_PORTAL_EVENTS.UNAVAILABLE,
+        payload: {
+          appointmentId: input.appointmentId,
+          tenantId: appointment.tenantId,
+          tokenId: input.tokenId,
+        },
+        occurredAt: new Date(),
+      });
     }
 
     return {

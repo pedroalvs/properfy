@@ -37,6 +37,7 @@ function makeAppointmentEntity(
     customFieldsJson: null,
     reason: null,
     createdByUserId: 'user-1',
+    doneMarkedByUserId: null,
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     serviceGroupId: null,
@@ -198,7 +199,7 @@ describe('GetPortalDataUseCase', () => {
 
     const result = await useCase.execute(makeInput());
 
-    expect(result.token).toEqual({ status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' });
+    expect(result.token).toEqual({ status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' });
     expect(result.appointment.id).toBe('appt-1');
     expect(result.appointment.status).toBe('DRAFT');
     expect(result.appointment.scheduledDate).toEqual(new Date('2026-04-01'));
@@ -345,6 +346,30 @@ describe('GetPortalDataUseCase', () => {
     expect(result.token.expiresAt).toBe('2026-05-01T12:00:00.000Z');
   });
 
+  it('should set isExpired=false and canRequestNewLink=false for ACTIVE tokens', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
+
+    const result = await useCase.execute(makeInput({ tokenStatus: 'ACTIVE' }));
+
+    expect(result.token.isExpired).toBe(false);
+    expect(result.token.canRequestNewLink).toBe(false);
+  });
+
+  it('should set isExpired=true and canRequestNewLink=true for EXPIRED tokens', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
+
+    const result = await useCase.execute(makeInput({ tokenStatus: 'EXPIRED', isReadOnly: true }));
+
+    expect(result.token.isExpired).toBe(true);
+    expect(result.token.canRequestNewLink).toBe(true);
+  });
+
   it('should return token status from input for read-only tokens', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
@@ -355,7 +380,7 @@ describe('GetPortalDataUseCase', () => {
       makeInput({ isReadOnly: true, tokenStatus: 'EXPIRED' }),
     );
 
-    expect(result.token).toEqual({ status: 'EXPIRED', isReadOnly: true, expiresAt: '2026-04-01T00:00:00.000Z' });
+    expect(result.token).toEqual({ status: 'EXPIRED', isReadOnly: true, isExpired: true, canRequestNewLink: true, expiresAt: '2026-04-01T00:00:00.000Z' });
   });
 
   it('should return the latest existing response mapped from portal activity history', async () => {

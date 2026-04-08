@@ -65,10 +65,13 @@ export class GetPortalDataUseCase {
     await this.activityRepo.save(activity);
 
     // 5. Return structured portal data
+    const isExpired = input.tokenStatus === 'EXPIRED';
     return {
       token: {
         status: input.tokenStatus,
         isReadOnly: input.isReadOnly,
+        isExpired,
+        canRequestNewLink: isExpired,
         expiresAt: input.expiresAt,
       },
       appointment: {

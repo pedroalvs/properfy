@@ -112,7 +112,7 @@ describe('meResponseSchema', () => {
 describe('portalDataResponseSchema', () => {
   it('should accept restrictions as object', () => {
     const result = portalDataResponseSchema.safeParse({
-      token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' },
       appointment: { id: '123' },
       contact: null,
       restrictions: { isHome: true, notes: 'Ring bell' },
@@ -122,7 +122,7 @@ describe('portalDataResponseSchema', () => {
 
   it('should accept restrictions as null', () => {
     const result = portalDataResponseSchema.safeParse({
-      token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' },
       appointment: { id: '123' },
       contact: null,
       restrictions: null,
@@ -132,16 +132,44 @@ describe('portalDataResponseSchema', () => {
 
   it('should accept missing restrictions (defaults to undefined)', () => {
     const result = portalDataResponseSchema.safeParse({
-      token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' },
       appointment: { id: '123' },
       contact: null,
     });
     expect(result.success).toBe(true);
   });
 
-  it('should accept existingResponse metadata when present', () => {
+  it('should accept expired token with canRequestNewLink flag', () => {
+    const result = portalDataResponseSchema.safeParse({
+      token: { status: 'EXPIRED', isReadOnly: true, isExpired: true, canRequestNewLink: true, expiresAt: '2026-04-01T00:00:00.000Z' },
+      appointment: { id: '123' },
+      contact: null,
+      restrictions: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject token missing isExpired flag', () => {
     const result = portalDataResponseSchema.safeParse({
       token: { status: 'ACTIVE', isReadOnly: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      appointment: { id: '123' },
+      contact: null,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject token missing canRequestNewLink flag', () => {
+    const result = portalDataResponseSchema.safeParse({
+      token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      appointment: { id: '123' },
+      contact: null,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept existingResponse metadata when present', () => {
+    const result = portalDataResponseSchema.safeParse({
+      token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' },
       appointment: { id: '123' },
       contact: null,
       restrictions: null,

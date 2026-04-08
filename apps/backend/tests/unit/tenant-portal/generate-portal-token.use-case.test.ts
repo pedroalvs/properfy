@@ -35,6 +35,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     customFieldsJson: null,
     reason: null,
     createdByUserId: 'user-1',
+    doneMarkedByUserId: null,
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     serviceGroupId: null,
@@ -98,7 +99,9 @@ describe('GeneratePortalTokenUseCase', () => {
     save: ReturnType<typeof vi.fn>;
     updateStatus: ReturnType<typeof vi.fn>;
     updateLastAccessedAt: ReturnType<typeof vi.fn>;
+    markUsed: ReturnType<typeof vi.fn>;
     revokeAllForAppointment: ReturnType<typeof vi.fn>;
+    expireActiveTokens: ReturnType<typeof vi.fn>;
   };
   let appointmentRepo: {
     findById: ReturnType<typeof vi.fn>;
@@ -134,7 +137,9 @@ describe('GeneratePortalTokenUseCase', () => {
       save: vi.fn().mockResolvedValue(undefined),
       updateStatus: vi.fn(),
       updateLastAccessedAt: vi.fn(),
+      markUsed: vi.fn().mockResolvedValue(undefined),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
+      expireActiveTokens: vi.fn().mockResolvedValue(0),
     };
     appointmentRepo = {
       findById: vi.fn().mockResolvedValue({
@@ -276,7 +281,53 @@ describe('GeneratePortalTokenUseCase', () => {
 
     await useCase.execute(makeInput());
 
-    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'America/Sao_Paulo');
+    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'America/Sao_Paulo', 19, 1);
+  });
+
+  it('should use default cutoff settings when settingsJson is null-ish', async () => {
+    tenantRepo.findById.mockResolvedValue(makeTenant({ settingsJson: null as unknown as Record<string, unknown> }));
+
+    await useCase.execute(makeInput());
+
+    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 19, 1);
+  });
+
+  it('should use custom portalCutoffHour from tenant settings', async () => {
+    tenantRepo.findById.mockResolvedValue(makeTenant({
+      settingsJson: { portalCutoffHour: 17 },
+    }));
+
+    await useCase.execute(makeInput());
+
+    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 17, 1);
+  });
+
+  it('should use custom portalCutoffDaysBefore from tenant settings', async () => {
+    tenantRepo.findById.mockResolvedValue(makeTenant({
+      settingsJson: { portalCutoffDaysBefore: 2 },
+    }));
+
+    await useCase.execute(makeInput());
+
+    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 19, 2);
+  });
+
+  it('should use both custom cutoff settings together', async () => {
+    tenantRepo.findById.mockResolvedValue(makeTenant({
+      settingsJson: { portalCutoffHour: 15, portalCutoffDaysBefore: 3 },
+    }));
+
+    await useCase.execute(makeInput());
+
+    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 15, 3);
+  });
+
+  it('should default to 19:00 cutoff 1 day before when settings are empty', async () => {
+    tenantRepo.findById.mockResolvedValue(makeTenant({ settingsJson: {} }));
+
+    await useCase.execute(makeInput());
+
+    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 19, 1);
   });
 
   it('should call audit service with USER actor type and actor details', async () => {

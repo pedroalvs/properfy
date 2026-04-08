@@ -43,4 +43,19 @@ export class PrismaTenantPortalActivityRepository implements ITenantPortalActivi
     });
     return row ? mapToEntity(row) : null;
   }
+
+  async findByAppointmentId(appointmentId: string, page: number, pageSize: number): Promise<{ activities: TenantPortalActivityEntity[]; total: number }> {
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.tenantPortalActivity.findMany({
+        where: { appointment_id: appointmentId },
+        orderBy: { created_at: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.tenantPortalActivity.count({
+        where: { appointment_id: appointmentId },
+      }),
+    ]);
+    return { activities: rows.map(mapToEntity), total };
+  }
 }

@@ -11,6 +11,7 @@ function mapToEntity(row: any): TenantPortalTokenEntity {
     tokenHash: row.token_hash,
     expiresAt: row.expires_at,
     status: row.status as TenantPortalTokenStatus,
+    usedAt: row.used_at,
     lastAccessedAt: row.last_accessed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -56,6 +57,13 @@ export class PrismaTenantPortalTokenRepository implements ITenantPortalTokenRepo
     await this.prisma.tenantPortalToken.updateMany({
       where: { id, appointment_id: appointmentId },
       data: { last_accessed_at: date },
+    });
+  }
+
+  async markUsed(id: string): Promise<void> {
+    await this.prisma.tenantPortalToken.update({
+      where: { id },
+      data: { used_at: new Date() },
     });
   }
 

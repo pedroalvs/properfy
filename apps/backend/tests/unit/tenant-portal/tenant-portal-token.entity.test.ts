@@ -11,6 +11,7 @@ function makeTokenProps(overrides: Partial<TenantPortalTokenProps> = {}): Tenant
     tokenHash: 'abc123hash',
     expiresAt: new Date('2026-04-10T08:00:00Z'),
     status: 'ACTIVE',
+    usedAt: null,
     lastAccessedAt: null,
     createdAt: new Date('2026-04-01T00:00:00Z'),
     updatedAt: new Date('2026-04-01T00:00:00Z'),
@@ -109,6 +110,41 @@ describe('TenantPortalTokenEntity', () => {
       const now = new Date('2026-04-05T00:00:00Z');
 
       expect(token.isReadOnly(now)).toBe(false);
+    });
+  });
+
+  describe('isUsed', () => {
+    it('should return false when usedAt is null', () => {
+      const token = new TenantPortalTokenEntity(makeTokenProps({ usedAt: null }));
+
+      expect(token.isUsed()).toBe(false);
+    });
+
+    it('should return true when usedAt is set', () => {
+      const token = new TenantPortalTokenEntity(makeTokenProps({ usedAt: new Date() }));
+
+      expect(token.isUsed()).toBe(true);
+    });
+  });
+
+  describe('markUsed', () => {
+    it('should set usedAt to a date', () => {
+      const token = new TenantPortalTokenEntity(makeTokenProps({ usedAt: null }));
+
+      token.markUsed();
+
+      expect(token.usedAt).toBeInstanceOf(Date);
+    });
+
+    it('should update updatedAt', () => {
+      const originalUpdatedAt = new Date('2020-01-01T00:00:00Z');
+      const token = new TenantPortalTokenEntity(
+        makeTokenProps({ usedAt: null, updatedAt: originalUpdatedAt }),
+      );
+
+      token.markUsed();
+
+      expect(token.updatedAt.getTime()).toBeGreaterThan(originalUpdatedAt.getTime());
     });
   });
 

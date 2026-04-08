@@ -6,6 +6,7 @@ export interface ITenantPortalTokenRepository {
   save(token: TenantPortalTokenEntity): Promise<void>;
   updateStatus(id: string, appointmentId: string, status: string): Promise<void>;
   updateLastAccessedAt(id: string, appointmentId: string, date: Date): Promise<void>;
+  markUsed(id: string): Promise<void>;
   revokeAllForAppointment(appointmentId: string): Promise<void>;
   expireActiveTokens(): Promise<number>;
 }

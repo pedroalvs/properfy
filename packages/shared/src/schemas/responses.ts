@@ -399,6 +399,8 @@ export const portalDataResponseSchema = z.object({
   token: z.object({
     status: z.string(),
     isReadOnly: z.boolean(),
+    isExpired: z.boolean(),
+    canRequestNewLink: z.boolean(),
     expiresAt: dateStr(),
   }),
   appointment: z.unknown(),
@@ -414,6 +416,25 @@ export const portalDataResponseSchema = z.object({
 export const portalTokenResponseSchema = z.object({
   token: z.string(),
   expiresAt: dateStr(),
+});
+
+export const portalActivityItemSchema = z.object({
+  id: z.string().uuid(),
+  appointmentId: z.string().uuid(),
+  tenantPortalTokenId: z.string().uuid(),
+  action: z.string(),
+  previousValuesJson: z.unknown().nullable(),
+  newValuesJson: z.unknown().nullable(),
+  ipAddress: z.string().nullable(),
+  userAgent: z.string().nullable(),
+  createdAt: dateStr(),
+});
+
+export const portalActivitiesResponseSchema = z.object({
+  data: z.array(portalActivityItemSchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
 });
 
 // ─── Inspector Execution ───────────────────────────────────────────────────

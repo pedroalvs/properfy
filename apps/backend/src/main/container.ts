@@ -153,6 +153,7 @@ import { RescheduleRequestUseCase } from '../modules/tenant-portal/application/u
 import { UpdateContactUseCase } from '../modules/tenant-portal/application/use-cases/update-contact.use-case';
 import { ReportUnavailabilityUseCase } from '../modules/tenant-portal/application/use-cases/report-unavailability.use-case';
 import { GeneratePortalTokenUseCase } from '../modules/tenant-portal/application/use-cases/generate-portal-token.use-case';
+import { ListPortalActivitiesUseCase } from '../modules/tenant-portal/application/use-cases/list-portal-activities.use-case';
 import type { TenantPortalRouteContainer } from '../modules/tenant-portal/interfaces/tenant-portal.routes';
 
 // Inspector execution module
@@ -539,9 +540,10 @@ export function createContainer(logger: Logger): AppContainer {
   const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
   const tokenService = new TokenService();
   const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
-  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler);
-  const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService);
+  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo);
+  const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, tokenService, auditService, createNotificationUseCase);
+  const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
@@ -565,9 +567,11 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     notifyOnTenantPortalActionHandler,
     inspectionExecutionRepo,
+    domainEventBus,
+    tenantPortalTokenRepo,
   );
 
-  const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, tenantPortalTokenRepo, appointmentRepo, serviceTypeRepo, inspectionExecutionRepo, auditService, notifyOnTenantPortalActionHandler);
+  const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, tenantPortalTokenRepo, appointmentRepo, serviceTypeRepo, inspectionExecutionRepo, tenantRepo, auditService, reopenForRescheduleUseCase, notifyOnTenantPortalActionHandler, domainEventBus, generatePortalTokenUseCase);
 
   // Inspector execution use cases
   const getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
@@ -911,6 +915,7 @@ export function createContainer(logger: Logger): AppContainer {
       updateContactUseCase,
       reportUnavailabilityUseCase,
       generatePortalTokenUseCase,
+      listPortalActivitiesUseCase,
       tokenRepo: tenantPortalTokenRepo,
       tokenService,
       jwtService,

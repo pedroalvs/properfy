@@ -8,8 +8,11 @@ import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-p
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
 import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
+import type { ReopenForRescheduleUseCase } from '../../../src/modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import { PortalActionBlockedError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
@@ -41,6 +44,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     customFieldsJson: null,
     reason: null,
     createdByUserId: 'user-1',
+    doneMarkedByUserId: null,
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     serviceGroupId: null,
@@ -65,11 +69,28 @@ function makeServiceType(overrides: Partial<ConstructorParameters<typeof Service
   });
 }
 
+function makeTenant(overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {}) {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Test Agency',
+    legalName: 'Test Agency Pty Ltd',
+    status: 'ACTIVE',
+    timezone: 'Australia/Sydney',
+    currency: 'AUD',
+    settingsJson: {},
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
 function makeInput(overrides: Partial<RescheduleRequestInput> = {}): RescheduleRequestInput {
   return {
     tokenId: 'token-1',
     appointmentId: 'appt-1',
     isReadOnly: false,
+    isUsed: false,
     newDate: '2026-04-20',
     newTimeSlot: 'AFTERNOON',
     ipAddress: '127.0.0.1',
@@ -91,6 +112,7 @@ describe('RescheduleRequestUseCase', () => {
     updateLastAccessedAt: ReturnType<typeof vi.fn>;
     revokeAllForAppointment: ReturnType<typeof vi.fn>;
     expireActiveTokens: ReturnType<typeof vi.fn>;
+    markUsed: ReturnType<typeof vi.fn>;
   };
   let appointmentRepo: {
     findById: ReturnType<typeof vi.fn>;
@@ -111,8 +133,17 @@ describe('RescheduleRequestUseCase', () => {
     save: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  let tenantRepo: {
+    findById: ReturnType<typeof vi.fn>;
+    findByLegalName: ReturnType<typeof vi.fn>;
+    findAll: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
+    save: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+  };
   let auditService: { log: ReturnType<typeof vi.fn> };
   let executionRepo: { findByAppointmentId: ReturnType<typeof vi.fn> };
+  let reopenForRescheduleUseCase: { execute: ReturnType<typeof vi.fn> };
   let useCase: RescheduleRequestUseCase;
 
   beforeEach(() => {
@@ -128,6 +159,7 @@ describe('RescheduleRequestUseCase', () => {
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
       expireActiveTokens: vi.fn(),
+      markUsed: vi.fn().mockResolvedValue(undefined),
     };
     appointmentRepo = {
       findById: vi.fn().mockResolvedValue({
@@ -153,8 +185,30 @@ describe('RescheduleRequestUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
+    tenantRepo = {
+      findById: vi.fn().mockResolvedValue(makeTenant()),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
     auditService = { log: vi.fn() };
     executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
+    reopenForRescheduleUseCase = {
+      execute: vi.fn().mockResolvedValue({
+        id: 'appt-1',
+        previousStatus: 'SCHEDULED',
+        status: 'DRAFT',
+        previousScheduledDate: '2026-04-15',
+        scheduledDate: '2026-04-20',
+        previousTimeSlot: 'MORNING',
+        timeSlot: 'AFTERNOON',
+        previousInspectorId: 'inspector-1',
+        inspectorId: null,
+        tenantConfirmationStatus: 'PENDING',
+      }),
+    };
 
     useCase = new RescheduleRequestUseCase(
       activityRepo as unknown as ITenantPortalActivityRepository,
@@ -162,11 +216,13 @@ describe('RescheduleRequestUseCase', () => {
       appointmentRepo as unknown as IAppointmentRepository,
       serviceTypeRepo as unknown as IServiceTypeRepository,
       executionRepo as unknown as IInspectionExecutionRepository,
+      tenantRepo as unknown as ITenantRepository,
       auditService as unknown as PersistentAuditService,
+      reopenForRescheduleUseCase as unknown as ReopenForRescheduleUseCase,
     );
   });
 
-  it('should reschedule successfully, updating date, timeSlot and resetting confirmation to PENDING', async () => {
+  it('should reschedule successfully by delegating to ReopenForRescheduleUseCase', async () => {
     const result = await useCase.execute(makeInput());
 
     expect(result).toEqual({
@@ -175,11 +231,21 @@ describe('RescheduleRequestUseCase', () => {
       tenantConfirmationStatus: 'PENDING',
     });
 
-    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      scheduledDate: new Date('2026-04-20'),
-      timeSlot: 'AFTERNOON',
-      tenantConfirmationStatus: 'PENDING',
+    // Should call reopenForRescheduleUseCase instead of appointmentRepo.update
+    expect(reopenForRescheduleUseCase.execute).toHaveBeenCalledWith({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-20',
+      newTimeSlot: 'AFTERNOON',
+      reason: 'Tenant portal reschedule request',
+      actor: {
+        userId: 'SYSTEM',
+        tenantId: 'tenant-1',
+        role: 'SYS',
+        branchId: null,
+        inspectorId: null,
+      },
     });
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
     expect(tokenRepo.revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
   });
 
@@ -286,7 +352,7 @@ describe('RescheduleRequestUseCase', () => {
     expect(appointmentRepo.saveRestriction).not.toHaveBeenCalled();
   });
 
-  it('should call audit service with ANONYMOUS actor type', async () => {
+  it('should call audit service with ANONYMOUS actor type for portal-level audit', async () => {
     await useCase.execute(makeInput());
 
     expect(auditService.log).toHaveBeenCalledWith(
@@ -348,6 +414,50 @@ describe('RescheduleRequestUseCase', () => {
     const result = await useCase.execute(makeInput());
     expect(result.tenantConfirmationStatus).toBe('PENDING');
   });
+
+  it('should not call appointmentRepo.update directly — all updates go through ReopenForRescheduleUseCase', async () => {
+    await useCase.execute(makeInput());
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+    expect(reopenForRescheduleUseCase.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('should use default 30-day window when tenant has no portalRescheduleWindowDays setting', async () => {
+    tenantRepo.findById.mockResolvedValue(makeTenant({ settingsJson: {} }));
+
+    // 30 days from scheduled date (2026-04-15) is within window
+    const result = await useCase.execute(makeInput({ newDate: '2026-05-14' }));
+    expect(result.scheduledDate).toBe('2026-05-14');
+  });
+
+  it('should reject dates beyond custom reschedule window from tenant settings', async () => {
+    tenantRepo.findById.mockResolvedValue(makeTenant({
+      settingsJson: { portalRescheduleWindowDays: 14 },
+    }));
+
+    // 20 days from scheduled date (2026-04-15) exceeds 14-day window
+    await expect(
+      useCase.execute(makeInput({ newDate: '2026-05-05' })),
+    ).rejects.toThrow(PortalRescheduleWindowExceededError);
+  });
+
+  it('should allow dates within custom reschedule window from tenant settings', async () => {
+    tenantRepo.findById.mockResolvedValue(makeTenant({
+      settingsJson: { portalRescheduleWindowDays: 14 },
+    }));
+
+    // 5 days from scheduled date (2026-04-15) is within 14-day window
+    const result = await useCase.execute(makeInput({ newDate: '2026-04-20' }));
+    expect(result.scheduledDate).toBe('2026-04-20');
+  });
+
+  it('should use 30-day default when tenant not found', async () => {
+    tenantRepo.findById.mockResolvedValue(null);
+
+    // 30 days is within default window
+    const result = await useCase.execute(makeInput({ newDate: '2026-05-14' }));
+    expect(result.scheduledDate).toBe('2026-05-14');
+  });
 });
 
 describe('RescheduleRequestUseCase – onNotificationHandler', () => {
@@ -366,6 +476,7 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
       expireActiveTokens: vi.fn(),
+      markUsed: vi.fn().mockResolvedValue(undefined),
     };
     const appointmentRepo = {
       findById: vi.fn().mockResolvedValue({
@@ -391,8 +502,30 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
+    const tenantRepoLocal = {
+      findById: vi.fn().mockResolvedValue(makeTenant()),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
     const auditService = { log: vi.fn() };
     const executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
+    const reopenForRescheduleUseCase = {
+      execute: vi.fn().mockResolvedValue({
+        id: 'appt-1',
+        previousStatus: 'SCHEDULED',
+        status: 'DRAFT',
+        previousScheduledDate: '2026-04-15',
+        scheduledDate: '2026-04-20',
+        previousTimeSlot: 'MORNING',
+        timeSlot: 'AFTERNOON',
+        previousInspectorId: 'inspector-1',
+        inspectorId: null,
+        tenantConfirmationStatus: 'PENDING',
+      }),
+    };
     onNotificationHandler = {
       execute: vi.fn().mockResolvedValue(undefined),
     };
@@ -404,7 +537,9 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
         appointmentRepo as unknown as IAppointmentRepository,
         serviceTypeRepo as unknown as IServiceTypeRepository,
         executionRepo as unknown as IInspectionExecutionRepository,
+        tenantRepoLocal as unknown as ITenantRepository,
         auditService as unknown as PersistentAuditService,
+        reopenForRescheduleUseCase as unknown as ReopenForRescheduleUseCase,
         onNotificationHandler,
       ),
       useCaseWithout: new RescheduleRequestUseCase(
@@ -413,7 +548,9 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
         appointmentRepo as unknown as IAppointmentRepository,
         serviceTypeRepo as unknown as IServiceTypeRepository,
         executionRepo as unknown as IInspectionExecutionRepository,
+        tenantRepoLocal as unknown as ITenantRepository,
         auditService as unknown as PersistentAuditService,
+        reopenForRescheduleUseCase as unknown as ReopenForRescheduleUseCase,
       ),
       onNotificationHandler,
     };

@@ -11,6 +11,8 @@ import {
   reportUnavailabilityPortalResponseSchema,
   portalDataResponseSchema,
   portalTokenResponseSchema,
+  portalActivitiesResponseSchema,
+  paginationSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { createPortalTokenMiddleware } from './portal-token-middleware';
@@ -21,6 +23,7 @@ import type { RescheduleRequestUseCase } from '../application/use-cases/reschedu
 import type { UpdateContactUseCase } from '../application/use-cases/update-contact.use-case';
 import type { ReportUnavailabilityUseCase } from '../application/use-cases/report-unavailability.use-case';
 import type { GeneratePortalTokenUseCase } from '../application/use-cases/generate-portal-token.use-case';
+import type { ListPortalActivitiesUseCase } from '../application/use-cases/list-portal-activities.use-case';
 import type { ITenantPortalTokenRepository } from '../domain/tenant-portal-token.repository';
 import type { TokenService } from '../domain/token.service';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -32,6 +35,7 @@ export interface TenantPortalRouteContainer {
   updateContactUseCase: UpdateContactUseCase;
   reportUnavailabilityUseCase: ReportUnavailabilityUseCase;
   generatePortalTokenUseCase: GeneratePortalTokenUseCase;
+  listPortalActivitiesUseCase: ListPortalActivitiesUseCase;
   tokenRepo: ITenantPortalTokenRepository;
   tokenService: TokenService;
   jwtService: JwtService;
@@ -103,6 +107,7 @@ export async function registerTenantPortalRoutes(
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
         isReadOnly: ctx.isReadOnly,
+        isUsed: ctx.isUsed,
         restrictions: parsed.data.restrictions
           ? {
               isHome: parsed.data.restrictions.isHome ?? false,
@@ -141,6 +146,7 @@ export async function registerTenantPortalRoutes(
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
         isReadOnly: ctx.isReadOnly,
+        isUsed: ctx.isUsed,
         newDate: parsed.data.newDate,
         newTimeSlot: parsed.data.newTimeSlot,
         restrictions: parsed.data.restrictions
@@ -210,6 +216,7 @@ export async function registerTenantPortalRoutes(
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
         isReadOnly: ctx.isReadOnly,
+        isUsed: ctx.isUsed,
         restrictions: parsed.data.restrictions
           ? {
               isHome: parsed.data.restrictions.isHome ?? false,
@@ -244,6 +251,31 @@ export async function registerTenantPortalRoutes(
         actor: request.authContext!,
       });
       return reply.status(201).send(result);
+    },
+  );
+
+  // GET /v1/appointments/:appointmentId/portal-activities
+  app.get(
+    '/v1/appointments/:appointmentId/portal-activities',
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), querystring: paginationSchema, response: { 200: portalActivitiesResponseSchema } } },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+
+      const query = paginationSchema.safeParse(request.query);
+      if (!query.success) {
+        throw new ValidationError('Invalid pagination parameters', query.error.errors);
+      }
+
+      const result = await container.listPortalActivitiesUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        actor: request.authContext!,
+        page: query.data.page,
+        pageSize: query.data.pageSize,
+      });
+      return reply.status(200).send(result);
     },
   );
 }

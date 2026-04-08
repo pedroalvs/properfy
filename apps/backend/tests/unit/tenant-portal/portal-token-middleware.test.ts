@@ -13,6 +13,7 @@ function makeTokenEntity(overrides: Partial<TenantPortalTokenProps> = {}): Tenan
     tokenHash: 'hashed-abc123',
     expiresAt: new Date('2026-12-31'),
     status: 'ACTIVE',
+    usedAt: null,
     lastAccessedAt: null,
     createdAt: new Date('2026-03-01'),
     updatedAt: new Date('2026-03-01'),
@@ -35,7 +36,9 @@ function makeTokenRepo(overrides: Partial<ITenantPortalTokenRepository> = {}): I
     save: vi.fn().mockResolvedValue(undefined),
     updateStatus: vi.fn().mockResolvedValue(undefined),
     updateLastAccessedAt: vi.fn().mockResolvedValue(undefined),
+    markUsed: vi.fn().mockResolvedValue(undefined),
     revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
+    expireActiveTokens: vi.fn().mockResolvedValue(0),
     ...overrides,
   };
 }
@@ -65,6 +68,7 @@ describe('createPortalTokenMiddleware', () => {
       tokenId: 'token-1',
       appointmentId: 'appt-1',
       isReadOnly: false,
+      isUsed: false,
       tokenStatus: 'ACTIVE',
       expiresAt: '2026-12-31T00:00:00.000Z',
     });
@@ -107,6 +111,7 @@ describe('createPortalTokenMiddleware', () => {
       tokenId: 'token-1',
       appointmentId: 'appt-1',
       isReadOnly: true,
+      isUsed: false,
       tokenStatus: 'EXPIRED',
       expiresAt: '2025-01-01T00:00:00.000Z',
     });
@@ -130,6 +135,7 @@ describe('createPortalTokenMiddleware', () => {
       tokenId: 'token-1',
       appointmentId: 'appt-1',
       isReadOnly: true,
+      isUsed: false,
       tokenStatus: 'EXPIRED',
       expiresAt: '2025-01-01T00:00:00.000Z',
     });

@@ -59,9 +59,12 @@ export class GeneratePortalTokenUseCase {
     const rawToken = this.tokenService.generateRawToken();
     const tokenHash = this.tokenService.hashToken(rawToken);
 
-    // 6. Compute expiry based on scheduled date and tenant timezone
+    // 6. Compute expiry based on scheduled date, tenant timezone and cutoff settings
     const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0]!;
-    const expiresAt = this.tokenService.computeExpiresAt(scheduledDateStr, tenant.timezone);
+    const settings = tenant.settingsJson ?? {};
+    const cutoffHour = typeof settings.portalCutoffHour === 'number' ? settings.portalCutoffHour : 19;
+    const cutoffDaysBefore = typeof settings.portalCutoffDaysBefore === 'number' ? settings.portalCutoffDaysBefore : 1;
+    const expiresAt = this.tokenService.computeExpiresAt(scheduledDateStr, tenant.timezone, cutoffHour, cutoffDaysBefore);
 
     // 7. Create and save token entity
     const now = new Date();
@@ -71,6 +74,7 @@ export class GeneratePortalTokenUseCase {
       tokenHash,
       expiresAt,
       status: 'ACTIVE',
+      usedAt: null,
       lastAccessedAt: null,
       createdAt: now,
       updatedAt: now,

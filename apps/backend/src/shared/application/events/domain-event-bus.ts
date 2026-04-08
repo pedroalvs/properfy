@@ -59,6 +59,13 @@ export const SERVICE_GROUP_EVENTS = {
   MANUALLY_ASSIGNED: 'service_group.manually_assigned.v1',
 } as const;
 
+export const TENANT_PORTAL_EVENTS = {
+  CONFIRMED: 'tenant_portal.confirmed.v1',
+  RESCHEDULED: 'tenant_portal.rescheduled.v1',
+  CONTACT_UPDATED: 'tenant_portal.contact_updated.v1',
+  UNAVAILABLE: 'tenant_portal.unavailable.v1',
+} as const;
+
 export const APPOINTMENT_EVENTS = {
   STATUS_TRANSITION: 'appointment.status_transition.v1',
   DONE_REJECTED: 'appointment.done_rejected.v1',

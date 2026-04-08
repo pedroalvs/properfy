@@ -3,7 +3,12 @@ import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-to
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
 import type { IInspectionExecutionRepository } from '../../../inspector-execution/domain/inspection-execution.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { TENANT_PORTAL_EVENTS } from '../../../../shared/application/events/domain-event-bus';
+import type { ReopenForRescheduleUseCase } from '../../../appointment/application/use-cases/reopen-for-reschedule.use-case';
+import type { GeneratePortalTokenUseCase } from './generate-portal-token.use-case';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
 import {
@@ -13,6 +18,7 @@ import {
   PortalRescheduleWindowExceededError,
   PortalDateInPastError,
   PortalInspectionInProgressError,
+  PortalTokenAlreadyUsedError,
 } from '../../domain/tenant-portal.errors';
 import { NotFoundError } from '../../../../shared/domain/errors';
 
@@ -20,6 +26,7 @@ export interface RescheduleRequestInput {
   tokenId: string;
   appointmentId: string;
   isReadOnly: boolean;
+  isUsed: boolean;
   newDate: string;
   newTimeSlot: string;
   restrictions?: {
@@ -33,7 +40,7 @@ export interface RescheduleRequestInput {
 }
 
 const INACTIVE_STATUSES = ['CANCELLED', 'DONE', 'REJECTED'] as const;
-const MAX_RESCHEDULE_DAYS = 30;
+const DEFAULT_RESCHEDULE_WINDOW_DAYS = 30;
 
 export class RescheduleRequestUseCase {
   constructor(
@@ -42,14 +49,23 @@ export class RescheduleRequestUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly serviceTypeRepo: IServiceTypeRepository,
     private readonly executionRepo: IInspectionExecutionRepository,
+    private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
+    private readonly reopenForRescheduleUseCase: ReopenForRescheduleUseCase,
     private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
+    private readonly domainEventBus?: DomainEventBus,
+    private readonly generatePortalTokenUseCase?: GeneratePortalTokenUseCase,
   ) {}
 
   async execute(input: RescheduleRequestInput) {
     // 1. Block if token is read-only (expired)
     if (input.isReadOnly) {
       throw new PortalActionBlockedError();
+    }
+
+    // 1b. Block if token has already been used for a mutation
+    if (input.isUsed) {
+      throw new PortalTokenAlreadyUsedError();
     }
 
     // 2. Load appointment
@@ -85,11 +101,18 @@ export class RescheduleRequestUseCase {
       throw new PortalDateInPastError();
     }
 
-    // 7. Validate newDate is within 30 days of original scheduledDate
+    // 7. Load tenant settings to get configurable reschedule window
+    const tenant = await this.tenantRepo.findById(appointment.tenantId);
+    const settings = tenant?.settingsJson ?? {};
+    const maxRescheduleDays = typeof settings.portalRescheduleWindowDays === 'number'
+      ? settings.portalRescheduleWindowDays
+      : DEFAULT_RESCHEDULE_WINDOW_DAYS;
+
+    // 8. Validate newDate is within reschedule window of original scheduledDate
     const originalDate = new Date(appointment.scheduledDate);
     const diffMs = Math.abs(newDateObj.getTime() - originalDate.getTime());
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    if (diffDays > MAX_RESCHEDULE_DAYS) {
+    if (diffDays > maxRescheduleDays) {
       throw new PortalRescheduleWindowExceededError();
     }
 
@@ -100,12 +123,23 @@ export class RescheduleRequestUseCase {
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
     };
 
-    // 8. Update appointment
-    await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
-      scheduledDate: new Date(input.newDate),
-      timeSlot: input.newTimeSlot,
-      tenantConfirmationStatus: 'PENDING',
+    // 8. Delegate to ReopenForRescheduleUseCase (handles status transition, inspector clearing, confirmation reset, audit)
+    await this.reopenForRescheduleUseCase.execute({
+      appointmentId: input.appointmentId,
+      newScheduledDate: input.newDate,
+      newTimeSlot: input.newTimeSlot,
+      reason: 'Tenant portal reschedule request',
+      actor: {
+        userId: 'SYSTEM',
+        tenantId: appointment.tenantId,
+        role: 'SYS',
+        branchId: null,
+        inspectorId: null,
+      },
     });
+
+    // Mark token as used (replay detection)
+    await this.tokenRepo.markUsed(input.tokenId);
 
     // Portal reschedule restarts the tenant confirmation cycle; revoke active portal tokens
     // so the cutoff window is not inherited from the previous scheduled date.
@@ -167,6 +201,37 @@ export class RescheduleRequestUseCase {
         await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, action: 'RESCHEDULE' });
       } catch {
         // fire-and-forget — notification failure must not affect the reschedule
+      }
+    }
+
+    // 13. Emit domain event
+    if (this.domainEventBus) {
+      await this.domainEventBus.emit({
+        type: TENANT_PORTAL_EVENTS.RESCHEDULED,
+        payload: {
+          appointmentId: input.appointmentId,
+          tenantId: appointment.tenantId,
+          tokenId: input.tokenId,
+          newDate: input.newDate,
+          newTimeSlot: input.newTimeSlot,
+        },
+        occurredAt: new Date(),
+      });
+    }
+
+    // 14. Auto-generate new portal token for the rescheduled date (GAP-004)
+    if (this.generatePortalTokenUseCase) {
+      try {
+        await this.generatePortalTokenUseCase.execute({
+          appointmentId: input.appointmentId,
+          actor: {
+            userId: 'SYSTEM',
+            tenantId: appointment.tenantId,
+            role: 'OP',
+          },
+        });
+      } catch {
+        // fire-and-forget — token generation failure must not affect the reschedule
       }
     }
 

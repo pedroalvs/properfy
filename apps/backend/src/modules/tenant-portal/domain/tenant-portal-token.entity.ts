@@ -7,6 +7,7 @@ export interface TenantPortalTokenProps {
   tokenHash: string;
   expiresAt: Date;
   status: TenantPortalTokenStatus;
+  usedAt: Date | null;
   lastAccessedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -17,6 +18,7 @@ export class TenantPortalTokenEntity extends BaseEntity {
   readonly tokenHash: string;
   readonly expiresAt: Date;
   status: TenantPortalTokenStatus;
+  usedAt: Date | null;
   lastAccessedAt: Date | null;
 
   constructor(props: TenantPortalTokenProps) {
@@ -25,6 +27,7 @@ export class TenantPortalTokenEntity extends BaseEntity {
     this.tokenHash = props.tokenHash;
     this.expiresAt = props.expiresAt;
     this.status = props.status;
+    this.usedAt = props.usedAt;
     this.lastAccessedAt = props.lastAccessedAt;
   }
 
@@ -42,6 +45,15 @@ export class TenantPortalTokenEntity extends BaseEntity {
 
   isReadOnly(now: Date): boolean {
     return this.status === 'EXPIRED' || (this.status === 'ACTIVE' && this.isExpired(now));
+  }
+
+  isUsed(): boolean {
+    return this.usedAt !== null;
+  }
+
+  markUsed(): void {
+    this.usedAt = new Date();
+    this.updatedAt = new Date();
   }
 
   markExpired(): void {

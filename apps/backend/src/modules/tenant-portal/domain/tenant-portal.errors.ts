@@ -63,3 +63,9 @@ export class PortalInspectionAlreadyStartedError extends ConflictError {
     super('PORTAL_INSPECTION_ALREADY_STARTED', 'Portal changes are not allowed after the inspection has started');
   }
 }
+
+export class PortalTokenAlreadyUsedError extends ConflictError {
+  constructor() {
+    super('PORTAL_TOKEN_ALREADY_USED', 'This portal token has already been used for a mutation');
+  }
+}

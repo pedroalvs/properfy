@@ -1,17 +1,22 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
+import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { TENANT_PORTAL_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
 import {
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
+  PortalTokenAlreadyUsedError,
 } from '../../domain/tenant-portal.errors';
 
 export interface ConfirmAppointmentInput {
   tokenId: string;
   appointmentId: string;
   isReadOnly: boolean;
+  isUsed: boolean;
   restrictions?: {
     isHome: boolean;
     unavailableDaysJson: string[] | null;
@@ -30,12 +35,19 @@ export class ConfirmAppointmentUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
+    private readonly domainEventBus?: DomainEventBus,
+    private readonly tokenRepo?: ITenantPortalTokenRepository,
   ) {}
 
   async execute(input: ConfirmAppointmentInput) {
     // 1. Block if token is read-only (expired)
     if (input.isReadOnly) {
       throw new PortalActionBlockedError();
+    }
+
+    // 1b. Block if token has already been used for a mutation
+    if (input.isUsed) {
+      throw new PortalTokenAlreadyUsedError();
     }
 
     // 2. Load appointment
@@ -87,6 +99,11 @@ export class ConfirmAppointmentUseCase {
       await this.appointmentRepo.saveRestriction(restriction);
     }
 
+    // 7b. Mark token as used (replay detection)
+    if (this.tokenRepo) {
+      await this.tokenRepo.markUsed(input.tokenId);
+    }
+
     // 8. Record CONFIRM activity
     const activity = new TenantPortalActivityEntity({
       id: crypto.randomUUID(),
@@ -120,6 +137,19 @@ export class ConfirmAppointmentUseCase {
       } catch {
         // fire-and-forget — notification failure must not affect the confirmation
       }
+    }
+
+    // 11. Emit domain event
+    if (this.domainEventBus) {
+      await this.domainEventBus.emit({
+        type: TENANT_PORTAL_EVENTS.CONFIRMED,
+        payload: {
+          appointmentId: input.appointmentId,
+          tenantId: appointment.tenantId,
+          tokenId: input.tokenId,
+        },
+        occurredAt: new Date(),
+      });
     }
 
     return {

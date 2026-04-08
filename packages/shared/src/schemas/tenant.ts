@@ -69,6 +69,13 @@ export const tenantSettingsSchema = z.object({
   // Settings-level timezone override
   timezone: z.string().max(60).optional(),
 
+  // Portal cutoff settings
+  portalCutoffHour: z.number().int().min(0).max(23).default(19),
+  portalCutoffDaysBefore: z.number().int().min(0).max(7).default(1),
+
+  // Portal reschedule window
+  portalRescheduleWindowDays: z.number().int().min(1).max(90).default(30),
+
   // Freeform escape hatch
   customFields: z.record(z.unknown()).optional(),
 }).passthrough();
