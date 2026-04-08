@@ -29,6 +29,7 @@ function createMockRepo(): IServiceRegionRepository {
     findPropertyIdsInInspectorRegions: vi.fn(),
     resolveRegionsForAppointments: vi.fn(),
     findContainingPoint: vi.fn(),
+    countPublishedGroupsByRegionId: vi.fn().mockResolvedValue(0),
     countActiveInspectorsInRegion: vi.fn(),
     setInspectorRegions: vi.fn(),
     getInspectorRegionIds: vi.fn(),

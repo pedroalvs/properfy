@@ -46,5 +46,6 @@ export interface IServiceRegionRepository {
   setInspectorRegions(inspectorId: string, regionIds: string[]): Promise<void>;
   getInspectorRegionIds(inspectorId: string): Promise<string[]>;
   getInspectorRegionIdsBatch(inspectorIds: string[]): Promise<Map<string, string[]>>;
+  countPublishedGroupsByRegionId(regionId: string): Promise<number>;
   delete(id: string, tenantId: string): Promise<void>;
 }

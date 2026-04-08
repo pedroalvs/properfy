@@ -24,6 +24,15 @@ export class ServiceRegionAlreadyInactiveError extends ConflictError {
   }
 }
 
+export class ServiceRegionHasPublishedGroupsError extends ConflictError {
+  constructor() {
+    super(
+      'SERVICE_REGION_HAS_PUBLISHED_GROUPS',
+      'Region cannot be deactivated while published service groups reference it',
+    );
+  }
+}
+
 export class ServiceRegionStillActiveError extends ConflictError {
   constructor() {
     super(

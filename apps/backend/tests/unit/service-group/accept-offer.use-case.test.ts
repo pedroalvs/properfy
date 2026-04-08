@@ -48,8 +48,8 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
     phone: null,
     status: 'ACTIVE',
     paymentSettingsJson: {},
-    serviceTypesJson: ['svc-type-1'],
-    clientEligibilityJson: ['tenant-1'],
+    serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }],
+    clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
@@ -338,7 +338,7 @@ describe('AcceptOfferUseCase', () => {
 
   it('should throw InspectorServiceTypeIneligibleError for wrong service type', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(
-      makeInspector({ serviceTypesJson: ['svc-type-other'] }),
+      makeInspector({ serviceTypesJson: [{ serviceTypeId: 'svc-type-other', certified: false }] }),
     );
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
 
@@ -353,7 +353,7 @@ describe('AcceptOfferUseCase', () => {
 
   it('should throw InspectorIneligibleError for wrong tenant eligibility', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(
-      makeInspector({ clientEligibilityJson: ['tenant-other'] }),
+      makeInspector({ clientEligibilityJson: [{ tenantId: 'tenant-other', eligible: true }] }),
     );
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
 

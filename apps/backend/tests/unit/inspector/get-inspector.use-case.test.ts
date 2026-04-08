@@ -64,6 +64,7 @@ describe('GetInspectorUseCase', () => {
       findPropertyIdsInInspectorRegions: vi.fn(),
       resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
       findContainingPoint: vi.fn().mockResolvedValue([]),
+      countPublishedGroupsByRegionId: vi.fn().mockResolvedValue(0),
       countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
       setInspectorRegions: vi.fn(),
       getInspectorRegionIds: vi.fn().mockResolvedValue(['region-1']),

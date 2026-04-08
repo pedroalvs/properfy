@@ -51,8 +51,8 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
     phone: null,
     status: 'ACTIVE',
     paymentSettingsJson: {},
-    serviceTypesJson: ['svc-type-1'],
-    clientEligibilityJson: ['tenant-1'],
+    serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }],
+    clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
@@ -131,6 +131,7 @@ describe('AssignInspectorManuallyUseCase', () => {
       findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue(['prop-1', 'prop-2', 'prop-3', 'prop-4', 'prop-5']),
       resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
       findContainingPoint: vi.fn().mockResolvedValue([]),
+      countPublishedGroupsByRegionId: vi.fn().mockResolvedValue(0),
       countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
       setInspectorRegions: vi.fn(),
       getInspectorRegionIds: vi.fn().mockResolvedValue([]),
@@ -309,7 +310,7 @@ describe('AssignInspectorManuallyUseCase', () => {
     const groupData = makeGroupWithAppointments();
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(groupData);
     vi.mocked(inspectorRepo.findById).mockResolvedValue(
-      makeInspector({ serviceTypesJson: ['svc-type-other'] }),
+      makeInspector({ serviceTypesJson: [{ serviceTypeId: 'svc-type-other', certified: false }] }),
     );
 
     await expect(

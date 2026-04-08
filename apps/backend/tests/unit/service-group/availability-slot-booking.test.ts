@@ -310,6 +310,7 @@ describe('GAP-003: Availability slot booking integration', () => {
         findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue(['prop-1', 'prop-2', 'prop-3', 'prop-4', 'prop-5']),
         resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
         findContainingPoint: vi.fn().mockResolvedValue([]),
+      countPublishedGroupsByRegionId: vi.fn().mockResolvedValue(0),
         countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
         setInspectorRegions: vi.fn(),
         getInspectorRegionIds: vi.fn().mockResolvedValue([]),

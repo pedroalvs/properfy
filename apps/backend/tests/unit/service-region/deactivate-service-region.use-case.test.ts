@@ -7,6 +7,7 @@ import { ForbiddenError } from '../../../src/shared/domain/errors';
 import {
   ServiceRegionNotFoundError,
   ServiceRegionAlreadyInactiveError,
+  ServiceRegionHasPublishedGroupsError,
 } from '../../../src/modules/service-region/domain/service-region.errors';
 import { ServiceRegionEntity } from '../../../src/modules/service-region/domain/service-region.entity';
 import { DomainEventBus, SERVICE_REGION_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
@@ -33,6 +34,7 @@ function createMockRepo(): IServiceRegionRepository {
     findPropertyIdsInInspectorRegions: vi.fn(),
     resolveRegionsForAppointments: vi.fn(),
     findContainingPoint: vi.fn(),
+    countPublishedGroupsByRegionId: vi.fn().mockResolvedValue(0),
     countActiveInspectorsInRegion: vi.fn(),
     setInspectorRegions: vi.fn(),
     getInspectorRegionIds: vi.fn(),
@@ -178,5 +180,44 @@ describe('DeactivateServiceRegionUseCase', () => {
     });
 
     expect(result.status).toBe('INACTIVE');
+  });
+
+  it('should block deactivation when published service groups reference the region', async () => {
+    const region = new ServiceRegionEntity({
+      id: 'region-1', tenantId: 'tenant-1', name: 'Guarded', geojson: {},
+      color: '#3b82f6', status: 'ACTIVE', createdByUserId: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    vi.mocked(regionRepo.findById).mockResolvedValue(region);
+    vi.mocked(regionRepo.countPublishedGroupsByRegionId).mockResolvedValue(2);
+
+    await expect(
+      useCase.execute({
+        regionId: 'region-1',
+        reason: 'Test',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(ServiceRegionHasPublishedGroupsError);
+
+    expect(regionRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('should allow deactivation when no published groups reference the region', async () => {
+    const region = new ServiceRegionEntity({
+      id: 'region-1', tenantId: 'tenant-1', name: 'Safe', geojson: {},
+      color: '#3b82f6', status: 'ACTIVE', createdByUserId: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    vi.mocked(regionRepo.findById).mockResolvedValue(region);
+    vi.mocked(regionRepo.countPublishedGroupsByRegionId).mockResolvedValue(0);
+
+    const result = await useCase.execute({
+      regionId: 'region-1',
+      reason: 'No more coverage',
+      actor: makeActor(),
+    });
+
+    expect(result.status).toBe('INACTIVE');
+    expect(regionRepo.update).toHaveBeenCalled();
   });
 });

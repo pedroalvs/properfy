@@ -15,8 +15,8 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
     phone: null,
     status: 'ACTIVE',
     paymentSettingsJson: {},
-    serviceTypesJson: ['svc-type-1'],
-    clientEligibilityJson: ['tenant-1'],
+    serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }],
+    clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
@@ -177,8 +177,8 @@ describe('GetMarketplaceOffersUseCase', () => {
 
   it('should pass inspector eligibility filters to repository', async () => {
     const inspector = makeInspector({
-      serviceTypesJson: ['svc-type-1', 'svc-type-2'],
-      clientEligibilityJson: ['tenant-1', 'tenant-2'],
+      serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }, { serviceTypeId: 'svc-type-2', certified: false }],
+      clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }, { tenantId: 'tenant-2', eligible: true }],
     });
     vi.mocked(inspectorRepo.findById).mockResolvedValue(inspector);
     vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([]);

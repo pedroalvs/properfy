@@ -244,6 +244,15 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id} AND tenant_id = ${tenantId}`;
   }
 
+  async countPublishedGroupsByRegionId(regionId: string): Promise<number> {
+    return this.prisma.serviceGroup.count({
+      where: {
+        service_region_id: regionId,
+        status: 'PUBLISHED',
+      },
+    });
+  }
+
   private buildWhere(tenantId: string, filters: ServiceRegionFilters) {
     const where: Record<string, unknown> = { tenant_id: tenantId };
     if (filters.status) where['status'] = filters.status;

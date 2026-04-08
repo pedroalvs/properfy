@@ -7,6 +7,7 @@ import type { IServiceRegionRepository } from '../../domain/service-region.repos
 import {
   ServiceRegionNotFoundError,
   ServiceRegionAlreadyInactiveError,
+  ServiceRegionHasPublishedGroupsError,
 } from '../../domain/service-region.errors';
 
 export interface DeactivateServiceRegionInput {
@@ -45,6 +46,12 @@ export class DeactivateServiceRegionUseCase {
 
     if (!region.isActive()) {
       throw new ServiceRegionAlreadyInactiveError();
+    }
+
+    // Guard: block deactivation when published service groups reference this region
+    const publishedCount = await this.regionRepo.countPublishedGroupsByRegionId(regionId);
+    if (publishedCount > 0) {
+      throw new ServiceRegionHasPublishedGroupsError();
     }
 
     const now = new Date();
