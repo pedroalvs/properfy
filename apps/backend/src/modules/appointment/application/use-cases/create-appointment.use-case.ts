@@ -273,6 +273,7 @@ export class CreateAppointmentUseCase {
       cancellationReasonCode: null,
       rejectionReasonCode: null,
       createdByUserId: actor.userId,
+      doneMarkedByUserId: null,
       doneCheckedByUserId: null,
       doneCheckedAt: null,
       serviceGroupId: null,

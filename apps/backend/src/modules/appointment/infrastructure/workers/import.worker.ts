@@ -251,6 +251,7 @@ export class AppointmentImportWorker {
       cancellationReasonCode: null,
       rejectionReasonCode: null,
       createdByUserId,
+      doneMarkedByUserId: null,
       doneCheckedByUserId: null,
       doneCheckedAt: null,
       serviceGroupId: null,

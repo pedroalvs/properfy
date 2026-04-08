@@ -1,5 +1,5 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
+import type { AppointmentStatus, TenantConfirmationStatus, CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
 import { TRANSITION_RULES } from './appointment-state-machine';
 
 export interface AppointmentProps {
@@ -24,9 +24,10 @@ export interface AppointmentProps {
   notes: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
-  cancellationReasonCode: string | null;
-  rejectionReasonCode: string | null;
+  cancellationReasonCode: CancellationReasonCode | null;
+  rejectionReasonCode: RejectionReasonCode | null;
   createdByUserId: string;
+  doneMarkedByUserId: string | null;
   doneCheckedByUserId: string | null;
   doneCheckedAt: Date | null;
   serviceGroupId: string | null;
@@ -55,9 +56,10 @@ export class AppointmentEntity extends BaseEntity {
   readonly notes: string | null;
   readonly customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
-  cancellationReasonCode: string | null;
-  rejectionReasonCode: string | null;
+  cancellationReasonCode: CancellationReasonCode | null;
+  rejectionReasonCode: RejectionReasonCode | null;
   readonly createdByUserId: string;
+  doneMarkedByUserId: string | null;
   doneCheckedByUserId: string | null;
   doneCheckedAt: Date | null;
   serviceGroupId: string | null;
@@ -87,6 +89,7 @@ export class AppointmentEntity extends BaseEntity {
     this.cancellationReasonCode = props.cancellationReasonCode;
     this.rejectionReasonCode = props.rejectionReasonCode;
     this.createdByUserId = props.createdByUserId;
+    this.doneMarkedByUserId = props.doneMarkedByUserId;
     this.doneCheckedByUserId = props.doneCheckedByUserId;
     this.doneCheckedAt = props.doneCheckedAt;
     this.serviceGroupId = props.serviceGroupId;

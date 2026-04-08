@@ -66,30 +66,38 @@ export class PerformCrossCheckUseCase {
       throw new AppointmentDoneCrossCheckAlreadyCompletedError();
     }
 
-    const latestTransitions = await this.auditLogRepo.findAll(
-      {
-        tenantId: appointment.tenantId,
-        entityType: 'Appointment',
-        entityId: appointment.id,
-        action: 'appointment.status_transition',
-      },
-      {
-        page: 1,
-        pageSize: 20,
-        sortOrder: 'desc',
-      },
-    );
+    // Determine who marked the appointment as DONE.
+    // Prefer the denormalized column; fall back to audit log scan for backward compat.
+    let doneByUserId: string | null = appointment.doneMarkedByUserId;
 
-    const doneTransition = latestTransitions.find((entry) => {
-      const after = entry.afterJson as { status?: string } | null;
-      return after?.status === 'DONE';
-    });
+    if (!doneByUserId) {
+      const latestTransitions = await this.auditLogRepo.findAll(
+        {
+          tenantId: appointment.tenantId,
+          entityType: 'Appointment',
+          entityId: appointment.id,
+          action: 'appointment.status_transition',
+        },
+        {
+          page: 1,
+          pageSize: 20,
+          sortOrder: 'desc',
+        },
+      );
 
-    if (!doneTransition?.actorId) {
+      const doneTransition = latestTransitions.find((entry) => {
+        const after = entry.afterJson as { status?: string } | null;
+        return after?.status === 'DONE';
+      });
+
+      doneByUserId = doneTransition?.actorId ?? null;
+    }
+
+    if (!doneByUserId) {
       throw new AppointmentDoneCrossCheckOriginNotFoundError();
     }
 
-    if (doneTransition.actorId === input.actor.userId) {
+    if (doneByUserId === input.actor.userId) {
       throw new AppointmentDoneCrossCheckSelfApprovalError();
     }
 
@@ -143,7 +151,7 @@ export class PerformCrossCheckUseCase {
       },
       metadata: {
         event: 'appointment.done_checked',
-        doneByUserId: doneTransition.actorId,
+        doneByUserId,
       },
     });
 

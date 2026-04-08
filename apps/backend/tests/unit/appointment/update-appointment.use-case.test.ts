@@ -35,6 +35,7 @@ function makeAppointmentEntity(overrides: Partial<ConstructorParameters<typeof A
     customFieldsJson: null,
     reason: null,
     createdByUserId: 'user-1',
+    doneMarkedByUserId: null,
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     serviceGroupId: null,

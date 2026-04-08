@@ -30,3 +30,14 @@ export interface FinancialEntriesCreatedPayload {
   appointmentId: string;
   entries: Array<{ id: string; type: string; amount: number }>;
 }
+
+export interface AppointmentTransitionEvent {
+  appointmentId: string;
+  tenantId: string;
+  fromStatus: string;
+  toStatus: string;
+  actorId: string;
+  actorType: 'USER' | 'SYSTEM';
+  reason?: string;
+  metadata?: Record<string, unknown>;
+}

@@ -62,6 +62,7 @@ function makeAppointmentWithRelations(overrides = {}) {
     customFieldsJson: null,
     reason: null,
     createdByUserId: 'user-1',
+    doneMarkedByUserId: null,
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     serviceGroupId: null,

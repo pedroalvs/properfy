@@ -132,6 +132,8 @@ export function createMockContainer(
       forceManualConfirmationUseCase: { execute: vi.fn() },
       importAppointmentsUseCase: { execute: vi.fn() },
       getImportStatusUseCase: { execute: vi.fn() },
+      listAppointmentContactsUseCase: { execute: vi.fn() },
+      appointmentRepo: { findContactById: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['appointment'],

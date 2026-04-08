@@ -112,7 +112,8 @@ describe('FinishInspectionUseCase', () => {
       previousStatus: 'SCHEDULED',
       reason: null,
       inspectorId: 'insp-1',
-      doneCheckedByUserId: null,
+      doneMarkedByUserId: null,
+    doneCheckedByUserId: null,
       doneCheckedAt: null,
       updatedAt: new Date(),
     });

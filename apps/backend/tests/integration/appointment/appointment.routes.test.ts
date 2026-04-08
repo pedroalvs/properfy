@@ -11,6 +11,8 @@ const mockUpdateAppointmentExecute = vi.fn();
 const mockExecuteStatusTransitionExecute = vi.fn();
 const mockPerformCrossCheckExecute = vi.fn();
 const mockForceManualConfirmationExecute = vi.fn();
+const mockFindContactById = vi.fn();
+const mockListAppointmentContactsExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
@@ -32,6 +34,8 @@ vi.mock('../../../src/main/container', () => ({
       executeStatusTransitionUseCase: { execute: mockExecuteStatusTransitionExecute },
       performCrossCheckUseCase: { execute: mockPerformCrossCheckExecute },
       forceManualConfirmationUseCase: { execute: mockForceManualConfirmationExecute },
+      listAppointmentContactsUseCase: { execute: mockListAppointmentContactsExecute },
+      appointmentRepo: { findContactById: mockFindContactById },
       jwtService: { verify: mockJwtVerify },
     },
     audit: { jwtService: { verify: mockJwtVerify } },
@@ -77,7 +81,8 @@ const appointmentResult = {
   customFieldsJson: null,
   reason: null,
   createdByUserId: USER_ID,
-  doneCheckedByUserId: null,
+  doneMarkedByUserId: null,
+    doneCheckedByUserId: null,
   doneCheckedAt: null,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -99,7 +104,8 @@ const statusTransitionResult = {
   previousStatus: 'DRAFT',
   reason: null,
   inspectorId: null,
-  doneCheckedByUserId: null,
+  doneMarkedByUserId: null,
+    doneCheckedByUserId: null,
   doneCheckedAt: null,
   updatedAt: new Date().toISOString(),
 };
@@ -366,6 +372,61 @@ describe('POST /v1/appointments/:appointmentId/force-confirmation', () => {
       .post(`/v1/appointments/${APPOINTMENT_ID}/force-confirmation`)
       .set('Authorization', 'Bearer valid-token')
       .send({ tenantConfirmationStatus: 'PENDING', reason: 'Some reason' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+const CONTACT_ID = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+
+describe('GET /v1/appointment-contacts/:contactId', () => {
+  it('should return 404 with CONTACT_NOT_FOUND when contact does not exist', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockFindContactById.mockResolvedValueOnce(null);
+
+    const res = await supertest(app.server)
+      .get(`/v1/appointment-contacts/${CONTACT_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('CONTACT_NOT_FOUND');
+  });
+
+  it('should return 200 with contact data when contact exists', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    const contactData = {
+      id: CONTACT_ID,
+      appointmentId: APPOINTMENT_ID,
+      name: 'Jane Doe',
+      primaryEmail: 'jane@example.com',
+      primaryPhone: '+61400000000',
+      confirmationStatus: 'PENDING',
+      propertyAddress: '123 Main St',
+      appointmentDate: '2026-04-01',
+      lastActivityAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      alternativePhone: null,
+      notes: null,
+    };
+    mockFindContactById.mockResolvedValueOnce(contactData);
+
+    const res = await supertest(app.server)
+      .get(`/v1/appointment-contacts/${CONTACT_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(CONTACT_ID);
+    expect(res.body.data.name).toBe('Jane Doe');
+  });
+
+  it('should return 400 with invalid UUID param', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/appointment-contacts/not-a-uuid')
+      .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');

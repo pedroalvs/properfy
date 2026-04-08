@@ -15,6 +15,7 @@ import {
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
+import { ContactNotFoundError } from '../domain/appointment.errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { CreateAppointmentUseCase } from '../application/use-cases/create-appointment.use-case';
 import type { GetAppointmentUseCase } from '../application/use-cases/get-appointment.use-case';
@@ -26,6 +27,8 @@ import type { ForceManualTenantConfirmationUseCase } from '../application/use-ca
 import type { ImportAppointmentsUseCase } from '../application/use-cases/import-appointments.use-case';
 import type { GetImportStatusUseCase } from '../application/use-cases/get-import-status.use-case';
 import type { ListAppointmentContactsUseCase } from '../application/use-cases/list-appointment-contacts.use-case';
+import type { DeleteAppointmentUseCase } from '../application/use-cases/delete-appointment.use-case';
+import type { ReopenForRescheduleUseCase } from '../application/use-cases/reopen-for-reschedule.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 const importIdParam = z.object({ importId: z.string().uuid() });
@@ -38,9 +41,11 @@ export interface AppointmentRouteContainer {
   executeStatusTransitionUseCase: ExecuteStatusTransitionUseCase;
   performCrossCheckUseCase: PerformCrossCheckUseCase;
   forceManualConfirmationUseCase: ForceManualTenantConfirmationUseCase;
+  reopenForRescheduleUseCase: ReopenForRescheduleUseCase;
   importAppointmentsUseCase: ImportAppointmentsUseCase;
   getImportStatusUseCase: GetImportStatusUseCase;
   listAppointmentContactsUseCase: ListAppointmentContactsUseCase;
+  deleteAppointmentUseCase: DeleteAppointmentUseCase;
   appointmentRepo: { findContactById(id: string): Promise<object | null> };
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
@@ -172,6 +177,28 @@ export async function registerAppointmentRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // DELETE /v1/appointments/:appointmentId — 204 (soft-delete, AM only, DRAFT only)
+  app.delete(
+    '/v1/appointments/:appointmentId',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ appointmentId: z.string().uuid() }),
+      },
+    },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+      await container.deleteAppointmentUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
     },
   );
 
@@ -367,7 +394,7 @@ export async function registerAppointmentRoutes(
       const params = z.object({ contactId: z.string().uuid() }).safeParse(request.params);
       if (!params.success) throw new ValidationError('Invalid contact ID', params.error.errors);
       const contact = await container.appointmentRepo.findContactById(params.data.contactId);
-      if (!contact) throw new ValidationError('Contact not found', []);
+      if (!contact) throw new ContactNotFoundError();
       return reply.status(200).send(success(contact));
     },
   );

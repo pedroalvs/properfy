@@ -8,6 +8,7 @@ import {
 } from './appointment';
 import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
 import { RestrictionSource } from '../enums/appointment';
+import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
 
 const validContact = {
   tenantName: 'Jane Doe',
@@ -272,6 +273,80 @@ describe('statusTransitionSchema', () => {
       targetStatus: 'UNKNOWN_STATUS',
     });
     expect(result.success).toBe(false);
+  });
+
+  it('should accept a valid cancellation reason code', () => {
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Client no longer needs inspection',
+      cancellationReasonCode: CancellationReasonCode.CLIENT_REQUEST,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.cancellationReasonCode).toBe('CLIENT_REQUEST');
+    }
+  });
+
+  it('should reject an invalid cancellation reason code', () => {
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Some reason',
+      cancellationReasonCode: 'INVALID_CODE',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept all valid cancellation reason codes', () => {
+    for (const code of Object.values(CancellationReasonCode)) {
+      const result = statusTransitionSchema.safeParse({
+        targetStatus: AppointmentStatus.CANCELLED,
+        cancellationReasonCode: code,
+      });
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it('should accept a valid rejection reason code', () => {
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.REJECTED,
+      reason: 'Address does not exist',
+      rejectionReasonCode: RejectionReasonCode.INVALID_ADDRESS,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.rejectionReasonCode).toBe('INVALID_ADDRESS');
+    }
+  });
+
+  it('should reject an invalid rejection reason code', () => {
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.REJECTED,
+      reason: 'Some reason',
+      rejectionReasonCode: 'MADE_UP_CODE',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept all valid rejection reason codes', () => {
+    for (const code of Object.values(RejectionReasonCode)) {
+      const result = statusTransitionSchema.safeParse({
+        targetStatus: AppointmentStatus.REJECTED,
+        rejectionReasonCode: code,
+      });
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it('should accept transition without reason codes (optional)', () => {
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Just cancelled',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.cancellationReasonCode).toBeUndefined();
+      expect(result.data.rejectionReasonCode).toBeUndefined();
+    }
   });
 });
 

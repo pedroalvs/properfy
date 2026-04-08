@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ImportAppointmentsUseCase } from '../../../src/modules/appointment/application/use-cases/import-appointments.use-case';
 import type { IAppointmentImportRepository } from '../../../src/modules/appointment/domain/appointment-import.repository';
@@ -6,6 +7,7 @@ import type { IJobQueue } from '../../../src/shared/domain/job-queue';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
+import { AppointmentImportIdempotencyPayloadMismatchError } from '../../../src/modules/appointment/domain/appointment.errors';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -47,6 +49,7 @@ describe('ImportAppointmentsUseCase', () => {
     } as unknown as IJobQueue;
     idempotencyService = {
       get: vi.fn().mockResolvedValue(null),
+      getWithHash: vi.fn().mockResolvedValue(null),
       set: vi.fn().mockResolvedValue(undefined),
     } as unknown as IIdempotencyService;
 
@@ -68,7 +71,7 @@ describe('ImportAppointmentsUseCase', () => {
     expect(storageService.upload).toHaveBeenCalledOnce();
   });
 
-  it('should return cached result on duplicate idempotency key', async () => {
+  it('should return cached result on duplicate idempotency key with same file', async () => {
     const cachedResult = {
       importId: 'cached-import',
       status: 'PENDING',
@@ -76,7 +79,11 @@ describe('ImportAppointmentsUseCase', () => {
       warningCount: 0,
       errorCount: 0,
     };
-    vi.mocked(idempotencyService.get).mockResolvedValue(cachedResult);
+    const fileHash = createHash('sha256').update(baseInput.fileBuffer).digest('hex');
+    vi.mocked(idempotencyService.getWithHash).mockResolvedValue({
+      response: cachedResult,
+      payloadHash: fileHash,
+    });
 
     const result = await useCase.execute({
       ...baseInput,
@@ -86,6 +93,59 @@ describe('ImportAppointmentsUseCase', () => {
     expect(result).toEqual(cachedResult);
     expect(importRepo.save).not.toHaveBeenCalled();
     expect(jobQueue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('should throw 409 when idempotency key is reused with a different file', async () => {
+    const cachedResult = {
+      importId: 'cached-import',
+      status: 'PENDING',
+      acceptedCount: 0,
+      warningCount: 0,
+      errorCount: 0,
+    };
+    const originalHash = createHash('sha256').update(Buffer.from('original-content')).digest('hex');
+    vi.mocked(idempotencyService.getWithHash).mockResolvedValue({
+      response: cachedResult,
+      payloadHash: originalHash,
+    });
+
+    await expect(
+      useCase.execute({
+        ...baseInput,
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(AppointmentImportIdempotencyPayloadMismatchError);
+
+    expect(importRepo.save).not.toHaveBeenCalled();
+    expect(jobQueue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('should process normally when a different idempotency key is used', async () => {
+    vi.mocked(idempotencyService.getWithHash).mockResolvedValue(null);
+
+    const result1 = await useCase.execute({
+      ...baseInput,
+      idempotencyKey: 'key-1',
+      actor: makeActor(),
+    });
+
+    expect(result1.status).toBe('PENDING');
+    expect(importRepo.save).toHaveBeenCalledOnce();
+    expect(jobQueue.enqueue).toHaveBeenCalledOnce();
+
+    vi.mocked(importRepo.save).mockClear();
+    vi.mocked(jobQueue.enqueue).mockClear();
+
+    const result2 = await useCase.execute({
+      ...baseInput,
+      idempotencyKey: 'key-2',
+      actor: makeActor(),
+    });
+
+    expect(result2.status).toBe('PENDING');
+    expect(result2.importId).not.toBe(result1.importId);
+    expect(importRepo.save).toHaveBeenCalledOnce();
+    expect(jobQueue.enqueue).toHaveBeenCalledOnce();
   });
 
   it('should scope import to actor tenant', async () => {
@@ -152,7 +212,9 @@ describe('ImportAppointmentsUseCase', () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it('should cache result after successful execution', async () => {
+  it('should cache result with file hash after successful execution', async () => {
+    const fileHash = createHash('sha256').update(baseInput.fileBuffer).digest('hex');
+
     await useCase.execute({
       ...baseInput,
       actor: makeActor(),
@@ -166,6 +228,7 @@ describe('ImportAppointmentsUseCase', () => {
         status: 'PENDING',
       }),
       24,
+      fileHash,
     );
   });
 });

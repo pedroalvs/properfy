@@ -58,3 +58,11 @@ export const SERVICE_GROUP_EVENTS = {
   REJECTED: 'service_group.rejected.v1',
   MANUALLY_ASSIGNED: 'service_group.manually_assigned.v1',
 } as const;
+
+export const APPOINTMENT_EVENTS = {
+  STATUS_TRANSITION: 'appointment.status_transition.v1',
+  DONE_REJECTED: 'appointment.done_rejected.v1',
+  CREATED: 'appointment.created.v1',
+  UPDATED: 'appointment.updated.v1',
+  DELETED: 'appointment.deleted.v1',
+} as const;

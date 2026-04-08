@@ -1,4 +1,4 @@
-import type { AuthContext, AppointmentStatus } from '@properfy/shared';
+import type { AuthContext, AppointmentStatus, CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
@@ -16,19 +16,24 @@ import {
   AppointmentDoneCheckRequiredError,
   AppointmentDoneCheckerInvalidRoleError,
   AppointmentDoneCheckerSelfCheckError,
+  AppointmentDoneCrossCheckSelfCheckError,
   AppointmentInspectorRequiredError,
   AppointmentTenantConfirmationRequiredError,
   AppointmentServiceGroupRequiredError,
 } from '../../domain/appointment.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AppointmentTransitionEvent } from '@properfy/shared';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { APPOINTMENT_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 
 export interface ExecuteStatusTransitionInput {
   appointmentId: string;
   targetStatus: AppointmentStatus;
   reason?: string;
-  cancellationReasonCode?: string;
-  rejectionReasonCode?: string;
+  cancellationReasonCode?: CancellationReasonCode;
+  rejectionReasonCode?: RejectionReasonCode;
   doneCheckedByUserId?: string;
+  crossCheckByUserId?: string;
   inspectorId?: string;
   idempotencyKey?: string;
   actor: AuthContext;
@@ -66,10 +71,11 @@ export class ExecuteStatusTransitionUseCase {
     private readonly onTransitionHandler?: OnTransitionHandler,
     private readonly authorizationService?: AuthorizationService,
     private readonly serviceTypeRepo?: IServiceTypeRepository,
+    private readonly domainEventBus?: DomainEventBus,
   ) {}
 
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
-    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, inspectorId, idempotencyKey, actor } = input;
+    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, actor } = input;
 
     // 0. Idempotency check
     if (idempotencyKey) {
@@ -153,6 +159,19 @@ export class ExecuteStatusTransitionUseCase {
       }
     }
 
+    // 5b. Validate crossCheckByUserId for compound DONE + cross-check
+    if (crossCheckByUserId && targetStatus === 'DONE') {
+      // Self-check: the actor performing the transition cannot also be the cross-checker
+      if (crossCheckByUserId === actor.userId) {
+        throw new AppointmentDoneCrossCheckSelfCheckError();
+      }
+      // Validate the cross-checker is AM or OP
+      const crossChecker = await this.userRepo.findById(crossCheckByUserId);
+      if (!crossChecker || (crossChecker.role !== 'AM' && crossChecker.role !== 'OP')) {
+        throw new AppointmentDoneCheckerInvalidRoleError();
+      }
+    }
+
     // 6. Check inspectorId for SCHEDULED transition
     if (targetStatus === 'SCHEDULED' && !appointment.inspectorId && !inspectorId) {
       throw new AppointmentInspectorRequiredError();
@@ -199,14 +218,26 @@ export class ExecuteStatusTransitionUseCase {
     // TODO: When transitioning to SCHEDULED with an inspector, find and book the matching
     // availability slot (inspectorId + scheduledDate + overlapping timeSlot → status = BOOKED)
 
+    // Set who marked appointment as DONE
+    if (targetStatus === 'DONE') {
+      updateData.doneMarkedByUserId = actor.userId;
+    }
+
     // Set done check for DONE (optional — set when provided)
     if (doneCheckedByUserId) {
       updateData.doneCheckedByUserId = doneCheckedByUserId;
       updateData.doneCheckedAt = now;
     }
 
-    // Clear done check on reopen from DONE
+    // Compound DONE + cross-check: atomically set cross-check fields in the same update
+    if (crossCheckByUserId && targetStatus === 'DONE') {
+      updateData.doneCheckedByUserId = crossCheckByUserId;
+      updateData.doneCheckedAt = now;
+    }
+
+    // Clear done check and done marker on reopen from DONE
     if (appointment.status === 'DONE' && targetStatus === 'DRAFT') {
+      updateData.doneMarkedByUserId = null;
       updateData.doneCheckedByUserId = null;
       updateData.doneCheckedAt = null;
     }
@@ -231,6 +262,12 @@ export class ExecuteStatusTransitionUseCase {
       afterSnapshot.reviewedBy = reviewer?.name ?? doneCheckedByUserId;
       metadata.doneCheckedByUserId = doneCheckedByUserId;
     }
+    if (crossCheckByUserId && targetStatus === 'DONE') {
+      const reviewer = await this.userRepo.findById(crossCheckByUserId);
+      afterSnapshot.reviewedBy = reviewer?.name ?? crossCheckByUserId;
+      metadata.crossCheckByUserId = crossCheckByUserId;
+      metadata.compoundTransition = true;
+    }
     if (appointment.status === 'DONE' && targetStatus === 'DRAFT') {
       afterSnapshot.reviewedBy = null;
     }
@@ -249,7 +286,7 @@ export class ExecuteStatusTransitionUseCase {
     });
 
     // 9b. Side effect: INSP marked DONE without operator cross-check — flag pending review
-    if (targetStatus === 'DONE' && actor.role === 'INSP' && !doneCheckedByUserId) {
+    if (targetStatus === 'DONE' && actor.role === 'INSP' && !doneCheckedByUserId && !crossCheckByUserId) {
       this.auditService.log({
         action: 'appointment.done_pending_crosscheck',
         actorType: 'USER',
@@ -263,8 +300,36 @@ export class ExecuteStatusTransitionUseCase {
       });
     }
 
+    // 9c. Side effect: compound cross-check audit log
+    if (targetStatus === 'DONE' && crossCheckByUserId) {
+      const crossChecker = await this.userRepo.findById(crossCheckByUserId);
+      this.auditService.log({
+        action: 'appointment.done_checked',
+        actorType: 'USER',
+        actorId: crossCheckByUserId,
+        entityType: 'Appointment',
+        entityId: appointmentId,
+        tenantId: appointment.tenantId,
+        before: {
+          status: appointment.status,
+          doneCheckedByUserId: null,
+          doneCheckedAt: null,
+        },
+        after: {
+          status: targetStatus,
+          doneCheckedByUserId: crossCheckByUserId,
+          doneCheckedAt: now,
+        },
+        metadata: {
+          event: 'appointment.done_checked',
+          doneByUserId: actor.userId,
+          compoundTransition: true,
+        },
+      });
+    }
+
     // 9d. Side effect: create financial entries only after operator cross-check
-    if (targetStatus === 'DONE' && doneCheckedByUserId && this.onDoneHandler) {
+    if (targetStatus === 'DONE' && (doneCheckedByUserId || crossCheckByUserId) && this.onDoneHandler) {
       try {
         await this.onDoneHandler.execute({ appointmentId });
       } catch {
@@ -273,7 +338,7 @@ export class ExecuteStatusTransitionUseCase {
       }
     }
 
-    // 9e. Side effect: DONE → REJECTED — flag for financial review
+    // 9e. Side effect: DONE → REJECTED — flag for financial review and emit domain event
     if (appointment.status === 'DONE' && targetStatus === 'REJECTED') {
       this.auditService.log({
         action: 'appointment.done_rejected',
@@ -287,6 +352,22 @@ export class ExecuteStatusTransitionUseCase {
         reason: reason ?? undefined,
         metadata: { requiresFinancialReview: true },
       });
+
+      // Emit domain event for financial compensation
+      if (this.domainEventBus) {
+        this.domainEventBus.emit({
+          type: APPOINTMENT_EVENTS.DONE_REJECTED,
+          payload: {
+            appointmentId,
+            tenantId: appointment.tenantId,
+            rejectedByUserId: actor.userId,
+            reason: reason ?? null,
+          },
+          occurredAt: now,
+        }).catch(() => {
+          // fire-and-forget — event bus failure must not affect the transition
+        });
+      }
     }
 
     // 9f. Side effect: notifications on transition
@@ -300,6 +381,27 @@ export class ExecuteStatusTransitionUseCase {
       } catch {
         // fire-and-forget — notification failure must not affect the transition
       }
+    }
+
+    // 9g. Emit typed domain event for transition
+    if (this.domainEventBus) {
+      const transitionPayload: AppointmentTransitionEvent = {
+        appointmentId,
+        tenantId: appointment.tenantId,
+        fromStatus: appointment.status,
+        toStatus: targetStatus,
+        actorId: actor.userId,
+        actorType: 'USER',
+        reason: reason ?? undefined,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+      };
+      this.domainEventBus.emit({
+        type: APPOINTMENT_EVENTS.STATUS_TRANSITION,
+        payload: transitionPayload as unknown as Record<string, unknown>,
+        occurredAt: now,
+      }).catch(() => {
+        // fire-and-forget — event bus failure must not affect the transition
+      });
     }
 
     // 10. Build result

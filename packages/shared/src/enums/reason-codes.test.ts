@@ -5,26 +5,28 @@ describe('CancellationReasonCode', () => {
   it('has expected codes', () => {
     expect(CancellationReasonCode.CLIENT_REQUEST).toBe('CLIENT_REQUEST');
     expect(CancellationReasonCode.TENANT_UNAVAILABLE).toBe('TENANT_UNAVAILABLE');
-    expect(CancellationReasonCode.DUPLICATE).toBe('DUPLICATE');
     expect(CancellationReasonCode.SCHEDULING_CONFLICT).toBe('SCHEDULING_CONFLICT');
+    expect(CancellationReasonCode.INSPECTOR_UNAVAILABLE).toBe('INSPECTOR_UNAVAILABLE');
+    expect(CancellationReasonCode.DUPLICATE).toBe('DUPLICATE');
     expect(CancellationReasonCode.OTHER).toBe('OTHER');
   });
 
-  it('has exactly 5 codes', () => {
-    expect(Object.keys(CancellationReasonCode)).toHaveLength(5);
+  it('has exactly 6 codes', () => {
+    expect(Object.keys(CancellationReasonCode)).toHaveLength(6);
   });
 });
 
 describe('RejectionReasonCode', () => {
   it('has expected codes', () => {
     expect(RejectionReasonCode.INVALID_ADDRESS).toBe('INVALID_ADDRESS');
-    expect(RejectionReasonCode.ACCESS_DENIED).toBe('ACCESS_DENIED');
-    expect(RejectionReasonCode.UNSAFE_PROPERTY).toBe('UNSAFE_PROPERTY');
-    expect(RejectionReasonCode.INCOMPLETE_DATA).toBe('INCOMPLETE_DATA');
+    expect(RejectionReasonCode.PROPERTY_INACCESSIBLE).toBe('PROPERTY_INACCESSIBLE');
+    expect(RejectionReasonCode.SAFETY_CONCERN).toBe('SAFETY_CONCERN');
+    expect(RejectionReasonCode.INSUFFICIENT_INFO).toBe('INSUFFICIENT_INFO');
+    expect(RejectionReasonCode.SERVICE_NOT_AVAILABLE).toBe('SERVICE_NOT_AVAILABLE');
     expect(RejectionReasonCode.OTHER).toBe('OTHER');
   });
 
-  it('has exactly 5 codes', () => {
-    expect(Object.keys(RejectionReasonCode)).toHaveLength(5);
+  it('has exactly 6 codes', () => {
+    expect(Object.keys(RejectionReasonCode)).toHaveLength(6);
   });
 });

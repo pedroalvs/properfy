@@ -318,7 +318,8 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
   it('should throw FinancialEntryDoneCheckRequiredError when doneCheckedByUserId is not set', async () => {
     const sut = makeSut();
     appointmentRepo.findById.mockResolvedValue(
-      makeAppointment({ doneCheckedByUserId: null, doneCheckedAt: null }),
+      makeAppointment({ doneMarkedByUserId: null,
+    doneCheckedByUserId: null, doneCheckedAt: null }),
     );
 
     await expect(sut.execute({ appointmentId: 'appt-1' })).rejects.toThrow(

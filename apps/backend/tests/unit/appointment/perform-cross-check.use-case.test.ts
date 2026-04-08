@@ -36,6 +36,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     cancellationReasonCode: null,
     rejectionReasonCode: null,
     createdByUserId: 'creator-1',
+    doneMarkedByUserId: null,
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     serviceGroupId: null,
@@ -308,5 +309,84 @@ describe('PerformCrossCheckUseCase', () => {
         },
       }),
     ).rejects.toThrow(AppointmentDoneCrossCheckEvidenceIncompleteError);
+  });
+
+  it('uses doneMarkedByUserId from column and skips audit scan', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ doneMarkedByUserId: 'done-by-1' }),
+      contact: null,
+      restrictions: [],
+    });
+    const sut = makeSut();
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      actor: {
+        userId: 'op-1',
+        tenantId: null,
+        role: 'OP',
+        branchId: null,
+        inspectorId: null,
+      },
+    });
+
+    expect(auditLogRepo.findAll).not.toHaveBeenCalled();
+    expect(result.doneCheckedByUserId).toBe('op-1');
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({
+        doneCheckedByUserId: 'op-1',
+        doneCheckedAt: expect.any(Date),
+      }),
+    );
+  });
+
+  it('falls back to audit scan when doneMarkedByUserId is null', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ doneMarkedByUserId: null }),
+      contact: null,
+      restrictions: [],
+    });
+    auditLogRepo.findAll.mockResolvedValue([makeDoneAudit('done-by-1')]);
+    const sut = makeSut();
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      actor: {
+        userId: 'op-1',
+        tenantId: null,
+        role: 'OP',
+        branchId: null,
+        inspectorId: null,
+      },
+    });
+
+    expect(auditLogRepo.findAll).toHaveBeenCalled();
+    expect(result.doneCheckedByUserId).toBe('op-1');
+  });
+
+  it('rejects self-approval when doneMarkedByUserId matches actor', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ doneMarkedByUserId: 'op-1' }),
+      contact: null,
+      restrictions: [],
+    });
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        actor: {
+          userId: 'op-1',
+          tenantId: null,
+          role: 'OP',
+          branchId: null,
+          inspectorId: null,
+        },
+      }),
+    ).rejects.toThrow(AppointmentDoneCrossCheckSelfApprovalError);
+
+    expect(auditLogRepo.findAll).not.toHaveBeenCalled();
   });
 });

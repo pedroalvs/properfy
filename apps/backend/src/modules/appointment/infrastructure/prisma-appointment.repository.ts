@@ -22,6 +22,8 @@ import type {
   AppointmentStatus,
   TenantConfirmationStatus,
   RestrictionSource,
+  CancellationReasonCode,
+  RejectionReasonCode,
 } from '@properfy/shared';
 
 function toSnakeCase(s: string): string {
@@ -59,9 +61,10 @@ function mapToEntity(row: any): AppointmentEntity {
     notes: row.notes,
     customFieldsJson: row.custom_fields_json as Record<string, unknown> | null,
     reason: row.reason,
-    cancellationReasonCode: row.cancellation_reason_code ?? null,
-    rejectionReasonCode: row.rejection_reason_code ?? null,
+    cancellationReasonCode: (row.cancellation_reason_code as CancellationReasonCode) ?? null,
+    rejectionReasonCode: (row.rejection_reason_code as RejectionReasonCode) ?? null,
     createdByUserId: row.created_by_user_id,
+    doneMarkedByUserId: row.done_marked_by_user_id,
     doneCheckedByUserId: row.done_checked_by_user_id,
     doneCheckedAt: row.done_checked_at,
     serviceGroupId: row.service_group_id ?? null,
@@ -214,6 +217,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         custom_fields_json: (appointment.customFieldsJson as Prisma.InputJsonValue) ?? undefined,
         reason: appointment.reason,
         created_by_user_id: appointment.createdByUserId,
+        done_marked_by_user_id: appointment.doneMarkedByUserId,
         done_checked_by_user_id: appointment.doneCheckedByUserId,
         done_checked_at: appointment.doneCheckedAt,
       },
@@ -235,8 +239,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       notes: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
-      cancellationReasonCode: string | null;
-      rejectionReasonCode: string | null;
+      cancellationReasonCode: CancellationReasonCode | null;
+      rejectionReasonCode: RejectionReasonCode | null;
+      doneMarkedByUserId: string | null;
       doneCheckedByUserId: string | null;
       doneCheckedAt: Date | null;
       serviceGroupId: string | null;
@@ -259,6 +264,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.reason !== undefined) updateData['reason'] = data.reason;
     if (data.cancellationReasonCode !== undefined) updateData['cancellation_reason_code'] = data.cancellationReasonCode;
     if (data.rejectionReasonCode !== undefined) updateData['rejection_reason_code'] = data.rejectionReasonCode;
+    if (data.doneMarkedByUserId !== undefined) {
+      updateData['done_marked_by_user_id'] = data.doneMarkedByUserId;
+    }
     if (data.doneCheckedByUserId !== undefined) {
       updateData['done_checked_by_user_id'] = data.doneCheckedByUserId;
     }

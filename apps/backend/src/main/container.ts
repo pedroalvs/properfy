@@ -267,7 +267,11 @@ import { PerformCrossCheckUseCase } from '../modules/appointment/application/use
 import { ForceManualTenantConfirmationUseCase } from '../modules/appointment/application/use-cases/force-manual-confirmation.use-case';
 import { ImportAppointmentsUseCase } from '../modules/appointment/application/use-cases/import-appointments.use-case';
 import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
+import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment/application/handlers/compensate-financial-on-done-rejected.handler';
+import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
 import { ListAppointmentContactsUseCase } from '../modules/appointment/application/use-cases/list-appointment-contacts.use-case';
+import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
+import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
@@ -510,6 +514,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo);
   const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepo, appointmentTimeSlotRepo, authorizationService);
+  const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService);
   // Notification handlers (depend on appointmentRepo, propertyRepo, createNotificationUseCase)
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
     appointmentRepo, propertyRepo, createNotificationUseCase,
@@ -524,8 +529,10 @@ export function createContainer(logger: Logger): AppContainer {
     notifyOnStatusTransitionHandler,
     authorizationService,
     serviceTypeRepo,
+    domainEventBus,
   );
   const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService);
+  const reopenForRescheduleUseCase = new ReopenForRescheduleUseCase(appointmentRepo, auditService);
 
   // Tenant portal repositories and use cases
   const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
@@ -699,6 +706,15 @@ export function createContainer(logger: Logger): AppContainer {
     (event) => notifyInspectorsOnRegionDeactivationHandler.handle(event),
   );
 
+  // Appointment event handlers
+  const compensateFinancialOnDoneRejectedHandler = new CompensateFinancialOnDoneRejectedHandler(
+    financialEntryRepo, auditService,
+  );
+  domainEventBus.subscribe(
+    APPOINTMENT_EVENTS.DONE_REJECTED,
+    (event) => compensateFinancialOnDoneRejectedHandler.handle(event),
+  );
+
   // Appointment import (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
   const importJobQueue = env.ENABLE_JOB_QUEUE === 'true'
@@ -845,9 +861,11 @@ export function createContainer(logger: Logger): AppContainer {
       executeStatusTransitionUseCase,
       performCrossCheckUseCase,
       forceManualConfirmationUseCase,
+      reopenForRescheduleUseCase,
       importAppointmentsUseCase,
       getImportStatusUseCase,
       listAppointmentContactsUseCase,
+      deleteAppointmentUseCase,
       appointmentRepo,
       jwtService,
       tenantRepo,

@@ -1,0 +1,371 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  ReopenForRescheduleUseCase,
+  AppointmentNotScheduledError,
+} from '../../../src/modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
+import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
+import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
+import type { AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
+import type { AuthContext } from '@properfy/shared';
+
+// --- Helpers ---
+
+function makeAppointment(
+  overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
+): AppointmentEntity {
+  return new AppointmentEntity({
+    id: 'appt-1',
+    tenantId: 'tenant-1',
+    branchId: 'branch-1',
+    propertyId: 'prop-1',
+    serviceTypeId: 'st-1',
+    inspectorId: 'insp-1',
+    status: 'SCHEDULED',
+    scheduledDate: new Date('2026-04-10'),
+    timeSlot: '09:00-12:00',
+    keyRequired: false,
+    meetingLocation: null,
+    keyLocation: null,
+    tenantConfirmationStatus: 'CONFIRMED',
+    priceAmount: 200,
+    payoutAmount: 140,
+    pricingRuleSnapshotJson: {},
+    notes: null,
+    customFieldsJson: null,
+    reason: null,
+    cancellationReasonCode: null,
+    rejectionReasonCode: null,
+    createdByUserId: 'user-1',
+    doneMarkedByUserId: null,
+    doneCheckedByUserId: null,
+    doneCheckedAt: null,
+    serviceGroupId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
+function makeWithRelations(
+  overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
+): AppointmentWithRelations {
+  return {
+    appointment: makeAppointment(overrides),
+    contact: null,
+    restrictions: [],
+  };
+}
+
+function makeActor(role: AuthContext['role'], overrides: Partial<AuthContext> = {}): AuthContext {
+  return {
+    userId: 'actor-1',
+    tenantId: role === 'AM' || role === 'OP' ? null : 'tenant-1',
+    role,
+    branchId: null,
+    inspectorId: null,
+    ...overrides,
+  };
+}
+
+// --- Mocks ---
+
+const appointmentRepo = {
+  findById: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+  saveContact: vi.fn(),
+  updateContact: vi.fn(),
+  saveRestriction: vi.fn(),
+  deleteRestrictionsByAppointmentId: vi.fn(),
+  findScheduledOnDate: vi.fn(),
+  findAllContacts: vi.fn(),
+  countContacts: vi.fn(),
+  findContactById: vi.fn(),
+  findDuplicateForImport: vi.fn(),
+};
+
+const auditService = {
+  log: vi.fn(),
+};
+
+// --- Tests ---
+
+describe('ReopenForRescheduleUseCase', () => {
+  let useCase: ReopenForRescheduleUseCase;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCase = new ReopenForRescheduleUseCase(appointmentRepo, auditService);
+  });
+
+  it('should reopen a SCHEDULED appointment for reschedule (happy path, AM actor)', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('AM'),
+    });
+
+    expect(result.id).toBe('appt-1');
+    expect(result.previousStatus).toBe('SCHEDULED');
+    expect(result.status).toBe('DRAFT');
+    expect(result.previousScheduledDate).toBe('2026-04-10');
+    expect(result.scheduledDate).toBe('2026-04-15');
+    expect(result.previousTimeSlot).toBe('09:00-12:00');
+    expect(result.timeSlot).toBe('13:00-16:00');
+    expect(result.previousInspectorId).toBe('insp-1');
+    expect(result.inspectorId).toBeNull();
+    expect(result.tenantConfirmationStatus).toBe('PENDING');
+
+    // Verify repository update call
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      status: 'DRAFT',
+      scheduledDate: new Date('2026-04-15'),
+      timeSlot: '13:00-16:00',
+      inspectorId: null,
+      tenantConfirmationStatus: 'PENDING',
+      reason: null,
+    });
+  });
+
+  it('should reopen a SCHEDULED appointment for reschedule (SYS actor from tenant portal)', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-20',
+      newTimeSlot: '08:00-11:00',
+      actor: makeActor('SYS' as AuthContext['role']),
+    });
+
+    expect(result.status).toBe('DRAFT');
+    expect(result.scheduledDate).toBe('2026-04-20');
+  });
+
+  it('should reopen a SCHEDULED appointment for reschedule (OP actor)', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-18',
+      newTimeSlot: '10:00-13:00',
+      actor: makeActor('OP'),
+    });
+
+    expect(result.status).toBe('DRAFT');
+  });
+
+  it('should write an audit log entry with correct before/after snapshots', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-15',
+      newTimeSlot: '13:00-16:00',
+      reason: 'Tenant requested new date',
+      actor: makeActor('AM'),
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith({
+      action: 'appointment.reopened_for_reschedule',
+      actorType: 'USER',
+      actorId: 'actor-1',
+      entityType: 'Appointment',
+      entityId: 'appt-1',
+      tenantId: 'tenant-1',
+      before: {
+        status: 'SCHEDULED',
+        scheduledDate: '2026-04-10',
+        timeSlot: '09:00-12:00',
+        inspectorId: 'insp-1',
+        tenantConfirmationStatus: 'CONFIRMED',
+      },
+      after: {
+        status: 'DRAFT',
+        scheduledDate: '2026-04-15',
+        timeSlot: '13:00-16:00',
+        inspectorId: null,
+        tenantConfirmationStatus: 'PENDING',
+      },
+      reason: 'Tenant requested new date',
+      metadata: {
+        previousInspectorId: 'insp-1',
+        initiatedBy: 'AM',
+      },
+    });
+  });
+
+  it('should set actorType to SYSTEM when actor role is SYS', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('SYS' as AuthContext['role']),
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorType: 'SYSTEM',
+        metadata: expect.objectContaining({ initiatedBy: 'SYS' }),
+      }),
+    );
+  });
+
+  it('should use default reason when none provided', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('AM'),
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'Reopened for reschedule',
+      }),
+    );
+  });
+
+  it('should reject non-SCHEDULED appointments', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT' }));
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        newScheduledDate: '2026-04-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('AM'),
+      }),
+    ).rejects.toThrow(AppointmentNotScheduledError);
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+    expect(auditService.log).not.toHaveBeenCalled();
+  });
+
+  it('should reject AWAITING_INSPECTOR appointments', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR' }),
+    );
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        newScheduledDate: '2026-04-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('AM'),
+      }),
+    ).rejects.toThrow(AppointmentNotScheduledError);
+  });
+
+  it('should reject DONE appointments', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DONE' }));
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        newScheduledDate: '2026-04-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('AM'),
+      }),
+    ).rejects.toThrow(AppointmentNotScheduledError);
+  });
+
+  it('should reject CANCELLED appointments', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'CANCELLED' }));
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        newScheduledDate: '2026-04-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('AM'),
+      }),
+    ).rejects.toThrow(AppointmentNotScheduledError);
+  });
+
+  it('should throw AppointmentNotFoundError when appointment does not exist', async () => {
+    appointmentRepo.findById.mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'nonexistent',
+        newScheduledDate: '2026-04-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('AM'),
+      }),
+    ).rejects.toThrow(AppointmentNotFoundError);
+  });
+
+  it('should reject CL_ADMIN actor', async () => {
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        newScheduledDate: '2026-04-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('CL_ADMIN'),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+
+    expect(appointmentRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('should reject CL_USER actor', async () => {
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        newScheduledDate: '2026-04-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('CL_USER'),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should reject INSP actor', async () => {
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        newScheduledDate: '2026-04-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('INSP'),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should handle appointment with no inspector assigned', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ inspectorId: null }),
+    );
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('AM'),
+    });
+
+    expect(result.previousInspectorId).toBeNull();
+    expect(result.inspectorId).toBeNull();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ previousInspectorId: null }),
+      }),
+    );
+  });
+});

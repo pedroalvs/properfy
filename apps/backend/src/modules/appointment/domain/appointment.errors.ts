@@ -1,4 +1,4 @@
-import { NotFoundError, ForbiddenError, DomainError } from '../../../shared/domain/errors';
+import { NotFoundError, ForbiddenError, DomainError, ConflictError } from '../../../shared/domain/errors';
 
 export class AppointmentNotFoundError extends NotFoundError {
   constructor() {
@@ -49,6 +49,12 @@ export class AppointmentDoneCheckerInvalidRoleError extends DomainError {
 export class AppointmentDoneCheckerSelfCheckError extends DomainError {
   constructor() {
     super('APPOINTMENT_DONE_CHECKER_SELF_CHECK', 'Inspector cannot cross-check their own work', 422);
+  }
+}
+
+export class AppointmentDoneCrossCheckSelfCheckError extends DomainError {
+  constructor() {
+    super('APPOINTMENT_DONE_CHECKER_SELF_CHECK', 'The actor performing the transition cannot also be the cross-checker', 422);
   }
 }
 
@@ -192,6 +198,31 @@ export class AppointmentServiceGroupRequiredError extends DomainError {
       'APPOINTMENT_SERVICE_GROUP_REQUIRED',
       'Appointment must be added to a service group and published before releasing to inspectors',
       422,
+    );
+  }
+}
+
+export class AppointmentNotDraftError extends DomainError {
+  constructor() {
+    super(
+      'APPOINTMENT_NOT_DRAFT',
+      'Appointment can only be deleted in DRAFT status',
+      422,
+    );
+  }
+}
+
+export class ContactNotFoundError extends NotFoundError {
+  constructor() {
+    super('CONTACT_NOT_FOUND', 'Contact not found');
+  }
+}
+
+export class AppointmentImportIdempotencyPayloadMismatchError extends ConflictError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_PAYLOAD_MISMATCH',
+      'Idempotency key has already been used with a different payload',
     );
   }
 }

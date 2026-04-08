@@ -8,6 +8,7 @@ import {
   AppointmentTransitionNotPermittedError,
   AppointmentReasonRequiredError,
   AppointmentDoneCheckerInvalidRoleError,
+  AppointmentDoneCrossCheckSelfCheckError,
   AppointmentInspectorRequiredError,
   AppointmentTenantConfirmationRequiredError,
   AppointmentServiceGroupRequiredError,
@@ -16,6 +17,7 @@ import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import type { AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuthContext } from '@properfy/shared';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { DomainEventBus, APPOINTMENT_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
 
 // --- Helpers ---
 
@@ -41,6 +43,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     customFieldsJson: null,
     reason: null,
     createdByUserId: 'user-1',
+    doneMarkedByUserId: null,
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     serviceGroupId: null,
@@ -167,7 +170,7 @@ const serviceTypeRepo = {
   update: vi.fn(),
 };
 
-function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean; withTenantRepo?: boolean; withAuthorizationService?: boolean; withServiceTypeRepo?: boolean } = {}) {
+function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean; withTenantRepo?: boolean; withAuthorizationService?: boolean; withServiceTypeRepo?: boolean; domainEventBus?: DomainEventBus } = {}) {
   return new ExecuteStatusTransitionUseCase(
     appointmentRepo as any,
     userRepo as any,
@@ -178,6 +181,7 @@ function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandle
     opts.withOnTransitionHandler ? onTransitionHandler : undefined,
     opts.withAuthorizationService ? new AuthorizationService() : undefined,
     opts.withServiceTypeRepo ? (serviceTypeRepo as any) : undefined,
+    opts.domainEventBus,
   );
 }
 
@@ -698,6 +702,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
       'appt-1',
       'tenant-1',
       expect.objectContaining({
+        doneMarkedByUserId: null,
         doneCheckedByUserId: null,
         doneCheckedAt: null,
       }),
@@ -843,6 +848,104 @@ describe('ExecuteStatusTransitionUseCase – DONE side effects', () => {
     });
 
     expect(onDoneHandler.execute).not.toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// doneMarkedByUserId tracking (GAP-009)
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – doneMarkedByUserId', () => {
+  it('sets doneMarkedByUserId to the actor when transitioning to DONE', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      actor: makeActor('INSP', { userId: 'insp-user-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({
+        doneMarkedByUserId: 'insp-user-1',
+      }),
+    );
+  });
+
+  it('sets doneMarkedByUserId when OP marks DONE with cross-check', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    userRepo.findById.mockResolvedValue(makeUserEntity('OP'));
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      doneCheckedByUserId: 'checker-1',
+      actor: makeActor('OP', { userId: 'op-user-1' }),
+    });
+
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({
+        doneMarkedByUserId: 'op-user-1',
+        doneCheckedByUserId: 'checker-1',
+      }),
+    );
+  });
+
+  it('clears doneMarkedByUserId on DONE → DRAFT reopen', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({
+        status: 'DONE',
+        doneMarkedByUserId: 'insp-user-1',
+        doneCheckedByUserId: 'checker-1',
+        doneCheckedAt: new Date('2026-01-01'),
+      }),
+    );
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'Reopening',
+      actor: makeActor('AM'),
+    });
+
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({
+        doneMarkedByUserId: null,
+        doneCheckedByUserId: null,
+        doneCheckedAt: null,
+      }),
+    );
+  });
+
+  it('does not set doneMarkedByUserId for non-DONE transitions', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+    );
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.not.objectContaining({
+        doneMarkedByUserId: expect.anything(),
+      }),
+    );
   });
 });
 
@@ -1226,5 +1329,284 @@ describe('ExecuteStatusTransitionUseCase – service type confirmation rules', (
       actor: makeActor('OP'),
     });
     expect(result.status).toBe('SCHEDULED');
+  });
+});
+
+// =============================================================================
+// GAP-010: Compound DONE + cross-check in one call
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – compound DONE + crossCheckByUserId', () => {
+  it('DONE + crossCheckByUserId succeeds and sets doneCheckedByUserId atomically', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    userRepo.findById.mockResolvedValue(makeUserEntity('OP'));
+    const uc = makeUseCase({ withOnDoneHandler: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      crossCheckByUserId: 'checker-1',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    expect(result.status).toBe('DONE');
+    expect(result.doneCheckedByUserId).toBe('checker-1');
+    expect(result.doneCheckedAt).toBeInstanceOf(Date);
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({
+        status: 'DONE',
+        doneCheckedByUserId: 'checker-1',
+        doneCheckedAt: expect.any(Date),
+      }),
+    );
+    // Financial side effects should be triggered
+    expect(onDoneHandler.execute).toHaveBeenCalledWith({ appointmentId: 'appt-1' });
+  });
+
+  it('emits both status_transition and done_checked audit logs', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    userRepo.findById.mockResolvedValue(makeUserEntity('OP'));
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      crossCheckByUserId: 'checker-1',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    const transitionCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.status_transition',
+    );
+    expect(transitionCall).toBeDefined();
+    expect(transitionCall[0].metadata).toEqual(
+      expect.objectContaining({ crossCheckByUserId: 'checker-1', compoundTransition: true }),
+    );
+
+    const crossCheckCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.done_checked',
+    );
+    expect(crossCheckCall).toBeDefined();
+    expect(crossCheckCall[0].actorId).toBe('checker-1');
+    expect(crossCheckCall[0].metadata).toEqual(
+      expect.objectContaining({ doneByUserId: 'actor-1', compoundTransition: true }),
+    );
+  });
+
+  it('rejects when crossCheckByUserId === actor.userId (self-check)', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    const uc = makeUseCase();
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'DONE',
+        crossCheckByUserId: 'actor-1',
+        actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+      }),
+    ).rejects.toThrow(AppointmentDoneCrossCheckSelfCheckError);
+  });
+
+  it('rejects when crossCheckByUserId refers to a non-AM/OP user', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    userRepo.findById.mockResolvedValue(makeUserEntity('CL_USER'));
+    const uc = makeUseCase();
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'DONE',
+        crossCheckByUserId: 'checker-1',
+        actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+      }),
+    ).rejects.toThrow(AppointmentDoneCheckerInvalidRoleError);
+  });
+
+  it('DONE without crossCheckByUserId proceeds normally (no cross-check)', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    const uc = makeUseCase({ withOnDoneHandler: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    expect(result.status).toBe('DONE');
+    expect(result.doneCheckedByUserId).toBeNull();
+    expect(result.doneCheckedAt).toBeNull();
+    // Financial side effects should NOT be triggered (no cross-check)
+    expect(onDoneHandler.execute).not.toHaveBeenCalled();
+
+    // Pending cross-check audit should be emitted
+    const pendingCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.done_pending_crosscheck',
+    );
+    expect(pendingCall).toBeDefined();
+  });
+
+  it('does not emit pending cross-check audit when crossCheckByUserId is provided', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    userRepo.findById.mockResolvedValue(makeUserEntity('OP'));
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      crossCheckByUserId: 'checker-1',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    const pendingCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.done_pending_crosscheck',
+    );
+    expect(pendingCall).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// Domain event bus — AppointmentTransitionEvent
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – domain event bus', () => {
+  it('emits appointment.status_transition.v1 with correct payload on DRAFT → AWAITING_INSPECTOR', async () => {
+    const eventBus = new DomainEventBus();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-1' }));
+
+    const uc = makeUseCase({ domainEventBus: eventBus });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'AWAITING_INSPECTOR',
+      actor: makeActor('OP'),
+    });
+
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    const emittedEvent = emitSpy.mock.calls[0][0];
+    expect(emittedEvent.type).toBe(APPOINTMENT_EVENTS.STATUS_TRANSITION);
+    expect(emittedEvent.payload).toMatchObject({
+      appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
+      fromStatus: 'DRAFT',
+      toStatus: 'AWAITING_INSPECTOR',
+      actorId: 'actor-1',
+      actorType: 'USER',
+    });
+    expect(emittedEvent.occurredAt).toBeInstanceOf(Date);
+  });
+
+  it('includes reason in event payload when provided', async () => {
+    const eventBus = new DomainEventBus();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT' }));
+
+    const uc = makeUseCase({ domainEventBus: eventBus });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client requested cancellation',
+      actor: makeActor('OP'),
+    });
+
+    const emittedEvent = emitSpy.mock.calls[0][0];
+    expect(emittedEvent.payload).toMatchObject({
+      fromStatus: 'DRAFT',
+      toStatus: 'CANCELLED',
+      reason: 'Client requested cancellation',
+    });
+  });
+
+  it('includes metadata in event payload when inspector is assigned on SCHEDULED', async () => {
+    const eventBus = new DomainEventBus();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', serviceGroupId: 'sg-1', tenantConfirmationStatus: 'CONFIRMED' }),
+    );
+    inspectorRepo.findById.mockResolvedValue({ id: 'insp-1', name: 'John Inspector', userId: null });
+    serviceTypeRepo.findById.mockResolvedValue({ flowType: 'ROUTINE', requiresTenantConfirmation: true });
+
+    const uc = makeUseCase({ domainEventBus: eventBus, withServiceTypeRepo: true });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('OP'),
+    });
+
+    const emittedEvent = emitSpy.mock.calls[0][0];
+    expect(emittedEvent.payload).toMatchObject({
+      fromStatus: 'AWAITING_INSPECTOR',
+      toStatus: 'SCHEDULED',
+      metadata: {
+        inspectorId: 'insp-1',
+        inspectorName: 'John Inspector',
+      },
+    });
+  });
+
+  it('does not emit event when domainEventBus is not provided', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-1' }));
+
+    const uc = makeUseCase();
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'AWAITING_INSPECTOR',
+      actor: makeActor('OP'),
+    });
+
+    // Transition completes successfully without event bus
+    expect(result.status).toBe('AWAITING_INSPECTOR');
+  });
+
+  it('does not fail transition when event bus emit throws', async () => {
+    const eventBus = new DomainEventBus();
+    vi.spyOn(eventBus, 'emit').mockRejectedValue(new Error('Event bus failure'));
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-1' }));
+
+    const uc = makeUseCase({ domainEventBus: eventBus });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'AWAITING_INSPECTOR',
+      actor: makeActor('OP'),
+    });
+
+    // Transition succeeds despite event bus failure
+    expect(result.status).toBe('AWAITING_INSPECTOR');
+    expect(result.previousStatus).toBe('DRAFT');
+  });
+
+  it('emits DONE_REJECTED event when DONE → REJECTED', async () => {
+    const eventBus = new DomainEventBus();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'DONE', doneCheckedByUserId: 'checker-1' }));
+
+    const uc = makeUseCase({ domainEventBus: eventBus });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Inspection not actually done',
+      actor: makeActor('AM'),
+    });
+
+    // Should have both DONE_REJECTED and STATUS_TRANSITION events
+    const eventTypes = emitSpy.mock.calls.map((c) => c[0].type);
+    expect(eventTypes).toContain(APPOINTMENT_EVENTS.DONE_REJECTED);
+    expect(eventTypes).toContain(APPOINTMENT_EVENTS.STATUS_TRANSITION);
+
+    const doneRejectedEvent = emitSpy.mock.calls.find((c) => c[0].type === APPOINTMENT_EVENTS.DONE_REJECTED);
+    expect(doneRejectedEvent).toBeDefined();
+    expect(doneRejectedEvent![0].payload).toMatchObject({
+      appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
+      rejectedByUserId: 'actor-1',
+    });
   });
 });

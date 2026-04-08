@@ -214,6 +214,7 @@ model User {
   branch                    Branch?       @relation(fields: [branch_id], references: [id])
   inspector                 Inspector?
   created_appointments      Appointment[]    @relation("AppointmentCreatedBy")
+  done_marked_appointments  Appointment[]    @relation("AppointmentDoneMarkedBy")
   done_checked_appointments Appointment[]    @relation("AppointmentDoneCheckedBy")
   created_service_groups    ServiceGroup[]   @relation("ServiceGroupCreatedBy")
   initiated_entries         FinancialEntry[] @relation("EntryInitiator")
@@ -435,6 +436,7 @@ model Appointment {
   cancellation_reason_code    String?                  @db.VarChar(50)
   rejection_reason_code       String?                  @db.VarChar(50)
   created_by_user_id          String
+  done_marked_by_user_id      String?
   done_checked_by_user_id     String?
   done_checked_at             DateTime?
   created_at                  DateTime                 @default(now())
@@ -448,6 +450,7 @@ model Appointment {
   inspector                   Inspector?               @relation(fields: [inspector_id], references: [id])
   service_group               ServiceGroup?            @relation(fields: [service_group_id], references: [id])
   created_by_user             User                     @relation("AppointmentCreatedBy", fields: [created_by_user_id], references: [id])
+  done_marked_by_user         User?                    @relation("AppointmentDoneMarkedBy", fields: [done_marked_by_user_id], references: [id])
   done_checked_by_user        User?                    @relation("AppointmentDoneCheckedBy", fields: [done_checked_by_user_id], references: [id])
 
   contact                     AppointmentContact?

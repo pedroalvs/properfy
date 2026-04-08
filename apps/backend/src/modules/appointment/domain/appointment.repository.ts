@@ -1,3 +1,4 @@
+import type { CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
 import type { AppointmentEntity } from './appointment.entity';
 import type { AppointmentContactEntity } from './appointment-contact.entity';
 import type { AppointmentRestrictionEntity } from './appointment-restriction.entity';
@@ -96,8 +97,9 @@ export interface IAppointmentRepository {
       notes: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
-      cancellationReasonCode: string | null;
-      rejectionReasonCode: string | null;
+      cancellationReasonCode: CancellationReasonCode | null;
+      rejectionReasonCode: RejectionReasonCode | null;
+      doneMarkedByUserId: string | null;
       doneCheckedByUserId: string | null;
       doneCheckedAt: Date | null;
       serviceGroupId: string | null;
