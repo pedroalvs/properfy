@@ -10,6 +10,7 @@ export interface ListAuditLogsInput {
     action?: string;
     fromDate?: string;
     toDate?: string;
+    q?: string;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -51,8 +52,8 @@ export class ListAuditLogsUseCase {
   async execute(input: ListAuditLogsInput): Promise<ListAuditLogsOutput> {
     const { actor, filters, pagination } = input;
 
-    // Only AM and OP can view audit logs
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
+    // AM, OP and CL_ADMIN can view audit logs
+    if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'CL_ADMIN') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to view audit logs');
     }
 
@@ -63,6 +64,11 @@ export class ListAuditLogsUseCase {
     // OP sees only their tenant's audit logs
     if (actor.role === 'OP' && actor.tenantId) {
       repoFilters.tenantId = actor.tenantId;
+    }
+
+    // CL_ADMIN always scoped to own tenant, ignoring any tenantId from filters
+    if (actor.role === 'CL_ADMIN') {
+      repoFilters.tenantId = actor.tenantId!;
     }
 
     const [data, total] = await Promise.all([
@@ -88,6 +94,8 @@ export class ListAuditLogsUseCase {
       );
     }
 
+    const maskSnapshots = actor.role === 'CL_ADMIN';
+
     return {
       data: data.map((entry) => ({
         id: entry.id,
@@ -104,8 +112,8 @@ export class ListAuditLogsUseCase {
         entityId: entry.entityId,
         action: entry.action,
         reason: entry.reason,
-        beforeJson: entry.beforeJson,
-        afterJson: entry.afterJson,
+        beforeJson: maskSnapshots ? '[MASKED]' : entry.beforeJson,
+        afterJson: maskSnapshots ? '[MASKED]' : entry.afterJson,
         requestId: entry.requestId,
         ipAddress: entry.ipAddress,
         metadataJson: entry.metadataJson,

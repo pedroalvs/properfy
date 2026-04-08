@@ -29,7 +29,8 @@ export const requestReportSchema = z.object({
     'FINANCIAL_SERVICES',
   ]),
   filters: reportFiltersSchema,
-  format: z.literal('XLSX').default('XLSX'),
+  format: z.enum(['XLSX', 'CSV', 'PDF']).default('XLSX'),
+  columns: z.array(z.string().min(1).max(100)).min(1).max(50).optional(),
 });
 
 export type RequestReportInput = z.infer<typeof requestReportSchema>;
@@ -52,3 +53,30 @@ export const listReportsQuerySchema = z.object({
 });
 
 export type ListReportsQuery = z.infer<typeof listReportsQuerySchema>;
+
+// ─── Scheduled Reports ────────────────────────────────────────────────────
+
+export const createScheduledReportSchema = z.object({
+  reportType: z.enum([
+    'INSPECTIONS_SCHEDULED',
+    'INSPECTIONS_DONE',
+    'INSPECTIONS_CANCELLED',
+    'INSPECTIONS_REJECTED',
+    'INSPECTOR_PERFORMANCE',
+    'CONFIRMATION_STATUS',
+    'FINANCIAL_SERVICES',
+  ]),
+  filtersJson: z.record(z.unknown()).default({}),
+  format: z.enum(['XLSX', 'CSV', 'PDF']).default('XLSX'),
+  cronExpression: z.string().min(9).max(100),
+  deliveryEmail: z.string().email(),
+});
+
+export type CreateScheduledReportInput = z.infer<typeof createScheduledReportSchema>;
+
+export const listScheduledReportsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export type ListScheduledReportsQuery = z.infer<typeof listScheduledReportsQuerySchema>;

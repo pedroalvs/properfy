@@ -34,6 +34,8 @@ function makeMockRepo(): IReportRepository {
     findAll: vi.fn(),
     count: vi.fn(),
     countByUserAndStatuses: vi.fn(),
+    countByTenantAndStatuses: vi.fn(),
+    findExpiredWithFileKey: vi.fn().mockResolvedValue([]),
     save: vi.fn(),
     update: vi.fn(),
   };

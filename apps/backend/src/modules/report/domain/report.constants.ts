@@ -92,3 +92,10 @@ export const REPORT_COLUMNS: Record<string, ReportColumn[]> = {
   CONFIRMATION_STATUS: CONFIRMATION_STATUS_COLUMNS,
   FINANCIAL_SERVICES: FINANCIAL_SERVICES_COLUMNS,
 };
+
+/** Valid column keys per report type (for user-defined column selection). */
+export const REPORT_COLUMN_KEYS: Record<string, Set<string>> = Object.fromEntries(
+  Object.entries(REPORT_COLUMNS).map(([type, cols]) => [type, new Set(cols.map((c) => c.key))]),
+);
+
+export const DEFAULT_TENANT_MAX_CONCURRENT_REPORTS = 10;

@@ -33,6 +33,8 @@ function makeSut() {
     findAll: vi.fn().mockResolvedValue([]),
     count: vi.fn().mockResolvedValue(0),
     countByUserAndStatuses: vi.fn(),
+    countByTenantAndStatuses: vi.fn(),
+    findExpiredWithFileKey: vi.fn().mockResolvedValue([]),
     save: vi.fn(),
     update: vi.fn(),
   };

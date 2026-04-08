@@ -59,10 +59,11 @@ export class DownloadReportUseCase {
       PRESIGNED_URL_TTL_SECONDS,
     );
 
-    // Build fileName: {reportType-kebab}-{fromDate}-to-{toDate}.xlsx
+    // Build fileName: {reportType-kebab}-{fromDate}-to-{toDate}.{ext}
     const filters = report.filtersJson as Record<string, string>;
     const reportTypeKebab = report.reportType.toLowerCase().replace(/_/g, '-');
-    const fileName = `${reportTypeKebab}-${filters.fromDate}-to-${filters.toDate}.xlsx`;
+    const ext = report.format === 'CSV' ? 'csv' : report.format === 'PDF' ? 'pdf' : 'xlsx';
+    const fileName = `${reportTypeKebab}-${filters.fromDate}-to-${filters.toDate}.${ext}`;
 
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + PRESIGNED_URL_TTL_SECONDS);

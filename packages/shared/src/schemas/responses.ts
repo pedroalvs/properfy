@@ -541,6 +541,28 @@ export const invoiceDownloadResponseSchema = z.object({
   expiresAt: dateStr(),
 });
 
+// ─── Tenant Invoice ───────────────────────────────────────────────────────
+
+export const tenantInvoiceResponseSchema = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid(),
+  periodFrom: dateStr(),
+  periodTo: dateStr(),
+  totalDebit: z.number(),
+  totalRefund: z.number(),
+  totalAdjustment: z.number(),
+  netAmount: z.number(),
+  currency: z.string(),
+  status: z.string(),
+  fileKey: z.string().nullable().optional(),
+  previousInvoiceId: z.string().uuid().nullable().optional(),
+  generatedByUserId: z.string().uuid().nullable().optional(),
+  generatedAt: dateStrNullable(),
+  notes: z.string().nullable().optional(),
+  createdAt: dateStr(),
+  updatedAt: dateStr().optional(),
+});
+
 // ─── Notification ──────────────────────────────────────────────────────────
 
 export const notificationResponseSchema = z.object({
@@ -615,6 +637,37 @@ export const reportRequestedResponseSchema = z.object({
   }),
   message: z.string(),
 });
+
+export const scheduledReportResponseSchema = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid(),
+  reportType: z.string(),
+  filtersJson: z.unknown().optional(),
+  format: z.string(),
+  cronExpression: z.string(),
+  deliveryEmail: z.string(),
+  isActive: z.boolean(),
+  lastRunAt: dateStrNullable().optional(),
+  nextRunAt: dateStrNullable().optional(),
+  createdByUserId: z.string().uuid().optional(),
+  createdAt: dateStr(),
+  updatedAt: dateStr(),
+});
+
+export const scheduledReportCreatedResponseSchema = z.object({
+  data: z.object({
+    id: z.string().uuid(),
+    reportType: z.string(),
+    cronExpression: z.string(),
+    deliveryEmail: z.string(),
+    isActive: z.boolean(),
+    nextRunAt: dateStrNullable().optional(),
+    createdAt: dateStr(),
+  }),
+  message: z.string(),
+});
+
+export type ScheduledReportResponse = z.infer<typeof scheduledReportResponseSchema>;
 
 // ─── Dashboard ────────────────────────────────────────────────────────────
 
@@ -698,3 +751,4 @@ export type ReportResponse = z.infer<typeof reportResponseSchema>;
 export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;
 export type InspectionAssetResponse = z.infer<typeof inspectionAssetResponseSchema>;
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
+export type TenantInvoiceResponse = z.infer<typeof tenantInvoiceResponseSchema>;

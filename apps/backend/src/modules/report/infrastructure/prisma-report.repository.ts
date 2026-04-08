@@ -42,6 +42,15 @@ export class PrismaReportRepository implements IReportRepository {
     });
   }
 
+  async countByTenantAndStatuses(tenantId: string, statuses: ReportStatus[]): Promise<number> {
+    return this.prisma.report.count({
+      where: {
+        tenant_id: tenantId,
+        status: { in: statuses as PrismaReportStatus[] },
+      },
+    });
+  }
+
   async findExpiredWithFileKey(): Promise<ReportEntity[]> {
     const rows = await this.prisma.report.findMany({
       where: {

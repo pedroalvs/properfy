@@ -47,4 +47,28 @@ describe('listAuditLogsQuerySchema', () => {
     const result = listAuditLogsQuerySchema.safeParse({ toDate: 'not-a-date' });
     expect(result.success).toBe(false);
   });
+
+  // GAP-009: Full-text search query param
+  it('should accept a valid q search param', () => {
+    const result = listAuditLogsQuerySchema.safeParse({ q: 'cancelled by client' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.q).toBe('cancelled by client');
+    }
+  });
+
+  it('should reject empty q param', () => {
+    const result = listAuditLogsQuerySchema.safeParse({ q: '' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject q param exceeding 200 characters', () => {
+    const result = listAuditLogsQuerySchema.safeParse({ q: 'a'.repeat(201) });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept q param with exactly 200 characters', () => {
+    const result = listAuditLogsQuerySchema.safeParse({ q: 'a'.repeat(200) });
+    expect(result.success).toBe(true);
+  });
 });

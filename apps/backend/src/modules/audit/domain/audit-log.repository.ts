@@ -8,6 +8,7 @@ export interface AuditLogFilters {
   action?: string;
   fromDate?: string;
   toDate?: string;
+  q?: string;
 }
 
 export interface PaginationParams {

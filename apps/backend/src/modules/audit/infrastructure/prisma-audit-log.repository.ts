@@ -73,6 +73,10 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
     filters: AuditLogFilters,
     pagination: PaginationParams,
   ): Promise<AuditLogEntity[]> {
+    // When full-text search is active, use raw SQL
+    if (filters.q) {
+      return this.findAllWithFullText(filters, pagination);
+    }
     const where = this.buildWhere(filters);
     const rows = await this.prisma.auditLog.findMany({
       where,
@@ -84,8 +88,85 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
   }
 
   async count(filters: AuditLogFilters): Promise<number> {
+    // When full-text search is active, use raw SQL count
+    if (filters.q) {
+      return this.countWithFullText(filters);
+    }
     const where = this.buildWhere(filters);
     return this.prisma.auditLog.count({ where });
+  }
+
+  private async findAllWithFullText(
+    filters: AuditLogFilters,
+    pagination: PaginationParams,
+  ): Promise<AuditLogEntity[]> {
+    const { conditions, params } = this.buildRawConditions(filters);
+    const orderDir = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    params.push(pagination.pageSize, offset);
+    const limitIdx = params.length - 1;
+    const offsetIdx = params.length;
+
+    const sql = `
+      SELECT * FROM "AuditLog"
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY created_at ${orderDir}
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}
+    `;
+    const rows: any[] = await this.prisma.$queryRawUnsafe(sql, ...params);
+    return rows.map(mapToEntity);
+  }
+
+  private async countWithFullText(filters: AuditLogFilters): Promise<number> {
+    const { conditions, params } = this.buildRawConditions(filters);
+    const sql = `
+      SELECT COUNT(*)::int AS count FROM "AuditLog"
+      WHERE ${conditions.join(' AND ')}
+    `;
+    const result: any[] = await this.prisma.$queryRawUnsafe(sql, ...params);
+    return result[0]?.count ?? 0;
+  }
+
+  private buildRawConditions(filters: AuditLogFilters): { conditions: string[]; params: unknown[] } {
+    const conditions: string[] = ['1=1'];
+    const params: unknown[] = [];
+
+    if (filters.tenantId) {
+      params.push(filters.tenantId);
+      conditions.push(`tenant_id = $${params.length}`);
+    }
+    if (filters.entityType) {
+      params.push(filters.entityType);
+      conditions.push(`entity_type = $${params.length}`);
+    }
+    if (filters.entityId) {
+      params.push(filters.entityId);
+      conditions.push(`entity_id = $${params.length}`);
+    }
+    if (filters.actorId) {
+      params.push(filters.actorId);
+      conditions.push(`actor_id = $${params.length}`);
+    }
+    if (filters.action) {
+      params.push(filters.action);
+      conditions.push(`action = $${params.length}`);
+    }
+    if (filters.fromDate) {
+      params.push(new Date(filters.fromDate));
+      conditions.push(`created_at >= $${params.length}`);
+    }
+    if (filters.toDate) {
+      params.push(new Date(filters.toDate));
+      conditions.push(`created_at <= $${params.length}`);
+    }
+    if (filters.q) {
+      params.push(filters.q);
+      conditions.push(
+        `to_tsvector('english', coalesce(reason, '') || ' ' || coalesce(metadata_json::text, '')) @@ plainto_tsquery('english', $${params.length})`,
+      );
+    }
+
+    return { conditions, params };
   }
 
   private buildWhere(filters: AuditLogFilters) {

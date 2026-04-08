@@ -7,7 +7,9 @@ import {
   ReportTenantScopeViolationError,
   ReportDateRangeExceededError,
   ReportConcurrentLimitExceededError,
+  ReportTenantConcurrentLimitExceededError,
   ReportTypeForbiddenError,
+  ReportInvalidColumnsError,
 } from '../../domain/report.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -16,6 +18,8 @@ import {
   MAX_DATE_RANGE_MONTHS,
   MAX_CONCURRENT_REPORTS,
   RESTRICTED_REPORT_TYPES,
+  REPORT_COLUMN_KEYS,
+  DEFAULT_TENANT_MAX_CONCURRENT_REPORTS,
 } from '../../domain/report.constants';
 import type { ReportType, ReportFormat } from '@properfy/shared';
 
@@ -34,6 +38,7 @@ export interface RequestReportInput {
     emailNotificationStatus?: string;
   };
   format: ReportFormat;
+  columns?: string[];
 }
 
 import type { AuthContext } from '@properfy/shared';
@@ -55,7 +60,7 @@ export class RequestReportUseCase {
   ) {}
 
   async execute(input: RequestReportInput, auth: AuthContext): Promise<RequestReportOutput> {
-    const { reportType, filters, format } = input;
+    const { reportType, filters, format, columns } = input;
     const { userId, tenantId, role } = auth;
 
     // 1. Check restricted report types
@@ -70,6 +75,17 @@ export class RequestReportUseCase {
       }
       if (this.authorizationService) {
         this.authorizationService.assertClUserPermission(auth, 'export_reports');
+      }
+    }
+
+    // 1c. Validate user-defined columns against whitelist
+    if (columns && columns.length > 0) {
+      const validKeys = REPORT_COLUMN_KEYS[reportType];
+      if (validKeys) {
+        const invalidColumns = columns.filter((c) => !validKeys.has(c));
+        if (invalidColumns.length > 0) {
+          throw new ReportInvalidColumnsError(invalidColumns);
+        }
       }
     }
 
@@ -96,20 +112,49 @@ export class RequestReportUseCase {
       effectiveTenantId = filters.tenantId ?? null;
     }
 
-    // 4. Check concurrent limit
+    // 4. Check per-user concurrent limit
     const activeCount = await this.reportRepo.countByUserAndStatuses(userId, ['PENDING', 'PROCESSING']);
     if (activeCount >= MAX_CONCURRENT_REPORTS) {
       throw new ReportConcurrentLimitExceededError();
     }
 
+    // 4b. Check per-tenant concurrent limit
+    if (effectiveTenantId) {
+      let maxTenantConcurrent = DEFAULT_TENANT_MAX_CONCURRENT_REPORTS;
+      if (this.tenantRepo) {
+        const tenant = await this.tenantRepo.findById(effectiveTenantId);
+        if (tenant) {
+          const settings = tenant.settingsJson ?? {};
+          const configured = settings.maxConcurrentReports;
+          if (typeof configured === 'number' && configured >= 1 && configured <= 50) {
+            maxTenantConcurrent = configured;
+          }
+        }
+      }
+      const tenantActiveCount = await this.reportRepo.countByTenantAndStatuses(
+        effectiveTenantId,
+        ['PENDING', 'PROCESSING'],
+      );
+      if (tenantActiveCount >= maxTenantConcurrent) {
+        throw new ReportTenantConcurrentLimitExceededError();
+      }
+    }
+
     // 5. Create report entity
     const now = new Date();
     const reportId = randomUUID();
+    const filtersJson: Record<string, unknown> = {
+      ...filters,
+      tenantId: effectiveTenantId ?? filters.tenantId,
+    };
+    if (columns && columns.length > 0) {
+      filtersJson.columns = columns;
+    }
     const report = new ReportEntity({
       id: reportId,
       tenantId: effectiveTenantId,
       reportType,
-      filtersJson: { ...filters, tenantId: effectiveTenantId ?? filters.tenantId },
+      filtersJson,
       format,
       status: 'PENDING',
       fileKey: null,

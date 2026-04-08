@@ -80,11 +80,13 @@ describe('ReportStatus', () => {
 });
 
 describe('ReportFormat', () => {
-  it('should have XLSX value only', () => {
+  it('should have XLSX, CSV, PDF values', () => {
     expect(ReportFormat.XLSX).toBe('XLSX');
+    expect(ReportFormat.CSV).toBe('CSV');
+    expect(ReportFormat.PDF).toBe('PDF');
   });
 
-  it('should have exactly 1 format', () => {
-    expect(Object.keys(ReportFormat)).toHaveLength(1);
+  it('should have exactly 3 formats', () => {
+    expect(Object.keys(ReportFormat)).toHaveLength(3);
   });
 });

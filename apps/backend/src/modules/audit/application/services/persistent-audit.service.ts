@@ -2,6 +2,7 @@ import type { AuditLogEntry } from '../../../../shared/infrastructure/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { IAuditLogRepository } from '../../domain/audit-log.repository';
 import { AuditLogEntity } from '../../domain/audit-log.entity';
+import { redactPii } from '../helpers/pii-redaction';
 
 export class PersistentAuditService {
   constructor(
@@ -10,6 +11,10 @@ export class PersistentAuditService {
   ) {}
 
   log(entry: AuditLogEntry): void {
+    // Redact PII from snapshots BEFORE writing (irreversible)
+    const redactedBefore = redactPii(entry.action, entry.before);
+    const redactedAfter = redactPii(entry.action, entry.after);
+
     // Log to structured logger (same as old AuditService)
     this.logger.info(
       {
@@ -22,8 +27,8 @@ export class PersistentAuditService {
         tenantId: entry.tenantId,
         requestId: entry.requestId,
         ipAddress: entry.ipAddress,
-        before: entry.before,
-        after: entry.after,
+        before: redactedBefore,
+        after: redactedAfter,
         reason: entry.reason,
         metadata: entry.metadata,
       },
@@ -40,8 +45,8 @@ export class PersistentAuditService {
       entityId: entry.entityId ?? null,
       action: entry.action,
       reason: entry.reason ?? null,
-      beforeJson: entry.before ?? null,
-      afterJson: entry.after ?? null,
+      beforeJson: redactedBefore ?? null,
+      afterJson: redactedAfter ?? null,
       requestId: entry.requestId ?? null,
       ipAddress: entry.ipAddress ?? null,
       metadataJson: entry.metadata ?? null,

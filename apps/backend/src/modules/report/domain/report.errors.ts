@@ -41,3 +41,41 @@ export class ReportTypeForbiddenError extends ForbiddenError {
     super('FORBIDDEN', 'Role not permitted for this report type');
   }
 }
+
+export class ReportInvalidColumnsError extends DomainError {
+  constructor(invalidColumns: string[]) {
+    super(
+      'REPORT_INVALID_COLUMNS',
+      `Unknown column(s) for this report type: ${invalidColumns.join(', ')}`,
+      422,
+    );
+  }
+}
+
+export class ReportTenantConcurrentLimitExceededError extends TooManyRequestsError {
+  constructor() {
+    super('REPORT_TENANT_CONCURRENT_LIMIT_EXCEEDED', 'Tenant concurrent report limit reached');
+  }
+}
+
+export class ScheduledReportNotFoundError extends NotFoundError {
+  constructor() {
+    super('SCHEDULED_REPORT_NOT_FOUND', 'Scheduled report not found');
+  }
+}
+
+export class InvalidCronExpressionError extends DomainError {
+  constructor(detail?: string) {
+    super(
+      'INVALID_CRON_EXPRESSION',
+      detail ? `Invalid cron expression: ${detail}` : 'Invalid cron expression',
+      422,
+    );
+  }
+}
+
+export class InvalidReportTypeError extends DomainError {
+  constructor(reportType: string) {
+    super('INVALID_REPORT_TYPE', `Invalid report type: ${reportType}`, 422);
+  }
+}

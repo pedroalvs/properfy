@@ -3,9 +3,13 @@ import { z } from 'zod';
 import {
   requestReportSchema,
   listReportsQuerySchema,
+  createScheduledReportSchema,
+  listScheduledReportsQuerySchema,
   reportResponseSchema,
   reportRequestedResponseSchema,
   reportDownloadResponseSchema,
+  scheduledReportResponseSchema,
+  scheduledReportCreatedResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
 } from '@properfy/shared';
@@ -17,6 +21,8 @@ import type { GetReportStatusUseCase } from '../application/use-cases/get-report
 import type { DownloadReportUseCase } from '../application/use-cases/download-report.use-case';
 import type { ListReportsUseCase } from '../application/use-cases/list-reports.use-case';
 import type { ProcessReportJobUseCase } from '../application/use-cases/process-report-job.use-case';
+import type { CreateScheduledReportUseCase } from '../application/use-cases/create-scheduled-report.use-case';
+import type { ListScheduledReportsUseCase } from '../application/use-cases/list-scheduled-reports.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface ReportRouteContainer {
@@ -25,6 +31,8 @@ export interface ReportRouteContainer {
   downloadReportUseCase: DownloadReportUseCase;
   listReportsUseCase: ListReportsUseCase;
   processReportJobUseCase: ProcessReportJobUseCase;
+  createScheduledReportUseCase: CreateScheduledReportUseCase;
+  listScheduledReportsUseCase: ListScheduledReportsUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
 }
@@ -121,6 +129,52 @@ export async function registerReportRoutes(
         request.authContext!,
       );
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/reports/schedules
+  app.post(
+    '/v1/reports/schedules',
+    { preHandler: authenticate, schema: { body: createScheduledReportSchema, response: { 201: scheduledReportCreatedResponseSchema } } },
+    async (request, reply) => {
+      const parsed = createScheduledReportSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.createScheduledReportUseCase.execute(
+        parsed.data,
+        request.authContext!,
+      );
+      return reply.status(201).send({
+        data: {
+          id: result.id,
+          reportType: result.reportType,
+          cronExpression: result.cronExpression,
+          deliveryEmail: result.deliveryEmail,
+          isActive: result.isActive,
+          nextRunAt: result.nextRunAt?.toISOString() ?? null,
+          createdAt: result.createdAt.toISOString(),
+        },
+        message: 'Scheduled report created',
+      });
+    },
+  );
+
+  // GET /v1/reports/schedules
+  app.get(
+    '/v1/reports/schedules',
+    { preHandler: authenticate, schema: { querystring: listScheduledReportsQuerySchema, response: { 200: paginatedResponseSchema(scheduledReportResponseSchema) } } },
+    async (request, reply) => {
+      const parsed = listScheduledReportsQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const { page, pageSize } = parsed.data;
+      const result = await container.listScheduledReportsUseCase.execute(
+        parsed.data,
+        request.authContext!,
+      );
+      return reply.status(200).send(paginated(result.data, result.meta.total, page, pageSize));
     },
   );
 }

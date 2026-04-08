@@ -157,6 +157,7 @@ model Tenant {
   property_imports        PropertyImport[]
   appointment_time_slots  AppointmentTimeSlot[]
   service_regions         ServiceRegion[]
+  scheduled_reports       ScheduledReport[]
 
   @@index([status])
   @@index([deleted_at])
@@ -227,6 +228,7 @@ model User {
   created_imports           AppointmentImport[] @relation("importCreatedBy")
   created_property_imports  PropertyImport[]    @relation("propertyImportCreatedBy")
   created_service_regions  ServiceRegion[]     @relation("ServiceRegionCreatedBy")
+  created_scheduled_reports ScheduledReport[] @relation("scheduledReportCreatedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -956,6 +958,8 @@ enum ReportStatus {
 
 enum ReportFormat {
   XLSX
+  CSV
+  PDF
 }
 
 model Report {
@@ -1098,6 +1102,30 @@ model InspectorRegion {
   @@id([inspector_id, region_id])
   @@index([region_id])
   @@map("inspector_regions")
+}
+
+model ScheduledReport {
+  id                  String       @id @default(uuid())
+  tenant_id           String
+  report_type         ReportType
+  filters_json        Json
+  format              ReportFormat @default(XLSX)
+  cron_expression     String       @db.VarChar(100)
+  delivery_email      String       @db.VarChar(254)
+  is_active           Boolean      @default(true)
+  last_run_at         DateTime?
+  next_run_at         DateTime?
+  created_by_user_id  String
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
+
+  tenant              Tenant       @relation(fields: [tenant_id], references: [id])
+  createdBy           User         @relation("scheduledReportCreatedBy", fields: [created_by_user_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([is_active, next_run_at])
+  @@index([created_by_user_id])
+  @@map("scheduled_reports")
 }
 
 model NotificationConsent {

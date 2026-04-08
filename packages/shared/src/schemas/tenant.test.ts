@@ -513,6 +513,34 @@ describe('tenantSettingsSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('should default maxConcurrentReports to 10', () => {
+    const result = tenantSettingsSchema.parse({});
+    expect(result.maxConcurrentReports).toBe(10);
+  });
+
+  it('should accept maxConcurrentReports within range 1-50', () => {
+    const result = tenantSettingsSchema.safeParse({ maxConcurrentReports: 25 });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.maxConcurrentReports).toBe(25);
+    }
+  });
+
+  it('should reject maxConcurrentReports below 1', () => {
+    const result = tenantSettingsSchema.safeParse({ maxConcurrentReports: 0 });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject maxConcurrentReports above 50', () => {
+    const result = tenantSettingsSchema.safeParse({ maxConcurrentReports: 51 });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject non-integer maxConcurrentReports', () => {
+    const result = tenantSettingsSchema.safeParse({ maxConcurrentReports: 10.5 });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('validateBillingSettings', () => {

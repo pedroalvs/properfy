@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProcessReportJobUseCase } from '../../../src/modules/report/application/use-cases/process-report-job.use-case';
+import type { ReportNotificationSender, ReportUserReader } from '../../../src/modules/report/application/use-cases/process-report-job.use-case';
 import { ReportEntity } from '../../../src/modules/report/domain/report.entity';
 import { REPORT_COLUMNS, INSPECTION_COLUMNS } from '../../../src/modules/report/domain/report.constants';
 import type { IReportRepository } from '../../../src/modules/report/domain/report.repository';
@@ -36,6 +37,8 @@ function makeMocks() {
     findAll: vi.fn(),
     count: vi.fn(),
     countByUserAndStatuses: vi.fn(),
+    countByTenantAndStatuses: vi.fn(),
+    findExpiredWithFileKey: vi.fn().mockResolvedValue([]),
     save: vi.fn(),
     update: vi.fn(),
   };
@@ -66,7 +69,15 @@ function makeMocks() {
     ]),
   };
 
-  return { reportRepo, storageService, xlsxGenerator, dataReader };
+  const notificationSender: ReportNotificationSender = {
+    execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+  };
+
+  const userReader: ReportUserReader = {
+    findById: vi.fn().mockResolvedValue({ id: 'user-1', name: 'John Doe', email: 'john@example.com' }),
+  };
+
+  return { reportRepo, storageService, xlsxGenerator, dataReader, notificationSender, userReader };
 }
 
 describe('ProcessReportJobUseCase', () => {
@@ -75,6 +86,8 @@ describe('ProcessReportJobUseCase', () => {
   let storageService: IReportStorageService;
   let xlsxGenerator: IXlsxGenerator;
   let dataReader: IReportDataReader;
+  let notificationSender: ReportNotificationSender;
+  let userReader: ReportUserReader;
 
   beforeEach(() => {
     const mocks = makeMocks();
@@ -82,7 +95,12 @@ describe('ProcessReportJobUseCase', () => {
     storageService = mocks.storageService;
     xlsxGenerator = mocks.xlsxGenerator;
     dataReader = mocks.dataReader;
-    useCase = new ProcessReportJobUseCase(reportRepo, storageService, xlsxGenerator, dataReader);
+    notificationSender = mocks.notificationSender;
+    userReader = mocks.userReader;
+    useCase = new ProcessReportJobUseCase(
+      reportRepo, storageService, xlsxGenerator, dataReader,
+      notificationSender, userReader,
+    );
   });
 
   describe('INSPECTIONS_DONE report (happy path)', () => {
@@ -321,6 +339,142 @@ describe('ProcessReportJobUseCase', () => {
 
       expect(report.status).toBe('FAILED');
       expect(report.errorMessage).toBe('Unknown error');
+    });
+  });
+
+  describe('user-defined columns (GAP-005)', () => {
+    it('filters columns to only those specified in filtersJson.columns', async () => {
+      const report = makeReport({
+        filtersJson: {
+          fromDate: '2026-03-01',
+          toDate: '2026-03-15',
+          tenantId: 'tenant-1',
+          columns: ['appointmentId', 'status'],
+        },
+      });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+
+      await useCase.execute('report-1');
+
+      expect(xlsxGenerator.generate).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ key: 'appointmentId' }),
+          expect.objectContaining({ key: 'status' }),
+        ]),
+        expect.any(Array),
+      );
+      // Should NOT include columns not in the requested set
+      const calledColumns = vi.mocked(xlsxGenerator.generate).mock.calls[0][0];
+      expect(calledColumns).toHaveLength(2);
+      expect(calledColumns.map((c) => c.key)).toEqual(['appointmentId', 'status']);
+    });
+
+    it('uses all columns when filtersJson.columns is not specified', async () => {
+      const report = makeReport();
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+
+      await useCase.execute('report-1');
+
+      const calledColumns = vi.mocked(xlsxGenerator.generate).mock.calls[0][0];
+      expect(calledColumns).toEqual(REPORT_COLUMNS['INSPECTIONS_DONE']);
+    });
+
+    it('uses all columns when filtersJson.columns is an empty array', async () => {
+      const report = makeReport({
+        filtersJson: {
+          fromDate: '2026-03-01',
+          toDate: '2026-03-15',
+          tenantId: 'tenant-1',
+          columns: [],
+        },
+      });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+
+      await useCase.execute('report-1');
+
+      const calledColumns = vi.mocked(xlsxGenerator.generate).mock.calls[0][0];
+      expect(calledColumns).toEqual(REPORT_COLUMNS['INSPECTIONS_DONE']);
+    });
+  });
+
+  // GAP-010: Email delivery of completed reports
+  describe('report ready notification', () => {
+    it('sends REPORT_READY notification on successful completion', async () => {
+      const report = makeReport();
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+
+      await useCase.execute('report-1');
+
+      expect(userReader.findById).toHaveBeenCalledWith('user-1');
+      expect(notificationSender.execute).toHaveBeenCalledWith({
+        tenantId: 'tenant-1',
+        recipient: 'john@example.com',
+        channel: 'EMAIL',
+        templateCode: 'REPORT_READY',
+        payloadJson: {
+          userName: 'John Doe',
+          reportType: 'INSPECTIONS_DONE',
+          reportId: 'report-1',
+          downloadLink: '/reports/report-1',
+        },
+      });
+    });
+
+    it('does not send notification when report fails', async () => {
+      const report = makeReport();
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      vi.mocked(dataReader.getInspectionRows).mockRejectedValue(new Error('fail'));
+
+      await useCase.execute('report-1');
+
+      expect(report.status).toBe('FAILED');
+      expect(notificationSender.execute).not.toHaveBeenCalled();
+    });
+
+    it('does not send notification for platform-wide reports (null tenantId)', async () => {
+      const report = makeReport({ tenantId: null });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+
+      await useCase.execute('report-1');
+
+      expect(report.status).toBe('READY');
+      expect(notificationSender.execute).not.toHaveBeenCalled();
+    });
+
+    it('does not fail the report when notification throws', async () => {
+      const report = makeReport();
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      vi.mocked(notificationSender.execute).mockRejectedValue(new Error('Email service down'));
+
+      await useCase.execute('report-1');
+
+      // Report should still be READY despite notification failure
+      expect(report.status).toBe('READY');
+      expect(report.rowCount).toBe(2);
+    });
+
+    it('does not send notification when user is not found', async () => {
+      const report = makeReport();
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      vi.mocked(userReader.findById).mockResolvedValue(null);
+
+      await useCase.execute('report-1');
+
+      expect(report.status).toBe('READY');
+      expect(notificationSender.execute).not.toHaveBeenCalled();
+    });
+
+    it('works without notification sender (backwards compatible)', async () => {
+      const mocks = makeMocks();
+      const useCaseWithoutNotif = new ProcessReportJobUseCase(
+        mocks.reportRepo, mocks.storageService, mocks.xlsxGenerator, mocks.dataReader,
+      );
+      const report = makeReport();
+      vi.mocked(mocks.reportRepo.findById).mockResolvedValue(report);
+
+      await useCaseWithoutNotif.execute('report-1');
+
+      expect(report.status).toBe('READY');
     });
   });
 });

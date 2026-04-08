@@ -204,6 +204,9 @@ import { PrismaReportRepository } from '../modules/report/infrastructure/prisma-
 import { StubReportStorageService } from '../modules/report/infrastructure/stub-report-storage.service';
 import { SupabaseReportStorageService } from '../modules/report/infrastructure/supabase-report-storage.service';
 import { ExcelJsXlsxGenerator } from '../modules/report/infrastructure/exceljs-xlsx-generator';
+import { CsvReportGenerator } from '../modules/report/infrastructure/csv-report-generator';
+import { PdfReportGenerator } from '../modules/report/infrastructure/pdf-report-generator';
+import { XlsxReportGeneratorAdapter } from '../modules/report/infrastructure/xlsx-report-generator-adapter';
 import { PrismaReportDataReader } from '../modules/report/infrastructure/prisma-report-data-reader';
 import { StubJobQueue } from '../shared/infrastructure/stub-job-queue';
 import { PgBossJobQueue } from '../shared/infrastructure/pgboss-job-queue';
@@ -212,6 +215,10 @@ import { GetReportStatusUseCase } from '../modules/report/application/use-cases/
 import { DownloadReportUseCase } from '../modules/report/application/use-cases/download-report.use-case';
 import { ListReportsUseCase } from '../modules/report/application/use-cases/list-reports.use-case';
 import { ProcessReportJobUseCase } from '../modules/report/application/use-cases/process-report-job.use-case';
+import { CreateScheduledReportUseCase } from '../modules/report/application/use-cases/create-scheduled-report.use-case';
+import { ListScheduledReportsUseCase } from '../modules/report/application/use-cases/list-scheduled-reports.use-case';
+import { PrismaScheduledReportRepository } from '../modules/report/infrastructure/prisma-scheduled-report.repository';
+import { ProcessSchedulesWorker } from '../modules/report/infrastructure/workers/process-schedules.worker';
 import type { ReportRouteContainer } from '../modules/report/interfaces/report.routes';
 
 // Notification module
@@ -254,6 +261,7 @@ import { ExpireTokensWorker } from '../modules/tenant-portal/infrastructure/work
 import { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
 import { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import { ExpirePriorityWorker } from '../modules/service-group/infrastructure/workers/expire-priority.worker';
+import { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
 
 // Dashboard module
 import { PrismaDashboardRepository } from '../modules/dashboard/infrastructure/prisma-dashboard.repository';
@@ -331,12 +339,14 @@ export interface AppContainer {
   cleanupSessionsWorker: CleanupSessionsWorker;
   keyExpiryCheckWorker: KeyExpiryCheckWorker;
   expireFilesWorker: ExpireFilesWorker;
+  processSchedulesWorker: ProcessSchedulesWorker;
   appointmentImportWorker: AppointmentImportWorker;
   generateInvoiceFileWorker: GenerateInvoiceFileWorker;
   expireTokensWorker: ExpireTokensWorker;
   expireAssetsWorker: ExpireAssetsWorker;
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
   expirePriorityWorker: ExpirePriorityWorker;
+  auditRetentionWorker: AuditRetentionWorker;
 }
 
 export function createContainer(logger: Logger): AppContainer {
@@ -682,9 +692,23 @@ export function createContainer(logger: Logger): AppContainer {
   const getReportStatusUseCase = new GetReportStatusUseCase(reportRepo, userManagementRepo);
   const downloadReportUseCase = new DownloadReportUseCase(reportRepo, reportStorageService);
   const listReportsUseCase = new ListReportsUseCase(reportRepo, userManagementRepo);
+  const csvGenerator = new CsvReportGenerator();
+  const pdfGenerator = new PdfReportGenerator();
+  const xlsxGeneratorAdapter = new XlsxReportGeneratorAdapter(xlsxGenerator);
+  const generatorMap = {
+    XLSX: xlsxGeneratorAdapter,
+    CSV: csvGenerator,
+    PDF: pdfGenerator,
+  };
   const processReportJobUseCase = new ProcessReportJobUseCase(
     reportRepo, reportStorageService, xlsxGenerator, reportDataReader,
+    createNotificationUseCase, userManagementRepo, generatorMap,
   );
+
+  // Scheduled report repositories and use cases
+  const scheduledReportRepo = new PrismaScheduledReportRepository(prisma);
+  const createScheduledReportUseCase = new CreateScheduledReportUseCase(scheduledReportRepo, auditService);
+  const listScheduledReportsUseCase = new ListScheduledReportsUseCase(scheduledReportRepo);
 
   // Notification providers and services (notificationRepo created above)
   const notificationTemplateRepo = new PrismaNotificationTemplateRepository(prisma);
@@ -787,6 +811,7 @@ export function createContainer(logger: Logger): AppContainer {
   const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
   const keyExpiryCheckWorker = new KeyExpiryCheckWorker(jwtService, auditService, logger);
   const expireFilesWorker = new ExpireFilesWorker(reportRepo, reportStorageService, logger);
+  const processSchedulesWorker = new ProcessSchedulesWorker(scheduledReportRepo, requestReportUseCase, logger);
   const generateInvoiceFileWorker = new GenerateInvoiceFileWorker(
     inspectorInvoiceRepo, financialEntryRepo, xlsxGenerator, reportStorageService, logger,
   );
@@ -796,6 +821,7 @@ export function createContainer(logger: Logger): AppContainer {
     inspectionExecutionRepo, appointmentRepo, createNotificationUseCase, logger,
   );
   const expirePriorityWorker = new ExpirePriorityWorker(serviceGroupRepo, auditService, logger);
+  const auditRetentionWorker = new AuditRetentionWorker(prisma, logger);
 
   const appointmentImportWorker = new AppointmentImportWorker(
     appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger, appointmentTimeSlotRepo,
@@ -1015,6 +1041,8 @@ export function createContainer(logger: Logger): AppContainer {
       downloadReportUseCase,
       listReportsUseCase,
       processReportJobUseCase,
+      createScheduledReportUseCase,
+      listScheduledReportsUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1054,6 +1082,7 @@ export function createContainer(logger: Logger): AppContainer {
     cleanupSessionsWorker,
     keyExpiryCheckWorker,
     expireFilesWorker,
+    processSchedulesWorker,
     geocodeWorker,
     geocodeRetryWorker,
     propertyImportWorker,
@@ -1063,5 +1092,6 @@ export function createContainer(logger: Logger): AppContainer {
     expireAssetsWorker,
     notifyStuckInspectionsWorker,
     expirePriorityWorker,
+    auditRetentionWorker,
   };
 }

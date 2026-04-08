@@ -134,11 +134,79 @@ describe('requestReportSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject invalid format', () => {
+  it('should accept CSV format', () => {
     const result = requestReportSchema.safeParse({
       reportType: 'INSPECTIONS_DONE',
       filters: validFilters,
       format: 'CSV',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept PDF format', () => {
+    const result = requestReportSchema.safeParse({
+      reportType: 'INSPECTIONS_DONE',
+      filters: validFilters,
+      format: 'PDF',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid format', () => {
+    const result = requestReportSchema.safeParse({
+      reportType: 'INSPECTIONS_DONE',
+      filters: validFilters,
+      format: 'DOCX',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept optional columns array', () => {
+    const result = requestReportSchema.safeParse({
+      reportType: 'INSPECTIONS_DONE',
+      filters: validFilters,
+      columns: ['appointmentId', 'status'],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.columns).toEqual(['appointmentId', 'status']);
+    }
+  });
+
+  it('should accept request without columns', () => {
+    const result = requestReportSchema.safeParse({
+      reportType: 'INSPECTIONS_DONE',
+      filters: validFilters,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.columns).toBeUndefined();
+    }
+  });
+
+  it('should reject empty columns array', () => {
+    const result = requestReportSchema.safeParse({
+      reportType: 'INSPECTIONS_DONE',
+      filters: validFilters,
+      columns: [],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject columns with empty string entries', () => {
+    const result = requestReportSchema.safeParse({
+      reportType: 'INSPECTIONS_DONE',
+      filters: validFilters,
+      columns: [''],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject columns array exceeding 50 entries', () => {
+    const result = requestReportSchema.safeParse({
+      reportType: 'INSPECTIONS_DONE',
+      filters: validFilters,
+      columns: Array.from({ length: 51 }, (_, i) => `col${i}`),
     });
     expect(result.success).toBe(false);
   });

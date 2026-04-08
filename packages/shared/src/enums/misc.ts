@@ -42,5 +42,7 @@ export type ReportStatus = (typeof ReportStatus)[keyof typeof ReportStatus];
 
 export const ReportFormat = {
   XLSX: 'XLSX',
+  CSV: 'CSV',
+  PDF: 'PDF',
 } as const;
 export type ReportFormat = (typeof ReportFormat)[keyof typeof ReportFormat];

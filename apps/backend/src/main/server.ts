@@ -108,6 +108,7 @@ async function start() {
       container.cleanupSessionsWorker,
       container.keyExpiryCheckWorker,
       container.expireFilesWorker,
+      container.processSchedulesWorker,
       container.geocodeWorker,
       container.geocodeRetryWorker,
       container.propertyImportWorker,
@@ -117,6 +118,7 @@ async function start() {
       container.expireAssetsWorker,
       container.notifyStuckInspectionsWorker,
       container.expirePriorityWorker,
+      container.auditRetentionWorker,
       app.log,
     );
   }
