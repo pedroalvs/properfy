@@ -3,6 +3,7 @@ import { ForbiddenError, ValidationError } from '../../../../shared/domain/error
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentTimeSlotRepository } from '../../domain/appointment-time-slot.repository';
 import { AppointmentTimeSlotEntity } from '../../domain/appointment-time-slot.entity';
+import { AppointmentTimeSlotOverlapError } from '../../domain/appointment-time-slot.errors';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
 
@@ -62,6 +63,14 @@ export class CreateAppointmentTimeSlotUseCase {
       const branch = await this.branchRepo.findById(input.branchId, tenantId);
       if (!branch) {
         throw new BranchNotFoundError();
+      }
+    }
+
+    // Overlap detection (FR-003b): reject overlapping ranges in the same scope
+    const existingSlots = await this.timeSlotRepo.findActiveInScope(tenantId, input.branchId ?? null);
+    for (const existing of existingSlots) {
+      if (input.startTime < existing.endTime && input.endTime > existing.startTime) {
+        throw new AppointmentTimeSlotOverlapError(existing.startTime, existing.endTime);
       }
     }
 

@@ -86,6 +86,7 @@ describe('DeleteAppointmentTimeSlotUseCase', () => {
       findById: vi.fn(),
       findAll: vi.fn(),
       findEffective: vi.fn(),
+      findActiveInScope: vi.fn().mockResolvedValue([]),
       softDelete: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;

@@ -3,7 +3,10 @@ import { ForbiddenError, ValidationError } from '../../../../shared/domain/error
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentTimeSlotRepository } from '../../domain/appointment-time-slot.repository';
 import { AppointmentTimeSlotEntity } from '../../domain/appointment-time-slot.entity';
-import { AppointmentTimeSlotNotFoundError } from '../../domain/appointment-time-slot.errors';
+import {
+  AppointmentTimeSlotNotFoundError,
+  AppointmentTimeSlotOverlapError,
+} from '../../domain/appointment-time-slot.errors';
 
 export interface UpdateAppointmentTimeSlotInput {
   timeSlotId: string;
@@ -69,6 +72,17 @@ export class UpdateAppointmentTimeSlotUseCase {
 
     if (nextStartTime >= nextEndTime) {
       throw new ValidationError('End time must be after start time');
+    }
+
+    // Overlap detection (FR-003b): check against OTHER active slots in the same scope
+    if (data.startTime !== undefined || data.endTime !== undefined) {
+      const scopeSlots = await this.timeSlotRepo.findActiveInScope(existing.tenantId, existing.branchId);
+      for (const slot of scopeSlots) {
+        if (slot.id === existing.id) continue; // skip self
+        if (nextStartTime < slot.endTime && nextEndTime > slot.startTime) {
+          throw new AppointmentTimeSlotOverlapError(slot.startTime, slot.endTime);
+        }
+      }
     }
 
     const updated = new AppointmentTimeSlotEntity({

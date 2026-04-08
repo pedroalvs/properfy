@@ -13,5 +13,7 @@ export interface IAppointmentTimeSlotRepository {
   findAll(filters: AppointmentTimeSlotFilters): Promise<AppointmentTimeSlotEntity[]>;
   /** Returns branch-specific slots if any exist, otherwise tenant-wide defaults */
   findEffective(tenantId: string, branchId: string): Promise<AppointmentTimeSlotEntity[]>;
+  /** Returns active (non-deleted) slots in the same (tenantId, branchId) scope */
+  findActiveInScope(tenantId: string, branchId: string | null): Promise<AppointmentTimeSlotEntity[]>;
   softDelete(id: string): Promise<void>;
 }

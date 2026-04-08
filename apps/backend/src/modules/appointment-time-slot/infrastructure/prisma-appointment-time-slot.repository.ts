@@ -129,6 +129,19 @@ export class PrismaAppointmentTimeSlotRepository implements IAppointmentTimeSlot
     return tenantSlots.map(mapToEntity);
   }
 
+  async findActiveInScope(tenantId: string, branchId: string | null): Promise<AppointmentTimeSlotEntity[]> {
+    const rows = await this.prisma.appointmentTimeSlot.findMany({
+      where: {
+        tenant_id: tenantId,
+        branch_id: branchId,
+        is_active: true,
+        deleted_at: null,
+      },
+      orderBy: { sort_order: 'asc' },
+    });
+    return rows.map(mapToEntity);
+  }
+
   async softDelete(id: string): Promise<void> {
     await this.prisma.appointmentTimeSlot.update({
       where: { id },

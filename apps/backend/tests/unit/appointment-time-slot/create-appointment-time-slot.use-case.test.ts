@@ -7,6 +7,8 @@ import type { AuthContext } from '@properfy/shared';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
+import { AppointmentTimeSlotOverlapError } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.errors';
+import { AppointmentTimeSlotEntity } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.entity';
 
 describe('CreateAppointmentTimeSlotUseCase', () => {
   let timeSlotRepo: IAppointmentTimeSlotRepository;
@@ -69,6 +71,7 @@ describe('CreateAppointmentTimeSlotUseCase', () => {
       findById: vi.fn(),
       findAll: vi.fn(),
       findEffective: vi.fn(),
+      findActiveInScope: vi.fn().mockResolvedValue([]),
       softDelete: vi.fn(),
     };
     branchRepo = {
@@ -286,5 +289,64 @@ describe('CreateAppointmentTimeSlotUseCase', () => {
         actor: amActor,
       }),
     ).rejects.toThrow(ValidationError);
+  });
+
+  it('should reject overlapping time slot in the same scope', async () => {
+    vi.mocked(timeSlotRepo.findActiveInScope).mockResolvedValue([
+      new AppointmentTimeSlotEntity({
+        id: 'existing-1',
+        tenantId: 'tenant-1',
+        branchId: null,
+        label: 'Morning',
+        startTime: '09:00',
+        endTime: '12:00',
+        sortOrder: 1,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      }),
+    ]);
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        label: 'Overlapping',
+        startTime: '10:00',
+        endTime: '14:00',
+        sortOrder: 2,
+        actor: amActor,
+      }),
+    ).rejects.toThrow(AppointmentTimeSlotOverlapError);
+  });
+
+  it('should allow adjacent (non-overlapping) time slots', async () => {
+    vi.mocked(timeSlotRepo.findActiveInScope).mockResolvedValue([
+      new AppointmentTimeSlotEntity({
+        id: 'existing-1',
+        tenantId: 'tenant-1',
+        branchId: null,
+        label: 'Morning',
+        startTime: '09:00',
+        endTime: '12:00',
+        sortOrder: 1,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      }),
+    ]);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      label: 'Afternoon',
+      startTime: '12:00',
+      endTime: '15:00',
+      sortOrder: 2,
+      actor: amActor,
+    });
+
+    expect(result.startTime).toBe('12:00');
+    expect(result.endTime).toBe('15:00');
   });
 });

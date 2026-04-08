@@ -11,3 +11,12 @@ export class AppointmentTimeSlotConflictError extends ConflictError {
     super('TIME_SLOT_CONFLICT', 'A time slot with the same start and end time already exists for this scope');
   }
 }
+
+export class AppointmentTimeSlotOverlapError extends ConflictError {
+  constructor(existingStart: string, existingEnd: string) {
+    super(
+      'TIME_SLOT_OVERLAP',
+      `Time slot overlaps with existing slot ${existingStart}-${existingEnd}. Adjacent slots are allowed but overlapping ranges are not.`,
+    );
+  }
+}

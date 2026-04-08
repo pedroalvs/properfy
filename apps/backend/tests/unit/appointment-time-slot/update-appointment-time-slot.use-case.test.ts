@@ -5,6 +5,7 @@ import type { IAppointmentTimeSlotRepository } from '../../../src/modules/appoin
 import { AppointmentTimeSlotEntity } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.entity';
 import { UpdateAppointmentTimeSlotUseCase } from '../../../src/modules/appointment-time-slot/application/use-cases/update-appointment-time-slot.use-case';
 import { ValidationError } from '../../../src/shared/domain/errors';
+import { AppointmentTimeSlotOverlapError } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.errors';
 
 function makeSlot(
   overrides: Partial<ConstructorParameters<typeof AppointmentTimeSlotEntity>[0]> = {},
@@ -45,6 +46,7 @@ describe('UpdateAppointmentTimeSlotUseCase', () => {
       findById: vi.fn(),
       findAll: vi.fn(),
       findEffective: vi.fn(),
+      findActiveInScope: vi.fn().mockResolvedValue([]),
       softDelete: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
@@ -75,5 +77,48 @@ describe('UpdateAppointmentTimeSlotUseCase', () => {
         actor: amActor,
       }),
     ).rejects.toThrow(ValidationError);
+  });
+
+  it('rejects overlapping time range with another slot in the same scope', async () => {
+    vi.mocked(timeSlotRepo.findById).mockResolvedValue(makeSlot());
+    vi.mocked(timeSlotRepo.findActiveInScope).mockResolvedValue([
+      makeSlot({ id: 'slot-other', startTime: '11:00', endTime: '15:00' }),
+    ]);
+
+    await expect(
+      useCase.execute({
+        timeSlotId: 'slot-1',
+        data: { startTime: '10:00', endTime: '14:00' },
+        actor: amActor,
+      }),
+    ).rejects.toThrow(AppointmentTimeSlotOverlapError);
+  });
+
+  it('allows update that does not overlap with other slots', async () => {
+    vi.mocked(timeSlotRepo.findById).mockResolvedValue(makeSlot());
+    vi.mocked(timeSlotRepo.findActiveInScope).mockResolvedValue([
+      makeSlot({ id: 'slot-other', startTime: '14:00', endTime: '17:00' }),
+    ]);
+
+    const result = await useCase.execute({
+      timeSlotId: 'slot-1',
+      data: { startTime: '08:00', endTime: '12:00' },
+      actor: amActor,
+    });
+
+    expect(result.startTime).toBe('08:00');
+    expect(result.endTime).toBe('12:00');
+  });
+
+  it('skips overlap check when only non-time fields are updated', async () => {
+    vi.mocked(timeSlotRepo.findById).mockResolvedValue(makeSlot());
+
+    await useCase.execute({
+      timeSlotId: 'slot-1',
+      data: { label: 'New Label' },
+      actor: amActor,
+    });
+
+    expect(timeSlotRepo.findActiveInScope).not.toHaveBeenCalled();
   });
 });

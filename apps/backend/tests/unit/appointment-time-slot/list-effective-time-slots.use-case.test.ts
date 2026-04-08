@@ -79,6 +79,7 @@ describe('ListEffectiveTimeSlotsUseCase', () => {
       findById: vi.fn(),
       findAll: vi.fn(),
       findEffective: vi.fn(),
+      findActiveInScope: vi.fn().mockResolvedValue([]),
       softDelete: vi.fn(),
     };
     branchRepo = {
