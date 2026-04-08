@@ -4,6 +4,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { ServiceGroupEntity } from '../../domain/service-group.entity';
 import { ServiceGroupValidator } from '../../domain/service-group.validator';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
@@ -55,6 +56,7 @@ export class CreateServiceGroupUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
+    private readonly tenantRepo?: ITenantRepository,
   ) {}
 
   async execute(input: CreateServiceGroupInput): Promise<CreateServiceGroupOutput> {
@@ -101,12 +103,21 @@ export class CreateServiceGroupUseCase {
     // 4. Calculate priority expiry
     let priorityExpiresAt: Date | null = null;
     if (input.priorityMode === 'PRIORITY_24H') {
-      const scheduledDate = new Date(input.scheduledDate);
-      priorityExpiresAt = new Date(scheduledDate.getTime() - 24 * 60 * 60 * 1000);
+      // Read configurable priority hours from tenant settings, fallback to 24
+      let priorityOfferHours = 24;
+      if (this.tenantRepo) {
+        const tenant = await this.tenantRepo.findById(tenantId!);
+        if (tenant?.settingsJson && typeof tenant.settingsJson.priorityOfferHours === 'number') {
+          priorityOfferHours = tenant.settingsJson.priorityOfferHours;
+        }
+      }
 
-      // Validate scheduled date is at least 24h from now
+      const scheduledDate = new Date(input.scheduledDate);
+      priorityExpiresAt = new Date(scheduledDate.getTime() - priorityOfferHours * 60 * 60 * 1000);
+
+      // Validate scheduled date is at least priorityOfferHours from now
       const now = new Date();
-      if (scheduledDate.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
+      if (scheduledDate.getTime() - now.getTime() < priorityOfferHours * 60 * 60 * 1000) {
         throw new PriorityDateTooCloseError();
       }
     }

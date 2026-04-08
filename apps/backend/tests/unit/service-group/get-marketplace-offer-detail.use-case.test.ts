@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GetMarketplaceOffersUseCase } from '../../../src/modules/service-group/application/use-cases/get-marketplace-offers.use-case';
-import type { IServiceGroupRepository, MarketplaceOffer } from '../../../src/modules/service-group/domain/service-group.repository';
+import { GetMarketplaceOfferDetailUseCase } from '../../../src/modules/service-group/application/use-cases/get-marketplace-offer-detail.use-case';
+import type { IServiceGroupRepository, MarketplaceOfferDetail } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { AuthContext } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
@@ -24,7 +24,7 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
   });
 }
 
-function makeMarketplaceOffer(overrides: Partial<MarketplaceOffer> = {}): MarketplaceOffer {
+function makeOfferDetail(overrides: Partial<MarketplaceOfferDetail> = {}): MarketplaceOfferDetail {
   return {
     groupId: 'group-1',
     tenantId: 'tenant-1',
@@ -36,8 +36,29 @@ function makeMarketplaceOffer(overrides: Partial<MarketplaceOffer> = {}): Market
     priorityMode: 'STANDARD',
     priorityExpiresAt: null,
     suburbs: ['Sydney', 'Bondi'],
-    payoutEstimate: null,
+    payoutEstimate: 250,
     appointmentCount: 5,
+    addresses: ['10 Main St, Sydney', '20 Beach Rd, Bondi'],
+    keyRequired: true,
+    notes: 'Ring the doorbell',
+    appointments: [
+      {
+        id: 'appt-1',
+        appointmentNumber: 1001,
+        address: '10 Main St, Sydney',
+        keyRequired: true,
+        notes: 'Ring the doorbell',
+        payoutAmount: 50,
+      },
+      {
+        id: 'appt-2',
+        appointmentNumber: 1002,
+        address: '20 Beach Rd, Bondi',
+        keyRequired: false,
+        notes: null,
+        payoutAmount: 50,
+      },
+    ],
     ...overrides,
   };
 }
@@ -48,17 +69,15 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
     tenantId: null,
     role: 'INSP',
     branchId: null,
-    inspectorId: 'insp-1',
+    inspectorId: 'inspector-1',
     ...overrides,
   };
 }
 
-const defaultPagination = { page: 1, pageSize: 20, sortOrder: 'asc' as const };
-
-describe('GetMarketplaceOffersUseCase', () => {
+describe('GetMarketplaceOfferDetailUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
   let inspectorRepo: IInspectorRepository;
-  let useCase: GetMarketplaceOffersUseCase;
+  let useCase: GetMarketplaceOfferDetailUseCase;
 
   beforeEach(() => {
     serviceGroupRepo = {
@@ -90,57 +109,66 @@ describe('GetMarketplaceOffersUseCase', () => {
       findByRegionId: vi.fn(),
     };
 
-    useCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
+    useCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo);
   });
 
-  it('should return offers for eligible inspector', async () => {
-    const offers = [
-      makeMarketplaceOffer({ groupId: 'group-1' }),
-      makeMarketplaceOffer({ groupId: 'group-2', groupSize: 8 }),
-    ];
+  it('should return full offer detail for eligible inspector', async () => {
+    const detail = makeOfferDetail();
     vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
-    vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue(offers);
-    vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(2);
+    vi.mocked(serviceGroupRepo.findPublishedOfferDetail).mockResolvedValue(detail);
 
     const result = await useCase.execute({
+      groupId: 'group-1',
       inspectorId: 'inspector-1',
-      pagination: defaultPagination,
       actor: makeActor(),
     });
 
-    expect(result.data).toHaveLength(2);
-    expect(result.total).toBe(2);
-    expect(result.data[0].groupId).toBe('group-1');
-    expect(result.data[1].groupId).toBe('group-2');
-    expect(result.data[0].tenantName).toBe('Acme Realty');
-    expect(result.data[0].suburbs).toEqual(['Sydney', 'Bondi']);
+    expect(result.groupId).toBe('group-1');
+    expect(result.tenantName).toBe('Acme Realty');
+    expect(result.addresses).toEqual(['10 Main St, Sydney', '20 Beach Rd, Bondi']);
+    expect(result.keyRequired).toBe(true);
+    expect(result.notes).toBe('Ring the doorbell');
+    expect(result.appointments).toHaveLength(2);
+    expect(result.appointments[0].appointmentNumber).toBe(1001);
+    expect(result.appointments[0].keyRequired).toBe(true);
+    expect(result.appointments[1].keyRequired).toBe(false);
+    expect(result.payoutEstimate).toBe(250);
+
+    expect(serviceGroupRepo.findPublishedOfferDetail).toHaveBeenCalledWith(
+      'group-1',
+      'inspector-1',
+      ['svc-type-1'],
+      ['tenant-1'],
+    );
   });
 
-  it('should reject non-INSP actors', async () => {
+  it('should reject non-INSP actors with ForbiddenError', async () => {
     await expect(
       useCase.execute({
+        groupId: 'group-1',
         inspectorId: 'inspector-1',
-        pagination: defaultPagination,
         actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toThrow(ForbiddenError);
 
     await expect(
       useCase.execute({
+        groupId: 'group-1',
         inspectorId: 'inspector-1',
-        pagination: defaultPagination,
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
+
+    expect(inspectorRepo.findById).not.toHaveBeenCalled();
   });
 
-  it('should throw NotFoundError for missing inspector', async () => {
+  it('should throw NotFoundError when inspector does not exist', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(null);
 
     await expect(
       useCase.execute({
+        groupId: 'group-1',
         inspectorId: 'nonexistent',
-        pagination: defaultPagination,
         actor: makeActor(),
       }),
     ).rejects.toThrow(NotFoundError);
@@ -153,53 +181,23 @@ describe('GetMarketplaceOffersUseCase', () => {
 
     await expect(
       useCase.execute({
+        groupId: 'group-1',
         inspectorId: 'inspector-1',
-        pagination: defaultPagination,
         actor: makeActor(),
       }),
     ).rejects.toThrow(InspectorInactiveError);
   });
 
-  it('should return empty when no eligible offers', async () => {
+  it('should throw NotFoundError when group is not found or inspector not eligible', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
-    vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([]);
-    vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(0);
+    vi.mocked(serviceGroupRepo.findPublishedOfferDetail).mockResolvedValue(null);
 
-    const result = await useCase.execute({
-      inspectorId: 'inspector-1',
-      pagination: defaultPagination,
-      actor: makeActor(),
-    });
-
-    expect(result.data).toHaveLength(0);
-    expect(result.total).toBe(0);
-  });
-
-  it('should pass inspector eligibility filters to repository', async () => {
-    const inspector = makeInspector({
-      serviceTypesJson: ['svc-type-1', 'svc-type-2'],
-      clientEligibilityJson: ['tenant-1', 'tenant-2'],
-    });
-    vi.mocked(inspectorRepo.findById).mockResolvedValue(inspector);
-    vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([]);
-    vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(0);
-
-    await useCase.execute({
-      inspectorId: 'inspector-1',
-      pagination: defaultPagination,
-      actor: makeActor(),
-    });
-
-    expect(serviceGroupRepo.findPublishedForInspector).toHaveBeenCalledWith(
-      'inspector-1',
-      ['svc-type-1', 'svc-type-2'],
-      ['tenant-1', 'tenant-2'],
-      defaultPagination,
-    );
-    expect(serviceGroupRepo.countPublishedForInspector).toHaveBeenCalledWith(
-      'inspector-1',
-      ['svc-type-1', 'svc-type-2'],
-      ['tenant-1', 'tenant-2'],
-    );
+    await expect(
+      useCase.execute({
+        groupId: 'nonexistent-group',
+        inspectorId: 'inspector-1',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(NotFoundError);
   });
 });

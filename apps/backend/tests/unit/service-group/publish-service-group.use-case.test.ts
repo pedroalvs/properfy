@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PublishServiceGroupUseCase } from '../../../src/modules/service-group/application/use-cases/publish-service-group.use-case';
 import type { IServiceGroupRepository, ServiceGroupWithAppointments } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import { DomainEventBus, SERVICE_GROUP_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
@@ -72,6 +73,7 @@ describe('PublishServiceGroupUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
   let serviceRegionRepo: IServiceRegionRepository;
   let auditService: AuditService;
+  let eventBus: DomainEventBus;
   let useCase: PublishServiceGroupUseCase;
 
   beforeEach(() => {
@@ -83,11 +85,13 @@ describe('PublishServiceGroupUseCase', () => {
       update: vi.fn(),
       acceptOptimistic: vi.fn(),
       findPublishedForInspector: vi.fn(),
+      findPublishedOfferDetail: vi.fn(),
       countPublishedForInspector: vi.fn(),
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
       revertScheduledAppointments: vi.fn(),
+      findExpiredPublished: vi.fn(),
     };
     serviceRegionRepo = {
       findById: vi.fn().mockResolvedValue({ id: 'region-1', name: 'Test Region', status: 'ACTIVE' }),
@@ -106,7 +110,8 @@ describe('PublishServiceGroupUseCase', () => {
       delete: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo);
+    eventBus = new DomainEventBus();
+    useCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, eventBus);
   });
 
   it('should publish a DRAFT group successfully', async () => {
@@ -290,5 +295,60 @@ describe('PublishServiceGroupUseCase', () => {
     await expect(
       useCase.execute({ groupId: 'group-1', actor: makeActor() }),
     ).rejects.toThrow(ServiceRegionInactiveError);
+  });
+
+  it('should emit service_group.published.v1 event after successful publish', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+
+    const handler = vi.fn();
+    eventBus.subscribe(SERVICE_GROUP_EVENTS.PUBLISHED, handler);
+
+    await useCase.execute({
+      groupId: 'group-1',
+      actor: makeActor(),
+    });
+
+    // Allow fire-and-forget emit to settle
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: SERVICE_GROUP_EVENTS.PUBLISHED,
+        payload: { groupId: 'group-1', tenantId: 'tenant-1' },
+        occurredAt: expect.any(Date),
+      }),
+    );
+  });
+
+  it('should not emit event on idempotent return for already PUBLISHED group', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ status: 'PUBLISHED', offeredCount: 2, publishedAt: new Date() }),
+    );
+
+    const handler = vi.fn();
+    eventBus.subscribe(SERVICE_GROUP_EVENTS.PUBLISHED, handler);
+
+    await useCase.execute({
+      groupId: 'group-1',
+      actor: makeActor(),
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('should still succeed if no event bus is provided', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+
+    const useCaseWithoutBus = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo);
+
+    const result = await useCaseWithoutBus.execute({
+      groupId: 'group-1',
+      actor: makeActor(),
+    });
+
+    expect(result.status).toBe('PUBLISHED');
   });
 });

@@ -100,10 +100,12 @@ describe('AcceptOfferUseCase', () => {
       update: vi.fn(),
       acceptOptimistic: vi.fn(),
       findPublishedForInspector: vi.fn(),
+      findPublishedOfferDetail: vi.fn(),
       countPublishedForInspector: vi.fn(),
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
+      findExpiredPublished: vi.fn(),
     };
     inspectorRepo = {
       findById: vi.fn(),
@@ -141,13 +143,42 @@ describe('AcceptOfferUseCase', () => {
     const result = await useCase.execute({
       groupId: 'group-1',
       inspectorId: 'inspector-1',
-      actor: makeActor(),
+      actor: makeActor({ inspectorId: 'inspector-1' }),
     });
 
     expect(result).toEqual(cachedResult);
     expect(serviceGroupRepo.findById).not.toHaveBeenCalled();
     expect(serviceGroupRepo.acceptOptimistic).not.toHaveBeenCalled();
     expect(idempotencyService.get).toHaveBeenCalledWith('accept-offer:group-1:inspector-1', 'accept-offer');
+  });
+
+  it('should throw ForbiddenError when a different inspector replays an idempotency key (identity mismatch)', async () => {
+    const cachedResult = {
+      groupId: 'group-1',
+      status: 'ACCEPTED',
+      assignedInspectorId: 'inspector-1',
+      appointmentsScheduled: 5,
+      acceptedAt: new Date('2026-03-17T00:00:00Z'),
+    };
+    idempotencyService.get.mockResolvedValue(cachedResult);
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor({ inspectorId: 'inspector-other' }),
+        idempotencyKey: 'accept-offer:group-1:inspector-1',
+      }),
+    ).rejects.toThrow(ForbiddenError);
+
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor({ inspectorId: 'inspector-other' }),
+        idempotencyKey: 'accept-offer:group-1:inspector-1',
+      }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'ACCEPT_OFFER_IDENTITY_MISMATCH' }));
   });
 
   it('should cache result after successful execution', async () => {

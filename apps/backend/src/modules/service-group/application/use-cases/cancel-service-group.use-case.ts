@@ -1,6 +1,8 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import {
   ServiceGroupNotFoundError,
@@ -22,6 +24,7 @@ export class CancelServiceGroupUseCase {
   constructor(
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
+    private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: CancelServiceGroupInput): Promise<CancelServiceGroupOutput> {
@@ -65,6 +68,12 @@ export class CancelServiceGroupUseCase {
       before: { status: group.status },
       after: { status: 'CANCELLED' },
       reason,
+    });
+
+    this.eventBus?.emit({
+      type: SERVICE_GROUP_EVENTS.CANCELLED,
+      payload: { groupId, tenantId: group.tenantId },
+      occurredAt: new Date(),
     });
 
     return {

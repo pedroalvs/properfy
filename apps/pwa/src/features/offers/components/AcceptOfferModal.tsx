@@ -31,14 +31,6 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
             Once accepted, these inspections are assigned to you.
           </p>
 
-          {/* Key required warning */}
-          {offer.keyRequired && (
-            <div className="mt-3 flex items-center gap-2 rounded-xl bg-warning/10 px-3 py-2.5">
-              <i className="mdi mdi-key-outline text-lg text-warning" />
-              <p className="text-sm font-semibold text-warning">Key collection required for this group</p>
-            </div>
-          )}
-
           {/* Summary details */}
           <div className="mt-4 space-y-2.5 text-sm">
             <Row label="Service" value={offer.serviceTypeName} />
@@ -47,7 +39,7 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
             <Row label="Time window" value={formatTimeWindow(offer.timeWindow)} />
             <Row
               label="Inspections"
-              value={`${offer.groupSize} ${offer.groupSize === 1 ? 'inspection' : 'inspections'}`}
+              value={`${offer.appointmentCount} ${offer.appointmentCount === 1 ? 'inspection' : 'inspections'}`}
             />
             {offer.suburbs.length > 0 && (
               <Row label="Area" value={offer.suburbs.join(', ')} />

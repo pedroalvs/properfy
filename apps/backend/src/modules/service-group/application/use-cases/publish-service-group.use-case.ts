@@ -1,6 +1,8 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import {
@@ -46,6 +48,7 @@ export class PublishServiceGroupUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
     private readonly serviceRegionRepo: IServiceRegionRepository,
+    private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: PublishServiceGroupInput): Promise<PublishServiceGroupOutput> {
@@ -114,6 +117,12 @@ export class PublishServiceGroupUseCase {
       tenantId: group.tenantId,
       before: { status: 'DRAFT', offeredCount: group.offeredCount },
       after: { status: 'PUBLISHED', offeredCount: newOfferedCount },
+    });
+
+    this.eventBus?.emit({
+      type: SERVICE_GROUP_EVENTS.PUBLISHED,
+      payload: { groupId, tenantId: group.tenantId },
+      occurredAt: new Date(),
     });
 
     // Reflect the updates on the in-memory entity for the response

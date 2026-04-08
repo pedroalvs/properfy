@@ -60,10 +60,12 @@ describe('ListServiceGroupsUseCase', () => {
       update: vi.fn(),
       acceptOptimistic: vi.fn(),
       findPublishedForInspector: vi.fn(),
+      findPublishedOfferDetail: vi.fn(),
       countPublishedForInspector: vi.fn(),
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
+      findExpiredPublished: vi.fn(),
     };
     useCase = new ListServiceGroupsUseCase(serviceGroupRepo);
   });

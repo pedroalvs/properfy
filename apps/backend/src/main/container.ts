@@ -135,9 +135,11 @@ import { PublishServiceGroupUseCase } from '../modules/service-group/application
 import { AssignInspectorManuallyUseCase } from '../modules/service-group/application/use-cases/assign-inspector-manually.use-case';
 import { AcceptOfferUseCase } from '../modules/service-group/application/use-cases/accept-offer.use-case';
 import { GetMarketplaceOffersUseCase } from '../modules/service-group/application/use-cases/get-marketplace-offers.use-case';
+import { GetMarketplaceOfferDetailUseCase } from '../modules/service-group/application/use-cases/get-marketplace-offer-detail.use-case';
 import { CancelServiceGroupUseCase } from '../modules/service-group/application/use-cases/cancel-service-group.use-case';
 import { RejectServiceGroupUseCase } from '../modules/service-group/application/use-cases/reject-service-group.use-case';
 import { UpdateServiceGroupUseCase } from '../modules/service-group/application/use-cases/update-service-group.use-case';
+import { RepublishServiceGroupUseCase } from '../modules/service-group/application/use-cases/republish-service-group.use-case';
 import type { ServiceGroupRouteContainer } from '../modules/service-group/interfaces/service-group.routes';
 import type { MarketplaceRouteContainer } from '../modules/service-group/interfaces/marketplace.routes';
 
@@ -234,6 +236,7 @@ import { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/wor
 import { ExpireTokensWorker } from '../modules/tenant-portal/infrastructure/workers/expire-tokens.worker';
 import { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
 import { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
+import { ExpirePriorityWorker } from '../modules/service-group/infrastructure/workers/expire-priority.worker';
 
 // Dashboard module
 import { PrismaDashboardRepository } from '../modules/dashboard/infrastructure/prisma-dashboard.repository';
@@ -312,6 +315,7 @@ export interface AppContainer {
   expireTokensWorker: ExpireTokensWorker;
   expireAssetsWorker: ExpireAssetsWorker;
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
+  expirePriorityWorker: ExpirePriorityWorker;
 }
 
 export function createContainer(logger: Logger): AppContainer {
@@ -583,17 +587,19 @@ export function createContainer(logger: Logger): AppContainer {
   const listAuditLogsUseCase = new ListAuditLogsUseCase(auditLogRepo, userManagementRepo);
 
   // Service group repositories and use cases
-  const serviceGroupRepo = new PrismaServiceGroupRepository(prisma, serviceRegionRepo);
-  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, serviceRegionRepo);
+  const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
+  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, serviceRegionRepo, tenantRepo);
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo);
-  const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo);
-  const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo);
-  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService);
+  const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, domainEventBus);
+  const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, domainEventBus);
+  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, domainEventBus);
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
-  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService);
-  const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService);
-  const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService);
+  const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo);
+  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, domainEventBus);
+  const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, domainEventBus);
+  const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, tenantRepo);
+  const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService);
 
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
@@ -716,6 +722,7 @@ export function createContainer(logger: Logger): AppContainer {
   const notifyStuckInspectionsWorker = new NotifyStuckInspectionsWorker(
     inspectionExecutionRepo, appointmentRepo, createNotificationUseCase, logger,
   );
+  const expirePriorityWorker = new ExpirePriorityWorker(serviceGroupRepo, auditService, logger);
 
   const appointmentImportWorker = new AppointmentImportWorker(
     appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger, appointmentTimeSlotRepo,
@@ -868,11 +875,13 @@ export function createContainer(logger: Logger): AppContainer {
       cancelServiceGroupUseCase,
       rejectServiceGroupUseCase,
       updateServiceGroupUseCase,
+      republishServiceGroupUseCase,
       jwtService,
       tenantRepo,
     },
     marketplace: {
       getMarketplaceOffersUseCase,
+      getMarketplaceOfferDetailUseCase,
       acceptOfferUseCase,
       jwtService,
       tenantRepo,
@@ -966,5 +975,6 @@ export function createContainer(logger: Logger): AppContainer {
     expireTokensWorker,
     expireAssetsWorker,
     notifyStuckInspectionsWorker,
+    expirePriorityWorker,
   };
 }

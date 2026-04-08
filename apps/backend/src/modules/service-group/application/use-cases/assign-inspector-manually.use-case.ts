@@ -1,6 +1,9 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
@@ -17,6 +20,7 @@ export interface AssignInspectorManuallyInput {
   groupId: string;
   inspectorId: string;
   actor: AuthContext;
+  idempotencyKey?: string;
 }
 
 export interface AssignInspectorManuallyOutput {
@@ -32,20 +36,28 @@ export class AssignInspectorManuallyUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly auditService: AuditService,
     private readonly serviceRegionRepo: IServiceRegionRepository,
+    private readonly idempotencyService: IIdempotencyService,
+    private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: AssignInspectorManuallyInput): Promise<AssignInspectorManuallyOutput> {
     const { actor, groupId, inspectorId } = input;
 
+    const idempotencyKey = input.idempotencyKey ?? `assign-inspector:${groupId}:${inspectorId}`;
+    const cached = await this.idempotencyService.get<AssignInspectorManuallyOutput>(idempotencyKey, 'assign-inspector');
+    if (cached) {
+      return cached;
+    }
+
     if (actor.role !== 'AM' && actor.role !== 'OP') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    const result = await this.serviceGroupRepo.findById(groupId, actor.tenantId);
-    if (!result) {
+    const findResult = await this.serviceGroupRepo.findById(groupId, actor.tenantId);
+    if (!findResult) {
       throw new ServiceGroupNotFoundError();
     }
-    const { group } = result;
+    const { group } = findResult;
 
     // Idempotency: if already ACCEPTED with the same inspector, return current state
     if (group.status === 'ACCEPTED' && group.assignedInspectorId === inspectorId) {
@@ -84,7 +96,7 @@ export class AssignInspectorManuallyUseCase {
     }
 
     // Validate inspector's regions cover the service group's properties
-    const propertyIds = result.appointments.map((a) => a.propertyId);
+    const propertyIds = findResult.appointments.map((a) => a.propertyId);
     if (propertyIds.length > 0) {
       const coveredPropertyIds = await this.serviceRegionRepo.findPropertyIdsInInspectorRegions(inspectorId);
       const coveredSet = new Set(coveredPropertyIds);
@@ -124,11 +136,21 @@ export class AssignInspectorManuallyUseCase {
       reason: `Manual assignment by ${actor.role}`,
     });
 
-    return {
+    const result: AssignInspectorManuallyOutput = {
       id: groupId,
       status: 'ACCEPTED',
       assignedInspectorId: inspectorId,
       appointmentsScheduled: scheduledCount,
     };
+
+    await this.idempotencyService.set(idempotencyKey, 'assign-inspector', result, 24);
+
+    this.eventBus?.emit({
+      type: SERVICE_GROUP_EVENTS.MANUALLY_ASSIGNED,
+      payload: { groupId, tenantId: group.tenantId, inspectorId },
+      occurredAt: new Date(),
+    });
+
+    return result;
   }
 }

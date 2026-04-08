@@ -13,6 +13,8 @@ import {
   AppointmentInvalidStatusError,
   PriorityDateTooCloseError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 
 function makeAppointmentEntity(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -91,10 +93,12 @@ describe('CreateServiceGroupUseCase', () => {
       update: vi.fn(),
       acceptOptimistic: vi.fn(),
       findPublishedForInspector: vi.fn(),
+      findPublishedOfferDetail: vi.fn(),
       countPublishedForInspector: vi.fn(),
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
+      findExpiredPublished: vi.fn(),
     };
     appointmentRepo = {
       findById: vi.fn(),
@@ -393,6 +397,182 @@ describe('CreateServiceGroupUseCase', () => {
 
     expect(result.id).toBeDefined();
     expect(result.groupSize).toBe(3);
+  });
+
+  describe('GAP-011: configurable priority offer hours', () => {
+    let tenantRepo: ITenantRepository;
+
+    function makeTenantEntity(settingsJson: Record<string, unknown> = {}): TenantEntity {
+      return new TenantEntity({
+        id: 'tenant-1',
+        name: 'Test Tenant',
+        legalName: 'Test Tenant Pty Ltd',
+        status: 'ACTIVE',
+        timezone: 'Australia/Sydney',
+        currency: 'AUD',
+        settingsJson,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      });
+    }
+
+    beforeEach(() => {
+      tenantRepo = {
+        findById: vi.fn().mockResolvedValue(makeTenantEntity({ priorityOfferHours: 24 })),
+        findByLegalName: vi.fn(),
+        findAll: vi.fn(),
+        count: vi.fn(),
+        save: vi.fn(),
+        update: vi.fn(),
+      };
+    });
+
+    it('should use tenant priorityOfferHours=48 for priority expiry calculation', async () => {
+      vi.mocked(tenantRepo.findById).mockResolvedValue(
+        makeTenantEntity({ priorityOfferHours: 48 }),
+      );
+
+      const useCaseWithTenant = new CreateServiceGroupUseCase(
+        serviceGroupRepo, appointmentRepo, auditService, undefined, tenantRepo,
+      );
+
+      const appointmentIds = makeAppointmentIds(5);
+      for (let i = 0; i < 5; i++) {
+        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
+        );
+      }
+
+      // Use a date far enough for 48h
+      const scheduledDate = '2026-07-01';
+      const result = await useCaseWithTenant.execute({
+        appointmentIds,
+        serviceTypeId: 'svc-type-1',
+        scheduledDate,
+        timeWindow: '09:00-12:00',
+        priorityMode: 'PRIORITY_24H',
+        actor: makeActor(),
+      });
+
+      expect(result.priorityExpiresAt).not.toBeNull();
+      const expectedExpiry = new Date(new Date(scheduledDate).getTime() - 48 * 60 * 60 * 1000);
+      expect(result.priorityExpiresAt!.getTime()).toBe(expectedExpiry.getTime());
+    });
+
+    it('should fall back to 24h when tenant has no priorityOfferHours setting', async () => {
+      vi.mocked(tenantRepo.findById).mockResolvedValue(
+        makeTenantEntity({}),
+      );
+
+      const useCaseWithTenant = new CreateServiceGroupUseCase(
+        serviceGroupRepo, appointmentRepo, auditService, undefined, tenantRepo,
+      );
+
+      const appointmentIds = makeAppointmentIds(5);
+      for (let i = 0; i < 5; i++) {
+        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
+        );
+      }
+
+      const result = await useCaseWithTenant.execute({
+        appointmentIds,
+        serviceTypeId: 'svc-type-1',
+        scheduledDate: farFutureDate,
+        timeWindow: '09:00-12:00',
+        priorityMode: 'PRIORITY_24H',
+        actor: makeActor(),
+      });
+
+      expect(result.priorityExpiresAt).not.toBeNull();
+      const expectedExpiry = new Date(new Date(farFutureDate).getTime() - 24 * 60 * 60 * 1000);
+      expect(result.priorityExpiresAt!.getTime()).toBe(expectedExpiry.getTime());
+    });
+
+    it('should fall back to 24h when no tenant repo is provided', async () => {
+      // The default useCase (no tenantRepo) should still use 24h
+      const appointmentIds = makeAppointmentIds(5);
+      for (let i = 0; i < 5; i++) {
+        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
+        );
+      }
+
+      const result = await useCase.execute({
+        appointmentIds,
+        serviceTypeId: 'svc-type-1',
+        scheduledDate: farFutureDate,
+        timeWindow: '09:00-12:00',
+        priorityMode: 'PRIORITY_24H',
+        actor: makeActor(),
+      });
+
+      expect(result.priorityExpiresAt).not.toBeNull();
+      const expectedExpiry = new Date(new Date(farFutureDate).getTime() - 24 * 60 * 60 * 1000);
+      expect(result.priorityExpiresAt!.getTime()).toBe(expectedExpiry.getTime());
+    });
+
+    it('should ignore priorityOfferHours for STANDARD mode', async () => {
+      vi.mocked(tenantRepo.findById).mockResolvedValue(
+        makeTenantEntity({ priorityOfferHours: 48 }),
+      );
+
+      const useCaseWithTenant = new CreateServiceGroupUseCase(
+        serviceGroupRepo, appointmentRepo, auditService, undefined, tenantRepo,
+      );
+
+      const appointmentIds = makeAppointmentIds(5);
+      for (let i = 0; i < 5; i++) {
+        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
+        );
+      }
+
+      const result = await useCaseWithTenant.execute({
+        appointmentIds,
+        serviceTypeId: 'svc-type-1',
+        scheduledDate: farFutureDate,
+        timeWindow: '09:00-12:00',
+        priorityMode: 'STANDARD',
+        actor: makeActor(),
+      });
+
+      expect(result.priorityExpiresAt).toBeNull();
+      expect(tenantRepo.findById).not.toHaveBeenCalled();
+    });
+
+    it('should reject PRIORITY_24H when scheduled date is less than configured hours away', async () => {
+      vi.mocked(tenantRepo.findById).mockResolvedValue(
+        makeTenantEntity({ priorityOfferHours: 48 }),
+      );
+
+      const useCaseWithTenant = new CreateServiceGroupUseCase(
+        serviceGroupRepo, appointmentRepo, auditService, undefined, tenantRepo,
+      );
+
+      const appointmentIds = makeAppointmentIds(5);
+      for (let i = 0; i < 5; i++) {
+        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
+        );
+      }
+
+      // 30h from now — enough for 24h but not for 48h
+      const tooCloseDate = new Date(Date.now() + 30 * 60 * 60 * 1000);
+      const dateStr = tooCloseDate.toISOString().split('T')[0];
+
+      await expect(
+        useCaseWithTenant.execute({
+          appointmentIds,
+          serviceTypeId: 'svc-type-1',
+          scheduledDate: dateStr,
+          timeWindow: '09:00-12:00',
+          priorityMode: 'PRIORITY_24H',
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(PriorityDateTooCloseError);
+    });
   });
 
   it('should call audit log on success', async () => {

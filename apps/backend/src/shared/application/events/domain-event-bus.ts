@@ -50,3 +50,11 @@ export const BRANCH_EVENTS = {
 export const SERVICE_REGION_EVENTS = {
   DEACTIVATED: 'service_region.deactivated.v1',
 } as const;
+
+export const SERVICE_GROUP_EVENTS = {
+  PUBLISHED: 'service_group.published.v1',
+  ACCEPTED: 'service_group.accepted.v1',
+  CANCELLED: 'service_group.cancelled.v1',
+  REJECTED: 'service_group.rejected.v1',
+  MANUALLY_ASSIGNED: 'service_group.manually_assigned.v1',
+} as const;

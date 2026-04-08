@@ -21,8 +21,7 @@ export interface MarketplaceOfferOutput {
   priorityExpiresAt: Date | null;
   suburbs: string[];
   payoutEstimate: number | null;
-  addresses: string[];
-  keyRequired: boolean;
+  appointmentCount: number;
 }
 
 export interface GetMarketplaceOffersOutput {
@@ -78,8 +77,7 @@ export class GetMarketplaceOffersUseCase {
         priorityExpiresAt: offer.priorityExpiresAt,
         suburbs: offer.suburbs,
         payoutEstimate: offer.payoutEstimate,
-        addresses: offer.addresses,
-        keyRequired: offer.keyRequired,
+        appointmentCount: offer.appointmentCount,
       })),
       total,
     };

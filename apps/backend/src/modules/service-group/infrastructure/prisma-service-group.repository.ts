@@ -8,9 +8,9 @@ import type {
   PaginationParams,
   ServiceGroupWithAppointments,
   MarketplaceOffer,
+  MarketplaceOfferDetail,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus, PriorityMode, ServiceGroupExceptionType } from '@properfy/shared';
-import type { IServiceRegionRepository } from '../../service-region/domain/service-region.repository';
 
 function mapToEntity(row: any): ServiceGroupEntity {
   return new ServiceGroupEntity({
@@ -43,7 +43,6 @@ function mapToEntity(row: any): ServiceGroupEntity {
 export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly serviceRegionRepo?: IServiceRegionRepository,
   ) {}
 
   async findById(
@@ -161,6 +160,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       regionName: string | null;
       description: string | null;
       serviceRegionId: string | null;
+      scheduledDate: Date;
+      timeWindow: string;
+      priorityMode: string;
+      exceptionType: string | null;
+      exceptionReason: string | null;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
@@ -181,6 +185,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     if (data.regionName !== undefined) updateData['region_name'] = data.regionName;
     if (data.description !== undefined) updateData['description'] = data.description;
     if (data.serviceRegionId !== undefined) updateData['service_region_id'] = data.serviceRegionId;
+    if (data.scheduledDate !== undefined) updateData['scheduled_date'] = data.scheduledDate;
+    if (data.timeWindow !== undefined) updateData['time_window'] = data.timeWindow;
+    if (data.priorityMode !== undefined) updateData['priority_mode'] = data.priorityMode;
+    if (data.exceptionType !== undefined) updateData['exception_type'] = data.exceptionType;
+    if (data.exceptionReason !== undefined) updateData['exception_reason'] = data.exceptionReason;
 
     await this.prisma.serviceGroup.update({
       where: { id },
@@ -218,33 +227,29 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       return [];
     }
 
-    // Build dual-path region filter: region-based (new) + property-based (legacy)
-    const orConditions = await this.buildRegionOrConditions(inspectorId);
-    if (orConditions.length === 0) return [];
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    const eligibleIds = await this.findEligibleGroupIds(
+      inspectorId,
+      inspectorServiceTypes,
+      inspectorClientEligibility,
+      pagination.pageSize,
+      offset,
+    );
 
-    const where: Record<string, unknown> = {
-      status: 'PUBLISHED',
-      service_type_id: { in: inspectorServiceTypes },
-      tenant_id: { in: inspectorClientEligibility },
-      scheduled_date: { gte: new Date() },
-      OR: orConditions,
-    };
+    if (eligibleIds.length === 0) return [];
 
     const rows = await this.prisma.serviceGroup.findMany({
-      where,
+      where: { id: { in: eligibleIds } },
       include: {
         tenant: { select: { name: true } },
         service_type: { select: { name: true } },
         appointments: {
           select: {
-            key_required: true,
             payout_amount: true,
-            property: { select: { suburb: true, street: true } },
+            property: { select: { suburb: true } },
           },
         },
       },
-      skip: (pagination.page - 1) * pagination.pageSize,
-      take: pagination.pageSize,
       orderBy: { scheduled_date: 'asc' },
     });
 
@@ -253,18 +258,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       const suburbs = [
         ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
       ] as string[];
-      const addresses = [
-        ...new Set(
-          appts
-            .map((a) => {
-              const p = a.property;
-              if (!p) return null;
-              return [p.street, p.suburb].filter(Boolean).join(', ');
-            })
-            .filter(Boolean),
-        ),
-      ] as string[];
-      const keyRequired = appts.some((a) => a.key_required === true);
       const payoutTotal = appts.reduce((sum: number, a) => {
         const val = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : 0;
         return sum + val;
@@ -281,9 +274,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         priorityMode: row.priority_mode,
         priorityExpiresAt: row.priority_expires_at,
         suburbs,
-        addresses,
-        keyRequired,
         payoutEstimate,
+        appointmentCount: appts.length,
       };
     });
   }
@@ -300,51 +292,182 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       return 0;
     }
 
-    const orConditions = await this.buildRegionOrConditions(inspectorId);
-    if (orConditions.length === 0) return 0;
+    const rows = await this.prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(DISTINCT sg.id) AS count
+      FROM service_groups sg
+      JOIN appointments a ON a.service_group_id = sg.id
+        AND a.deleted_at IS NULL
+      JOIN properties p ON p.id = a.property_id
+        AND p.deleted_at IS NULL
+        AND p.coordinates IS NOT NULL
+      JOIN service_regions sr ON sr.tenant_id = a.tenant_id
+        AND sr.status = 'ACTIVE'
+        AND sr.geom IS NOT NULL
+        AND ST_Intersects(sr.geom, p.coordinates)
+      JOIN inspector_regions ir ON ir.region_id = sr.id
+        AND ir.inspector_id = ${inspectorId}
+      WHERE sg.status = 'PUBLISHED'
+        AND sg.scheduled_date >= CURRENT_DATE
+        AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
+        AND sg.tenant_id = ANY(${inspectorClientEligibility}::text[])
+        AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
+    `;
 
-    return this.prisma.serviceGroup.count({
-      where: {
-        status: 'PUBLISHED',
-        service_type_id: { in: inspectorServiceTypes },
-        tenant_id: { in: inspectorClientEligibility },
-        scheduled_date: { gte: new Date() },
-        OR: orConditions,
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  async findPublishedOfferDetail(
+    groupId: string,
+    inspectorId: string,
+    inspectorServiceTypes: string[],
+    inspectorClientEligibility: string[],
+  ): Promise<MarketplaceOfferDetail | null> {
+    if (
+      inspectorServiceTypes.length === 0 ||
+      inspectorClientEligibility.length === 0
+    ) {
+      return null;
+    }
+
+    // Verify the inspector is eligible for this specific group via spatial join
+    const eligibleRows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT DISTINCT sg.id
+      FROM service_groups sg
+      JOIN appointments a ON a.service_group_id = sg.id
+        AND a.deleted_at IS NULL
+      JOIN properties p ON p.id = a.property_id
+        AND p.deleted_at IS NULL
+        AND p.coordinates IS NOT NULL
+      JOIN service_regions sr ON sr.tenant_id = a.tenant_id
+        AND sr.status = 'ACTIVE'
+        AND sr.geom IS NOT NULL
+        AND ST_Intersects(sr.geom, p.coordinates)
+      JOIN inspector_regions ir ON ir.region_id = sr.id
+        AND ir.inspector_id = ${inspectorId}
+      WHERE sg.id = ${groupId}
+        AND sg.status = 'PUBLISHED'
+        AND sg.scheduled_date >= CURRENT_DATE
+        AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
+        AND sg.tenant_id = ANY(${inspectorClientEligibility}::text[])
+        AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
+    `;
+
+    if (eligibleRows.length === 0) return null;
+
+    const row = await this.prisma.serviceGroup.findUnique({
+      where: { id: groupId },
+      include: {
+        tenant: { select: { name: true } },
+        service_type: { select: { name: true } },
+        appointments: {
+          select: {
+            id: true,
+            appointment_number: true,
+            key_required: true,
+            payout_amount: true,
+            notes: true,
+            property: { select: { suburb: true, street: true } },
+          },
+        },
       },
     });
+
+    if (!row) return null;
+
+    const appts = row.appointments as any[];
+    const suburbs = [
+      ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
+    ] as string[];
+    const addresses = [
+      ...new Set(
+        appts
+          .map((a) => {
+            const p = a.property;
+            if (!p) return null;
+            return [p.street, p.suburb].filter(Boolean).join(', ');
+          })
+          .filter(Boolean),
+      ),
+    ] as string[];
+    const keyRequired = appts.some((a) => a.key_required === true);
+    const payoutTotal = appts.reduce((sum: number, a) => {
+      const val = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : 0;
+      return sum + val;
+    }, 0);
+    const payoutEstimate = payoutTotal > 0 ? payoutTotal : null;
+
+    // Collect group-level notes from appointments (first non-null)
+    const groupNotes = appts.find((a) => a.notes != null)?.notes ?? null;
+
+    return {
+      groupId: row.id,
+      tenantId: row.tenant_id,
+      tenantName: row.tenant?.name ?? '',
+      serviceTypeName: row.service_type?.name ?? '',
+      groupSize: row.group_size,
+      scheduledDate: row.scheduled_date,
+      timeWindow: row.time_window,
+      priorityMode: row.priority_mode,
+      priorityExpiresAt: row.priority_expires_at,
+      suburbs,
+      payoutEstimate,
+      appointmentCount: appts.length,
+      addresses,
+      keyRequired,
+      notes: groupNotes,
+      appointments: appts.map((a) => {
+        const p = a.property;
+        const address = p ? [p.street, p.suburb].filter(Boolean).join(', ') : '';
+        const payoutVal = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : null;
+        return {
+          id: a.id,
+          appointmentNumber: a.appointment_number,
+          address,
+          keyRequired: a.key_required === true,
+          notes: a.notes ?? null,
+          payoutAmount: payoutVal,
+        };
+      }),
+    };
   }
 
   /**
-   * Build dual-path OR conditions for marketplace filtering:
-   * 1. Groups WITH service_region_id → match against inspector's assigned regions
-   * 2. Groups WITHOUT service_region_id (legacy) → match via PostGIS property coordinates
+   * Use PostGIS spatial join to find eligible service group IDs for the inspector.
+   * Region matching is tenant-scoped (sr.tenant_id = a.tenant_id), but the query
+   * is cross-tenant because inspectors can have region mappings across tenants.
    */
-  private async buildRegionOrConditions(inspectorId: string): Promise<Record<string, unknown>[]> {
-    if (!this.serviceRegionRepo) return [];
+  private async findEligibleGroupIds(
+    inspectorId: string,
+    inspectorServiceTypes: string[],
+    inspectorClientEligibility: string[],
+    limit: number,
+    offset: number,
+  ): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT DISTINCT sg.id
+      FROM service_groups sg
+      JOIN appointments a ON a.service_group_id = sg.id
+        AND a.deleted_at IS NULL
+      JOIN properties p ON p.id = a.property_id
+        AND p.deleted_at IS NULL
+        AND p.coordinates IS NOT NULL
+      JOIN service_regions sr ON sr.tenant_id = a.tenant_id
+        AND sr.status = 'ACTIVE'
+        AND sr.geom IS NOT NULL
+        AND ST_Intersects(sr.geom, p.coordinates)
+      JOIN inspector_regions ir ON ir.region_id = sr.id
+        AND ir.inspector_id = ${inspectorId}
+      WHERE sg.status = 'PUBLISHED'
+        AND sg.scheduled_date >= CURRENT_DATE
+        AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
+        AND sg.tenant_id = ANY(${inspectorClientEligibility}::text[])
+        AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
+      ORDER BY sg.scheduled_date ASC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `;
 
-    const [inspectorRegionIds, propertyIds] = await Promise.all([
-      this.serviceRegionRepo.getInspectorRegionIds(inspectorId),
-      this.serviceRegionRepo.findPropertyIdsInInspectorRegions(inspectorId),
-    ]);
-
-    const conditions: Record<string, unknown>[] = [];
-
-    // New path: groups with explicit region targeting
-    if (inspectorRegionIds.length > 0) {
-      conditions.push({
-        service_region_id: { in: inspectorRegionIds },
-      });
-    }
-
-    // Legacy path: groups without region, matched via property coordinates
-    if (propertyIds.length > 0) {
-      conditions.push({
-        service_region_id: null,
-        appointments: { some: { property_id: { in: propertyIds } } },
-      });
-    }
-
-    return conditions;
+    return rows.map((r) => r.id);
   }
 
   async linkAppointments(
@@ -393,6 +516,16 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       },
     });
     return result.count;
+  }
+
+  async findExpiredPublished(): Promise<ServiceGroupEntity[]> {
+    const rows = await this.prisma.serviceGroup.findMany({
+      where: {
+        status: 'PUBLISHED',
+        priority_expires_at: { lt: new Date() },
+      },
+    });
+    return rows.map((row: any) => mapToEntity(row));
   }
 
   private buildWhere(filters: ServiceGroupFilters) {

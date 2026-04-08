@@ -133,3 +133,13 @@ export class ServiceRegionInactiveError extends DomainError {
     super('SERVICE_REGION_INACTIVE', 'The assigned service region is no longer active', 422);
   }
 }
+
+export class ServiceGroupNotDraftError extends DomainError {
+  constructor() {
+    super(
+      'SERVICE_GROUP_NOT_DRAFT',
+      'Draft-only fields (scheduledDate, timeWindow, priorityMode, exceptionType, exceptionReason) can only be updated when the service group is in DRAFT status',
+      422,
+    );
+  }
+}

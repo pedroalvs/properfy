@@ -42,8 +42,21 @@ export interface MarketplaceOffer {
   priorityExpiresAt: Date | null;
   suburbs: string[];
   payoutEstimate: number | null;
+  appointmentCount: number;
+}
+
+export interface MarketplaceOfferDetail extends MarketplaceOffer {
   addresses: string[];
   keyRequired: boolean;
+  notes: string | null;
+  appointments: Array<{
+    id: string;
+    appointmentNumber: number;
+    address: string;
+    keyRequired: boolean;
+    notes: string | null;
+    payoutAmount: number | null;
+  }>;
 }
 
 export interface ServiceGroupListItem {
@@ -73,6 +86,11 @@ export interface IServiceGroupRepository {
       regionName: string | null;
       description: string | null;
       serviceRegionId: string | null;
+      scheduledDate: Date;
+      timeWindow: string;
+      priorityMode: string;
+      exceptionType: string | null;
+      exceptionReason: string | null;
     }>,
   ): Promise<void>;
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
@@ -88,6 +106,12 @@ export interface IServiceGroupRepository {
     inspectorServiceTypes: string[],
     inspectorClientEligibility: string[],
   ): Promise<number>;
+  findPublishedOfferDetail(
+    groupId: string,
+    inspectorId: string,
+    inspectorServiceTypes: string[],
+    inspectorClientEligibility: string[],
+  ): Promise<MarketplaceOfferDetail | null>;
   /** Set service_group_id on appointments */
   linkAppointments(appointmentIds: string[], groupId: string): Promise<void>;
   /** Clear service_group_id on appointments */
@@ -96,4 +120,6 @@ export interface IServiceGroupRepository {
   revertScheduledAppointments(groupId: string): Promise<number>;
   /** Atomically transition all group's appointments to SCHEDULED with inspector */
   scheduleAppointments(groupId: string, inspectorId: string): Promise<number>;
+  /** Find PUBLISHED groups whose priority window has expired */
+  findExpiredPublished(): Promise<ServiceGroupEntity[]>;
 }

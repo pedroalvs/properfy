@@ -93,6 +93,10 @@ export class ServiceGroupEntity extends BaseEntity {
     return this.status === 'PUBLISHED' || this.status === 'ACCEPTED';
   }
 
+  canBeRepublished(): boolean {
+    return this.status === 'CANCELLED';
+  }
+
   isPriorityExpired(now: Date = new Date()): boolean {
     if (this.priorityMode !== 'PRIORITY_24H' || !this.priorityExpiresAt) {
       return false;

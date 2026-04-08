@@ -1,6 +1,8 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
@@ -36,6 +38,7 @@ export class AcceptOfferUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly auditService: AuditService,
     private readonly idempotencyService: IIdempotencyService,
+    private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: AcceptOfferInput): Promise<AcceptOfferOutput> {
@@ -44,6 +47,12 @@ export class AcceptOfferUseCase {
     const idempotencyKey = input.idempotencyKey ?? `accept-offer:${groupId}:${inspectorId}`;
     const cached = await this.idempotencyService.get<AcceptOfferOutput>(idempotencyKey, 'accept-offer');
     if (cached) {
+      if (cached.assignedInspectorId !== actor.inspectorId) {
+        throw new ForbiddenError(
+          'ACCEPT_OFFER_IDENTITY_MISMATCH',
+          'Idempotency key was used by a different inspector',
+        );
+      }
       return cached;
     }
 
@@ -133,6 +142,12 @@ export class AcceptOfferUseCase {
     };
 
     await this.idempotencyService.set(idempotencyKey, 'accept-offer', result, 24);
+
+    this.eventBus?.emit({
+      type: SERVICE_GROUP_EVENTS.ACCEPTED,
+      payload: { groupId, tenantId: group.tenantId, inspectorId },
+      occurredAt: new Date(),
+    });
 
     return result;
   }

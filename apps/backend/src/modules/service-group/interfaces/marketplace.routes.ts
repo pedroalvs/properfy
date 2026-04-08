@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   listMarketplaceOffersQuerySchema,
   marketplaceOfferResponseSchema,
+  marketplaceOfferDetailResponseSchema,
   marketplaceOfferAcceptResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
@@ -11,11 +12,13 @@ import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware
 import { ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { GetMarketplaceOffersUseCase } from '../application/use-cases/get-marketplace-offers.use-case';
+import type { GetMarketplaceOfferDetailUseCase } from '../application/use-cases/get-marketplace-offer-detail.use-case';
 import type { AcceptOfferUseCase } from '../application/use-cases/accept-offer.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface MarketplaceRouteContainer {
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
+  getMarketplaceOfferDetailUseCase: GetMarketplaceOfferDetailUseCase;
   acceptOfferUseCase: AcceptOfferUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
@@ -57,6 +60,30 @@ export async function registerMarketplaceRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // GET /v1/marketplace/offers/:groupId — detail 200
+  app.get(
+    '/v1/marketplace/offers/:groupId',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        response: { 200: successResponseSchema(marketplaceOfferDetailResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const result = await container.getMarketplaceOfferDetailUseCase.execute({
+        groupId: params.data.groupId,
+        inspectorId: request.authContext!.inspectorId!,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 

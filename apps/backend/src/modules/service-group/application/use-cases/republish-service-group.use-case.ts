@@ -1,33 +1,30 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
-import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
-import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
 } from '../../domain/service-group.errors';
 
-export interface RejectServiceGroupInput {
+export interface RepublishServiceGroupInput {
   groupId: string;
-  reason: string;
+  reason?: string;
   actor: AuthContext;
 }
 
-export interface RejectServiceGroupOutput {
+export interface RepublishServiceGroupOutput {
   id: string;
   status: string;
 }
 
-export class RejectServiceGroupUseCase {
+export class RepublishServiceGroupUseCase {
   constructor(
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
-    private readonly eventBus?: DomainEventBus,
   ) {}
 
-  async execute(input: RejectServiceGroupInput): Promise<RejectServiceGroupOutput> {
+  async execute(input: RepublishServiceGroupInput): Promise<RepublishServiceGroupOutput> {
     const { actor, groupId, reason } = input;
 
     if (actor.role !== 'AM' && actor.role !== 'OP') {
@@ -41,44 +38,42 @@ export class RejectServiceGroupUseCase {
 
     const { group } = result;
 
-    if (!group.canReject()) {
-      throw new ServiceGroupInvalidStatusError('PUBLISHED or ACCEPTED', group.status);
+    if (!group.canBeRepublished()) {
+      throw new ServiceGroupInvalidStatusError('CANCELLED', group.status);
     }
 
-    // If group was ACCEPTED, revert SCHEDULED appointments back to AWAITING_INSPECTOR
-    if (group.status === 'ACCEPTED') {
-      await this.serviceGroupRepo.revertScheduledAppointments(groupId);
-    }
-
-    // Update group status
+    // Transition to DRAFT and clear assignment-related fields
     await this.serviceGroupRepo.update(groupId, {
-      status: 'REJECTED',
+      status: 'DRAFT',
+      assignedInspectorId: null,
+      assignedAt: null,
+      priorityExpiresAt: null,
+      publishedAt: null,
     });
 
-    // Unlink appointments (clear service_group_id)
-    await this.serviceGroupRepo.unlinkAppointments(groupId);
-
     this.auditService.log({
-      action: 'service_group.rejected',
+      action: 'service_group.republished',
       actorType: 'USER',
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
       tenantId: group.tenantId,
-      before: { status: group.status },
-      after: { status: 'REJECTED' },
-      reason,
-    });
-
-    this.eventBus?.emit({
-      type: SERVICE_GROUP_EVENTS.REJECTED,
-      payload: { groupId, tenantId: group.tenantId },
-      occurredAt: new Date(),
+      before: {
+        status: 'CANCELLED',
+        assignedInspectorId: group.assignedInspectorId,
+        priorityExpiresAt: group.priorityExpiresAt,
+      },
+      after: {
+        status: 'DRAFT',
+        assignedInspectorId: null,
+        priorityExpiresAt: null,
+      },
+      ...(reason ? { reason } : {}),
     });
 
     return {
       id: groupId,
-      status: 'REJECTED',
+      status: 'DRAFT',
     };
   }
 }

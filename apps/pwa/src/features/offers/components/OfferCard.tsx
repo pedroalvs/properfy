@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { formatDate, toLocalISODate } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
@@ -56,7 +56,6 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
   const today = isToday(offer.scheduledDate);
   const tomorrow = isTomorrow(offer.scheduledDate);
   const resolved = stateLabels[state];
-  const [showAddresses, setShowAddresses] = useState(false);
   const [faded, setFaded] = useState(false);
   const countdown = usePriorityCountdown(offer.priorityExpiresAt);
 
@@ -120,17 +119,8 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
             <i className="mdi mdi-home-outline text-[13px]" />
-            {offer.groupSize} {offer.groupSize === 1 ? 'inspection' : 'inspections'}
+            {offer.appointmentCount} {offer.appointmentCount === 1 ? 'inspection' : 'inspections'}
           </span>
-          {offer.keyRequired && (
-            <span
-              className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning"
-              data-testid="key-required-badge"
-            >
-              <i className="mdi mdi-key-outline text-[13px]" />
-              Key required
-            </span>
-          )}
         </div>
 
         {/* Location summary */}
@@ -149,30 +139,6 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
           >
             <i className={`mdi ${countdown.isUrgent ? 'mdi-clock-alert-outline' : 'mdi-clock-outline'}`} />
             Priority: {countdown.label}
-          </div>
-        )}
-
-        {/* Addresses toggle */}
-        {offer.addresses.length > 0 && (
-          <div className="mt-3">
-            <button
-              onClick={() => setShowAddresses((v) => !v)}
-              className="flex items-center gap-1 text-xs font-semibold text-primary"
-              data-testid="toggle-addresses"
-            >
-              <i className={`mdi ${showAddresses ? 'mdi-chevron-up' : 'mdi-chevron-down'} text-sm`} />
-              {showAddresses ? 'Hide addresses' : `Show ${offer.addresses.length} ${offer.addresses.length === 1 ? 'address' : 'addresses'}`}
-            </button>
-            {showAddresses && (
-              <ul className="mt-2 space-y-1" data-testid="addresses-list">
-                {offer.addresses.map((addr) => (
-                  <li key={addr} className="flex items-start gap-1.5 text-xs text-text-secondary">
-                    <i className="mdi mdi-circle-small shrink-0 text-text-muted" />
-                    {addr}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         )}
 

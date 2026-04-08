@@ -346,8 +346,23 @@ export const marketplaceOfferResponseSchema = z.object({
   priorityExpiresAt: dateStrNullable(),
   suburbs: z.array(z.string()),
   payoutEstimate: z.number().nullable(),
+  appointmentCount: z.number(),
+});
+
+export const marketplaceOfferDetailAppointmentSchema = z.object({
+  id: z.string().uuid(),
+  appointmentNumber: z.number(),
+  address: z.string(),
+  keyRequired: z.boolean(),
+  notes: z.string().nullable(),
+  payoutAmount: z.number().nullable(),
+});
+
+export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSchema.extend({
   addresses: z.array(z.string()),
   keyRequired: z.boolean(),
+  notes: z.string().nullable(),
+  appointments: z.array(marketplaceOfferDetailAppointmentSchema),
 });
 
 export const marketplaceOfferAcceptResponseSchema = z.object({

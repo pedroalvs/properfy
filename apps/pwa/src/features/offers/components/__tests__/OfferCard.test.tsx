@@ -15,8 +15,7 @@ const baseOffer: MarketplaceOffer = {
   priorityExpiresAt: null,
   suburbs: ['Brunswick', 'Fitzroy'],
   payoutEstimate: null,
-  addresses: [],
-  keyRequired: false,
+  appointmentCount: 3,
 };
 
 describe('OfferCard', () => {
@@ -77,16 +76,9 @@ describe('OfferCard', () => {
 
   it('shows "1 inspection" singular', () => {
     render(
-      <OfferCard offer={{ ...baseOffer, groupSize: 1 }} state="IDLE" onAccept={onAccept} />,
+      <OfferCard offer={{ ...baseOffer, groupSize: 1, appointmentCount: 1 }} state="IDLE" onAccept={onAccept} />,
     );
     expect(screen.getByText('1 inspection')).toBeInTheDocument();
-  });
-
-  it('shows key required badge when keyRequired is true', () => {
-    render(
-      <OfferCard offer={{ ...baseOffer, keyRequired: true }} state="IDLE" onAccept={onAccept} />,
-    );
-    expect(screen.getByTestId('key-required-badge')).toBeInTheDocument();
   });
 
   it('shows payout estimate when provided', () => {
@@ -94,27 +86,6 @@ describe('OfferCard', () => {
       <OfferCard offer={{ ...baseOffer, payoutEstimate: 220 }} state="IDLE" onAccept={onAccept} />,
     );
     expect(screen.getByTestId('payout-estimate')).toBeInTheDocument();
-  });
-
-  it('shows address toggle and list when addresses are present', async () => {
-    vi.useRealTimers();
-    const user = userEvent.setup();
-    const offerWithAddresses = {
-      ...baseOffer,
-      addresses: ['12 Smith St, Brunswick', '45 King St, Fitzroy'],
-    };
-    render(<OfferCard offer={offerWithAddresses} state="IDLE" onAccept={onAccept} />);
-    expect(screen.queryByTestId('addresses-list')).not.toBeInTheDocument();
-
-    await user.click(screen.getByTestId('toggle-addresses'));
-    expect(screen.getByTestId('addresses-list')).toBeInTheDocument();
-    expect(screen.getByText('12 Smith St, Brunswick')).toBeInTheDocument();
-    expect(screen.getByText('45 King St, Fitzroy')).toBeInTheDocument();
-  });
-
-  it('does not show address toggle when no addresses provided', () => {
-    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
-    expect(screen.queryByTestId('toggle-addresses')).not.toBeInTheDocument();
   });
 
   it('has role="alert" on state label', () => {
