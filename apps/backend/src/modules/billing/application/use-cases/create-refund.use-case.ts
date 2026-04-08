@@ -5,7 +5,7 @@ import { FinancialEntryEntity } from '../../domain/financial-entry.entity';
 import {
   EntryNotFoundError,
   EntryNotRefundableError,
-  RefundAlreadyExistsError,
+  RefundExceedsOriginalAmountError,
 } from '../../domain/billing.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -15,6 +15,7 @@ export interface CreateRefundInput {
   entryId: string;
   description: string;
   reason: string;
+  amount?: number;
   idempotencyKey?: string;
   actor: AuthContext;
 }
@@ -68,13 +69,13 @@ export class CreateRefundUseCase {
       throw new EntryNotRefundableError();
     }
 
-    // 4. Check no existing refund for this entry
-    const existingRefund = await this.financialEntryRepo.findByReferenceEntryIdAndType(
-      entryId,
-      'REFUND',
-    );
-    if (existingRefund) {
-      throw new RefundAlreadyExistsError();
+    // 4. Compute refund amount and validate against cap
+    const refundAmount = input.amount ?? original.amount;
+    const existingRefundsTotal = await this.financialEntryRepo.sumRefundsByReferenceEntryId(entryId);
+    const remainingRefundable = original.amount - existingRefundsTotal;
+
+    if (refundAmount > remainingRefundable) {
+      throw new RefundExceedsOriginalAmountError(refundAmount, remainingRefundable);
     }
 
     // 5. Create refund entry
@@ -87,7 +88,7 @@ export class CreateRefundUseCase {
       appointmentId: original.appointmentId,
       inspectorId: null,
       entryType: 'REFUND',
-      amount: original.amount,
+      amount: refundAmount,
       currency: original.currency,
       status: 'PENDING',
       description,
@@ -114,7 +115,7 @@ export class CreateRefundUseCase {
       tenantId: original.tenantId,
       after: {
         entryType: 'REFUND',
-        amount: original.amount,
+        amount: refundAmount,
         referenceEntryId: original.id,
         appointmentId: original.appointmentId,
         reason,
@@ -126,7 +127,7 @@ export class CreateRefundUseCase {
       tenantId: original.tenantId,
       appointmentId: original.appointmentId,
       entryType: 'REFUND',
-      amount: original.amount,
+      amount: refundAmount,
       currency: original.currency,
       status: 'PENDING',
       description,

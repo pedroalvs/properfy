@@ -6,6 +6,8 @@ import { TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 
 export interface GetFinancialSummaryInput {
   tenantId?: string;
+  effectiveFrom?: string;
+  effectiveTo?: string;
   actor: AuthContext;
 }
 
@@ -27,7 +29,11 @@ export class GetFinancialSummaryUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to view financial summary');
     }
 
-    const summary = await this.entryRepo.getSummary(tenantId);
+    const dateRange = (input.effectiveFrom || input.effectiveTo)
+      ? { effectiveFrom: input.effectiveFrom, effectiveTo: input.effectiveTo }
+      : undefined;
+
+    const summary = await this.entryRepo.getSummary(tenantId, dateRange);
 
     if (!tenantId) {
       return summary;

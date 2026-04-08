@@ -1,54 +1,57 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { InspectorInvoiceStatus, BillingPeriodType } from '@properfy/shared';
+import type { TenantInvoiceStatus } from '@properfy/shared';
 
-export interface InspectorInvoiceProps {
+export interface TenantInvoiceProps {
   id: string;
-  inspectorId: string;
-  periodStart: Date;
-  periodEnd: Date;
-  periodType: BillingPeriodType;
-  status: InspectorInvoiceStatus;
-  totalAmount: number;
+  tenantId: string;
+  periodFrom: Date;
+  periodTo: Date;
+  totalDebit: number;
+  totalRefund: number;
+  totalAdjustment: number;
+  netAmount: number;
   currency: string;
+  status: TenantInvoiceStatus;
   fileKey: string | null;
   previousInvoiceId: string | null;
   generatedByUserId: string | null;
   generatedAt: Date | null;
-  paidAt: Date | null;
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export class InspectorInvoiceEntity extends BaseEntity {
-  readonly inspectorId: string;
-  readonly periodStart: Date;
-  readonly periodEnd: Date;
-  readonly periodType: BillingPeriodType;
-  status: InspectorInvoiceStatus;
-  totalAmount: number;
+export class TenantInvoiceEntity extends BaseEntity {
+  readonly tenantId: string;
+  readonly periodFrom: Date;
+  readonly periodTo: Date;
+  totalDebit: number;
+  totalRefund: number;
+  totalAdjustment: number;
+  netAmount: number;
   readonly currency: string;
+  status: TenantInvoiceStatus;
   fileKey: string | null;
   readonly previousInvoiceId: string | null;
   generatedByUserId: string | null;
   generatedAt: Date | null;
-  paidAt: Date | null;
   notes: string | null;
 
-  constructor(props: InspectorInvoiceProps) {
+  constructor(props: TenantInvoiceProps) {
     super(props.id, props.createdAt, props.updatedAt);
-    this.inspectorId = props.inspectorId;
-    this.periodStart = props.periodStart;
-    this.periodEnd = props.periodEnd;
-    this.periodType = props.periodType;
-    this.status = props.status;
-    this.totalAmount = props.totalAmount;
+    this.tenantId = props.tenantId;
+    this.periodFrom = props.periodFrom;
+    this.periodTo = props.periodTo;
+    this.totalDebit = props.totalDebit;
+    this.totalRefund = props.totalRefund;
+    this.totalAdjustment = props.totalAdjustment;
+    this.netAmount = props.netAmount;
     this.currency = props.currency;
+    this.status = props.status;
     this.fileKey = props.fileKey;
     this.previousInvoiceId = props.previousInvoiceId;
     this.generatedByUserId = props.generatedByUserId;
     this.generatedAt = props.generatedAt;
-    this.paidAt = props.paidAt;
     this.notes = props.notes;
   }
 
@@ -60,19 +63,11 @@ export class InspectorInvoiceEntity extends BaseEntity {
     return this.status === 'PAID';
   }
 
-  isReady(): boolean {
-    return this.status === 'CLOSED' || this.status === 'PAID';
-  }
-
   isSuperseded(): boolean {
     return this.status === 'SUPERSEDED';
   }
 
   canBeRegenerated(): boolean {
     return this.status === 'CLOSED' || this.status === 'PAID';
-  }
-
-  hasFile(): boolean {
-    return this.fileKey !== null;
   }
 }

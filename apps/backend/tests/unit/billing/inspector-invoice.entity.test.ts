@@ -13,6 +13,7 @@ function makeInvoice(overrides: Partial<InspectorInvoiceProps> = {}): InspectorI
     totalAmount: 1400,
     currency: 'BRL',
     fileKey: null,
+    previousInvoiceId: null,
     generatedByUserId: null,
     generatedAt: null,
     paidAt: null,

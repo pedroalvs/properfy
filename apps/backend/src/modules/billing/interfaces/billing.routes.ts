@@ -4,10 +4,17 @@ import {
   listFinancialEntriesQuerySchema,
   createManualAdjustmentSchema,
   createRefundSchema,
+  cancelFinancialEntrySchema,
+  markInvoicePaidSchema,
   generateInvoiceSchema,
   listInvoicesQuerySchema,
+  voidFinancialEntrySchema,
+  generateTenantInvoiceSchema,
+  listTenantInvoicesQuerySchema,
+  regenerateInvoiceSchema,
   financialEntryResponseSchema,
   invoiceResponseSchema,
+  tenantInvoiceResponseSchema,
   invoiceDownloadResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
@@ -25,7 +32,14 @@ import type { GenerateInvoiceUseCase } from '../application/use-cases/generate-i
 import type { ListInvoicesUseCase } from '../application/use-cases/list-invoices.use-case';
 import type { GetInvoiceUseCase } from '../application/use-cases/get-invoice.use-case';
 import type { DownloadInvoiceUseCase } from '../application/use-cases/download-invoice.use-case';
+import type { CancelFinancialEntryUseCase } from '../application/use-cases/cancel-financial-entry.use-case';
+import type { MarkInvoicePaidUseCase } from '../application/use-cases/mark-invoice-paid.use-case';
 import type { CreateFinancialEntriesOnDoneUseCase } from '../application/use-cases/create-financial-entries-on-done.use-case';
+import type { VoidFinancialEntryUseCase } from '../application/use-cases/void-financial-entry.use-case';
+import type { GenerateTenantInvoiceUseCase } from '../application/use-cases/generate-tenant-invoice.use-case';
+import type { RegenerateInspectorInvoiceUseCase } from '../application/use-cases/regenerate-inspector-invoice.use-case';
+import type { RegenerateTenantInvoiceUseCase } from '../application/use-cases/regenerate-tenant-invoice.use-case';
+import type { ListTenantInvoicesUseCase } from '../application/use-cases/list-tenant-invoices.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface BillingRouteContainer {
@@ -34,12 +48,19 @@ export interface BillingRouteContainer {
   listFinancialEntriesUseCase: ListFinancialEntriesUseCase;
   getFinancialEntryUseCase: GetFinancialEntryUseCase;
   approveFinancialEntryUseCase: ApproveFinancialEntryUseCase;
+  cancelFinancialEntryUseCase: CancelFinancialEntryUseCase;
   createManualAdjustmentUseCase: CreateManualAdjustmentUseCase;
   createRefundUseCase: CreateRefundUseCase;
   generateInvoiceUseCase: GenerateInvoiceUseCase;
   listInvoicesUseCase: ListInvoicesUseCase;
   getInvoiceUseCase: GetInvoiceUseCase;
   downloadInvoiceUseCase: DownloadInvoiceUseCase;
+  markInvoicePaidUseCase: MarkInvoicePaidUseCase;
+  voidFinancialEntryUseCase: VoidFinancialEntryUseCase;
+  generateTenantInvoiceUseCase: GenerateTenantInvoiceUseCase;
+  regenerateInspectorInvoiceUseCase: RegenerateInspectorInvoiceUseCase;
+  regenerateTenantInvoiceUseCase: RegenerateTenantInvoiceUseCase;
+  listTenantInvoicesUseCase: ListTenantInvoicesUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -65,7 +86,11 @@ export async function registerBillingRoutes(
     {
       preHandler: authenticate,
       schema: {
-        querystring: z.object({ tenantId: z.string().uuid().optional() }),
+        querystring: z.object({
+          tenantId: z.string().uuid().optional(),
+          effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').optional(),
+          effectiveTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').optional(),
+        }),
         response: {
           200: successResponseSchema(
             z.object({
@@ -81,9 +106,11 @@ export async function registerBillingRoutes(
       },
     },
     async (request, reply) => {
-      const query = request.query as { tenantId?: string };
+      const query = request.query as { tenantId?: string; effectiveFrom?: string; effectiveTo?: string };
       const result = await container.getFinancialSummaryUseCase.execute({
         tenantId: query.tenantId,
+        effectiveFrom: query.effectiveFrom,
+        effectiveTo: query.effectiveTo,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -159,6 +186,28 @@ export async function registerBillingRoutes(
     },
   );
 
+  // POST /v1/financial/entries/:entryId/cancel
+  app.post(
+    '/v1/financial/entries/:entryId/cancel',
+    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), body: cancelFinancialEntrySchema } },
+    async (request, reply) => {
+      const params = entryIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid entry ID', params.error.errors);
+      }
+      const parsed = cancelFinancialEntrySchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.cancelFinancialEntryUseCase.execute({
+        entryId: params.data.entryId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
   // POST /v1/financial/entries/adjust
   app.post(
     '/v1/financial/entries/adjust',
@@ -195,7 +244,9 @@ export async function registerBillingRoutes(
       const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
       const result = await container.createRefundUseCase.execute({
         entryId: params.data.entryId,
-        ...parsed.data,
+        description: parsed.data.description,
+        reason: parsed.data.reason,
+        amount: parsed.data.amount,
         idempotencyKey,
         actor: request.authContext!,
       });
@@ -203,23 +254,7 @@ export async function registerBillingRoutes(
     },
   );
 
-  // GET /v1/invoices
-  app.get(
-    '/v1/invoices',
-    { preHandler: authenticate, schema: { querystring: listInvoicesQuerySchema, response: { 200: paginatedResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      const parsed = listInvoicesQuerySchema.safeParse(request.query);
-      if (!parsed.success) {
-        throw new ValidationError('Invalid query parameters', parsed.error.errors);
-      }
-      const { page, pageSize } = parsed.data;
-      const result = await container.listInvoicesUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
-    },
-  );
+  // --- Canonical invoice routes: /v1/billing/invoices/* ---
 
   // GET /v1/billing/invoices
   app.get(
@@ -236,23 +271,6 @@ export async function registerBillingRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
-    },
-  );
-
-  // POST /v1/invoices/generate
-  app.post(
-    '/v1/invoices/generate',
-    { preHandler: authenticate, schema: { body: generateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      const parsed = generateInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.generateInvoiceUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(202).send(success(result));
     },
   );
 
@@ -273,23 +291,6 @@ export async function registerBillingRoutes(
     },
   );
 
-  // GET /v1/invoices/:invoiceId
-  app.get(
-    '/v1/invoices/:invoiceId',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const result = await container.getInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
   // GET /v1/billing/invoices/:invoiceId
   app.get(
     '/v1/billing/invoices/:invoiceId',
@@ -307,9 +308,9 @@ export async function registerBillingRoutes(
     },
   );
 
-  // GET /v1/invoices/:invoiceId/download
+  // GET /v1/billing/invoices/:invoiceId/download
   app.get(
-    '/v1/invoices/:invoiceId/download',
+    '/v1/billing/invoices/:invoiceId/download',
     { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceDownloadResponseSchema) } } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);
@@ -324,11 +325,207 @@ export async function registerBillingRoutes(
     },
   );
 
-  // GET /v1/billing/invoices/:invoiceId/download
+  // POST /v1/billing/invoices/:invoiceId/mark-paid
+  app.post(
+    '/v1/billing/invoices/:invoiceId/mark-paid',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: markInvoicePaidSchema } },
+    async (request, reply) => {
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const parsed = markInvoicePaidSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.markInvoicePaidUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        paidAt: parsed.data.paidAt,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/financial/entries/:entryId/void (GAP-006)
+  app.post(
+    '/v1/financial/entries/:entryId/void',
+    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), body: voidFinancialEntrySchema, response: { 200: successResponseSchema(financialEntryResponseSchema.pick({ id: true, status: true })) } } },
+    async (request, reply) => {
+      const params = entryIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid entry ID', params.error.errors);
+      }
+      const parsed = voidFinancialEntrySchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.voidFinancialEntryUseCase.execute({
+        entryId: params.data.entryId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // --- Tenant invoice routes: /v1/billing/tenant-invoices/* (GAP-004) ---
+
+  // POST /v1/billing/tenant-invoices/generate
+  app.post(
+    '/v1/billing/tenant-invoices/generate',
+    { preHandler: authenticate, schema: { body: generateTenantInvoiceSchema, response: { 202: successResponseSchema(tenantInvoiceResponseSchema) } } },
+    async (request, reply) => {
+      const parsed = generateTenantInvoiceSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.generateTenantInvoiceUseCase.execute({
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(202).send(success(result));
+    },
+  );
+
+  // GET /v1/billing/tenant-invoices
   app.get(
-    '/v1/billing/invoices/:invoiceId/download',
+    '/v1/billing/tenant-invoices',
+    { preHandler: authenticate, schema: { querystring: listTenantInvoicesQuerySchema, response: { 200: paginatedResponseSchema(tenantInvoiceResponseSchema) } } },
+    async (request, reply) => {
+      const parsed = listTenantInvoicesQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const { page, pageSize } = parsed.data;
+      const result = await container.listTenantInvoicesUseCase.execute({
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // --- Invoice regeneration routes (GAP-007) ---
+
+  // POST /v1/billing/invoices/:invoiceId/regenerate
+  app.post(
+    '/v1/billing/invoices/:invoiceId/regenerate',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: regenerateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
+    async (request, reply) => {
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const parsed = regenerateInvoiceSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.regenerateInspectorInvoiceUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(202).send(success(result));
+    },
+  );
+
+  // POST /v1/billing/tenant-invoices/:invoiceId/regenerate
+  app.post(
+    '/v1/billing/tenant-invoices/:invoiceId/regenerate',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: regenerateInvoiceSchema, response: { 202: successResponseSchema(tenantInvoiceResponseSchema) } } },
+    async (request, reply) => {
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const parsed = regenerateInvoiceSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.regenerateTenantInvoiceUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(202).send(success(result));
+    },
+  );
+
+  // --- Deprecated legacy routes: /v1/invoices/* ---
+  // These forward to the same handlers but add Deprecation and Sunset headers.
+
+  const DEPRECATION_DATE = 'Sun, 01 Nov 2026 00:00:00 GMT';
+  const SUNSET_DATE = 'Sun, 01 Feb 2027 00:00:00 GMT';
+  const DEPRECATION_LINK = '</v1/billing/invoices>; rel="successor-version"';
+
+  function addDeprecationHeaders(reply: import('fastify').FastifyReply): void {
+    reply.header('Deprecation', DEPRECATION_DATE);
+    reply.header('Sunset', SUNSET_DATE);
+    reply.header('Link', DEPRECATION_LINK);
+  }
+
+  // GET /v1/invoices (deprecated)
+  app.get(
+    '/v1/invoices',
+    { preHandler: authenticate, schema: { querystring: listInvoicesQuerySchema, response: { 200: paginatedResponseSchema(invoiceResponseSchema) } } },
+    async (request, reply) => {
+      addDeprecationHeaders(reply);
+      const parsed = listInvoicesQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const { page, pageSize } = parsed.data;
+      const result = await container.listInvoicesUseCase.execute({
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // POST /v1/invoices/generate (deprecated)
+  app.post(
+    '/v1/invoices/generate',
+    { preHandler: authenticate, schema: { body: generateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
+    async (request, reply) => {
+      addDeprecationHeaders(reply);
+      const parsed = generateInvoiceSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.generateInvoiceUseCase.execute({
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(202).send(success(result));
+    },
+  );
+
+  // GET /v1/invoices/:invoiceId (deprecated)
+  app.get(
+    '/v1/invoices/:invoiceId',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceResponseSchema) } } },
+    async (request, reply) => {
+      addDeprecationHeaders(reply);
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const result = await container.getInvoiceUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/invoices/:invoiceId/download (deprecated)
+  app.get(
+    '/v1/invoices/:invoiceId/download',
     { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceDownloadResponseSchema) } } },
     async (request, reply) => {
+      addDeprecationHeaders(reply);
       const params = invoiceIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid invoice ID', params.error.errors);

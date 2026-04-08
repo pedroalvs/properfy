@@ -4,7 +4,7 @@ import { FinancialEntryEntity } from '../../../src/modules/billing/domain/financ
 import {
   EntryNotFoundError,
   EntryNotRefundableError,
-  RefundAlreadyExistsError,
+  RefundExceedsOriginalAmountError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
@@ -18,6 +18,7 @@ const financialEntryRepo = {
   updateStatus: vi.fn(),
   transitionStatus: vi.fn(),
   sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
+  sumRefundsByReferenceEntryId: vi.fn(),
 };
 
 const auditService = { log: vi.fn() };
@@ -76,10 +77,11 @@ describe('CreateRefundUseCase', () => {
     financialEntryRepo.findById.mockResolvedValue(makeApprovedDebit());
     financialEntryRepo.findByReferenceEntryIdAndType.mockResolvedValue(null);
     financialEntryRepo.save.mockResolvedValue(undefined);
+    financialEntryRepo.sumRefundsByReferenceEntryId.mockResolvedValue(0);
     idempotencyService.get.mockResolvedValue(null);
   });
 
-  it('should create a REFUND entry with full amount from original', async () => {
+  it('should create a full REFUND entry when no amount specified', async () => {
     const sut = makeSut();
 
     const result = await sut.execute({
@@ -107,6 +109,104 @@ describe('CreateRefundUseCase', () => {
     expect(savedEntry.entryType).toBe('REFUND');
     expect(savedEntry.amount).toBe(200);
     expect(savedEntry.referenceEntryId).toBe('debit-1');
+  });
+
+  it('should create a partial REFUND when amount is specified', async () => {
+    const sut = makeSut();
+
+    const result = await sut.execute({
+      entryId: 'debit-1',
+      description: 'Partial refund',
+      reason: 'Service partially completed',
+      amount: 80,
+      actor: opActor,
+    });
+
+    expect(result.amount).toBe(80);
+    const savedEntry = financialEntryRepo.save.mock.calls[0][0] as FinancialEntryEntity;
+    expect(savedEntry.amount).toBe(80);
+  });
+
+  it('should allow multiple partial refunds that sum to original amount', async () => {
+    const sut = makeSut();
+    // First partial refund of 80 already exists
+    financialEntryRepo.sumRefundsByReferenceEntryId.mockResolvedValue(80);
+
+    const result = await sut.execute({
+      entryId: 'debit-1',
+      description: 'Second partial refund',
+      reason: 'Additional compensation',
+      amount: 120,
+      actor: opActor,
+    });
+
+    expect(result.amount).toBe(120);
+    expect(financialEntryRepo.save).toHaveBeenCalledOnce();
+  });
+
+  it('should reject partial refund that exceeds remaining refundable amount', async () => {
+    const sut = makeSut();
+    // Already refunded 150 out of 200
+    financialEntryRepo.sumRefundsByReferenceEntryId.mockResolvedValue(150);
+
+    await expect(
+      sut.execute({
+        entryId: 'debit-1',
+        description: 'Refund',
+        reason: 'Reason',
+        amount: 60,
+        actor: opActor,
+      }),
+    ).rejects.toThrow(RefundExceedsOriginalAmountError);
+
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should reject full refund when full amount already refunded', async () => {
+    const sut = makeSut();
+    financialEntryRepo.sumRefundsByReferenceEntryId.mockResolvedValue(200);
+
+    await expect(
+      sut.execute({
+        entryId: 'debit-1',
+        description: 'Refund',
+        reason: 'Reason',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(RefundExceedsOriginalAmountError);
+
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should reject partial refund exactly exceeding cap by 1 cent', async () => {
+    const sut = makeSut();
+    financialEntryRepo.sumRefundsByReferenceEntryId.mockResolvedValue(199.5);
+
+    await expect(
+      sut.execute({
+        entryId: 'debit-1',
+        description: 'Refund',
+        reason: 'Reason',
+        amount: 1,
+        actor: opActor,
+      }),
+    ).rejects.toThrow(RefundExceedsOriginalAmountError);
+  });
+
+  it('should allow partial refund exactly equal to remaining', async () => {
+    const sut = makeSut();
+    financialEntryRepo.sumRefundsByReferenceEntryId.mockResolvedValue(150);
+
+    const result = await sut.execute({
+      entryId: 'debit-1',
+      description: 'Final partial refund',
+      reason: 'Remaining balance',
+      amount: 50,
+      actor: opActor,
+    });
+
+    expect(result.amount).toBe(50);
+    expect(financialEntryRepo.save).toHaveBeenCalledOnce();
   });
 
   it('should allow AM to create refunds', async () => {
@@ -154,39 +254,6 @@ describe('CreateRefundUseCase', () => {
     ).rejects.toThrow(EntryNotRefundableError);
   });
 
-  it('should reject if refund already exists for this entry', async () => {
-    const sut = makeSut();
-    const existingRefund = new FinancialEntryEntity({
-      id: 'refund-existing',
-      tenantId: 'tenant-1',
-      appointmentId: 'appt-1',
-      inspectorId: null,
-      entryType: 'REFUND',
-      amount: 200,
-      currency: 'AUD',
-      status: 'PENDING',
-      description: 'Existing refund',
-      effectiveAt: new Date(),
-      initiatedByUserId: 'op-2',
-      approvedByUserId: null,
-      approvedAt: null,
-      referenceEntryId: 'debit-1',
-      reason: 'Already refunded',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    financialEntryRepo.findByReferenceEntryIdAndType.mockResolvedValue(existingRefund);
-
-    await expect(
-      sut.execute({
-        entryId: 'debit-1',
-        description: 'Refund',
-        reason: 'Reason',
-        actor: opActor,
-      }),
-    ).rejects.toThrow(RefundAlreadyExistsError);
-  });
-
   it('should reject non-AM/OP actor', async () => {
     const sut = makeSut();
     const clientActor = {
@@ -223,13 +290,14 @@ describe('CreateRefundUseCase', () => {
     ).rejects.toThrow(EntryNotFoundError);
   });
 
-  it('should audit log the refund creation', async () => {
+  it('should audit log the refund creation with correct amount', async () => {
     const sut = makeSut();
 
     await sut.execute({
       entryId: 'debit-1',
       description: 'Service not executed',
       reason: 'Inspector did not show up',
+      amount: 75,
       actor: opActor,
     });
 
@@ -243,7 +311,7 @@ describe('CreateRefundUseCase', () => {
         tenantId: 'tenant-1',
         after: expect.objectContaining({
           entryType: 'REFUND',
-          amount: 200,
+          amount: 75,
           referenceEntryId: 'debit-1',
           reason: 'Inspector did not show up',
         }),

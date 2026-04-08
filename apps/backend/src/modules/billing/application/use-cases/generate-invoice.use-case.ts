@@ -7,9 +7,11 @@ import { InvoicePeriodOverlapError } from '../../domain/billing.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 
 export interface GenerateInvoiceInput {
   inspectorId: string;
+  tenantId?: string;
   periodStart: string; // YYYY-MM-DD
   periodEnd: string; // YYYY-MM-DD
   periodType?: BillingPeriodType; // defaults to 'BIWEEKLY'
@@ -41,6 +43,7 @@ export class GenerateInvoiceUseCase {
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
     private readonly jobQueue?: IJobQueue,
+    private readonly tenantRepo?: ITenantRepository,
   ) {}
 
   async execute(input: GenerateInvoiceInput): Promise<GenerateInvoiceOutput> {
@@ -51,8 +54,18 @@ export class GenerateInvoiceUseCase {
       throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can generate invoices');
     }
 
-    const startDate = parseDateOnly(periodStart);
-    const endDate = parseDateOnly(periodEnd);
+    // Resolve tenant timezone for period boundary computation
+    const tenantId = input.tenantId ?? actor.tenantId;
+    let timezone = 'UTC';
+    if (tenantId && this.tenantRepo) {
+      const tenant = await this.tenantRepo.findById(tenantId);
+      if (tenant) {
+        timezone = tenant.timezone;
+      }
+    }
+
+    const startDate = parseDateInTimezone(periodStart, timezone);
+    const endDate = parseDateInTimezone(periodEnd, timezone);
 
     // 2. Check exact match (idempotent)
     const existing = await this.invoiceRepo.findByInspectorAndPeriod(inspectorId, startDate, endDate);
@@ -102,6 +115,7 @@ export class GenerateInvoiceUseCase {
       totalAmount,
       currency: input.currency ?? 'AUD',
       fileKey: null,
+      previousInvoiceId: null,
       generatedByUserId: actor.userId,
       generatedAt: now,
       paidAt: null,
@@ -155,14 +169,65 @@ export class GenerateInvoiceUseCase {
   }
 }
 
-function parseDateOnly(value: string): Date {
-  return new Date(`${value}T00:00:00.000Z`);
+/**
+ * Parse a YYYY-MM-DD date string as the start of that day (00:00:00) in the
+ * given IANA timezone, returning a UTC Date.
+ *
+ * Uses Intl.DateTimeFormat to resolve the UTC offset for the given date in
+ * the target timezone, which correctly handles DST transitions.
+ */
+export function parseDateInTimezone(dateStr: string, timezone: string): Date {
+  if (timezone === 'UTC') {
+    return new Date(`${dateStr}T00:00:00.000Z`);
+  }
+
+  // Build midnight in the target timezone by finding the UTC offset
+  const offsetMinutes = getTimezoneOffsetMinutes(dateStr, timezone);
+  const utcMs = new Date(`${dateStr}T00:00:00.000Z`).getTime() - offsetMinutes * 60_000;
+  return new Date(utcMs);
+}
+
+/**
+ * Returns the UTC offset in minutes for a given date string and timezone.
+ * Positive means ahead of UTC (e.g. +600 for AEST).
+ */
+function getTimezoneOffsetMinutes(dateStr: string, timezone: string): number {
+  // Create a reference date at noon UTC to avoid edge-case DST ambiguity
+  const refDate = new Date(`${dateStr}T12:00:00.000Z`);
+
+  // Format in the target timezone to extract the local date/time parts
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(refDate);
+
+  const get = (type: string): string =>
+    parts.find((p) => p.type === type)?.value ?? '0';
+
+  const localYear = parseInt(get('year'), 10);
+  const localMonth = parseInt(get('month'), 10) - 1;
+  const localDay = parseInt(get('day'), 10);
+  let localHour = parseInt(get('hour'), 10);
+  if (localHour === 24) localHour = 0;
+  const localMinute = parseInt(get('minute'), 10);
+  const localSecond = parseInt(get('second'), 10);
+
+  // Build the same instant as if it were UTC
+  const localAsUtc = Date.UTC(localYear, localMonth, localDay, localHour, localMinute, localSecond);
+
+  // Offset = local - UTC (in ms)
+  return Math.round((localAsUtc - refDate.getTime()) / 60_000);
 }
 
 function endOfDay(value: Date): Date {
-  const end = new Date(value);
-  end.setUTCHours(23, 59, 59, 999);
-  return end;
+  // Add 23:59:59.999 worth of milliseconds to the start-of-day UTC instant
+  return new Date(value.getTime() + 23 * 3600_000 + 59 * 60_000 + 59 * 1000 + 999);
 }
 
 function formatDate(value: Date): string {

@@ -183,12 +183,20 @@ import { ListFinancialEntriesUseCase } from '../modules/billing/application/use-
 import { GetFinancialEntryUseCase } from '../modules/billing/application/use-cases/get-financial-entry.use-case';
 import { GetFinancialSummaryUseCase } from '../modules/billing/application/use-cases/get-financial-summary.use-case';
 import { ApproveFinancialEntryUseCase } from '../modules/billing/application/use-cases/approve-financial-entry.use-case';
+import { CancelFinancialEntryUseCase } from '../modules/billing/application/use-cases/cancel-financial-entry.use-case';
 import { CreateManualAdjustmentUseCase } from '../modules/billing/application/use-cases/create-manual-adjustment.use-case';
 import { CreateRefundUseCase } from '../modules/billing/application/use-cases/create-refund.use-case';
 import { GenerateInvoiceUseCase } from '../modules/billing/application/use-cases/generate-invoice.use-case';
 import { ListInvoicesUseCase } from '../modules/billing/application/use-cases/list-invoices.use-case';
 import { GetInvoiceUseCase } from '../modules/billing/application/use-cases/get-invoice.use-case';
 import { DownloadInvoiceUseCase } from '../modules/billing/application/use-cases/download-invoice.use-case';
+import { MarkInvoicePaidUseCase } from '../modules/billing/application/use-cases/mark-invoice-paid.use-case';
+import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-cases/void-financial-entry.use-case';
+import { GenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/generate-tenant-invoice.use-case';
+import { RegenerateInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-inspector-invoice.use-case';
+import { RegenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-tenant-invoice.use-case';
+import { ListTenantInvoicesUseCase } from '../modules/billing/application/use-cases/list-tenant-invoices.use-case';
+import { PrismaTenantInvoiceRepository } from '../modules/billing/infrastructure/prisma-tenant-invoice.repository';
 import type { BillingRouteContainer } from '../modules/billing/interfaces/billing.routes';
 
 // Report module
@@ -498,6 +506,7 @@ export function createContainer(logger: Logger): AppContainer {
   // Billing repositories (needed before appointments for onDoneHandler wiring)
   const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
   const inspectorInvoiceRepo = new PrismaInspectorInvoiceRepository(prisma);
+  const tenantInvoiceRepo = new PrismaTenantInvoiceRepository(prisma);
 
   // Appointment time slot
   const appointmentTimeSlotRepo = new PrismaAppointmentTimeSlotRepository(prisma);
@@ -632,6 +641,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialEntryRepo, tenantRepo);
   const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
   const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService);
+  const cancelFinancialEntryUseCase = new CancelFinancialEntryUseCase(financialEntryRepo, auditService);
   const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(
     financialEntryRepo,
     auditService,
@@ -647,13 +657,19 @@ export function createContainer(logger: Logger): AppContainer {
   const reportStorageService = s3Client
     ? new SupabaseReportStorageService(s3Client, env.SUPABASE_STORAGE_BUCKET)
     : new StubReportStorageService();
-  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
+  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, tenantRepo);
   const listInvoicesUseCase = new ListInvoicesUseCase(inspectorInvoiceRepo);
   const getInvoiceUseCase = new GetInvoiceUseCase(inspectorInvoiceRepo);
   const downloadInvoiceUseCase = new DownloadInvoiceUseCase(
     inspectorInvoiceRepo,
     reportStorageService,
   );
+  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService);
+  const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService);
+  const generateTenantInvoiceUseCase = new GenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
+  const regenerateInspectorInvoiceUseCase = new RegenerateInspectorInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
+  const regenerateTenantInvoiceUseCase = new RegenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
+  const listTenantInvoicesUseCase = new ListTenantInvoicesUseCase(tenantInvoiceRepo);
 
   // Report repositories and use cases
   const reportRepo = new PrismaReportRepository(prisma);
@@ -977,12 +993,19 @@ export function createContainer(logger: Logger): AppContainer {
       listFinancialEntriesUseCase,
       getFinancialEntryUseCase,
       approveFinancialEntryUseCase,
+      cancelFinancialEntryUseCase,
       createManualAdjustmentUseCase,
       createRefundUseCase,
       generateInvoiceUseCase,
       listInvoicesUseCase,
       getInvoiceUseCase,
       downloadInvoiceUseCase,
+      markInvoicePaidUseCase,
+      voidFinancialEntryUseCase,
+      generateTenantInvoiceUseCase,
+      regenerateInspectorInvoiceUseCase,
+      regenerateTenantInvoiceUseCase,
+      listTenantInvoicesUseCase,
       jwtService,
       tenantRepo,
     },

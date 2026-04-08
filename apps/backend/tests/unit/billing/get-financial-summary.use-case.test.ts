@@ -105,4 +105,69 @@ describe('GetFinancialSummaryUseCase', () => {
     expect(result.currency).toBeNull();
     expect(tenantRepo.findById).not.toHaveBeenCalled();
   });
+
+  it('passes effectiveFrom and effectiveTo date range to repository', async () => {
+    vi.mocked(entryRepo.getSummary).mockResolvedValue({
+      totalDebits: 1000,
+      totalPayouts: 500,
+      totalAdjustments: 0,
+      totalRefunds: 0,
+      pendingCount: 2,
+      currency: null,
+    });
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      effectiveFrom: '2026-03-01',
+      effectiveTo: '2026-03-31',
+      actor: makeActor(),
+    });
+
+    expect(entryRepo.getSummary).toHaveBeenCalledWith('tenant-1', {
+      effectiveFrom: '2026-03-01',
+      effectiveTo: '2026-03-31',
+    });
+    expect(result.totalDebits).toBe(1000);
+    expect(result.currency).toBe('USD');
+  });
+
+  it('passes only effectiveFrom when effectiveTo is omitted', async () => {
+    vi.mocked(entryRepo.getSummary).mockResolvedValue({
+      totalDebits: 200,
+      totalPayouts: 100,
+      totalAdjustments: 0,
+      totalRefunds: 0,
+      pendingCount: 1,
+      currency: null,
+    });
+
+    const result = await useCase.execute({
+      effectiveFrom: '2026-04-01',
+      actor: makeActor(),
+    });
+
+    expect(entryRepo.getSummary).toHaveBeenCalledWith(undefined, {
+      effectiveFrom: '2026-04-01',
+      effectiveTo: undefined,
+    });
+    expect(result.totalDebits).toBe(200);
+  });
+
+  it('does not pass date range when neither effectiveFrom nor effectiveTo is provided', async () => {
+    vi.mocked(entryRepo.getSummary).mockResolvedValue({
+      totalDebits: 0,
+      totalPayouts: 0,
+      totalAdjustments: 0,
+      totalRefunds: 0,
+      pendingCount: 0,
+      currency: null,
+    });
+
+    await useCase.execute({
+      actor: makeActor(),
+    });
+
+    expect(entryRepo.getSummary).toHaveBeenCalledWith(undefined, undefined);
+  });
 });

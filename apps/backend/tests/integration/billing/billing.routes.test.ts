@@ -4,6 +4,7 @@ import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
 
+const mockGetFinancialSummaryExecute = vi.fn();
 const mockListFinancialEntriesExecute = vi.fn();
 const mockGetFinancialEntryExecute = vi.fn();
 const mockApproveFinancialEntryExecute = vi.fn();
@@ -34,9 +35,11 @@ vi.mock('../../../src/main/container', () => ({
     inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: {
       createFinancialEntriesOnDoneUseCase: { execute: vi.fn() },
+      getFinancialSummaryUseCase: { execute: mockGetFinancialSummaryExecute },
       listFinancialEntriesUseCase: { execute: mockListFinancialEntriesExecute },
       getFinancialEntryUseCase: { execute: mockGetFinancialEntryExecute },
       approveFinancialEntryUseCase: { execute: mockApproveFinancialEntryExecute },
+      cancelFinancialEntryUseCase: { execute: vi.fn() },
       createManualAdjustmentUseCase: { execute: mockCreateManualAdjustmentExecute },
       createRefundUseCase: { execute: mockCreateRefundExecute },
       generateInvoiceUseCase: { execute: mockGenerateInvoiceExecute },
@@ -396,5 +399,195 @@ describe('GET /v1/invoices/:invoiceId/download', () => {
   it('should return 401 without auth', async () => {
     const res = await supertest(app.server).get(`/v1/invoices/${INVOICE_ID}/download`);
     expect(res.status).toBe(401);
+  });
+});
+
+// --- GAP-009: Financial Summary date range ---
+
+describe('GET /v1/financial/entries/summary', () => {
+  const summaryResult = {
+    totalDebits: 5000,
+    totalPayouts: 3000,
+    totalAdjustments: 200,
+    totalRefunds: 150,
+    pendingCount: 7,
+    currency: 'AUD',
+  };
+
+  it('should return 200 with summary (no date range)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetFinancialSummaryExecute.mockResolvedValueOnce(summaryResult);
+
+    const res = await supertest(app.server)
+      .get('/v1/financial/entries/summary')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.totalDebits).toBe(5000);
+    expect(mockGetFinancialSummaryExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        effectiveFrom: undefined,
+        effectiveTo: undefined,
+      }),
+    );
+  });
+
+  it('should pass effectiveFrom and effectiveTo to use case', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetFinancialSummaryExecute.mockResolvedValueOnce(summaryResult);
+
+    const res = await supertest(app.server)
+      .get('/v1/financial/entries/summary?effectiveFrom=2026-03-01&effectiveTo=2026-03-31')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockGetFinancialSummaryExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        effectiveFrom: '2026-03-01',
+        effectiveTo: '2026-03-31',
+      }),
+    );
+  });
+
+  it('should pass only effectiveFrom (month-to-date)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetFinancialSummaryExecute.mockResolvedValueOnce(summaryResult);
+
+    const res = await supertest(app.server)
+      .get('/v1/financial/entries/summary?effectiveFrom=2026-04-01')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockGetFinancialSummaryExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        effectiveFrom: '2026-04-01',
+        effectiveTo: undefined,
+      }),
+    );
+  });
+
+  it('should return 401 without auth', async () => {
+    const res = await supertest(app.server).get('/v1/financial/entries/summary');
+    expect(res.status).toBe(401);
+  });
+});
+
+// --- GAP-010: Deprecation headers on legacy /v1/invoices/* routes ---
+
+describe('Legacy /v1/invoices/* deprecation headers', () => {
+  it('GET /v1/invoices should include Deprecation and Sunset headers', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockListInvoicesExecute.mockResolvedValueOnce({
+      data: [fullInvoice],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/invoices')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['deprecation']).toBeDefined();
+    expect(res.headers['sunset']).toBeDefined();
+    expect(res.headers['link']).toContain('/v1/billing/invoices');
+  });
+
+  it('POST /v1/invoices/generate should include Deprecation and Sunset headers', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGenerateInvoiceExecute.mockResolvedValueOnce(fullInvoice);
+
+    const res = await supertest(app.server)
+      .post('/v1/invoices/generate')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        inspectorId: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55',
+        periodStart: '2026-03-01',
+        periodEnd: '2026-03-15',
+      });
+
+    expect(res.status).toBe(202);
+    expect(res.headers['deprecation']).toBeDefined();
+    expect(res.headers['sunset']).toBeDefined();
+    expect(res.headers['link']).toContain('/v1/billing/invoices');
+  });
+
+  it('GET /v1/invoices/:invoiceId should include Deprecation and Sunset headers', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetInvoiceExecute.mockResolvedValueOnce(fullInvoice);
+
+    const res = await supertest(app.server)
+      .get(`/v1/invoices/${INVOICE_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['deprecation']).toBeDefined();
+    expect(res.headers['sunset']).toBeDefined();
+  });
+
+  it('GET /v1/invoices/:invoiceId/download should include Deprecation and Sunset headers', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockDownloadInvoiceExecute.mockResolvedValueOnce({
+      downloadUrl: 'https://stub-storage/test',
+      expiresAt: '2026-03-16T11:00:00.000Z',
+    });
+
+    const res = await supertest(app.server)
+      .get(`/v1/invoices/${INVOICE_ID}/download`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['deprecation']).toBeDefined();
+    expect(res.headers['sunset']).toBeDefined();
+  });
+});
+
+describe('Canonical /v1/billing/invoices/* routes (no deprecation headers)', () => {
+  it('GET /v1/billing/invoices should NOT include Deprecation headers', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockListInvoicesExecute.mockResolvedValueOnce({
+      data: [fullInvoice],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/billing/invoices')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['deprecation']).toBeUndefined();
+    expect(res.headers['sunset']).toBeUndefined();
+  });
+
+  it('GET /v1/billing/invoices/:invoiceId should NOT include Deprecation headers', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetInvoiceExecute.mockResolvedValueOnce(fullInvoice);
+
+    const res = await supertest(app.server)
+      .get(`/v1/billing/invoices/${INVOICE_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['deprecation']).toBeUndefined();
+    expect(res.headers['sunset']).toBeUndefined();
+  });
+
+  it('GET /v1/billing/invoices/:invoiceId/download should NOT include Deprecation headers', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockDownloadInvoiceExecute.mockResolvedValueOnce({
+      downloadUrl: 'https://stub-storage/test',
+      expiresAt: '2026-03-16T11:00:00.000Z',
+    });
+
+    const res = await supertest(app.server)
+      .get(`/v1/billing/invoices/${INVOICE_ID}/download`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['deprecation']).toBeUndefined();
+    expect(res.headers['sunset']).toBeUndefined();
   });
 });

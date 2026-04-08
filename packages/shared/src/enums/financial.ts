@@ -10,6 +10,7 @@ export const FinancialEntryStatus = {
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   CANCELLED: 'CANCELLED',
+  VOIDED: 'VOIDED',
 } as const;
 export type FinancialEntryStatus = (typeof FinancialEntryStatus)[keyof typeof FinancialEntryStatus];
 
@@ -24,5 +25,14 @@ export const InspectorInvoiceStatus = {
   OPEN: 'OPEN',
   CLOSED: 'CLOSED',
   PAID: 'PAID',
+  SUPERSEDED: 'SUPERSEDED',
 } as const;
 export type InspectorInvoiceStatus = (typeof InspectorInvoiceStatus)[keyof typeof InspectorInvoiceStatus];
+
+export const TenantInvoiceStatus = {
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED',
+  PAID: 'PAID',
+  SUPERSEDED: 'SUPERSEDED',
+} as const;
+export type TenantInvoiceStatus = (typeof TenantInvoiceStatus)[keyof typeof TenantInvoiceStatus];

@@ -22,15 +22,16 @@ describe('NotificationChannel', () => {
 });
 
 describe('NotificationStatus', () => {
-  it('should have PENDING, SENT, DELIVERED, FAILED values', () => {
+  it('should have PENDING, SENT, DELIVERED, FAILED, SKIPPED values', () => {
     expect(NotificationStatus.PENDING).toBe('PENDING');
     expect(NotificationStatus.SENT).toBe('SENT');
     expect(NotificationStatus.DELIVERED).toBe('DELIVERED');
     expect(NotificationStatus.FAILED).toBe('FAILED');
+    expect(NotificationStatus.SKIPPED).toBe('SKIPPED');
   });
 
-  it('should have exactly 4 statuses', () => {
-    expect(Object.keys(NotificationStatus)).toHaveLength(4);
+  it('should have exactly 5 statuses', () => {
+    expect(Object.keys(NotificationStatus)).toHaveLength(5);
   });
 
   it('should not have QUEUED status', () => {

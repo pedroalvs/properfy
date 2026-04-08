@@ -60,9 +60,16 @@ function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknow
 export class PrismaFinancialEntryRepository implements IFinancialEntryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async getSummary(tenantId?: string): Promise<FinancialEntrySummary> {
+  async getSummary(tenantId?: string, dateRange?: { effectiveFrom?: string; effectiveTo?: string }): Promise<FinancialEntrySummary> {
     const where: Record<string, unknown> = {};
     if (tenantId) where.tenant_id = tenantId;
+
+    if (dateRange?.effectiveFrom || dateRange?.effectiveTo) {
+      const effectiveAt: Record<string, Date> = {};
+      if (dateRange.effectiveFrom) effectiveAt.gte = new Date(dateRange.effectiveFrom);
+      if (dateRange.effectiveTo) effectiveAt.lte = new Date(dateRange.effectiveTo + 'T23:59:59.999Z');
+      where.effective_at = effectiveAt;
+    }
 
     const approvedWhere = { ...where, status: 'APPROVED' as FinancialEntryStatus };
 
@@ -249,6 +256,7 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
   ): Promise<void> {
     const allowedTransitions: Record<string, string[]> = {
       PENDING: ['APPROVED', 'CANCELLED'],
+      APPROVED: ['VOIDED'],
     };
 
     const allowed = allowedTransitions[fromStatus];
@@ -285,5 +293,71 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       _sum: { amount: true },
     });
     return Number(result._sum.amount) || 0;
+  }
+
+  async sumRefundsByReferenceEntryId(referenceEntryId: string): Promise<number> {
+    const result = await this.prisma.financialEntry.aggregate({
+      where: {
+        reference_entry_id: referenceEntryId,
+        entry_type: 'REFUND',
+        status: { not: 'CANCELLED' },
+      },
+      _sum: { amount: true },
+    });
+    return Number(result._sum.amount) || 0;
+  }
+
+  async sumApprovedEntriesForTenantInPeriod(
+    tenantId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<{ totalDebit: number; totalRefund: number; totalAdjustment: number }> {
+    const grouped = await this.prisma.financialEntry.groupBy({
+      by: ['entry_type'],
+      where: {
+        tenant_id: tenantId,
+        status: 'APPROVED',
+        effective_at: { gte: periodStart, lte: periodEnd },
+        entry_type: { in: ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'] },
+      },
+      _sum: { amount: true },
+    });
+
+    let totalDebit = 0;
+    let totalRefund = 0;
+    let totalAdjustment = 0;
+
+    for (const row of grouped) {
+      const amount = Number(row._sum?.amount ?? 0);
+      switch (row.entry_type) {
+        case 'TENANT_DEBIT': totalDebit = amount; break;
+        case 'REFUND': totalRefund = amount; break;
+        case 'MANUAL_ADJUSTMENT': totalAdjustment = amount; break;
+      }
+    }
+
+    return { totalDebit, totalRefund, totalAdjustment };
+  }
+
+  async voidEntry(
+    id: string,
+    tenantId: string,
+    voidedByUserId: string,
+    voidedAt: Date,
+    voidReason: string,
+  ): Promise<void> {
+    const updated = await this.prisma.financialEntry.updateMany({
+      where: { id, tenant_id: tenantId, status: 'APPROVED' },
+      data: {
+        status: 'VOIDED',
+        voided_by_user_id: voidedByUserId,
+        voided_at: voidedAt,
+        void_reason: voidReason,
+      },
+    });
+
+    if (updated.count === 0) {
+      throw new InvalidEntryStatusTransitionError('APPROVED', 'VOIDED');
+    }
   }
 }

@@ -67,7 +67,19 @@ export class FinancialEntryEntity extends BaseEntity {
     return this.status === 'PENDING';
   }
 
+  canBeCancelled(): boolean {
+    return this.status === 'PENDING';
+  }
+
   isSelfApproval(userId: string): boolean {
     return this.initiatedByUserId === userId;
+  }
+
+  isVoided(): boolean {
+    return this.status === 'VOIDED';
+  }
+
+  canBeVoided(): boolean {
+    return this.status === 'APPROVED';
   }
 }
