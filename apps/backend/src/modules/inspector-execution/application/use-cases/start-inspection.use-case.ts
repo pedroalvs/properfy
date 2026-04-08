@@ -3,10 +3,15 @@ import type { AuthContext } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IIdempotencyService } from '../../domain/idempotency.service';
-import type { IServiceTypeReader } from '../../domain/service-type-reader';
 import { InspectionExecutionEntity } from '../../domain/inspection-execution.entity';
-import { T1VisibilityService } from '../../domain/t1-visibility.service';
-import { InspectionTimeWindowService } from '../../domain/inspection-time-window.service';
+import {
+  InspectionTimeWindowService,
+  type InspectionTimeWindowBounds,
+} from '../../../../shared/domain/inspection-time-window.service';
+import {
+  haversineDistanceMeters,
+  GEOLOCATION_MISMATCH_THRESHOLD_METERS,
+} from '../../domain/geolocation-distance.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
   ExecutionAppointmentNotFoundError,
@@ -15,6 +20,10 @@ import {
   ExecutionTimeWindowError,
 } from '../../domain/inspection-execution.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+
+export interface ITenantSettingsReader {
+  getTimeWindowBounds(tenantId: string): Promise<Partial<InspectionTimeWindowBounds> | null>;
+}
 
 export interface StartInspectionInput {
   appointmentId: string;
@@ -30,19 +39,19 @@ export interface StartInspectionOutput {
   startedAt: string;
   startLatitude: number;
   startLongitude: number;
+  geolocationDistanceMeters: number | null;
   status: 'IN_PROGRESS';
 }
 
 export class StartInspectionUseCase {
-  private readonly t1Service = new T1VisibilityService();
   private readonly timeWindowService = new InspectionTimeWindowService();
 
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly executionRepo: IInspectionExecutionRepository,
     private readonly idempotencyService: IIdempotencyService,
-    private readonly serviceTypeReader: IServiceTypeReader,
     private readonly auditService: AuditService,
+    private readonly tenantSettingsReader?: ITenantSettingsReader,
   ) {}
 
   async execute(input: StartInspectionInput): Promise<StartInspectionOutput> {
@@ -78,30 +87,40 @@ export class StartInspectionUseCase {
       throw new ExecutionAppointmentNotFoundError();
     }
 
-    // 4. Apply T-1 rule
-    const st = await this.serviceTypeReader.findById(appointment.serviceTypeId);
-    const flowType = st?.flowType ?? 'ROUTINE';
+    // 4. Apply T-1 rule (centralized in repository)
     const today = new Date();
-    const isVisible = this.t1Service.isVisibleForInspector(
-      flowType,
-      appointment.tenantConfirmationStatus,
-      appointment.keyRequired,
-      appointment.scheduledDate,
+    const isVisible = await this.appointmentRepo.isAppointmentVisibleForInspector(
+      appointmentId,
       today,
     );
     if (!isVisible) throw new ExecutionT1BlockedError();
 
-    // 4b. Apply time window rule
+    // 4b. Apply time window rule (configurable per tenant)
+    const timeWindowBounds = this.tenantSettingsReader
+      ? await this.tenantSettingsReader.getTimeWindowBounds(appointment.tenantId)
+      : null;
     const windowCheck = this.timeWindowService.isWithinWindow(
       appointment.scheduledDate,
       appointment.timeSlot,
       new Date(),
+      timeWindowBounds ?? undefined,
     );
     if (!windowCheck.allowed) {
       throw new ExecutionTimeWindowError(windowCheck.reason ?? 'Outside inspection time window');
     }
 
-    // 5. Check existing execution
+    // 5. Compute geolocation distance to property
+    const propertyLat = result.propertyLatitude;
+    const propertyLng = result.propertyLongitude;
+    let geolocationDistanceMeters: number | null = null;
+
+    if (propertyLat != null && propertyLng != null) {
+      geolocationDistanceMeters = Math.round(
+        haversineDistanceMeters(latitude, longitude, propertyLat, propertyLng),
+      );
+    }
+
+    // 6. Check existing execution
     const existingExecution = await this.executionRepo.findByAppointmentId(appointmentId);
     if (existingExecution) {
       if (existingExecution.isFinished()) {
@@ -114,12 +133,13 @@ export class StartInspectionUseCase {
         startedAt: existingExecution.startedAt.toISOString(),
         startLatitude: existingExecution.startLatitude,
         startLongitude: existingExecution.startLongitude,
+        geolocationDistanceMeters: existingExecution.geolocationDistanceMeters,
         status: 'IN_PROGRESS',
       };
       return existingResult;
     }
 
-    // 6. Create execution
+    // 7. Create execution
     const now = new Date();
     const executionId = randomUUID();
     const execution = new InspectionExecutionEntity({
@@ -128,10 +148,12 @@ export class StartInspectionUseCase {
       inspectorId: actor.inspectorId,
       startedAt: now,
       finishedAt: null,
+      resumedAt: null,
       startLatitude: latitude,
       startLongitude: longitude,
       finishLatitude: null,
       finishLongitude: null,
+      geolocationDistanceMeters,
       checklistJson: null,
       notes: null,
       createdAt: now,
@@ -140,7 +162,7 @@ export class StartInspectionUseCase {
 
     await this.executionRepo.save(execution);
 
-    // 7. Audit log
+    // 8. Audit log
     this.auditService.log({
       action: 'inspection_execution.started',
       actorType: 'USER',
@@ -153,10 +175,11 @@ export class StartInspectionUseCase {
         inspectorId: actor.inspectorId,
         startLatitude: latitude,
         startLongitude: longitude,
+        geolocationDistanceMeters,
       },
     });
 
-    // 7b. Audit log for appointment timeline
+    // 8b. Audit log for appointment timeline
     this.auditService.log({
       action: 'inspection.started',
       actorType: 'USER',
@@ -164,16 +187,40 @@ export class StartInspectionUseCase {
       entityType: 'Appointment',
       entityId: appointmentId,
       tenantId: appointment.tenantId,
-      metadata: { latitude, longitude },
+      metadata: { latitude, longitude, geolocationDistanceMeters },
     });
 
-    // 8. Store idempotency
+    // 8c. Geolocation mismatch warning (non-blocking)
+    if (
+      geolocationDistanceMeters != null &&
+      geolocationDistanceMeters > GEOLOCATION_MISMATCH_THRESHOLD_METERS
+    ) {
+      this.auditService.log({
+        action: 'inspection.geolocation_mismatch',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'Appointment',
+        entityId: appointmentId,
+        tenantId: appointment.tenantId,
+        metadata: {
+          inspectorLatitude: latitude,
+          inspectorLongitude: longitude,
+          propertyLatitude: propertyLat,
+          propertyLongitude: propertyLng,
+          distanceMeters: geolocationDistanceMeters,
+          thresholdMeters: GEOLOCATION_MISMATCH_THRESHOLD_METERS,
+        },
+      });
+    }
+
+    // 9. Store idempotency
     const output: StartInspectionOutput = {
       executionId,
       appointmentId,
       startedAt: now.toISOString(),
       startLatitude: latitude,
       startLongitude: longitude,
+      geolocationDistanceMeters,
       status: 'IN_PROGRESS',
     };
 

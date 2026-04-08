@@ -215,8 +215,8 @@ export class ExecuteStatusTransitionUseCase {
       updateData.inspectorId = inspectorId;
     }
 
-    // TODO: When transitioning to SCHEDULED with an inspector, find and book the matching
-    // availability slot (inspectorId + scheduledDate + overlapping timeSlot → status = BOOKED)
+    // Availability slot booking is handled at the service-group level (accept-offer / assign-inspector),
+    // not at the individual appointment transition level.
 
     // Set who marked appointment as DONE
     if (targetStatus === 'DONE') {

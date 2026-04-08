@@ -48,4 +48,22 @@ export interface IAvailabilitySlotRepository {
       status: string;
     }>,
   ): Promise<void>;
+  /** Find an AVAILABLE slot for the given inspector on a specific date whose time range overlaps the requested window. */
+  findMatchingSlot(
+    inspectorId: string,
+    date: Date,
+    startTime: string,
+    endTime: string,
+  ): Promise<AvailabilitySlotEntity | null>;
+  /** Atomically decrement capacity by 1. Returns the updated capacity, or null if no row was updated (capacity was already 0). */
+  decrementCapacity(slotId: string): Promise<number | null>;
+  /** Atomically increment capacity by 1 (restore after cancellation). */
+  incrementCapacity(slotId: string): Promise<void>;
+  /** Find any slot (regardless of capacity) for the given inspector on a specific date whose time range covers the requested window. Used for restoration. */
+  findSlotForRestore(
+    inspectorId: string,
+    date: Date,
+    startTime: string,
+    endTime: string,
+  ): Promise<AvailabilitySlotEntity | null>;
 }

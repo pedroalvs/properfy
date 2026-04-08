@@ -1,15 +1,47 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
 
+// --- Typed JSON field schemas ---
+
+export const paymentMethodEnum = z.enum(['BANK_TRANSFER', 'PAYPAL', 'PIX', 'OTHER']);
+export type PaymentMethod = z.infer<typeof paymentMethodEnum>;
+
+export const paymentSettingsSchema = z
+  .object({
+    bankName: z.string().max(200).optional(),
+    accountNumber: z.string().max(50).optional(),
+    bsb: z.string().max(20).optional(),
+    abn: z.string().max(20).optional(),
+    paymentMethod: paymentMethodEnum.optional(),
+  })
+  .passthrough();
+export type PaymentSettings = z.infer<typeof paymentSettingsSchema>;
+
+export const serviceTypeEntrySchema = z.object({
+  serviceTypeId: z.string().uuid(),
+  certified: z.boolean().default(false),
+});
+export const serviceTypesSchema = z.array(serviceTypeEntrySchema);
+export type ServiceTypeEntry = z.infer<typeof serviceTypeEntrySchema>;
+
+export const clientEligibilityEntrySchema = z.object({
+  tenantId: z.string().uuid(),
+  eligible: z.boolean(),
+});
+export const clientEligibilitySchema = z.array(clientEligibilityEntrySchema);
+export type ClientEligibilityEntry = z.infer<typeof clientEligibilityEntrySchema>;
+
+// --- Inspector CRUD schemas ---
+
 export const createInspectorSchema = z.object({
   name: z.string().min(1).max(200).trim(),
   email: z.string().email().max(254),
   phone: z.string().max(20).optional(),
-  paymentSettings: z.record(z.unknown()).default({}),
+  paymentSettings: paymentSettingsSchema.default({}),
   regions: z.array(z.string()).default([]),
   regionIds: z.array(z.string().uuid()).default([]),
-  serviceTypes: z.array(z.string().uuid()).default([]),
-  clientEligibility: z.array(z.string().uuid()).default([]),
+  serviceTypes: serviceTypesSchema.default([]),
+  clientEligibility: clientEligibilitySchema.default([]),
 });
 export type CreateInspectorInput = z.infer<typeof createInspectorSchema>;
 
@@ -18,11 +50,11 @@ export const updateInspectorSchema = z.object({
   email: z.string().email().max(254).optional(),
   phone: z.string().max(20).nullable().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  paymentSettings: z.record(z.unknown()).optional(),
+  paymentSettings: paymentSettingsSchema.optional(),
   regions: z.array(z.string()).optional(),
   regionIds: z.array(z.string().uuid()).optional(),
-  serviceTypes: z.array(z.string().uuid()).optional(),
-  clientEligibility: z.array(z.string().uuid()).optional(),
+  serviceTypes: serviceTypesSchema.optional(),
+  clientEligibility: clientEligibilitySchema.optional(),
 });
 export type UpdateInspectorInput = z.infer<typeof updateInspectorSchema>;
 

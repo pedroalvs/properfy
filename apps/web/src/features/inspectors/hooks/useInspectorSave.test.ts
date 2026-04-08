@@ -103,7 +103,7 @@ describe('useInspectorSave', () => {
     expect(saveResult?.success).toBe(true);
     expect(mockPost).toHaveBeenCalledWith('/v1/inspectors', {
       body: expect.objectContaining({
-        serviceTypes: ['123e4567-e89b-12d3-a456-426614174000'],
+        serviceTypes: [{ serviceTypeId: '123e4567-e89b-12d3-a456-426614174000', certified: false }],
       }),
     });
   });

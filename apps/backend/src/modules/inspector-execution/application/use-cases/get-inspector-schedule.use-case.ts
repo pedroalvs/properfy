@@ -1,8 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
-import type { IServiceTypeReader } from '../../domain/service-type-reader';
-import { T1VisibilityService } from '../../domain/t1-visibility.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 
 export interface GetInspectorScheduleInput {
@@ -30,12 +28,9 @@ export interface GetInspectorScheduleOutput {
 }
 
 export class GetInspectorScheduleUseCase {
-  private readonly t1Service = new T1VisibilityService();
-
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly executionRepo: IInspectionExecutionRepository,
-    private readonly serviceTypeReader: IServiceTypeReader,
   ) {}
 
   async execute(input: GetInspectorScheduleInput): Promise<GetInspectorScheduleOutput> {
@@ -52,33 +47,12 @@ export class GetInspectorScheduleUseCase {
     const today = new Date();
     const targetDateStr = input.date ?? today.toISOString().split('T')[0]!;
 
-    const appointments = await this.appointmentRepo.findAll(
-      {
-        inspectorId: actor.inspectorId,
-        status: 'SCHEDULED',
-        fromDate: targetDateStr,
-        toDate: targetDateStr,
-      },
-      { page: 1, pageSize: 1000, sortBy: 'time_slot', sortOrder: 'asc' },
-    );
-
-    // Load service types for T-1 filtering
-    const serviceTypeIds = [...new Set(appointments.map((a) => a.appointment.serviceTypeId))];
-    const serviceTypes =
-      serviceTypeIds.length > 0 ? await this.serviceTypeReader.findByIds(serviceTypeIds) : [];
-    const serviceTypeMap = new Map(serviceTypes.map((st) => [st.id, st]));
-
-    // Apply T-1 visibility filter
-    const visibleAppointments = appointments.filter((item) => {
-      const st = serviceTypeMap.get(item.appointment.serviceTypeId);
-      const flowType = st?.flowType ?? 'ROUTINE';
-      return this.t1Service.isVisibleForInspector(
-        flowType,
-        item.appointment.tenantConfirmationStatus,
-        item.appointment.keyRequired,
-        item.appointment.scheduledDate,
-        today,
-      );
+    // T-1 filtering is centralized inside findVisibleForInspector
+    const visibleAppointments = await this.appointmentRepo.findVisibleForInspector({
+      inspectorId: actor.inspectorId,
+      fromDate: targetDateStr,
+      toDate: targetDateStr,
+      today,
     });
 
     // Load execution statuses for visible appointments

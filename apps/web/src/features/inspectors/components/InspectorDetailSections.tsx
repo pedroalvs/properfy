@@ -45,7 +45,10 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
     { pageSize: 100 },
   );
   const serviceTypeNameMap = new Map((serviceTypesData?.data ?? []).map((item) => [item.id, item.name]));
-  const serviceTypeLabels = inspector.serviceTypes.map((serviceTypeId) => serviceTypeNameMap.get(serviceTypeId) ?? serviceTypeId);
+  const serviceTypeLabels = inspector.serviceTypes.map((entry) => {
+    const id = typeof entry === 'string' ? entry : entry.serviceTypeId;
+    return serviceTypeNameMap.get(id) ?? id;
+  });
 
   const { data: regionsData } = usePaginatedQuery<{ id: string; name: string }>(
     ['service-regions', 'inspector-detail'],
@@ -63,9 +66,10 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
     { pageSize: 100 },
   );
   const tenantNameMap = new Map((tenantsData?.data ?? []).map((item) => [item.id, item.name]));
-  const clientEligibilityLabels = (inspector.clientEligibility ?? []).map(
-    (tenantId) => tenantNameMap.get(tenantId) ?? tenantId,
-  );
+  const clientEligibilityLabels = (inspector.clientEligibility ?? []).map((entry) => {
+    const id = typeof entry === 'string' ? entry : entry.tenantId;
+    return tenantNameMap.get(id) ?? id;
+  });
 
   return (
     <div className="flex flex-col gap-6">

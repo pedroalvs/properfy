@@ -6,6 +6,11 @@ import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/doma
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
+import type { IAvailabilitySlotRepository } from '../../../inspector/domain/availability-slot.repository';
+import {
+  AvailabilitySlotCapacityExhaustedError,
+  AvailabilitySlotNotMatchedError,
+} from '../../../inspector/domain/inspector.errors';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
@@ -39,6 +44,7 @@ export class AcceptOfferUseCase {
     private readonly auditService: AuditService,
     private readonly idempotencyService: IIdempotencyService,
     private readonly eventBus?: DomainEventBus,
+    private readonly availabilitySlotRepo?: IAvailabilitySlotRepository,
   ) {}
 
   async execute(input: AcceptOfferInput): Promise<AcceptOfferOutput> {
@@ -112,6 +118,28 @@ export class AcceptOfferUseCase {
       }
     }
 
+    // Book availability slot: find matching slot and decrement capacity
+    let bookedSlotId: string | null = null;
+    if (this.availabilitySlotRepo) {
+      const parts = group.timeWindow.split('-');
+      const slotStart = parts[0] ?? '';
+      const slotEnd = parts[1] ?? '';
+      const slot = await this.availabilitySlotRepo.findMatchingSlot(
+        inspectorId,
+        group.scheduledDate,
+        slotStart,
+        slotEnd,
+      );
+      if (!slot) {
+        throw new AvailabilitySlotNotMatchedError();
+      }
+      const updatedCapacity = await this.availabilitySlotRepo.decrementCapacity(slot.id);
+      if (updatedCapacity === null) {
+        throw new AvailabilitySlotCapacityExhaustedError();
+      }
+      bookedSlotId = slot.id;
+    }
+
     const scheduledCount = await this.serviceGroupRepo.scheduleAppointments(groupId, inspectorId);
 
     await this.serviceGroupRepo.update(groupId, {
@@ -130,6 +158,7 @@ export class AcceptOfferUseCase {
         status: 'ACCEPTED',
         assignedInspectorId: inspectorId,
         appointmentsScheduled: scheduledCount,
+        ...(bookedSlotId ? { bookedSlotId } : {}),
       },
     });
 

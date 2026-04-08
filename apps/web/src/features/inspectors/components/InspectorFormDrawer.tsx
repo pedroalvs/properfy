@@ -74,8 +74,8 @@ export function InspectorFormDrawer({
         phone: inspector.phone ?? '',
         status: inspector.status,
         regionIds: inspector.regionIds ?? [],
-        serviceTypes: (inspector.serviceTypes ?? []).join(','),
-        clientEligibility: inspector.clientEligibility ?? [],
+        serviceTypes: (inspector.serviceTypes ?? []).map((s) => s.serviceTypeId).join(','),
+        clientEligibility: (inspector.clientEligibility ?? []).map((c) => c.tenantId),
       };
       setForm(data);
       setInitialData(data);

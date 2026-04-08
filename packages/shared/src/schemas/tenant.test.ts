@@ -447,6 +447,72 @@ describe('tenantSettingsSchema', () => {
     expect(result.inspectorOfferRadiusKm).toBe(2);
     expect(result.clUserPermissions).toEqual([]);
   });
+
+  it('should default inspectionWindowBeforeMinutes to 30', () => {
+    const result = tenantSettingsSchema.parse({});
+    expect(result.inspectionWindowBeforeMinutes).toBe(30);
+  });
+
+  it('should default inspectionWindowAfterMinutes to 30', () => {
+    const result = tenantSettingsSchema.parse({});
+    expect(result.inspectionWindowAfterMinutes).toBe(30);
+  });
+
+  it('should accept custom inspection window bounds', () => {
+    const result = tenantSettingsSchema.safeParse({
+      inspectionWindowBeforeMinutes: 60,
+      inspectionWindowAfterMinutes: 15,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.inspectionWindowBeforeMinutes).toBe(60);
+      expect(result.data.inspectionWindowAfterMinutes).toBe(15);
+    }
+  });
+
+  it('should accept zero for inspection window bounds', () => {
+    const result = tenantSettingsSchema.safeParse({
+      inspectionWindowBeforeMinutes: 0,
+      inspectionWindowAfterMinutes: 0,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept maximum (120) for inspection window bounds', () => {
+    const result = tenantSettingsSchema.safeParse({
+      inspectionWindowBeforeMinutes: 120,
+      inspectionWindowAfterMinutes: 120,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject inspectionWindowBeforeMinutes exceeding 120', () => {
+    const result = tenantSettingsSchema.safeParse({
+      inspectionWindowBeforeMinutes: 121,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject inspectionWindowAfterMinutes exceeding 120', () => {
+    const result = tenantSettingsSchema.safeParse({
+      inspectionWindowAfterMinutes: 121,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject negative inspection window bounds', () => {
+    const result = tenantSettingsSchema.safeParse({
+      inspectionWindowBeforeMinutes: -1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject non-integer inspection window bounds', () => {
+    const result = tenantSettingsSchema.safeParse({
+      inspectionWindowBeforeMinutes: 30.5,
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('validateBillingSettings', () => {

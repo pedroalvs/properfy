@@ -152,8 +152,8 @@ function makeInspector(id: string, userId: string, regions: string[]): Inspector
     phone: null,
     status: 'ACTIVE',
     paymentSettingsJson: {},
-    serviceTypesJson: [SERVICE_TYPE_ID],
-    clientEligibilityJson: [TENANT_ID],
+    serviceTypesJson: [{ serviceTypeId: SERVICE_TYPE_ID, certified: false }],
+    clientEligibilityJson: [{ tenantId: TENANT_ID, eligible: true }],
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
@@ -296,6 +296,48 @@ class InMemoryAppointmentRepo implements IAppointmentRepository {
 
   async findContactById(_id: string): Promise<ContactDetail | null> {
     return null;
+  }
+
+  async findVisibleForInspector(params: {
+    inspectorId: string;
+    fromDate: string;
+    toDate: string;
+    today: Date;
+  }): Promise<AppointmentListItem[]> {
+    // Reuse findAll with T-1 filtering via T1VisibilityService
+    const items = await this.findAll(
+      { inspectorId: params.inspectorId, status: 'SCHEDULED', fromDate: params.fromDate, toDate: params.toDate },
+      { page: 1, pageSize: 1000, sortOrder: 'asc' },
+    );
+    const { T1VisibilityService } = await import('../../../src/modules/inspector-execution/domain/t1-visibility.service');
+    const t1 = new T1VisibilityService();
+    return items.filter((item) => {
+      const serviceType = this.serviceTypes.get(item.appointment.serviceTypeId);
+      const flowType = serviceType?.flowType ?? 'ROUTINE';
+      return t1.isVisibleForInspector(
+        flowType,
+        item.appointment.tenantConfirmationStatus,
+        item.appointment.keyRequired,
+        item.appointment.scheduledDate,
+        params.today,
+      );
+    });
+  }
+
+  async isAppointmentVisibleForInspector(appointmentId: string, today: Date): Promise<boolean> {
+    const appointment = this.appointments.get(appointmentId);
+    if (!appointment) return false;
+    const serviceType = this.serviceTypes.get(appointment.serviceTypeId);
+    const flowType = serviceType?.flowType ?? 'ROUTINE';
+    const { T1VisibilityService } = await import('../../../src/modules/inspector-execution/domain/t1-visibility.service');
+    const t1 = new T1VisibilityService();
+    return t1.isVisibleForInspector(
+      flowType,
+      appointment.tenantConfirmationStatus,
+      appointment.keyRequired,
+      appointment.scheduledDate,
+      today,
+    );
   }
 
   async findDuplicateForImport(): Promise<AppointmentEntity | null> {
@@ -624,7 +666,6 @@ describe('FASE 1 integrated proof', () => {
     getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
       appointmentRepo,
       executionRepo,
-      serviceTypeReader as any,
     );
   });
 

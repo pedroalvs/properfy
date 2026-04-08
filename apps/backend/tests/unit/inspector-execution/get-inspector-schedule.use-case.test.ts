@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GetInspectorScheduleUseCase } from '../../../src/modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case';
 import type { IAppointmentRepository, AppointmentListItem } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
-import type { IServiceTypeReader } from '../../../src/modules/inspector-execution/domain/service-type-reader';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
@@ -60,10 +59,12 @@ function makeExecution(
     inspectorId: 'insp-1',
     startedAt: new Date('2026-03-21T09:00:00Z'),
     finishedAt: null,
+    resumedAt: null,
     startLatitude: -33.8688,
     startLongitude: 151.2093,
     finishLatitude: null,
     finishLongitude: null,
+    geolocationDistanceMeters: null,
     checklistJson: null,
     notes: null,
     createdAt: new Date(),
@@ -83,7 +84,6 @@ const inspActor: AuthContext = {
 describe('GetInspectorScheduleUseCase', () => {
   let appointmentRepo: IAppointmentRepository;
   let executionRepo: IInspectionExecutionRepository;
-  let serviceTypeReader: IServiceTypeReader;
   let useCase: GetInspectorScheduleUseCase;
 
   beforeEach(() => {
@@ -99,6 +99,11 @@ describe('GetInspectorScheduleUseCase', () => {
       deleteRestrictionsByAppointmentId: vi.fn(),
       findScheduledOnDate: vi.fn(),
       findDuplicateForImport: vi.fn(),
+      findAllContacts: vi.fn(),
+      countContacts: vi.fn(),
+      findContactById: vi.fn(),
+      findVisibleForInspector: vi.fn().mockResolvedValue([]),
+      isAppointmentVisibleForInspector: vi.fn(),
     };
 
     executionRepo = {
@@ -108,21 +113,13 @@ describe('GetInspectorScheduleUseCase', () => {
       update: vi.fn(),
     };
 
-    serviceTypeReader = {
-      findById: vi.fn(),
-      findByIds: vi.fn().mockResolvedValue([]),
-    };
-
-    useCase = new GetInspectorScheduleUseCase(appointmentRepo, executionRepo, serviceTypeReader);
+    useCase = new GetInspectorScheduleUseCase(appointmentRepo, executionRepo);
   });
 
   it('should return schedule for target date with execution statuses', async () => {
     const appt1 = makeAppointment({ id: 'appt-1' });
     const appt2 = makeAppointment({ id: 'appt-2', timeSlot: '14:00-16:00' });
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([appt1, appt2]);
-    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
-      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
-    ]);
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([appt1, appt2]);
     vi.mocked(executionRepo.findByAppointmentIds).mockResolvedValue([
       makeExecution({ appointmentId: 'appt-1' }),
     ]);
@@ -141,10 +138,7 @@ describe('GetInspectorScheduleUseCase', () => {
     const drifted = makeAppointment({
       scheduledDate: new Date('2026-03-20T23:00:00.000Z'),
     });
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([drifted]);
-    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
-      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
-    ]);
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([drifted]);
 
     const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
 
@@ -152,8 +146,8 @@ describe('GetInspectorScheduleUseCase', () => {
     expect(result.appointments[0].scheduledDate).toBe('2026-03-21');
   });
 
-  it('should return empty appointments array when no SCHEDULED appointments exist', async () => {
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+  it('should return empty appointments array when no visible appointments exist', async () => {
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([]);
 
     const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
 
@@ -169,162 +163,56 @@ describe('GetInspectorScheduleUseCase', () => {
     );
   });
 
-  it('should filter out ROUTINE appointments at T-1 that are not confirmed', async () => {
-    // Today is March 20, appointment is March 21 (T-1)
-    // Use T12:00:00Z to ensure getDate() returns the expected day in any timezone
-    const today = new Date('2026-03-20T12:00:00Z');
-    vi.useFakeTimers({ now: today });
+  it('should delegate T-1 filtering to findVisibleForInspector (centralized)', async () => {
+    // findVisibleForInspector returns pre-filtered results — the use case trusts them
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([]);
 
-    const appt = makeAppointment({
-      scheduledDate: new Date('2026-03-21T12:00:00Z'),
-      tenantConfirmationStatus: 'PENDING',
-      keyRequired: false,
-    });
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([appt]);
-    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
-      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
-    ]);
+    await useCase.execute({ date: '2026-03-21', actor: inspActor });
 
-    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
-
-    expect(result.appointments).toHaveLength(0);
-
-    vi.useRealTimers();
-  });
-
-  it('should keep INGOING appointments at T-1 even if not confirmed', async () => {
-    const today = new Date('2026-03-20T12:00:00Z');
-    vi.useFakeTimers({ now: today });
-
-    const appt = makeAppointment({
-      scheduledDate: new Date('2026-03-21T12:00:00Z'),
-      tenantConfirmationStatus: 'PENDING',
-      keyRequired: false,
-    });
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([appt]);
-    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
-      { id: 'st-1', code: 'INGOING', name: 'Ingoing Inspection', flowType: 'INGOING' },
-    ]);
-    vi.mocked(executionRepo.findByAppointmentIds).mockResolvedValue([]);
-
-    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
-
-    expect(result.appointments).toHaveLength(1);
-
-    vi.useRealTimers();
-  });
-
-  it('should keep ROUTINE appointments at T-1 when keyRequired is true', async () => {
-    const today = new Date('2026-03-20T12:00:00Z');
-    vi.useFakeTimers({ now: today });
-
-    const appt = makeAppointment({
-      scheduledDate: new Date('2026-03-21T12:00:00Z'),
-      tenantConfirmationStatus: 'PENDING',
-      keyRequired: true,
-    });
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([appt]);
-    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
-      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
-    ]);
-    vi.mocked(executionRepo.findByAppointmentIds).mockResolvedValue([]);
-
-    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
-
-    expect(result.appointments).toHaveLength(1);
-    expect(result.appointments[0].keyRequired).toBe(true);
-
-    vi.useRealTimers();
+    expect(appointmentRepo.findVisibleForInspector).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inspectorId: 'insp-1',
+        fromDate: '2026-03-21',
+        toDate: '2026-03-21',
+        today: expect.any(Date),
+      }),
+    );
   });
 
   it('should use today date when no date param provided', async () => {
     const today = new Date('2026-03-21T10:00:00Z');
     vi.useFakeTimers({ now: today });
 
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([]);
 
     const result = await useCase.execute({ actor: inspActor });
 
     expect(result.date).toBe('2026-03-21');
-    expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+    expect(appointmentRepo.findVisibleForInspector).toHaveBeenCalledWith(
       expect.objectContaining({
         fromDate: '2026-03-21',
         toDate: '2026-03-21',
       }),
-      expect.any(Object),
     );
-
-    vi.useRealTimers();
-  });
-
-  it('should filter out ROUTINE appointments for today when still pending confirmation', async () => {
-    const today = new Date('2026-03-21T12:00:00Z');
-    vi.useFakeTimers({ now: today });
-
-    const appt = makeAppointment({
-      scheduledDate: new Date('2026-03-21T12:00:00Z'),
-      tenantConfirmationStatus: 'PENDING',
-      keyRequired: false,
-    });
-    vi.mocked(appointmentRepo.findAll)
-      .mockResolvedValueOnce([appt])   // today's schedule query
-      .mockResolvedValueOnce([]);       // overdue query (empty)
-    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
-      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
-    ]);
-
-    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
-
-    expect(result.appointments).toHaveLength(0);
-
-    vi.useRealTimers();
-  });
-
-  it('should filter out ROUTINE appointments for today when tenant marked UNAVAILABLE', async () => {
-    const today = new Date('2026-03-21T12:00:00Z');
-    vi.useFakeTimers({ now: today });
-
-    const appt = makeAppointment({
-      scheduledDate: new Date('2026-03-21T12:00:00Z'),
-      tenantConfirmationStatus: 'UNAVAILABLE',
-      keyRequired: false,
-    });
-    vi.mocked(appointmentRepo.findAll)
-      .mockResolvedValueOnce([appt])   // today's schedule query
-      .mockResolvedValueOnce([]);       // overdue query (empty)
-    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
-      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
-    ]);
-
-    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
-
-    expect(result.appointments).toHaveLength(0);
 
     vi.useRealTimers();
   });
 
   it('should not constrain the schedule by actor tenantId for global inspectors', async () => {
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([]);
 
     await useCase.execute({ date: '2026-03-21', actor: inspActor });
 
-    expect(appointmentRepo.findAll).toHaveBeenCalledWith(
-      {
+    expect(appointmentRepo.findVisibleForInspector).toHaveBeenCalledWith(
+      expect.objectContaining({
         inspectorId: 'insp-1',
-        status: 'SCHEDULED',
-        fromDate: '2026-03-21',
-        toDate: '2026-03-21',
-      },
-      expect.any(Object),
+      }),
     );
   });
 
   it('should mark finished executions correctly', async () => {
     const appt = makeAppointment();
-    vi.mocked(appointmentRepo.findAll).mockResolvedValue([appt]);
-    vi.mocked(serviceTypeReader.findByIds).mockResolvedValue([
-      { id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' },
-    ]);
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([appt]);
     vi.mocked(executionRepo.findByAppointmentIds).mockResolvedValue([
       makeExecution({
         appointmentId: 'appt-1',

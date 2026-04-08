@@ -1,4 +1,9 @@
-import type { AuthContext } from '@properfy/shared';
+import type {
+  AuthContext,
+  PaymentSettings,
+  ServiceTypeEntry,
+  ClientEligibilityEntry,
+} from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
@@ -15,10 +20,10 @@ export interface GetInspectorOutput {
   email: string;
   phone: string | null;
   status: string;
-  paymentSettingsJson: Record<string, unknown>;
+  paymentSettingsJson: PaymentSettings;
   regionIds: string[];
-  serviceTypesJson: string[];
-  clientEligibilityJson: string[];
+  serviceTypesJson: ServiceTypeEntry[];
+  clientEligibilityJson: ClientEligibilityEntry[];
   createdAt: Date;
   updatedAt: Date;
 }

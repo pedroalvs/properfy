@@ -9,10 +9,12 @@ function mapToEntity(row: any): InspectionExecutionEntity {
     inspectorId: row.inspector_id,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
+    resumedAt: row.resumed_at,
     startLatitude: Number(row.start_latitude),
     startLongitude: Number(row.start_longitude),
     finishLatitude: row.finish_latitude ? Number(row.finish_latitude) : null,
     finishLongitude: row.finish_longitude ? Number(row.finish_longitude) : null,
+    geolocationDistanceMeters: row.geolocation_distance_meters != null ? Number(row.geolocation_distance_meters) : null,
     checklistJson: row.checklist_json as Record<string, unknown> | null,
     notes: row.notes,
     createdAt: row.created_at,
@@ -46,10 +48,12 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
         inspector_id: execution.inspectorId,
         started_at: execution.startedAt,
         finished_at: execution.finishedAt,
+        resumed_at: execution.resumedAt,
         start_latitude: execution.startLatitude,
         start_longitude: execution.startLongitude,
         finish_latitude: execution.finishLatitude,
         finish_longitude: execution.finishLongitude,
+        geolocation_distance_meters: execution.geolocationDistanceMeters,
         checklist_json: execution.checklistJson !== null
           ? (execution.checklistJson as Prisma.InputJsonValue)
           : Prisma.JsonNull,
@@ -61,7 +65,8 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
   async update(
     id: string,
     data: Partial<{
-      finishedAt: Date;
+      finishedAt: Date | null;
+      resumedAt: Date | null;
       finishLatitude: number;
       finishLongitude: number;
       checklistJson: Record<string, unknown> | null;
@@ -70,6 +75,7 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
     if (data.finishedAt !== undefined) updateData.finished_at = data.finishedAt;
+    if (data.resumedAt !== undefined) updateData.resumed_at = data.resumedAt;
     if (data.finishLatitude !== undefined) updateData.finish_latitude = data.finishLatitude;
     if (data.finishLongitude !== undefined) updateData.finish_longitude = data.finishLongitude;
     if (data.checklistJson !== undefined) updateData.checklist_json = data.checklistJson;

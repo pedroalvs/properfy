@@ -1,5 +1,10 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { InspectorStatus } from '@properfy/shared';
+import type {
+  InspectorStatus,
+  PaymentSettings,
+  ServiceTypeEntry,
+  ClientEligibilityEntry,
+} from '@properfy/shared';
 
 export interface InspectorProps {
   id: string;
@@ -8,9 +13,9 @@ export interface InspectorProps {
   email: string;
   phone: string | null;
   status: InspectorStatus;
-  paymentSettingsJson: Record<string, unknown>;
-  serviceTypesJson: string[];
-  clientEligibilityJson: string[];
+  paymentSettingsJson: PaymentSettings;
+  serviceTypesJson: ServiceTypeEntry[];
+  clientEligibilityJson: ClientEligibilityEntry[];
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -22,9 +27,9 @@ export class InspectorEntity extends BaseEntity {
   readonly email: string;
   readonly phone: string | null;
   status: InspectorStatus;
-  readonly paymentSettingsJson: Record<string, unknown>;
-  readonly serviceTypesJson: string[];
-  readonly clientEligibilityJson: string[];
+  readonly paymentSettingsJson: PaymentSettings;
+  readonly serviceTypesJson: ServiceTypeEntry[];
+  readonly clientEligibilityJson: ClientEligibilityEntry[];
   readonly deletedAt: Date | null;
 
   constructor(props: InspectorProps) {
@@ -49,10 +54,20 @@ export class InspectorEntity extends BaseEntity {
   }
 
   isEligibleForTenant(tenantId: string): boolean {
-    return this.clientEligibilityJson.includes(tenantId);
+    return this.clientEligibilityJson.some(
+      (entry) => entry.tenantId === tenantId && entry.eligible,
+    );
   }
 
   supportsServiceType(serviceTypeId: string): boolean {
-    return this.serviceTypesJson.includes(serviceTypeId);
+    return this.serviceTypesJson.some(
+      (entry) => entry.serviceTypeId === serviceTypeId,
+    );
+  }
+
+  isCertifiedForServiceType(serviceTypeId: string): boolean {
+    return this.serviceTypesJson.some(
+      (entry) => entry.serviceTypeId === serviceTypeId && entry.certified,
+    );
   }
 }

@@ -7,7 +7,8 @@ export interface IInspectionExecutionRepository {
   update(
     id: string,
     data: Partial<{
-      finishedAt: Date;
+      finishedAt: Date | null;
+      resumedAt: Date | null;
       finishLatitude: number;
       finishLongitude: number;
       checklistJson: Record<string, unknown> | null;

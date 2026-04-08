@@ -18,6 +18,12 @@ export class ExecutionAlreadyFinishedError extends ConflictError {
   }
 }
 
+export class ExecutionNotFinishedError extends ConflictError {
+  constructor() {
+    super('EXECUTION_NOT_FINISHED', 'Inspection execution is not finished');
+  }
+}
+
 export class ExecutionNotStartedError extends NotFoundError {
   constructor() {
     super('EXECUTION_NOT_STARTED', 'No inspection execution found for this appointment');

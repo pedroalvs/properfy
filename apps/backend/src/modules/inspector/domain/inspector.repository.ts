@@ -1,3 +1,4 @@
+import type { PaymentSettings, ServiceTypeEntry, ClientEligibilityEntry } from '@properfy/shared';
 import type { InspectorEntity } from './inspector.entity';
 
 export interface InspectorFilters {
@@ -33,9 +34,9 @@ export interface IInspectorRepository {
       email: string;
       phone: string | null;
       status: string;
-      paymentSettingsJson: Record<string, unknown>;
-      serviceTypesJson: string[];
-      clientEligibilityJson: string[];
+      paymentSettingsJson: PaymentSettings;
+      serviceTypesJson: ServiceTypeEntry[];
+      clientEligibilityJson: ClientEligibilityEntry[];
       deletedAt: Date | null;
     }>,
   ): Promise<void>;

@@ -4,6 +4,8 @@ import {
   inspectorScheduleQuerySchema,
   startInspectionSchema,
   finishInspectionSchema,
+  reopenExecutionSchema,
+  saveExecutionProgressSchema,
   requestAssetUploadSchema,
   inspectorScheduleResponseSchema,
   inspectionExecutionResponseSchema,
@@ -24,6 +26,8 @@ import type { StartInspectionUseCase } from '../application/use-cases/start-insp
 import type { FinishInspectionUseCase } from '../application/use-cases/finish-inspection.use-case';
 import type { RequestAssetUploadUseCase } from '../application/use-cases/request-asset-upload.use-case';
 import type { ConfirmAssetUploadUseCase } from '../application/use-cases/confirm-asset-upload.use-case';
+import type { SaveExecutionProgressUseCase } from '../application/use-cases/save-execution-progress.use-case';
+import type { ReopenExecutionUseCase } from '../application/use-cases/reopen-execution.use-case';
 import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
@@ -32,6 +36,8 @@ export interface InspectorExecutionRouteContainer {
   getAppointmentDetailUseCase: GetAppointmentDetailUseCase;
   startInspectionUseCase: StartInspectionUseCase;
   finishInspectionUseCase: FinishInspectionUseCase;
+  saveExecutionProgressUseCase: SaveExecutionProgressUseCase;
+  reopenExecutionUseCase: ReopenExecutionUseCase;
   requestAssetUploadUseCase: RequestAssetUploadUseCase;
   confirmAssetUploadUseCase: ConfirmAssetUploadUseCase;
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
@@ -134,6 +140,50 @@ export async function registerInspectorExecutionRoutes(
         appointmentId: params.data.appointmentId,
         ...parsed.data,
         idempotencyKey,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspector/appointments/:appointmentId/execution/reopen
+  app.post(
+    '/v1/inspector/appointments/:appointmentId/execution/reopen',
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: reopenExecutionSchema } },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+      const parsed = reopenExecutionSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.reopenExecutionUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // PATCH /v1/inspector/appointments/:appointmentId/execution
+  app.patch(
+    '/v1/inspector/appointments/:appointmentId/execution',
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }) } },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+      const parsed = saveExecutionProgressSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.saveExecutionProgressUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        ...parsed.data,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

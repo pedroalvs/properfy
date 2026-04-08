@@ -1,4 +1,4 @@
-import { NotFoundError, ConflictError } from '../../../shared/domain/errors';
+import { NotFoundError, ConflictError, DomainError } from '../../../shared/domain/errors';
 
 export class InspectorNotFoundError extends NotFoundError {
   constructor() {
@@ -40,5 +40,17 @@ export class AvailabilitySlotNotFoundError extends NotFoundError {
 export class AvailabilitySlotOverlapError extends ConflictError {
   constructor() {
     super('AVAILABILITY_SLOT_OVERLAP', 'This slot overlaps with an existing availability slot');
+  }
+}
+
+export class AvailabilitySlotCapacityExhaustedError extends ConflictError {
+  constructor() {
+    super('AVAILABILITY_SLOT_CAPACITY_EXHAUSTED', 'Inspector has no remaining capacity in the matching availability slot');
+  }
+}
+
+export class AvailabilitySlotNotMatchedError extends DomainError {
+  constructor() {
+    super('AVAILABILITY_SLOT_NOT_MATCHED', 'No matching availability slot found for the inspector on the scheduled date and time', 422);
   }
 }

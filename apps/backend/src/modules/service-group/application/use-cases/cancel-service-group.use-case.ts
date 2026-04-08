@@ -4,6 +4,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
+import type { IAvailabilitySlotRepository } from '../../../inspector/domain/availability-slot.repository';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
@@ -25,6 +26,7 @@ export class CancelServiceGroupUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
     private readonly eventBus?: DomainEventBus,
+    private readonly availabilitySlotRepo?: IAvailabilitySlotRepository,
   ) {}
 
   async execute(input: CancelServiceGroupInput): Promise<CancelServiceGroupOutput> {
@@ -46,8 +48,25 @@ export class CancelServiceGroupUseCase {
     }
 
     // If group was ACCEPTED, revert SCHEDULED appointments back to AWAITING_INSPECTOR
+    // and restore the availability slot capacity
     if (group.status === 'ACCEPTED') {
       await this.serviceGroupRepo.revertScheduledAppointments(groupId);
+
+      // Restore availability slot capacity
+      if (this.availabilitySlotRepo && group.assignedInspectorId) {
+        const parts = group.timeWindow.split('-');
+        const slotStart = parts[0] ?? '';
+        const slotEnd = parts[1] ?? '';
+        const slot = await this.availabilitySlotRepo.findSlotForRestore(
+          group.assignedInspectorId,
+          group.scheduledDate,
+          slotStart,
+          slotEnd,
+        );
+        if (slot) {
+          await this.availabilitySlotRepo.incrementCapacity(slot.id);
+        }
+      }
     }
 
     // Update group status

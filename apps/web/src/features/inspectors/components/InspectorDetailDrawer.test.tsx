@@ -58,7 +58,7 @@ vi.mock('../hooks/useInspectorDetail', () => ({
       return {
         inspector: {
           id: 'insp-02', name: 'Inactive Inspector', email: 'inactive@test.com', phone: null,
-          status: 'INACTIVE', regions: [], regionIds: [], serviceTypes: [], clientEligibility: [],
+          status: 'INACTIVE' as const, regions: [], regionIds: [], serviceTypes: [], clientEligibility: [],
           regionsCount: 0, serviceTypesCount: 0,
           createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
         },
@@ -68,7 +68,7 @@ vi.mock('../hooks/useInspectorDetail', () => ({
     return {
       inspector: {
         id: 'insp-01', name: 'Carlos Silva', email: 'carlos@inspecoes.com', phone: '11999999999',
-        status: 'ACTIVE', regions: ['Zona Sul'], regionIds: [], serviceTypes: ['Vistoria'], clientEligibility: [],
+        status: 'ACTIVE' as const, regions: ['Zona Sul'], regionIds: [], serviceTypes: [{ serviceTypeId: 'Vistoria', certified: false }], clientEligibility: [],
         regionsCount: 1, serviceTypesCount: 1,
         createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
       },

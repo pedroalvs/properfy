@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  paymentSettingsSchema,
+  serviceTypesSchema,
+  clientEligibilitySchema,
   createInspectorSchema,
   updateInspectorSchema,
   listInspectorsQuerySchema,
@@ -8,15 +11,155 @@ import {
   listAvailabilitySlotsQuerySchema,
 } from './inspector';
 
+describe('paymentSettingsSchema', () => {
+  it('should accept valid full payment settings', () => {
+    const result = paymentSettingsSchema.safeParse({
+      bankName: 'Commonwealth Bank',
+      accountNumber: '12345678',
+      bsb: '062-000',
+      abn: '51824753556',
+      paymentMethod: 'BANK_TRANSFER',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept empty object', () => {
+    const result = paymentSettingsSchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept partial fields', () => {
+    const result = paymentSettingsSchema.safeParse({
+      bankName: 'ANZ',
+      paymentMethod: 'BANK_TRANSFER',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid paymentMethod', () => {
+    const result = paymentSettingsSchema.safeParse({
+      paymentMethod: 'BITCOIN',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should passthrough unknown fields for forward compatibility', () => {
+    const result = paymentSettingsSchema.safeParse({
+      bankName: 'Test Bank',
+      swiftCode: 'TESTAU2S',
+      customField: 42,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.bankName).toBe('Test Bank');
+      expect((result.data as Record<string, unknown>)['swiftCode']).toBe('TESTAU2S');
+      expect((result.data as Record<string, unknown>)['customField']).toBe(42);
+    }
+  });
+
+  it('should reject bankName exceeding max length', () => {
+    const result = paymentSettingsSchema.safeParse({
+      bankName: 'A'.repeat(201),
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('serviceTypesSchema', () => {
+  it('should accept valid service type entries', () => {
+    const result = serviceTypesSchema.safeParse([
+      { serviceTypeId: '550e8400-e29b-41d4-a716-446655440000', certified: true },
+      { serviceTypeId: '550e8400-e29b-41d4-a716-446655440001', certified: false },
+    ]);
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept empty array', () => {
+    const result = serviceTypesSchema.safeParse([]);
+    expect(result.success).toBe(true);
+  });
+
+  it('should default certified to false', () => {
+    const result = serviceTypesSchema.safeParse([
+      { serviceTypeId: '550e8400-e29b-41d4-a716-446655440000' },
+    ]);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data[0].certified).toBe(false);
+    }
+  });
+
+  it('should reject invalid UUID for serviceTypeId', () => {
+    const result = serviceTypesSchema.safeParse([
+      { serviceTypeId: 'not-a-uuid', certified: true },
+    ]);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject non-boolean certified', () => {
+    const result = serviceTypesSchema.safeParse([
+      { serviceTypeId: '550e8400-e29b-41d4-a716-446655440000', certified: 'yes' },
+    ]);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing serviceTypeId', () => {
+    const result = serviceTypesSchema.safeParse([
+      { certified: true },
+    ]);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('clientEligibilitySchema', () => {
+  it('should accept valid client eligibility entries', () => {
+    const result = clientEligibilitySchema.safeParse([
+      { tenantId: '550e8400-e29b-41d4-a716-446655440000', eligible: true },
+      { tenantId: '550e8400-e29b-41d4-a716-446655440001', eligible: false },
+    ]);
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept empty array', () => {
+    const result = clientEligibilitySchema.safeParse([]);
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid UUID for tenantId', () => {
+    const result = clientEligibilitySchema.safeParse([
+      { tenantId: 'not-a-uuid', eligible: true },
+    ]);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing eligible field', () => {
+    const result = clientEligibilitySchema.safeParse([
+      { tenantId: '550e8400-e29b-41d4-a716-446655440000' },
+    ]);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject non-boolean eligible', () => {
+    const result = clientEligibilitySchema.safeParse([
+      { tenantId: '550e8400-e29b-41d4-a716-446655440000', eligible: 'yes' },
+    ]);
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('createInspectorSchema', () => {
   const validInput = {
     name: 'John Smith',
     email: 'john@example.com',
     phone: '+61412345678',
-    paymentSettings: { bankAccount: '123456' },
+    paymentSettings: { bankName: 'ANZ', paymentMethod: 'BANK_TRANSFER' as const },
     regions: ['Sydney', 'Melbourne'],
-    serviceTypes: ['550e8400-e29b-41d4-a716-446655440000'],
-    clientEligibility: ['550e8400-e29b-41d4-a716-446655440001'],
+    serviceTypes: [
+      { serviceTypeId: '550e8400-e29b-41d4-a716-446655440000', certified: true },
+    ],
+    clientEligibility: [
+      { tenantId: '550e8400-e29b-41d4-a716-446655440001', eligible: true },
+    ],
   };
 
   it('should accept valid full input', () => {
@@ -58,6 +201,39 @@ describe('createInspectorSchema', () => {
       expect(result.data.clientEligibility).toEqual([]);
     }
   });
+
+  it('should reject serviceTypes with plain UUID strings', () => {
+    const result = createInspectorSchema.safeParse({
+      name: 'John Smith',
+      email: 'john@example.com',
+      serviceTypes: ['550e8400-e29b-41d4-a716-446655440000'],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject clientEligibility with plain UUID strings', () => {
+    const result = createInspectorSchema.safeParse({
+      name: 'John Smith',
+      email: 'john@example.com',
+      clientEligibility: ['550e8400-e29b-41d4-a716-446655440000'],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept paymentSettings with passthrough fields', () => {
+    const result = createInspectorSchema.safeParse({
+      name: 'John Smith',
+      email: 'john@example.com',
+      paymentSettings: {
+        bankName: 'Test Bank',
+        swiftCode: 'TESTAU2S',
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data.paymentSettings as Record<string, unknown>)['swiftCode']).toBe('TESTAU2S');
+    }
+  });
 });
 
 describe('updateInspectorSchema', () => {
@@ -73,6 +249,36 @@ describe('updateInspectorSchema', () => {
 
   it('should accept nullable phone', () => {
     const result = updateInspectorSchema.safeParse({ phone: null });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept typed serviceTypes update', () => {
+    const result = updateInspectorSchema.safeParse({
+      serviceTypes: [
+        { serviceTypeId: '550e8400-e29b-41d4-a716-446655440000', certified: true },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept typed clientEligibility update', () => {
+    const result = updateInspectorSchema.safeParse({
+      clientEligibility: [
+        { tenantId: '550e8400-e29b-41d4-a716-446655440000', eligible: false },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept typed paymentSettings update', () => {
+    const result = updateInspectorSchema.safeParse({
+      paymentSettings: {
+        bankName: 'Westpac',
+        bsb: '032-000',
+        accountNumber: '987654',
+        paymentMethod: 'BANK_TRANSFER',
+      },
+    });
     expect(result.success).toBe(true);
   });
 });

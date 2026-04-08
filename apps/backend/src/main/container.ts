@@ -163,12 +163,15 @@ import { PrismaIdempotencyService } from '../modules/inspector-execution/infrast
 import { StubStorageService } from '../modules/inspector-execution/infrastructure/stub-storage.service';
 import { SupabaseStorageService } from '../modules/inspector-execution/infrastructure/supabase-storage.service';
 import { PrismaServiceTypeReader } from '../modules/inspector-execution/infrastructure/prisma-service-type-reader';
+import { PrismaTenantSettingsReader } from '../modules/inspector-execution/infrastructure/prisma-tenant-settings-reader';
 import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case';
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
 import { StartInspectionUseCase } from '../modules/inspector-execution/application/use-cases/start-inspection.use-case';
 import { FinishInspectionUseCase } from '../modules/inspector-execution/application/use-cases/finish-inspection.use-case';
 import { RequestAssetUploadUseCase } from '../modules/inspector-execution/application/use-cases/request-asset-upload.use-case';
 import { ConfirmAssetUploadUseCase } from '../modules/inspector-execution/application/use-cases/confirm-asset-upload.use-case';
+import { SaveExecutionProgressUseCase } from '../modules/inspector-execution/application/use-cases/save-execution-progress.use-case';
+import { ReopenExecutionUseCase } from '../modules/inspector-execution/application/use-cases/reopen-execution.use-case';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 
 // Billing module
@@ -552,6 +555,7 @@ export function createContainer(logger: Logger): AppContainer {
     ? new SupabaseStorageService(s3Client)
     : new StubStorageService();
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
+  const tenantSettingsReader = new PrismaTenantSettingsReader(prisma);
   const performCrossCheckUseCase = new PerformCrossCheckUseCase(
     appointmentRepo,
     auditLogRepo,
@@ -575,13 +579,13 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector execution use cases
   const getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
-    appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec,
+    appointmentRepo, inspectionExecutionRepo,
   );
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
     appointmentRepo, inspectionExecutionRepo, inspectionAssetRepo, serviceTypeReaderForExec,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
-    appointmentRepo, inspectionExecutionRepo, idempotencyService, serviceTypeReaderForExec, auditService,
+    appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, tenantSettingsReader,
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, inspectionAssetRepo, idempotencyService,
@@ -593,6 +597,12 @@ export function createContainer(logger: Logger): AppContainer {
   const confirmAssetUploadUseCase = new ConfirmAssetUploadUseCase(
     inspectionAssetRepo, storageService,
   );
+  const saveExecutionProgressUseCase = new SaveExecutionProgressUseCase(
+    inspectionExecutionRepo,
+  );
+  const reopenExecutionUseCase = new ReopenExecutionUseCase(
+    inspectionExecutionRepo, appointmentRepo, auditService,
+  );
 
   // Audit use cases
   const listAuditLogsUseCase = new ListAuditLogsUseCase(auditLogRepo, userManagementRepo);
@@ -603,11 +613,11 @@ export function createContainer(logger: Logger): AppContainer {
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo);
   const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, domainEventBus);
-  const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, domainEventBus);
-  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, domainEventBus);
+  const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, domainEventBus, availabilitySlotRepo);
+  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, domainEventBus, availabilitySlotRepo);
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
   const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo);
-  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, domainEventBus);
+  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, domainEventBus, availabilitySlotRepo);
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, tenantRepo);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService);
@@ -926,6 +936,8 @@ export function createContainer(logger: Logger): AppContainer {
       getAppointmentDetailUseCase,
       startInspectionUseCase,
       finishInspectionUseCase,
+      saveExecutionProgressUseCase,
+      reopenExecutionUseCase,
       requestAssetUploadUseCase,
       confirmAssetUploadUseCase,
       getMarketplaceOffersUseCase,

@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, ServiceTypeEntry } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type {
   IInspectorRepository,
@@ -21,7 +21,7 @@ export interface ListInspectorsOutput {
     phone: string | null;
     status: string;
     regionIds: string[];
-    serviceTypesJson: string[];
+    serviceTypesJson: ServiceTypeEntry[];
     createdAt: Date;
     updatedAt: Date;
   }>;

@@ -33,9 +33,15 @@ function parseDelimitedValues(value: string): string[] {
     .filter(Boolean);
 }
 
-function parseServiceTypeIds(value: string): string[] | undefined {
+function parseServiceTypeEntries(value: string): Array<{ serviceTypeId: string; certified: boolean }> | undefined {
   const parsed = parseDelimitedValues(value);
-  return parsed.length > 0 ? parsed : undefined;
+  if (parsed.length === 0) return undefined;
+  return parsed.map((id) => ({ serviceTypeId: id, certified: false }));
+}
+
+function parseClientEligibilityEntries(value: string[]): Array<{ tenantId: string; eligible: boolean }> | undefined {
+  if (value.length === 0) return undefined;
+  return value.map((id) => ({ tenantId: id, eligible: true }));
 }
 
 export interface SaveResult {
@@ -62,7 +68,7 @@ export function useInspectorSave(): UseInspectorSaveReturn {
     const emailError = validateEmail(data.email);
     if (emailError) errors.email = emailError;
 
-    const serviceTypes = parseServiceTypeIds(data.serviceTypes);
+    const serviceTypes = parseServiceTypeEntries(data.serviceTypes);
     const schema = _mode === 'create' ? createInspectorSchema : updateInspectorSchema;
     const result = schema.safeParse({
       name: data.name.trim() || undefined,
@@ -93,8 +99,8 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         phone: data.phone.trim() || undefined,
         status: data.status || undefined,
         regionIds: data.regionIds.length > 0 ? data.regionIds : [],
-        serviceTypes: parseServiceTypeIds(data.serviceTypes),
-        clientEligibility: data.clientEligibility.length > 0 ? data.clientEligibility : undefined,
+        serviceTypes: parseServiceTypeEntries(data.serviceTypes),
+        clientEligibility: parseClientEligibilityEntries(data.clientEligibility),
       };
 
       let apiError: { error?: { code?: string; message?: string } } | undefined;

@@ -681,11 +681,13 @@ model InspectionExecution {
   inspector_id      String
   started_at        DateTime
   finished_at       DateTime?
+  resumed_at        DateTime?
   start_latitude    Decimal   @db.Decimal(10, 7)
   start_longitude   Decimal   @db.Decimal(10, 7)
-  finish_latitude   Decimal?  @db.Decimal(10, 7)
-  finish_longitude  Decimal?  @db.Decimal(10, 7)
-  checklist_json    Json?
+  finish_latitude                Decimal?  @db.Decimal(10, 7)
+  finish_longitude               Decimal?  @db.Decimal(10, 7)
+  geolocation_distance_meters    Decimal?  @db.Decimal(10, 2)
+  checklist_json                 Json?
   notes             String?
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt

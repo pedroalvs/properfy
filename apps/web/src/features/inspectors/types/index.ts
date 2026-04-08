@@ -1,4 +1,8 @@
-import type { InspectorStatus } from '@properfy/shared';
+import type {
+  InspectorStatus,
+  ServiceTypeEntry,
+  ClientEligibilityEntry,
+} from '@properfy/shared';
 
 export interface Inspector {
   id: string;
@@ -14,8 +18,8 @@ export interface Inspector {
 
 export interface InspectorDetail extends Inspector {
   regionIds: string[];
-  serviceTypes: string[];
-  clientEligibility: string[];
+  serviceTypes: ServiceTypeEntry[];
+  clientEligibility: ClientEligibilityEntry[];
 }
 
 export interface InspectorFormData {

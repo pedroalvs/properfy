@@ -35,11 +35,16 @@ export class GetMarketplaceOfferDetailUseCase {
       throw new InspectorInactiveError();
     }
 
+    const serviceTypeIds = inspector.serviceTypesJson.map((s) => s.serviceTypeId);
+    const eligibleTenantIds = inspector.clientEligibilityJson
+      .filter((c) => c.eligible)
+      .map((c) => c.tenantId);
+
     const detail = await this.serviceGroupRepo.findPublishedOfferDetail(
       groupId,
       inspector.id,
-      inspector.serviceTypesJson,
-      inspector.clientEligibilityJson,
+      serviceTypeIds,
+      eligibleTenantIds,
     );
 
     if (!detail) {

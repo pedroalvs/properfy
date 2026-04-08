@@ -1,5 +1,10 @@
 import bcrypt from 'bcryptjs';
-import type { AuthContext } from '@properfy/shared';
+import type {
+  AuthContext,
+  PaymentSettings,
+  ServiceTypeEntry,
+  ClientEligibilityEntry,
+} from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
@@ -13,11 +18,11 @@ export interface CreateInspectorInput {
   name: string;
   email: string;
   phone?: string | null;
-  paymentSettings?: Record<string, unknown>;
+  paymentSettings?: PaymentSettings;
   regions?: string[];
   regionIds?: string[];
-  serviceTypes?: string[];
-  clientEligibility?: string[];
+  serviceTypes?: ServiceTypeEntry[];
+  clientEligibility?: ClientEligibilityEntry[];
   actor: AuthContext;
 }
 
@@ -28,10 +33,10 @@ export interface CreateInspectorOutput {
   email: string;
   phone: string | null;
   status: string;
-  paymentSettingsJson: Record<string, unknown>;
+  paymentSettingsJson: PaymentSettings;
   regionIds: string[];
-  serviceTypesJson: string[];
-  clientEligibilityJson: string[];
+  serviceTypesJson: ServiceTypeEntry[];
+  clientEligibilityJson: ClientEligibilityEntry[];
   createdAt: Date;
 }
 

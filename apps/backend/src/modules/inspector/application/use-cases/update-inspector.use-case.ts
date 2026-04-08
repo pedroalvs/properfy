@@ -1,4 +1,9 @@
-import type { AuthContext } from '@properfy/shared';
+import type {
+  AuthContext,
+  PaymentSettings,
+  ServiceTypeEntry,
+  ClientEligibilityEntry,
+} from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
@@ -15,11 +20,11 @@ export interface UpdateInspectorInput {
     email?: string;
     phone?: string | null;
     status?: string;
-    paymentSettings?: Record<string, unknown>;
+    paymentSettings?: PaymentSettings;
     regions?: string[];
     regionIds?: string[];
-    serviceTypes?: string[];
-    clientEligibility?: string[];
+    serviceTypes?: ServiceTypeEntry[];
+    clientEligibility?: ClientEligibilityEntry[];
   };
   actor: AuthContext;
 }
@@ -30,10 +35,10 @@ export interface UpdateInspectorOutput {
   email: string;
   phone: string | null;
   status: string;
-  paymentSettingsJson: Record<string, unknown>;
+  paymentSettingsJson: PaymentSettings;
   regionIds: string[];
-  serviceTypesJson: string[];
-  clientEligibilityJson: string[];
+  serviceTypesJson: ServiceTypeEntry[];
+  clientEligibilityJson: ClientEligibilityEntry[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -101,10 +106,10 @@ export class UpdateInspectorUseCase {
       email: (updateData.email as string) ?? inspector.email,
       phone: (updateData.phone as string | null) ?? inspector.phone,
       status: (updateData.status as string) ?? inspector.status,
-      paymentSettingsJson: (updateData.paymentSettingsJson as Record<string, unknown>) ?? inspector.paymentSettingsJson,
+      paymentSettingsJson: (updateData.paymentSettingsJson as PaymentSettings) ?? inspector.paymentSettingsJson,
       regionIds: resolvedRegionIds,
-      serviceTypesJson: (updateData.serviceTypesJson as string[]) ?? inspector.serviceTypesJson,
-      clientEligibilityJson: (updateData.clientEligibilityJson as string[]) ?? inspector.clientEligibilityJson,
+      serviceTypesJson: (updateData.serviceTypesJson as ServiceTypeEntry[]) ?? inspector.serviceTypesJson,
+      clientEligibilityJson: (updateData.clientEligibilityJson as ClientEligibilityEntry[]) ?? inspector.clientEligibilityJson,
     };
 
     this.auditService.log({

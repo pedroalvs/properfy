@@ -51,8 +51,8 @@ vi.mock('../hooks/useInspectorSave', () => ({
 const MOCK_INSPECTOR = {
   id: 'insp-01', name: 'Carlos Silva', email: 'carlos@test.com',
   phone: '11888888888', status: 'ACTIVE',
-  regions: ['Centro', 'Norte'], regionIds: [], serviceTypes: ['123e4567-e89b-12d3-a456-426614174000'],
-  clientEligibility: ['ten-01'],
+  regions: ['Centro', 'Norte'], regionIds: [], serviceTypes: [{ serviceTypeId: '123e4567-e89b-12d3-a456-426614174000', certified: false }],
+  clientEligibility: [{ tenantId: 'ten-01', eligible: true }],
 };
 
 vi.mock('../hooks/useInspectorDetail', () => ({

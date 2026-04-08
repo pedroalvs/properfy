@@ -162,6 +162,65 @@ export class PrismaAvailabilitySlotRepository
     });
   }
 
+  async findMatchingSlot(
+    inspectorId: string,
+    date: Date,
+    startTime: string,
+    endTime: string,
+  ): Promise<AvailabilitySlotEntity | null> {
+    const row = await this.prisma.inspectorAvailabilitySlot.findFirst({
+      where: {
+        inspector_id: inspectorId,
+        date,
+        status: 'AVAILABLE',
+        start_time: { lte: startTime },
+        end_time: { gte: endTime },
+        capacity: { gt: 0 },
+      },
+      orderBy: { start_time: 'asc' },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  async decrementCapacity(slotId: string): Promise<number | null> {
+    const result = await this.prisma.inspectorAvailabilitySlot.updateMany({
+      where: { id: slotId, capacity: { gt: 0 } },
+      data: { capacity: { decrement: 1 } },
+    });
+    if (result.count === 0) return null;
+    const updated = await this.prisma.inspectorAvailabilitySlot.findUnique({
+      where: { id: slotId },
+      select: { capacity: true },
+    });
+    return updated?.capacity ?? null;
+  }
+
+  async incrementCapacity(slotId: string): Promise<void> {
+    await this.prisma.inspectorAvailabilitySlot.update({
+      where: { id: slotId },
+      data: { capacity: { increment: 1 } },
+    });
+  }
+
+  async findSlotForRestore(
+    inspectorId: string,
+    date: Date,
+    startTime: string,
+    endTime: string,
+  ): Promise<AvailabilitySlotEntity | null> {
+    const row = await this.prisma.inspectorAvailabilitySlot.findFirst({
+      where: {
+        inspector_id: inspectorId,
+        date,
+        status: { not: 'CANCELLED' },
+        start_time: { lte: startTime },
+        end_time: { gte: endTime },
+      },
+      orderBy: { start_time: 'asc' },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
   private buildWhere(filters: AvailabilitySlotFilters) {
     const where: Record<string, unknown> = {};
     if (filters.inspectorId) where['inspector_id'] = filters.inspectorId;

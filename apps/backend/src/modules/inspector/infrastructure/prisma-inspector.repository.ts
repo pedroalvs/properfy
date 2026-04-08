@@ -6,7 +6,12 @@ import type {
   InspectorFilters,
   PaginationParams,
 } from '../domain/inspector.repository';
-import type { InspectorStatus } from '@properfy/shared';
+import type {
+  InspectorStatus,
+  PaymentSettings,
+  ServiceTypeEntry,
+  ClientEligibilityEntry,
+} from '@properfy/shared';
 
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
@@ -20,6 +25,7 @@ function mapToEntity(row: {
   phone: string | null;
   status: string;
   payment_settings_json: unknown;
+  /** Denormalized cache — NOT authoritative for region assignment. Use inspector_regions join table for all business logic. */
   regions_json: unknown;
   service_types_json: unknown;
   client_eligibility_json: unknown;
@@ -35,9 +41,9 @@ function mapToEntity(row: {
     phone: row.phone,
     status: row.status as InspectorStatus,
     paymentSettingsJson:
-      (row.payment_settings_json as Record<string, unknown>) ?? {},
-    serviceTypesJson: (row.service_types_json as string[]) ?? [],
-    clientEligibilityJson: (row.client_eligibility_json as string[]) ?? [],
+      (row.payment_settings_json as PaymentSettings) ?? {},
+    serviceTypesJson: (row.service_types_json as ServiceTypeEntry[]) ?? [],
+    clientEligibilityJson: (row.client_eligibility_json as ClientEligibilityEntry[]) ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -108,8 +114,10 @@ export class PrismaInspectorRepository implements IInspectorRepository {
         select: { client_eligibility_json: true },
       });
       return rows.filter((r) => {
-        const eligibility = (r.client_eligibility_json as string[]) ?? [];
-        return eligibility.includes(filters.tenantId!);
+        const eligibility = (r.client_eligibility_json as ClientEligibilityEntry[]) ?? [];
+        return eligibility.some(
+          (entry) => entry.tenantId === filters.tenantId! && entry.eligible,
+        );
       }).length;
     }
     const where = this.buildWhere(filters);
@@ -139,9 +147,9 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       email: string;
       phone: string | null;
       status: string;
-      paymentSettingsJson: Record<string, unknown>;
-      serviceTypesJson: string[];
-      clientEligibilityJson: string[];
+      paymentSettingsJson: PaymentSettings;
+      serviceTypesJson: ServiceTypeEntry[];
+      clientEligibilityJson: ClientEligibilityEntry[];
       deletedAt: Date | null;
     }>,
   ): Promise<void> {

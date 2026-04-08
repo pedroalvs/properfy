@@ -6,10 +6,12 @@ export interface InspectionExecutionProps {
   inspectorId: string;
   startedAt: Date;
   finishedAt: Date | null;
+  resumedAt: Date | null;
   startLatitude: number;
   startLongitude: number;
   finishLatitude: number | null;
   finishLongitude: number | null;
+  geolocationDistanceMeters: number | null;
   checklistJson: Record<string, unknown> | null;
   notes: string | null;
   createdAt: Date;
@@ -21,10 +23,12 @@ export class InspectionExecutionEntity extends BaseEntity {
   readonly inspectorId: string;
   readonly startedAt: Date;
   finishedAt: Date | null;
+  resumedAt: Date | null;
   readonly startLatitude: number;
   readonly startLongitude: number;
   finishLatitude: number | null;
   finishLongitude: number | null;
+  readonly geolocationDistanceMeters: number | null;
   checklistJson: Record<string, unknown> | null;
   notes: string | null;
 
@@ -34,10 +38,12 @@ export class InspectionExecutionEntity extends BaseEntity {
     this.inspectorId = props.inspectorId;
     this.startedAt = props.startedAt;
     this.finishedAt = props.finishedAt;
+    this.resumedAt = props.resumedAt;
     this.startLatitude = props.startLatitude;
     this.startLongitude = props.startLongitude;
     this.finishLatitude = props.finishLatitude;
     this.finishLongitude = props.finishLongitude;
+    this.geolocationDistanceMeters = props.geolocationDistanceMeters;
     this.checklistJson = props.checklistJson;
     this.notes = props.notes;
   }

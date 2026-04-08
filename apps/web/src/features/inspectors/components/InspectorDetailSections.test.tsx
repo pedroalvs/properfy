@@ -30,7 +30,10 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
     regionsCount: 3,
     serviceTypesCount: 5,
     regionIds: ['region-1', 'region-2', 'region-3'],
-    serviceTypes: ['123e4567-e89b-12d3-a456-426614174000', '123e4567-e89b-12d3-a456-426614174001'],
+    serviceTypes: [
+      { serviceTypeId: '123e4567-e89b-12d3-a456-426614174000', certified: false },
+      { serviceTypeId: '123e4567-e89b-12d3-a456-426614174001', certified: false },
+    ],
     clientEligibility: [],
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
@@ -129,7 +132,7 @@ describe('InspectorDetailSections', () => {
 
   it('shows client eligibility when tenants are assigned', () => {
     render(
-      <InspectorDetailSections inspector={makeInspector({ clientEligibility: ['ten-01', 'ten-02'] })} />,
+      <InspectorDetailSections inspector={makeInspector({ clientEligibility: [{ tenantId: 'ten-01', eligible: true }, { tenantId: 'ten-02', eligible: true }] })} />,
       { wrapper },
     );
     expect(screen.getByText('Imobiliaria Alpha, Imobiliaria Beta')).toBeInTheDocument();

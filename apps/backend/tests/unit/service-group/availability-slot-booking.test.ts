@@ -1,0 +1,495 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AcceptOfferUseCase } from '../../../src/modules/service-group/application/use-cases/accept-offer.use-case';
+import { AssignInspectorManuallyUseCase } from '../../../src/modules/service-group/application/use-cases/assign-inspector-manually.use-case';
+import { CancelServiceGroupUseCase } from '../../../src/modules/service-group/application/use-cases/cancel-service-group.use-case';
+import type { IServiceGroupRepository } from '../../../src/modules/service-group/domain/service-group.repository';
+import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
+import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
+import type { IAvailabilitySlotRepository } from '../../../src/modules/inspector/domain/availability-slot.repository';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import type { AuthContext } from '@properfy/shared';
+import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
+import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
+import { AvailabilitySlotEntity } from '../../../src/modules/inspector/domain/availability-slot.entity';
+import {
+  AvailabilitySlotCapacityExhaustedError,
+  AvailabilitySlotNotMatchedError,
+} from '../../../src/modules/inspector/domain/inspector.errors';
+
+// --- Helpers ---
+
+function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {}): ServiceGroupEntity {
+  return new ServiceGroupEntity({
+    id: 'group-1',
+    tenantId: 'tenant-1',
+    serviceTypeId: 'svc-type-1',
+    status: 'PUBLISHED',
+    groupSize: 5,
+    offeredCount: 1,
+    confirmedCount: 0,
+    scheduledDate: new Date('2026-04-01'),
+    timeWindow: '08:00-12:00',
+    name: null,
+    regionName: null,
+    description: null,
+    priorityMode: 'STANDARD',
+    priorityExpiresAt: null,
+    assignedInspectorId: null,
+    publishedAt: new Date(),
+    assignedAt: null,
+    createdByUserId: 'user-op',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  });
+}
+
+function makeInspector(overrides: Partial<ConstructorParameters<typeof InspectorEntity>[0]> = {}): InspectorEntity {
+  return new InspectorEntity({
+    id: 'inspector-1',
+    userId: null,
+    name: 'John Inspector',
+    email: 'john@inspectors.com',
+    phone: null,
+    status: 'ACTIVE',
+    paymentSettingsJson: {},
+    serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }],
+    clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
+function makeSlot(overrides: Partial<ConstructorParameters<typeof AvailabilitySlotEntity>[0]> = {}): AvailabilitySlotEntity {
+  return new AvailabilitySlotEntity({
+    id: 'slot-1',
+    inspectorId: 'inspector-1',
+    date: new Date('2026-04-01'),
+    startTime: '08:00',
+    endTime: '12:00',
+    regionJson: null,
+    capacity: 3,
+    status: 'AVAILABLE',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  });
+}
+
+function makeGroupWithAppointments(
+  groupOverrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {},
+  appointmentCount = 5,
+) {
+  const group = makeGroup(groupOverrides);
+  const appointments = Array.from({ length: appointmentCount }, (_, i) => ({
+    id: `appt-${i + 1}`,
+    appointmentNumber: i + 1,
+    status: 'AWAITING_INSPECTOR',
+    serviceTypeId: 'svc-type-1',
+    tenantId: 'tenant-1',
+    propertyId: `prop-${i + 1}`,
+    serviceGroupId: group.id,
+  }));
+  return { group, appointments };
+}
+
+function makeInspActor(): AuthContext {
+  return {
+    userId: 'user-insp',
+    tenantId: null,
+    role: 'INSP',
+    branchId: null,
+    inspectorId: 'inspector-1',
+  };
+}
+
+function makeAmActor(): AuthContext {
+  return {
+    userId: 'user-am',
+    tenantId: null,
+    role: 'AM',
+    branchId: null,
+    inspectorId: null,
+  };
+}
+
+function makeAvailabilitySlotRepo(): IAvailabilitySlotRepository {
+  return {
+    findById: vi.fn(),
+    findByIdAny: vi.fn(),
+    findByDateRange: vi.fn(),
+    findAll: vi.fn(),
+    count: vi.fn(),
+    save: vi.fn(),
+    update: vi.fn(),
+    findMatchingSlot: vi.fn(),
+    decrementCapacity: vi.fn(),
+    incrementCapacity: vi.fn(),
+    findSlotForRestore: vi.fn(),
+  };
+}
+
+function makeServiceGroupRepo(): IServiceGroupRepository {
+  return {
+    findById: vi.fn(),
+    findAll: vi.fn(),
+    count: vi.fn(),
+    save: vi.fn(),
+    update: vi.fn(),
+    acceptOptimistic: vi.fn(),
+    findPublishedForInspector: vi.fn(),
+    findPublishedOfferDetail: vi.fn(),
+    countPublishedForInspector: vi.fn(),
+    linkAppointments: vi.fn(),
+    unlinkAppointments: vi.fn(),
+    scheduleAppointments: vi.fn(),
+    revertScheduledAppointments: vi.fn(),
+    findExpiredPublished: vi.fn(),
+  };
+}
+
+function makeInspectorRepo(): IInspectorRepository {
+  return {
+    findById: vi.fn(),
+    findByEmail: vi.fn(),
+    findByUserId: vi.fn(),
+    linkUserId: vi.fn(),
+    findAll: vi.fn(),
+    count: vi.fn(),
+    save: vi.fn(),
+    update: vi.fn(),
+    findByRegionId: vi.fn(),
+  };
+}
+
+function makeIdempotencyService() {
+  return {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue(undefined),
+    getWithHash: vi.fn().mockResolvedValue(null),
+  };
+}
+
+// --- Tests ---
+
+describe('GAP-003: Availability slot booking integration', () => {
+  describe('AcceptOfferUseCase – slot booking', () => {
+    let serviceGroupRepo: IServiceGroupRepository;
+    let inspectorRepo: IInspectorRepository;
+    let auditService: AuditService;
+    let idempotencyService: ReturnType<typeof makeIdempotencyService>;
+    let slotRepo: IAvailabilitySlotRepository;
+
+    beforeEach(() => {
+      serviceGroupRepo = makeServiceGroupRepo();
+      inspectorRepo = makeInspectorRepo();
+      auditService = { log: vi.fn() } as unknown as AuditService;
+      idempotencyService = makeIdempotencyService();
+      slotRepo = makeAvailabilitySlotRepo();
+    });
+
+    it('should decrement slot capacity on accept', async () => {
+      const useCase = new AcceptOfferUseCase(
+        serviceGroupRepo, inspectorRepo, auditService, idempotencyService,
+        undefined, slotRepo,
+      );
+
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+      vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+      vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
+      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(makeSlot());
+      vi.mocked(slotRepo.decrementCapacity).mockResolvedValue(2);
+
+      const result = await useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeInspActor(),
+      });
+
+      expect(result.status).toBe('ACCEPTED');
+      expect(slotRepo.findMatchingSlot).toHaveBeenCalledWith(
+        'inspector-1',
+        new Date('2026-04-01'),
+        '08:00',
+        '12:00',
+      );
+      expect(slotRepo.decrementCapacity).toHaveBeenCalledWith('slot-1');
+    });
+
+    it('should throw AvailabilitySlotNotMatchedError when no slot exists', async () => {
+      const useCase = new AcceptOfferUseCase(
+        serviceGroupRepo, inspectorRepo, auditService, idempotencyService,
+        undefined, slotRepo,
+      );
+
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+      vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(null);
+
+      await expect(
+        useCase.execute({
+          groupId: 'group-1',
+          inspectorId: 'inspector-1',
+          actor: makeInspActor(),
+        }),
+      ).rejects.toThrow(AvailabilitySlotNotMatchedError);
+    });
+
+    it('should throw AvailabilitySlotCapacityExhaustedError when capacity is 0', async () => {
+      const useCase = new AcceptOfferUseCase(
+        serviceGroupRepo, inspectorRepo, auditService, idempotencyService,
+        undefined, slotRepo,
+      );
+
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+      vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(makeSlot({ capacity: 1 }));
+      vi.mocked(slotRepo.decrementCapacity).mockResolvedValue(null);
+
+      await expect(
+        useCase.execute({
+          groupId: 'group-1',
+          inspectorId: 'inspector-1',
+          actor: makeInspActor(),
+        }),
+      ).rejects.toThrow(AvailabilitySlotCapacityExhaustedError);
+    });
+
+    it('should include bookedSlotId in audit log on success', async () => {
+      const useCase = new AcceptOfferUseCase(
+        serviceGroupRepo, inspectorRepo, auditService, idempotencyService,
+        undefined, slotRepo,
+      );
+
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+      vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+      vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
+      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(makeSlot());
+      vi.mocked(slotRepo.decrementCapacity).mockResolvedValue(2);
+
+      await useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeInspActor(),
+      });
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          after: expect.objectContaining({
+            bookedSlotId: 'slot-1',
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('AssignInspectorManuallyUseCase – slot booking', () => {
+    let serviceGroupRepo: IServiceGroupRepository;
+    let inspectorRepo: IInspectorRepository;
+    let serviceRegionRepo: IServiceRegionRepository;
+    let auditService: AuditService;
+    let idempotencyService: ReturnType<typeof makeIdempotencyService>;
+    let slotRepo: IAvailabilitySlotRepository;
+
+    beforeEach(() => {
+      serviceGroupRepo = makeServiceGroupRepo();
+      inspectorRepo = makeInspectorRepo();
+      serviceRegionRepo = {
+        findById: vi.fn(),
+        findByName: vi.fn().mockResolvedValue(null),
+        findAll: vi.fn(),
+        count: vi.fn(),
+        save: vi.fn(),
+        update: vi.fn(),
+        findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue(['prop-1', 'prop-2', 'prop-3', 'prop-4', 'prop-5']),
+        resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+        findContainingPoint: vi.fn().mockResolvedValue([]),
+        countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
+        setInspectorRegions: vi.fn(),
+        getInspectorRegionIds: vi.fn().mockResolvedValue([]),
+        getInspectorRegionIdsBatch: vi.fn().mockResolvedValue(new Map()),
+        delete: vi.fn(),
+      };
+      auditService = { log: vi.fn() } as unknown as AuditService;
+      idempotencyService = makeIdempotencyService();
+      slotRepo = makeAvailabilitySlotRepo();
+    });
+
+    it('should decrement slot capacity on manual assign', async () => {
+      const useCase = new AssignInspectorManuallyUseCase(
+        serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo,
+        idempotencyService, undefined, slotRepo,
+      );
+
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
+      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(makeSlot());
+      vi.mocked(slotRepo.decrementCapacity).mockResolvedValue(2);
+
+      const result = await useCase.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeAmActor(),
+      });
+
+      expect(result.status).toBe('ACCEPTED');
+      expect(slotRepo.findMatchingSlot).toHaveBeenCalledWith(
+        'inspector-1',
+        new Date('2026-04-01'),
+        '08:00',
+        '12:00',
+      );
+      expect(slotRepo.decrementCapacity).toHaveBeenCalledWith('slot-1');
+    });
+
+    it('should throw AvailabilitySlotNotMatchedError when no slot exists', async () => {
+      const useCase = new AssignInspectorManuallyUseCase(
+        serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo,
+        idempotencyService, undefined, slotRepo,
+      );
+
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(null);
+
+      await expect(
+        useCase.execute({
+          groupId: 'group-1',
+          inspectorId: 'inspector-1',
+          actor: makeAmActor(),
+        }),
+      ).rejects.toThrow(AvailabilitySlotNotMatchedError);
+    });
+
+    it('should throw AvailabilitySlotCapacityExhaustedError when capacity is 0', async () => {
+      const useCase = new AssignInspectorManuallyUseCase(
+        serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo,
+        idempotencyService, undefined, slotRepo,
+      );
+
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(makeSlot({ capacity: 1 }));
+      vi.mocked(slotRepo.decrementCapacity).mockResolvedValue(null);
+
+      await expect(
+        useCase.execute({
+          groupId: 'group-1',
+          inspectorId: 'inspector-1',
+          actor: makeAmActor(),
+        }),
+      ).rejects.toThrow(AvailabilitySlotCapacityExhaustedError);
+    });
+  });
+
+  describe('CancelServiceGroupUseCase – slot restoration', () => {
+    let serviceGroupRepo: IServiceGroupRepository;
+    let auditService: AuditService;
+    let slotRepo: IAvailabilitySlotRepository;
+
+    beforeEach(() => {
+      serviceGroupRepo = makeServiceGroupRepo();
+      auditService = { log: vi.fn() } as unknown as AuditService;
+      slotRepo = makeAvailabilitySlotRepo();
+    });
+
+    it('should restore slot capacity when cancelling an ACCEPTED group', async () => {
+      const useCase = new CancelServiceGroupUseCase(
+        serviceGroupRepo, auditService, undefined, slotRepo,
+      );
+
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+        makeGroupWithAppointments({
+          status: 'ACCEPTED',
+          assignedInspectorId: 'inspector-1',
+        }),
+      );
+      vi.mocked(serviceGroupRepo.revertScheduledAppointments).mockResolvedValue(5);
+      vi.mocked(slotRepo.findSlotForRestore).mockResolvedValue(makeSlot({ capacity: 0 }));
+
+      await useCase.execute({
+        groupId: 'group-1',
+        reason: 'Inspector unavailable',
+        actor: makeAmActor(),
+      });
+
+      expect(slotRepo.findSlotForRestore).toHaveBeenCalledWith(
+        'inspector-1',
+        new Date('2026-04-01'),
+        '08:00',
+        '12:00',
+      );
+      expect(slotRepo.incrementCapacity).toHaveBeenCalledWith('slot-1');
+    });
+
+    it('should not attempt slot restoration when cancelling a DRAFT group', async () => {
+      const useCase = new CancelServiceGroupUseCase(
+        serviceGroupRepo, auditService, undefined, slotRepo,
+      );
+
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+        makeGroupWithAppointments({ status: 'DRAFT' }),
+      );
+
+      await useCase.execute({
+        groupId: 'group-1',
+        reason: 'No longer needed',
+        actor: makeAmActor(),
+      });
+
+      expect(slotRepo.findSlotForRestore).not.toHaveBeenCalled();
+      expect(slotRepo.incrementCapacity).not.toHaveBeenCalled();
+    });
+
+    it('should not attempt slot restoration when cancelling a PUBLISHED group', async () => {
+      const useCase = new CancelServiceGroupUseCase(
+        serviceGroupRepo, auditService, undefined, slotRepo,
+      );
+
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+        makeGroupWithAppointments({ status: 'PUBLISHED' }),
+      );
+
+      await useCase.execute({
+        groupId: 'group-1',
+        reason: 'Cancelled before acceptance',
+        actor: makeAmActor(),
+      });
+
+      expect(slotRepo.findSlotForRestore).not.toHaveBeenCalled();
+      expect(slotRepo.incrementCapacity).not.toHaveBeenCalled();
+    });
+
+    it('should gracefully handle missing slot on restoration (no error)', async () => {
+      const useCase = new CancelServiceGroupUseCase(
+        serviceGroupRepo, auditService, undefined, slotRepo,
+      );
+
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+        makeGroupWithAppointments({
+          status: 'ACCEPTED',
+          assignedInspectorId: 'inspector-1',
+        }),
+      );
+      vi.mocked(serviceGroupRepo.revertScheduledAppointments).mockResolvedValue(5);
+      vi.mocked(slotRepo.findSlotForRestore).mockResolvedValue(null);
+
+      // Should not throw even when no matching slot is found
+      const result = await useCase.execute({
+        groupId: 'group-1',
+        reason: 'Inspector slot was deleted',
+        actor: makeAmActor(),
+      });
+
+      expect(result.status).toBe('CANCELLED');
+      expect(slotRepo.incrementCapacity).not.toHaveBeenCalled();
+    });
+  });
+});

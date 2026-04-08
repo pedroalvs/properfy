@@ -51,17 +51,22 @@ export class GetMarketplaceOffersUseCase {
       throw new InspectorInactiveError();
     }
 
+    const serviceTypeIds = inspector.serviceTypesJson.map((s) => s.serviceTypeId);
+    const eligibleTenantIds = inspector.clientEligibilityJson
+      .filter((c) => c.eligible)
+      .map((c) => c.tenantId);
+
     const [data, total] = await Promise.all([
       this.serviceGroupRepo.findPublishedForInspector(
         inspector.id,
-        inspector.serviceTypesJson,
-        inspector.clientEligibilityJson,
+        serviceTypeIds,
+        eligibleTenantIds,
         pagination,
       ),
       this.serviceGroupRepo.countPublishedForInspector(
         inspector.id,
-        inspector.serviceTypesJson,
-        inspector.clientEligibilityJson,
+        serviceTypeIds,
+        eligibleTenantIds,
       ),
     ]);
 

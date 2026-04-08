@@ -26,6 +26,12 @@ export const finishInspectionSchema = z.object({
 
 export type FinishInspectionInput = z.infer<typeof finishInspectionSchema>;
 
+export const reopenExecutionSchema = z.object({
+  reason: z.string().min(1).max(1000).trim(),
+});
+
+export type ReopenExecutionInput = z.infer<typeof reopenExecutionSchema>;
+
 export const requestAssetUploadSchema = z.object({
   kind: z.enum(['PHOTO', 'DOCUMENT', 'SIGNATURE']),
   mimeType: z.string().min(1),
@@ -33,3 +39,10 @@ export const requestAssetUploadSchema = z.object({
 });
 
 export type RequestAssetUploadInput = z.infer<typeof requestAssetUploadSchema>;
+
+export const saveExecutionProgressSchema = z.object({
+  checklistJson: z.record(z.unknown()).optional(),
+  notes: z.string().max(5000).optional(),
+});
+
+export type SaveExecutionProgressInput = z.infer<typeof saveExecutionProgressSchema>;

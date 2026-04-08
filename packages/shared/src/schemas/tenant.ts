@@ -76,6 +76,10 @@ export const tenantSettingsSchema = z.object({
   // Portal reschedule window
   portalRescheduleWindowDays: z.number().int().min(1).max(90).default(30),
 
+  // Inspection time-window bounds (how early/late an inspector can start)
+  inspectionWindowBeforeMinutes: z.number().int().min(0).max(120).default(30),
+  inspectionWindowAfterMinutes: z.number().int().min(0).max(120).default(30),
+
   // Freeform escape hatch
   customFields: z.record(z.unknown()).optional(),
 }).passthrough();

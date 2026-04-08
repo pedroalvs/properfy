@@ -56,10 +56,12 @@ export interface AppointmentDetailOutput {
     id: string;
     startedAt: string;
     finishedAt: string | null;
+    resumedAt: string | null;
     startLatitude: number;
     startLongitude: number;
     finishLatitude: number | null;
     finishLongitude: number | null;
+    geolocationDistanceMeters: number | null;
     status: 'IN_PROGRESS' | 'FINISHED';
   } | null;
   assets: Array<{
@@ -189,10 +191,12 @@ export class GetAppointmentDetailUseCase {
             id: execution.id,
             startedAt: execution.startedAt.toISOString(),
             finishedAt: execution.finishedAt?.toISOString() ?? null,
+            resumedAt: execution.resumedAt?.toISOString() ?? null,
             startLatitude: execution.startLatitude,
             startLongitude: execution.startLongitude,
             finishLatitude: execution.finishLatitude,
             finishLongitude: execution.finishLongitude,
+            geolocationDistanceMeters: execution.geolocationDistanceMeters,
             status: execution.getStatus() as 'IN_PROGRESS' | 'FINISHED',
           }
         : null,
