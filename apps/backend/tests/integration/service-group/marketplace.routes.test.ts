@@ -55,8 +55,7 @@ const marketplaceOffer = {
   priorityExpiresAt: null,
   suburbs: ['Surry Hills', 'Redfern'],
   payoutEstimate: null,
-  addresses: [],
-  keyRequired: false,
+  appointmentCount: 5,
 };
 
 const acceptedOffer = {

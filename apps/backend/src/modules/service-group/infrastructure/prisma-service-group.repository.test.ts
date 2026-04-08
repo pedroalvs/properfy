@@ -61,8 +61,6 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       tenantName: 'Agency A',
       serviceTypeName: 'Routine',
       suburbs: ['Bondi'],
-      addresses: ['10 Main St, Bondi'],
-      keyRequired: false,
       payoutEstimate: 50,
     });
   });

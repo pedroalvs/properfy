@@ -683,6 +683,7 @@ export const dashboardStatsResponseSchema = z.object({
     code: z.string(),
     propertyAddress: z.string(),
     status: z.string(),
+    doneMarkedByUserId: z.string().uuid().nullable().optional(),
     doneCheckedByUserId: z.string().uuid().nullable().optional(),
     scheduledDate: dateStr(),
   })),
