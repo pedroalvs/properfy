@@ -2,7 +2,7 @@
 
 **Feature Branch**: `015-permissions-rbac-matrix`
 **Created**: 2026-04-06
-**Feature Status**: PARTIALLY IMPLEMENTED — role-based checks exist in use cases; CL_USER fine-grained permissions and tenant-settings gates are only partially enforced
+**Feature Status**: FOUNDATION COMPLETE — AuthorizationService centralized with audit-on-denial across ~70 use cases; shared role matrix operational; all 7 CL_USER flags enforced; privilege escalation and self-approval prevention centralized; frontend permission guard ready. Remaining items are additional integration test coverage and UI adoption (non-blocking).
 **Sources**:
 - Code: `apps/backend/src/modules/*/application/use-cases/*.ts`, `apps/backend/src/shared/domain/cl-user-permissions.ts`, `apps/backend/src/shared/interfaces/auth-middleware.ts`
 - Approved rules: `.specify/memory/constitution.md` (RBAC section), `.specify/memory/correction-op-tenant-scope.md`

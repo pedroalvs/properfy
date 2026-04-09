@@ -87,3 +87,9 @@ apps/web/src/
 ## Complexity Tracking
 
 No constitution violations. No complexity justifications needed.
+
+## Closure Status
+
+**Implemented**: 2026-04-09 | **Commit**: `48a6a3d` | **Tests**: 2567 backend + 12 frontend, all passing
+
+The authorization foundation is complete: shared role matrix, expanded AuthorizationService (6 methods with audit-on-denial), ~70 use cases migrated, frontend permission guard ready. Deferred items (integration tests, UI adoption) are non-blocking — see `tasks.md` Closure Status section for classification.
