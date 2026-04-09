@@ -1,4 +1,7 @@
-import { useRef, useEffect, useState, type ReactNode } from 'react';
+import { useRef, useEffect, useState, useCallback, type ReactNode } from 'react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { env } from '@/config/env';
 
 export interface MapViewState {
   longitude: number;
@@ -11,6 +14,7 @@ interface MapContainerProps {
   children?: ReactNode;
   className?: string;
   onMapClick?: (lng: number, lat: number) => void;
+  onMapReady?: (map: mapboxgl.Map) => void;
 }
 
 const DEFAULT_VIEW_STATE: MapViewState = {
@@ -24,54 +28,115 @@ export function MapContainer({
   children,
   className = '',
   onMapClick,
+  onMapReady,
 }: MapContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
+  const onMapReadyRef = useRef(onMapReady);
+  onMapReadyRef.current = onMapReady;
+
   const [mapReady, setMapReady] = useState(false);
+  const [tokenMissing, setTokenMissing] = useState(false);
+
+  const initialViewRef = useRef(initialViewState);
 
   useEffect(() => {
-    // Map initialization would happen here with mapbox-gl
-    // For now, render a placeholder that will be replaced when mapbox-gl is configured
-    setMapReady(true);
-  }, []);
+    if (!containerRef.current) return;
+
+    const token = env.mapboxToken;
+    if (!token) {
+      setTokenMissing(true);
+      return;
+    }
+
+    mapboxgl.accessToken = token;
+
+    const { longitude, latitude, zoom } = initialViewRef.current;
+
+    const map = new mapboxgl.Map({
+      container: containerRef.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [longitude, latitude],
+      zoom,
+    });
+    mapRef.current = map;
+
+    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+    map.on('load', () => {
+      setMapReady(true);
+      onMapReadyRef.current?.(map);
+    });
+
+    map.on('click', (e: mapboxgl.MapMouseEvent) => {
+      onMapClickRef.current?.(e.lngLat.lng, e.lngLat.lat);
+    });
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      setMapReady(false);
+    };
+  }, []); // eslint-disable-line -- map initialization must run once
+
+  const getMap = useCallback(() => mapRef.current, []);
+
+  if (tokenMissing) {
+    return (
+      <div
+        className={`relative flex h-full w-full items-center justify-center bg-gray-100 ${className}`}
+        data-testid="map-container"
+        role="application"
+        aria-label="Map"
+      >
+        <div className="flex flex-col items-center gap-2 text-center" data-testid="map-token-error">
+          <i className="mdi mdi-map-marker-off text-3xl text-error" aria-hidden="true" />
+          <p className="text-sm font-semibold text-text-primary">Mapbox token not configured</p>
+          <p className="text-xs text-text-muted">
+            Set <code className="rounded bg-gray-200 px-1">VITE_MAPBOX_TOKEN</code> in your environment to enable maps.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       ref={containerRef}
-      className={`relative h-full w-full bg-gray-100 ${className}`}
+      className={`relative h-full w-full ${className}`}
       data-testid="map-container"
-      data-longitude={initialViewState.longitude}
-      data-latitude={initialViewState.latitude}
-      data-zoom={initialViewState.zoom}
-      onClick={(_e) => {
-        if (onMapClick) {
-          const rect = containerRef.current?.getBoundingClientRect();
-          if (rect) {
-            // Simplified click coordinates — real implementation uses mapbox-gl projection
-            onMapClick(initialViewState.longitude, initialViewState.latitude);
-          }
-        }
-      }}
       role="application"
       aria-label="Map"
     >
       {!mapReady && (
-        <div className="flex h-full items-center justify-center">
-          <div className="text-text-secondary">Loading map...</div>
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100">
+          <div className="flex items-center gap-2 text-text-secondary">
+            <i className="mdi mdi-loading mdi-spin text-xl" aria-hidden="true" />
+            Loading map...
+          </div>
         </div>
       )}
-      {mapReady && (
-        <div className="relative h-full w-full" data-testid="map-canvas">
-          {/* Map canvas rendered by mapbox-gl */}
-          <div className="flex h-full items-center justify-center text-text-muted">
-            <i className="mdi mdi-map-outline mr-2 text-2xl" aria-hidden="true" />
-            Map View
-          </div>
-          {/* Overlay children (markers, popups, etc.) */}
-          <div className="absolute inset-0 pointer-events-none">
+      {mapReady && children && (
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          <MapContext.Provider value={{ getMap }}>
             <div className="pointer-events-auto">{children}</div>
-          </div>
+          </MapContext.Provider>
         </div>
       )}
     </div>
   );
+}
+
+import { createContext, useContext } from 'react';
+
+interface MapContextValue {
+  getMap: () => mapboxgl.Map | null;
+}
+
+const MapContext = createContext<MapContextValue>({ getMap: () => null });
+
+export function useMapInstance() {
+  return useContext(MapContext);
 }

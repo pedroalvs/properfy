@@ -58,6 +58,9 @@ const TimeSlotConfigPage = Loadable(lazyRetry(() => import('@/features/appointme
 const NotificationTemplateListPage = Loadable(lazyRetry(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
 const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
 const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
+const AppointmentMapPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
+const PropertyMapPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyMapPage').then(m => ({ default: m.PropertyMapPage }))));
+const ServiceGroupMapPage = Loadable(lazyRetry(() => import('@/features/service-groups/pages/ServiceGroupMapPage').then(m => ({ default: m.ServiceGroupMapPage }))));
 
 import { ProtectedRoute } from './ProtectedRoute';
 import { AuthGuard } from './AuthGuard';
@@ -119,7 +122,7 @@ export const router = createBrowserRouter([
             path: 'appointments/map',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <Navigate to="/appointments" replace />
+                <AppointmentMapPage />
               </AuthGuard>
             ),
           },
@@ -159,7 +162,7 @@ export const router = createBrowserRouter([
             path: 'properties/map',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
-                <Navigate to="/properties" replace />
+                <PropertyMapPage />
               </AuthGuard>
             ),
           },
@@ -199,7 +202,7 @@ export const router = createBrowserRouter([
             path: 'service-groups/map',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <Navigate to="/service-groups" replace />
+                <ServiceGroupMapPage />
               </AuthGuard>
             ),
           },

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { UserRole } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { SidebarItem } from './SidebarItem';
@@ -77,14 +78,16 @@ interface SidebarProps {
 
 export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const visibleItems = useMemo(() => filterNavItems(NAV_ITEMS, user?.role), [user?.role]);
+  const isMapRoute = pathname.includes('/map');
 
   return (
     <aside
       className={
         mobile
           ? 'flex h-full min-h-full w-full min-w-0 flex-col bg-white'
-          : 'fixed left-0 top-0 z-30 flex h-screen w-sidebar flex-col bg-transparent'
+          : `fixed left-0 top-0 z-30 flex h-screen w-sidebar flex-col ${isMapRoute ? 'bg-[#F5F5F5]' : 'bg-transparent'}`
       }
       data-testid="sidebar"
     >
