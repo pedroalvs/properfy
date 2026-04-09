@@ -117,6 +117,6 @@ describe('Sidebar', () => {
     expect(screen.getByText('Properfy')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Appointments' })).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'menu.editProfile' })).toBeInTheDocument();
+    expect(screen.getByText('Edit Profile')).toBeInTheDocument();
   });
 });

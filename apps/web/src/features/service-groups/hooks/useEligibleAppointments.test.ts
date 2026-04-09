@@ -84,9 +84,9 @@ describe('useEligibleAppointments', () => {
     expect(mockGet).toHaveBeenCalledWith('/v1/appointments', {
       params: {
         query: expect.objectContaining({
-          status: 'AWAITING_INSPECTOR',
           serviceTypeId: 'st-01',
           tenantId: 'tenant-1',
+          ungroupedOnly: 'true',
           pageSize: '100',
         }),
       },

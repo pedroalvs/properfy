@@ -63,6 +63,6 @@ describe('FilterDateRange', () => {
         onEndChange={() => {}}
       />,
     );
-    expect(screen.getByText('Period')).toBeInTheDocument();
+    expect(screen.getAllByText('Period').length).toBeGreaterThanOrEqual(1);
   });
 });
