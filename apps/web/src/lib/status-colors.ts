@@ -79,9 +79,10 @@ export const USER_ROLE_MAP: Record<UserRole, StatusStyle> = {
 };
 
 export const USER_STATUS_MAP: Record<UserStatus, StatusStyle> = {
-  [UserStatus.ACTIVE]:   { bg: 'var(--color-user-active)',   text: 'var(--color-text-primary)', label: 'Active' },
-  [UserStatus.INACTIVE]: { bg: 'var(--color-user-inactive)', text: 'var(--color-text-primary)', label: 'Inactive' },
-  [UserStatus.LOCKED]:   { bg: 'var(--color-user-locked)',   text: 'var(--color-text-primary)', label: 'Blocked' },
+  [UserStatus.ACTIVE]:         { bg: 'var(--color-user-active)',   text: 'var(--color-text-primary)', label: 'Active' },
+  [UserStatus.INACTIVE]:       { bg: 'var(--color-user-inactive)', text: 'var(--color-text-primary)', label: 'Inactive' },
+  [UserStatus.LOCKED]:         { bg: 'var(--color-user-locked)',   text: 'var(--color-text-primary)', label: 'Blocked' },
+  [UserStatus.PENDING_INVITE]: { bg: 'var(--color-status-draft)',  text: 'var(--color-text-primary)', label: 'Pending Invite' },
 };
 
 export const FINANCIAL_ENTRY_TYPE_MAP: Record<FinancialEntryType, StatusStyle> = {
@@ -95,6 +96,7 @@ export const FINANCIAL_ENTRY_STATUS_MAP: Record<FinancialEntryStatus, StatusStyl
   [FinancialEntryStatus.PENDING]:   { bg: 'var(--color-fin-status-pending)',   text: 'var(--color-text-primary)', label: 'Pending' },
   [FinancialEntryStatus.APPROVED]:  { bg: 'var(--color-fin-status-approved)',  text: 'var(--color-text-primary)', label: 'Approved' },
   [FinancialEntryStatus.CANCELLED]: { bg: 'var(--color-fin-status-cancelled)', text: 'var(--color-text-primary)', label: 'Cancelled' },
+  [FinancialEntryStatus.VOIDED]:    { bg: 'var(--color-status-rejected)',      text: 'var(--color-text-primary)', label: 'Voided' },
 };
 
 export const TENANT_CONFIRMATION_STATUS_MAP: Record<TenantConfirmationStatus, StatusStyle> = {
@@ -125,9 +127,10 @@ export const SERVICE_TYPE_STATUS_MAP: Record<ServiceTypeStatus, StatusStyle> = {
 export type InvoiceStatus = InspectorInvoiceStatus;
 
 export const INVOICE_STATUS_MAP: Record<InvoiceStatus, StatusStyle> = {
-  OPEN:   { bg: 'var(--color-status-draft)', text: 'var(--color-text-primary)', label: 'Open' },
-  CLOSED: { bg: 'var(--color-invoice-sent)', text: 'var(--color-text-primary)', label: 'Closed' },
-  PAID:   { bg: 'var(--color-status-done)', text: 'var(--color-text-primary)', label: 'Paid' },
+  OPEN:       { bg: 'var(--color-status-draft)', text: 'var(--color-text-primary)', label: 'Open' },
+  CLOSED:     { bg: 'var(--color-invoice-sent)', text: 'var(--color-text-primary)', label: 'Closed' },
+  PAID:       { bg: 'var(--color-status-done)', text: 'var(--color-text-primary)', label: 'Paid' },
+  SUPERSEDED: { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Superseded' },
 };
 
 export const TENANT_ADMIN_STATUS_MAP: Record<string, StatusStyle> = {

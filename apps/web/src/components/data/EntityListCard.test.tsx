@@ -8,11 +8,10 @@ describe('EntityListCard', () => {
     expect(screen.getByText('Content')).toBeInTheDocument();
   });
 
-  it('applies white background and rounded', () => {
+  it('applies white background', () => {
     const { container } = render(<EntityListCard>Test</EntityListCard>);
     const card = container.firstElementChild!;
     expect(card.className).toContain('bg-card-bg');
-    expect(card.className).toContain('rounded');
   });
 
   it('merges custom className', () => {

@@ -22,7 +22,7 @@ describe('AppointmentFilters', () => {
     );
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
-    expect(screen.getByLabelText('Tenant Response')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirmation')).toBeInTheDocument();
     expect(screen.getByLabelText('Branch')).toBeInTheDocument();
     expect(screen.getByLabelText('Period - start')).toBeInTheDocument();
     expect(screen.getByLabelText('Period - end')).toBeInTheDocument();
@@ -119,7 +119,7 @@ describe('AppointmentFilters', () => {
       />,
     );
 
-    await user.click(screen.getByLabelText('Tenant Response'));
+    await user.click(screen.getByLabelText('Confirmation'));
     await user.click(screen.getByText('No Response'));
 
     expect(onChange).toHaveBeenCalledWith({

@@ -7,6 +7,7 @@ const STATUS_LABELS: Record<UserStatus, string> = {
   ACTIVE: 'Active',
   INACTIVE: 'Inactive',
   LOCKED: 'Blocked',
+  PENDING_INVITE: 'Pending Invite',
 };
 
 describe('UserStatusChip', () => {

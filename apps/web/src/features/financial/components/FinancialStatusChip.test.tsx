@@ -7,6 +7,7 @@ const STATUS_LABELS: Record<FinancialEntryStatus, string> = {
   PENDING: 'Pending',
   APPROVED: 'Approved',
   CANCELLED: 'Cancelled',
+  VOIDED: 'Voided',
 };
 
 describe('FinancialStatusChip', () => {

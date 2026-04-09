@@ -7,6 +7,7 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
   OPEN: 'Open',
   CLOSED: 'Closed',
   PAID: 'Paid',
+  SUPERSEDED: 'Superseded',
 };
 
 describe('InvoiceStatusChip', () => {

@@ -196,10 +196,11 @@ describe('USER_STATUS_MAP', () => {
     UserStatus.ACTIVE,
     UserStatus.INACTIVE,
     UserStatus.LOCKED,
+    UserStatus.PENDING_INVITE,
   ];
 
-  it('maps all 3 user statuses', () => {
-    expect(Object.keys(USER_STATUS_MAP)).toHaveLength(3);
+  it('maps all 4 user statuses', () => {
+    expect(Object.keys(USER_STATUS_MAP)).toHaveLength(4);
     for (const status of allStatuses) {
       expect(USER_STATUS_MAP[status]).toBeDefined();
     }
@@ -254,10 +255,11 @@ describe('FINANCIAL_ENTRY_STATUS_MAP', () => {
     FinancialEntryStatus.PENDING,
     FinancialEntryStatus.APPROVED,
     FinancialEntryStatus.CANCELLED,
+    FinancialEntryStatus.VOIDED,
   ];
 
-  it('maps all 3 financial entry statuses', () => {
-    expect(Object.keys(FINANCIAL_ENTRY_STATUS_MAP)).toHaveLength(3);
+  it('maps all 4 financial entry statuses', () => {
+    expect(Object.keys(FINANCIAL_ENTRY_STATUS_MAP)).toHaveLength(4);
     for (const status of allStatuses) {
       expect(FINANCIAL_ENTRY_STATUS_MAP[status]).toBeDefined();
     }
