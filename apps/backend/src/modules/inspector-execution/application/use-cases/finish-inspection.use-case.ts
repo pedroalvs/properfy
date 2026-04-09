@@ -6,6 +6,7 @@ import type { IServiceTypeReader } from '../../domain/service-type-reader';
 import type { ExecuteStatusTransitionUseCase } from '../../../appointment/application/use-cases/execute-status-transition.use-case';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   ExecutionAppointmentNotFoundError,
   ExecutionNotStartedError,
@@ -45,6 +46,7 @@ export class FinishInspectionUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly serviceTypeReader?: IServiceTypeReader,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: FinishInspectionInput): Promise<FinishInspectionOutput> {
@@ -60,9 +62,10 @@ export class FinishInspectionUseCase {
     } = input;
 
     // 1. INSP only
-    if (actor.role !== 'INSP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only inspectors can finish inspections');
-    }
+    this.authorizationService!.assertRoles(actor, ['INSP'], {
+      action: 'appointment.mark_done',
+      entityType: 'InspectionExecution',
+    });
 
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');

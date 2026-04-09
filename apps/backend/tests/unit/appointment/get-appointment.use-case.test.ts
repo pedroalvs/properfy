@@ -10,6 +10,8 @@ import {
   AppointmentAccessDeniedError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 
 function makeAppointmentEntity(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}): AppointmentEntity {
   return new AppointmentEntity({
@@ -97,6 +99,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 
 describe('GetAppointmentUseCase', () => {
   let appointmentRepo: IAppointmentRepository;
+  let auditService: AuditService;
   let useCase: GetAppointmentUseCase;
 
   beforeEach(() => {
@@ -111,7 +114,8 @@ describe('GetAppointmentUseCase', () => {
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
     };
-    useCase = new GetAppointmentUseCase(appointmentRepo);
+    auditService = { log: vi.fn() } as unknown as AuditService;
+    useCase = new GetAppointmentUseCase(appointmentRepo, new AuthorizationService(auditService));
   });
 
   it('should allow AM to get any appointment', async () => {

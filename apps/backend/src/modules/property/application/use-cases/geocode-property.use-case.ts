@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IPropertyRepository } from '../../domain/property.repository';
 import { PropertyNotFoundError, PropertyGeocodingManualOverrideError } from '../../domain/property.errors';
 import { sendJob } from '../../../../shared/infrastructure/queue';
@@ -10,16 +10,21 @@ export interface GeocodePropertyInput {
 }
 
 export class GeocodePropertyUseCase {
-  constructor(private readonly propertyRepo: IPropertyRepository) {}
+  constructor(
+    private readonly propertyRepo: IPropertyRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(
     input: GeocodePropertyInput,
   ): Promise<{ propertyId: string; geocodingStatus: string }> {
     const { propertyId, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'property.import',
+      entityType: 'Property',
+      entityId: propertyId,
+    });
 
     // AM/OP can access properties across tenants
     const property = await this.propertyRepo.findById(propertyId, '');

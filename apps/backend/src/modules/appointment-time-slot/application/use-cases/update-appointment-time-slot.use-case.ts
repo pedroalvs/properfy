@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentTimeSlotRepository } from '../../domain/appointment-time-slot.repository';
 import { AppointmentTimeSlotEntity } from '../../domain/appointment-time-slot.entity';
 import {
@@ -33,20 +34,21 @@ export interface UpdateAppointmentTimeSlotOutput {
   updatedAt: Date;
 }
 
-const ALLOWED_ROLES = ['AM', 'OP', 'CL_ADMIN'] as const;
-
 export class UpdateAppointmentTimeSlotUseCase {
   constructor(
     private readonly timeSlotRepo: IAppointmentTimeSlotRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: UpdateAppointmentTimeSlotInput): Promise<UpdateAppointmentTimeSlotOutput> {
     const { timeSlotId, data, actor } = input;
 
-    if (!ALLOWED_ROLES.includes(actor.role as (typeof ALLOWED_ROLES)[number])) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
+      action: 'appointment_time_slot.update',
+      entityType: 'AppointmentTimeSlot',
+      entityId: timeSlotId,
+    });
 
     const existing = await this.timeSlotRepo.findById(timeSlotId);
     if (!existing) {

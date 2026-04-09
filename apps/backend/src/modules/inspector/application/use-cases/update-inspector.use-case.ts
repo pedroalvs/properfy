@@ -4,8 +4,8 @@ import type {
   ServiceTypeEntry,
   ClientEligibilityEntry,
 } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import {
@@ -48,14 +48,16 @@ export class UpdateInspectorUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly auditService: AuditService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: UpdateInspectorInput): Promise<UpdateInspectorOutput> {
     const { inspectorId, data, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService!.assertRoles(actor, ['AM', 'OP'], {
+      action: 'inspector.update',
+      entityType: 'Inspector',
+    });
 
     const inspector = await this.inspectorRepo.findById(inspectorId);
     if (!inspector || inspector.isDeleted()) {

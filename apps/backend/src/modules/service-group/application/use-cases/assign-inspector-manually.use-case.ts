@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
+import { NotFoundError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
@@ -42,6 +43,7 @@ export class AssignInspectorManuallyUseCase {
     private readonly auditService: AuditService,
     private readonly serviceRegionRepo: IServiceRegionRepository,
     private readonly idempotencyService: IIdempotencyService,
+    private readonly authorizationService: AuthorizationService,
     private readonly eventBus?: DomainEventBus,
     private readonly availabilitySlotRepo?: IAvailabilitySlotRepository,
   ) {}
@@ -55,9 +57,7 @@ export class AssignInspectorManuallyUseCase {
       return cached;
     }
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.manage', entityType: 'ServiceGroup' });
 
     const findResult = await this.serviceGroupRepo.findById(groupId, actor.tenantId);
     if (!findResult) {

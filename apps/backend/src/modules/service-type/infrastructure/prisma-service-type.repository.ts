@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { ServiceTypeFlowType as PrismaServiceTypeFlowType, ServiceTypeStatus as PrismaServiceTypeStatus } from '@prisma/client';
+import type { ServiceTypeFlowType as PrismaServiceTypeFlowType, ServiceTypeStatus as PrismaServiceTypeStatus } from '@prisma/client';
 import { ServiceTypeEntity } from '../domain/service-type.entity';
 import type {
   IServiceTypeRepository,

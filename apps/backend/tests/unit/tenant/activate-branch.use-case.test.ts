@@ -12,6 +12,7 @@ import {
   BranchAlreadyActiveError,
 } from '../../../src/modules/tenant/domain/tenant.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeTenant(
   overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
@@ -88,6 +89,7 @@ describe('ActivateBranchUseCase', () => {
       tenantRepo,
       branchRepo,
       auditService,
+      new AuthorizationService(auditService),
     );
   });
 

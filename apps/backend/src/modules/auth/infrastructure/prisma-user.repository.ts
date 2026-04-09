@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from '@prisma/client';
+import type { UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from '@prisma/client';
 import { UserEntity } from '../domain/user.entity';
 import type { IUserRepository } from '../domain/user.repository';
 

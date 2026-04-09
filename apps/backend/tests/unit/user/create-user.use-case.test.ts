@@ -5,6 +5,7 @@ import type { IUserManagementRepository } from '../../../src/modules/user/domain
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
@@ -83,6 +84,7 @@ describe('CreateUserUseCase', () => {
   let tenantRepo: ITenantRepository;
   let branchRepo: IBranchRepository;
   let auditService: AuditService;
+  let authorizationService: AuthorizationService;
   let useCase: CreateUserUseCase;
 
   const amActor: AuthContext = {
@@ -130,11 +132,21 @@ describe('CreateUserUseCase', () => {
       update: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
+    authorizationService = {
+      assertNoPrivilegeEscalation: vi.fn().mockImplementation((actor: AuthContext, targetRole: string) => {
+        const clCreatable = ['CL_ADMIN', 'CL_USER'];
+        if (actor.role === 'AM') return;
+        if (actor.role === 'OP' && clCreatable.includes(targetRole)) return;
+        if (actor.role === 'CL_ADMIN' && clCreatable.includes(targetRole)) return;
+        throw new ForbiddenError('PRIVILEGE_ESCALATION', `Role ${actor.role} cannot create users with role ${targetRole}`);
+      }),
+    } as unknown as AuthorizationService;
     useCase = new CreateUserUseCase(
       userManagementRepo,
       tenantRepo,
       branchRepo,
       auditService,
+      authorizationService,
     );
   });
 

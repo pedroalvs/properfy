@@ -7,6 +7,7 @@ import type { AuthContext } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { ForbiddenError, NotFoundError, ConflictError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeInspector(
   overrides: Partial<ConstructorParameters<typeof InspectorEntity>[0]> = {},
@@ -94,7 +95,8 @@ describe('LinkInspectorToUserUseCase', () => {
       revokeAllSessions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new LinkInspectorToUserUseCase(inspectorRepo, userRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new LinkInspectorToUserUseCase(inspectorRepo, userRepo, auditService, authorizationService);
   });
 
   it('should link inspector to INSP user for AM actor', async () => {

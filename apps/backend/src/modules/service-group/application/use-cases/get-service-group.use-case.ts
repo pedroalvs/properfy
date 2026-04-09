@@ -1,6 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { ServiceGroupNotFoundError } from '../../domain/service-group.errors';
 
 export interface GetServiceGroupInput {
@@ -38,14 +38,15 @@ export interface GetServiceGroupOutput {
 }
 
 export class GetServiceGroupUseCase {
-  constructor(private readonly serviceGroupRepo: IServiceGroupRepository) {}
+  constructor(
+    private readonly serviceGroupRepo: IServiceGroupRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: GetServiceGroupInput): Promise<GetServiceGroupOutput> {
     const { actor, groupId } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.manage', entityType: 'ServiceGroup' });
 
     const result = await this.serviceGroupRepo.findById(groupId, actor.tenantId);
     if (!result) {

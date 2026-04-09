@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { BranchStatus as PrismaBranchStatus, Prisma } from '@prisma/client';
+import type { BranchStatus as PrismaBranchStatus, Prisma } from '@prisma/client';
 import { BranchEntity } from '../domain/branch.entity';
 import type {
   IBranchRepository,

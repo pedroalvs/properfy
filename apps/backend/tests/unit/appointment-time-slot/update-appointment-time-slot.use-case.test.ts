@@ -6,6 +6,7 @@ import { AppointmentTimeSlotEntity } from '../../../src/modules/appointment-time
 import { UpdateAppointmentTimeSlotUseCase } from '../../../src/modules/appointment-time-slot/application/use-cases/update-appointment-time-slot.use-case';
 import { ValidationError } from '../../../src/shared/domain/errors';
 import { AppointmentTimeSlotOverlapError } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeSlot(
   overrides: Partial<ConstructorParameters<typeof AppointmentTimeSlotEntity>[0]> = {},
@@ -50,7 +51,7 @@ describe('UpdateAppointmentTimeSlotUseCase', () => {
       softDelete: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new UpdateAppointmentTimeSlotUseCase(timeSlotRepo, auditService);
+    useCase = new UpdateAppointmentTimeSlotUseCase(timeSlotRepo, auditService, new AuthorizationService(auditService));
   });
 
   it('rejects invalid time ranges when both values are supplied', async () => {

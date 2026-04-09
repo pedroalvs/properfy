@@ -7,6 +7,7 @@ import { PublishServiceGroupUseCase } from '../../../src/modules/service-group/a
 import { GetMarketplaceOffersUseCase } from '../../../src/modules/service-group/application/use-cases/get-marketplace-offers.use-case';
 import { AcceptOfferUseCase } from '../../../src/modules/service-group/application/use-cases/accept-offer.use-case';
 import { GetInspectorScheduleUseCase } from '../../../src/modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
@@ -603,6 +604,8 @@ describe('FASE 1 integrated proof', () => {
       findByIds: vi.fn().mockResolvedValue([serviceType]),
     };
 
+    const authorizationService = new AuthorizationService(auditService as any);
+
     createAppointmentUseCase = new CreateAppointmentUseCase(
       appointmentRepo,
       branchRepo as any,
@@ -611,6 +614,7 @@ describe('FASE 1 integrated proof', () => {
       pricingRuleRepo as any,
       createPropertyUseCase as any,
       auditService as any,
+      authorizationService,
     );
 
     executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(
@@ -619,6 +623,7 @@ describe('FASE 1 integrated proof', () => {
       inspectorRepo as any,
       idempotencyService as any,
       auditService as any,
+      authorizationService,
     );
 
     const mockServiceRegionRepo = {
@@ -643,6 +648,7 @@ describe('FASE 1 integrated proof', () => {
       serviceGroupRepo,
       appointmentRepo,
       auditService as any,
+      authorizationService,
       mockServiceRegionRepo as any,
     );
 
@@ -650,11 +656,13 @@ describe('FASE 1 integrated proof', () => {
       serviceGroupRepo,
       auditService as any,
       mockServiceRegionRepo as any,
+      authorizationService,
     );
 
     getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(
       serviceGroupRepo,
       inspectorRepo as any,
+      authorizationService,
     );
 
     acceptOfferUseCase = new AcceptOfferUseCase(
@@ -662,11 +670,13 @@ describe('FASE 1 integrated proof', () => {
       inspectorRepo as any,
       auditService as any,
       idempotencyService as any,
+      authorizationService,
     );
 
     getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
       appointmentRepo,
       executionRepo,
+      authorizationService,
     );
   });
 

@@ -4,7 +4,7 @@ import type { ITenantInvoiceRepository } from '../../domain/tenant-invoice.repos
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import { TenantInvoiceEntity } from '../../domain/tenant-invoice.entity';
 import { TenantInvoicePeriodOverlapError } from '../../domain/billing.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
@@ -42,15 +42,14 @@ export class GenerateTenantInvoiceUseCase {
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
     private readonly jobQueue?: IJobQueue,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: GenerateTenantInvoiceInput): Promise<GenerateTenantInvoiceOutput> {
     const { tenantId, periodFrom, periodTo, actor } = input;
 
     // 1. Validate role AM/OP
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can generate tenant invoices');
-    }
+    this.authorizationService?.assertRoles(actor, ['AM', 'OP'], { action: 'financial.generate_tenant_invoice', entityType: 'TenantInvoice' });
 
     const fromDate = parseDateOnly(periodFrom);
     const toDate = parseDateOnly(periodTo);

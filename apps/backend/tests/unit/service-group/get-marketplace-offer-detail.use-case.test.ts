@@ -5,6 +5,8 @@ import type { IInspectorRepository } from '../../../src/modules/inspector/domain
 import type { AuthContext } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { InspectorInactiveError } from '../../../src/modules/service-group/domain/service-group.errors';
 
 function makeInspector(overrides: Partial<ConstructorParameters<typeof InspectorEntity>[0]> = {}): InspectorEntity {
@@ -109,7 +111,9 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
       findByRegionId: vi.fn(),
     };
 
-    useCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo);
+    const auditService = { log: vi.fn() } as unknown as AuditService;
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
   });
 
   it('should return full offer detail for eligible inspector', async () => {

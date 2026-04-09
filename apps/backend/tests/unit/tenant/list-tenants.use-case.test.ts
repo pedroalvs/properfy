@@ -5,6 +5,7 @@ import type { AuthContext } from '@properfy/shared';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeTenant(
   overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
@@ -58,7 +59,7 @@ describe('ListTenantsUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
-    useCase = new ListTenantsUseCase(tenantRepo, branchRepo);
+    useCase = new ListTenantsUseCase(tenantRepo, branchRepo, new AuthorizationService({ log: vi.fn() } as any));
   });
 
   it('should return paginated list when actor is AM', async () => {

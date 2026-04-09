@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
+import { NotFoundError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceGroupRepository, PaginationParams } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import { InspectorInactiveError } from '../../domain/service-group.errors';
@@ -33,14 +34,13 @@ export class GetMarketplaceOffersUseCase {
   constructor(
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly inspectorRepo: IInspectorRepository,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: GetMarketplaceOffersInput): Promise<GetMarketplaceOffersOutput> {
     const { actor, inspectorId, pagination } = input;
 
-    if (actor.role !== 'INSP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Only inspectors can view marketplace offers');
-    }
+    this.authorizationService.assertRoles(actor, ['INSP'], { action: 'marketplace.view_offers', entityType: 'ServiceGroup' });
 
     const inspector = await this.inspectorRepo.findById(inspectorId);
     if (!inspector) {

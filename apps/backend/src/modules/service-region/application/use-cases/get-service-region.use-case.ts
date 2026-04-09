@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
 import { ServiceRegionNotFoundError } from '../../domain/service-region.errors';
 
@@ -27,19 +28,14 @@ export interface GetServiceRegionOutput {
 export class GetServiceRegionUseCase {
   constructor(
     private readonly regionRepo: IServiceRegionRepository,
+    private readonly authorizationService: AuthorizationService,
     private readonly userReader?: UserReader,
   ) {}
 
   async execute(input: GetServiceRegionInput): Promise<GetServiceRegionOutput> {
     const { regionId, actor } = input;
 
-    if (
-      actor.role !== 'AM' &&
-      actor.role !== 'OP' &&
-      actor.role !== 'INSP'
-    ) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'INSP'], { action: 'service_region.list', entityType: 'ServiceRegion' });
 
     const tenantId = this.resolveTenantId(actor);
 

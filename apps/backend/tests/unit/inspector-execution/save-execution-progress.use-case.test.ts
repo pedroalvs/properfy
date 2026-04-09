@@ -6,6 +6,7 @@ import {
   ExecutionAlreadyFinishedError,
 } from '../../../src/modules/inspector-execution/domain/inspection-execution.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 const executionRepo = {
   findByAppointmentId: vi.fn(),
@@ -45,7 +46,8 @@ function makeExecution(overrides = {}) {
 }
 
 function makeSut() {
-  return new SaveExecutionProgressUseCase(executionRepo);
+  const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
+  return new SaveExecutionProgressUseCase(executionRepo, authorizationService);
 }
 
 describe('SaveExecutionProgressUseCase', () => {

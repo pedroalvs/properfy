@@ -5,6 +5,7 @@ import type { IFinancialEntryRepository } from '../../../src/modules/billing/dom
 import { InspectorInvoiceEntity, type InspectorInvoiceProps } from '../../../src/modules/billing/domain/inspector-invoice.entity';
 import { InvoiceNotFoundError, InvoiceNotRegenerableError } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 
@@ -79,11 +80,13 @@ function makeSut() {
     enqueue: vi.fn(),
   };
 
+  const authorizationService = new AuthorizationService(auditService);
   const useCase = new RegenerateInspectorInvoiceUseCase(
     invoiceRepo,
     financialEntryRepo,
     auditService,
     jobQueue,
+    authorizationService,
   );
 
   return { useCase, invoiceRepo, financialEntryRepo, auditService, jobQueue };

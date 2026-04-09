@@ -6,6 +6,7 @@ import {
   InvoiceNotClosedError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 const invoiceRepo = {
   findById: vi.fn(),
@@ -57,8 +58,10 @@ const amActor = {
   inspectorId: null,
 };
 
+const authorizationService = new AuthorizationService(auditService as any);
+
 function makeSut() {
-  return new MarkInvoicePaidUseCase(invoiceRepo, auditService as any);
+  return new MarkInvoicePaidUseCase(invoiceRepo, auditService as any, authorizationService);
 }
 
 describe('MarkInvoicePaidUseCase', () => {

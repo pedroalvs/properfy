@@ -4,6 +4,7 @@ import type { IServiceRegionRepository } from '../../../src/modules/service-regi
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { ServiceRegionNameConflictError } from '../../../src/modules/service-region/domain/service-region.errors';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
@@ -45,7 +46,8 @@ describe('CreateServiceRegionUseCase', () => {
   beforeEach(() => {
     regionRepo = createMockRepo();
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new CreateServiceRegionUseCase(regionRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new CreateServiceRegionUseCase(regionRepo, auditService, authorizationService);
   });
 
   it('should create a region scoped to the actor tenant', async () => {

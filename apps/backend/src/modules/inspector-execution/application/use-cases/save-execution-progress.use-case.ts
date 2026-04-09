@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
@@ -24,15 +25,17 @@ export interface SaveExecutionProgressOutput {
 export class SaveExecutionProgressUseCase {
   constructor(
     private readonly executionRepo: IInspectionExecutionRepository,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: SaveExecutionProgressInput): Promise<SaveExecutionProgressOutput> {
     const { appointmentId, checklistJson, notes, actor } = input;
 
     // 1. INSP only
-    if (actor.role !== 'INSP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only inspectors can save execution progress');
-    }
+    this.authorizationService.assertRoles(actor, ['INSP'], {
+      action: 'appointment.mark_done',
+      entityType: 'InspectionExecution',
+    });
 
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');

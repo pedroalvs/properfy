@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { TenantPortalTokenStatus as PrismaTenantPortalTokenStatus } from '@prisma/client';
+import type { TenantPortalTokenStatus as PrismaTenantPortalTokenStatus } from '@prisma/client';
 import { TenantPortalTokenEntity } from '../domain/tenant-portal-token.entity';
 import type { ITenantPortalTokenRepository } from '../domain/tenant-portal-token.repository';
 import type { TenantPortalTokenStatus } from '@properfy/shared';

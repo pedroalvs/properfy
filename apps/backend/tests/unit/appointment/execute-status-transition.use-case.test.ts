@@ -8,7 +8,6 @@ import {
   AppointmentTransitionNotPermittedError,
   AppointmentReasonRequiredError,
   AppointmentDoneCheckerInvalidRoleError,
-  AppointmentDoneCrossCheckSelfCheckError,
   AppointmentInspectorRequiredError,
   AppointmentTenantConfirmationRequiredError,
   AppointmentServiceGroupRequiredError,
@@ -17,6 +16,7 @@ import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import type { AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuthContext } from '@properfy/shared';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { DomainEventBus, APPOINTMENT_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
 
 // --- Helpers ---
@@ -177,9 +177,9 @@ function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandle
     inspectorRepo as any,
     idempotencyService as any,
     auditService as any,
+    new AuthorizationService(auditService as any),
     opts.withOnDoneHandler ? onDoneHandler : undefined,
     opts.withOnTransitionHandler ? onTransitionHandler : undefined,
-    opts.withAuthorizationService ? new AuthorizationService() : undefined,
     opts.withServiceTypeRepo ? (serviceTypeRepo as any) : undefined,
     opts.domainEventBus,
   );
@@ -261,7 +261,7 @@ describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
       appointmentId: 'appt-1',
       targetStatus: 'CANCELLED',
       reason: 'No longer needed',
-      actor: makeActor('CL_USER'),
+      actor: makeActor('CL_USER', { clUserPermissions: ['cancel_appointments'] }),
     });
     expect(result.status).toBe('CANCELLED');
   });
@@ -1409,7 +1409,7 @@ describe('ExecuteStatusTransitionUseCase – compound DONE + crossCheckByUserId'
         crossCheckByUserId: 'actor-1',
         actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
       }),
-    ).rejects.toThrow(AppointmentDoneCrossCheckSelfCheckError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('rejects when crossCheckByUserId refers to a non-AM/OP user', async () => {

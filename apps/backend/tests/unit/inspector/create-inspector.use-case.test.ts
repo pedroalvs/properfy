@@ -7,6 +7,7 @@ import type { AuthContext } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { InspectorEmailConflictError } from '../../../src/modules/inspector/domain/inspector.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeInspector(
   overrides: Partial<ConstructorParameters<typeof InspectorEntity>[0]> = {},
@@ -68,7 +69,8 @@ describe('CreateInspectorUseCase', () => {
       revokeAllSessions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, undefined, authorizationService);
   });
 
   it('should create inspector for AM with auto-created user record', async () => {

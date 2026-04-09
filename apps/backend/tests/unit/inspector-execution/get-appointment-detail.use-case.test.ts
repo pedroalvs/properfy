@@ -13,6 +13,7 @@ import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/d
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import { InspectionAssetEntity } from '../../../src/modules/inspector-execution/domain/inspection-asset.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   ExecutionAppointmentNotFoundError,
   ExecutionT1BlockedError,
@@ -189,11 +190,13 @@ describe('GetAppointmentDetailUseCase', () => {
       findByIds: vi.fn(),
     };
 
+    const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
     useCase = new GetAppointmentDetailUseCase(
       appointmentRepo,
       executionRepo,
       assetRepo,
       serviceTypeReader,
+      authorizationService,
     );
   });
 

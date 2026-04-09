@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { paginationSchema } from './pagination';
 
 const TIME_RE = /^\d{2}:\d{2}$/;
 const TIME_RANGE_MESSAGE = 'End time must be after start time';

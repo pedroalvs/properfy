@@ -8,6 +8,7 @@ import type { IIdempotencyService } from '../../../src/shared/domain/idempotency
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { IdempotencyPayloadMismatchError } from '../../../src/modules/property/domain/property.errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -53,7 +54,7 @@ describe('ImportPropertiesUseCase', () => {
       set: vi.fn().mockResolvedValue(undefined),
     } as unknown as IIdempotencyService;
 
-    useCase = new ImportPropertiesUseCase(importRepo, storageService, jobQueue, idempotencyService);
+    useCase = new ImportPropertiesUseCase(importRepo, storageService, jobQueue, idempotencyService, new AuthorizationService({ log: vi.fn() } as any));
   });
 
   it('should create import record and enqueue job on success', async () => {

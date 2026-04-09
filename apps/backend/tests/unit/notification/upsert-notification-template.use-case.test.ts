@@ -5,7 +5,8 @@ import type { TemplateRendererService } from '../../../src/modules/notification/
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { NotificationForbiddenError } from '../../../src/modules/notification/domain/notification.errors';
-import { ValidationError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -57,7 +58,8 @@ describe('UpsertNotificationTemplateUseCase', () => {
       log: vi.fn(),
     } as unknown as AuditService;
 
-    useCase = new UpsertNotificationTemplateUseCase(templateRepo, templateRenderer, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new UpsertNotificationTemplateUseCase(templateRepo, templateRenderer, auditService, authorizationService);
   });
 
   it('should throw NotificationForbiddenError for OP with null tenantId (platform default)', async () => {
@@ -77,16 +79,16 @@ describe('UpsertNotificationTemplateUseCase', () => {
     expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
   });
 
-  it('should throw NotificationForbiddenError for CL_USER role', async () => {
+  it('should throw ForbiddenError for CL_USER role', async () => {
     await expect(
       useCase.execute(makeInput({ actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }) })),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should throw NotificationForbiddenError for INSP role', async () => {
+  it('should throw ForbiddenError for INSP role', async () => {
     await expect(
       useCase.execute(makeInput({ actor: makeActor({ role: 'INSP' }) })),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('should throw ValidationError for invalid template code', async () => {

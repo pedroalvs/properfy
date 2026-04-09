@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   UserNotFoundError,
   UserNotLockedError,
@@ -17,23 +18,22 @@ export class UnlockUserUseCase {
   constructor(
     private readonly userManagementRepo: IUserManagementRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: UnlockUserInput): Promise<void> {
     const { tenantId, userId, actor } = input;
 
     // RBAC: AM can unlock any user; OP can unlock users in own tenant only
-    if (actor.role === 'OP') {
-      if (actor.tenantId !== tenantId) {
-        throw new ForbiddenError(
-          'AUTH_FORBIDDEN',
-          'You can only unlock users from your own tenant',
-        );
-      }
-    } else if (actor.role !== 'AM') {
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'user.unlock',
+      entityType: 'User',
+    });
+
+    if (actor.role === 'OP' && actor.tenantId !== tenantId) {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
-        'You are not allowed to unlock users',
+        'You can only unlock users from your own tenant',
       );
     }
 

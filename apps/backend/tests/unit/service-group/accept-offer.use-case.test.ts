@@ -7,6 +7,7 @@ import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
@@ -122,11 +123,13 @@ describe('AcceptOfferUseCase', () => {
       set: vi.fn().mockResolvedValue(undefined),
     };
 
+    const authorizationService = new AuthorizationService(auditService);
     useCase = new AcceptOfferUseCase(
       serviceGroupRepo,
       inspectorRepo,
       auditService,
       idempotencyService,
+      authorizationService,
     );
   });
 

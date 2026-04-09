@@ -3,9 +3,8 @@ import type { IFinancialEntryRepository } from '../../domain/financial-entry.rep
 import {
   EntryNotFoundError,
   EntryNotPendingError,
-  EntrySelfApprovalNotAllowedError,
 } from '../../domain/billing.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
 export interface ApproveFinancialEntryInput {
@@ -24,15 +23,14 @@ export class ApproveFinancialEntryUseCase {
   constructor(
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ApproveFinancialEntryInput): Promise<ApproveFinancialEntryOutput> {
     const { entryId, actor } = input;
 
     // 1. Validate actor role
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can approve financial entries');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'financial.approve', entityType: 'FinancialEntry' });
 
     // 2. Load entry
     const entry = await this.financialEntryRepo.findById(entryId);
@@ -46,9 +44,11 @@ export class ApproveFinancialEntryUseCase {
     }
 
     // 4. Prevent self-approval
-    if (entry.isSelfApproval(actor.userId)) {
-      throw new EntrySelfApprovalNotAllowedError();
-    }
+    this.authorizationService.assertNotSelfApproval(actor.userId, entry.initiatedByUserId, {
+      action: 'financial.approve',
+      entityType: 'FinancialEntry',
+      entityId: input.entryId,
+    });
 
     // 5. Approve (validate PENDING -> APPROVED transition)
     const approvedAt = new Date();

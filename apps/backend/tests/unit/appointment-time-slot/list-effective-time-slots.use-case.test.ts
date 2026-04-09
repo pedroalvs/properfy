@@ -7,6 +7,7 @@ import type { AuthContext } from '@properfy/shared';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeSlotEntity(
   overrides: Partial<ConstructorParameters<typeof AppointmentTimeSlotEntity>[0]> = {},
@@ -91,7 +92,7 @@ describe('ListEffectiveTimeSlotsUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
-    useCase = new ListEffectiveTimeSlotsUseCase(timeSlotRepo, branchRepo);
+    useCase = new ListEffectiveTimeSlotsUseCase(timeSlotRepo, branchRepo, new AuthorizationService({ log: vi.fn() } as any));
   });
 
   it('should return effective slots for a branch', async () => {

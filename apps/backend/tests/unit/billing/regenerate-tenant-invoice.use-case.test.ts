@@ -5,6 +5,7 @@ import type { IFinancialEntryRepository } from '../../../src/modules/billing/dom
 import { TenantInvoiceEntity, type TenantInvoiceProps } from '../../../src/modules/billing/domain/tenant-invoice.entity';
 import { TenantInvoiceNotFoundError, TenantInvoiceNotRegenerableError } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 
@@ -80,11 +81,13 @@ function makeSut() {
     enqueue: vi.fn(),
   };
 
+  const authorizationService = new AuthorizationService(auditService);
   const useCase = new RegenerateTenantInvoiceUseCase(
     tenantInvoiceRepo,
     financialEntryRepo,
     auditService,
     jobQueue,
+    authorizationService,
   );
 
   return { useCase, tenantInvoiceRepo, financialEntryRepo, auditService, jobQueue };

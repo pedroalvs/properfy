@@ -1,10 +1,10 @@
 import type { AuthContext } from '@properfy/shared';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   NotificationNotFoundError,
   NotificationInvalidStatusError,
-  NotificationForbiddenError,
 } from '../../domain/notification.errors';
 
 export interface RetryNotificationInput {
@@ -22,14 +22,16 @@ export class RetryNotificationUseCase {
   constructor(
     private readonly notificationRepo: INotificationRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: RetryNotificationInput): Promise<RetryNotificationOutput> {
     const { actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new NotificationForbiddenError();
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'notification.retry',
+      entityType: 'Notification',
+    });
 
     const notification = await this.notificationRepo.findById(input.notificationId);
     if (!notification) {

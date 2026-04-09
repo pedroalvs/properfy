@@ -9,6 +9,7 @@ import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
 import { AppointmentTimeSlotOverlapError } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.errors';
 import { AppointmentTimeSlotEntity } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.entity';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 describe('CreateAppointmentTimeSlotUseCase', () => {
   let timeSlotRepo: IAppointmentTimeSlotRepository;
@@ -84,7 +85,7 @@ describe('CreateAppointmentTimeSlotUseCase', () => {
       update: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new CreateAppointmentTimeSlotUseCase(timeSlotRepo, branchRepo, auditService);
+    useCase = new CreateAppointmentTimeSlotUseCase(timeSlotRepo, branchRepo, auditService, new AuthorizationService(auditService));
   });
 
   it('should create a time slot successfully as AM', async () => {

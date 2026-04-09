@@ -1,5 +1,6 @@
 import { type AuthContext, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
 import {
   AppointmentNotFoundError,
@@ -127,20 +128,15 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
 }
 
 export class GetAppointmentUseCase {
-  constructor(private readonly appointmentRepo: IAppointmentRepository) {}
+  constructor(
+    private readonly appointmentRepo: IAppointmentRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: GetAppointmentInput): Promise<GetAppointmentOutput> {
     const { appointmentId, actor } = input;
 
-    if (
-      actor.role !== 'AM' &&
-      actor.role !== 'OP' &&
-      actor.role !== 'CL_ADMIN' &&
-      actor.role !== 'CL_USER' &&
-      actor.role !== 'INSP'
-    ) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'], { action: 'appointment.view', entityType: 'Appointment' });
 
     // AM/OP/INSP: global access (no tenant scoping), INSP verified after
     // CL_ADMIN/CL_USER: scoped by tenantId from JWT

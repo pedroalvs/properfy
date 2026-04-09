@@ -6,6 +6,7 @@ import type { IBranchRepository } from '../../../tenant/domain/branch.repository
 import type { IPasswordResetTokenRepository } from '../../../auth/domain/password-reset-token.repository';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { UserEntity } from '../../../auth/domain/user.entity';
 import { PasswordResetTokenEntity } from '../../../auth/domain/password-reset-token.entity';
 import { UserEmailConflictError } from '../../domain/user-management.errors';
@@ -15,6 +16,7 @@ import {
   BranchNotFoundError,
 } from '../../../tenant/domain/tenant.errors';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
+import type { UserRole } from '@properfy/shared';
 
 const INVITE_TOKEN_TTL_MS = 72 * 60 * 60 * 1000; // 72 hours
 
@@ -48,17 +50,21 @@ export class InviteUserUseCase {
     private readonly passwordResetTokenRepo: IPasswordResetTokenRepository,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: InviteUserInput): Promise<InviteUserOutput> {
     const { tenantId, name, email, role, branchId, phone, actor } = input;
 
-    // Only client roles can be invited
+    // Only client roles can be invited (business rule beyond escalation)
     if (role !== 'CL_ADMIN' && role !== 'CL_USER') {
       throw new ValidationError('Only client roles (CL_ADMIN, CL_USER) can be invited');
     }
 
-    // RBAC checks
+    // Privilege escalation check (AM→any, OP→CL_ADMIN/CL_USER, CL_ADMIN→CL_ADMIN/CL_USER, others→denied)
+    this.authorizationService.assertNoPrivilegeEscalation(actor, role as UserRole);
+
+    // Tenant-scoping: CL_ADMIN can only invite for own tenant
     if (actor.role === 'CL_ADMIN') {
       if (actor.tenantId !== tenantId) {
         throw new ForbiddenError(
@@ -66,11 +72,6 @@ export class InviteUserUseCase {
           'You can only invite users for your own tenant',
         );
       }
-    } else if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError(
-        'AUTH_FORBIDDEN',
-        'You are not allowed to invite users',
-      );
     }
 
     // Validate tenant

@@ -4,6 +4,7 @@ import type { IPropertyImportRepository } from '../../../src/modules/property/do
 import { PropertyImportEntity } from '../../../src/modules/property/domain/property-import.entity';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -49,7 +50,7 @@ describe('ExportImportErrorsUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
-    useCase = new ExportImportErrorsUseCase(importRepo);
+    useCase = new ExportImportErrorsUseCase(importRepo, new AuthorizationService({ log: vi.fn() } as any));
   });
 
   it('should return valid CSV for import with errors', async () => {

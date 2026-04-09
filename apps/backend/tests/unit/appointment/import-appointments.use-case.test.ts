@@ -5,6 +5,7 @@ import type { IAppointmentImportRepository } from '../../../src/modules/appointm
 import type { IReportStorageService } from '../../../src/modules/report/domain/report-storage.service';
 import type { IJobQueue } from '../../../src/shared/domain/job-queue';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { AppointmentImportIdempotencyPayloadMismatchError } from '../../../src/modules/appointment/domain/appointment.errors';
@@ -53,7 +54,8 @@ describe('ImportAppointmentsUseCase', () => {
       set: vi.fn().mockResolvedValue(undefined),
     } as unknown as IIdempotencyService;
 
-    useCase = new ImportAppointmentsUseCase(importRepo, storageService, jobQueue, idempotencyService);
+    const authorizationService = new AuthorizationService({ log: vi.fn() } as any);
+    useCase = new ImportAppointmentsUseCase(importRepo, storageService, jobQueue, idempotencyService, authorizationService);
   });
 
   it('should create import record and enqueue job on success', async () => {

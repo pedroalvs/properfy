@@ -4,7 +4,7 @@ import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import { InspectorInvoiceEntity } from '../../domain/inspector-invoice.entity';
 import { InvoiceNotFoundError, InvoiceNotRegenerableError } from '../../domain/billing.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
@@ -39,15 +39,14 @@ export class RegenerateInspectorInvoiceUseCase {
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
     private readonly jobQueue?: IJobQueue,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: RegenerateInspectorInvoiceInput): Promise<RegenerateInspectorInvoiceOutput> {
     const { invoiceId, reason, actor } = input;
 
     // 1. Validate role - AM only
-    if (actor.role !== 'AM') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM can regenerate invoices');
-    }
+    this.authorizationService?.assertRoles(actor, ['AM'], { action: 'financial.regenerate_invoice', entityType: 'InspectorInvoice' });
 
     // 2. Load existing invoice
     const existing = await this.invoiceRepo.findById(invoiceId);

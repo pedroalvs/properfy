@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ConfirmAssetUploadUseCase } from './confirm-asset-upload.use-case';
 import { AssetNotFoundError } from '../../domain/inspection-execution.errors';
+import { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
 describe('ConfirmAssetUploadUseCase', () => {
   it('rejects confirming an asset under a different appointment route', async () => {
+    const auditService = { log: vi.fn() } as never;
     const useCase = new ConfirmAssetUploadUseCase(
       {
         findById: vi.fn().mockResolvedValue({
@@ -16,6 +18,7 @@ describe('ConfirmAssetUploadUseCase', () => {
         }),
       } as never,
       { headObject: vi.fn() } as never,
+      new AuthorizationService(auditService),
     );
 
     await expect(

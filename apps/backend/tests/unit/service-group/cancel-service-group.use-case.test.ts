@@ -5,6 +5,7 @@ import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
@@ -84,7 +85,8 @@ describe('CancelServiceGroupUseCase', () => {
       findExpiredPublished: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
   });
 
   it('should cancel a DRAFT group', async () => {

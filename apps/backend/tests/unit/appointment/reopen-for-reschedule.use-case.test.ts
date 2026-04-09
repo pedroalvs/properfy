@@ -5,6 +5,7 @@ import {
 } from '../../../src/modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import type { AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuthContext } from '@properfy/shared';
@@ -99,7 +100,8 @@ describe('ReopenForRescheduleUseCase', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useCase = new ReopenForRescheduleUseCase(appointmentRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService as any);
+    useCase = new ReopenForRescheduleUseCase(appointmentRepo, auditService, authorizationService);
   });
 
   it('should reopen a SCHEDULED appointment for reschedule (happy path, AM actor)', async () => {

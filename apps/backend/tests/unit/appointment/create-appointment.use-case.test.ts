@@ -191,6 +191,7 @@ describe('CreateAppointmentUseCase', () => {
       pricingRuleRepo,
       createPropertyUseCase,
       auditService,
+      new AuthorizationService(auditService),
     );
   });
 
@@ -538,7 +539,7 @@ describe('CreateAppointmentUseCase', () => {
     it('should allow CL_USER with create_appointments permission', async () => {
       const uc = new CreateAppointmentUseCase(
         appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo,
-        pricingRuleRepo, createPropertyUseCase, auditService, undefined, undefined, new AuthorizationService(),
+        pricingRuleRepo, createPropertyUseCase, auditService, new AuthorizationService(auditService),
       );
       vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
       vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
@@ -555,7 +556,7 @@ describe('CreateAppointmentUseCase', () => {
     it('should throw ForbiddenError for CL_USER without create_appointments permission', async () => {
       const uc = new CreateAppointmentUseCase(
         appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo,
-        pricingRuleRepo, createPropertyUseCase, auditService, undefined, undefined, new AuthorizationService(),
+        pricingRuleRepo, createPropertyUseCase, auditService, new AuthorizationService(auditService),
       );
 
       await expect(

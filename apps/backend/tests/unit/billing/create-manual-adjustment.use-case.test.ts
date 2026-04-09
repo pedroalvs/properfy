@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateManualAdjustmentUseCase } from '../../../src/modules/billing/application/use-cases/create-manual-adjustment.use-case';
 import { FinancialEntryEntity } from '../../../src/modules/billing/domain/financial-entry.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { TenantInactiveError, TenantNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
 import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
 import { EntryNotFoundError, InspectorNotFoundError } from '../../../src/modules/billing/domain/billing.errors';
@@ -78,6 +79,8 @@ const amActor = {
   inspectorId: null,
 };
 
+const authorizationService = new AuthorizationService(auditService as any);
+
 function makeSut() {
   return new CreateManualAdjustmentUseCase(
     financialEntryRepo,
@@ -86,6 +89,7 @@ function makeSut() {
     tenantRepo,
     appointmentRepo as any,
     inspectorRepo as any,
+    authorizationService,
   );
 }
 

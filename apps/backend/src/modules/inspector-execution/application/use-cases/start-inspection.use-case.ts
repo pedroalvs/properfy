@@ -13,6 +13,7 @@ import {
   GEOLOCATION_MISMATCH_THRESHOLD_METERS,
 } from '../../domain/geolocation-distance.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   ExecutionAppointmentNotFoundError,
   ExecutionT1BlockedError,
@@ -52,15 +53,17 @@ export class StartInspectionUseCase {
     private readonly idempotencyService: IIdempotencyService,
     private readonly auditService: AuditService,
     private readonly tenantSettingsReader?: ITenantSettingsReader,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: StartInspectionInput): Promise<StartInspectionOutput> {
     const { appointmentId, latitude, longitude, idempotencyKey, actor } = input;
 
     // 1. INSP only
-    if (actor.role !== 'INSP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only inspectors can start inspections');
-    }
+    this.authorizationService!.assertRoles(actor, ['INSP'], {
+      action: 'appointment.mark_done',
+      entityType: 'InspectionExecution',
+    });
 
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');

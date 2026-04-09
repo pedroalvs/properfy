@@ -15,6 +15,7 @@ import {
   AvailabilitySlotCapacityExhaustedError,
   AvailabilitySlotNotMatchedError,
 } from '../../../src/modules/inspector/domain/inspector.errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 // --- Helpers ---
 
@@ -193,7 +194,7 @@ describe('GAP-003: Availability slot booking integration', () => {
     it('should decrement slot capacity on accept', async () => {
       const useCase = new AcceptOfferUseCase(
         serviceGroupRepo, inspectorRepo, auditService, idempotencyService,
-        undefined, slotRepo,
+        new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
@@ -222,7 +223,7 @@ describe('GAP-003: Availability slot booking integration', () => {
     it('should throw AvailabilitySlotNotMatchedError when no slot exists', async () => {
       const useCase = new AcceptOfferUseCase(
         serviceGroupRepo, inspectorRepo, auditService, idempotencyService,
-        undefined, slotRepo,
+        new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
@@ -242,7 +243,7 @@ describe('GAP-003: Availability slot booking integration', () => {
     it('should throw AvailabilitySlotCapacityExhaustedError when capacity is 0', async () => {
       const useCase = new AcceptOfferUseCase(
         serviceGroupRepo, inspectorRepo, auditService, idempotencyService,
-        undefined, slotRepo,
+        new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
@@ -263,7 +264,7 @@ describe('GAP-003: Availability slot booking integration', () => {
     it('should include bookedSlotId in audit log on success', async () => {
       const useCase = new AcceptOfferUseCase(
         serviceGroupRepo, inspectorRepo, auditService, idempotencyService,
-        undefined, slotRepo,
+        new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
@@ -325,7 +326,7 @@ describe('GAP-003: Availability slot booking integration', () => {
     it('should decrement slot capacity on manual assign', async () => {
       const useCase = new AssignInspectorManuallyUseCase(
         serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo,
-        idempotencyService, undefined, slotRepo,
+        idempotencyService, new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
@@ -353,7 +354,7 @@ describe('GAP-003: Availability slot booking integration', () => {
     it('should throw AvailabilitySlotNotMatchedError when no slot exists', async () => {
       const useCase = new AssignInspectorManuallyUseCase(
         serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo,
-        idempotencyService, undefined, slotRepo,
+        idempotencyService, new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
@@ -372,7 +373,7 @@ describe('GAP-003: Availability slot booking integration', () => {
     it('should throw AvailabilitySlotCapacityExhaustedError when capacity is 0', async () => {
       const useCase = new AssignInspectorManuallyUseCase(
         serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo,
-        idempotencyService, undefined, slotRepo,
+        idempotencyService, new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
@@ -403,7 +404,7 @@ describe('GAP-003: Availability slot booking integration', () => {
 
     it('should restore slot capacity when cancelling an ACCEPTED group', async () => {
       const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, undefined, slotRepo,
+        serviceGroupRepo, auditService, new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
@@ -432,7 +433,7 @@ describe('GAP-003: Availability slot booking integration', () => {
 
     it('should not attempt slot restoration when cancelling a DRAFT group', async () => {
       const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, undefined, slotRepo,
+        serviceGroupRepo, auditService, new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
@@ -451,7 +452,7 @@ describe('GAP-003: Availability slot booking integration', () => {
 
     it('should not attempt slot restoration when cancelling a PUBLISHED group', async () => {
       const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, undefined, slotRepo,
+        serviceGroupRepo, auditService, new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
@@ -470,7 +471,7 @@ describe('GAP-003: Availability slot booking integration', () => {
 
     it('should gracefully handle missing slot on restoration (no error)', async () => {
       const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, undefined, slotRepo,
+        serviceGroupRepo, auditService, new AuthorizationService(auditService), undefined, slotRepo,
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(

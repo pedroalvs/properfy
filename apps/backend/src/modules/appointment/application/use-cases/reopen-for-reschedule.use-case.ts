@@ -1,7 +1,8 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
-import { ForbiddenError, DomainError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import { DomainError } from '../../../../shared/domain/errors';
 import { AppointmentNotFoundError } from '../../domain/appointment.errors';
 
 export class AppointmentNotScheduledError extends DomainError {
@@ -39,18 +40,14 @@ export class ReopenForRescheduleUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ReopenForRescheduleInput): Promise<ReopenForRescheduleOutput> {
     const { appointmentId, newScheduledDate, newTimeSlot, reason, actor } = input;
 
     // 1. RBAC: only SYS (tenant portal), AM, or OP can reopen for reschedule
-    if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'SYS') {
-      throw new ForbiddenError(
-        'AUTH_FORBIDDEN',
-        'Only SYS, AM, or OP can reopen an appointment for reschedule',
-      );
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'SYS'], { action: 'appointment.reopen_reschedule', entityType: 'Appointment' });
 
     // 2. Find appointment (AM/OP/SYS have global access)
     const result = await this.appointmentRepo.findById(appointmentId, null);

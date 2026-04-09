@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import {
@@ -16,15 +16,14 @@ export class DeleteAppointmentUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: DeleteAppointmentInput): Promise<void> {
     const { appointmentId, actor } = input;
 
     // 1. AM-only
-    if (actor.role !== 'AM') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Only Admin Master can delete appointments');
-    }
+    this.authorizationService.assertRoles(actor, ['AM'], { action: 'appointment.delete', entityType: 'Appointment' });
 
     // 2. Load appointment (AM has no tenantId constraint)
     const record = await this.appointmentRepo.findById(appointmentId, null);

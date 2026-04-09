@@ -1,6 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
@@ -24,15 +24,14 @@ export class RejectServiceGroupUseCase {
   constructor(
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: RejectServiceGroupInput): Promise<RejectServiceGroupOutput> {
     const { actor, groupId, reason } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.manage', entityType: 'ServiceGroup' });
 
     const result = await this.serviceGroupRepo.findById(groupId, actor.tenantId);
     if (!result) {

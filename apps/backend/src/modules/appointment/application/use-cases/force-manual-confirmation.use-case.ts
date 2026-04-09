@@ -1,7 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import { AppointmentNotFoundError } from '../../domain/appointment.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
@@ -21,20 +20,15 @@ export class ForceManualTenantConfirmationUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
-    private readonly authorizationService?: AuthorizationService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ForceManualConfirmationInput): Promise<ForceManualConfirmationOutput> {
     const { appointmentId, tenantConfirmationStatus, reason, actor } = input;
 
     // 1. RBAC: AM/OP allowed, CL_USER with force_confirmation permission
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      if (actor.role === 'CL_USER' && this.authorizationService) {
-        this.authorizationService.assertClUserPermission(actor, 'force_confirmation');
-      } else {
-        throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-      }
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_USER'], { action: 'appointment.force_confirmation', entityType: 'Appointment' });
+    this.authorizationService.assertClUserPermission(actor, 'force_confirmation');
 
     // 2. Find appointment (AM/OP have global access)
     const result = await this.appointmentRepo.findById(appointmentId, null);

@@ -5,6 +5,7 @@ import type { IFinancialEntryRepository } from '../../../src/modules/billing/dom
 import { InspectorInvoiceEntity, type InspectorInvoiceProps } from '../../../src/modules/billing/domain/inspector-invoice.entity';
 import { InvoicePeriodOverlapError } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { AuthContext } from '@properfy/shared';
@@ -87,8 +88,9 @@ function makeSut(tenantRepo?: ITenantRepository) {
     log: vi.fn(),
   } as unknown as AuditService;
 
+  const authorizationService = new AuthorizationService(auditService);
   const useCase = new GenerateInvoiceUseCase(
-    invoiceRepo, financialEntryRepo, auditService, undefined, tenantRepo,
+    invoiceRepo, financialEntryRepo, auditService, undefined, tenantRepo, authorizationService,
   );
 
   return { useCase, invoiceRepo, financialEntryRepo, auditService };

@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { TenantPortalAction as PrismaTenantPortalAction, Prisma } from '@prisma/client';
+import type { TenantPortalAction as PrismaTenantPortalAction, Prisma } from '@prisma/client';
 import { TenantPortalActivityEntity } from '../domain/tenant-portal-activity.entity';
 import type { ITenantPortalActivityRepository } from '../domain/tenant-portal-activity.repository';
 import type { TenantPortalAction } from '@properfy/shared';

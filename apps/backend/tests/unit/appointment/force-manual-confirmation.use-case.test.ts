@@ -87,6 +87,7 @@ function makeUseCase() {
   return new ForceManualTenantConfirmationUseCase(
     appointmentRepo as any,
     auditService as any,
+    new AuthorizationService(auditService as any),
   );
 }
 
@@ -164,7 +165,7 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
   });
 
   // H7: CL_USER with force_confirmation permission
-  it('CL_USER without authorizationService is forbidden', async () => {
+  it('CL_USER without force_confirmation permission is forbidden', async () => {
     const uc = makeUseCase();
     await expect(
       uc.execute({
@@ -177,7 +178,7 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
   });
 
   describe('CL_USER with force_confirmation permission', () => {
-    const authzService = new AuthorizationService();
+    const authzService = new AuthorizationService(auditService as any);
 
     it('CL_USER with force_confirmation permission can force confirm', async () => {
       appointmentRepo.findById.mockResolvedValue(makeWithRelations());

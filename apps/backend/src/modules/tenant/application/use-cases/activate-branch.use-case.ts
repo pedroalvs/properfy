@@ -1,6 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ITenantRepository } from '../../domain/tenant.repository';
 import type { IBranchRepository } from '../../domain/branch.repository';
 import {
@@ -30,15 +30,18 @@ export class ActivateBranchUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: ActivateBranchInput): Promise<ActivateBranchOutput> {
     const { tenantId, branchId, actor } = input;
 
-    if (actor.role !== 'AM') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM'], {
+      action: 'tenant.activate',
+      entityType: 'Branch',
+      entityId: branchId,
+    });
 
     const tenant = await this.tenantRepo.findById(tenantId);
     if (!tenant || tenant.isDeleted()) {

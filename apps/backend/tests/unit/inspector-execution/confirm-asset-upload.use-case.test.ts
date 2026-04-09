@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConfirmAssetUploadUseCase } from '../../../src/modules/inspector-execution/application/use-cases/confirm-asset-upload.use-case';
 import { InspectionAssetEntity } from '../../../src/modules/inspector-execution/domain/inspection-asset.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   AssetNotFoundError,
   AssetUploadExpiredError,
@@ -52,7 +53,8 @@ describe('ConfirmAssetUploadUseCase', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useCase = new ConfirmAssetUploadUseCase(assetRepo, storageService);
+    const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
+    useCase = new ConfirmAssetUploadUseCase(assetRepo, storageService, authorizationService);
   });
 
   it('sets status to UPLOADED and sizeBytes when S3 object found', async () => {

@@ -6,6 +6,7 @@ import { AppointmentTimeSlotNotFoundError } from '../../../src/modules/appointme
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import type { AuthContext } from '@properfy/shared';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeSlotEntity(
   overrides: Partial<ConstructorParameters<typeof AppointmentTimeSlotEntity>[0]> = {},
@@ -90,7 +91,7 @@ describe('DeleteAppointmentTimeSlotUseCase', () => {
       softDelete: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new DeleteAppointmentTimeSlotUseCase(timeSlotRepo, auditService);
+    useCase = new DeleteAppointmentTimeSlotUseCase(timeSlotRepo, auditService, new AuthorizationService(auditService));
   });
 
   it('should soft delete a slot as AM', async () => {

@@ -1,7 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   ExecutionNotStartedError,
   ExecutionNotFinishedError,
@@ -26,15 +26,17 @@ export class ReopenExecutionUseCase {
     private readonly executionRepo: IInspectionExecutionRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ReopenExecutionInput): Promise<ReopenExecutionOutput> {
     const { appointmentId, reason, actor } = input;
 
     // 1. AM only
-    if (actor.role !== 'AM') {
-      throw new ForbiddenError('FORBIDDEN', 'Only Admin Master can reopen a finished execution');
-    }
+    this.authorizationService.assertRoles(actor, ['AM'], {
+      action: 'appointment.reopen_done',
+      entityType: 'InspectionExecution',
+    });
 
     // 2. Load execution
     const execution = await this.executionRepo.findByAppointmentId(appointmentId);

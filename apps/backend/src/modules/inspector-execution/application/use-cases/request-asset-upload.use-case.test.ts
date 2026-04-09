@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RequestAssetUploadUseCase } from './request-asset-upload.use-case';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   ExecutionAppointmentNotFoundError,
 } from '../../domain/inspection-execution.errors';
@@ -48,12 +49,14 @@ describe('RequestAssetUploadUseCase', () => {
     const executionRepo = {
       findByAppointmentId: vi.fn().mockResolvedValue(makeExecution({ inspectorId: 'insp-2' })),
     };
+    const authSvc = new AuthorizationService({ log: vi.fn() } as never);
 
     const useCase = new RequestAssetUploadUseCase(
       executionRepo as never,
       { save: vi.fn() } as never,
       { createSignedUploadUrl: vi.fn() } as never,
       { findById: vi.fn() } as never,
+      authSvc,
     );
 
     await expect(useCase.execute(VALID_INPUT)).rejects.toBeInstanceOf(ForbiddenError);
@@ -66,12 +69,14 @@ describe('RequestAssetUploadUseCase', () => {
     const appointmentRepo = {
       findById: vi.fn().mockResolvedValue(null),
     };
+    const authSvc = new AuthorizationService({ log: vi.fn() } as never);
 
     const useCase = new RequestAssetUploadUseCase(
       executionRepo as never,
       { save: vi.fn() } as never,
       { createSignedUploadUrl: vi.fn() } as never,
       appointmentRepo as never,
+      authSvc,
     );
 
     await expect(useCase.execute(VALID_INPUT)).rejects.toBeInstanceOf(
@@ -86,12 +91,14 @@ describe('RequestAssetUploadUseCase', () => {
     const appointmentRepo = {
       findById: vi.fn().mockResolvedValue(makeAppointmentResult({ inspectorId: 'insp-other' })),
     };
+    const authSvc = new AuthorizationService({ log: vi.fn() } as never);
 
     const useCase = new RequestAssetUploadUseCase(
       executionRepo as never,
       { save: vi.fn() } as never,
       { createSignedUploadUrl: vi.fn() } as never,
       appointmentRepo as never,
+      authSvc,
     );
 
     await expect(useCase.execute(VALID_INPUT)).rejects.toBeInstanceOf(
@@ -111,11 +118,13 @@ describe('RequestAssetUploadUseCase', () => {
       createSignedUploadUrl: vi.fn().mockResolvedValue({ url: 'https://example.com/upload' }),
     };
 
+    const authSvc = new AuthorizationService({ log: vi.fn() } as never);
     const useCase = new RequestAssetUploadUseCase(
       executionRepo as never,
       assetRepo as never,
       storageService as never,
       appointmentRepo as never,
+      authSvc,
     );
 
     const result = await useCase.execute(VALID_INPUT);

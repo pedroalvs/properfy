@@ -4,7 +4,7 @@ import {
   EntryNotFoundError,
   EntryNotApprovedError,
 } from '../../domain/billing.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
 export interface VoidFinancialEntryInput {
@@ -25,15 +25,14 @@ export class VoidFinancialEntryUseCase {
   constructor(
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: VoidFinancialEntryInput): Promise<VoidFinancialEntryOutput> {
     const { entryId, reason, actor } = input;
 
     // 1. Validate actor role - AM only
-    if (actor.role !== 'AM') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM can void financial entries');
-    }
+    this.authorizationService.assertRoles(actor, ['AM'], { action: 'financial.void', entityType: 'FinancialEntry' });
 
     // 2. Load entry
     const entry = await this.financialEntryRepo.findById(entryId);

@@ -9,6 +9,7 @@ import {
   InspectorEmailConflictError,
 } from '../../../src/modules/inspector/domain/inspector.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeInspector(
   overrides: Partial<ConstructorParameters<typeof InspectorEntity>[0]> = {},
@@ -56,7 +57,8 @@ describe('UpdateInspectorUseCase', () => {
       findByRegionId: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new UpdateInspectorUseCase(inspectorRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new UpdateInspectorUseCase(inspectorRepo, auditService, undefined, authorizationService);
   });
 
   it('should update inspector for AM', async () => {

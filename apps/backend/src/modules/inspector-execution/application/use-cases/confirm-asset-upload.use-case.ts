@@ -2,6 +2,7 @@ import type { AuthContext } from '@properfy/shared';
 import type { IInspectionAssetRepository } from '../../domain/inspection-asset.repository';
 import type { IStorageService } from '../../domain/storage.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   AssetNotFoundError,
   AssetUploadExpiredError,
@@ -26,15 +27,17 @@ export class ConfirmAssetUploadUseCase {
   constructor(
     private readonly assetRepo: IInspectionAssetRepository,
     private readonly storageService: IStorageService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ConfirmAssetUploadInput): Promise<ConfirmAssetUploadOutput> {
     const { appointmentId, assetId, actor } = input;
 
     // 1. INSP only
-    if (actor.role !== 'INSP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only inspectors can confirm asset uploads');
-    }
+    this.authorizationService.assertRoles(actor, ['INSP'], {
+      action: 'appointment.mark_done',
+      entityType: 'InspectionAsset',
+    });
 
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');

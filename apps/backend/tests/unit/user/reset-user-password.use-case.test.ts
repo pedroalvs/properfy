@@ -6,6 +6,7 @@ import { ResetUserPasswordUseCase } from '../../../src/modules/user/application/
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
 import type { IPasswordHistoryRepository } from '../../../src/modules/auth/domain/password-history.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { UserNotFoundError } from '../../../src/modules/user/domain/user-management.errors';
 import {
@@ -42,6 +43,7 @@ function makeUser(
 describe('ResetUserPasswordUseCase', () => {
   let userManagementRepo: IUserManagementRepository;
   let auditService: AuditService;
+  let authorizationService: AuthorizationService;
   let passwordHistoryRepo: IPasswordHistoryRepository;
   let useCase: ResetUserPasswordUseCase;
 
@@ -66,8 +68,9 @@ describe('ResetUserPasswordUseCase', () => {
       revokeAllSessions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
+    authorizationService = new AuthorizationService(auditService);
     passwordHistoryRepo = { findRecentByUserId: vi.fn().mockResolvedValue([]), save: vi.fn(), pruneOldEntries: vi.fn() };
-    useCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo);
+    useCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo, authorizationService);
   });
 
   it('allows AM to reset password, unlock account and revoke sessions', async () => {

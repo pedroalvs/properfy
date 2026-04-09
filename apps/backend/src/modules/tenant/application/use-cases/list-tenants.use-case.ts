@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type {
   ITenantRepository,
   TenantFilters,
@@ -34,14 +34,16 @@ export class ListTenantsUseCase {
   constructor(
     private readonly tenantRepo: ITenantRepository,
     private readonly branchRepo: IBranchRepository,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ListTenantsInput): Promise<ListTenantsOutput> {
     const { filters, pagination, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'tenant.list',
+      entityType: 'Tenant',
+    });
 
     const [data, total] = await Promise.all([
       this.tenantRepo.findAll(filters, pagination),

@@ -1,6 +1,7 @@
 import type { AuthContext, ServiceGroupExceptionType } from '@properfy/shared';
-import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
+import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
@@ -55,6 +56,7 @@ export class CreateServiceGroupUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
     private readonly tenantRepo?: ITenantRepository,
   ) {}
@@ -63,9 +65,7 @@ export class CreateServiceGroupUseCase {
     const { actor } = input;
 
     // 1. RBAC
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.create', entityType: 'ServiceGroup' });
 
     // 2. Load and validate appointments
     const appointments = [];

@@ -5,6 +5,7 @@ import type { IInspectionExecutionRepository } from '../../../src/modules/inspec
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuthContext } from '@properfy/shared';
 
 function makeAppointment(
@@ -113,7 +114,8 @@ describe('GetInspectorScheduleUseCase', () => {
       update: vi.fn(),
     };
 
-    useCase = new GetInspectorScheduleUseCase(appointmentRepo, executionRepo);
+    const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
+    useCase = new GetInspectorScheduleUseCase(appointmentRepo, executionRepo, authorizationService);
   });
 
   it('should return schedule for target date with execution statuses', async () => {

@@ -4,6 +4,8 @@ import type { IServiceGroupRepository, ServiceGroupWithAppointments } from '../.
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { ServiceGroupNotFoundError } from '../../../src/modules/service-group/domain/service-group.errors';
 
 function makeGroup(
@@ -78,7 +80,9 @@ describe('GetServiceGroupUseCase', () => {
       scheduleAppointments: vi.fn(),
       findExpiredPublished: vi.fn(),
     };
-    useCase = new GetServiceGroupUseCase(serviceGroupRepo);
+    const auditService = { log: vi.fn() } as unknown as AuditService;
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new GetServiceGroupUseCase(serviceGroupRepo, authorizationService);
   });
 
   it('should return group with appointments for AM', async () => {

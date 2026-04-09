@@ -100,7 +100,7 @@ describe('UpdateAppointmentUseCase', () => {
       deleteRestrictionsByAppointmentId: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new UpdateAppointmentUseCase(appointmentRepo, auditService);
+    useCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, new AuthorizationService(auditService));
   });
 
   it('should update a DRAFT appointment successfully', async () => {
@@ -397,10 +397,13 @@ describe('UpdateAppointmentUseCase', () => {
 
   // H6: CL_USER reschedule permission
   describe('CL_USER reschedule_appointments permission', () => {
-    const authzService = new AuthorizationService();
+    let authzService: AuthorizationService;
+    beforeEach(() => {
+      authzService = new AuthorizationService(auditService);
+    });
 
     it('should allow CL_USER to reschedule with permission', async () => {
-      const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, undefined, undefined, authzService);
+      const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, authzService);
       vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
       const result = await uc.execute({
@@ -412,7 +415,7 @@ describe('UpdateAppointmentUseCase', () => {
     });
 
     it('should throw ForbiddenError for CL_USER without reschedule_appointments permission', async () => {
-      const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, undefined, undefined, authzService);
+      const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, authzService);
 
       await expect(
         uc.execute({
@@ -424,7 +427,7 @@ describe('UpdateAppointmentUseCase', () => {
     });
 
     it('should allow CL_USER to update non-schedule fields without permission', async () => {
-      const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, undefined, undefined, authzService);
+      const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, authzService);
       vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
       const result = await uc.execute({

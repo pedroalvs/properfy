@@ -3,6 +3,8 @@ import { ListServiceRegionsUseCase } from '../../../src/modules/service-region/a
 import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { ServiceRegionEntity } from '../../../src/modules/service-region/domain/service-region.entity';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
@@ -56,7 +58,9 @@ describe('ListServiceRegionsUseCase', () => {
 
   beforeEach(() => {
     regionRepo = createMockRepo();
-    useCase = new ListServiceRegionsUseCase(regionRepo);
+    const auditService = { log: vi.fn() } as unknown as AuditService;
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new ListServiceRegionsUseCase(regionRepo, authorizationService);
   });
 
   it('should list regions scoped by tenant', async () => {

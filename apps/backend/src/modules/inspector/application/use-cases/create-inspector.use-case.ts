@@ -5,8 +5,8 @@ import type {
   ServiceTypeEntry,
   ClientEligibilityEntry,
 } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
@@ -46,14 +46,16 @@ export class CreateInspectorUseCase {
     private readonly userManagementRepo: IUserManagementRepository,
     private readonly auditService: AuditService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: CreateInspectorInput): Promise<CreateInspectorOutput> {
     const { name, email, phone, paymentSettings, regions, regionIds, serviceTypes, clientEligibility, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService!.assertRoles(actor, ['AM', 'OP'], {
+      action: 'inspector.create',
+      entityType: 'Inspector',
+    });
 
     const existing = await this.inspectorRepo.findByEmail(email);
     if (existing) {

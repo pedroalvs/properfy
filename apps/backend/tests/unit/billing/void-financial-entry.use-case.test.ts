@@ -4,6 +4,7 @@ import type { IFinancialEntryRepository } from '../../../src/modules/billing/dom
 import { FinancialEntryEntity, type FinancialEntryProps } from '../../../src/modules/billing/domain/financial-entry.entity';
 import { EntryNotFoundError, EntryNotApprovedError } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 
@@ -65,7 +66,8 @@ function makeSut() {
     log: vi.fn(),
   } as unknown as AuditService;
 
-  const useCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService);
+  const authorizationService = new AuthorizationService(auditService);
+  const useCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
 
   return { useCase, financialEntryRepo, auditService };
 }

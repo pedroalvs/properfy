@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { PayoutType as PrismaPayoutType, PriceRuleStatus as PrismaPriceRuleStatus, Prisma } from '@prisma/client';
+import type { PayoutType as PrismaPayoutType, PriceRuleStatus as PrismaPriceRuleStatus, Prisma } from '@prisma/client';
 import { PricingRuleEntity } from '../domain/pricing-rule.entity';
 import type {
   IPricingRuleRepository,

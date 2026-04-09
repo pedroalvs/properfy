@@ -1,5 +1,5 @@
 import { todayUTCDateString, type AuthContext } from '@properfy/shared';
-import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
+import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -71,29 +71,19 @@ export class UpdateAppointmentUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo?: ITenantRepository,
     private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
-    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
     const { appointmentId, data, actor } = input;
 
     // RBAC
-    if (
-      actor.role !== 'AM' &&
-      actor.role !== 'OP' &&
-      actor.role !== 'CL_ADMIN' &&
-      actor.role !== 'CL_USER'
-    ) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.update', entityType: 'Appointment' });
 
     // CL_USER must have reschedule_appointments permission when changing date/time
-    if (
-      (data.scheduledDate !== undefined || data.timeSlot !== undefined) &&
-      this.authorizationService
-    ) {
+    if (data.scheduledDate !== undefined || data.timeSlot !== undefined) {
       this.authorizationService.assertClUserPermission(actor, 'reschedule_appointments');
     }
 

@@ -77,9 +77,27 @@ export interface ContactDetail extends ContactListItem {
   notes: string | null;
 }
 
+export interface VisibleForInspectorParams {
+  inspectorId: string;
+  fromDate: string;
+  toDate: string;
+  today: Date;
+}
+
 export interface IAppointmentRepository {
   findById(id: string, tenantId: string | null): Promise<AppointmentWithRelations | null>;
   findAll(filters: AppointmentFilters, pagination: PaginationParams): Promise<AppointmentListItem[]>;
+  /**
+   * Returns SCHEDULED appointments for the inspector within the date range,
+   * filtered by the T-1 visibility rule internally.
+   * This centralizes the T-1 logic so multiple consumers don't re-implement it.
+   */
+  findVisibleForInspector(params: VisibleForInspectorParams): Promise<AppointmentListItem[]>;
+  /**
+   * Checks whether a single appointment is visible to the inspector under the T-1 rule.
+   * Uses the same centralized T-1 logic as findVisibleForInspector.
+   */
+  isAppointmentVisibleForInspector(appointmentId: string, today: Date): Promise<boolean>;
   count(filters: AppointmentFilters): Promise<number>;
   save(appointment: AppointmentEntity): Promise<void>;
   update(

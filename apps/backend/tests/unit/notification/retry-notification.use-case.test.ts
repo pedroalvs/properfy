@@ -8,10 +8,11 @@ import {
 import {
   NotificationNotFoundError,
   NotificationInvalidStatusError,
-  NotificationForbiddenError,
 } from '../../../src/modules/notification/domain/notification.errors';
 import type { AuditService } from '../../../src/modules/notification/../../../shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 const now = new Date('2026-03-16T10:00:00.000Z');
 
@@ -62,8 +63,9 @@ function makeSut() {
   const auditService: AuditService = {
     log: vi.fn(),
   } as unknown as AuditService;
+  const authorizationService = new AuthorizationService(auditService);
 
-  const useCase = new RetryNotificationUseCase(notificationRepo, auditService);
+  const useCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
   return { notificationRepo, auditService, useCase };
 }
 
@@ -80,27 +82,27 @@ describe('RetryNotificationUseCase', () => {
     useCase = sut.useCase;
   });
 
-  it('should throw NotificationForbiddenError for non-AM/OP roles', async () => {
+  it('should throw ForbiddenError for non-AM/OP roles', async () => {
     await expect(
       useCase.execute({
         notificationId: 'notif-1',
         actor: makeActor({ role: 'CL_ADMIN' }),
       }),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
 
     await expect(
       useCase.execute({
         notificationId: 'notif-1',
         actor: makeActor({ role: 'INSP' }),
       }),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
 
     await expect(
       useCase.execute({
         notificationId: 'notif-1',
         actor: makeActor({ role: 'CL_USER' }),
       }),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('should throw NotificationNotFoundError when not found', async () => {

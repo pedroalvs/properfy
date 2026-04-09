@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type {
   IServiceGroupRepository,
   ServiceGroupFilters,
@@ -47,14 +47,15 @@ export interface ListServiceGroupsOutput {
 }
 
 export class ListServiceGroupsUseCase {
-  constructor(private readonly serviceGroupRepo: IServiceGroupRepository) {}
+  constructor(
+    private readonly serviceGroupRepo: IServiceGroupRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: ListServiceGroupsInput): Promise<ListServiceGroupsOutput> {
     const { actor, filters, pagination } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.manage', entityType: 'ServiceGroup' });
 
     const repoFilters: ServiceGroupFilters = { ...filters };
 

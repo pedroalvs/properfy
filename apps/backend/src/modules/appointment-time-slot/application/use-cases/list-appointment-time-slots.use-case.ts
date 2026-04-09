@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentTimeSlotRepository } from '../../domain/appointment-time-slot.repository';
 
 export interface ListAppointmentTimeSlotsInput {
@@ -22,17 +23,19 @@ export interface ListAppointmentTimeSlotsOutput {
   updatedAt: Date;
 }
 
-const ALLOWED_ROLES = ['AM', 'OP', 'CL_ADMIN', 'CL_USER'] as const;
-
 export class ListAppointmentTimeSlotsUseCase {
-  constructor(private readonly timeSlotRepo: IAppointmentTimeSlotRepository) {}
+  constructor(
+    private readonly timeSlotRepo: IAppointmentTimeSlotRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: ListAppointmentTimeSlotsInput): Promise<ListAppointmentTimeSlotsOutput[]> {
     const { actor } = input;
 
-    if (!ALLOWED_ROLES.includes(actor.role as (typeof ALLOWED_ROLES)[number])) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], {
+      action: 'appointment_time_slot.list',
+      entityType: 'AppointmentTimeSlot',
+    });
 
     // AM/OP can query any tenant; CL_ADMIN/CL_USER can only query own tenant
     let tenantId: string;

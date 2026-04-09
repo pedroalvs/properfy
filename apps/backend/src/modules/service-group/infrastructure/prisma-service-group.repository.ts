@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { ServiceGroupStatus as PrismaServiceGroupStatus, PriorityMode as PrismaPriorityMode, ServiceGroupExceptionType as PrismaExceptionType } from '@prisma/client';
+import type { ServiceGroupStatus as PrismaServiceGroupStatus, PriorityMode as PrismaPriorityMode, ServiceGroupExceptionType as PrismaExceptionType } from '@prisma/client';
 import { ServiceGroupEntity } from '../domain/service-group.entity';
 import type {
   IServiceGroupRepository,

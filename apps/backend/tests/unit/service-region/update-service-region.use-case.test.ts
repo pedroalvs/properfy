@@ -4,6 +4,7 @@ import type { IServiceRegionRepository } from '../../../src/modules/service-regi
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { ServiceRegionNotFoundError, ServiceRegionNameConflictError } from '../../../src/modules/service-region/domain/service-region.errors';
 import { ServiceRegionEntity } from '../../../src/modules/service-region/domain/service-region.entity';
 
@@ -60,7 +61,8 @@ describe('UpdateServiceRegionUseCase', () => {
   beforeEach(() => {
     regionRepo = createMockRepo();
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new UpdateServiceRegionUseCase(regionRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new UpdateServiceRegionUseCase(regionRepo, auditService, authorizationService);
 
     const region = makeRegion();
     vi.mocked(regionRepo.findById).mockResolvedValue(region);

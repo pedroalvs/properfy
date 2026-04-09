@@ -311,7 +311,7 @@ describe('RequestReportUseCase', () => {
       };
       const jobQueue: IJobQueue = { enqueue: vi.fn() };
       const auditService: AuditService = { log: vi.fn() };
-      const authorizationService = new AuthorizationService();
+      const authorizationService = new AuthorizationService(auditService);
       const uc = new RequestReportUseCase(reportRepo, jobQueue, auditService, undefined, authorizationService);
       return { reportRepo, jobQueue, auditService, useCase: uc };
     }

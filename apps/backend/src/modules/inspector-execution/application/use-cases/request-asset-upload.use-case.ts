@@ -7,6 +7,7 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import { InspectionAssetEntity } from '../../domain/inspection-asset.entity';
 import { isAllowedMimeType } from '../../domain/allowed-mime-types';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
@@ -38,15 +39,17 @@ export class RequestAssetUploadUseCase {
     private readonly assetRepo: IInspectionAssetRepository,
     private readonly storageService: IStorageService,
     private readonly appointmentRepo: IAppointmentRepository,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: RequestAssetUploadInput): Promise<RequestAssetUploadOutput> {
     const { appointmentId, kind, mimeType, fileName, actor } = input;
 
     // 1. INSP only
-    if (actor.role !== 'INSP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only inspectors can upload assets');
-    }
+    this.authorizationService!.assertRoles(actor, ['INSP'], {
+      action: 'appointment.mark_done',
+      entityType: 'InspectionAsset',
+    });
 
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');

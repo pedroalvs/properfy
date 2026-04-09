@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import type { INotificationRepository } from '../../domain/notification.repository';
-import { NotificationForbiddenError, NotificationNotFoundError } from '../../domain/notification.errors';
+import { NotificationNotFoundError } from '../../domain/notification.errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
 export interface GetNotificationInput {
   notificationId: string;
@@ -29,14 +30,18 @@ export interface NotificationDetailOutput {
 }
 
 export class GetNotificationUseCase {
-  constructor(private readonly notificationRepo: INotificationRepository) {}
+  constructor(
+    private readonly notificationRepo: INotificationRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: GetNotificationInput): Promise<NotificationDetailOutput> {
     const { notificationId, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new NotificationForbiddenError();
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'notification.view',
+      entityType: 'Notification',
+    });
 
     const notification = await this.notificationRepo.findById(notificationId);
     if (!notification) {

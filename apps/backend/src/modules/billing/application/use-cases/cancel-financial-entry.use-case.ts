@@ -4,7 +4,7 @@ import {
   EntryNotFoundError,
   EntryNotPendingError,
 } from '../../domain/billing.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
 export interface CancelFinancialEntryInput {
@@ -24,15 +24,14 @@ export class CancelFinancialEntryUseCase {
   constructor(
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: CancelFinancialEntryInput): Promise<CancelFinancialEntryOutput> {
     const { entryId, reason, actor } = input;
 
     // 1. Validate actor role
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can cancel financial entries');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'financial.cancel', entityType: 'FinancialEntry' });
 
     // 2. Load entry
     const entry = await this.financialEntryRepo.findById(entryId);

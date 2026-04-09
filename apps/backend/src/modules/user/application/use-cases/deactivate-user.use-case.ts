@@ -2,6 +2,7 @@ import type { AuthContext } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   UserNotFoundError,
   UserAlreadyInactiveError,
@@ -20,23 +21,22 @@ export class DeactivateUserUseCase {
     private readonly userManagementRepo: IUserManagementRepository,
     private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: DeactivateUserInput): Promise<void> {
     const { tenantId, userId, reason, actor } = input;
 
-    // RBAC: AM can deactivate any tenant; CL_ADMIN own tenant only
-    if (actor.role === 'CL_ADMIN') {
-      if (actor.tenantId !== tenantId) {
-        throw new ForbiddenError(
-          'AUTH_FORBIDDEN',
-          'You can only deactivate users from your own tenant',
-        );
-      }
-    } else if (actor.role !== 'AM' && actor.role !== 'OP') {
+    // RBAC: AM/OP can deactivate any user; CL_ADMIN own tenant only
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
+      action: 'user.deactivate',
+      entityType: 'User',
+    });
+
+    if (actor.role === 'CL_ADMIN' && actor.tenantId !== tenantId) {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
-        'You are not allowed to deactivate users',
+        'You can only deactivate users from your own tenant',
       );
     }
 

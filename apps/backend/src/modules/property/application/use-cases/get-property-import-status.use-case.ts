@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
+import { NotFoundError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IPropertyImportRepository } from '../../domain/property-import.repository';
 
 export interface GetPropertyImportStatusInput {
@@ -22,14 +23,18 @@ export interface GetPropertyImportStatusOutput {
 }
 
 export class GetPropertyImportStatusUseCase {
-  constructor(private readonly importRepo: IPropertyImportRepository) {}
+  constructor(
+    private readonly importRepo: IPropertyImportRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: GetPropertyImportStatusInput): Promise<GetPropertyImportStatusOutput> {
     const { importId, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'CL_ADMIN') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
+      action: 'property.import',
+      entityType: 'Property',
+    });
 
     const tenantScope = (actor.role === 'AM' || actor.role === 'OP') ? null : actor.tenantId;
     const importRecord = await this.importRepo.findById(importId, tenantScope);

@@ -3,9 +3,11 @@ import type { IUserManagementRepository } from '../../domain/user-management.rep
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { UserNotFoundError } from '../../domain/user-management.errors';
 import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
+import type { UserRole } from '@properfy/shared';
 
 export interface UpdateUserInput {
   tenantId: string | null;
@@ -38,6 +40,7 @@ export class UpdateUserUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: UpdateUserInput): Promise<UpdateUserOutput> {
@@ -45,7 +48,20 @@ export class UpdateUserUseCase {
     const targetRole = data.role;
     const targetIsInternal = targetRole === 'AM' || targetRole === 'OP';
 
-    // RBAC check
+    // Privilege escalation check when role is being changed
+    if (data.role !== undefined) {
+      this.authorizationService.assertNoPrivilegeEscalation(actor, data.role as UserRole);
+    } else {
+      // Even without role change, only AM, OP, and CL_ADMIN can update users
+      if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'CL_ADMIN') {
+        throw new ForbiddenError(
+          'AUTH_FORBIDDEN',
+          'You are not allowed to update users',
+        );
+      }
+    }
+
+    // Tenant-scoping: CL_ADMIN can only update users from own tenant
     if (actor.role === 'CL_ADMIN') {
       if (actor.tenantId !== tenantId) {
         throw new ForbiddenError(
@@ -53,18 +69,6 @@ export class UpdateUserUseCase {
           'You can only update users from your own tenant',
         );
       }
-      // CL_ADMIN cannot change role to AM or OP
-      if (data.role === 'AM' || data.role === 'OP' || data.role === 'INSP') {
-        throw new ForbiddenError(
-          'AUTH_FORBIDDEN',
-          'You are not allowed to assign this role',
-        );
-      }
-    } else if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError(
-        'AUTH_FORBIDDEN',
-        'You are not allowed to update users',
-      );
     }
 
     // Inspector accounts are managed through the Inspector module, not User management
@@ -126,7 +130,7 @@ export class UpdateUserUseCase {
     }
 
     // Build update data based on role
-    let updateData: Record<string, unknown> = {};
+    const updateData: Record<string, unknown> = {};
     if (actor.role === 'AM' || actor.role === 'OP') {
       // AM/OP can update all fields
       if (data.name !== undefined) updateData.name = data.name;

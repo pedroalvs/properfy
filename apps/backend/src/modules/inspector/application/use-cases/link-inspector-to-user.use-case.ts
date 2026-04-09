@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError, NotFoundError, ConflictError } from '../../../../shared/domain/errors';
+import { NotFoundError, ConflictError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 
@@ -15,14 +16,16 @@ export class LinkInspectorToUserUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly userRepo: IUserManagementRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: LinkInspectorToUserInput): Promise<void> {
     const { inspectorId, userId, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'inspector.update',
+      entityType: 'Inspector',
+    });
 
     const inspector = await this.inspectorRepo.findById(inspectorId);
     if (!inspector) {

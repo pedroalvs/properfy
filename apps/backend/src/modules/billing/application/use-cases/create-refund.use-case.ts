@@ -7,7 +7,7 @@ import {
   EntryNotRefundableError,
   RefundExceedsOriginalAmountError,
 } from '../../domain/billing.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 
@@ -40,15 +40,14 @@ export class CreateRefundUseCase {
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
     private readonly idempotencyService: IIdempotencyService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: CreateRefundInput): Promise<CreateRefundOutput> {
     const { entryId, description, reason, actor } = input;
 
     // 1. Validate actor role
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can create refunds');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'financial.refund', entityType: 'FinancialEntry' });
 
     // 1.5 Idempotency check
     if (input.idempotencyKey) {

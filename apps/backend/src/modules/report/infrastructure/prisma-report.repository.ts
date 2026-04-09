@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import {
+import type {
   ReportStatus as PrismaReportStatus,
   ReportType as PrismaReportType,
   ReportFormat as PrismaReportFormat,

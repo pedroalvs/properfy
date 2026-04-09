@@ -4,14 +4,13 @@ import type { IAuditLogRepository } from '../../../audit/domain/audit-log.reposi
 import type { IInspectionExecutionRepository } from '../../../inspector-execution/domain/inspection-execution.repository';
 import type { IInspectionAssetRepository } from '../../../inspector-execution/domain/inspection-asset.repository';
 import type { IServiceTypeReader } from '../../../inspector-execution/domain/service-type-reader';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import {
   AppointmentDoneCrossCheckAlreadyCompletedError,
   AppointmentDoneCrossCheckEvidenceIncompleteError,
   AppointmentDoneCrossCheckInvalidStatusError,
-  AppointmentDoneCrossCheckNotPermittedError,
   AppointmentDoneCrossCheckOriginNotFoundError,
-  AppointmentDoneCrossCheckSelfApprovalError,
   AppointmentNotFoundError,
 } from '../../domain/appointment.errors';
 
@@ -42,14 +41,13 @@ export class PerformCrossCheckUseCase {
     private readonly executionRepo: IInspectionExecutionRepository,
     private readonly assetRepo: IInspectionAssetRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly serviceTypeReader?: IServiceTypeReader,
     private readonly onDoneHandler?: OnDoneHandler,
   ) {}
 
   async execute(input: PerformCrossCheckInput): Promise<PerformCrossCheckOutput> {
-    if (input.actor.role !== 'OP' && input.actor.role !== 'AM') {
-      throw new AppointmentDoneCrossCheckNotPermittedError();
-    }
+    this.authorizationService.assertRoles(input.actor, ['AM', 'OP'], { action: 'appointment.cross_check', entityType: 'Appointment' });
 
     const result = await this.appointmentRepo.findById(input.appointmentId, null);
     if (!result) {
@@ -97,9 +95,11 @@ export class PerformCrossCheckUseCase {
       throw new AppointmentDoneCrossCheckOriginNotFoundError();
     }
 
-    if (doneByUserId === input.actor.userId) {
-      throw new AppointmentDoneCrossCheckSelfApprovalError();
-    }
+    this.authorizationService.assertNotSelfApproval(input.actor.userId, doneByUserId, {
+      action: 'appointment.cross_check',
+      entityType: 'Appointment',
+      entityId: input.appointmentId,
+    });
 
     const execution = await this.executionRepo.findByAppointmentId(input.appointmentId);
     if (!execution || !execution.isFinished()) {

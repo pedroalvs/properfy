@@ -4,6 +4,7 @@ import type { IServiceRegionRepository } from '../../../src/modules/service-regi
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   ServiceRegionNotFoundError,
   ServiceRegionAlreadyInactiveError,
@@ -51,7 +52,8 @@ describe('DeactivateServiceRegionUseCase', () => {
   beforeEach(() => {
     regionRepo = createMockRepo();
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new DeactivateServiceRegionUseCase(regionRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new DeactivateServiceRegionUseCase(regionRepo, auditService, authorizationService);
   });
 
   it('should deactivate a region scoped by tenant', async () => {
@@ -127,7 +129,7 @@ describe('DeactivateServiceRegionUseCase', () => {
   it('should emit service_region.deactivated.v1 event after deactivation', async () => {
     const eventBus = new DomainEventBus();
     const emitSpy = vi.spyOn(eventBus, 'emit');
-    const useCaseWithEvents = new DeactivateServiceRegionUseCase(regionRepo, auditService, eventBus);
+    const useCaseWithEvents = new DeactivateServiceRegionUseCase(regionRepo, auditService, new AuthorizationService(auditService), eventBus);
 
     const region = new ServiceRegionEntity({
       id: 'region-1',
@@ -158,7 +160,7 @@ describe('DeactivateServiceRegionUseCase', () => {
   });
 
   it('should not fail when no event bus is provided', async () => {
-    const useCaseNoEvents = new DeactivateServiceRegionUseCase(regionRepo, auditService);
+    const useCaseNoEvents = new DeactivateServiceRegionUseCase(regionRepo, auditService, new AuthorizationService(auditService));
 
     const region = new ServiceRegionEntity({
       id: 'region-1',

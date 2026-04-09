@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GetImportStatusUseCase } from '../../../src/modules/appointment/application/use-cases/get-import-status.use-case';
 import type { IAppointmentImportRepository } from '../../../src/modules/appointment/domain/appointment-import.repository';
 import { AppointmentImportEntity } from '../../../src/modules/appointment/domain/appointment-import.entity';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
 
@@ -44,7 +45,8 @@ describe('GetImportStatusUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
-    useCase = new GetImportStatusUseCase(importRepo);
+    const authorizationService = new AuthorizationService({ log: vi.fn() } as any);
+    useCase = new GetImportStatusUseCase(importRepo, authorizationService);
   });
 
   it('should return import status by ID', async () => {

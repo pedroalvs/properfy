@@ -4,6 +4,7 @@ import type { IServiceRegionRepository } from '../../../src/modules/service-regi
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   ServiceRegionNotFoundError,
   ServiceRegionStillActiveError,
@@ -49,7 +50,8 @@ describe('DeleteServiceRegionUseCase', () => {
   beforeEach(() => {
     regionRepo = createMockRepo();
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new DeleteServiceRegionUseCase(regionRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new DeleteServiceRegionUseCase(regionRepo, auditService, authorizationService);
   });
 
   it('should delete an inactive region scoped by tenant', async () => {

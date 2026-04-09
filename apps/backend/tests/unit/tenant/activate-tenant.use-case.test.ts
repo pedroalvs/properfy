@@ -9,6 +9,7 @@ import {
   TenantAlreadyActiveError,
 } from '../../../src/modules/tenant/domain/tenant.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeTenant(
   overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
@@ -54,7 +55,7 @@ describe('ActivateTenantUseCase', () => {
       update: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new ActivateTenantUseCase(tenantRepo, auditService);
+    useCase = new ActivateTenantUseCase(tenantRepo, auditService, new AuthorizationService(auditService));
   });
 
   it('should activate a PENDING tenant when actor is AM', async () => {

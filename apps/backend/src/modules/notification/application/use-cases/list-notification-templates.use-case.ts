@@ -3,7 +3,7 @@ import type {
   INotificationTemplateRepository,
   NotificationTemplateFilters,
 } from '../../domain/notification-template.repository';
-import { NotificationForbiddenError } from '../../domain/notification.errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
 export interface ListNotificationTemplatesInput {
   tenantId?: string;
@@ -31,15 +31,19 @@ export interface ListNotificationTemplatesOutput {
 }
 
 export class ListNotificationTemplatesUseCase {
-  constructor(private readonly templateRepo: INotificationTemplateRepository) {}
+  constructor(
+    private readonly templateRepo: INotificationTemplateRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: ListNotificationTemplatesInput): Promise<ListNotificationTemplatesOutput> {
     const { actor } = input;
 
     // 1. Authorization
-    if (actor.role !== 'AM' && actor.role !== 'CL_ADMIN') {
-      throw new NotificationForbiddenError();
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'CL_ADMIN'], {
+      action: 'config.notification_templates',
+      entityType: 'NotificationTemplate',
+    });
 
     // 2. Build filters
     const filters: NotificationTemplateFilters = {};

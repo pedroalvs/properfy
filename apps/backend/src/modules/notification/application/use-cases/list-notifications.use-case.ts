@@ -4,7 +4,7 @@ import type {
   NotificationFilters,
   NotificationPagination,
 } from '../../domain/notification.repository';
-import { NotificationForbiddenError } from '../../domain/notification.errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
 export interface ListNotificationsInput {
   tenantId?: string;
@@ -46,14 +46,18 @@ export interface ListNotificationsOutput {
 }
 
 export class ListNotificationsUseCase {
-  constructor(private readonly notificationRepo: INotificationRepository) {}
+  constructor(
+    private readonly notificationRepo: INotificationRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: ListNotificationsInput): Promise<ListNotificationsOutput> {
     const { actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new NotificationForbiddenError();
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'notification.list',
+      entityType: 'Notification',
+    });
 
     const filters: NotificationFilters = {};
     const pagination: NotificationPagination = {

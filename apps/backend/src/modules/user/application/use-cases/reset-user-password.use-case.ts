@@ -3,6 +3,7 @@ import type { AuthContext } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
 import type { IPasswordHistoryRepository } from '../../../auth/domain/password-history.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { UserNotFoundError } from '../../domain/user-management.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import { validatePasswordStrength } from '../../../auth/domain/password-policy';
@@ -27,17 +28,16 @@ export class ResetUserPasswordUseCase {
     private readonly userManagementRepo: IUserManagementRepository,
     private readonly auditService: AuditService,
     private readonly passwordHistoryRepo: IPasswordHistoryRepository,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ResetUserPasswordInput): Promise<void> {
     const { tenantId, userId, newPassword, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError(
-        'AUTH_FORBIDDEN',
-        'You are not allowed to reset user passwords',
-      );
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'user.reset_password',
+      entityType: 'User',
+    });
 
     if (actor.userId === userId) {
       throw new ForbiddenError(

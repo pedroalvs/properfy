@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UnlockUserUseCase } from '../../../src/modules/user/application/use-cases/unlock-user.use-case';
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import {
   UserNotFoundError,
@@ -51,6 +52,7 @@ function makeLockedUser(
 describe('UnlockUserUseCase', () => {
   let userManagementRepo: IUserManagementRepository;
   let auditService: AuditService;
+  let authorizationService: AuthorizationService;
   let useCase: UnlockUserUseCase;
 
   const amActor: AuthContext = {
@@ -91,7 +93,8 @@ describe('UnlockUserUseCase', () => {
       revokeAllSessions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new UnlockUserUseCase(userManagementRepo, auditService);
+    authorizationService = new AuthorizationService(auditService);
+    useCase = new UnlockUserUseCase(userManagementRepo, auditService, authorizationService);
   });
 
   it('should allow AM to unlock a locked user', async () => {

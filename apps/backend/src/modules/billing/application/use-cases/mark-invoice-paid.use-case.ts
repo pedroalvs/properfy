@@ -4,7 +4,7 @@ import {
   InvoiceNotFoundError,
   InvoiceNotClosedError,
 } from '../../domain/billing.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
 export interface MarkInvoicePaidInput {
@@ -24,15 +24,14 @@ export class MarkInvoicePaidUseCase {
   constructor(
     private readonly invoiceRepo: IInspectorInvoiceRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: MarkInvoicePaidInput): Promise<MarkInvoicePaidOutput> {
     const { invoiceId, actor } = input;
 
     // 1. Validate actor role
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can mark invoices as paid');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'financial.mark_paid', entityType: 'InspectorInvoice' });
 
     // 2. Load invoice
     const invoice = await this.invoiceRepo.findById(invoiceId);

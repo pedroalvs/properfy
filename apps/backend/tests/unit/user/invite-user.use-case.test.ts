@@ -6,6 +6,7 @@ import type { IBranchRepository } from '../../../src/modules/tenant/domain/branc
 import type { IPasswordResetTokenRepository } from '../../../src/modules/auth/domain/password-reset-token.repository';
 import type { CreateNotificationUseCase } from '../../../src/modules/notification/application/use-cases/create-notification.use-case';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
@@ -76,6 +77,7 @@ describe('InviteUserUseCase', () => {
   let passwordResetTokenRepo: IPasswordResetTokenRepository;
   let createNotificationUseCase: CreateNotificationUseCase;
   let auditService: AuditService;
+  let authorizationService: AuthorizationService;
   let useCase: InviteUserUseCase;
 
   beforeEach(() => {
@@ -120,6 +122,15 @@ describe('InviteUserUseCase', () => {
     auditService = {
       log: vi.fn(),
     } as unknown as AuditService;
+    authorizationService = {
+      assertNoPrivilegeEscalation: vi.fn().mockImplementation((actor: { role: string }, targetRole: string) => {
+        const clCreatable = ['CL_ADMIN', 'CL_USER'];
+        if (actor.role === 'AM') return;
+        if (actor.role === 'OP' && clCreatable.includes(targetRole)) return;
+        if (actor.role === 'CL_ADMIN' && clCreatable.includes(targetRole)) return;
+        throw new ForbiddenError('PRIVILEGE_ESCALATION', `Role ${actor.role} cannot create users with role ${targetRole}`);
+      }),
+    } as unknown as AuthorizationService;
 
     useCase = new InviteUserUseCase(
       userManagementRepo,
@@ -128,6 +139,7 @@ describe('InviteUserUseCase', () => {
       passwordResetTokenRepo,
       createNotificationUseCase,
       auditService,
+      authorizationService,
     );
   });
 

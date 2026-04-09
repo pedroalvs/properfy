@@ -6,6 +6,7 @@ import {
   EntryNotPendingError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 const financialEntryRepo = {
   findById: vi.fn(),
@@ -63,8 +64,10 @@ const amActor = {
   inspectorId: null,
 };
 
+const authorizationService = new AuthorizationService(auditService as any);
+
 function makeSut() {
-  return new CancelFinancialEntryUseCase(financialEntryRepo, auditService as any);
+  return new CancelFinancialEntryUseCase(financialEntryRepo, auditService as any, authorizationService);
 }
 
 describe('CancelFinancialEntryUseCase', () => {

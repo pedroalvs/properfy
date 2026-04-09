@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
+import { ValidationError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IPropertyImportRepository } from '../../domain/property-import.repository';
 import type { IReportStorageService } from '../../../report/domain/report-storage.service';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
@@ -29,14 +30,16 @@ export class ImportPropertiesUseCase {
     private readonly storageService: IReportStorageService,
     private readonly jobQueue: IJobQueue,
     private readonly idempotencyService: IIdempotencyService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ImportPropertiesInput): Promise<ImportPropertiesOutput> {
     const { fileBuffer, filename, idempotencyKey, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'CL_ADMIN') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions for property import');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
+      action: 'property.import',
+      entityType: 'Property',
+    });
 
     const ext = filename.split('.').pop()?.toLowerCase();
     if (ext !== 'xlsx' && ext !== 'csv') {

@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { AvailabilitySlotStatus as PrismaAvailabilitySlotStatus, Prisma } from '@prisma/client';
+import type { AvailabilitySlotStatus as PrismaAvailabilitySlotStatus, Prisma } from '@prisma/client';
 import { AvailabilitySlotEntity } from '../domain/availability-slot.entity';
 import type {
   IAvailabilitySlotRepository,

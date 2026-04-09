@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import { ValidationError } from '../../../../shared/domain/errors';
 import type { IAppointmentImportRepository } from '../../domain/appointment-import.repository';
 import type { IReportStorageService } from '../../../report/domain/report-storage.service';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
@@ -29,14 +30,13 @@ export class ImportAppointmentsUseCase {
     private readonly storageService: IReportStorageService,
     private readonly jobQueue: IJobQueue,
     private readonly idempotencyService: IIdempotencyService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ImportAppointmentsInput): Promise<ImportAppointmentsOutput> {
     const { fileBuffer, filename, idempotencyKey, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'CL_ADMIN') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions for appointment import');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], { action: 'appointment.import', entityType: 'Appointment' });
 
     const ext = filename.split('.').pop()?.toLowerCase();
     if (ext !== 'xlsx' && ext !== 'csv') {

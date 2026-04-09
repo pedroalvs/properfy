@@ -7,6 +7,7 @@ import type { AuthContext } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   GroupSizeTooSmallError,
   GroupSizeTooLargeError,
@@ -114,10 +115,12 @@ describe('CreateServiceGroupUseCase', () => {
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
 
+    const authorizationService = new AuthorizationService(auditService);
     useCase = new CreateServiceGroupUseCase(
       serviceGroupRepo,
       appointmentRepo,
       auditService,
+      authorizationService,
     );
   });
 
@@ -435,7 +438,7 @@ describe('CreateServiceGroupUseCase', () => {
       );
 
       const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, undefined, tenantRepo,
+        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), undefined, tenantRepo,
       );
 
       const appointmentIds = makeAppointmentIds(5);
@@ -467,7 +470,7 @@ describe('CreateServiceGroupUseCase', () => {
       );
 
       const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, undefined, tenantRepo,
+        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), undefined, tenantRepo,
       );
 
       const appointmentIds = makeAppointmentIds(5);
@@ -520,7 +523,7 @@ describe('CreateServiceGroupUseCase', () => {
       );
 
       const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, undefined, tenantRepo,
+        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), undefined, tenantRepo,
       );
 
       const appointmentIds = makeAppointmentIds(5);
@@ -549,7 +552,7 @@ describe('CreateServiceGroupUseCase', () => {
       );
 
       const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, undefined, tenantRepo,
+        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), undefined, tenantRepo,
       );
 
       const appointmentIds = makeAppointmentIds(5);

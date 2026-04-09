@@ -4,7 +4,7 @@ import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import { InspectorInvoiceEntity } from '../../domain/inspector-invoice.entity';
 import { InvoicePeriodOverlapError } from '../../domain/billing.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -44,15 +44,14 @@ export class GenerateInvoiceUseCase {
     private readonly auditService: AuditService,
     private readonly jobQueue?: IJobQueue,
     private readonly tenantRepo?: ITenantRepository,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: GenerateInvoiceInput): Promise<GenerateInvoiceOutput> {
     const { inspectorId, periodStart, periodEnd, actor } = input;
 
     // 1. Validate role AM/OP
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can generate invoices');
-    }
+    this.authorizationService?.assertRoles(actor, ['AM', 'OP'], { action: 'financial.generate_invoice', entityType: 'InspectorInvoice' });
 
     // Resolve tenant timezone for period boundary computation
     const tenantId = input.tenantId ?? actor.tenantId;

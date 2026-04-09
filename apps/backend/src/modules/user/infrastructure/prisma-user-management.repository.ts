@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
-import { UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from '@prisma/client';
+import type { PrismaClient , UserRole as PrismaUserRole} from '@prisma/client';
+import { UserStatus as PrismaUserStatus } from '@prisma/client';
 import { UserEntity } from '../../auth/domain/user.entity';
 import type {
   IUserManagementRepository,

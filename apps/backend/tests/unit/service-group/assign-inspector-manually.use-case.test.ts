@@ -8,6 +8,7 @@ import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 import {
   ServiceGroupNotFoundError,
@@ -145,12 +146,14 @@ describe('AssignInspectorManuallyUseCase', () => {
       getWithHash: vi.fn().mockResolvedValue(null),
     };
 
+    const authorizationService = new AuthorizationService(auditService);
     useCase = new AssignInspectorManuallyUseCase(
       serviceGroupRepo,
       inspectorRepo,
       auditService,
       serviceRegionRepo,
       idempotencyService,
+      authorizationService,
     );
   });
 

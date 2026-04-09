@@ -351,9 +351,9 @@ export interface AppContainer {
 
 export function createContainer(logger: Logger): AppContainer {
   const env = getEnv();
-  const authorizationService = new AuthorizationService();
   const auditLogRepo = new PrismaAuditLogRepository(prisma);
   const auditService = new PersistentAuditService(auditLogRepo, logger);
+  const authorizationService = new AuthorizationService(auditService);
 
   // S3 client for Supabase storage (optional — falls back to stubs when not configured)
   const s3Client = env.SUPABASE_S3_ENDPOINT && env.SUPABASE_S3_ACCESS_KEY_ID && env.SUPABASE_S3_SECRET_ACCESS_KEY
@@ -416,16 +416,16 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Tenant use cases
   const getTenantUseCase = new GetTenantUseCase(tenantRepo);
-  const listTenantsUseCase = new ListTenantsUseCase(tenantRepo, branchRepo);
+  const listTenantsUseCase = new ListTenantsUseCase(tenantRepo, branchRepo, authorizationService);
   const updateTenantUseCase = new UpdateTenantUseCase(tenantRepo, auditService, domainEventBus);
-  const activateTenantUseCase = new ActivateTenantUseCase(tenantRepo, auditService, domainEventBus);
-  const deactivateTenantUseCase = new DeactivateTenantUseCase(tenantRepo, appointmentChecker, auditService, domainEventBus);
+  const activateTenantUseCase = new ActivateTenantUseCase(tenantRepo, auditService, authorizationService, domainEventBus);
+  const deactivateTenantUseCase = new DeactivateTenantUseCase(tenantRepo, appointmentChecker, auditService, authorizationService, domainEventBus);
   const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
   const getBranchUseCase = new GetBranchUseCase(tenantRepo, branchRepo);
   const listBranchesUseCase = new ListBranchesUseCase(tenantRepo, branchRepo);
   const updateBranchUseCase = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
-  const deactivateBranchUseCase = new DeactivateBranchUseCase(tenantRepo, branchRepo, appointmentChecker, auditService, domainEventBus);
-  const activateBranchUseCase = new ActivateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
+  const deactivateBranchUseCase = new DeactivateBranchUseCase(tenantRepo, branchRepo, appointmentChecker, auditService, authorizationService, domainEventBus);
+  const activateBranchUseCase = new ActivateBranchUseCase(tenantRepo, branchRepo, auditService, authorizationService, domainEventBus);
 
   // Branding storage service
   const brandingStorageService = s3Client && env.SUPABASE_STORAGE_PUBLIC_URL
@@ -436,13 +436,13 @@ export function createContainer(logger: Logger): AppContainer {
   const confirmLogoUploadUseCase = new ConfirmLogoUploadUseCase(tenantRepo, brandingStorageService, auditService);
 
   // User use cases
-  const createUserUseCase = new CreateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService);
+  const createUserUseCase = new CreateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService, authorizationService);
   const getUserUseCase = new GetUserUseCase(userManagementRepo);
   const listUsersUseCase = new ListUsersUseCase(userManagementRepo);
-  const updateUserUseCase = new UpdateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService);
-  const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService);
-  const unlockUserUseCase = new UnlockUserUseCase(userManagementRepo, auditService);
-  const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo);
+  const updateUserUseCase = new UpdateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService, authorizationService);
+  const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService);
+  const unlockUserUseCase = new UnlockUserUseCase(userManagementRepo, auditService, authorizationService);
+  const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo, authorizationService);
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
@@ -451,7 +451,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
-  const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo);
+  const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo, authorizationService);
   const rawAddressLookupService = env.MAPBOX_ACCESS_TOKEN
     ? new MapboxAddressLookupService(env.MAPBOX_ACCESS_TOKEN)
     : new StubAddressLookupService();
@@ -484,16 +484,16 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
-  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, serviceRegionRepo);
+  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, serviceRegionRepo, authorizationService);
   const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo);
   const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo);
-  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo);
+  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo, authorizationService);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
-  const linkInspectorToUserUseCase = new LinkInspectorToUserUseCase(inspectorRepo, userManagementRepo, auditService);
+  const linkInspectorToUserUseCase = new LinkInspectorToUserUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService);
   const inspectorAppointmentChecker = new PrismaInspectorAppointmentChecker(prisma);
-  const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService);
+  const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService, authorizationService);
 
   // Notification repositories and create use case (needed before appointments for handler wiring)
   const notificationRepo = new PrismaNotificationRepository(prisma);
@@ -508,7 +508,7 @@ export function createContainer(logger: Logger): AppContainer {
   const acceptInviteUseCase = new AcceptInviteUseCase(passwordResetTokenRepo, userRepo, auditService);
 
   // Invite user use case (depends on createNotificationUseCase)
-  const inviteUserUseCase = new InviteUserUseCase(userManagementRepo, tenantRepo, branchRepo, passwordResetTokenRepo, createNotificationUseCase, auditService);
+  const inviteUserUseCase = new InviteUserUseCase(userManagementRepo, tenantRepo, branchRepo, passwordResetTokenRepo, createNotificationUseCase, auditService, authorizationService);
 
   // Shared idempotency service (used across modules)
   const idempotencyService = new PrismaIdempotencyService(prisma);
@@ -520,15 +520,16 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Appointment time slot
   const appointmentTimeSlotRepo = new PrismaAppointmentTimeSlotRepository(prisma);
-  const createAppointmentTimeSlotUseCase = new CreateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, branchRepo, auditService);
-  const updateAppointmentTimeSlotUseCase = new UpdateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
-  const listAppointmentTimeSlotsUseCase = new ListAppointmentTimeSlotsUseCase(appointmentTimeSlotRepo);
+  const createAppointmentTimeSlotUseCase = new CreateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, branchRepo, auditService, authorizationService);
+  const updateAppointmentTimeSlotUseCase = new UpdateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService, authorizationService);
+  const listAppointmentTimeSlotsUseCase = new ListAppointmentTimeSlotsUseCase(appointmentTimeSlotRepo, authorizationService);
   const listEffectiveTimeSlotsUseCase = new ListEffectiveTimeSlotsUseCase(
     appointmentTimeSlotRepo,
     branchRepo,
+    authorizationService,
   );
-  const deleteAppointmentTimeSlotUseCase = new DeleteAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService);
-  const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, appointmentTimeSlotRepo, domainEventBus);
+  const deleteAppointmentTimeSlotUseCase = new DeleteAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService, authorizationService);
+  const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, appointmentTimeSlotRepo, authorizationService, domainEventBus);
 
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
@@ -537,12 +538,12 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
-    createPropertyUseCase, auditService, tenantRepo, appointmentTimeSlotRepo, authorizationService,
+    createPropertyUseCase, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo,
   );
-  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo);
-  const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo);
-  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, tenantRepo, appointmentTimeSlotRepo, authorizationService);
-  const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService);
+  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService);
+  const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
+  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo);
+  const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
   // Notification handlers (depend on appointmentRepo, propertyRepo, createNotificationUseCase)
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
     appointmentRepo, propertyRepo, createNotificationUseCase, logger, metrics,
@@ -553,14 +554,14 @@ export function createContainer(logger: Logger): AppContainer {
 
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(
     appointmentRepo, userManagementRepo, inspectorRepo, idempotencyService, auditService,
+    authorizationService,
     createFinancialEntriesOnDoneUseCase,
     notifyOnStatusTransitionHandler,
-    authorizationService,
     serviceTypeRepo,
     domainEventBus,
   );
   const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService);
-  const reopenForRescheduleUseCase = new ReopenForRescheduleUseCase(appointmentRepo, auditService);
+  const reopenForRescheduleUseCase = new ReopenForRescheduleUseCase(appointmentRepo, auditService, authorizationService);
 
   // Tenant portal repositories and use cases
   const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
@@ -586,6 +587,7 @@ export function createContainer(logger: Logger): AppContainer {
     inspectionExecutionRepo,
     inspectionAssetRepo,
     auditService,
+    authorizationService,
     serviceTypeReaderForExec,
     createFinancialEntriesOnDoneUseCase,
   );
@@ -603,29 +605,29 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector execution use cases
   const getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
-    appointmentRepo, inspectionExecutionRepo,
+    appointmentRepo, inspectionExecutionRepo, authorizationService,
   );
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
-    appointmentRepo, inspectionExecutionRepo, inspectionAssetRepo, serviceTypeReaderForExec,
+    appointmentRepo, inspectionExecutionRepo, inspectionAssetRepo, serviceTypeReaderForExec, authorizationService,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
-    appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, tenantSettingsReader,
+    appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, tenantSettingsReader, authorizationService,
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, inspectionAssetRepo, idempotencyService,
-    executeStatusTransitionUseCase, appointmentRepo, auditService, serviceTypeReaderForExec,
+    executeStatusTransitionUseCase, appointmentRepo, auditService, serviceTypeReaderForExec, authorizationService,
   );
   const requestAssetUploadUseCase = new RequestAssetUploadUseCase(
-    inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo,
+    inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo, authorizationService,
   );
   const confirmAssetUploadUseCase = new ConfirmAssetUploadUseCase(
-    inspectionAssetRepo, storageService,
+    inspectionAssetRepo, storageService, authorizationService,
   );
   const saveExecutionProgressUseCase = new SaveExecutionProgressUseCase(
-    inspectionExecutionRepo,
+    inspectionExecutionRepo, authorizationService,
   );
   const reopenExecutionUseCase = new ReopenExecutionUseCase(
-    inspectionExecutionRepo, appointmentRepo, auditService,
+    inspectionExecutionRepo, appointmentRepo, auditService, authorizationService,
   );
 
   // Audit use cases
@@ -633,25 +635,25 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Service group repositories and use cases
   const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
-  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, serviceRegionRepo, tenantRepo);
-  const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo);
-  const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo);
-  const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, domainEventBus);
-  const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, domainEventBus, availabilitySlotRepo);
-  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, domainEventBus, availabilitySlotRepo);
-  const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo);
-  const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo);
-  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, domainEventBus, availabilitySlotRepo);
-  const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, domainEventBus);
-  const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, tenantRepo);
-  const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService);
+  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo, tenantRepo);
+  const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo, authorizationService);
+  const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo, authorizationService);
+  const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, authorizationService, domainEventBus);
+  const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
+  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
+  const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
+  const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
+  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus, availabilitySlotRepo);
+  const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
+  const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, tenantRepo);
+  const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
 
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
   const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialEntryRepo, tenantRepo);
   const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
-  const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService);
-  const cancelFinancialEntryUseCase = new CancelFinancialEntryUseCase(financialEntryRepo, auditService);
+  const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
+  const cancelFinancialEntryUseCase = new CancelFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
   const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(
     financialEntryRepo,
     auditService,
@@ -659,26 +661,27 @@ export function createContainer(logger: Logger): AppContainer {
     tenantRepo,
     appointmentRepo,
     inspectorRepo,
+    authorizationService,
   );
-  const createRefundUseCase = new CreateRefundUseCase(financialEntryRepo, auditService, idempotencyService);
+  const createRefundUseCase = new CreateRefundUseCase(financialEntryRepo, auditService, idempotencyService, authorizationService);
   const billingJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
   const reportStorageService = s3Client
     ? new SupabaseReportStorageService(s3Client, env.SUPABASE_STORAGE_BUCKET)
     : new StubReportStorageService();
-  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, tenantRepo);
+  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, tenantRepo, authorizationService);
   const listInvoicesUseCase = new ListInvoicesUseCase(inspectorInvoiceRepo);
   const getInvoiceUseCase = new GetInvoiceUseCase(inspectorInvoiceRepo);
   const downloadInvoiceUseCase = new DownloadInvoiceUseCase(
     inspectorInvoiceRepo,
     reportStorageService,
   );
-  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService);
-  const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService);
-  const generateTenantInvoiceUseCase = new GenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
-  const regenerateInspectorInvoiceUseCase = new RegenerateInspectorInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
-  const regenerateTenantInvoiceUseCase = new RegenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue);
+  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService);
+  const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
+  const generateTenantInvoiceUseCase = new GenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
+  const regenerateInspectorInvoiceUseCase = new RegenerateInspectorInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
+  const regenerateTenantInvoiceUseCase = new RegenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
   const listTenantInvoicesUseCase = new ListTenantInvoicesUseCase(tenantInvoiceRepo);
 
   // Report repositories and use cases
@@ -746,19 +749,19 @@ export function createContainer(logger: Logger): AppContainer {
     metrics,
     getTenantSettings,
   });
-  const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService);
+  const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo);
   const webhookSignatureValidator = createWebhookSignatureValidator({
     resendWebhookSecret: env.RESEND_WEBHOOK_SECRET,
     twilioAuthToken: env.TWILIO_AUTH_TOKEN,
     zenviaWebhookSecret: env.ZENVIA_WEBHOOK_SECRET,
   });
-  const listNotificationsUseCase = new ListNotificationsUseCase(notificationRepo);
-  const getNotificationUseCase = new GetNotificationUseCase(notificationRepo);
+  const listNotificationsUseCase = new ListNotificationsUseCase(notificationRepo, authorizationService);
+  const getNotificationUseCase = new GetNotificationUseCase(notificationRepo, authorizationService);
   const upsertNotificationTemplateUseCase = new UpsertNotificationTemplateUseCase(
-    notificationTemplateRepo, templateRenderer, auditService,
+    notificationTemplateRepo, templateRenderer, auditService, authorizationService,
   );
-  const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo);
+  const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo, authorizationService);
   // createNotificationUseCase and notificationJobQueue created above (before appointments)
   const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue, logger);
   const dispatchRemindersUseCase = new DispatchRemindersUseCase(appointmentRepo, notificationRepo, createNotificationUseCase);
@@ -770,13 +773,13 @@ export function createContainer(logger: Logger): AppContainer {
   const getDashboardStatsUseCase = new GetDashboardStatsUseCase(dashboardRepo);
 
   // Service region use cases (serviceRegionRepo instantiated earlier for inspector/marketplace use)
-  const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService);
-  const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, auditService);
-  const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo, userRepo);
-  const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo);
-  const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService, domainEventBus);
-  const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService);
-  const resolveRegionsUseCase = new ResolveRegionsUseCase(serviceRegionRepo);
+  const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
+  const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
+  const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo, authorizationService, userRepo);
+  const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo, authorizationService);
+  const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, domainEventBus);
+  const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
+  const resolveRegionsUseCase = new ResolveRegionsUseCase(serviceRegionRepo, authorizationService);
 
   // Service region event handlers
   const notifyInspectorsOnRegionDeactivationHandler = new NotifyInspectorsOnRegionDeactivationHandler(
@@ -802,10 +805,10 @@ export function createContainer(logger: Logger): AppContainer {
     ? new PgBossJobQueue()
     : new StubJobQueue();
   const importAppointmentsUseCase = new ImportAppointmentsUseCase(
-    appointmentImportRepo, reportStorageService, importJobQueue, idempotencyService,
+    appointmentImportRepo, reportStorageService, importJobQueue, idempotencyService, authorizationService,
   );
-  const getImportStatusUseCase = new GetImportStatusUseCase(appointmentImportRepo);
-  const listAppointmentContactsUseCase = new ListAppointmentContactsUseCase(appointmentRepo);
+  const getImportStatusUseCase = new GetImportStatusUseCase(appointmentImportRepo, authorizationService);
+  const listAppointmentContactsUseCase = new ListAppointmentContactsUseCase(appointmentRepo, authorizationService);
 
   // Workers
   const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
@@ -832,10 +835,10 @@ export function createContainer(logger: Logger): AppContainer {
     ? new PgBossJobQueue()
     : new StubJobQueue();
   const importPropertiesUseCase = new ImportPropertiesUseCase(
-    propertyImportRepo, reportStorageService, propertyImportJobQueue, idempotencyService,
+    propertyImportRepo, reportStorageService, propertyImportJobQueue, idempotencyService, authorizationService,
   );
-  const getPropertyImportStatusUseCase = new GetPropertyImportStatusUseCase(propertyImportRepo);
-  const exportImportErrorsUseCase = new ExportImportErrorsUseCase(propertyImportRepo);
+  const getPropertyImportStatusUseCase = new GetPropertyImportStatusUseCase(propertyImportRepo, authorizationService);
+  const exportImportErrorsUseCase = new ExportImportErrorsUseCase(propertyImportRepo, authorizationService);
   const geocodeJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();

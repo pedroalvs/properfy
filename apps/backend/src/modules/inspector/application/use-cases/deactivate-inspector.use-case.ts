@@ -1,6 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IInspectorAppointmentChecker } from '../../domain/inspector-appointment-checker';
 import {
@@ -27,14 +27,16 @@ export class DeactivateInspectorUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly appointmentChecker: IInspectorAppointmentChecker,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: DeactivateInspectorInput): Promise<DeactivateInspectorOutput> {
     const { inspectorId, reason, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'inspector.deactivate',
+      entityType: 'Inspector',
+    });
 
     const inspector = await this.inspectorRepo.findById(inspectorId);
     if (!inspector || inspector.isDeleted()) {

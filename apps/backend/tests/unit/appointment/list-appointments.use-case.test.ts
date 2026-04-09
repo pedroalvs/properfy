@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ListAppointmentsUseCase } from '../../../src/modules/appointment/application/use-cases/list-appointments.use-case';
 import type { IAppointmentRepository, AppointmentListItem } from '../../../src/modules/appointment/domain/appointment.repository';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuthContext } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
@@ -81,7 +82,8 @@ describe('ListAppointmentsUseCase', () => {
       findScheduledOnDate: vi.fn(),
       findDuplicateForImport: vi.fn(),
     };
-    useCase = new ListAppointmentsUseCase(appointmentRepo);
+    const authorizationService = new AuthorizationService({ log: vi.fn() } as any);
+    useCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
   });
 
   it('should allow AM to list appointments with tenant filter', async () => {

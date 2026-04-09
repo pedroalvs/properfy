@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentTimeSlotRepository } from '../../domain/appointment-time-slot.repository';
 import { AppointmentTimeSlotEntity } from '../../domain/appointment-time-slot.entity';
 import { AppointmentTimeSlotOverlapError } from '../../domain/appointment-time-slot.errors';
@@ -30,21 +31,21 @@ export interface CreateAppointmentTimeSlotOutput {
   updatedAt: Date;
 }
 
-const ALLOWED_ROLES = ['AM', 'OP', 'CL_ADMIN'] as const;
-
 export class CreateAppointmentTimeSlotUseCase {
   constructor(
     private readonly timeSlotRepo: IAppointmentTimeSlotRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: CreateAppointmentTimeSlotInput): Promise<CreateAppointmentTimeSlotOutput> {
     const { actor } = input;
 
-    if (!ALLOWED_ROLES.includes(actor.role as (typeof ALLOWED_ROLES)[number])) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
+      action: 'appointment_time_slot.create',
+      entityType: 'AppointmentTimeSlot',
+    });
 
     // CL_ADMIN can only create for own tenant
     const tenantId = actor.role === 'CL_ADMIN'

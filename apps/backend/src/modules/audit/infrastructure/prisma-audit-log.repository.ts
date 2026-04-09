@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { AuditActorType as PrismaAuditActorType } from '@prisma/client';
+import type { AuditActorType as PrismaAuditActorType } from '@prisma/client';
 import { AuditLogEntity } from '../domain/audit-log.entity';
 import type {
   IAuditLogRepository,

@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import { NotFoundError } from '../../../../shared/domain/errors';
 import type { IAppointmentImportRepository } from '../../domain/appointment-import.repository';
 
 export interface GetImportStatusInput {
@@ -22,14 +23,15 @@ export interface GetImportStatusOutput {
 }
 
 export class GetImportStatusUseCase {
-  constructor(private readonly importRepo: IAppointmentImportRepository) {}
+  constructor(
+    private readonly importRepo: IAppointmentImportRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: GetImportStatusInput): Promise<GetImportStatusOutput> {
     const { importId, actor } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'CL_ADMIN') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], { action: 'appointment.import', entityType: 'AppointmentImport' });
 
     const tenantScope = (actor.role === 'AM' || actor.role === 'OP') ? null : actor.tenantId;
     const importRecord = await this.importRepo.findById(importId, tenantScope);

@@ -380,3 +380,13 @@ When you (Claude Code) implement or modify code in this project:
 - Change only what is necessary to achieve the goal.
 - Do not refactor, reformat or reorganize code that is not directly related to the task.
 - Preserve existing conventions and patterns — match the style of surrounding code.
+
+## Active Technologies
+- TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, domain port `IAppointmentChecker` (002-tenants-branches)
+- PostgreSQL (Supabase). Tables: `tenants`, `branches`. Audit records in shared `audit_logs`. Default time-slots seeded into `appointment_time_slots`. (002-tenants-branches)
+- TypeScript 5.6 on React 18.3 + Vite 5.4 + React Router 6 (data router), TanStack React Query 5, Tailwind CSS 3.4, mapbox-gl 3.20, openapi-fetch (014-frontend-app-shell-ux)
+- TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, existing `AuthorizationService` (015-permissions-rbac-matrix)
+- PostgreSQL (Supabase) — `tenants.settings_json` (JSONB) for permission flags; `audit_logs` for denial records (015-permissions-rbac-matrix)
+
+## Recent Changes
+- 002-tenants-branches: Added TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, domain port `IAppointmentChecker`

@@ -1,4 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type {
   IAppointmentRepository,
@@ -21,15 +22,16 @@ export interface ListAppointmentContactsOutput {
 }
 
 export class ListAppointmentContactsUseCase {
-  constructor(private readonly appointmentRepo: IAppointmentRepository) {}
+  constructor(
+    private readonly appointmentRepo: IAppointmentRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: ListAppointmentContactsInput): Promise<ListAppointmentContactsOutput> {
     const { pagination, actor } = input;
     let { filters } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'CL_ADMIN' && actor.role !== 'CL_USER') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.list', entityType: 'AppointmentContact' });
 
     // CL_ADMIN/CL_USER are scoped to their tenant
     if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {

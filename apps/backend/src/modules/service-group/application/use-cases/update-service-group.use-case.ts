@@ -1,6 +1,6 @@
 import type { AuthContext, PriorityMode, ServiceGroupExceptionType } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import {
   ServiceGroupNotFoundError,
@@ -62,15 +62,14 @@ export class UpdateServiceGroupUseCase {
   constructor(
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo?: ITenantRepository,
   ) {}
 
   async execute(input: UpdateServiceGroupInput): Promise<UpdateServiceGroupOutput> {
     const { actor, groupId } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.manage', entityType: 'ServiceGroup' });
 
     const result = await this.serviceGroupRepo.findById(groupId, actor.tenantId);
     if (!result) {

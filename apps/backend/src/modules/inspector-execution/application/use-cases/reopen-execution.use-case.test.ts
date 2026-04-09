@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ReopenExecutionUseCase } from './reopen-execution.use-case';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   ExecutionNotStartedError,
   ExecutionNotFinishedError,
@@ -72,11 +73,13 @@ function buildUseCase(overrides: {
   };
   const auditService = overrides.auditService ?? { log: vi.fn() };
 
+  const authorizationService = new AuthorizationService(auditService as never);
   return {
     useCase: new ReopenExecutionUseCase(
       executionRepo as never,
       appointmentRepo as never,
       auditService as never,
+      authorizationService,
     ),
     executionRepo,
     appointmentRepo,

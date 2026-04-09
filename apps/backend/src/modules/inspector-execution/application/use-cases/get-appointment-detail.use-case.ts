@@ -5,6 +5,7 @@ import type { IInspectionAssetRepository } from '../../domain/inspection-asset.r
 import type { IServiceTypeReader } from '../../domain/service-type-reader';
 import { T1VisibilityService } from '../../domain/t1-visibility.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   ExecutionAppointmentNotFoundError,
   ExecutionT1BlockedError,
@@ -82,14 +83,16 @@ export class GetAppointmentDetailUseCase {
     private readonly executionRepo: IInspectionExecutionRepository,
     private readonly assetRepo: IInspectionAssetRepository,
     private readonly serviceTypeReader: IServiceTypeReader,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: GetAppointmentDetailInput): Promise<AppointmentDetailOutput> {
     const { appointmentId, actor } = input;
 
-    if (actor.role !== 'INSP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only inspectors can access appointment details');
-    }
+    this.authorizationService.assertRoles(actor, ['INSP'], {
+      action: 'inspector.view_own',
+      entityType: 'Appointment',
+    });
 
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');

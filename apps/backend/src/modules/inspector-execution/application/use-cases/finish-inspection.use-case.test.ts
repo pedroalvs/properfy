@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FinishInspectionUseCase } from './finish-inspection.use-case';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { ExecutionEmptyChecklistError } from '../../domain/inspection-execution.errors';
 
 const INSP_ACTOR = {
@@ -38,13 +39,16 @@ function buildUseCase(overrides: {
     }),
   };
 
+  const auditService = { log: vi.fn() } as never;
   return new FinishInspectionUseCase(
     executionRepo as never,
     assetRepo as never,
     { get: vi.fn().mockResolvedValue(null), set: vi.fn() } as never,
     { execute: vi.fn().mockResolvedValue({ status: 'DONE' }) } as never,
     appointmentRepo as never,
-    { log: vi.fn() } as never,
+    auditService,
+    undefined,
+    new AuthorizationService(auditService),
   );
 }
 
@@ -60,13 +64,16 @@ describe('FinishInspectionUseCase', () => {
       }),
     };
 
+    const auditService = { log: vi.fn() } as never;
     const useCase = new FinishInspectionUseCase(
       executionRepo as never,
       { findUploadedByExecutionId: vi.fn() } as never,
       { get: vi.fn().mockResolvedValue(null), set: vi.fn() } as never,
       { execute: vi.fn() } as never,
       { findById: vi.fn().mockResolvedValue({ appointment: { tenantId: 'tenant-1' } }) } as never,
-      { log: vi.fn() } as never,
+      auditService,
+      undefined,
+      new AuthorizationService(auditService),
     );
 
     await expect(

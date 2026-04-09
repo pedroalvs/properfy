@@ -3,6 +3,7 @@ import type { AuthContext } from '@properfy/shared';
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import { FinancialEntryEntity } from '../../domain/financial-entry.entity';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -50,15 +51,14 @@ export class CreateManualAdjustmentUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly inspectorRepo: IInspectorRepository,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: CreateManualAdjustmentInput): Promise<CreateManualAdjustmentOutput> {
     const { actor } = input;
 
     // 1. Validate actor role
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can create manual adjustments');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'financial.manual_adjustment', entityType: 'FinancialEntry' });
 
     // 1.5 Idempotency check (external key from Idempotency-Key header)
     if (input.idempotencyKey) {

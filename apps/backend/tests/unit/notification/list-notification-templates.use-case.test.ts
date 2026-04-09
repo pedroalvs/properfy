@@ -3,7 +3,8 @@ import { ListNotificationTemplatesUseCase } from '../../../src/modules/notificat
 import type { INotificationTemplateRepository } from '../../../src/modules/notification/domain/notification-template.repository';
 import { NotificationTemplateEntity } from '../../../src/modules/notification/domain/notification-template.entity';
 import type { AuthContext } from '@properfy/shared';
-import { NotificationForbiddenError } from '../../../src/modules/notification/domain/notification.errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -47,19 +48,20 @@ describe('ListNotificationTemplatesUseCase', () => {
       findAll: vi.fn(),
       upsert: vi.fn(),
     };
-    useCase = new ListNotificationTemplatesUseCase(templateRepo);
+    const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
+    useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
   });
 
-  it('should throw NotificationForbiddenError for OP role', async () => {
+  it('should throw ForbiddenError for OP role', async () => {
     await expect(
       useCase.execute({ actor: makeActor({ role: 'OP' }) }),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should throw NotificationForbiddenError for INSP role', async () => {
+  it('should throw ForbiddenError for INSP role', async () => {
     await expect(
       useCase.execute({ actor: makeActor({ role: 'INSP' }) }),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('should allow AM to list all templates', async () => {

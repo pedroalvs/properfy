@@ -5,6 +5,7 @@ import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity, type ServiceGroupProps } from '../../../src/modules/service-group/domain/service-group.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupNotDraftError,
@@ -90,7 +91,8 @@ describe('UpdateServiceGroupUseCase', () => {
   beforeEach(() => {
     serviceGroupRepo = makeRepo();
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
   });
 
   it('should update name and description in any status', async () => {
@@ -381,7 +383,7 @@ describe('UpdateServiceGroupUseCase', () => {
         makeTenantEntity({ priorityOfferHours: 48 }),
       );
 
-      const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, tenantRepo);
+      const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, new AuthorizationService(auditService), tenantRepo);
       const groupData = makeGroupWithAppointments({
         status: 'DRAFT',
         scheduledDate: new Date('2026-06-01'),
@@ -408,7 +410,7 @@ describe('UpdateServiceGroupUseCase', () => {
         makeTenantEntity({}),
       );
 
-      const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, tenantRepo);
+      const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, new AuthorizationService(auditService), tenantRepo);
       const groupData = makeGroupWithAppointments({
         status: 'DRAFT',
         scheduledDate: new Date('2026-06-01'),
@@ -435,7 +437,7 @@ describe('UpdateServiceGroupUseCase', () => {
         makeTenantEntity({ priorityOfferHours: 48 }),
       );
 
-      const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, tenantRepo);
+      const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, new AuthorizationService(auditService), tenantRepo);
       const groupData = makeGroupWithAppointments({
         status: 'DRAFT',
         priorityMode: 'PRIORITY_24H',
@@ -460,7 +462,7 @@ describe('UpdateServiceGroupUseCase', () => {
     });
 
     it('should not call tenantRepo for STANDARD mode updates', async () => {
-      const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, tenantRepo);
+      const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, new AuthorizationService(auditService), tenantRepo);
       const groupData = makeGroupWithAppointments({
         status: 'DRAFT',
         priorityMode: 'PRIORITY_24H',

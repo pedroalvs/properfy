@@ -1,6 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ITenantRepository } from '../../domain/tenant.repository';
 import { TenantEntity } from '../../domain/tenant.entity';
 import { TenantLegalNameConflictError } from '../../domain/tenant.errors';
@@ -34,15 +34,17 @@ export class CreateTenantUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
     private readonly timeSlotRepo: IAppointmentTimeSlotRepository,
+    private readonly authorizationService: AuthorizationService,
     private readonly eventBus?: DomainEventBus,
   ) {}
 
   async execute(input: CreateTenantInput): Promise<CreateTenantOutput> {
     const { name, legalName, timezone, currency, settings, actor } = input;
 
-    if (actor.role !== 'AM') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM'], {
+      action: 'tenant.create',
+      entityType: 'Tenant',
+    });
 
     const existing = await this.tenantRepo.findByLegalName(legalName);
     if (existing) {

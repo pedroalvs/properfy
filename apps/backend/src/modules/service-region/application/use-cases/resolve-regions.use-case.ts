@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
 
 export interface ResolveRegionsInput {
@@ -24,14 +25,13 @@ export interface ResolveRegionsOutput {
 export class ResolveRegionsUseCase {
   constructor(
     private readonly serviceRegionRepo: IServiceRegionRepository,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: ResolveRegionsInput): Promise<ResolveRegionsOutput> {
     const { actor, appointmentIds } = input;
 
-    if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_region.resolve', entityType: 'ServiceRegion' });
 
     const tenantId = this.resolveTenantId(actor);
 

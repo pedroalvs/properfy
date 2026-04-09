@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
@@ -43,6 +44,7 @@ export class AcceptOfferUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly auditService: AuditService,
     private readonly idempotencyService: IIdempotencyService,
+    private readonly authorizationService: AuthorizationService,
     private readonly eventBus?: DomainEventBus,
     private readonly availabilitySlotRepo?: IAvailabilitySlotRepository,
   ) {}
@@ -62,9 +64,7 @@ export class AcceptOfferUseCase {
       return cached;
     }
 
-    if (actor.role !== 'INSP') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Only inspectors can accept offers');
-    }
+    this.authorizationService.assertRoles(actor, ['INSP'], { action: 'marketplace.accept_offer', entityType: 'ServiceGroup' });
 
     const inspector = await this.inspectorRepo.findById(inspectorId);
     if (!inspector) {

@@ -4,6 +4,7 @@ import type { IUserManagementRepository } from '../../domain/user-management.rep
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { UserEntity } from '../../../auth/domain/user.entity';
 import { UserEmailConflictError } from '../../domain/user-management.errors';
 import {
@@ -12,6 +13,7 @@ import {
   BranchNotFoundError,
 } from '../../../tenant/domain/tenant.errors';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
+import type { UserRole } from '@properfy/shared';
 import { validatePasswordStrength } from '../../../auth/domain/password-policy';
 import {
   PasswordTooWeakError,
@@ -48,6 +50,7 @@ export class CreateUserUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: CreateUserInput): Promise<CreateUserOutput> {
@@ -55,7 +58,10 @@ export class CreateUserUseCase {
       input;
     const isInternalRole = role === 'AM' || role === 'OP';
 
-    // RBAC: AM can create for any tenant; CL_ADMIN can create for own tenant only
+    // Privilege escalation check (AM→any, OP→CL_ADMIN/CL_USER, CL_ADMIN→CL_ADMIN/CL_USER, others→denied)
+    this.authorizationService.assertNoPrivilegeEscalation(actor, role as UserRole);
+
+    // Tenant-scoping: CL_ADMIN can only create for own tenant
     if (actor.role === 'CL_ADMIN') {
       if (actor.tenantId !== tenantId) {
         throw new ForbiddenError(
@@ -63,18 +69,6 @@ export class CreateUserUseCase {
           'You can only create users for your own tenant',
         );
       }
-      // CL_ADMIN can only create CL_USER or CL_ADMIN roles
-      if (role === 'AM' || role === 'OP' || role === 'INSP') {
-        throw new ForbiddenError(
-          'AUTH_FORBIDDEN',
-          'You are not allowed to create users with this role',
-        );
-      }
-    } else if (actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new ForbiddenError(
-        'AUTH_FORBIDDEN',
-        'You are not allowed to create users',
-      );
     }
 
     // Inspector accounts are managed through the Inspector module, not User management

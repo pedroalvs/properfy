@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DeactivateInspectorUseCase } from './deactivate-inspector.use-case';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   InspectorNotFoundError,
   InspectorAlreadyInactiveError,
@@ -41,10 +42,12 @@ function makeInspector(overrides: Record<string, unknown> = {}) {
 
 describe('DeactivateInspectorUseCase', () => {
   it('rejects non-AM/OP actors', async () => {
+    const auditService = { log: vi.fn() } as never;
     const useCase = new DeactivateInspectorUseCase(
       { findById: vi.fn() } as never,
       { countOpenAppointmentsForInspector: vi.fn() } as never,
-      { log: vi.fn() } as never,
+      auditService,
+      new AuthorizationService(auditService),
     );
 
     await expect(
@@ -57,10 +60,12 @@ describe('DeactivateInspectorUseCase', () => {
   });
 
   it('throws InspectorNotFoundError when inspector does not exist', async () => {
+    const auditService = { log: vi.fn() } as never;
     const useCase = new DeactivateInspectorUseCase(
       { findById: vi.fn().mockResolvedValue(null) } as never,
       { countOpenAppointmentsForInspector: vi.fn() } as never,
-      { log: vi.fn() } as never,
+      auditService,
+      new AuthorizationService(auditService),
     );
 
     await expect(
@@ -73,6 +78,7 @@ describe('DeactivateInspectorUseCase', () => {
   });
 
   it('throws InspectorAlreadyInactiveError when already inactive', async () => {
+    const auditService = { log: vi.fn() } as never;
     const useCase = new DeactivateInspectorUseCase(
       {
         findById: vi.fn().mockResolvedValue(
@@ -80,7 +86,8 @@ describe('DeactivateInspectorUseCase', () => {
         ),
       } as never,
       { countOpenAppointmentsForInspector: vi.fn() } as never,
-      { log: vi.fn() } as never,
+      auditService,
+      new AuthorizationService(auditService),
     );
 
     await expect(
@@ -93,6 +100,7 @@ describe('DeactivateInspectorUseCase', () => {
   });
 
   it('throws InspectorHasOpenAppointmentsError with count and breakdown', async () => {
+    const auditService = { log: vi.fn() } as never;
     const useCase = new DeactivateInspectorUseCase(
       { findById: vi.fn().mockResolvedValue(makeInspector()) } as never,
       {
@@ -101,7 +109,8 @@ describe('DeactivateInspectorUseCase', () => {
           byStatus: { SCHEDULED: 3, AWAITING_INSPECTOR: 2 },
         }),
       } as never,
-      { log: vi.fn() } as never,
+      auditService,
+      new AuthorizationService(auditService),
     );
 
     await expect(
@@ -129,6 +138,7 @@ describe('DeactivateInspectorUseCase', () => {
         }),
       } as never,
       auditService as never,
+      new AuthorizationService(auditService as never),
     );
 
     const result = await useCase.execute({
@@ -155,6 +165,7 @@ describe('DeactivateInspectorUseCase', () => {
       update: vi.fn(),
     };
 
+    const auditService = { log: vi.fn() } as never;
     const useCase = new DeactivateInspectorUseCase(
       inspectorRepo as never,
       {
@@ -163,7 +174,8 @@ describe('DeactivateInspectorUseCase', () => {
           byStatus: {},
         }),
       } as never,
-      { log: vi.fn() } as never,
+      auditService,
+      new AuthorizationService(auditService),
     );
 
     const result = await useCase.execute({

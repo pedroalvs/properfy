@@ -8,6 +8,7 @@ import { DomainEventBus, TENANT_EVENTS } from '../../../src/shared/application/e
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { TenantLegalNameConflictError } from '../../../src/modules/tenant/domain/tenant.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeTenant(
   overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
@@ -64,7 +65,7 @@ describe('CreateTenantUseCase', () => {
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     eventBus = new DomainEventBus();
-    useCase = new CreateTenantUseCase(tenantRepo, auditService, timeSlotRepo, eventBus);
+    useCase = new CreateTenantUseCase(tenantRepo, auditService, timeSlotRepo, new AuthorizationService(auditService), eventBus);
   });
 
   it('should create a tenant with PENDING status when actor is AM', async () => {

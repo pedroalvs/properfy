@@ -8,6 +8,7 @@ import {
   ExecutionTimeWindowError,
 } from '../../../src/modules/inspector-execution/domain/inspection-execution.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 const appointmentRepo = {
   findById: vi.fn(),
@@ -92,11 +93,14 @@ const inspActor = {
 };
 
 function makeSut() {
+  const authorizationService = new AuthorizationService(auditService as any);
   return new StartInspectionUseCase(
     appointmentRepo as any,
     executionRepo,
     idempotencyService,
     auditService as any,
+    undefined,
+    authorizationService,
   );
 }
 

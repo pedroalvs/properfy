@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { InspectorStatus as PrismaInspectorStatus, Prisma } from '@prisma/client';
+import type { InspectorStatus as PrismaInspectorStatus, Prisma } from '@prisma/client';
 import { InspectorEntity } from '../domain/inspector.entity';
 import type {
   IInspectorRepository,

@@ -37,6 +37,7 @@ import type { JwtService } from '../../../src/modules/auth/application/services/
 import type { TotpService } from '../../../src/modules/auth/application/services/totp.service';
 import type { TotpEncryptionService } from '../../../src/modules/auth/infrastructure/totp-encryption.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { CreateNotificationUseCase } from '../../../src/modules/notification/application/use-cases/create-notification.use-case';
 import type { AuthContext } from '@properfy/shared';
@@ -413,6 +414,7 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
         makeTenantRepo(),
         makeBranchRepo(),
         auditService,
+        new AuthorizationService(auditService),
       );
 
       await useCase.execute({
@@ -457,6 +459,7 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
         makeUserManagementRepo(),
         makeTenantRepo(),
         auditService,
+        new AuthorizationService(auditService),
       );
 
       await useCase.execute({
@@ -476,6 +479,7 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
       const useCase = new UnlockUserUseCase(
         makeUserManagementRepo(makeUser({ status: 'LOCKED', lockedUntil: new Date(Date.now() + 60000), failedLoginCount: 5 })),
         auditService,
+        new AuthorizationService(auditService),
       );
 
       await useCase.execute({
@@ -495,6 +499,7 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
         makeUserManagementRepo(),
         auditService,
         makePasswordHistoryRepo(),
+        new AuthorizationService(auditService),
       );
 
       await useCase.execute({
@@ -518,6 +523,7 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
         makePasswordResetTokenRepo(),
         makeCreateNotificationUseCase(),
         auditService,
+        new AuthorizationService(auditService),
       );
 
       await useCase.execute({

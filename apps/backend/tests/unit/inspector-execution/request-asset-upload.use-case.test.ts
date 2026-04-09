@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RequestAssetUploadUseCase } from '../../../src/modules/inspector-execution/application/use-cases/request-asset-upload.use-case';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
@@ -76,11 +77,13 @@ describe('RequestAssetUploadUseCase', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
     useCase = new RequestAssetUploadUseCase(
       executionRepo,
       assetRepo,
       storageService,
       appointmentRepo,
+      authorizationService,
     );
   });
 

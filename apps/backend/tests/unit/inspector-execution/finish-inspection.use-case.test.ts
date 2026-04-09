@@ -10,6 +10,7 @@ import {
   ExecutionAssetUploadPendingError,
 } from '../../../src/modules/inspector-execution/domain/inspection-execution.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 const executionRepo = {
   findByAppointmentId: vi.fn(),
@@ -91,6 +92,7 @@ function makeUploadedAsset(overrides = {}) {
 }
 
 function makeSut() {
+  const authorizationService = new AuthorizationService(auditService as any);
   return new FinishInspectionUseCase(
     executionRepo,
     assetRepo,
@@ -99,6 +101,7 @@ function makeSut() {
     appointmentRepo as any,
     auditService as any,
     serviceTypeReader as any,
+    authorizationService,
   );
 }
 

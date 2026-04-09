@@ -1,5 +1,5 @@
 import { type AuthContext, isAppointmentOverdue } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type {
   IAppointmentRepository,
   AppointmentFilters,
@@ -69,24 +69,16 @@ export interface ListAppointmentsOutput {
 }
 
 export class ListAppointmentsUseCase {
-  constructor(private readonly appointmentRepo: IAppointmentRepository) {}
+  constructor(
+    private readonly appointmentRepo: IAppointmentRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async execute(input: ListAppointmentsInput): Promise<ListAppointmentsOutput> {
     const { filters, pagination, actor } = input;
 
-    // RBAC: INSP and TNT are forbidden at list level
-    if (actor.role === 'INSP' || actor.role === 'TNT') {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
-
-    if (
-      actor.role !== 'AM' &&
-      actor.role !== 'OP' &&
-      actor.role !== 'CL_ADMIN' &&
-      actor.role !== 'CL_USER'
-    ) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    // RBAC: only AM, OP, CL_ADMIN, CL_USER can list appointments
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.list', entityType: 'Appointment' });
 
     // Resolve tenantId — AM/OP can omit to see all tenants
     const tenantId =

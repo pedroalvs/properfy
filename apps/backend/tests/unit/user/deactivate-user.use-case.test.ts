@@ -3,6 +3,7 @@ import { DeactivateUserUseCase } from '../../../src/modules/user/application/use
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import {
@@ -59,6 +60,7 @@ describe('DeactivateUserUseCase', () => {
   let userManagementRepo: IUserManagementRepository;
   let tenantRepo: ITenantRepository;
   let auditService: AuditService;
+  let authorizationService: AuthorizationService;
   let useCase: DeactivateUserUseCase;
 
   const amActor: AuthContext = {
@@ -98,7 +100,8 @@ describe('DeactivateUserUseCase', () => {
       update: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService);
+    authorizationService = new AuthorizationService(auditService);
+    useCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService);
   });
 
   it('should allow AM to deactivate a user', async () => {

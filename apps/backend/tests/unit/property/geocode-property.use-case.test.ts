@@ -5,6 +5,7 @@ import { PropertyEntity } from '../../../src/modules/property/domain/property.en
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { PropertyNotFoundError, PropertyGeocodingManualOverrideError } from '../../../src/modules/property/domain/property.errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 vi.mock('../../../src/shared/infrastructure/queue', () => ({
   sendJob: vi.fn().mockResolvedValue('job-id'),
@@ -60,7 +61,7 @@ describe('GeocodePropertyUseCase', () => {
       save: vi.fn(),
       update: vi.fn().mockResolvedValue(undefined),
     };
-    useCase = new GeocodePropertyUseCase(propertyRepo);
+    useCase = new GeocodePropertyUseCase(propertyRepo, new AuthorizationService({ log: vi.fn() } as any));
   });
 
   it('should set geocoding status to PENDING and enqueue job on success', async () => {

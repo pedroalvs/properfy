@@ -4,6 +4,8 @@ import type { IServiceGroupRepository } from '../../../src/modules/service-group
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 
 function makeGroup(
   overrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {},
@@ -67,7 +69,9 @@ describe('ListServiceGroupsUseCase', () => {
       scheduleAppointments: vi.fn(),
       findExpiredPublished: vi.fn(),
     };
-    useCase = new ListServiceGroupsUseCase(serviceGroupRepo);
+    const auditService = { log: vi.fn() } as unknown as AuditService;
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new ListServiceGroupsUseCase(serviceGroupRepo, authorizationService);
   });
 
   it('should return paginated results for AM', async () => {

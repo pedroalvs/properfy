@@ -2,6 +2,7 @@ import type { AuthContext } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
 export interface GetInspectorScheduleInput {
   date?: string; // YYYY-MM-DD, defaults to today
@@ -31,14 +32,16 @@ export class GetInspectorScheduleUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly executionRepo: IInspectionExecutionRepository,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: GetInspectorScheduleInput): Promise<GetInspectorScheduleOutput> {
     const { actor } = input;
 
-    if (actor.role !== 'INSP') {
-      throw new ForbiddenError('FORBIDDEN', 'Only inspectors can access the schedule');
-    }
+    this.authorizationService.assertRoles(actor, ['INSP'], {
+      action: 'inspector.view_own',
+      entityType: 'Appointment',
+    });
 
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');

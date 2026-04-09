@@ -1,6 +1,5 @@
 import { todayUTCDateString, type AuthContext, type PropertyType } from '@properfy/shared';
 import {
-  ForbiddenError,
   ValidationError,
 } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -122,28 +121,19 @@ export class CreateAppointmentUseCase {
     private readonly pricingRuleRepo: IPricingRuleRepository,
     private readonly createPropertyUseCase: CreatePropertyUseCase,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo?: ITenantRepository,
     private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
-    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<CreateAppointmentOutput> {
     const { actor } = input;
 
     // 1. RBAC: AM/OP/CL_ADMIN/CL_USER allowed; INSP/TNT forbidden
-    if (
-      actor.role !== 'AM' &&
-      actor.role !== 'OP' &&
-      actor.role !== 'CL_ADMIN' &&
-      actor.role !== 'CL_USER'
-    ) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-    }
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.create', entityType: 'Appointment' });
 
     // 1b. CL_USER must have create_appointments permission
-    if (this.authorizationService) {
-      this.authorizationService.assertClUserPermission(actor, 'create_appointments');
-    }
+    this.authorizationService.assertClUserPermission(actor, 'create_appointments');
 
     // 2. Resolve tenantId and validate branch
     let tenantId: string;

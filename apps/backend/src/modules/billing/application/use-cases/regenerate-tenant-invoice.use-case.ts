@@ -4,7 +4,7 @@ import type { ITenantInvoiceRepository } from '../../domain/tenant-invoice.repos
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import { TenantInvoiceEntity } from '../../domain/tenant-invoice.entity';
 import { TenantInvoiceNotFoundError, TenantInvoiceNotRegenerableError } from '../../domain/billing.errors';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
@@ -40,15 +40,14 @@ export class RegenerateTenantInvoiceUseCase {
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
     private readonly jobQueue?: IJobQueue,
+    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: RegenerateTenantInvoiceInput): Promise<RegenerateTenantInvoiceOutput> {
     const { invoiceId, reason, actor } = input;
 
     // 1. Validate role - AM only
-    if (actor.role !== 'AM') {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM can regenerate tenant invoices');
-    }
+    this.authorizationService?.assertRoles(actor, ['AM'], { action: 'financial.regenerate_tenant_invoice', entityType: 'TenantInvoice' });
 
     // 2. Load existing invoice
     const existing = await this.tenantInvoiceRepo.findById(invoiceId);

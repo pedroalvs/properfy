@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GetNotificationUseCase } from '../../../src/modules/notification/application/use-cases/get-notification.use-case';
 import type { INotificationRepository } from '../../../src/modules/notification/domain/notification.repository';
 import { NotificationEntity, type NotificationProps } from '../../../src/modules/notification/domain/notification.entity';
-import { NotificationForbiddenError, NotificationNotFoundError } from '../../../src/modules/notification/domain/notification.errors';
+import { NotificationNotFoundError } from '../../../src/modules/notification/domain/notification.errors';
 import type { AuthContext } from '@properfy/shared';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 function makeNotification(overrides: Partial<NotificationProps> = {}): NotificationEntity {
   const now = new Date('2026-03-16T10:00:00.000Z');
@@ -41,6 +43,10 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   };
 }
 
+function makeAuthorizationService() {
+  return new AuthorizationService({ log: vi.fn() } as never);
+}
+
 function makeSut() {
   const notificationRepo: INotificationRepository = {
     findById: vi.fn(),
@@ -50,7 +56,8 @@ function makeSut() {
     save: vi.fn(),
     update: vi.fn(),
   };
-  const useCase = new GetNotificationUseCase(notificationRepo);
+  const authorizationService = makeAuthorizationService();
+  const useCase = new GetNotificationUseCase(notificationRepo, authorizationService);
   return { notificationRepo, useCase };
 }
 
@@ -65,31 +72,31 @@ describe('GetNotificationUseCase', () => {
     useCase = sut.useCase;
   });
 
-  it('should throw NotificationForbiddenError for CL_ADMIN role', async () => {
+  it('should throw ForbiddenError for CL_ADMIN role', async () => {
     await expect(
       useCase.execute({
         notificationId: 'notif-1',
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should throw NotificationForbiddenError for INSP role', async () => {
+  it('should throw ForbiddenError for INSP role', async () => {
     await expect(
       useCase.execute({
         notificationId: 'notif-1',
         actor: makeActor({ role: 'INSP' }),
       }),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should throw NotificationForbiddenError for CL_USER role', async () => {
+  it('should throw ForbiddenError for CL_USER role', async () => {
     await expect(
       useCase.execute({
         notificationId: 'notif-1',
         actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
       }),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('should throw NotificationNotFoundError when not found', async () => {

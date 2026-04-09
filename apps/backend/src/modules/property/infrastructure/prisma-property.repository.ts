@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { PropertyType as PrismaPropertyType, GeocodingStatus as PrismaGeocodingStatus, Prisma } from '@prisma/client';
+import type { PropertyType as PrismaPropertyType, GeocodingStatus as PrismaGeocodingStatus, Prisma } from '@prisma/client';
 import { PropertyEntity } from '../domain/property.entity';
 import type {
   IPropertyRepository,

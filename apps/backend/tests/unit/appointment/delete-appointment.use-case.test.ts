@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DeleteAppointmentUseCase } from '../../../src/modules/appointment/application/use-cases/delete-appointment.use-case';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuthContext } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import {
@@ -91,7 +92,8 @@ describe('DeleteAppointmentUseCase', () => {
       findDuplicateForImport: vi.fn(),
     };
     auditService = { log: vi.fn() };
-    useCase = new DeleteAppointmentUseCase(appointmentRepo, auditService);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
   });
 
   it('should soft-delete a DRAFT appointment when actor is AM', async () => {

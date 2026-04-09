@@ -6,7 +6,7 @@ import type { IIdempotencyService } from '../../../../shared/domain/idempotency.
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { AppointmentStateMachine } from '../../domain/appointment-state-machine';
-import { ForbiddenError, DomainError } from '../../../../shared/domain/errors';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
   AppointmentNotFoundError,
   AppointmentAccessDeniedError,
@@ -15,8 +15,6 @@ import {
   AppointmentReasonRequiredError,
   AppointmentDoneCheckRequiredError,
   AppointmentDoneCheckerInvalidRoleError,
-  AppointmentDoneCheckerSelfCheckError,
-  AppointmentDoneCrossCheckSelfCheckError,
   AppointmentInspectorRequiredError,
   AppointmentTenantConfirmationRequiredError,
   AppointmentServiceGroupRequiredError,
@@ -67,9 +65,9 @@ export class ExecuteStatusTransitionUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly idempotencyService: IIdempotencyService,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly onDoneHandler?: OnDoneHandler,
     private readonly onTransitionHandler?: OnTransitionHandler,
-    private readonly authorizationService?: AuthorizationService,
     private readonly serviceTypeRepo?: IServiceTypeRepository,
     private readonly domainEventBus?: DomainEventBus,
   ) {}
@@ -120,7 +118,7 @@ export class ExecuteStatusTransitionUseCase {
     const rule = validation.rule!;
 
     // 3b. CL_USER permission check — configurable permissions per tenant
-    if (actor.role === 'CL_USER' && this.authorizationService) {
+    if (actor.role === 'CL_USER') {
       if (targetStatus === 'CANCELLED') {
         this.authorizationService.assertClUserPermission(actor, 'cancel_appointments');
       }
@@ -153,8 +151,12 @@ export class ExecuteStatusTransitionUseCase {
       // Inspector cannot cross-check their own work (compare user IDs)
       if (appointment.inspectorId) {
         const inspector = await this.inspectorRepo.findById(appointment.inspectorId);
-        if (inspector?.userId && inspector.userId === doneCheckedByUserId) {
-          throw new AppointmentDoneCheckerSelfCheckError();
+        if (inspector?.userId) {
+          this.authorizationService.assertNotSelfApproval(doneCheckedByUserId, inspector.userId, {
+            action: 'appointment.cross_check',
+            entityType: 'Appointment',
+            entityId: appointmentId,
+          });
         }
       }
     }
@@ -162,9 +164,11 @@ export class ExecuteStatusTransitionUseCase {
     // 5b. Validate crossCheckByUserId for compound DONE + cross-check
     if (crossCheckByUserId && targetStatus === 'DONE') {
       // Self-check: the actor performing the transition cannot also be the cross-checker
-      if (crossCheckByUserId === actor.userId) {
-        throw new AppointmentDoneCrossCheckSelfCheckError();
-      }
+      this.authorizationService.assertNotSelfApproval(actor.userId, crossCheckByUserId, {
+        action: 'appointment.cross_check',
+        entityType: 'Appointment',
+        entityId: appointmentId,
+      });
       // Validate the cross-checker is AM or OP
       const crossChecker = await this.userRepo.findById(crossCheckByUserId);
       if (!crossChecker || (crossChecker.role !== 'AM' && crossChecker.role !== 'OP')) {
@@ -302,7 +306,7 @@ export class ExecuteStatusTransitionUseCase {
 
     // 9c. Side effect: compound cross-check audit log
     if (targetStatus === 'DONE' && crossCheckByUserId) {
-      const crossChecker = await this.userRepo.findById(crossCheckByUserId);
+      await this.userRepo.findById(crossCheckByUserId);
       this.auditService.log({
         action: 'appointment.done_checked',
         actorType: 'USER',

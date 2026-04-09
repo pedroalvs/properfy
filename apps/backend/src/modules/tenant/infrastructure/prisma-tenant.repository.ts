@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { TenantStatus as PrismaTenantStatus, Prisma } from '@prisma/client';
+import type { TenantStatus as PrismaTenantStatus, Prisma } from '@prisma/client';
 import { TenantEntity } from '../domain/tenant.entity';
 import type {
   ITenantRepository,

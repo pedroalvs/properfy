@@ -4,6 +4,7 @@ import type { IPropertyImportRepository } from '../../../src/modules/property/do
 import { PropertyImportEntity } from '../../../src/modules/property/domain/property-import.entity';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -44,7 +45,7 @@ describe('GetPropertyImportStatusUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
-    useCase = new GetPropertyImportStatusUseCase(importRepo);
+    useCase = new GetPropertyImportStatusUseCase(importRepo, new AuthorizationService({ log: vi.fn() } as any));
   });
 
   it('should return import status by ID', async () => {

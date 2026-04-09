@@ -5,9 +5,9 @@ import {
   AppointmentDoneCrossCheckAlreadyCompletedError,
   AppointmentDoneCrossCheckEvidenceIncompleteError,
   AppointmentDoneCrossCheckInvalidStatusError,
-  AppointmentDoneCrossCheckNotPermittedError,
-  AppointmentDoneCrossCheckSelfApprovalError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuditLogEntity } from '../../../src/modules/audit/domain/audit-log.entity';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import { InspectionAssetEntity } from '../../../src/modules/inspector-execution/domain/inspection-asset.entity';
@@ -152,6 +152,8 @@ const onDoneHandler = {
   execute: vi.fn().mockResolvedValue(undefined),
 };
 
+const authorizationService = new AuthorizationService(auditService as any);
+
 function makeSut() {
   return new PerformCrossCheckUseCase(
     appointmentRepo as never,
@@ -159,6 +161,7 @@ function makeSut() {
     executionRepo as never,
     assetRepo as never,
     auditService as never,
+    authorizationService,
     serviceTypeReader as never,
     onDoneHandler,
   );
@@ -275,7 +278,7 @@ describe('PerformCrossCheckUseCase', () => {
           inspectorId: null,
         },
       }),
-    ).rejects.toThrow(AppointmentDoneCrossCheckSelfApprovalError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('rejects actors outside OP/AM', async () => {
@@ -292,7 +295,7 @@ describe('PerformCrossCheckUseCase', () => {
           inspectorId: null,
         },
       }),
-    ).rejects.toThrow(AppointmentDoneCrossCheckNotPermittedError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('rejects when finished execution evidence is missing', async () => {
@@ -387,7 +390,7 @@ describe('PerformCrossCheckUseCase', () => {
           inspectorId: null,
         },
       }),
-    ).rejects.toThrow(AppointmentDoneCrossCheckSelfApprovalError);
+    ).rejects.toThrow(ForbiddenError);
 
     expect(auditLogRepo.findAll).not.toHaveBeenCalled();
   });

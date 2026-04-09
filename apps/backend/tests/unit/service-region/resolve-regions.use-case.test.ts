@@ -3,6 +3,8 @@ import { ResolveRegionsUseCase } from '../../../src/modules/service-region/appli
 import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -41,7 +43,9 @@ describe('ResolveRegionsUseCase', () => {
 
   beforeEach(() => {
     regionRepo = createMockRepo();
-    useCase = new ResolveRegionsUseCase(regionRepo);
+    const auditService = { log: vi.fn() } as unknown as AuditService;
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new ResolveRegionsUseCase(regionRepo, authorizationService);
   });
 
   it('should resolve regions scoped by tenant', async () => {

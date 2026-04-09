@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import {
+import type {
   AppointmentStatus as PrismaAppointmentStatus,
   TenantConfirmationStatus as PrismaTenantConfirmationStatus,
   RestrictionSource as PrismaRestrictionSource,
@@ -17,7 +17,9 @@ import type {
   AppointmentListItem,
   ContactListItem,
   ContactDetail,
+  VisibleForInspectorParams,
 } from '../domain/appointment.repository';
+import { T1VisibilityService } from '../../inspector-execution/domain/t1-visibility.service';
 import type {
   AppointmentStatus,
   TenantConfirmationStatus,
@@ -502,6 +504,59 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where['tenant_name'] = { contains: filters.search, mode: 'insensitive' };
     }
     return where;
+  }
+
+  async findVisibleForInspector(params: VisibleForInspectorParams): Promise<AppointmentListItem[]> {
+    const { inspectorId, fromDate, toDate, today } = params;
+
+    const items = await this.findAll(
+      { inspectorId, status: 'SCHEDULED', fromDate, toDate },
+      { page: 1, pageSize: 1000, sortBy: 'time_slot', sortOrder: 'asc' },
+    );
+
+    if (items.length === 0) return [];
+
+    // Load service types for T-1 filtering
+    const serviceTypeIds = [...new Set(items.map((i) => i.appointment.serviceTypeId))];
+    const serviceTypeRows = await this.prisma.serviceType.findMany({
+      where: { id: { in: serviceTypeIds } },
+      select: { id: true, flow_type: true },
+    });
+    const flowTypeMap = new Map(serviceTypeRows.map((st) => [st.id, st.flow_type]));
+
+    const t1Service = new T1VisibilityService();
+    return items.filter((item) => {
+      const flowType = flowTypeMap.get(item.appointment.serviceTypeId) ?? 'ROUTINE';
+      return t1Service.isVisibleForInspector(
+        flowType,
+        item.appointment.tenantConfirmationStatus,
+        item.appointment.keyRequired,
+        item.appointment.scheduledDate,
+        today,
+      );
+    });
+  }
+
+  async isAppointmentVisibleForInspector(appointmentId: string, today: Date): Promise<boolean> {
+    const row = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, deleted_at: null },
+      include: {
+        service_type: { select: { flow_type: true } },
+      },
+    });
+    if (!row) return false;
+
+    const entity = mapToEntity(row);
+    const flowType = row.service_type?.flow_type ?? 'ROUTINE';
+
+    const t1Service = new T1VisibilityService();
+    return t1Service.isVisibleForInspector(
+      flowType,
+      entity.tenantConfirmationStatus,
+      entity.keyRequired,
+      entity.scheduledDate,
+      today,
+    );
   }
 
   async findDuplicateForImport(

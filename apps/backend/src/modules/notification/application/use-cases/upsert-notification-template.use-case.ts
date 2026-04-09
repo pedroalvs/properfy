@@ -1,6 +1,7 @@
 import type { AuthContext, NotificationChannel } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
 import { NotificationForbiddenError } from '../../domain/notification.errors';
@@ -36,12 +37,19 @@ export class UpsertNotificationTemplateUseCase {
     private readonly templateRepo: INotificationTemplateRepository,
     private readonly templateRenderer: TemplateRendererService,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: UpsertNotificationTemplateInput): Promise<UpsertNotificationTemplateOutput> {
     const { actor } = input;
 
-    // 1. Authorization
+    // 1. Authorization — initial role gate
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
+      action: 'config.notification_templates',
+      entityType: 'NotificationTemplate',
+    });
+
+    // Tenant-scoping logic per role
     let tenantId: string | null;
     if (actor.role === 'AM') {
       tenantId = null;
@@ -52,10 +60,9 @@ export class UpsertNotificationTemplateUseCase {
         throw new NotificationForbiddenError();
       }
       tenantId = actor.tenantId;
-    } else if (actor.role === 'CL_ADMIN') {
-      tenantId = actor.tenantId;
     } else {
-      throw new NotificationForbiddenError();
+      // CL_ADMIN
+      tenantId = actor.tenantId;
     }
 
     // 2. Validate templateCode

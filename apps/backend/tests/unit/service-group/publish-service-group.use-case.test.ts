@@ -6,6 +6,7 @@ import { DomainEventBus, SERVICE_GROUP_EVENTS } from '../../../src/shared/applic
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
@@ -112,7 +113,8 @@ describe('PublishServiceGroupUseCase', () => {
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     eventBus = new DomainEventBus();
-    useCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, eventBus);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, authorizationService, eventBus);
   });
 
   it('should publish a DRAFT group successfully', async () => {
@@ -343,7 +345,7 @@ describe('PublishServiceGroupUseCase', () => {
   it('should still succeed if no event bus is provided', async () => {
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
 
-    const useCaseWithoutBus = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo);
+    const useCaseWithoutBus = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, new AuthorizationService(auditService));
 
     const result = await useCaseWithoutBus.execute({
       groupId: 'group-1',

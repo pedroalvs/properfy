@@ -4,9 +4,9 @@ import { FinancialEntryEntity } from '../../../src/modules/billing/domain/financ
 import {
   EntryNotFoundError,
   EntryNotPendingError,
-  EntrySelfApprovalNotAllowedError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 const financialEntryRepo = {
   findById: vi.fn(),
@@ -61,8 +61,10 @@ const amActor = {
   inspectorId: null,
 };
 
+const authorizationService = new AuthorizationService(auditService as any);
+
 function makeSut() {
-  return new ApproveFinancialEntryUseCase(financialEntryRepo, auditService as any);
+  return new ApproveFinancialEntryUseCase(financialEntryRepo, auditService as any, authorizationService);
 }
 
 describe('ApproveFinancialEntryUseCase', () => {
@@ -109,7 +111,7 @@ describe('ApproveFinancialEntryUseCase', () => {
 
     await expect(
       sut.execute({ entryId: 'entry-1', actor: opActor }),
-    ).rejects.toThrow(EntrySelfApprovalNotAllowedError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it('should reject non-PENDING entry', async () => {
