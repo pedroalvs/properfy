@@ -6,6 +6,7 @@ import { PricingRuleTable } from '../components/PricingRuleTable';
 import { PricingRuleFormDrawer } from '../components/PricingRuleFormDrawer';
 import { usePricingRuleList } from '../hooks/usePricingRuleList';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
+import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import type { PricingRule } from '../types';
 
 export function PricingRuleListPage() {
@@ -129,19 +130,18 @@ export function PricingRuleListPage() {
           serviceTypeOptions={serviceTypeOptions}
           branchOptions={branchOptions}
         />
-        {requiresTenantSelection && (
-          <p className="mb-4 text-sm text-text-muted">
-            Select an agency before creating pricing rules.
-          </p>
+        {requiresTenantSelection ? (
+          <FilterRequiredState message="Select an agency to view pricing rules." />
+        ) : (
+          <PricingRuleTable
+            data={enrichedData}
+            loading={isLoading}
+            error={isError ? (errorMessage ?? 'Failed to load pricing rules') : undefined}
+            onRetryError={refetch}
+            pagination={pagination}
+            onEdit={handleEdit}
+          />
         )}
-        <PricingRuleTable
-          data={enrichedData}
-          loading={isLoading}
-          error={isError ? (errorMessage ?? 'Failed to load pricing rules') : undefined}
-          onRetryError={refetch}
-          pagination={pagination}
-          onEdit={handleEdit}
-        />
       </ListFilterTableTemplate>
       <PricingRuleFormDrawer
         open={formOpen}

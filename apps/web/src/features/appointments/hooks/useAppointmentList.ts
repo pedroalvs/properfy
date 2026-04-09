@@ -1,8 +1,21 @@
-import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import type { DataTablePagination } from '@/components/data/DataTable';
-import { DEFAULT_FILTERS, type Appointment, type AppointmentFiltersState } from '../types';
+import { useUrlFilters, type FilterSchema } from '@/hooks/useUrlFilters';
+import type { Appointment, AppointmentFiltersState } from '../types';
+
+const FILTER_SCHEMA = {
+  search: { type: 'string' as const, default: '' },
+  status: { type: 'string' as const, default: '' },
+  tenantConfirmationStatus: { type: 'string' as const, default: '' },
+  tenantId: { type: 'string' as const, default: '' },
+  branchId: { type: 'string' as const, default: '' },
+  serviceTypeId: { type: 'string' as const, default: '' },
+  startDate: { type: 'string' as const, default: '' },
+  endDate: { type: 'string' as const, default: '' },
+  showCancelled: { type: 'boolean' as const, default: false },
+  overdueOnly: { type: 'boolean' as const, default: false },
+} satisfies FilterSchema;
 
 export interface UseAppointmentListReturn {
   data: Appointment[];
@@ -16,17 +29,17 @@ export interface UseAppointmentListReturn {
 }
 
 export function useAppointmentList(): UseAppointmentListReturn {
-  const [searchParams] = useSearchParams();
-  const [filters, setFiltersRaw] = useState<AppointmentFiltersState>({
-    ...DEFAULT_FILTERS,
-    status: searchParams.get('status') ?? '',
-    tenantConfirmationStatus: searchParams.get('tenantConfirmationStatus') ?? '',
-    startDate: searchParams.get('fromDate') ?? '',
-    endDate: searchParams.get('toDate') ?? '',
-  });
-  const setFilters = (f: AppointmentFiltersState) => { setFiltersRaw(f); setPage(1); };
+  const [urlFilters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const filters = urlFilters as AppointmentFiltersState;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const setFilters = useCallback((next: AppointmentFiltersState) => {
+    for (const key of Object.keys(FILTER_SCHEMA) as (keyof typeof FILTER_SCHEMA)[]) {
+      if (next[key] !== filters[key]) setFilter(key, next[key]);
+    }
+    setPage(1);
+  }, [filters, setFilter]);
 
   const params: ListParams = {
     page,

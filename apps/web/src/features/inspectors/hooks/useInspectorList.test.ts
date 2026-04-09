@@ -26,7 +26,7 @@ vi.mock('@/lib/api-error', () => ({
 
 import { api } from '@/services/api';
 import { useInspectorList } from './useInspectorList';
-import { createQueryWrapper } from '@/test-utils/test-wrappers';
+import { createRouterQueryWrapper } from '@/test-utils/test-wrappers';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
@@ -45,7 +45,7 @@ beforeEach(() => {
 
 describe('useInspectorList', () => {
   it('returns data after loading resolves', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useInspectorList(), { wrapper });
 
     expect(result.current.isLoading).toBe(true);
@@ -60,7 +60,7 @@ describe('useInspectorList', () => {
   });
 
   it('initially shows loading then resolves', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useInspectorList(), { wrapper });
 
     expect(result.current.isLoading).toBe(true);
@@ -71,7 +71,7 @@ describe('useInspectorList', () => {
   });
 
   it('calls API with correct path', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useInspectorList(), { wrapper });
 
     await waitFor(() => {
@@ -82,7 +82,7 @@ describe('useInspectorList', () => {
   });
 
   it('pagination total reflects API response', async () => {
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useInspectorList(), { wrapper });
 
     await waitFor(() => {
@@ -94,7 +94,7 @@ describe('useInspectorList', () => {
 
   it('handles API error gracefully', async () => {
     mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Network error' } });
-    const wrapper = createQueryWrapper();
+    const wrapper = createRouterQueryWrapper();
     const { result } = renderHook(() => useInspectorList(), { wrapper });
 
     await waitFor(() => {

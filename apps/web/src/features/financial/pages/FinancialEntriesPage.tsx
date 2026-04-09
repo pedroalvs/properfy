@@ -13,6 +13,7 @@ import { FinancialEntryFormDrawer } from '../components/FinancialEntryFormDrawer
 import { FinancialBatchActions } from '../components/FinancialBatchActions';
 import { CreateAdjustmentModal } from '../components/CreateAdjustmentModal';
 import { CreateRefundModal } from '../components/CreateRefundModal';
+import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import { useFinancialList } from '../hooks/useFinancialList';
 
 export function FinancialEntriesPage() {
@@ -140,32 +141,31 @@ export function FinancialEntriesPage() {
                 aria-label="Agency"
               />
             </FormField>
-            {requiresTenantSelection && (
-              <p className="mt-2 text-sm text-text-muted">
-                Select an agency before viewing, adjusting, or refunding financial entries.
-              </p>
-            )}
           </div>
         )}
-        <FinancialSummaryBar tenantId={effectiveTenantId} enabled={!requiresTenantSelection} />
-        <FinancialFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-        />
-        {!requiresTenantSelection && (
-          <div className="mt-2">
-            <FinancialTable
-              data={data}
-              loading={isLoading}
-              error={isError ? (errorMessage ?? 'Failed to load financial entries') : undefined}
-              onRetryError={refetch}
-              pagination={pagination}
-              onView={handleView}
-              selectedIds={selectedIds}
-              onToggleSelect={handleToggleSelect}
-              onSelectAllPending={handleSelectAllPending}
+        {requiresTenantSelection ? (
+          <FilterRequiredState message="Select an agency to view financial entries." />
+        ) : (
+          <>
+            <FinancialSummaryBar tenantId={effectiveTenantId} enabled={!requiresTenantSelection} />
+            <FinancialFilters
+              filters={filters}
+              onFiltersChange={setFilters}
             />
-          </div>
+            <div className="mt-2">
+              <FinancialTable
+                data={data}
+                loading={isLoading}
+                error={isError ? (errorMessage ?? 'Failed to load financial entries') : undefined}
+                onRetryError={refetch}
+                pagination={pagination}
+                onView={handleView}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                onSelectAllPending={handleSelectAllPending}
+              />
+            </div>
+          </>
         )}
       </ListFilterTableTemplate>
 

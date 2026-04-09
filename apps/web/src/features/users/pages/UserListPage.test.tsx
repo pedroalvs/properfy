@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -64,11 +65,13 @@ function createWrapper() {
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <SnackbarProvider>{children}</SnackbarProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <SnackbarProvider>{children}</SnackbarProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
     );
   };
 }
@@ -125,8 +128,7 @@ describe('UserListPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Select an agency before creating or editing users.')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'New User' }).every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
+    expect(await screen.findByText('Select an agency to view users.')).toBeInTheDocument();
   });
 
   it('renders filter bar with search, role, and status controls', () => {

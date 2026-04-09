@@ -10,6 +10,7 @@ import { PropertyFilters } from '../components/PropertyFilters';
 import { PropertyTable } from '../components/PropertyTable';
 import { PropertyDetailDrawer } from '../components/PropertyDetailDrawer';
 import { PropertyFormDrawer } from '../components/PropertyFormDrawer';
+import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import { usePropertyList } from '../hooks/usePropertyList';
 
 const CAN_CREATE_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
@@ -87,32 +88,33 @@ export function PropertyListPage() {
                 aria-label="Agency"
               />
             </FormField>
-            {requiresTenantSelection && (
-              <p className="mt-2 text-sm text-text-muted">
-                Select an agency before creating properties.
-              </p>
-            )}
           </div>
         )}
-        <PropertyFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          branchOptions={branchOptions}
-        />
-        <PropertyTable
-          data={data}
-          loading={isLoading}
-          error={isError ? (errorMessage ?? 'Failed to load properties') : undefined}
-          onRetryError={refetch}
-          pagination={pagination}
-          onView={(prop) => {
-            navigate(`/properties/${prop.id}`);
-          }}
-          onEdit={(prop) => {
-            setSelectedId(prop.id);
-            setDrawerOpen(true);
-          }}
-        />
+        {requiresTenantSelection ? (
+          <FilterRequiredState message="Select an agency to view properties." />
+        ) : (
+          <>
+            <PropertyFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              branchOptions={branchOptions}
+            />
+            <PropertyTable
+              data={data}
+              loading={isLoading}
+              error={isError ? (errorMessage ?? 'Failed to load properties') : undefined}
+              onRetryError={refetch}
+              pagination={pagination}
+              onView={(prop) => {
+                navigate(`/properties/${prop.id}`);
+              }}
+              onEdit={(prop) => {
+                setSelectedId(prop.id);
+                setDrawerOpen(true);
+              }}
+            />
+          </>
+        )}
       </ListFilterTableTemplate>
       <PropertyDetailDrawer
         propertyId={selectedId}

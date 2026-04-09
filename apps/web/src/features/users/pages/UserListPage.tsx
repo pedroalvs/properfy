@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { FormField } from '@/components/forms/FormField';
+import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import type { UserScope } from '../types';
 
 export function UserListPage() {
@@ -89,11 +90,6 @@ export function UserListPage() {
                 disabled={scope !== 'tenant'}
               />
             </FormField>
-            {requiresTenantSelection && (
-              <p className="mt-2 text-sm text-text-muted">
-                Select an agency before creating or editing users.
-              </p>
-            )}
             {scope === 'internal' && (
               <p className="mt-2 text-sm text-text-muted">
                 Internal users are not linked to a specific agency.
@@ -101,25 +97,31 @@ export function UserListPage() {
             )}
           </div>
         )}
-        <UserFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-        />
-        <UserTable
-          data={data}
-          loading={isLoading}
-          error={isError ? (errorMessage ?? 'Failed to load users') : undefined}
-          onRetryError={refetch}
-          pagination={pagination}
-          onView={(user) => {
-            setSelectedId(user.id);
-            setDrawerOpen(true);
-          }}
-          onEdit={(user) => {
-            setSelectedId(user.id);
-            setDrawerOpen(true);
-          }}
-        />
+        {requiresTenantSelection ? (
+          <FilterRequiredState message="Select an agency to view users." />
+        ) : (
+          <>
+            <UserFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+            />
+            <UserTable
+              data={data}
+              loading={isLoading}
+              error={isError ? (errorMessage ?? 'Failed to load users') : undefined}
+              onRetryError={refetch}
+              pagination={pagination}
+              onView={(user) => {
+                setSelectedId(user.id);
+                setDrawerOpen(true);
+              }}
+              onEdit={(user) => {
+                setSelectedId(user.id);
+                setDrawerOpen(true);
+              }}
+            />
+          </>
+        )}
       </ListFilterTableTemplate>
       <UserDetailDrawer
         userId={selectedId}

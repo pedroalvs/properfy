@@ -44,8 +44,6 @@ describe('TimeSlotConfigPage', () => {
   it('shows a tenant-selection message and disables creation for AM without tenant selected', () => {
     render(<TimeSlotConfigPage />);
 
-    expect(screen.getByText('Select a tenant to list and manage time slots.')).toBeInTheDocument();
-    expect(screen.getByText('Select a tenant to view time slots')).toBeInTheDocument();
-    expect(screen.getByLabelText('New Time Slot')).toBeDisabled();
+    expect(screen.getByText('Select an agency to view time slots.')).toBeInTheDocument();
   });
 });

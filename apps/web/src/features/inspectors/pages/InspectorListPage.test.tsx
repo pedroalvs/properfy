@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -52,11 +53,13 @@ function createWrapper() {
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <SnackbarProvider>{children}</SnackbarProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <SnackbarProvider>{children}</SnackbarProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
     );
   };
 }

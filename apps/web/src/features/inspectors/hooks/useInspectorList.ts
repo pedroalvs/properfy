@@ -1,7 +1,13 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
-import { DEFAULT_FILTERS, type Inspector, type InspectorFiltersState } from '../types';
+import { useUrlFilters, type FilterSchema } from '@/hooks/useUrlFilters';
+import type { Inspector, InspectorFiltersState } from '../types';
+
+const FILTER_SCHEMA = {
+  search: { type: 'string' as const, default: '' },
+  status: { type: 'string' as const, default: '' },
+} satisfies FilterSchema;
 
 export interface UseInspectorListReturn {
   data: Inspector[];
@@ -15,9 +21,17 @@ export interface UseInspectorListReturn {
 }
 
 export function useInspectorList(): UseInspectorListReturn {
-  const [filters, setFilters] = useState<InspectorFiltersState>(DEFAULT_FILTERS);
+  const [urlFilters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const filters = urlFilters as InspectorFiltersState;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const setFilters = useCallback((next: InspectorFiltersState) => {
+    for (const key of Object.keys(FILTER_SCHEMA) as (keyof typeof FILTER_SCHEMA)[]) {
+      if (next[key] !== filters[key]) setFilter(key, next[key]);
+    }
+    setPage(1);
+  }, [filters, setFilter]);
   const query = usePaginatedQuery<Inspector>(
     ['inspectors'],
     '/v1/inspectors',

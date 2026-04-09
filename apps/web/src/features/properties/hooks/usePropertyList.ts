@@ -1,7 +1,14 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import type { DataTablePagination } from '@/components/data/DataTable';
-import { DEFAULT_FILTERS, type Property, type PropertyFiltersState } from '../types';
+import { useUrlFilters, type FilterSchema } from '@/hooks/useUrlFilters';
+import type { Property, PropertyFiltersState } from '../types';
+
+const FILTER_SCHEMA = {
+  search: { type: 'string' as const, default: '' },
+  type: { type: 'string' as const, default: '' },
+  branchId: { type: 'string' as const, default: '' },
+} satisfies FilterSchema;
 
 export interface UsePropertyListReturn {
   data: Property[];
@@ -15,9 +22,17 @@ export interface UsePropertyListReturn {
 }
 
 export function usePropertyList(tenantId?: string): UsePropertyListReturn {
-  const [filters, setFilters] = useState<PropertyFiltersState>(DEFAULT_FILTERS);
+  const [urlFilters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const filters = urlFilters as PropertyFiltersState;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const setFilters = useCallback((next: PropertyFiltersState) => {
+    for (const key of Object.keys(FILTER_SCHEMA) as (keyof typeof FILTER_SCHEMA)[]) {
+      if (next[key] !== filters[key]) setFilter(key, next[key]);
+    }
+    setPage(1);
+  }, [filters, setFilter]);
 
   const params: ListParams = {
     page,

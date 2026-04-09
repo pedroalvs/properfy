@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import { useTimeSlotList, useTimeSlotSave, useTimeSlotDelete, type TimeSlot } from '../hooks/useTimeSlotAdmin';
 import { TimeSlotFormDrawer } from '../components/TimeSlotFormDrawer';
 
@@ -245,21 +246,19 @@ export function TimeSlotConfigPage() {
           />
         </FilterBar>
 
-        {requiresTenantSelection && (
-          <div className="rounded-lg border border-border-subtle bg-card-bg px-4 py-3 text-sm text-text-secondary">
-            Select a tenant to list and manage time slots.
-          </div>
+        {requiresTenantSelection ? (
+          <FilterRequiredState message="Select an agency to view time slots." />
+        ) : (
+          <DataTable<TimeSlot>
+            columns={columns}
+            data={sortedData}
+            loading={isLoading}
+            error={isError ? (errorMessage ?? 'Failed to load time slots') : undefined}
+            onRetryError={refetch}
+            emptyMessage="No time slots configured yet"
+            keyExtractor={(row) => row.id}
+          />
         )}
-
-        <DataTable<TimeSlot>
-          columns={columns}
-          data={sortedData}
-          loading={isLoading}
-          error={isError ? (errorMessage ?? 'Failed to load time slots') : undefined}
-          onRetryError={refetch}
-          emptyMessage={requiresTenantSelection ? 'Select a tenant to view time slots' : 'No time slots configured yet'}
-          keyExtractor={(row) => row.id}
-        />
       </ListFilterTableTemplate>
 
       <TimeSlotFormDrawer

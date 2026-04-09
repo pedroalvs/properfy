@@ -125,7 +125,7 @@ describe('useAppointmentList', () => {
 
   it('initializes supported filters from query params', async () => {
     const wrapper = createRouterQueryWrapper(
-      '/appointments?status=DONE&tenantConfirmationStatus=NO_RESPONSE&fromDate=2026-03-01&toDate=2026-03-31',
+      '/appointments?status=DONE&tenantConfirmationStatus=NO_RESPONSE&startDate=2026-03-01&endDate=2026-03-31',
     );
     const { result } = renderHook(() => useAppointmentList(), { wrapper });
 

@@ -10,6 +10,7 @@ import { InvoiceDetailDrawer } from '../components/InvoiceDetailDrawer';
 import { GenerateInvoiceModal } from '../components/GenerateInvoiceModal';
 import { useInvoiceList } from '../hooks/useInvoiceList';
 import { useInvoiceDownload } from '../hooks/useInvoiceDownload';
+import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import type { Invoice } from '../types';
 
 export function InvoicesPage() {
@@ -98,21 +99,27 @@ export function InvoicesPage() {
             </FormField>
           </div>
         )}
-        <InvoiceFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          inspectorOptions={inspectorOptions}
-        />
-        <InvoiceTable
-          data={data}
-          loading={isLoading}
-          error={isError ? (errorMessage ?? 'Failed to load invoices') : undefined}
-          onRetryError={refetch}
-          pagination={pagination}
-          resolveInspectorLabel={resolveInspectorLabel}
-          onView={handleView}
-          onDownload={handleDownload}
-        />
+        {requiresTenantSelection ? (
+          <FilterRequiredState message="Select an agency to view invoices." />
+        ) : (
+          <>
+            <InvoiceFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              inspectorOptions={inspectorOptions}
+            />
+            <InvoiceTable
+              data={data}
+              loading={isLoading}
+              error={isError ? (errorMessage ?? 'Failed to load invoices') : undefined}
+              onRetryError={refetch}
+              pagination={pagination}
+              resolveInspectorLabel={resolveInspectorLabel}
+              onView={handleView}
+              onDownload={handleDownload}
+            />
+          </>
+        )}
       </ListFilterTableTemplate>
       <InvoiceDetailDrawer
         invoiceId={selectedId}
