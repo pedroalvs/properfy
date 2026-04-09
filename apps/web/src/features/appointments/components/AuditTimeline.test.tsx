@@ -63,8 +63,8 @@ describe('AuditTimeline', () => {
 
   it('renders changed fields summary with arrow', () => {
     render(<AuditTimeline entries={MOCK_ENTRIES} />);
-    expect(screen.getByText(/status: DRAFT \u2192 SCHEDULED/)).toBeInTheDocument();
-    expect(screen.getByText(/status: SCHEDULED \u2192 CANCELLED/)).toBeInTheDocument();
+    expect(screen.getByText(/Status: DRAFT \u2192 SCHEDULED/)).toBeInTheDocument();
+    expect(screen.getByText(/Status: SCHEDULED \u2192 CANCELLED/)).toBeInTheDocument();
   });
 
   it('does not render reason when null', () => {

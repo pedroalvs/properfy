@@ -42,11 +42,10 @@ describe('getAvailableTransitions', () => {
     expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.REJECTED);
   });
 
-  it('OP from AWAITING_INSPECTOR sees SCHEDULED, CANCELLED, REJECTED', () => {
+  it('OP from AWAITING_INSPECTOR sees CANCELLED, REJECTED (SCHEDULED handled by Assign button)', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.AWAITING_INSPECTOR, 'OP');
-    expect(transitions).toHaveLength(3);
+    expect(transitions).toHaveLength(2);
     expect(transitions.map((t) => t.targetStatus)).toEqual([
-      AppointmentStatus.SCHEDULED,
       AppointmentStatus.CANCELLED,
       AppointmentStatus.REJECTED,
     ]);

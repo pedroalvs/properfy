@@ -56,13 +56,14 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     if (id === 'done') {
       return {
         appointment: {
-          id: 'done', code: 'VST-002', status: 'DONE', branchName: 'Downtown Branch',
+          id: 'done', code: 'VST-002', appointmentNumber: 2, status: 'DONE', branchName: 'Downtown Branch',
           branchId: 'branch-1', propertyId: 'prop-1', propertyAddress: '123 Flower Street',
           serviceTypeId: 'st-1', serviceTypeName: 'Inspection', tenantId: 'tenant-1',
           tenantConfirmationStatus: 'CONFIRMED', contactName: 'John', scheduledDate: '2026-04-01',
           timeSlot: '09:00-12:00', contactPhone: '11999', contactEmail: 'john@test.com',
           inspectorId: null, inspectorName: null, keyRequired: false,
           meetingLocation: null, keyLocation: null, cancellationReason: null,
+          doneCheckedByUserId: null, isOverdue: false,
           notes: '', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z',
         },
         isLoading: false, isError: false, refetch: vi.fn(),
@@ -70,13 +71,14 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     }
     return {
       appointment: {
-        id: 'apt-01', code: 'VST-001', status: 'DRAFT', branchName: 'Downtown Branch',
+        id: 'apt-01', code: 'VST-001', appointmentNumber: 1, status: 'DRAFT', branchName: 'Downtown Branch',
         branchId: 'branch-1', propertyId: 'prop-1', propertyAddress: '123 Flower Street',
         serviceTypeId: 'st-1', serviceTypeName: 'Inspection', tenantId: 'tenant-1',
         tenantConfirmationStatus: 'PENDING', contactName: 'John', scheduledDate: '2026-04-01',
         timeSlot: '09:00-12:00', contactPhone: '11999', contactEmail: 'john@test.com',
         inspectorId: null, inspectorName: null, keyRequired: false,
         meetingLocation: null, keyLocation: null, cancellationReason: null,
+        doneCheckedByUserId: null, isOverdue: false,
         notes: '', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z',
       },
       isLoading: false, isError: false, refetch: vi.fn(),
@@ -135,7 +137,7 @@ function renderDrawer(props: { appointmentId: string | null; open: boolean; onCl
 describe('AppointmentDetailDrawer', () => {
   it('renders drawer with appointment code in header', () => {
     renderDrawer({ appointmentId: 'apt-01', open: true });
-    expect(screen.getByText('VST-001')).toBeInTheDocument();
+    expect(screen.getByText(/VST-001/)).toBeInTheDocument();
   });
 
   it('shows status chip in header', () => {

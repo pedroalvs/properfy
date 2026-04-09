@@ -37,7 +37,7 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   branchId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
   propertyId: 'f47ac10b-58cc-4372-a567-0e02b2c3d480',
   serviceTypeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481',
-  scheduledDate: '2026-04-01',
+  scheduledDate: '2026-12-01',
   timeSlot: '09:00-12:00',
   contactName: 'João Silva',
   contactPhone: '11999999999',
@@ -93,7 +93,7 @@ describe('useAppointmentSave', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useAppointmentSave(), { wrapper });
     const errors = result.current.validate(
-      { ...EMPTY_FORM_DATA, contactName: 'Maria', scheduledDate: '2026-04-01', timeSlot: '09:00-12:00' },
+      { ...EMPTY_FORM_DATA, contactName: 'Maria', scheduledDate: '2026-12-01', timeSlot: '09:00-12:00' },
       'edit',
     );
     expect(Object.keys(errors)).toHaveLength(0);

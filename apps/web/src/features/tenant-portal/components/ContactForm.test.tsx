@@ -31,7 +31,7 @@ describe('ContactForm', () => {
     expect(screen.getByText(/Name:/)).toBeInTheDocument();
     expect(screen.getByText('John Smith')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('email@example.com')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('+61 400 000 000')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('0412 345 678')).toBeInTheDocument();
   });
 
   it('renders with null contact', () => {
@@ -69,7 +69,7 @@ describe('ContactForm', () => {
     render(<ContactForm contact={mockContact} token="test-token" isReadOnly={true} />);
 
     expect(screen.getByPlaceholderText('email@example.com')).toBeDisabled();
-    expect(screen.getByPlaceholderText('+61 400 000 000')).toBeDisabled();
+    expect(screen.getByPlaceholderText('0412 345 678')).toBeDisabled();
     expect(screen.getByText('Update Contact')).toBeDisabled();
     expect(screen.getByText('This portal is read-only. Contact updates are no longer available.')).toBeInTheDocument();
   });
