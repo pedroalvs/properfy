@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UpdateUserUseCase } from '../../../src/modules/user/application/use-cases/update-user.use-case';
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { UserNotFoundError } from '../../../src/modules/user/domain/user-management.errors';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
@@ -52,8 +54,27 @@ function makeBranch(
   });
 }
 
+function makeTenant(
+  overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
+): TenantEntity {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Test Tenant',
+    legalName: 'Test Tenant Ltda',
+    status: 'ACTIVE',
+    timezone: 'America/Sao_Paulo',
+    currency: 'BRL',
+    settingsJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
 describe('UpdateUserUseCase', () => {
   let userManagementRepo: IUserManagementRepository;
+  let tenantRepo: ITenantRepository;
   let branchRepo: IBranchRepository;
   let auditService: AuditService;
   let useCase: UpdateUserUseCase;
@@ -86,6 +107,14 @@ describe('UpdateUserUseCase', () => {
       resetPassword: vi.fn(),
       revokeAllSessions: vi.fn(),
     };
+    tenantRepo = {
+      findById: vi.fn(),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
     branchRepo = {
       findById: vi.fn(),
       findByName: vi.fn(),
@@ -97,6 +126,7 @@ describe('UpdateUserUseCase', () => {
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new UpdateUserUseCase(
       userManagementRepo,
+      tenantRepo,
       branchRepo,
       auditService,
     );
@@ -133,6 +163,9 @@ describe('UpdateUserUseCase', () => {
     vi.mocked(userManagementRepo.findByIdAndTenantId)
       .mockResolvedValueOnce(user)
       .mockResolvedValueOnce(updatedUser);
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({ settingsJson: { allowClientUserManagement: true } }),
+    );
 
     const result = await useCase.execute({
       tenantId: 'tenant-1',
@@ -172,6 +205,21 @@ describe('UpdateUserUseCase', () => {
         actor: clAdminActor,
       }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should throw AUTH_FORBIDDEN when CL_ADMIN updates user but allowClientUserManagement is disabled', async () => {
+    const user = makeUser();
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(user);
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ settingsJson: {} }));
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        data: { name: 'Updated' },
+        actor: clAdminActor,
+      }),
+    ).rejects.toThrow('Client user management is not enabled for this agency');
   });
 
   it('should throw AUTH_FORBIDDEN when CL_ADMIN updates user from another tenant', async () => {

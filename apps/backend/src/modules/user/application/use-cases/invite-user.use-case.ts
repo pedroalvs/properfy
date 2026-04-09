@@ -82,6 +82,14 @@ export class InviteUserUseCase {
       throw new TenantInactiveError();
     }
 
+    // CL_ADMIN can only manage users if the tenant setting allows it
+    if (actor.role === 'CL_ADMIN' && tenant.settingsJson.allowClientUserManagement !== true) {
+      throw new ForbiddenError(
+        'AUTH_FORBIDDEN',
+        'Client user management is not enabled for this agency',
+      );
+    }
+
     // Validate branch if provided
     if (branchId) {
       const branch = await this.branchRepo.findById(branchId, tenantId);

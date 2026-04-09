@@ -161,8 +161,10 @@ describe('CreateUserUseCase', () => {
     );
   });
 
-  it('should allow CL_ADMIN to create user for own tenant', async () => {
-    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+  it('should allow CL_ADMIN to create user for own tenant when allowClientUserManagement is enabled', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({ settingsJson: { allowClientUserManagement: true } }),
+    );
     vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
 
     const result = await useCase.execute({
@@ -176,6 +178,38 @@ describe('CreateUserUseCase', () => {
 
     expect(result.email).toBe('new@example.com');
     expect(result.role).toBe('CL_USER');
+  });
+
+  it('should throw AUTH_FORBIDDEN when CL_ADMIN creates user but allowClientUserManagement is disabled', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({ settingsJson: {} }),
+    );
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        name: 'New User',
+        email: 'new@example.com',
+        password: 'StrongPass1!',
+        role: 'CL_USER',
+        actor: clAdminActor,
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should throw AUTH_FORBIDDEN when CL_ADMIN creates user and allowClientUserManagement defaults to false', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        name: 'New User',
+        email: 'new@example.com',
+        password: 'StrongPass1!',
+        role: 'CL_USER',
+        actor: clAdminActor,
+      }),
+    ).rejects.toThrow('Client user management is not enabled for this agency');
   });
 
   it('should throw AUTH_FORBIDDEN when CL_ADMIN creates for other tenant', async () => {

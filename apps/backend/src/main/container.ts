@@ -439,8 +439,8 @@ export function createContainer(logger: Logger): AppContainer {
   const createUserUseCase = new CreateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService);
   const getUserUseCase = new GetUserUseCase(userManagementRepo);
   const listUsersUseCase = new ListUsersUseCase(userManagementRepo);
-  const updateUserUseCase = new UpdateUserUseCase(userManagementRepo, branchRepo, auditService);
-  const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, auditService);
+  const updateUserUseCase = new UpdateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService);
+  const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService);
   const unlockUserUseCase = new UnlockUserUseCase(userManagementRepo, auditService);
   const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo);
 

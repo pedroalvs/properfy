@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import {
   UserNotFoundError,
@@ -17,6 +18,7 @@ export interface DeactivateUserInput {
 export class DeactivateUserUseCase {
   constructor(
     private readonly userManagementRepo: IUserManagementRepository,
+    private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
   ) {}
 
@@ -36,6 +38,17 @@ export class DeactivateUserUseCase {
         'AUTH_FORBIDDEN',
         'You are not allowed to deactivate users',
       );
+    }
+
+    // CL_ADMIN can only manage users if the tenant setting allows it
+    if (actor.role === 'CL_ADMIN') {
+      const tenant = await this.tenantRepo.findById(tenantId);
+      if (tenant && tenant.settingsJson.allowClientUserManagement !== true) {
+        throw new ForbiddenError(
+          'AUTH_FORBIDDEN',
+          'Client user management is not enabled for this agency',
+        );
+      }
     }
 
     // Cannot deactivate self

@@ -175,6 +175,10 @@ describe('InviteUserUseCase', () => {
   });
 
   it('should allow CL_ADMIN to invite for own tenant', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({ settingsJson: { allowClientUserManagement: true } }),
+    );
+
     const result = await useCase.execute({
       tenantId: 'tenant-1',
       name: 'New User',
@@ -184,6 +188,18 @@ describe('InviteUserUseCase', () => {
     });
 
     expect(result.status).toBe('PENDING_INVITE');
+  });
+
+  it('should reject CL_ADMIN invite when allowClientUserManagement is disabled', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        name: 'New User',
+        email: 'new@agency.com',
+        role: 'CL_USER',
+        actor: clAdminActor,
+      }),
+    ).rejects.toThrow('Client user management is not enabled for this agency');
   });
 
   it('should reject CL_ADMIN inviting for other tenant', async () => {

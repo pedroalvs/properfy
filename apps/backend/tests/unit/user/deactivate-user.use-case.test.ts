@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DeactivateUserUseCase } from '../../../src/modules/user/application/use-cases/deactivate-user.use-case';
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import {
   UserNotFoundError,
   UserAlreadyInactiveError,
@@ -35,8 +37,27 @@ function makeUser(
   });
 }
 
+function makeTenant(
+  overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
+): TenantEntity {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Test Tenant',
+    legalName: 'Test Tenant Ltda',
+    status: 'ACTIVE',
+    timezone: 'America/Sao_Paulo',
+    currency: 'BRL',
+    settingsJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
 describe('DeactivateUserUseCase', () => {
   let userManagementRepo: IUserManagementRepository;
+  let tenantRepo: ITenantRepository;
   let auditService: AuditService;
   let useCase: DeactivateUserUseCase;
 
@@ -68,8 +89,16 @@ describe('DeactivateUserUseCase', () => {
       resetPassword: vi.fn(),
       revokeAllSessions: vi.fn(),
     };
+    tenantRepo = {
+      findById: vi.fn(),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new DeactivateUserUseCase(userManagementRepo, auditService);
+    useCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService);
   });
 
   it('should allow AM to deactivate a user', async () => {
@@ -93,7 +122,10 @@ describe('DeactivateUserUseCase', () => {
     );
   });
 
-  it('should allow CL_ADMIN to deactivate own tenant user', async () => {
+  it('should allow CL_ADMIN to deactivate own tenant user when allowClientUserManagement is enabled', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({ settingsJson: { allowClientUserManagement: true } }),
+    );
     vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(
       makeUser(),
     );
@@ -109,6 +141,19 @@ describe('DeactivateUserUseCase', () => {
       status: 'INACTIVE',
       deletedAt: expect.any(Date),
     });
+  });
+
+  it('should throw AUTH_FORBIDDEN when CL_ADMIN deactivates user but allowClientUserManagement is disabled', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ settingsJson: {} }));
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        reason: 'No longer needed',
+        actor: clAdminActor,
+      }),
+    ).rejects.toThrow('Client user management is not enabled for this agency');
   });
 
   it('should throw AUTH_FORBIDDEN when CL_ADMIN deactivates user from another tenant', async () => {

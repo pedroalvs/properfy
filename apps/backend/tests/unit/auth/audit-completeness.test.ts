@@ -434,6 +434,7 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
       const userMgmtRepo = makeUserManagementRepo();
       const useCase = new UpdateUserUseCase(
         userMgmtRepo,
+        makeTenantRepo(),
         makeBranchRepo(),
         auditService,
       );
@@ -454,6 +455,7 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
       const auditService = makeAuditService();
       const useCase = new DeactivateUserUseCase(
         makeUserManagementRepo(),
+        makeTenantRepo(),
         auditService,
       );
 

@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { UserNotFoundError } from '../../domain/user-management.errors';
@@ -34,6 +35,7 @@ export interface UpdateUserOutput {
 export class UpdateUserUseCase {
   constructor(
     private readonly userManagementRepo: IUserManagementRepository,
+    private readonly tenantRepo: ITenantRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
   ) {}
@@ -87,6 +89,17 @@ export class UpdateUserUseCase {
     );
     if (!user) {
       throw new UserNotFoundError();
+    }
+
+    // CL_ADMIN can only manage users if the tenant setting allows it
+    if (actor.role === 'CL_ADMIN' && tenantId) {
+      const tenant = await this.tenantRepo.findById(tenantId);
+      if (tenant && tenant.settingsJson.allowClientUserManagement !== true) {
+        throw new ForbiddenError(
+          'AUTH_FORBIDDEN',
+          'Client user management is not enabled for this agency',
+        );
+      }
     }
 
     // Prevent modifying users that currently have role INSP
