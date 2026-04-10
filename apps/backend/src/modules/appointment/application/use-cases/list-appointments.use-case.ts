@@ -62,6 +62,8 @@ export interface ListAppointmentsOutput {
     branchName: string;
     serviceTypeName: string;
     isOverdue: boolean;
+    latitude: number | null;
+    longitude: number | null;
   }>;
   total: number;
   page: number;
@@ -141,6 +143,8 @@ export class ListAppointmentsUseCase {
         branchName: item.branchName,
         serviceTypeName: item.serviceTypeName,
         isOverdue: isAppointmentOverdue(item.appointment.status, item.appointment.scheduledDate),
+        latitude: item.propertyLatitude,
+        longitude: item.propertyLongitude,
       })),
       total,
       page: pagination.page,

@@ -235,6 +235,9 @@ export const appointmentResponseSchema = z.object({
   branchName: z.string().nullable().optional(),
   serviceTypeName: z.string().nullable().optional(),
   cancellationReason: z.string().nullable().optional(),
+  // Geographic coordinates propagated from the appointment's property (for map views)
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
   contact: z.unknown().nullable().optional(),
   restrictions: z.array(z.unknown()).optional(),
   property: z.unknown().optional(),

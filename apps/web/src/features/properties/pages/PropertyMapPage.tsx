@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type mapboxgl from 'mapbox-gl';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
@@ -7,6 +8,7 @@ import { MapMarker } from '@/components/map/MapMarker';
 import { MapPopup } from '@/components/map/MapPopup';
 import { MapFiltersPanel } from '@/components/map/MapFiltersPanel';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
+import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
 import { FilterSelect } from '@/components/filters/FilterSelect';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -37,6 +39,21 @@ export function PropertyMapPage() {
   const { data, isLoading, isError, errorMessage, refetch, filters, setFilters } =
     usePropertyMapData();
   const [selectedItem, setSelectedItem] = useState<PropertyMapItem | null>(null);
+  const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
+
+  // Auto-fit map bounds to visible pins whenever data or map readiness changes (FR-004).
+  useEffect(() => {
+    if (!mapInstance) return;
+    const points = data.map((item) => ({ latitude: item.latitude, longitude: item.longitude }));
+    const bounds = computeBounds(points);
+    if (!bounds) return;
+    if (isSinglePointBounds(bounds)) {
+      const [[lng, lat]] = bounds as [[number, number], [number, number]];
+      mapInstance.flyTo({ center: [lng, lat], zoom: 14, duration: 600 });
+    } else {
+      mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
+    }
+  }, [data, mapInstance]);
 
   const handleMarkerClick = useCallback((item: PropertyMapItem) => {
     setSelectedItem(item);
@@ -109,10 +126,15 @@ export function PropertyMapPage() {
     </div>
   );
 
+  const validPins = data.filter(
+    (item): item is PropertyMapItem & { latitude: number; longitude: number } =>
+      item.latitude != null && item.longitude != null,
+  );
+
   const mapContent = (
     <div className="relative h-full">
-      <MapContainer>
-        {data.map((item) => (
+      <MapContainer onMapReady={setMapInstance}>
+        {validPins.map((item) => (
           <MapMarker
             key={item.id}
             longitude={item.longitude}

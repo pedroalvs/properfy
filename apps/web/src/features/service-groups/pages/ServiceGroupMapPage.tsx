@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type mapboxgl from 'mapbox-gl';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
@@ -7,6 +8,7 @@ import { MapMarker } from '@/components/map/MapMarker';
 import { MapPopup } from '@/components/map/MapPopup';
 import { MapFiltersPanel } from '@/components/map/MapFiltersPanel';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
+import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
 import { FilterSelect } from '@/components/filters/FilterSelect';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -52,9 +54,28 @@ export function ServiceGroupMapPage() {
     status: string;
     address: string;
   } | null>(null);
+  const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
 
   const selectedGroup = data.find((g) => g.id === selectedGroupId) ?? null;
   const visibleAppointments = selectedGroup?.appointments ?? [];
+
+  // Auto-fit map bounds to the selected group's appointments (FR-004).
+  useEffect(() => {
+    if (!mapInstance) return;
+    if (!selectedGroup) return;
+    const points = visibleAppointments.map((apt) => ({
+      latitude: apt.latitude,
+      longitude: apt.longitude,
+    }));
+    const bounds = computeBounds(points);
+    if (!bounds) return;
+    if (isSinglePointBounds(bounds)) {
+      const [[lng, lat]] = bounds as [[number, number], [number, number]];
+      mapInstance.flyTo({ center: [lng, lat], zoom: 14, duration: 600 });
+    } else {
+      mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
+    }
+  }, [selectedGroup, visibleAppointments, mapInstance]);
 
   const handleGroupClick = useCallback(
     (group: ServiceGroupMapItem) => {
@@ -132,10 +153,15 @@ export function ServiceGroupMapPage() {
     </div>
   );
 
+  const validPins = visibleAppointments.filter(
+    (apt): apt is typeof apt & { latitude: number; longitude: number } =>
+      apt.latitude != null && apt.longitude != null,
+  );
+
   const mapContent = (
     <div className="relative h-full">
-      <MapContainer>
-        {visibleAppointments.map((apt) => (
+      <MapContainer onMapReady={setMapInstance}>
+        {validPins.map((apt) => (
           <MapMarker
             key={apt.id}
             longitude={apt.longitude}

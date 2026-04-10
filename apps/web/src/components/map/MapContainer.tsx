@@ -119,11 +119,11 @@ export function MapContainer({
         </div>
       )}
       {mapReady && children && (
-        <div className="absolute inset-0 z-10 pointer-events-none">
-          <MapContext.Provider value={{ getMap }}>
-            <div className="pointer-events-auto">{children}</div>
-          </MapContext.Provider>
-        </div>
+        <MapContext.Provider value={{ getMap }}>
+          {/* Children (MapMarker, etc.) register themselves with the map via effects.
+              They return DOM elements that mapboxgl.Marker mounts into the map canvas. */}
+          <div className="hidden">{children}</div>
+        </MapContext.Provider>
       )}
     </div>
   );

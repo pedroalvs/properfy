@@ -165,7 +165,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       },
       include: {
         contact: { select: { tenant_name: true, primary_phone: true, primary_email: true } },
-        property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true } },
+        property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
         tenant: { select: { name: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true } },
@@ -183,6 +183,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         contact,
         propertyCode: row.property?.property_code ?? '',
         propertyAddress,
+        propertyLatitude: row.property?.lat != null ? Number(row.property.lat) : null,
+        propertyLongitude: row.property?.lng != null ? Number(row.property.lng) : null,
         tenantName: row.tenant?.name ?? '',
         branchName: row.branch?.name ?? '',
         serviceTypeName: row.service_type?.name ?? '',

@@ -49,6 +49,8 @@ export interface GetAppointmentOutput {
   serviceTypeName: string;
   isOverdue: boolean;
   cancellationReason: string | null;
+  latitude: number | null;
+  longitude: number | null;
   contact: {
     id: string;
     tenantName: string;
@@ -106,6 +108,8 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     serviceTypeName: found.serviceTypeName ?? '',
     isOverdue: isAppointmentOverdue(appointment.status, appointment.scheduledDate),
     cancellationReason: appointment.reason,
+    latitude: found.propertyLatitude ?? null,
+    longitude: found.propertyLongitude ?? null,
     contact: contact
       ? {
           id: contact.id,
