@@ -211,3 +211,29 @@
 - US8 (marketplace privacy) is **out of scope** for this pass — separate privacy feature
 - GAP-005 (mobile popup bottom sheet) and GAP-006 (bbox server filtering) are **out of scope** (LOW priority, non-blocking)
 - The 013 (service regions), 014 (app shell/UX), and 015 (permissions) foundations are reused — no changes needed in those layers
+
+---
+
+## Closure Status (2026-04-10)
+
+**Implementation complete for the agreed scope.** Commit: `9279f8f`.
+
+### Resolved
+- Phase 1 verification (T001) — MapContainer with real Mapbox GL, routes enabled, sidebar map-mode background all confirmed in place before implementation
+- Phase 2 (T002–T006) — backend coordinate exposure DONE; 2567 backend tests passing
+- Phase 3 (T007–T010) — `computeBounds` utility + 11 unit tests DONE
+- Phase 4–6 (T011, T014, T015, T017, T018) — auto-fit bounds wired into all 3 map pages DONE
+- Phase 8 automated checks (T024–T026) — 1882 frontend tests, 2567 backend tests, typecheck all clean
+
+### Discovered during implementation and resolved
+- **MapMarker was not projected** — rendered as an un-projected DOM overlay (all pins stacked at top-left). Rewritten to use `mapboxgl.Marker` via `useMapInstance()`. Existing 7 marker tests still pass.
+
+### Deferred by explicit scope decision (NOT silently resolved)
+- **T020–T023 (Phase 7, clustering)** — scope gate triggered: integrating Mapbox GL native clustering requires replacing the `mapboxgl.Marker`-per-pin approach with a GeoJSON source + layers pipeline. Too large for this pass. **FR-025 remains a known non-blocking functional gap** to address in a focused future iteration. Current 100–200 item cap per request means overlap is uncommon in practice.
+
+### Pending operational (non-blocking, not a functional failure)
+- **T013, T016, T019** — per-page manual verification (pin render + auto-fit behavior on live tiles)
+- **T027** — manual smoke test of all 3 map pages in dev server
+- **T028** — end-to-end verification of selection sync and map states on live tiles (FR-007, FR-008, FR-009, FR-019, FR-020, FR-021, FR-022)
+
+These require a running dev server with a real Mapbox token and seed data. Automated tests cover component behavior and the `computeBounds` math. The live-map verification remains to be run by an operator and does not gate subsequent specs.

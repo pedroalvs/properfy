@@ -84,3 +84,11 @@ apps/web/src/
 ## Complexity Tracking
 
 No constitution violations. No complexity justifications needed.
+
+## Closure Status
+
+**Implemented**: 2026-04-10 | **Commit**: `9279f8f` | **Tests**: 2567 backend + 1882 frontend passing
+
+Core scope closed: backend coordinate exposure, auto-fit bounds on all 3 map pages, and real marker projection (the last was a gap discovered during implementation — `MapMarker` was previously an un-projected DOM overlay and is now backed by `mapboxgl.Marker`).
+
+Clustering (FR-025) is explicitly **deferred by scope decision** — not silently resolved. Manual/live-map verification (T013, T016, T019, T027, T028) is **pending operational** and non-blocking. See `spec.md` Closure Status section for full classification.

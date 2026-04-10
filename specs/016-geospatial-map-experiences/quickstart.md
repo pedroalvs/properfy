@@ -79,7 +79,14 @@ pnpm typecheck
 
 - **No new API endpoints** — extend the existing `GET /v1/appointments` response
 - **No schema migrations** — all required columns already exist
-- **No new components** — reuse MapContainer, MapMarker, MapPopup
+- **No new components** — reuse MapContainer, MapMarker, MapPopup (MapMarker rewritten internally to use `mapboxgl.Marker` — same public API)
 - **Client-side bounds calculation** — simple, correct, no backend round trip
-- **Clustering is evaluated, not assumed** — scope gate before committing
+- **Clustering deferred** — scope gate triggered; not in this pass (see spec Closure Status)
 - **Backward compatible** — new response fields are optional/nullable
+
+## Post-implementation status (2026-04-10)
+
+**Implementation complete** — commit `9279f8f`. See `spec.md` Closure Status and `tasks.md` Closure Status for full classification. In short:
+- Phase 2 (backend coords) and Phases 3–6 (bounds utility + 3 map pages) DONE
+- Clustering (Phase 7) DEFERRED by scope decision
+- Manual/live-map verification (Phase 8 T013, T016, T019, T027, T028) PENDING OPERATIONAL — non-blocking

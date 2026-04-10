@@ -2,7 +2,7 @@
 
 **Feature Branch**: `016-geospatial-map-experiences`
 **Created**: 2026-04-06
-**Feature Status**: PARTIALLY IMPLEMENTED — layout components and page scaffolds exist; map rendering (Mapbox GL) is placeholder except for service region polygon editing which is production-ready; map routes are disabled via redirects
+**Feature Status**: FOUNDATION COMPLETE (2026-04-10) — all P1/P2 point-based map pages are functionally complete. MapContainer uses real Mapbox GL, routes are enabled, MapMarker projects coordinates via `mapboxgl.Marker`, backend exposes appointment coordinates, and all 3 map pages (appointments, properties, service groups) auto-fit bounds to visible pins. Clustering (FR-025) remains deferred by scope decision. Service region polygon editing remains production-ready.
 **Sources**:
 - Code: `apps/web/src/components/map/`, `apps/web/src/features/*/pages/*MapPage.tsx`, `apps/web/src/features/service-regions/components/RegionMap.tsx`
 - Approved rules: `projeto-consolidado/frontend-system-spec.md` (section 6.7), `projeto-consolidado/layout-behavior-rules.md` (section 10)
@@ -16,7 +16,7 @@
 
 ### User Story 1 — Operator views entity locations on a geographic map with side panel (Priority: P1)
 
-- **Status**: PARTIALLY IMPLEMENTED (layout and page scaffolds exist; MapContainer is placeholder)
+- **Status**: IMPLEMENTED (2026-04-10 — MapContainer uses real Mapbox GL, MapMarker projects via `mapboxgl.Marker`, auto-fit bounds active on all 3 map pages)
 - **Source**: code + dossier
 
 An operator (AM, OP, CL_ADMIN, CL_USER) opens a map view for appointments, properties, or service groups. The screen shows a fullscreen map on the right and a functional side panel on the left (400px default). The side panel contains filters and a scrollable list of entities. Each entity with valid coordinates appears as a pin on the map. The map is an operational tool — not decorative.
@@ -31,14 +31,14 @@ An operator (AM, OP, CL_ADMIN, CL_USER) opens a map view for appointments, prope
 2. **Given** entities with valid coordinates, **When** the map renders, **Then** each entity appears as a colored pin at its geographic location.
 3. **Given** entities without coordinates (geocoding pending/failed), **When** the map renders, **Then** those entities appear in the side panel list but NOT as pins on the map.
 4. **Given** a mobile viewport, **When** the map page renders, **Then** the layout stacks vertically (side panel above map).
-5. **Given** the map has loaded with pins, **When** the operator views the map, **Then** the map auto-fits bounds to show all visible pins with appropriate padding. (`GAP` — not yet implemented; maps currently show fixed default center.)
+5. **Given** the map has loaded with pins, **When** the operator views the map, **Then** the map auto-fits bounds to show all visible pins with appropriate padding. (`IMPLEMENTED` 2026-04-10 via `computeBounds()` + `map.fitBounds()`/`flyTo()` on all 3 map pages.)
 6. **Given** the sidebar of the app shell on a map page, **When** displayed, **Then** its background matches the operational canvas gray (#F5F5F5). (`APPROVED RULE` — per dossier section 4.1.)
 
 ---
 
 ### User Story 2 — Operator clicks a pin or list item and sees synchronized selection (Priority: P1)
 
-- **Status**: PARTIALLY IMPLEMENTED (selection state exists in page code; popup component exists)
+- **Status**: IMPLEMENTED (2026-04-10 — pins now project to correct geographic positions so click handlers land on the intended marker; popup and list-highlight wiring was already present)
 - **Source**: code
 
 When the operator clicks a map pin, the corresponding item in the side panel list is highlighted and scrolled into view. Conversely, clicking a list item highlights the corresponding pin on the map. A popup card appears near the selected pin showing key details and action buttons (e.g., "View Details" which opens a drawer or navigates to the detail page).
@@ -100,7 +100,7 @@ When creating or editing a service region, the operator uses a polygon drawing t
 
 ### User Story 5 — Operator views appointment geographic distribution by status (Priority: P2)
 
-- **Status**: PARTIALLY IMPLEMENTED (page scaffold and data hook exist; map rendering is placeholder)
+- **Status**: IMPLEMENTED (2026-04-10 — backend now exposes appointment `latitude`/`longitude` via `appointmentResponseSchema`, pins project correctly, map auto-fits to visible pins)
 - **Source**: code
 
 The appointment map shows each appointment as a color-coded pin based on its status (DRAFT = purple, AWAITING_INSPECTOR = orange, SCHEDULED = light blue, DONE = green, CANCELLED = red, REJECTED = coral). The operator uses this view to understand geographic distribution of work, identify areas with many pending appointments, and spot coverage gaps.
@@ -120,7 +120,7 @@ The appointment map shows each appointment as a color-coded pin based on its sta
 
 ### User Story 6 — Operator views property locations by type (Priority: P2)
 
-- **Status**: PARTIALLY IMPLEMENTED (page scaffold and data hook exist)
+- **Status**: IMPLEMENTED (2026-04-10 — pins project correctly, map auto-fits bounds)
 - **Source**: code
 
 The property map shows each property as a color-coded pin based on its type (Residential = blue, Commercial = orange, Industrial = brown, Rural = green). The operator uses this view to understand geographic coverage of the property portfolio and identify clusters.
@@ -139,7 +139,7 @@ The property map shows each property as a color-coded pin based on its type (Res
 
 ### User Story 7 — Operator views service group appointments on the map (Priority: P2)
 
-- **Status**: PARTIALLY IMPLEMENTED (page scaffold exists with group selection pattern)
+- **Status**: IMPLEMENTED (2026-04-10 — group-first interaction preserved, nested appointments inherit coordinates from the backend fix, map auto-fits to selected group's appointments)
 - **Source**: code
 
 The service group map has a unique two-level interaction: the side panel first shows a list of service groups. When the operator selects a group, the map displays the appointments belonging to that group. This helps the operator understand the geographic spread of a group's appointments before publishing to the marketplace.
@@ -198,7 +198,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-001**: Map pages MUST use the MapScreenLayout template: a scrollable side panel (400px default width) on the left and the map filling remaining space.
 - **FR-002**: On mobile viewports, the layout MUST stack vertically (side panel above map).
 - **FR-003**: The side panel MUST contain a collapsible filter section (MapFiltersPanel) with smooth height animation, followed by a scrollable entity list.
-- **FR-004** (`APPROVED, GAP`): The map MUST auto-fit bounds to show all visible pins with appropriate padding when data loads or filters change. Currently not implemented — maps show a fixed default center.
+- **FR-004** (`IMPLEMENTED` 2026-04-10): The map MUST auto-fit bounds to show all visible pins with appropriate padding when data loads or filters change. Implemented via `computeBounds()` utility in `apps/web/src/lib/map-bounds.ts` and `map.fitBounds()` / `map.flyTo()` calls in all 3 map pages.
 - **FR-005** (`APPROVED, Source: dossier`): The app sidebar background MUST change to operational canvas gray (#F5F5F5) on map pages.
 
 #### Pin and Selection Behavior
@@ -273,12 +273,48 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 ## Known Gaps
 
-| ID | Title | Impact | Context |
-|---|---|---|---|
-| GAP-001 | MapContainer is placeholder | **CRITICAL** | Map rendering uses placeholder divs. Full Mapbox GL integration needed for pins, popups, and interactions to work in the browser. RegionMap works because it has its own Mapbox GL instance. |
-| GAP-002 | Map routes disabled via redirects | H | `/appointments/map`, `/properties/map`, `/service-groups/map` all redirect to their list page equivalents. Enabling these routes is the final step after MapContainer integration. |
-| GAP-003 | Auto-fit bounds | H | Maps do not auto-zoom to fit all visible pins. Default center is hardcoded (Sydney). Must calculate bounding box from visible entities and call `map.fitBounds()`. |
-| GAP-004 | Pin clustering | M | No clustering logic. Multiple entities at nearby coordinates will overlap. Mapbox GL's `supercluster` library or built-in clustering should be integrated. |
-| GAP-005 | Mobile popup as bottom sheet | L | Popups render as floating cards on all viewports. On mobile, a bottom sheet pattern may be more ergonomic. |
-| GAP-006 | Bounding-box server-side filtering | L | Map data hooks fetch up to 200 items. For tenants with thousands of entities, the API should support bounding-box filtering (`minLat`, `maxLat`, `minLng`, `maxLng`) to load only visible entities. |
-| GAP-007 | Map token fallback | L | If Mapbox token is missing, the map area should show a graceful message. Current behavior undefined. |
+| ID | Title | Impact | Status | Context |
+|---|---|---|---|---|
+| GAP-001 | MapContainer is placeholder | **CRITICAL** | **RESOLVED (pre-016 impl)** | MapContainer already used real Mapbox GL (`mapboxgl.Map`) with navigation controls and click handling when 016 implementation started. Verified during Phase 1 setup. |
+| GAP-002 | Map routes disabled via redirects | H | **RESOLVED (pre-016 impl)** | `/appointments/map`, `/properties/map`, `/service-groups/map` were already enabled and routed in `router.tsx`. Verified during Phase 1 setup. |
+| GAP-003 | Auto-fit bounds | H | **RESOLVED (2026-04-10)** | `computeBounds()` utility added at `apps/web/src/lib/map-bounds.ts`. All 3 map pages now call `map.fitBounds()` (multi-point) or `map.flyTo()` (single-point) via `onMapReady` + effect. 11 unit tests cover the utility. |
+| GAP-DISCOVERED | MapMarker not projected | **CRITICAL** | **RESOLVED (2026-04-10)** | Found during 016 implementation: `MapMarker` rendered as an un-projected DOM overlay, stacking all pins at the top-left of the map. Rewritten to use `mapboxgl.Marker` so pins project to real geographic positions via the `useMapInstance()` context. Existing component tests continue to pass. |
+| GAP-BACKEND-COORDS | Appointment list missing coordinates | **HIGH** | **RESOLVED (2026-04-10)** | Found during 016 implementation: `appointmentResponseSchema` did not expose `latitude`/`longitude`, and `PrismaAppointmentRepository.findAll()` did not select `property.lat`/`lng`. Both fixed; detail endpoint updated for consistency. |
+| GAP-004 | Pin clustering | M | **DEFERRED (2026-04-10)** | Not implemented in this pass by explicit scope decision. The current DOM-marker approach (`mapboxgl.Marker` per pin) does not plug directly into Mapbox GL's native GeoJSON source clustering. Implementing would require either a JS-based clustering algorithm above the marker layer or a full refactor to GeoJSON source + layers (replacing `MapMarker`/`MapPopup`). With the existing 100–200 item cap per request, overlap is uncommon in practice. **FR-025 remains a known, non-blocking functional gap** to be addressed in a focused future iteration. |
+| GAP-005 | Mobile popup as bottom sheet | L | **DEFERRED** | Cosmetic; popups still work as floating cards on mobile. Out of scope for 016. |
+| GAP-006 | Bounding-box server-side filtering | L | **DEFERRED** | Backend scaling concern. Current cap is sufficient. Out of scope for 016. |
+| GAP-007 | Map token fallback | L | **RESOLVED (pre-016 impl)** | MapContainer already renders a graceful error message when `VITE_MAPBOX_TOKEN` is missing. Verified during Phase 1 setup. |
+
+---
+
+## Closure Status (2026-04-10)
+
+**Feature is implementation-complete for the agreed 016 scope.**
+
+### Resolved in this pass
+- **Backend coordinate exposure** — appointment list/detail endpoints now return `latitude`/`longitude`
+- **Auto-fit bounds (FR-004)** — all 3 map pages center on visible pins via `computeBounds` + `fitBounds`/`flyTo`
+- **Real marker projection** — discovered and fixed during implementation (was un-projected DOM overlay)
+- **Shared `computeBounds` utility** — single source of truth for bounds calculation with 11 unit tests
+
+### Resolved before this pass (verified in Phase 1)
+- MapContainer with real Mapbox GL (GAP-001)
+- Map routes enabled (GAP-002)
+- Sidebar background on map routes (FR-005 — closed in 014)
+- Token fallback (GAP-007)
+- Service region polygon editing (US4)
+
+### Deferred by scope decision (non-blocking)
+- **Clustering (FR-025, GAP-004)** — explicit scope deferral; current marker model would need a refactor to leverage Mapbox GL native clustering. Not a regression; was never implemented.
+- **Mobile popup as bottom sheet (GAP-005)** — cosmetic.
+- **Bounding-box server-side filtering (GAP-006)** — backend scaling.
+- **Marketplace map privacy (US8, FR-023)** — separate privacy concern, preserved at existing status, not expanded in this pass.
+
+### Pending operational (non-blocking, not a functional failure)
+- **Manual/live-map verification (tasks T013, T016, T019, T027, T028)** — requires a running dev server with a real Mapbox token and seed data. Automated unit and integration tests pass; operational smoke tests of pin rendering, selection sync, and map states on real tiles are still to be run by an operator. These do not gate subsequent specs.
+
+### Verification evidence
+- Backend: 247 test files / 2567 tests passing
+- Frontend: 303 test files / 1882 tests passing (+11 new `map-bounds` tests)
+- Typecheck: 5/5 workspaces clean
+- Commit: `9279f8f` — `feat(maps): close 016 gaps — backend coords, auto-fit bounds, real marker projection`
