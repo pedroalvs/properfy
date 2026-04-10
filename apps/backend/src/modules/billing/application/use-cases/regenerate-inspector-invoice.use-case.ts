@@ -83,6 +83,8 @@ export class RegenerateInspectorInvoiceUseCase {
       generatedByUserId: actor.userId,
       generatedAt: now,
       paidAt: null,
+      paidByUserId: null,
+      paymentReference: null,
       notes: reason ?? null,
       createdAt: now,
       updatedAt: now,

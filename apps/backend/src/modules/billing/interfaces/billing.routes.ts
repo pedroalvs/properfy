@@ -6,6 +6,9 @@ import {
   createRefundSchema,
   cancelFinancialEntrySchema,
   markInvoicePaidSchema,
+  batchMarkInvoicesPaidSchema,
+  reverseInvoicePaymentSchema,
+  reconciliationSummaryQuerySchema,
   generateInvoiceSchema,
   listInvoicesQuerySchema,
   voidFinancialEntrySchema,
@@ -34,6 +37,9 @@ import type { GetInvoiceUseCase } from '../application/use-cases/get-invoice.use
 import type { DownloadInvoiceUseCase } from '../application/use-cases/download-invoice.use-case';
 import type { CancelFinancialEntryUseCase } from '../application/use-cases/cancel-financial-entry.use-case';
 import type { MarkInvoicePaidUseCase } from '../application/use-cases/mark-invoice-paid.use-case';
+import type { BatchMarkInvoicesPaidUseCase } from '../application/use-cases/batch-mark-invoices-paid.use-case';
+import type { ReverseInvoicePaymentUseCase } from '../application/use-cases/reverse-invoice-payment.use-case';
+import type { GetReconciliationSummaryUseCase } from '../application/use-cases/get-reconciliation-summary.use-case';
 import type { CreateFinancialEntriesOnDoneUseCase } from '../application/use-cases/create-financial-entries-on-done.use-case';
 import type { VoidFinancialEntryUseCase } from '../application/use-cases/void-financial-entry.use-case';
 import type { GenerateTenantInvoiceUseCase } from '../application/use-cases/generate-tenant-invoice.use-case';
@@ -56,6 +62,9 @@ export interface BillingRouteContainer {
   getInvoiceUseCase: GetInvoiceUseCase;
   downloadInvoiceUseCase: DownloadInvoiceUseCase;
   markInvoicePaidUseCase: MarkInvoicePaidUseCase;
+  batchMarkInvoicesPaidUseCase: BatchMarkInvoicesPaidUseCase;
+  reverseInvoicePaymentUseCase: ReverseInvoicePaymentUseCase;
+  getReconciliationSummaryUseCase: GetReconciliationSummaryUseCase;
   voidFinancialEntryUseCase: VoidFinancialEntryUseCase;
   generateTenantInvoiceUseCase: GenerateTenantInvoiceUseCase;
   regenerateInspectorInvoiceUseCase: RegenerateInspectorInvoiceUseCase;
@@ -341,6 +350,67 @@ export async function registerBillingRoutes(
       const result = await container.markInvoicePaidUseCase.execute({
         invoiceId: params.data.invoiceId,
         paidAt: parsed.data.paidAt,
+        paymentReference: parsed.data.paymentReference,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/billing/invoices/batch-mark-paid (feature 017 — US3)
+  app.post(
+    '/v1/billing/invoices/batch-mark-paid',
+    { preHandler: authenticate, schema: { body: batchMarkInvoicesPaidSchema } },
+    async (request, reply) => {
+      const parsed = batchMarkInvoicesPaidSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.batchMarkInvoicesPaidUseCase.execute({
+        invoiceIds: parsed.data.invoiceIds,
+        paidAt: parsed.data.paidAt,
+        paymentReference: parsed.data.paymentReference,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/billing/invoices/:invoiceId/reverse-payment (feature 017 — US4)
+  app.post(
+    '/v1/billing/invoices/:invoiceId/reverse-payment',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: reverseInvoicePaymentSchema } },
+    async (request, reply) => {
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const parsed = reverseInvoicePaymentSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.reverseInvoicePaymentUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/billing/invoices/reconciliation-summary (feature 017 — US5)
+  app.get(
+    '/v1/billing/invoices/reconciliation-summary',
+    { preHandler: authenticate, schema: { querystring: reconciliationSummaryQuerySchema } },
+    async (request, reply) => {
+      const parsed = reconciliationSummaryQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const result = await container.getReconciliationSummaryUseCase.execute({
+        from: parsed.data.from,
+        to: parsed.data.to,
+        inspectorId: parsed.data.inspectorId,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

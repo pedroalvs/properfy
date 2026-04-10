@@ -20,3 +20,9 @@ export { useGenerateInvoice } from './useGenerateInvoice';
 export type { GenerateInvoiceInput } from './useGenerateInvoice';
 export { useInvoiceDownload } from './useInvoiceDownload';
 export type { UseInvoiceDownloadReturn } from './useInvoiceDownload';
+export { useReconciliationSummary } from './useReconciliationSummary';
+export type {
+  UseReconciliationSummaryReturn,
+  ReconciliationSummaryParams,
+  MultiCurrencyScopeError,
+} from './useReconciliationSummary';

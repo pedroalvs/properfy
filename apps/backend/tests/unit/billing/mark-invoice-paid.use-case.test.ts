@@ -4,6 +4,8 @@ import { InspectorInvoiceEntity } from '../../../src/modules/billing/domain/insp
 import {
   InvoiceNotFoundError,
   InvoiceNotClosedError,
+  InvoiceAlreadyPaidError,
+  InvoicePaymentDateInvalidError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -13,14 +15,16 @@ const invoiceRepo = {
   findByInspectorAndPeriod: vi.fn(),
   findOverlapping: vi.fn(),
   findAll: vi.fn(),
+  findManyByIds: vi.fn(),
   count: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
+  getReconciliationAggregates: vi.fn(),
 };
 
 const auditService = { log: vi.fn() };
 
-function makeClosedInvoice(overrides = {}) {
+function makeClosedInvoice(overrides: Record<string, unknown> = {}) {
   return new InspectorInvoiceEntity({
     id: 'inv-1',
     inspectorId: 'insp-1',
@@ -33,8 +37,10 @@ function makeClosedInvoice(overrides = {}) {
     fileKey: 'invoices/inv-1.xlsx',
     previousInvoiceId: null,
     generatedByUserId: 'op-1',
-    generatedAt: new Date(),
+    generatedAt: new Date('2026-03-16T10:00:00.000Z'),
     paidAt: null,
+    paidByUserId: null,
+    paymentReference: null,
     notes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -74,19 +80,19 @@ describe('MarkInvoicePaidUseCase', () => {
   it('should mark a CLOSED invoice as PAID with default paidAt', async () => {
     const sut = makeSut();
 
-    const result = await sut.execute({
-      invoiceId: 'inv-1',
-      actor: opActor,
-    });
+    const result = await sut.execute({ invoiceId: 'inv-1', actor: opActor });
 
     expect(result.id).toBe('inv-1');
     expect(result.status).toBe('PAID');
-    expect(result.markedBy).toBe('op-1');
+    expect(result.paidByUserId).toBe('op-1');
     expect(result.paidAt).toBeDefined();
+    expect(result.paymentReference).toBeNull();
 
     expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', {
       status: 'PAID',
       paidAt: expect.any(Date),
+      paidByUserId: 'op-1',
+      paymentReference: null,
     });
   });
 
@@ -101,22 +107,44 @@ describe('MarkInvoicePaidUseCase', () => {
     });
 
     expect(result.paidAt).toBe(customPaidAt);
-    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', {
-      status: 'PAID',
+    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', expect.objectContaining({
       paidAt: new Date(customPaidAt),
+    }));
+  });
+
+  it('should round-trip the paymentReference', async () => {
+    const sut = makeSut();
+
+    const result = await sut.execute({
+      invoiceId: 'inv-1',
+      paymentReference: 'BT-20260410-001',
+      actor: opActor,
     });
+
+    expect(result.paymentReference).toBe('BT-20260410-001');
+    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', expect.objectContaining({
+      paymentReference: 'BT-20260410-001',
+    }));
+  });
+
+  it('should record the actor userId as paidByUserId', async () => {
+    const sut = makeSut();
+
+    const result = await sut.execute({ invoiceId: 'inv-1', actor: amActor });
+
+    expect(result.paidByUserId).toBe('am-1');
+    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', expect.objectContaining({
+      paidByUserId: 'am-1',
+    }));
   });
 
   it('should allow AM to mark invoices as paid', async () => {
     const sut = makeSut();
 
-    const result = await sut.execute({
-      invoiceId: 'inv-1',
-      actor: amActor,
-    });
+    const result = await sut.execute({ invoiceId: 'inv-1', actor: amActor });
 
     expect(result.status).toBe('PAID');
-    expect(result.markedBy).toBe('am-1');
+    expect(result.paidByUserId).toBe('am-1');
   });
 
   it('should reject non-CLOSED invoice (OPEN)', async () => {
@@ -128,13 +156,47 @@ describe('MarkInvoicePaidUseCase', () => {
     ).rejects.toThrow(InvoiceNotClosedError);
   });
 
-  it('should reject already PAID invoice', async () => {
+  it('should reject already PAID invoice with INVOICE_ALREADY_PAID', async () => {
     const sut = makeSut();
     invoiceRepo.findById.mockResolvedValue(makeClosedInvoice({ status: 'PAID' }));
 
     await expect(
       sut.execute({ invoiceId: 'inv-1', actor: opActor }),
-    ).rejects.toThrow(InvoiceNotClosedError);
+    ).rejects.toThrow(InvoiceAlreadyPaidError);
+  });
+
+  it('should reject paidAt in the future beyond the grace window (Q4)', async () => {
+    const sut = makeSut();
+    // Two hours in the future — exceeds the 1h grace window
+    const farFuture = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+
+    await expect(
+      sut.execute({ invoiceId: 'inv-1', paidAt: farFuture, actor: opActor }),
+    ).rejects.toThrow(InvoicePaymentDateInvalidError);
+  });
+
+  it('should accept paidAt within the 1h grace window', async () => {
+    const sut = makeSut();
+    // 30 minutes ahead — within the grace window
+    const slightlyFuture = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    const result = await sut.execute({
+      invoiceId: 'inv-1',
+      paidAt: slightlyFuture,
+      actor: opActor,
+    });
+
+    expect(result.status).toBe('PAID');
+  });
+
+  it('should reject paidAt before invoice.generatedAt', async () => {
+    const sut = makeSut();
+    // Invoice was generated on 2026-03-16; payment before that is invalid
+    const tooEarly = '2026-03-10T00:00:00.000Z';
+
+    await expect(
+      sut.execute({ invoiceId: 'inv-1', paidAt: tooEarly, actor: opActor }),
+    ).rejects.toThrow(InvoicePaymentDateInvalidError);
   });
 
   it('should reject non-AM/OP actor (CL_ADMIN)', async () => {
@@ -176,10 +238,14 @@ describe('MarkInvoicePaidUseCase', () => {
     ).rejects.toThrow(InvoiceNotFoundError);
   });
 
-  it('should audit log the mark-paid action', async () => {
+  it('should audit log the mark-paid action with full before/after snapshots', async () => {
     const sut = makeSut();
 
-    await sut.execute({ invoiceId: 'inv-1', actor: opActor });
+    await sut.execute({
+      invoiceId: 'inv-1',
+      paymentReference: 'BT-001',
+      actor: opActor,
+    });
 
     expect(auditService.log).toHaveBeenCalledOnce();
     expect(auditService.log).toHaveBeenCalledWith(
@@ -189,8 +255,17 @@ describe('MarkInvoicePaidUseCase', () => {
         actorId: 'op-1',
         entityType: 'InspectorInvoice',
         entityId: 'inv-1',
-        before: { status: 'CLOSED' },
-        after: expect.objectContaining({ status: 'PAID', markedBy: 'op-1' }),
+        before: expect.objectContaining({
+          status: 'CLOSED',
+          paidAt: null,
+          paidByUserId: null,
+          paymentReference: null,
+        }),
+        after: expect.objectContaining({
+          status: 'PAID',
+          paidByUserId: 'op-1',
+          paymentReference: 'BT-001',
+        }),
       }),
     );
   });

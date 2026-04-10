@@ -15,6 +15,8 @@ export interface InspectorInvoiceProps {
   generatedByUserId: string | null;
   generatedAt: Date | null;
   paidAt: Date | null;
+  paidByUserId: string | null;
+  paymentReference: string | null;
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -33,6 +35,8 @@ export class InspectorInvoiceEntity extends BaseEntity {
   generatedByUserId: string | null;
   generatedAt: Date | null;
   paidAt: Date | null;
+  paidByUserId: string | null;
+  paymentReference: string | null;
   notes: string | null;
 
   constructor(props: InspectorInvoiceProps) {
@@ -49,6 +53,8 @@ export class InspectorInvoiceEntity extends BaseEntity {
     this.generatedByUserId = props.generatedByUserId;
     this.generatedAt = props.generatedAt;
     this.paidAt = props.paidAt;
+    this.paidByUserId = props.paidByUserId;
+    this.paymentReference = props.paymentReference;
     this.notes = props.notes;
   }
 
@@ -72,7 +78,44 @@ export class InspectorInvoiceEntity extends BaseEntity {
     return this.status === 'CLOSED' || this.status === 'PAID';
   }
 
+  canBeMarkedPaid(): boolean {
+    return this.status === 'CLOSED';
+  }
+
+  canBeReversed(): boolean {
+    return this.status === 'PAID';
+  }
+
   hasFile(): boolean {
     return this.fileKey !== null;
+  }
+
+  /**
+   * Transitions the invoice from CLOSED to PAID.
+   * Caller is responsible for validating paidAt (not in future, not before generatedAt)
+   * and actor role before invoking this method.
+   */
+  markPaid(paidAt: Date, paidByUserId: string, paymentReference: string | null): void {
+    if (!this.canBeMarkedPaid()) {
+      throw new Error(`Cannot mark invoice ${this.id} as paid: current status is ${this.status}`);
+    }
+    this.status = 'PAID';
+    this.paidAt = paidAt;
+    this.paidByUserId = paidByUserId;
+    this.paymentReference = paymentReference;
+  }
+
+  /**
+   * Transitions the invoice from PAID back to CLOSED, clearing all payment fields.
+   * Caller is responsible for audit logging with reason.
+   */
+  reversePayment(): void {
+    if (!this.canBeReversed()) {
+      throw new Error(`Cannot reverse payment on invoice ${this.id}: current status is ${this.status}`);
+    }
+    this.status = 'CLOSED';
+    this.paidAt = null;
+    this.paidByUserId = null;
+    this.paymentReference = null;
   }
 }

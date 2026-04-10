@@ -131,33 +131,33 @@ enum AuditActorType {
 }
 
 model Tenant {
-  id            String        @id @default(uuid())
-  name          String        @db.VarChar(200)
-  legal_name    String        @unique @db.VarChar(200)
-  status        TenantStatus  @default(PENDING)
-  timezone      String        @default("Australia/Sydney") @db.VarChar(60)
-  currency      String        @default("AUD") @db.Char(3)
-  settings_json Json          @default("{}")
-  created_at    DateTime      @default(now())
-  updated_at    DateTime      @updatedAt
+  id            String       @id @default(uuid())
+  name          String       @db.VarChar(200)
+  legal_name    String       @unique @db.VarChar(200)
+  status        TenantStatus @default(PENDING)
+  timezone      String       @default("Australia/Sydney") @db.VarChar(60)
+  currency      String       @default("AUD") @db.Char(3)
+  settings_json Json         @default("{}")
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
   deleted_at    DateTime?
 
-  branches      Branch[]
-  users         User[]
-  properties    Property[]
-  price_rules   ServicePriceRule[]
-  appointments      Appointment[]
-  service_groups    ServiceGroup[]
-  financial_entries       FinancialEntry[]
-  tenant_invoices         TenantInvoice[]
-  notifications           Notification[]
-  notification_templates  NotificationTemplate[]
-  reports                 Report[]
-  appointment_imports     AppointmentImport[]
-  property_imports        PropertyImport[]
-  appointment_time_slots  AppointmentTimeSlot[]
-  service_regions         ServiceRegion[]
-  scheduled_reports       ScheduledReport[]
+  branches               Branch[]
+  users                  User[]
+  properties             Property[]
+  price_rules            ServicePriceRule[]
+  appointments           Appointment[]
+  service_groups         ServiceGroup[]
+  financial_entries      FinancialEntry[]
+  tenant_invoices        TenantInvoice[]
+  notifications          Notification[]
+  notification_templates NotificationTemplate[]
+  reports                Report[]
+  appointment_imports    AppointmentImport[]
+  property_imports       PropertyImport[]
+  appointment_time_slots AppointmentTimeSlot[]
+  service_regions        ServiceRegion[]
+  scheduled_reports      ScheduledReport[]
 
   @@index([status])
   @@index([deleted_at])
@@ -175,10 +175,10 @@ model Branch {
   updated_at    DateTime     @updatedAt
   deleted_at    DateTime?
 
-  tenant        Tenant       @relation(fields: [tenant_id], references: [id])
-  users         User[]
-  properties    Property[]
-  price_rules   ServicePriceRule[]
+  tenant                 Tenant                @relation(fields: [tenant_id], references: [id])
+  users                  User[]
+  properties             Property[]
+  price_rules            ServicePriceRule[]
   appointments           Appointment[]
   appointment_time_slots AppointmentTimeSlot[]
 
@@ -191,44 +191,45 @@ model Branch {
 }
 
 model User {
-  id                  String      @id @default(uuid())
-  tenant_id           String?
-  branch_id           String?
-  role                UserRole
-  name                String      @db.VarChar(200)
-  email               String      @db.VarChar(254)
-  phone               String?     @db.VarChar(20)
-  status              UserStatus  @default(ACTIVE)
-  password_hash       String
-  totp_secret         String?
-  totp_enabled        Boolean     @default(false)
-  failed_login_count  Int         @default(0)
-  locked_until        DateTime?
-  last_login_at       DateTime?
-  created_at          DateTime    @default(now())
-  updated_at          DateTime    @updatedAt
-  deleted_at          DateTime?
+  id                 String     @id @default(uuid())
+  tenant_id          String?
+  branch_id          String?
+  role               UserRole
+  name               String     @db.VarChar(200)
+  email              String     @db.VarChar(254)
+  phone              String?    @db.VarChar(20)
+  status             UserStatus @default(ACTIVE)
+  password_hash      String
+  totp_secret        String?
+  totp_enabled       Boolean    @default(false)
+  failed_login_count Int        @default(0)
+  locked_until       DateTime?
+  last_login_at      DateTime?
+  created_at         DateTime   @default(now())
+  updated_at         DateTime   @updatedAt
+  deleted_at         DateTime?
 
   sessions                  Session[]
   password_reset_tokens     PasswordResetToken[]
   password_history          PasswordHistory[]
-  tenant                    Tenant?       @relation(fields: [tenant_id], references: [id])
-  branch                    Branch?       @relation(fields: [branch_id], references: [id])
+  tenant                    Tenant?              @relation(fields: [tenant_id], references: [id])
+  branch                    Branch?              @relation(fields: [branch_id], references: [id])
   inspector                 Inspector?
-  created_appointments      Appointment[]    @relation("AppointmentCreatedBy")
-  done_marked_appointments  Appointment[]    @relation("AppointmentDoneMarkedBy")
-  done_checked_appointments Appointment[]    @relation("AppointmentDoneCheckedBy")
-  created_service_groups    ServiceGroup[]   @relation("ServiceGroupCreatedBy")
-  initiated_entries         FinancialEntry[] @relation("EntryInitiator")
-  approved_entries          FinancialEntry[] @relation("EntryApprover")
-  voided_entries            FinancialEntry[] @relation("EntryVoider")
-  generated_invoices        InspectorInvoice[]
+  created_appointments      Appointment[]        @relation("AppointmentCreatedBy")
+  done_marked_appointments  Appointment[]        @relation("AppointmentDoneMarkedBy")
+  done_checked_appointments Appointment[]        @relation("AppointmentDoneCheckedBy")
+  created_service_groups    ServiceGroup[]       @relation("ServiceGroupCreatedBy")
+  initiated_entries         FinancialEntry[]     @relation("EntryInitiator")
+  approved_entries          FinancialEntry[]     @relation("EntryApprover")
+  voided_entries            FinancialEntry[]     @relation("EntryVoider")
+  generated_invoices        InspectorInvoice[]   @relation("InspectorInvoiceGeneratedBy")
+  paid_invoices             InspectorInvoice[]   @relation("InspectorInvoicePaidBy")
   generated_tenant_invoices TenantInvoice[]
   requested_reports         Report[]
-  created_imports           AppointmentImport[] @relation("importCreatedBy")
-  created_property_imports  PropertyImport[]    @relation("propertyImportCreatedBy")
-  created_service_regions  ServiceRegion[]     @relation("ServiceRegionCreatedBy")
-  created_scheduled_reports ScheduledReport[] @relation("scheduledReportCreatedBy")
+  created_imports           AppointmentImport[]  @relation("importCreatedBy")
+  created_property_imports  PropertyImport[]     @relation("propertyImportCreatedBy")
+  created_service_regions   ServiceRegion[]      @relation("ServiceRegionCreatedBy")
+  created_scheduled_reports ScheduledReport[]    @relation("scheduledReportCreatedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -240,18 +241,18 @@ model User {
 }
 
 model Session {
-  id                  String    @id @default(uuid())
-  user_id             String
-  refresh_token_hash  String
-  ip_address          String?   @db.VarChar(45)
-  user_agent          String?   @db.VarChar(500)
-  country_code        String?   @db.VarChar(2)
-  device_fingerprint  String?   @db.VarChar(64)
-  expires_at          DateTime
-  revoked_at          DateTime?
-  created_at          DateTime  @default(now())
+  id                 String    @id @default(uuid())
+  user_id            String
+  refresh_token_hash String
+  ip_address         String?   @db.VarChar(45)
+  user_agent         String?   @db.VarChar(500)
+  country_code       String?   @db.VarChar(2)
+  device_fingerprint String?   @db.VarChar(64)
+  expires_at         DateTime
+  revoked_at         DateTime?
+  created_at         DateTime  @default(now())
 
-  user                User      @relation(fields: [user_id], references: [id])
+  user User @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
   @@index([refresh_token_hash])
@@ -261,14 +262,14 @@ model Session {
 }
 
 model PasswordResetToken {
-  id          String    @id @default(uuid())
-  user_id     String
-  token_hash  String
-  expires_at  DateTime
-  used_at     DateTime?
-  created_at  DateTime  @default(now())
+  id         String    @id @default(uuid())
+  user_id    String
+  token_hash String
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime  @default(now())
 
-  user        User      @relation(fields: [user_id], references: [id])
+  user User @relation(fields: [user_id], references: [id])
 
   @@index([token_hash])
   @@index([user_id])
@@ -277,12 +278,12 @@ model PasswordResetToken {
 }
 
 model PasswordHistory {
-  id              String    @id @default(uuid())
-  user_id         String
-  password_hash   String
-  created_at      DateTime  @default(now())
+  id            String   @id @default(uuid())
+  user_id       String
+  password_hash String
+  created_at    DateTime @default(now())
 
-  user            User      @relation(fields: [user_id], references: [id])
+  user User @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
   @@index([user_id, created_at])
@@ -290,30 +291,30 @@ model PasswordHistory {
 }
 
 model Property {
-  id                String          @id @default(uuid())
-  tenant_id         String
-  branch_id         String?
-  property_code     String          @db.VarChar(50)
-  type              PropertyType
-  street            String          @db.VarChar(300)
-  address_line_2    String?         @db.VarChar(200)
-  suburb            String          @db.VarChar(100)
-  postcode          String          @db.VarChar(20)
-  state             String          @db.VarChar(100)
-  country           String          @default("AU") @db.VarChar(100)
-  lat               Decimal?        @db.Decimal(10, 7)
-  lng               Decimal?        @db.Decimal(10, 7)
-  geocoding_status  GeocodingStatus @default(PENDING)
-  notes             String?         @db.Text
-  rules_json        Json            @default("{}")
-  created_at        DateTime        @default(now())
-  updated_at        DateTime        @updatedAt
-  deleted_at        DateTime?
+  id               String          @id @default(uuid())
+  tenant_id        String
+  branch_id        String?
+  property_code    String          @db.VarChar(50)
+  type             PropertyType
+  street           String          @db.VarChar(300)
+  address_line_2   String?         @db.VarChar(200)
+  suburb           String          @db.VarChar(100)
+  postcode         String          @db.VarChar(20)
+  state            String          @db.VarChar(100)
+  country          String          @default("AU") @db.VarChar(100)
+  lat              Decimal?        @db.Decimal(10, 7)
+  lng              Decimal?        @db.Decimal(10, 7)
+  geocoding_status GeocodingStatus @default(PENDING)
+  notes            String?         @db.Text
+  rules_json       Json            @default("{}")
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+  deleted_at       DateTime?
 
-  coordinates       Unsupported("GEOMETRY(Point, 4326)")?
-  tenant            Tenant          @relation(fields: [tenant_id], references: [id])
-  branch            Branch?         @relation(fields: [branch_id], references: [id])
-  appointments      Appointment[]
+  coordinates  Unsupported("GEOMETRY(Point, 4326)")?
+  tenant       Tenant                                @relation(fields: [tenant_id], references: [id])
+  branch       Branch?                               @relation(fields: [branch_id], references: [id])
+  appointments Appointment[]
 
   @@unique([tenant_id, property_code])
   @@index([tenant_id])
@@ -324,40 +325,40 @@ model Property {
 }
 
 model ServiceType {
-  id                          String              @id @default(uuid())
-  code                        String              @unique @db.VarChar(50)
-  name                        String              @db.VarChar(200)
-  flow_type                   ServiceTypeFlowType
-  requires_tenant_confirmation Boolean            @default(true)
-  status                      ServiceTypeStatus   @default(ACTIVE)
-  created_at                  DateTime            @default(now())
-  updated_at                  DateTime            @updatedAt
+  id                           String              @id @default(uuid())
+  code                         String              @unique @db.VarChar(50)
+  name                         String              @db.VarChar(200)
+  flow_type                    ServiceTypeFlowType
+  requires_tenant_confirmation Boolean             @default(true)
+  status                       ServiceTypeStatus   @default(ACTIVE)
+  created_at                   DateTime            @default(now())
+  updated_at                   DateTime            @updatedAt
 
-  price_rules                 ServicePriceRule[]
-  appointments                Appointment[]
-  service_groups              ServiceGroup[]
+  price_rules    ServicePriceRule[]
+  appointments   Appointment[]
+  service_groups ServiceGroup[]
 
   @@index([status])
   @@map("service_types")
 }
 
 model ServicePriceRule {
-  id                String          @id @default(uuid())
-  tenant_id         String
-  currency          String          @db.VarChar(3)
-  service_type_id   String
-  branch_id         String?
-  price_amount      Decimal         @db.Decimal(12, 2)
-  payout_type       PayoutType
-  payout_value      Decimal         @db.Decimal(12, 2)
-  bonus_rule_json   Json?
-  status            PriceRuleStatus @default(ACTIVE)
-  created_at        DateTime        @default(now())
-  updated_at        DateTime        @updatedAt
+  id              String          @id @default(uuid())
+  tenant_id       String
+  currency        String          @db.VarChar(3)
+  service_type_id String
+  branch_id       String?
+  price_amount    Decimal         @db.Decimal(12, 2)
+  payout_type     PayoutType
+  payout_value    Decimal         @db.Decimal(12, 2)
+  bonus_rule_json Json?
+  status          PriceRuleStatus @default(ACTIVE)
+  created_at      DateTime        @default(now())
+  updated_at      DateTime        @updatedAt
 
-  tenant            Tenant          @relation(fields: [tenant_id], references: [id])
-  service_type      ServiceType     @relation(fields: [service_type_id], references: [id])
-  branch            Branch?         @relation(fields: [branch_id], references: [id])
+  tenant       Tenant      @relation(fields: [tenant_id], references: [id])
+  service_type ServiceType @relation(fields: [service_type_id], references: [id])
+  branch       Branch?     @relation(fields: [branch_id], references: [id])
 
   @@unique([tenant_id, service_type_id, branch_id])
   @@index([tenant_id])
@@ -367,28 +368,28 @@ model ServicePriceRule {
 }
 
 model Inspector {
-  id                        String           @id @default(uuid())
-  user_id                   String?          @unique
-  name                      String           @db.VarChar(200)
-  email                     String           @unique @db.VarChar(254)
-  phone                     String?          @db.VarChar(20)
-  status                    InspectorStatus  @default(ACTIVE)
-  payment_settings_json     Json             @default("{}")
-  regions_json              Json             @default("[]")
-  service_types_json        Json             @default("[]")
-  client_eligibility_json   Json             @default("[]")
-  created_at                DateTime         @default(now())
-  updated_at                DateTime         @updatedAt
-  deleted_at                DateTime?
+  id                      String          @id @default(uuid())
+  user_id                 String?         @unique
+  name                    String          @db.VarChar(200)
+  email                   String          @unique @db.VarChar(254)
+  phone                   String?         @db.VarChar(20)
+  status                  InspectorStatus @default(ACTIVE)
+  payment_settings_json   Json            @default("{}")
+  regions_json            Json            @default("[]")
+  service_types_json      Json            @default("[]")
+  client_eligibility_json Json            @default("[]")
+  created_at              DateTime        @default(now())
+  updated_at              DateTime        @updatedAt
+  deleted_at              DateTime?
 
-  user                        User?            @relation(fields: [user_id], references: [id])
-  availability_slots          InspectorAvailabilitySlot[]
-  appointments                Appointment[]
-  assigned_service_groups     ServiceGroup[]
-  executions                  InspectionExecution[]
-  financial_entries           FinancialEntry[]
-  invoices                    InspectorInvoice[]
-  inspector_regions           InspectorRegion[]
+  user                    User?                       @relation(fields: [user_id], references: [id])
+  availability_slots      InspectorAvailabilitySlot[]
+  appointments            Appointment[]
+  assigned_service_groups ServiceGroup[]
+  executions              InspectionExecution[]
+  financial_entries       FinancialEntry[]
+  invoices                InspectorInvoice[]
+  inspector_regions       InspectorRegion[]
 
   @@index([status])
   @@index([user_id])
@@ -397,18 +398,18 @@ model Inspector {
 }
 
 model InspectorAvailabilitySlot {
-  id              String                 @id @default(uuid())
-  inspector_id    String
-  date            DateTime               @db.Date
-  start_time      String                 @db.VarChar(5)
-  end_time        String                 @db.VarChar(5)
-  region_json     Json?
-  capacity        Int                    @default(1)
-  status          AvailabilitySlotStatus @default(AVAILABLE)
-  created_at      DateTime               @default(now())
-  updated_at      DateTime               @updatedAt
+  id           String                 @id @default(uuid())
+  inspector_id String
+  date         DateTime               @db.Date
+  start_time   String                 @db.VarChar(5)
+  end_time     String                 @db.VarChar(5)
+  region_json  Json?
+  capacity     Int                    @default(1)
+  status       AvailabilitySlotStatus @default(AVAILABLE)
+  created_at   DateTime               @default(now())
+  updated_at   DateTime               @updatedAt
 
-  inspector       Inspector              @relation(fields: [inspector_id], references: [id])
+  inspector Inspector @relation(fields: [inspector_id], references: [id])
 
   @@index([inspector_id])
   @@index([inspector_id, date])
@@ -417,55 +418,55 @@ model InspectorAvailabilitySlot {
 }
 
 model Appointment {
-  id                          String                   @id @default(uuid())
-  appointment_number          Int                      @unique @default(autoincrement())
-  tenant_id                   String
-  branch_id                   String
-  property_id                 String
-  service_type_id             String
-  inspector_id                String?
-  service_group_id            String?
-  status                      AppointmentStatus        @default(DRAFT)
-  scheduled_date              DateTime                 @db.Date
-  time_slot                   String                   @db.VarChar(50)
-  key_required                Boolean                  @default(false)
-  meeting_location            String?                  @db.VarChar(500)
-  key_location                String?                  @db.VarChar(500)
-  tenant_confirmation_status  TenantConfirmationStatus @default(PENDING)
-  price_amount                Decimal                  @db.Decimal(12, 2)
-  payout_amount               Decimal                  @db.Decimal(12, 2)
-  pricing_rule_snapshot_json  Json
-  notes                       String?                  @db.Text
-  custom_fields_json          Json?
-  reason                      String?                  @db.Text
-  cancellation_reason_code    String?                  @db.VarChar(50)
-  rejection_reason_code       String?                  @db.VarChar(50)
-  created_by_user_id          String
-  done_marked_by_user_id      String?
-  done_checked_by_user_id     String?
-  done_checked_at             DateTime?
-  created_at                  DateTime                 @default(now())
-  updated_at                  DateTime                 @updatedAt
-  deleted_at                  DateTime?
+  id                         String                   @id @default(uuid())
+  appointment_number         Int                      @unique @default(autoincrement())
+  tenant_id                  String
+  branch_id                  String
+  property_id                String
+  service_type_id            String
+  inspector_id               String?
+  service_group_id           String?
+  status                     AppointmentStatus        @default(DRAFT)
+  scheduled_date             DateTime                 @db.Date
+  time_slot                  String                   @db.VarChar(50)
+  key_required               Boolean                  @default(false)
+  meeting_location           String?                  @db.VarChar(500)
+  key_location               String?                  @db.VarChar(500)
+  tenant_confirmation_status TenantConfirmationStatus @default(PENDING)
+  price_amount               Decimal                  @db.Decimal(12, 2)
+  payout_amount              Decimal                  @db.Decimal(12, 2)
+  pricing_rule_snapshot_json Json
+  notes                      String?                  @db.Text
+  custom_fields_json         Json?
+  reason                     String?                  @db.Text
+  cancellation_reason_code   String?                  @db.VarChar(50)
+  rejection_reason_code      String?                  @db.VarChar(50)
+  created_by_user_id         String
+  done_marked_by_user_id     String?
+  done_checked_by_user_id    String?
+  done_checked_at            DateTime?
+  created_at                 DateTime                 @default(now())
+  updated_at                 DateTime                 @updatedAt
+  deleted_at                 DateTime?
 
-  tenant                      Tenant                   @relation(fields: [tenant_id], references: [id])
-  branch                      Branch                   @relation(fields: [branch_id], references: [id])
-  property                    Property                 @relation(fields: [property_id], references: [id])
-  service_type                ServiceType              @relation(fields: [service_type_id], references: [id])
-  inspector                   Inspector?               @relation(fields: [inspector_id], references: [id])
-  service_group               ServiceGroup?            @relation(fields: [service_group_id], references: [id])
-  created_by_user             User                     @relation("AppointmentCreatedBy", fields: [created_by_user_id], references: [id])
-  done_marked_by_user         User?                    @relation("AppointmentDoneMarkedBy", fields: [done_marked_by_user_id], references: [id])
-  done_checked_by_user        User?                    @relation("AppointmentDoneCheckedBy", fields: [done_checked_by_user_id], references: [id])
+  tenant               Tenant        @relation(fields: [tenant_id], references: [id])
+  branch               Branch        @relation(fields: [branch_id], references: [id])
+  property             Property      @relation(fields: [property_id], references: [id])
+  service_type         ServiceType   @relation(fields: [service_type_id], references: [id])
+  inspector            Inspector?    @relation(fields: [inspector_id], references: [id])
+  service_group        ServiceGroup? @relation(fields: [service_group_id], references: [id])
+  created_by_user      User          @relation("AppointmentCreatedBy", fields: [created_by_user_id], references: [id])
+  done_marked_by_user  User?         @relation("AppointmentDoneMarkedBy", fields: [done_marked_by_user_id], references: [id])
+  done_checked_by_user User?         @relation("AppointmentDoneCheckedBy", fields: [done_checked_by_user_id], references: [id])
 
-  contact                     AppointmentContact?
-  restrictions                AppointmentRestriction[]
-  portal_tokens               TenantPortalToken[]
-  portal_activities           TenantPortalActivity[]
-  execution                   InspectionExecution?
-  inspection_assets           InspectionAsset[]
-  financial_entries           FinancialEntry[]
-  notifications               Notification[]
+  contact           AppointmentContact?
+  restrictions      AppointmentRestriction[]
+  portal_tokens     TenantPortalToken[]
+  portal_activities TenantPortalActivity[]
+  execution         InspectionExecution?
+  inspection_assets InspectionAsset[]
+  financial_entries FinancialEntry[]
+  notifications     Notification[]
 
   @@index([tenant_id, status])
   @@index([tenant_id, branch_id])
@@ -478,36 +479,36 @@ model Appointment {
 }
 
 model ServiceGroup {
-  id                    String             @id @default(uuid())
+  id                    String                     @id @default(uuid())
   tenant_id             String
   service_type_id       String
-  status                ServiceGroupStatus @default(DRAFT)
+  status                ServiceGroupStatus         @default(DRAFT)
   group_size            Int
-  offered_count         Int                @default(0)
-  confirmed_count       Int                @default(0)
-  scheduled_date        DateTime           @db.Date
-  time_window           String             @db.VarChar(11)
-  name                  String?            @db.VarChar(255)
-  region_name           String?            @db.VarChar(255)
-  description           String?            @db.Text
-  priority_mode         PriorityMode            @default(STANDARD)
+  offered_count         Int                        @default(0)
+  confirmed_count       Int                        @default(0)
+  scheduled_date        DateTime                   @db.Date
+  time_window           String                     @db.VarChar(11)
+  name                  String?                    @db.VarChar(255)
+  region_name           String?                    @db.VarChar(255)
+  description           String?                    @db.Text
+  priority_mode         PriorityMode               @default(STANDARD)
   priority_expires_at   DateTime?
   exception_type        ServiceGroupExceptionType?
-  exception_reason      String?                   @db.Text
+  exception_reason      String?                    @db.Text
   assigned_inspector_id String?
   service_region_id     String?
   published_at          DateTime?
   assigned_at           DateTime?
   created_by_user_id    String
-  created_at            DateTime           @default(now())
-  updated_at            DateTime           @updatedAt
+  created_at            DateTime                   @default(now())
+  updated_at            DateTime                   @updatedAt
 
-  tenant                Tenant             @relation(fields: [tenant_id], references: [id])
-  service_type          ServiceType        @relation(fields: [service_type_id], references: [id])
-  assigned_inspector    Inspector?         @relation(fields: [assigned_inspector_id], references: [id])
-  service_region        ServiceRegion?     @relation(fields: [service_region_id], references: [id], onDelete: Restrict)
-  created_by            User               @relation("ServiceGroupCreatedBy", fields: [created_by_user_id], references: [id])
-  appointments          Appointment[]
+  tenant             Tenant         @relation(fields: [tenant_id], references: [id])
+  service_type       ServiceType    @relation(fields: [service_type_id], references: [id])
+  assigned_inspector Inspector?     @relation(fields: [assigned_inspector_id], references: [id])
+  service_region     ServiceRegion? @relation(fields: [service_region_id], references: [id], onDelete: Restrict)
+  created_by         User           @relation("ServiceGroupCreatedBy", fields: [created_by_user_id], references: [id])
+  appointments       Appointment[]
 
   @@index([tenant_id])
   @@index([status])
@@ -519,53 +520,53 @@ model ServiceGroup {
 }
 
 model AppointmentContact {
-  id              String      @id @default(uuid())
-  appointment_id  String      @unique
-  tenant_name     String      @db.VarChar(200)
-  primary_email   String?     @db.VarChar(254)
-  secondary_email String?     @db.VarChar(254)
-  primary_phone   String?     @db.VarChar(30)
-  secondary_phone String?     @db.VarChar(30)
-  created_at      DateTime    @default(now())
-  updated_at      DateTime    @updatedAt
+  id              String   @id @default(uuid())
+  appointment_id  String   @unique
+  tenant_name     String   @db.VarChar(200)
+  primary_email   String?  @db.VarChar(254)
+  secondary_email String?  @db.VarChar(254)
+  primary_phone   String?  @db.VarChar(30)
+  secondary_phone String?  @db.VarChar(30)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
-  appointment     Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
 
   @@map("appointment_contacts")
 }
 
 model AppointmentRestriction {
-  id                      String            @id @default(uuid())
-  appointment_id          String
-  is_home                 Boolean
-  unavailable_days_json   Json?
-  unavailable_hours_json  Json?
-  notes                   String?           @db.Text
-  source                  RestrictionSource
-  created_at              DateTime          @default(now())
-  updated_at              DateTime          @updatedAt
+  id                     String            @id @default(uuid())
+  appointment_id         String
+  is_home                Boolean
+  unavailable_days_json  Json?
+  unavailable_hours_json Json?
+  notes                  String?           @db.Text
+  source                 RestrictionSource
+  created_at             DateTime          @default(now())
+  updated_at             DateTime          @updatedAt
 
-  appointment             Appointment       @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
 
   @@index([appointment_id])
   @@map("appointment_restrictions")
 }
 
 model AuditLog {
-  id              String         @id @default(uuid())
-  tenant_id       String?
-  actor_type      AuditActorType
-  actor_id        String?
-  entity_type     String         @db.VarChar(100)
-  entity_id       String?
-  action          String         @db.VarChar(200)
-  reason          String?        @db.Text
-  before_json     Json?
-  after_json      Json?
-  request_id      String?        @db.VarChar(100)
-  ip_address      String?        @db.VarChar(45)
-  metadata_json   Json?
-  created_at      DateTime       @default(now())
+  id            String         @id @default(uuid())
+  tenant_id     String?
+  actor_type    AuditActorType
+  actor_id      String?
+  entity_type   String         @db.VarChar(100)
+  entity_id     String?
+  action        String         @db.VarChar(200)
+  reason        String?        @db.Text
+  before_json   Json?
+  after_json    Json?
+  request_id    String?        @db.VarChar(100)
+  ip_address    String?        @db.VarChar(45)
+  metadata_json Json?
+  created_at    DateTime       @default(now())
 
   @@index([entity_type, entity_id])
   @@index([actor_id])
@@ -665,8 +666,8 @@ model TenantPortalToken {
   created_at       DateTime                @default(now())
   updated_at       DateTime                @updatedAt
 
-  appointment      Appointment             @relation(fields: [appointment_id], references: [id])
-  activities       TenantPortalActivity[]
+  appointment Appointment            @relation(fields: [appointment_id], references: [id])
+  activities  TenantPortalActivity[]
 
   @@index([appointment_id])
   @@index([status])
@@ -685,8 +686,8 @@ model TenantPortalActivity {
   user_agent             String?
   created_at             DateTime           @default(now())
 
-  appointment            Appointment        @relation(fields: [appointment_id], references: [id])
-  token                  TenantPortalToken  @relation(fields: [tenant_portal_token_id], references: [id])
+  appointment Appointment       @relation(fields: [appointment_id], references: [id])
+  token       TenantPortalToken @relation(fields: [tenant_portal_token_id], references: [id])
 
   @@index([appointment_id])
   @@index([tenant_portal_token_id])
@@ -696,25 +697,25 @@ model TenantPortalActivity {
 }
 
 model InspectionExecution {
-  id                String    @id @default(uuid())
-  appointment_id    String    @unique
-  inspector_id      String
-  started_at        DateTime
-  finished_at       DateTime?
-  resumed_at        DateTime?
-  start_latitude    Decimal   @db.Decimal(10, 7)
-  start_longitude   Decimal   @db.Decimal(10, 7)
-  finish_latitude                Decimal?  @db.Decimal(10, 7)
-  finish_longitude               Decimal?  @db.Decimal(10, 7)
-  geolocation_distance_meters    Decimal?  @db.Decimal(10, 2)
-  checklist_json                 Json?
-  notes             String?
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  id                          String    @id @default(uuid())
+  appointment_id              String    @unique
+  inspector_id                String
+  started_at                  DateTime
+  finished_at                 DateTime?
+  resumed_at                  DateTime?
+  start_latitude              Decimal   @db.Decimal(10, 7)
+  start_longitude             Decimal   @db.Decimal(10, 7)
+  finish_latitude             Decimal?  @db.Decimal(10, 7)
+  finish_longitude            Decimal?  @db.Decimal(10, 7)
+  geolocation_distance_meters Decimal?  @db.Decimal(10, 2)
+  checklist_json              Json?
+  notes                       String?
+  created_at                  DateTime  @default(now())
+  updated_at                  DateTime  @updatedAt
 
-  appointment       Appointment       @relation(fields: [appointment_id], references: [id])
-  inspector         Inspector         @relation(fields: [inspector_id], references: [id])
-  assets            InspectionAsset[]
+  appointment Appointment       @relation(fields: [appointment_id], references: [id])
+  inspector   Inspector         @relation(fields: [inspector_id], references: [id])
+  assets      InspectionAsset[]
 
   @@index([inspector_id])
   @@index([started_at])
@@ -722,20 +723,20 @@ model InspectionExecution {
 }
 
 model InspectionAsset {
-  id                       String               @id @default(uuid())
-  appointment_id           String
-  inspection_execution_id  String
-  storage_key              String               @unique
-  mime_type                String
-  size_bytes               Int?
-  kind                     InspectionAssetKind
-  status                   InspectionAssetStatus @default(PENDING)
-  uploaded_by              String
-  upload_expires_at        DateTime?
-  created_at               DateTime             @default(now())
+  id                      String                @id @default(uuid())
+  appointment_id          String
+  inspection_execution_id String
+  storage_key             String                @unique
+  mime_type               String
+  size_bytes              Int?
+  kind                    InspectionAssetKind
+  status                  InspectionAssetStatus @default(PENDING)
+  uploaded_by             String
+  upload_expires_at       DateTime?
+  created_at              DateTime              @default(now())
 
-  appointment              Appointment          @relation(fields: [appointment_id], references: [id])
-  execution                InspectionExecution  @relation(fields: [inspection_execution_id], references: [id])
+  appointment Appointment         @relation(fields: [appointment_id], references: [id])
+  execution   InspectionExecution @relation(fields: [inspection_execution_id], references: [id])
 
   @@index([appointment_id])
   @@index([inspection_execution_id])
@@ -745,13 +746,13 @@ model InspectionAsset {
 }
 
 model IdempotencyKey {
-  id            String   @id @default(uuid())
-  key           String   @unique
-  scope         String
-  response      Json
-  payload_hash  String?  @db.VarChar(64)
-  expires_at    DateTime
-  created_at    DateTime @default(now())
+  id           String   @id @default(uuid())
+  key          String   @unique
+  scope        String
+  response     Json
+  payload_hash String?  @db.VarChar(64)
+  expires_at   DateTime
+  created_at   DateTime @default(now())
 
   @@index([key, scope])
   @@index([expires_at])
@@ -759,36 +760,36 @@ model IdempotencyKey {
 }
 
 model FinancialEntry {
-  id                    String               @id @default(uuid())
-  tenant_id             String
-  appointment_id        String?
-  inspector_id          String?
-  entry_type            FinancialEntryType
-  amount                Decimal              @db.Decimal(12, 2)
-  currency              String               @db.Char(3)
-  status                FinancialEntryStatus @default(PENDING)
-  description           String               @db.VarChar(500)
-  effective_at          DateTime
-  initiated_by_user_id  String
-  approved_by_user_id   String?
-  approved_at           DateTime?
-  reference_entry_id    String?
-  reason                String?
-  created_at            DateTime             @default(now())
-  updated_at            DateTime             @updatedAt
+  id                   String               @id @default(uuid())
+  tenant_id            String
+  appointment_id       String?
+  inspector_id         String?
+  entry_type           FinancialEntryType
+  amount               Decimal              @db.Decimal(12, 2)
+  currency             String               @db.Char(3)
+  status               FinancialEntryStatus @default(PENDING)
+  description          String               @db.VarChar(500)
+  effective_at         DateTime
+  initiated_by_user_id String
+  approved_by_user_id  String?
+  approved_at          DateTime?
+  reference_entry_id   String?
+  reason               String?
+  created_at           DateTime             @default(now())
+  updated_at           DateTime             @updatedAt
 
-  tenant                Tenant               @relation(fields: [tenant_id], references: [id])
-  appointment           Appointment?         @relation(fields: [appointment_id], references: [id])
-  inspector             Inspector?           @relation(fields: [inspector_id], references: [id])
-  initiatedBy           User                 @relation("EntryInitiator", fields: [initiated_by_user_id], references: [id])
-  approvedBy            User?                @relation("EntryApprover", fields: [approved_by_user_id], references: [id])
-  voided_by_user_id     String?
-  voided_at             DateTime?
-  void_reason           String?
+  tenant            Tenant       @relation(fields: [tenant_id], references: [id])
+  appointment       Appointment? @relation(fields: [appointment_id], references: [id])
+  inspector         Inspector?   @relation(fields: [inspector_id], references: [id])
+  initiatedBy       User         @relation("EntryInitiator", fields: [initiated_by_user_id], references: [id])
+  approvedBy        User?        @relation("EntryApprover", fields: [approved_by_user_id], references: [id])
+  voided_by_user_id String?
+  voided_at         DateTime?
+  void_reason       String?
 
-  referenceEntry        FinancialEntry?      @relation("EntryReference", fields: [reference_entry_id], references: [id])
-  relatedEntries        FinancialEntry[]     @relation("EntryReference")
-  voidedBy              User?                @relation("EntryVoider", fields: [voided_by_user_id], references: [id])
+  referenceEntry FinancialEntry?  @relation("EntryReference", fields: [reference_entry_id], references: [id])
+  relatedEntries FinancialEntry[] @relation("EntryReference")
+  voidedBy       User?            @relation("EntryVoider", fields: [voided_by_user_id], references: [id])
 
   @@index([tenant_id])
   @@index([appointment_id])
@@ -801,29 +802,32 @@ model FinancialEntry {
 }
 
 model InspectorInvoice {
-  id                    String                  @id @default(uuid())
-  inspector_id          String
-  period_start          DateTime                @db.Date
-  period_end            DateTime                @db.Date
-  period_type           BillingPeriodType
-  status                InspectorInvoiceStatus  @default(OPEN)
-  total_amount          Decimal                 @default(0) @db.Decimal(12, 2)
-  currency              String                  @db.Char(3)
-  file_key              String?
-  generated_by_user_id  String?
-  generated_at          DateTime?
-  paid_at               DateTime?
-  notes                 String?
-  created_at            DateTime                @default(now())
-  updated_at            DateTime                @updatedAt
+  id                   String                 @id @default(uuid())
+  inspector_id         String
+  period_start         DateTime               @db.Date
+  period_end           DateTime               @db.Date
+  period_type          BillingPeriodType
+  status               InspectorInvoiceStatus @default(OPEN)
+  total_amount         Decimal                @default(0) @db.Decimal(12, 2)
+  currency             String                 @db.Char(3)
+  file_key             String?
+  generated_by_user_id String?
+  generated_at         DateTime?
+  paid_at              DateTime?
+  paid_by_user_id      String?
+  payment_reference    String?                @db.VarChar(255)
+  notes                String?
+  created_at           DateTime               @default(now())
+  updated_at           DateTime               @updatedAt
 
-  inspector             Inspector               @relation(fields: [inspector_id], references: [id])
-  generatedBy           User?                   @relation(fields: [generated_by_user_id], references: [id])
+  inspector   Inspector @relation(fields: [inspector_id], references: [id])
+  generatedBy User?     @relation("InspectorInvoiceGeneratedBy", fields: [generated_by_user_id], references: [id])
+  paidBy      User?     @relation("InspectorInvoicePaidBy", fields: [paid_by_user_id], references: [id])
 
-  previous_invoice_id   String?                 @unique
+  previous_invoice_id String? @unique
 
-  previousInvoice       InspectorInvoice?       @relation("InspectorInvoiceChain", fields: [previous_invoice_id], references: [id])
-  supersededBy          InspectorInvoice?       @relation("InspectorInvoiceChain")
+  previousInvoice InspectorInvoice? @relation("InspectorInvoiceChain", fields: [previous_invoice_id], references: [id])
+  supersededBy    InspectorInvoice? @relation("InspectorInvoiceChain")
 
   @@unique([inspector_id, period_start, period_end])
   @@index([inspector_id, status])
@@ -839,28 +843,28 @@ enum TenantInvoiceStatus {
 }
 
 model TenantInvoice {
-  id                    String               @id @default(uuid())
-  tenant_id             String
-  period_from           DateTime             @db.Date
-  period_to             DateTime             @db.Date
-  total_debit           Decimal              @default(0) @db.Decimal(12, 2)
-  total_refund          Decimal              @default(0) @db.Decimal(12, 2)
-  total_adjustment      Decimal              @default(0) @db.Decimal(12, 2)
-  net_amount            Decimal              @default(0) @db.Decimal(12, 2)
-  currency              String               @db.Char(3)
-  status                TenantInvoiceStatus  @default(OPEN)
-  file_key              String?
-  previous_invoice_id   String?              @unique
-  generated_by_user_id  String?
-  generated_at          DateTime?
-  notes                 String?
-  created_at            DateTime             @default(now())
-  updated_at            DateTime             @updatedAt
+  id                   String              @id @default(uuid())
+  tenant_id            String
+  period_from          DateTime            @db.Date
+  period_to            DateTime            @db.Date
+  total_debit          Decimal             @default(0) @db.Decimal(12, 2)
+  total_refund         Decimal             @default(0) @db.Decimal(12, 2)
+  total_adjustment     Decimal             @default(0) @db.Decimal(12, 2)
+  net_amount           Decimal             @default(0) @db.Decimal(12, 2)
+  currency             String              @db.Char(3)
+  status               TenantInvoiceStatus @default(OPEN)
+  file_key             String?
+  previous_invoice_id  String?             @unique
+  generated_by_user_id String?
+  generated_at         DateTime?
+  notes                String?
+  created_at           DateTime            @default(now())
+  updated_at           DateTime            @updatedAt
 
-  tenant                Tenant               @relation(fields: [tenant_id], references: [id])
-  generatedBy           User?                @relation(fields: [generated_by_user_id], references: [id])
-  previousInvoice       TenantInvoice?       @relation("TenantInvoiceChain", fields: [previous_invoice_id], references: [id])
-  supersededBy          TenantInvoice?       @relation("TenantInvoiceChain")
+  tenant          Tenant         @relation(fields: [tenant_id], references: [id])
+  generatedBy     User?          @relation(fields: [generated_by_user_id], references: [id])
+  previousInvoice TenantInvoice? @relation("TenantInvoiceChain", fields: [previous_invoice_id], references: [id])
+  supersededBy    TenantInvoice? @relation("TenantInvoiceChain")
 
   @@index([tenant_id, status])
   @@index([period_from, period_to])
@@ -868,28 +872,28 @@ model TenantInvoice {
 }
 
 model Notification {
-  id                   String             @id @default(uuid())
-  tenant_id            String
-  appointment_id       String?
-  recipient            String             @db.VarChar(320)
-  channel              NotificationChannel
-  template_code        String             @db.VarChar(100)
-  status               NotificationStatus @default(PENDING)
-  provider_name        String?            @db.VarChar(50)
-  provider_message_id  String?            @db.VarChar(200)
-  sent_at              DateTime?
-  delivered_at         DateTime?
-  failed_at            DateTime?
-  failure_reason       String?            @db.Text
-  payload_json         Json
-  retry_count          Int                @default(0)
-  next_retry_at        DateTime?
-  created_at           DateTime           @default(now())
-  updated_at           DateTime           @updatedAt
+  id                  String              @id @default(uuid())
+  tenant_id           String
+  appointment_id      String?
+  recipient           String              @db.VarChar(320)
+  channel             NotificationChannel
+  template_code       String              @db.VarChar(100)
+  status              NotificationStatus  @default(PENDING)
+  provider_name       String?             @db.VarChar(50)
+  provider_message_id String?             @db.VarChar(200)
+  sent_at             DateTime?
+  delivered_at        DateTime?
+  failed_at           DateTime?
+  failure_reason      String?             @db.Text
+  payload_json        Json
+  retry_count         Int                 @default(0)
+  next_retry_at       DateTime?
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
 
-  tenant               Tenant             @relation(fields: [tenant_id], references: [id])
-  appointment          Appointment?       @relation(fields: [appointment_id], references: [id])
-  attempts             NotificationAttempt[]
+  tenant      Tenant                @relation(fields: [tenant_id], references: [id])
+  appointment Appointment?          @relation(fields: [appointment_id], references: [id])
+  attempts    NotificationAttempt[]
 
   @@index([tenant_id])
   @@index([appointment_id])
@@ -901,21 +905,21 @@ model Notification {
 }
 
 model NotificationTemplate {
-  id                          String                  @id @default(uuid())
+  id                          String                 @id @default(uuid())
   tenant_id                   String?
-  template_code               String                  @db.VarChar(100)
+  template_code               String                 @db.VarChar(100)
   channel                     NotificationChannel
-  subject                     String?                 @db.VarChar(255)
-  body_html                   String?                 @db.Text
-  body_text                   String                  @db.Text
+  subject                     String?                @db.VarChar(255)
+  body_html                   String?                @db.Text
+  body_text                   String                 @db.Text
   variables_json              Json
-  is_active                   Boolean                 @default(true)
-  whatsapp_approval_status    WhatsAppApprovalStatus  @default(PENDING)
-  whatsapp_approval_reference String?                 @db.VarChar(255)
-  created_at                  DateTime                @default(now())
-  updated_at                  DateTime                @updatedAt
+  is_active                   Boolean                @default(true)
+  whatsapp_approval_status    WhatsAppApprovalStatus @default(PENDING)
+  whatsapp_approval_reference String?                @db.VarChar(255)
+  created_at                  DateTime               @default(now())
+  updated_at                  DateTime               @updatedAt
 
-  tenant                      Tenant?                 @relation(fields: [tenant_id], references: [id])
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
 
   @@unique([tenant_id, template_code, channel])
   @@index([template_code, channel])
@@ -924,15 +928,15 @@ model NotificationTemplate {
 }
 
 model NotificationAttempt {
-  id                String                    @id @default(uuid())
-  notification_id   String
-  attempt_number    Int
-  status            NotificationAttemptStatus @default(PENDING)
-  provider_error    String?                   @db.Text
-  started_at        DateTime
-  finished_at       DateTime?
+  id              String                    @id @default(uuid())
+  notification_id String
+  attempt_number  Int
+  status          NotificationAttemptStatus @default(PENDING)
+  provider_error  String?                   @db.Text
+  started_at      DateTime
+  finished_at     DateTime?
 
-  notification      Notification              @relation(fields: [notification_id], references: [id])
+  notification Notification @relation(fields: [notification_id], references: [id])
 
   @@index([notification_id])
   @@index([notification_id, attempt_number])
@@ -963,25 +967,25 @@ enum ReportFormat {
 }
 
 model Report {
-  id                     String       @id @default(uuid())
-  tenant_id              String?
-  report_type            ReportType
-  filters_json           Json
-  format                 ReportFormat @default(XLSX)
-  status                 ReportStatus @default(PENDING)
-  file_key               String?
-  requested_by_user_id   String
-  started_at             DateTime?
-  completed_at           DateTime?
-  failed_at              DateTime?
-  error_message          String?
-  row_count              Int?
-  expires_at             DateTime?
-  created_at             DateTime     @default(now())
-  updated_at             DateTime     @updatedAt
+  id                   String       @id @default(uuid())
+  tenant_id            String?
+  report_type          ReportType
+  filters_json         Json
+  format               ReportFormat @default(XLSX)
+  status               ReportStatus @default(PENDING)
+  file_key             String?
+  requested_by_user_id String
+  started_at           DateTime?
+  completed_at         DateTime?
+  failed_at            DateTime?
+  error_message        String?
+  row_count            Int?
+  expires_at           DateTime?
+  created_at           DateTime     @default(now())
+  updated_at           DateTime     @updatedAt
 
-  tenant                 Tenant?      @relation(fields: [tenant_id], references: [id])
-  requestedBy            User         @relation(fields: [requested_by_user_id], references: [id])
+  tenant      Tenant? @relation(fields: [tenant_id], references: [id])
+  requestedBy User    @relation(fields: [requested_by_user_id], references: [id])
 
   @@index([tenant_id])
   @@index([report_type])
@@ -1006,8 +1010,8 @@ model AppointmentImport {
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  tenant             Tenant   @relation(fields: [tenant_id], references: [id])
-  created_by         User     @relation("importCreatedBy", fields: [created_by_user_id], references: [id])
+  tenant     Tenant @relation(fields: [tenant_id], references: [id])
+  created_by User   @relation("importCreatedBy", fields: [created_by_user_id], references: [id])
 
   @@index([tenant_id])
   @@index([status])
@@ -1030,8 +1034,8 @@ model PropertyImport {
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  tenant             Tenant   @relation(fields: [tenant_id], references: [id])
-  created_by         User     @relation("propertyImportCreatedBy", fields: [created_by_user_id], references: [id])
+  tenant     Tenant @relation(fields: [tenant_id], references: [id])
+  created_by User   @relation("propertyImportCreatedBy", fields: [created_by_user_id], references: [id])
 
   @@index([tenant_id])
   @@index([status])
@@ -1041,20 +1045,20 @@ model PropertyImport {
 }
 
 model AppointmentTimeSlot {
-  id          String    @id @default(uuid())
-  tenant_id   String
-  branch_id   String?
-  label       String    @db.VarChar(100)
-  start_time  String    @db.VarChar(5)
-  end_time    String    @db.VarChar(5)
-  sort_order  Int       @default(0)
-  is_active   Boolean   @default(true)
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-  deleted_at  DateTime?
+  id         String    @id @default(uuid())
+  tenant_id  String
+  branch_id  String?
+  label      String    @db.VarChar(100)
+  start_time String    @db.VarChar(5)
+  end_time   String    @db.VarChar(5)
+  sort_order Int       @default(0)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
 
-  tenant      Tenant    @relation(fields: [tenant_id], references: [id])
-  branch      Branch?   @relation(fields: [branch_id], references: [id])
+  tenant Tenant  @relation(fields: [tenant_id], references: [id])
+  branch Branch? @relation(fields: [branch_id], references: [id])
 
   @@unique([tenant_id, branch_id, start_time, end_time])
   @@index([tenant_id, branch_id, is_active])
@@ -1068,21 +1072,21 @@ enum RegionStatus {
 }
 
 model ServiceRegion {
-  id                  String        @id @default(uuid())
-  tenant_id           String
-  name                String        @db.VarChar(255)
-  geom                Unsupported("GEOMETRY(Polygon, 4326)")?
-  geojson             Json          @default("{}")
-  color               String        @default("#3b82f6") @db.VarChar(20)
-  status              RegionStatus  @default(ACTIVE)
-  created_by_user_id  String?
-  created_at          DateTime      @default(now())
-  updated_at          DateTime      @updatedAt
+  id                 String                                  @id @default(uuid())
+  tenant_id          String
+  name               String                                  @db.VarChar(255)
+  geom               Unsupported("GEOMETRY(Polygon, 4326)")?
+  geojson            Json                                    @default("{}")
+  color              String                                  @default("#3b82f6") @db.VarChar(20)
+  status             RegionStatus                            @default(ACTIVE)
+  created_by_user_id String?
+  created_at         DateTime                                @default(now())
+  updated_at         DateTime                                @updatedAt
 
-  tenant              Tenant        @relation(fields: [tenant_id], references: [id])
-  created_by          User?         @relation("ServiceRegionCreatedBy", fields: [created_by_user_id], references: [id])
-  inspector_regions   InspectorRegion[]
-  service_groups      ServiceGroup[]
+  tenant            Tenant            @relation(fields: [tenant_id], references: [id])
+  created_by        User?             @relation("ServiceRegionCreatedBy", fields: [created_by_user_id], references: [id])
+  inspector_regions InspectorRegion[]
+  service_groups    ServiceGroup[]
 
   @@unique([tenant_id, name])
   @@index([tenant_id])
@@ -1091,13 +1095,13 @@ model ServiceRegion {
 }
 
 model InspectorRegion {
-  inspector_id  String
-  region_id     String
-  assigned_at   DateTime      @default(now())
-  assigned_by   String?
+  inspector_id String
+  region_id    String
+  assigned_at  DateTime @default(now())
+  assigned_by  String?
 
-  inspector     Inspector     @relation(fields: [inspector_id], references: [id], onDelete: Cascade)
-  region        ServiceRegion @relation(fields: [region_id], references: [id], onDelete: Cascade)
+  inspector Inspector     @relation(fields: [inspector_id], references: [id], onDelete: Cascade)
+  region    ServiceRegion @relation(fields: [region_id], references: [id], onDelete: Cascade)
 
   @@id([inspector_id, region_id])
   @@index([region_id])
@@ -1105,22 +1109,22 @@ model InspectorRegion {
 }
 
 model ScheduledReport {
-  id                  String       @id @default(uuid())
-  tenant_id           String
-  report_type         ReportType
-  filters_json        Json
-  format              ReportFormat @default(XLSX)
-  cron_expression     String       @db.VarChar(100)
-  delivery_email      String       @db.VarChar(254)
-  is_active           Boolean      @default(true)
-  last_run_at         DateTime?
-  next_run_at         DateTime?
-  created_by_user_id  String
-  created_at          DateTime     @default(now())
-  updated_at          DateTime     @updatedAt
+  id                 String       @id @default(uuid())
+  tenant_id          String
+  report_type        ReportType
+  filters_json       Json
+  format             ReportFormat @default(XLSX)
+  cron_expression    String       @db.VarChar(100)
+  delivery_email     String       @db.VarChar(254)
+  is_active          Boolean      @default(true)
+  last_run_at        DateTime?
+  next_run_at        DateTime?
+  created_by_user_id String
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @updatedAt
 
-  tenant              Tenant       @relation(fields: [tenant_id], references: [id])
-  createdBy           User         @relation("scheduledReportCreatedBy", fields: [created_by_user_id], references: [id])
+  tenant    Tenant @relation(fields: [tenant_id], references: [id])
+  createdBy User   @relation("scheduledReportCreatedBy", fields: [created_by_user_id], references: [id])
 
   @@index([tenant_id])
   @@index([is_active, next_run_at])
@@ -1129,14 +1133,14 @@ model ScheduledReport {
 }
 
 model NotificationConsent {
-  id            String              @id @default(uuid())
-  recipient     String              @db.VarChar(320)
-  channel       NotificationChannel
-  tenant_id     String
-  opted_out     Boolean             @default(false)
-  opted_out_at  DateTime?
-  created_at    DateTime            @default(now())
-  updated_at    DateTime            @updatedAt
+  id           String              @id @default(uuid())
+  recipient    String              @db.VarChar(320)
+  channel      NotificationChannel
+  tenant_id    String
+  opted_out    Boolean             @default(false)
+  opted_out_at DateTime?
+  created_at   DateTime            @default(now())
+  updated_at   DateTime            @updatedAt
 
   @@unique([recipient, channel, tenant_id])
   @@index([tenant_id])

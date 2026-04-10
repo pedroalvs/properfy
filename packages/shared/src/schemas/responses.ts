@@ -534,6 +534,9 @@ export const invoiceResponseSchema = z.object({
   generatedByUserId: z.string().uuid().nullable().optional(),
   generatedAt: dateStrNullable(),
   paidAt: dateStrNullable(),
+  // Payment reconciliation fields (feature 017) — populated when invoice transitions to PAID
+  paidByUserId: z.string().uuid().nullable().optional(),
+  paymentReference: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   createdAt: dateStr(),
   updatedAt: dateStr().optional(),

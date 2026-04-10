@@ -66,6 +66,9 @@ export interface Invoice {
   fileKey: string | null;
   generatedAt: string | null;
   paidAt: string | null;
+  // Payment reconciliation fields (feature 017)
+  paidByUserId: string | null;
+  paymentReference: string | null;
   createdAt: string;
   updatedAt?: string;
 }

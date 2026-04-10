@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -9,6 +9,9 @@ import { useInvoiceDetail } from '../hooks/useInvoiceDetail';
 import { useInvoiceDownload } from '../hooks/useInvoiceDownload';
 import { formatDateTime, formatDate } from '@/lib/format-date';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
+import { usePermissions } from '@/hooks/usePermissions';
+import { MarkInvoicePaidModal } from './MarkInvoicePaidModal';
+import { ReversePaymentModal } from './ReversePaymentModal';
 
 const FREQUENCY_LABELS: Record<string, string> = {
   WEEKLY: 'Weekly',
@@ -33,18 +36,27 @@ export function InvoiceDetailDrawer({
   onClose,
   resolveInspectorLabel,
 }: InvoiceDetailDrawerProps) {
-  const { invoice, isLoading } = useInvoiceDetail(invoiceId);
+  const { invoice, isLoading, refetch } = useInvoiceDetail(invoiceId);
   const { download, isDownloading } = useInvoiceDownload();
+  const { hasRole } = usePermissions();
+  const canModifyPayments = hasRole('AM', 'OP');
   const inspectorLabel = invoice
     ? (resolveInspectorLabel?.(invoice.inspectorId) ?? invoice.inspectorId)
     : '';
   const canDownload = !!invoice && invoice.status !== 'OPEN' && !!invoice.fileKey;
+
+  const [markPaidOpen, setMarkPaidOpen] = useState(false);
+  const [reverseOpen, setReverseOpen] = useState(false);
 
   const handleDownload = useCallback(() => {
     if (invoiceId) {
       download(invoiceId);
     }
   }, [invoiceId, download]);
+
+  const handlePaymentSuccess = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="wide">
@@ -74,6 +86,26 @@ export function InvoiceDetailDrawer({
                     <i className="mdi mdi-download-outline text-base" />
                     Download
                   </Button>
+                  {canModifyPayments && invoice.status === 'CLOSED' && (
+                    <Button
+                      variant="primary"
+                      onClick={() => setMarkPaidOpen(true)}
+                      aria-label="Mark invoice as paid"
+                    >
+                      <i className="mdi mdi-cash-check text-base" />
+                      Mark as Paid
+                    </Button>
+                  )}
+                  {canModifyPayments && invoice.status === 'PAID' && (
+                    <Button
+                      variant="outlined"
+                      onClick={() => setReverseOpen(true)}
+                      aria-label="Reverse payment"
+                    >
+                      <i className="mdi mdi-undo-variant text-base" />
+                      Reverse Payment
+                    </Button>
+                  )}
                 </>
               }
             />
@@ -103,6 +135,18 @@ export function InvoiceDetailDrawer({
                   <DetailRow label="Created at" value={formatDateTime(invoice.createdAt)} />
                   <DetailRow label="Generated at" value={invoice.generatedAt ? formatDateTime(invoice.generatedAt) : 'Pending generation'} />
                   <DetailRow label="Paid at" value={invoice.paidAt ? formatDateTime(invoice.paidAt) : 'Not paid'} />
+                  {invoice.status === 'PAID' && (
+                    <>
+                      <DetailRow
+                        label="Paid by"
+                        value={invoice.paidByUserId ?? 'Unknown user'}
+                      />
+                      <DetailRow
+                        label="Payment reference"
+                        value={invoice.paymentReference ?? '—'}
+                      />
+                    </>
+                  )}
                   <DetailRow label="Updated at" value={formatDateTime(invoice.updatedAt ?? invoice.createdAt)} />
                 </FormSection>
               </div>
@@ -110,6 +154,22 @@ export function InvoiceDetailDrawer({
           </>
         ) : null}
       </div>
+      {invoice && (
+        <>
+          <MarkInvoicePaidModal
+            open={markPaidOpen}
+            onClose={() => setMarkPaidOpen(false)}
+            invoiceIds={[invoice.id]}
+            onSuccess={handlePaymentSuccess}
+          />
+          <ReversePaymentModal
+            open={reverseOpen}
+            onClose={() => setReverseOpen(false)}
+            invoiceId={invoice.id}
+            onSuccess={handlePaymentSuccess}
+          />
+        </>
+      )}
     </DrawerPanel>
   );
 }

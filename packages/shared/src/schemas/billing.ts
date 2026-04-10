@@ -51,8 +51,60 @@ export type CancelFinancialEntryInput = z.infer<typeof cancelFinancialEntrySchem
 
 export const markInvoicePaidSchema = z.object({
   paidAt: z.string().datetime().optional(),
+  paymentReference: z.string().max(255).optional(),
 });
 export type MarkInvoicePaidInput = z.infer<typeof markInvoicePaidSchema>;
+
+export const batchMarkInvoicesPaidSchema = z.object({
+  invoiceIds: z.array(z.string().uuid()).min(1).max(100),
+  paidAt: z.string().datetime().optional(),
+  paymentReference: z.string().max(255).optional(),
+});
+export type BatchMarkInvoicesPaidInput = z.infer<typeof batchMarkInvoicesPaidSchema>;
+
+export const batchMarkInvoicesPaidResponseSchema = z.object({
+  processed: z.array(
+    z.object({
+      id: z.string().uuid(),
+      status: z.literal('PAID'),
+    }),
+  ),
+  skipped: z.array(
+    z.object({
+      id: z.string().uuid(),
+      reason: z.enum(['ALREADY_PAID', 'NOT_CLOSED', 'NOT_FOUND', 'TENANT_SCOPE']),
+    }),
+  ),
+});
+export type BatchMarkInvoicesPaidResponse = z.infer<typeof batchMarkInvoicesPaidResponseSchema>;
+
+export const reverseInvoicePaymentSchema = z.object({
+  reason: z.string().min(1).max(1000),
+});
+export type ReverseInvoicePaymentInput = z.infer<typeof reverseInvoicePaymentSchema>;
+
+export const reconciliationSummaryQuerySchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+  inspectorId: z.string().uuid().optional(),
+}).refine(
+  (d) => new Date(d.to) >= new Date(d.from),
+  { message: 'to must be >= from' },
+);
+export type ReconciliationSummaryQuery = z.infer<typeof reconciliationSummaryQuerySchema>;
+
+export const reconciliationSummaryResponseSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  inspectorId: z.string().uuid().nullable(),
+  currency: z.string().length(3),
+  totalInvoicedAmount: z.number(),
+  totalPaidAmount: z.number(),
+  totalUnpaidAmount: z.number(),
+  paidCount: z.number().int().nonnegative(),
+  unpaidCount: z.number().int().nonnegative(),
+});
+export type ReconciliationSummaryResponse = z.infer<typeof reconciliationSummaryResponseSchema>;
 
 export const listInvoicesQuerySchema = z.object({
   inspectorId: z.string().uuid().optional(),

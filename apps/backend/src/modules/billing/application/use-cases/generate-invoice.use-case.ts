@@ -118,6 +118,8 @@ export class GenerateInvoiceUseCase {
       generatedByUserId: actor.userId,
       generatedAt: now,
       paidAt: null,
+      paidByUserId: null,
+      paymentReference: null,
       notes: null,
       createdAt: now,
       updatedAt: now,

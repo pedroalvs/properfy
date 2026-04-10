@@ -1,5 +1,5 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
-import { RowActions } from '@/components/data/RowActions';
+import { RowActions, type RowAction } from '@/components/data/RowActions';
 import { formatDate } from '@/lib/format-date';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
 import type { Invoice } from '../types';
@@ -19,6 +19,11 @@ interface InvoiceTableProps {
   resolveInspectorLabel?: (inspectorId: string) => string;
   onView?: (invoice: Invoice) => void;
   onDownload?: (invoice: Invoice) => void;
+  onMarkPaid?: (invoiceId: string) => void;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAllClosed?: () => void;
+  canModifyPayments?: boolean;
 }
 
 export function InvoiceTable({
@@ -30,8 +35,54 @@ export function InvoiceTable({
   resolveInspectorLabel,
   onView,
   onDownload,
+  onMarkPaid,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAllClosed,
+  canModifyPayments = false,
 }: InvoiceTableProps) {
+  const closedIds = data.filter((row) => row.status === 'CLOSED').map((row) => row.id);
+  const allClosedSelected =
+    !!selectedIds && closedIds.length > 0 && closedIds.every((id) => selectedIds.has(id));
+
+  const selectionColumn: DataTableColumn<Invoice>[] =
+    canModifyPayments && selectedIds && onToggleSelect
+      ? [
+          {
+            key: 'select',
+            label: '',
+            width: '48px',
+            render: (row) => {
+              const isClosed = row.status === 'CLOSED';
+              return (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(row.id)}
+                  disabled={!isClosed}
+                  onChange={() => onToggleSelect(row.id)}
+                  className="accent-primary"
+                  aria-label={isClosed ? `Select invoice ${row.id}` : undefined}
+                />
+              );
+            },
+            headerRender: onToggleSelectAllClosed
+              ? () => (
+                  <input
+                    type="checkbox"
+                    checked={!!allClosedSelected}
+                    onChange={onToggleSelectAllClosed}
+                    className="accent-primary"
+                    aria-label="Select all closed invoices"
+                    disabled={closedIds.length === 0}
+                  />
+                )
+              : undefined,
+          },
+        ]
+      : [];
+
   const columns: DataTableColumn<Invoice>[] = [
+    ...selectionColumn,
     {
       key: 'inspectorId',
       label: 'Inspector',
@@ -77,24 +128,30 @@ export function InvoiceTable({
     {
       key: 'actions',
       label: '',
-      width: '80px',
-      render: (row) => (
-        <RowActions
-          actions={[
-            {
-              icon: 'mdi-eye-outline',
-              label: 'View',
-              onClick: () => onView?.(row),
-            },
-            {
-              icon: 'mdi-download-outline',
-              label: 'Download',
-              onClick: () => onDownload?.(row),
-              disabled: row.status === 'OPEN' || !row.fileKey,
-            },
-          ]}
-        />
-      ),
+      width: '120px',
+      render: (row) => {
+        const actions: RowAction[] = [
+          {
+            icon: 'mdi-eye-outline',
+            label: 'View',
+            onClick: () => onView?.(row),
+          },
+          {
+            icon: 'mdi-download-outline',
+            label: 'Download',
+            onClick: () => onDownload?.(row),
+            disabled: row.status === 'OPEN' || !row.fileKey,
+          },
+        ];
+        if (canModifyPayments && row.status === 'CLOSED' && onMarkPaid) {
+          actions.push({
+            icon: 'mdi-cash-check',
+            label: 'Mark as Paid',
+            onClick: () => onMarkPaid(row.id),
+          });
+        }
+        return <RowActions actions={actions} />;
+      },
     },
   ];
 

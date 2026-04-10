@@ -21,6 +21,8 @@ export interface GetInvoiceOutput {
   generatedByUserId: string | null;
   generatedAt: string | null;
   paidAt: string | null;
+  paidByUserId: string | null;
+  paymentReference: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -65,6 +67,8 @@ export class GetInvoiceUseCase {
       generatedByUserId: invoice.generatedByUserId,
       generatedAt: invoice.generatedAt ? invoice.generatedAt.toISOString() : null,
       paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : null,
+      paidByUserId: invoice.paidByUserId,
+      paymentReference: invoice.paymentReference,
       notes: invoice.notes,
       createdAt: invoice.createdAt.toISOString(),
       updatedAt: invoice.updatedAt.toISOString(),

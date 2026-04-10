@@ -1,4 +1,4 @@
-import { NotFoundError, ConflictError, DomainError } from '../../../shared/domain/errors';
+import { NotFoundError, ConflictError, DomainError, ValidationError } from '../../../shared/domain/errors';
 
 export class EntryNotFoundError extends NotFoundError {
   constructor() {
@@ -115,5 +115,41 @@ export class TenantInvoiceNotRegenerableError extends ConflictError {
 export class InvoiceNotRegenerableError extends ConflictError {
   constructor() {
     super('INVOICE_NOT_REGENERABLE', 'Invoice must be CLOSED or PAID to regenerate');
+  }
+}
+
+// ─── Payment reconciliation (feature 017) ────────────────────────────────
+
+export class InvoiceAlreadyPaidError extends ConflictError {
+  constructor() {
+    super('INVOICE_ALREADY_PAID', 'Invoice is already marked as paid');
+  }
+}
+
+export class InvoiceNotPaidError extends ConflictError {
+  constructor() {
+    super('INVOICE_NOT_PAID', 'Invoice is not in PAID status');
+  }
+}
+
+export class InvoicePaymentDateInvalidError extends ValidationError {
+  constructor(public readonly kind: 'future' | 'before_generated_at') {
+    super(
+      kind === 'future'
+        ? 'paidAt cannot be in the future (server UTC + 1h grace window exceeded)'
+        : 'paidAt cannot be before the invoice generatedAt timestamp',
+      { kind },
+    );
+  }
+}
+
+export class MultiCurrencyScopeError extends DomainError {
+  constructor(public readonly currencies: string[]) {
+    super(
+      'MULTI_CURRENCY_SCOPE',
+      `Reconciliation scope contains invoices in multiple currencies: ${currencies.join(', ')}. Narrow filters to obtain a coherent summary.`,
+      400,
+      { currencies },
+    );
   }
 }

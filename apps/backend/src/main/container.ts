@@ -191,6 +191,9 @@ import { ListInvoicesUseCase } from '../modules/billing/application/use-cases/li
 import { GetInvoiceUseCase } from '../modules/billing/application/use-cases/get-invoice.use-case';
 import { DownloadInvoiceUseCase } from '../modules/billing/application/use-cases/download-invoice.use-case';
 import { MarkInvoicePaidUseCase } from '../modules/billing/application/use-cases/mark-invoice-paid.use-case';
+import { BatchMarkInvoicesPaidUseCase } from '../modules/billing/application/use-cases/batch-mark-invoices-paid.use-case';
+import { ReverseInvoicePaymentUseCase } from '../modules/billing/application/use-cases/reverse-invoice-payment.use-case';
+import { GetReconciliationSummaryUseCase } from '../modules/billing/application/use-cases/get-reconciliation-summary.use-case';
 import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-cases/void-financial-entry.use-case';
 import { GenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/generate-tenant-invoice.use-case';
 import { RegenerateInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-inspector-invoice.use-case';
@@ -678,6 +681,9 @@ export function createContainer(logger: Logger): AppContainer {
     reportStorageService,
   );
   const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService);
+  const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService);
+  const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService);
+  const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
   const generateTenantInvoiceUseCase = new GenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
   const regenerateInspectorInvoiceUseCase = new RegenerateInspectorInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
@@ -1030,6 +1036,9 @@ export function createContainer(logger: Logger): AppContainer {
       getInvoiceUseCase,
       downloadInvoiceUseCase,
       markInvoicePaidUseCase,
+      batchMarkInvoicesPaidUseCase,
+      reverseInvoicePaymentUseCase,
+      getReconciliationSummaryUseCase,
       voidFinancialEntryUseCase,
       generateTenantInvoiceUseCase,
       regenerateInspectorInvoiceUseCase,
