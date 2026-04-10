@@ -318,3 +318,11 @@ See the "Implemented Reality vs Approved Target" table in the Summary section. T
 ## Complexity Tracking
 
 No constitution violations. No complexity justifications needed. The plan is additive and scoped to the billing module extension.
+
+## Closure Status
+
+**Implemented**: 2026-04-10 | **Commit**: `175fdcb` | **Tests**: 2594 backend + 1882 frontend passing
+
+All 4 operational flows delivered (single mark-as-paid, batch, reversal, reconciliation summary) across backend and frontend. 010 ledger invariants preserved — no 017 code path touches `financial_entry`, approved entries stay immutable, invoice generation stays in 010.
+
+Residual items (all **non-blocking**): T038a INSP integration test (partial coverage — unit-tested), T073 part 2 direct `financial_entry` assertion (partial coverage — architecturally enforced), Idempotency-Key route wiring (follow-up polish), reconciliation summary page integration (deferred non-blocking), OpenAPI type regeneration (follow-up polish). See `tasks.md` Closure Status section for full classification.

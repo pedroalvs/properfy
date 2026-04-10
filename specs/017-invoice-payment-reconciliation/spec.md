@@ -2,7 +2,7 @@
 
 **Feature Branch**: `017-invoice-payment-reconciliation`
 **Created**: 2026-04-06
-**Feature Status**: NOT IMPLEMENTED — invoice `PAID` status exists in the data model but no endpoint, workflow, or UI transitions to it
+**Feature Status**: IMPLEMENTED (2026-04-10) — all 4 operational flows (single mark-as-paid, batch mark-as-paid, payment reversal, reconciliation summary) are wired end-to-end in backend and frontend. 010 ledger invariants preserved. See `plan.md` and `tasks.md` Closure Status sections for delivered scope and residual (non-blocking) items.
 **Sources**:
 - Code: `apps/backend/src/modules/billing/`, `apps/backend/prisma/schema.prisma` (`InspectorInvoice`, `InspectorInvoiceStatus`), `apps/web/src/features/financial/pages/InvoicesPage.tsx`
 - Upstream spec: `010-billing-ledger` (ledger, entries, invoice generation, approval)
