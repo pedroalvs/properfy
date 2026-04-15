@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Feature 018 US1: server-side HTML rendering for the public unsubscribe page.
@@ -9,7 +10,9 @@ import { join } from 'node:path';
  * template. User-controlled values are HTML-escaped to prevent XSS.
  */
 
-const TEMPLATE_PATH = join(__dirname, 'unsubscribe-page.html');
+const __filename_esm = fileURLToPath(import.meta.url);
+const __dirname_esm = dirname(__filename_esm);
+const TEMPLATE_PATH = join(__dirname_esm, 'unsubscribe-page.html');
 const TEMPLATE = readFileSync(TEMPLATE_PATH, 'utf-8');
 
 function escapeHtml(value: string): string {
