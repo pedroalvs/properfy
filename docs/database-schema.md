@@ -280,7 +280,16 @@ Contractor who performs property inspections. Cross-tenant entity (can serve mul
 | `payment_settings_json` | jsonb | no | `{}` | Payment preferences (bank details, etc.) |
 | `regions_json` | jsonb | no | `[]` | Legacy region assignments (being replaced by inspector_regions) |
 | `service_types_json` | jsonb | no | `[]` | Service types the inspector can perform |
-| `client_eligibility_json` | jsonb | no | `[]` | List of `{ tenantId }` entries the inspector is eligible for. Feedback round proposes renaming to `blocked_clients_json` with inverted semantics (feature 008 FR-006a, pending). |
+| `client_eligibility_json` | jsonb | no | `[]` | **DEPRECATED** — legacy allow-list of `{ tenantId, eligible }` entries. Replaced by `blocked_clients_json`. Kept during expand phase. |
+| `blocked_clients_json` | jsonb | no | `[]` | Array of tenant IDs the inspector is **blocked from**. Empty = eligible for all. Inverts the old allow-list model. |
+| `full_name` | varchar(300) | yes | — | Full legal name. OQ-2 (obligation level pending). |
+| `address` | jsonb | yes | — | Structured address. OQ-2. |
+| `abn` | varchar(20) | yes | — | Australian Business Number. OQ-2. |
+| `date_of_birth` | date | yes | — | OQ-2. |
+| `insurance_file_key` | text | yes | — | Supabase Storage key for insurance document. |
+| `insurance_expires_at` | date | yes | — | Insurance expiry. OQ-3 (lifecycle consequences pending). |
+| `police_check_file_key` | text | yes | — | Storage key for police check document. |
+| `police_check_expires_at` | date | yes | — | Police check expiry. OQ-3. |
 | `created_at` | timestamptz | no | `now()` | |
 | `updated_at` | timestamptz | no | auto | |
 | `deleted_at` | timestamptz | yes | — | Soft delete |
@@ -668,12 +677,13 @@ Closing document for inspector payouts in a billing period.
 | `period_start` | date | no | — | Billing period start |
 | `period_end` | date | no | — | Billing period end |
 | `period_type` | BillingPeriodType | no | — | `WEEKLY` / `BIWEEKLY` / `MONTHLY` |
-| `status` | InspectorInvoiceStatus | no | `OPEN` | `OPEN` / `CLOSED` / `PAID` / `SUPERSEDED` |
+| `status` | InspectorInvoiceStatus | no | `OPEN` | `PENDING_REVIEW` / `OPEN` / `CLOSED` / `PAID` / `SUPERSEDED`. `PENDING_REVIEW` = inspector-drafted, awaiting admin approval (feature 008/010). |
 | `total_amount` | decimal(12,2) | no | `0` | Sum of approved INSPECTOR_PAYOUT entries in the period |
 | `currency` | char(3) | no | — | |
 | `file_key` | text | yes | — | Storage key for generated PDF |
-| `generated_by_user_id` | uuid | yes | — | FK → users. Operator who generated. |
+| `generated_by_user_id` | uuid | yes | — | FK → users. Operator who generated/approved. |
 | `generated_at` | timestamptz | yes | — | |
+| `drafted_by_inspector_id` | text | yes | — | Inspector ID when created via PWA draft flow (feature 008). NULL for operator-generated invoices. |
 | `paid_at` | timestamptz | yes | — | When marked as paid (feature 017) |
 | `paid_by_user_id` | uuid | yes | — | FK → users (feature 017) |
 | `payment_reference` | varchar(255) | yes | — | External payment reference (feature 017) |
