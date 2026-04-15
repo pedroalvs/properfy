@@ -42,7 +42,7 @@ describe('createAppointmentSchema', () => {
       branchId: validBranchId,
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
-      scheduledDate: '2026-04-01',
+      scheduledDate: '2027-04-01',
       timeSlot: '09:00-10:00',
       contact: validContact,
     });
@@ -54,7 +54,7 @@ describe('createAppointmentSchema', () => {
       branchId: validBranchId,
       property: validInlineProperty,
       serviceTypeId: validServiceTypeId,
-      scheduledDate: '2026-04-01',
+      scheduledDate: '2027-04-01',
       timeSlot: '09:00-10:00',
       contact: validContact,
     });
@@ -67,7 +67,7 @@ describe('createAppointmentSchema', () => {
       propertyId: validPropertyId,
       property: validInlineProperty,
       serviceTypeId: validServiceTypeId,
-      scheduledDate: '2026-04-01',
+      scheduledDate: '2027-04-01',
       timeSlot: '09:00-10:00',
       contact: validContact,
     });
@@ -78,7 +78,7 @@ describe('createAppointmentSchema', () => {
     const result = createAppointmentSchema.safeParse({
       branchId: validBranchId,
       serviceTypeId: validServiceTypeId,
-      scheduledDate: '2026-04-01',
+      scheduledDate: '2027-04-01',
       timeSlot: '09:00-10:00',
       contact: validContact,
     });
@@ -90,7 +90,7 @@ describe('createAppointmentSchema', () => {
       branchId: validBranchId,
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
-      scheduledDate: '2026-04-01',
+      scheduledDate: '2027-04-01',
       timeSlot: '9am-10am',
       contact: validContact,
     });
@@ -102,7 +102,7 @@ describe('createAppointmentSchema', () => {
       branchId: validBranchId,
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
-      scheduledDate: '2026-04-01',
+      scheduledDate: '2027-04-01',
       timeSlot: '09:00-10:00',
       contact: validContact,
       restriction: validRestriction,
@@ -161,7 +161,7 @@ describe('createAppointmentSchema', () => {
       branchId: validBranchId,
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
-      scheduledDate: '2026-04-01',
+      scheduledDate: '2027-04-01',
       timeSlot: '09:00-10:00',
       contact: validContact,
     });

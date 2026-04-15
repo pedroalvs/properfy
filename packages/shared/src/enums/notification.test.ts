@@ -30,8 +30,8 @@ describe('NotificationStatus', () => {
     expect(NotificationStatus.SKIPPED).toBe('SKIPPED');
   });
 
-  it('should have exactly 5 statuses', () => {
-    expect(Object.keys(NotificationStatus)).toHaveLength(5);
+  it('should have exactly 6 statuses (SKIPPED_OPT_OUT added by feature 018)', () => {
+    expect(Object.keys(NotificationStatus)).toHaveLength(6);
   });
 
   it('should not have QUEUED status', () => {

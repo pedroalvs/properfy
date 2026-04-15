@@ -48,10 +48,10 @@ describe('createServiceGroupSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should reject fewer than 5 appointments', () => {
+  it('should reject empty appointments array (min 1 required)', () => {
     const result = createServiceGroupSchema.safeParse({
       ...validInput,
-      appointmentIds: generateUuids(4),
+      appointmentIds: [],
     });
     expect(result.success).toBe(false);
   });
