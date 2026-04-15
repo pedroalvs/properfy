@@ -1,28 +1,27 @@
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
-import type { NotificationChannel } from '@properfy/shared';
+import { randomUUID } from 'node:crypto';
+import type { NotificationChannel, NotificationClass } from '@properfy/shared';
 import type { INotificationConsentRepository } from '../../domain/notification-consent.repository';
 import { NotificationConsentEntity } from '../../domain/notification-consent.entity';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { DomainError } from '../../../../shared/domain/errors';
+import { UnsubscribeTokenService } from '../../domain/unsubscribe-token.service';
+
+export type UnsubscribeTokenFailureReason =
+  | 'malformed'
+  | 'invalid_signature'
+  | 'expired'
+  | 'invalid_payload';
 
 export class InvalidUnsubscribeTokenError extends DomainError {
-  constructor() {
-    super('INVALID_UNSUBSCRIBE_TOKEN', 'The unsubscribe token is invalid or expired', 400);
+  constructor(public readonly reason: UnsubscribeTokenFailureReason) {
+    super('INVALID_UNSUBSCRIBE_TOKEN', `The unsubscribe token is invalid or expired (${reason})`, 400);
   }
 }
 
-export interface ProcessUnsubscribeInput {
-  token: string;
-}
-
-export interface ProcessUnsubscribeOutput {
-  recipient: string;
-  channel: NotificationChannel;
-  tenantId: string;
-}
-
 /**
- * Generates a signed unsubscribe token containing recipient, channel, and tenant.
- * Format: base64url(JSON({recipient, channel, tenantId})).signature
+ * @deprecated Use `UnsubscribeTokenService.generate()` instead. Kept for backwards
+ * compatibility with existing call sites that built URLs without the token service.
+ * Phase 5 of feature 018 migrates to the domain service.
  */
 export function generateUnsubscribeToken(
   recipient: string,
@@ -30,14 +29,14 @@ export function generateUnsubscribeToken(
   tenantId: string,
   secret: string,
 ): string {
-  const payload = JSON.stringify({ recipient, channel, tenantId });
-  const payloadB64 = Buffer.from(payload).toString('base64url');
-  const signature = createHmac('sha256', secret).update(payloadB64).digest('base64url');
-  return `${payloadB64}.${signature}`;
+  const service = new UnsubscribeTokenService(secret);
+  return service.generate({ recipient, channel, tenantId });
 }
 
 /**
- * Generates the full unsubscribe URL to embed in email templates.
+ * @deprecated Use `UnsubscribeTokenService.buildUrl()` instead. Kept for the existing
+ * send-worker call site at `send-notification.use-case.ts` until the container
+ * migration is complete.
  */
 export function buildUnsubscribeUrl(
   baseUrl: string,
@@ -46,86 +45,118 @@ export function buildUnsubscribeUrl(
   tenantId: string,
   secret: string,
 ): string {
-  const token = generateUnsubscribeToken(recipient, channel, tenantId, secret);
-  return `${baseUrl}/v1/notifications/unsubscribe?token=${encodeURIComponent(token)}`;
+  const service = new UnsubscribeTokenService(secret);
+  return service.buildUrl(baseUrl, { recipient, channel, tenantId });
 }
 
+export interface ProcessUnsubscribeInput {
+  token: string;
+  requestId?: string;
+  ipAddress?: string;
+}
+
+export interface ProcessUnsubscribeOutput {
+  recipient: string;
+  channel: NotificationChannel;
+  tenantId: string;
+  notificationClass: NotificationClass;
+}
+
+/**
+ * Feature 018 US1: process a public unsubscribe click.
+ *
+ * Flow:
+ *   1. Verify the token via `UnsubscribeTokenService` (HMAC + expiry check).
+ *   2. Load any existing consent record scoped to (tenant, recipient, channel, class).
+ *   3. Flip it to opted-out with `changeSource = 'unsubscribe_link'` (or create it).
+ *   4. Write one audit record per operation with action `consent.opted_out_via_link`.
+ *
+ * Idempotency: clicking the same link twice results in the same opted-out state and
+ * writes two audit records (one per click) — this is intentional because each click
+ * is a distinct user action with a distinct request id.
+ */
 export class ProcessUnsubscribeUseCase {
   constructor(
     private readonly consentRepo: INotificationConsentRepository,
-    private readonly secret: string,
+    private readonly tokenService: UnsubscribeTokenService,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(input: ProcessUnsubscribeInput): Promise<ProcessUnsubscribeOutput> {
-    const parts = input.token.split('.');
-    if (parts.length !== 2) {
-      throw new InvalidUnsubscribeTokenError();
+    const result = this.tokenService.verify(input.token);
+    if (!result.valid) {
+      throw new InvalidUnsubscribeTokenError(result.reason);
     }
 
-    const [payloadB64, signature] = parts;
-    if (!payloadB64 || !signature) {
-      throw new InvalidUnsubscribeTokenError();
+    const { recipient, channel, tenantId, notificationClass } = result.payload;
+
+    // TRANSACTIONAL notifications must never be opt-outable — reject at the token
+    // layer if somehow a token with TRANSACTIONAL class was issued.
+    if (notificationClass === 'TRANSACTIONAL') {
+      throw new InvalidUnsubscribeTokenError('invalid_payload');
     }
 
-    // Verify HMAC signature using timing-safe comparison
-    const expectedSignature = createHmac('sha256', this.secret)
-      .update(payloadB64)
-      .digest('base64url');
-
-    const sigBuffer = Buffer.from(signature);
-    const expectedBuffer = Buffer.from(expectedSignature);
-
-    if (sigBuffer.length !== expectedBuffer.length || !timingSafeEqual(sigBuffer, expectedBuffer)) {
-      throw new InvalidUnsubscribeTokenError();
-    }
-
-    // Decode and parse payload
-    let parsed: { recipient?: string; channel?: string; tenantId?: string };
-    try {
-      const decoded = Buffer.from(payloadB64, 'base64url').toString('utf-8');
-      parsed = JSON.parse(decoded);
-    } catch {
-      throw new InvalidUnsubscribeTokenError();
-    }
-
-    const { recipient, channel, tenantId } = parsed;
-    if (!recipient || !channel || !tenantId) {
-      throw new InvalidUnsubscribeTokenError();
-    }
-
-    // Validate channel
-    const validChannels: NotificationChannel[] = ['EMAIL', 'SMS', 'WHATSAPP'];
-    if (!validChannels.includes(channel as NotificationChannel)) {
-      throw new InvalidUnsubscribeTokenError();
-    }
-
-    const typedChannel = channel as NotificationChannel;
-
-    // Upsert the consent record to mark as opted out
-    const existing = await this.consentRepo.findByRecipientChannelTenant(
-      recipient,
-      typedChannel,
+    const existing = await this.consentRepo.findByScope({
       tenantId,
-    );
+      recipient,
+      channel,
+      notificationClass,
+    });
 
+    const beforeSnapshot = existing
+      ? {
+          optedOut: existing.optedOut,
+          optedOutAt: existing.optedOutAt,
+          changeSource: existing.changeSource,
+        }
+      : null;
+
+    let consent: NotificationConsentEntity;
     if (existing) {
-      existing.markOptedOut();
-      await this.consentRepo.upsert(existing);
+      existing.markOptedOut('unsubscribe_link');
+      consent = existing;
     } else {
       const now = new Date();
-      const consent = new NotificationConsentEntity({
+      consent = new NotificationConsentEntity({
         id: randomUUID(),
         recipient,
-        channel: typedChannel,
+        channel,
         tenantId,
+        notificationClass,
         optedOut: true,
         optedOutAt: now,
+        changeSource: 'unsubscribe_link',
+        changedAt: now,
+        changedByUserId: null,
+        reason: null,
         createdAt: now,
         updatedAt: now,
       });
-      await this.consentRepo.upsert(consent);
     }
 
-    return { recipient, channel: typedChannel, tenantId };
+    await this.consentRepo.upsert(consent);
+
+    this.auditService.log({
+      action: 'consent.opted_out_via_link',
+      actorType: 'ANONYMOUS',
+      entityType: 'NotificationConsent',
+      entityId: consent.id,
+      tenantId,
+      before: beforeSnapshot,
+      after: {
+        optedOut: consent.optedOut,
+        optedOutAt: consent.optedOutAt,
+        changeSource: consent.changeSource,
+      },
+      requestId: input.requestId,
+      ipAddress: input.ipAddress,
+      metadata: {
+        recipient,
+        channel,
+        notificationClass,
+      },
+    });
+
+    return { recipient, channel, tenantId, notificationClass };
   }
 }

@@ -52,6 +52,12 @@ function makeContact(
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
+    contactId: null,
+    role: 'TENANT',
+    isPrimary: true,
+    snapshotName: 'John Smith',
+    snapshotEmail: 'john@example.com',
+    snapshotPhone: '+61400000000',
     tenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: 'john2@example.com',
@@ -67,9 +73,11 @@ function makeAppointmentWithRelations(
   appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
   contactOverrides: Partial<ConstructorParameters<typeof AppointmentContactEntity>[0]> = {},
 ): AppointmentWithRelations {
+  const contact = makeContact(contactOverrides);
   return {
     appointment: makeAppointmentEntity(appointmentOverrides),
-    contact: makeContact(contactOverrides),
+    contact,
+    contacts: [contact],
     restrictions: [],
   };
 }
@@ -108,6 +116,8 @@ describe('UpdateContactUseCase', () => {
       update: vi.fn(),
       saveContact: vi.fn(),
       updateContact: vi.fn(),
+      updateContactSnapshot: vi.fn(),
+      deleteContactsByAppointmentId: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
     };

@@ -55,6 +55,12 @@ const envSchema = z.object({
   // Notification unsubscribe token secret (HMAC-SHA256)
   NOTIFICATION_UNSUBSCRIBE_SECRET: z.string().default('dev-unsubscribe-secret'),
 
+  // Feature 020: retention worker batch size (FR-003)
+  AUDIT_RETENTION_BATCH_SIZE: z.coerce.number().int().positive().default(1000),
+
+  // Feature 018: public base URL used to build unsubscribe links (e.g., https://api.properfy.com)
+  PUBLIC_BASE_URL: z.string().default('http://localhost:3000'),
+
   // Optional direct DB URL (migrations)
   DIRECT_URL: z.string().optional(),
 });

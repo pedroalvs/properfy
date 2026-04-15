@@ -57,6 +57,12 @@ function makeContact() {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
+    contactId: null,
+    role: 'TENANT',
+    isPrimary: true,
+    snapshotName: 'John Smith',
+    snapshotEmail: 'john@example.com',
+    snapshotPhone: '+61400000000',
     tenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
@@ -103,10 +109,12 @@ function makeActivityRepo() {
 }
 
 function makeAppointmentRepo(appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
+  const contact = makeContact();
   return {
     findById: vi.fn().mockResolvedValue({
       appointment: makeAppointment(appointmentOverrides),
-      contact: makeContact(),
+      contact,
+      contacts: [contact],
       restrictions: [],
     }),
     findAll: vi.fn(),
@@ -115,6 +123,8 @@ function makeAppointmentRepo(appointmentOverrides: Partial<ConstructorParameters
     update: vi.fn().mockResolvedValue(undefined),
     saveContact: vi.fn(),
     updateContact: vi.fn().mockResolvedValue(undefined),
+    updateContactSnapshot: vi.fn().mockResolvedValue(undefined),
+    deleteContactsByAppointmentId: vi.fn().mockResolvedValue(undefined),
     saveRestriction: vi.fn().mockResolvedValue(undefined),
     deleteRestrictionsByAppointmentId: vi.fn().mockResolvedValue(undefined),
   };

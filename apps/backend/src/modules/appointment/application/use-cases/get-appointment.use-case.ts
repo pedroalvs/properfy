@@ -51,6 +51,7 @@ export interface GetAppointmentOutput {
   cancellationReason: string | null;
   latitude: number | null;
   longitude: number | null;
+  /** @deprecated Use contacts[] array. Kept for backward compat — returns the primary contact. */
   contact: {
     id: string;
     tenantName: string;
@@ -59,6 +60,16 @@ export interface GetAppointmentOutput {
     primaryPhone: string | null;
     secondaryPhone: string | null;
   } | null;
+  /** Enriched contacts array (feature 021 junction + snapshot). Primary first, then insertion order. */
+  contacts: Array<{
+    id: string;
+    contactId: string | null;
+    role: string;
+    isPrimary: boolean;
+    snapshotName: string;
+    snapshotEmail: string | null;
+    snapshotPhone: string | null;
+  }>;
   restrictions: Array<{
     id: string;
     isHome: boolean;
@@ -100,9 +111,9 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     // Enriched fields from joins
     code: found.propertyCode ?? '',
     propertyAddress: found.propertyAddress ?? '',
-    contactName: contact?.tenantName ?? '',
-    contactPhone: contact?.primaryPhone ?? null,
-    contactEmail: contact?.primaryEmail ?? null,
+    contactName: contact?.effectiveName ?? '',
+    contactPhone: contact?.effectivePhone ?? null,
+    contactEmail: contact?.effectiveEmail ?? null,
     inspectorName: found.inspectorName ?? null,
     branchName: found.branchName ?? '',
     serviceTypeName: found.serviceTypeName ?? '',
@@ -113,13 +124,22 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     contact: contact
       ? {
           id: contact.id,
-          tenantName: contact.tenantName,
-          primaryEmail: contact.primaryEmail,
+          tenantName: contact.effectiveName,
+          primaryEmail: contact.effectiveEmail,
           secondaryEmail: contact.secondaryEmail,
-          primaryPhone: contact.primaryPhone,
+          primaryPhone: contact.effectivePhone,
           secondaryPhone: contact.secondaryPhone,
         }
       : null,
+    contacts: (found.contacts ?? (contact ? [contact] : [])).map((c) => ({
+      id: c.id,
+      contactId: c.contactId,
+      role: c.role,
+      isPrimary: c.isPrimary,
+      snapshotName: c.effectiveName,
+      snapshotEmail: c.effectiveEmail,
+      snapshotPhone: c.effectivePhone,
+    })),
     restrictions: restrictions.map((r) => ({
       id: r.id,
       isHome: r.isHome,
@@ -142,10 +162,11 @@ export class GetAppointmentUseCase {
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'], { action: 'appointment.view', entityType: 'Appointment' });
 
-    // AM/OP/INSP: global access (no tenant scoping), INSP verified after
-    // CL_ADMIN/CL_USER: scoped by tenantId from JWT
+    // AM/INSP: global access (no tenant scoping) — INSP verified after.
+    // OP: tenant-scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
+    // CL_ADMIN/CL_USER: scoped by tenantId from JWT.
     const tenantId =
-      actor.role === 'AM' || actor.role === 'OP' || actor.role === 'INSP'
+      actor.role === 'AM' || actor.role === 'INSP'
         ? null
         : actor.tenantId;
 

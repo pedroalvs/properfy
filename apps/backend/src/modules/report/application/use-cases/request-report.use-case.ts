@@ -39,6 +39,8 @@ export interface RequestReportInput {
   };
   format: ReportFormat;
   columns?: string[];
+  /** Feature 019: optional back-reference when invoked by the schedule worker. */
+  scheduledReportId?: string;
 }
 
 import type { AuthContext } from '@properfy/shared';
@@ -159,6 +161,7 @@ export class RequestReportUseCase {
       status: 'PENDING',
       fileKey: null,
       requestedByUserId: userId,
+      scheduledReportId: input.scheduledReportId ?? null,
       startedAt: null,
       completedAt: null,
       failedAt: null,
@@ -186,7 +189,12 @@ export class RequestReportUseCase {
       entityType: 'Report',
       entityId: reportId,
       action: 'reportRequested',
-      metadata: { reportType, filters: { ...filters, tenantId: effectiveTenantId }, format },
+      metadata: {
+        reportType,
+        filters: { ...filters, tenantId: effectiveTenantId },
+        format,
+        ...(input.scheduledReportId ? { scheduledReportId: input.scheduledReportId } : {}),
+      },
     });
 
     return {

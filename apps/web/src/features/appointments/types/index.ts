@@ -1,4 +1,4 @@
-import type { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
+import type { AppointmentStatus, TenantConfirmationStatus, AppointmentContactRole } from '@properfy/shared';
 
 export type { AppointmentStatus } from '@properfy/shared';
 
@@ -45,10 +45,21 @@ export interface AppointmentFiltersState {
   overdueOnly: boolean;
 }
 
+export interface AppointmentContactEntry {
+  id?: string;
+  contactId: string | null;
+  role: AppointmentContactRole;
+  isPrimary: boolean;
+  snapshotName: string;
+  snapshotEmail: string | null;
+  snapshotPhone: string | null;
+}
+
 export interface AppointmentDetail extends Appointment {
   meetingLocation: string | null;
   keyLocation: string | null;
   cancellationReason: string | null;
+  contacts?: AppointmentContactEntry[];
   restrictions?: Array<{
     id: string;
     isHome: boolean;
@@ -67,15 +78,28 @@ export interface AppointmentTransition {
   requiresReason: boolean;
 }
 
+export interface ContactFormEntry {
+  key: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: AppointmentContactRole;
+  isPrimary: boolean;
+}
+
 export interface AppointmentFormData {
   branchId: string;
   propertyId: string;
   serviceTypeId: string;
   scheduledDate: string;
   timeSlot: string;
+  /** @deprecated Kept for backward compat with save hook during transition */
   contactName: string;
+  /** @deprecated */
   contactPhone: string;
+  /** @deprecated */
   contactEmail: string;
+  contacts: ContactFormEntry[];
   keyRequired: boolean;
   meetingLocation: string;
   keyLocation: string;
@@ -86,7 +110,20 @@ export interface AppointmentFormData {
   restrictionTouched: boolean;
 }
 
-export type AppointmentFormErrors = Partial<Record<keyof AppointmentFormData, string>>;
+export type AppointmentFormErrors = Partial<Record<keyof AppointmentFormData, string>> & {
+  contacts?: Record<number, Partial<Record<keyof ContactFormEntry, string>>>;
+};
+
+export function createEmptyContact(): ContactFormEntry {
+  return {
+    key: crypto.randomUUID(),
+    name: '',
+    email: '',
+    phone: '',
+    role: 'TENANT' as AppointmentContactRole,
+    isPrimary: false,
+  };
+}
 
 export const EMPTY_FORM_DATA: AppointmentFormData = {
   branchId: '',
@@ -97,6 +134,7 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
   contactName: '',
   contactPhone: '',
   contactEmail: '',
+  contacts: [{ ...createEmptyContact(), isPrimary: true }],
   keyRequired: false,
   meetingLocation: '',
   keyLocation: '',

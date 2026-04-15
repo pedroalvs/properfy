@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { redactPii } from '../../../src/modules/audit/application/helpers/pii-redaction';
+import {
+  redactPii,
+  redactByFieldPath,
+  type PiiFieldPathSpec,
+} from '../../../src/modules/audit/application/helpers/pii-redaction';
 
 describe('redactPii', () => {
   describe('user actions', () => {
@@ -185,5 +189,90 @@ describe('redactPii', () => {
       expect(result.name).toBe('[REDACTED]');
       expect(result.ipAddress).toBe('1.2.3.4');
     });
+  });
+});
+
+describe('redactByFieldPath (Feature 020 on-demand redaction)', () => {
+  it('replaces a single dotted path with [REDACTED] (direct)', () => {
+    const snapshot = { user: { email: 'foo@bar.com', name: 'Alice' } };
+    const paths: PiiFieldPathSpec[] = [{ path: 'user.email', classification: 'direct' }];
+
+    const { redacted, flaggedForReview } = redactByFieldPath(snapshot, paths);
+
+    expect((redacted as any).user.email).toBe('[REDACTED]');
+    expect((redacted as any).user.name).toBe('Alice');
+    expect(flaggedForReview).toEqual([]);
+  });
+
+  it('redacts multiple dotted paths in one call', () => {
+    const snapshot = { user: { email: 'foo@bar.com', phone: '+1234' }, meta: { note: 'n' } };
+    const paths: PiiFieldPathSpec[] = [
+      { path: 'user.email', classification: 'direct' },
+      { path: 'user.phone', classification: 'direct' },
+    ];
+
+    const { redacted } = redactByFieldPath(snapshot, paths);
+
+    expect((redacted as any).user.email).toBe('[REDACTED]');
+    expect((redacted as any).user.phone).toBe('[REDACTED]');
+    expect((redacted as any).meta.note).toBe('n');
+  });
+
+  it('silently skips non-matching paths', () => {
+    const snapshot = { user: { email: 'foo@bar.com' } };
+    const paths: PiiFieldPathSpec[] = [
+      { path: 'user.email', classification: 'direct' },
+      { path: 'user.ghost', classification: 'direct' },
+      { path: 'absent.path', classification: 'direct' },
+    ];
+
+    const { redacted } = redactByFieldPath(snapshot, paths);
+
+    expect((redacted as any).user.email).toBe('[REDACTED]');
+    expect((redacted as any).user).not.toHaveProperty('ghost');
+    expect(redacted).not.toHaveProperty('absent');
+  });
+
+  it('opaque replacement for sensitive_financial (entire field replaced)', () => {
+    const snapshot = { paymentSettingsJson: { bank: 'X', iban: 'Y', internal: { secret: 1 } } };
+    const paths: PiiFieldPathSpec[] = [
+      { path: 'paymentSettingsJson', classification: 'sensitive_financial' },
+    ];
+
+    const { redacted } = redactByFieldPath(snapshot, paths);
+
+    expect((redacted as any).paymentSettingsJson).toBe('[REDACTED]');
+  });
+
+  it('flags unstructured paths for manual review without mutating', () => {
+    const snapshot = { customFieldsJson: { note: 'may contain pii' }, email: 'a@b.c' };
+    const paths: PiiFieldPathSpec[] = [
+      { path: 'customFieldsJson', classification: 'unstructured' },
+      { path: 'email', classification: 'direct' },
+    ];
+
+    const { redacted, flaggedForReview } = redactByFieldPath(snapshot, paths);
+
+    expect((redacted as any).customFieldsJson).toEqual({ note: 'may contain pii' });
+    expect((redacted as any).email).toBe('[REDACTED]');
+    expect(flaggedForReview).toEqual(['customFieldsJson']);
+  });
+
+  it('is irreversible per call — deep-clones the snapshot', () => {
+    const snapshot = { user: { email: 'foo@bar.com' } };
+    const paths: PiiFieldPathSpec[] = [{ path: 'user.email', classification: 'direct' }];
+
+    const { redacted } = redactByFieldPath(snapshot, paths);
+
+    expect(snapshot.user.email).toBe('foo@bar.com'); // original untouched
+    expect((redacted as any).user.email).toBe('[REDACTED]');
+    expect(redacted).not.toBe(snapshot);
+  });
+
+  it('passes through null / undefined / non-object snapshots', () => {
+    expect(redactByFieldPath(null, []).redacted).toBeNull();
+    expect(redactByFieldPath(undefined, []).redacted).toBeUndefined();
+    expect(redactByFieldPath('string-value', []).redacted).toBe('string-value');
+    expect(redactByFieldPath([1, 2, 3], []).redacted).toEqual([1, 2, 3]);
   });
 });

@@ -7,6 +7,7 @@ import { api } from '@/services/api';
 vi.mock('@properfy/shared', () => ({
   contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
   AppointmentStatus: { DRAFT: 'DRAFT', SCHEDULED: 'SCHEDULED', AWAITING_INSPECTOR: 'AWAITING_INSPECTOR', DONE: 'DONE', CANCELLED: 'CANCELLED', REJECTED: 'REJECTED' },
+  AppointmentContactRole: { TENANT: 'TENANT', TENANT_REPRESENTATIVE: 'TENANT_REPRESENTATIVE', HOUSEKEEPER: 'HOUSEKEEPER', PROPERTY_MANAGER: 'PROPERTY_MANAGER', BROKER: 'BROKER', OTHER: 'OTHER' },
   TenantConfirmationStatus: { PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', UNAVAILABLE: 'UNAVAILABLE', NO_RESPONSE: 'NO_RESPONSE' },
   todayLocalDateString: () => '2026-03-29',
 }));
@@ -126,8 +127,9 @@ describe('AppointmentFormDrawer', () => {
     expect(screen.getByText('New Appointment')).toBeInTheDocument();
     expect(screen.getByText('Create Appointment')).toBeInTheDocument();
     expect(screen.getByText('Appointment Details')).toBeInTheDocument();
-    expect(screen.getByText('Tenant Contact')).toBeInTheDocument();
+    expect(screen.getByText('Contacts')).toBeInTheDocument();
     expect(screen.getByText('Access & Key')).toBeInTheDocument();
+    expect(screen.getByText('Add Contact')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
@@ -136,13 +138,14 @@ describe('AppointmentFormDrawer', () => {
     renderDrawer({ appointmentId: 'apt-01' });
     expect(screen.getByText('Edit Appointment')).toBeInTheDocument();
     expect(screen.getByText('Save')).toBeInTheDocument();
-    expect(screen.getByLabelText('Tenant Name')).toHaveValue('John Doe');
-    expect(screen.getByLabelText('Phone')).toHaveValue('11999999999');
-    expect(screen.getByLabelText('Email')).toHaveValue('john@test.com');
+    // Contact fields are now in the contacts array sub-form
+    expect(screen.getByLabelText('Contact 1 Name')).toHaveValue('John Doe');
+    expect(screen.getByLabelText('Contact 1 Phone')).toHaveValue('11999999999');
+    expect(screen.getByLabelText('Contact 1 Email')).toHaveValue('john@test.com');
   });
 
   it('shows validation errors and prevents save when validation fails', () => {
-    mockValidate.mockReturnValue({ contactName: 'Required field' });
+    mockValidate.mockReturnValue({ branchId: 'Required field' });
     renderDrawer();
     fireEvent.click(screen.getByText('Create Appointment'));
     expect(screen.getByText('Required field')).toBeInTheDocument();

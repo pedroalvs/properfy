@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { NotificationChannel, NotificationStatus } from '@properfy/shared';
+import type { NotificationChannel, NotificationClass, NotificationStatus } from '@properfy/shared';
 import { NotificationEntity } from '../domain/notification.entity';
 import type {
   INotificationRepository,
@@ -16,6 +16,7 @@ function mapToEntity(row: any): NotificationEntity {
     channel: row.channel as NotificationChannel,
     templateCode: row.template_code,
     status: row.status as NotificationStatus,
+    notificationClass: (row.notification_class ?? null) as NotificationClass | null,
     providerName: row.provider_name,
     providerMessageId: row.provider_message_id,
     sentAt: row.sent_at,
@@ -116,6 +117,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
         channel: notification.channel,
         template_code: notification.templateCode,
         status: notification.status,
+        notification_class: notification.notificationClass,
         provider_name: notification.providerName,
         provider_message_id: notification.providerMessageId,
         sent_at: notification.sentAt,

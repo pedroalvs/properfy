@@ -50,10 +50,6 @@ export function InspectorListPage() {
             setSelectedId(insp.id);
             setDrawerOpen(true);
           }}
-          onEdit={(insp) => {
-            setSelectedId(insp.id);
-            setDrawerOpen(true);
-          }}
         />
       </ListFilterTableTemplate>
       <InspectorDetailDrawer

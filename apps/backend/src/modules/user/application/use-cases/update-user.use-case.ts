@@ -61,8 +61,10 @@ export class UpdateUserUseCase {
       }
     }
 
-    // Tenant-scoping: CL_ADMIN can only update users from own tenant
-    if (actor.role === 'CL_ADMIN') {
+    // Tenant-scoping: CL_ADMIN and OP can only update users from own tenant.
+    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): OP joins the
+    // tenant-scoped roles; only AM can cross tenants on user updates.
+    if (actor.role === 'CL_ADMIN' || actor.role === 'OP') {
       if (actor.tenantId !== tenantId) {
         throw new ForbiddenError(
           'AUTH_FORBIDDEN',
@@ -79,7 +81,9 @@ export class UpdateUserUseCase {
       );
     }
 
-    if (tenantId === null && actor.role !== 'AM' && actor.role !== 'OP') {
+    // Internal (tenant-less) users can only be updated by AM.
+    // OP is tenant-scoped per CORRECTION-001 close-it.
+    if (tenantId === null && actor.role !== 'AM') {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
         'You are not allowed to update internal users',

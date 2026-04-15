@@ -49,10 +49,11 @@ export class NotifyOnTenantPortalActionHandler {
     if (!templateCode) return;
 
     const result = await this.appointmentRepo.findById(input.appointmentId, null);
-    if (!result?.contact?.primaryEmail) return;
+    if (!result?.contact) return;
 
     const { appointment, contact } = result;
-    if (!contact?.primaryEmail) return;
+    const recipientEmail = contact.effectiveEmail;
+    if (!recipientEmail) return;
 
     const property = await this.propertyRepo.findById(appointment.propertyId, appointment.tenantId);
     const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0] ?? '';
@@ -60,11 +61,11 @@ export class NotifyOnTenantPortalActionHandler {
     await this.createNotification.execute({
       tenantId: appointment.tenantId,
       appointmentId: appointment.id,
-      recipient: contact.primaryEmail,
+      recipient: recipientEmail,
       channel: 'EMAIL',
       templateCode,
       payloadJson: {
-        tenantName: contact.tenantName,
+        tenantName: contact.effectiveName,
         scheduledDate: scheduledDateStr,
         timeSlot: appointment.timeSlot,
         propertyAddress: property?.fullAddress ?? '',

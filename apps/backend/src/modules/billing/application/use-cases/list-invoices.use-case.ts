@@ -52,8 +52,10 @@ export class ListInvoicesUseCase {
       pageSize: input.pageSize,
     };
 
-    if (actor.role === 'AM' || actor.role === 'OP') {
-      // AM/OP can filter by any inspectorId
+    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): inspector
+    // invoices are not tenant-scoped (inspectors are cross-tenant entities),
+    // so cross-inspector listing is restricted to AM. OP loses access.
+    if (actor.role === 'AM') {
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
     } else if (actor.role === 'INSP') {
       // Inspector: forced to own invoices

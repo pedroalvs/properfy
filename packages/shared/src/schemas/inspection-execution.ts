@@ -46,3 +46,13 @@ export const saveExecutionProgressSchema = z.object({
 });
 
 export type SaveExecutionProgressInput = z.infer<typeof saveExecutionProgressSchema>;
+
+// Draft invoice (Feedback Round item 5 — FR-060)
+export const draftInvoiceSchema = z.object({
+  periodStart: z.string().date(),
+  periodEnd: z.string().date(),
+}).refine(
+  (data) => data.periodEnd > data.periodStart,
+  { message: 'periodEnd must be after periodStart', path: ['periodEnd'] },
+);
+export type DraftInvoiceInput = z.infer<typeof draftInvoiceSchema>;

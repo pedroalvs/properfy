@@ -58,7 +58,8 @@ export class AuthorizationService {
 
   /**
    * Asserts the actor can access data in the target tenant.
-   * AM bypasses (global scope). All other roles must match.
+   * AM bypasses (global scope). All other roles — including OP per
+   * Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13) — must match.
    */
   assertTenantScope(
     actor: AuthContext,

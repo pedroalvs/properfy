@@ -118,6 +118,12 @@ export class InvoiceNotRegenerableError extends ConflictError {
   }
 }
 
+export class InvoiceNotPendingReviewError extends ConflictError {
+  constructor() {
+    super('INVOICE_NOT_PENDING_REVIEW', 'Invoice is not in PENDING_REVIEW status');
+  }
+}
+
 // ─── Payment reconciliation (feature 017) ────────────────────────────────
 
 export class InvoiceAlreadyPaidError extends ConflictError {

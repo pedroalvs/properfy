@@ -46,14 +46,23 @@ PENDING | UPLOADED | FAILED
 |---|---|---|---|---|
 | `id` | uuid | no | generated | PK |
 | `user_id` | uuid | yes | — | **UNIQUE**. FK → `users.id`. Enables PWA login. |
-| `name` | varchar(200) | no | — | |
+| `name` | varchar(200) | no | — | Short/display name. |
 | `email` | varchar(254) | no | — | **UNIQUE** globally. |
 | `phone` | varchar(20) | yes | — | |
 | `status` | `InspectorStatus` | no | `ACTIVE` | |
 | `payment_settings_json` | jsonb | no | `{}` | Payout method, bank details, tax info. Shape opaque (GAP-009). |
 | `regions_json` | jsonb | no | `[]` | **Legacy/transitional** (`implementation decision`). The canonical source for region coverage is `inspector_regions` → `ServiceRegion` (tenant-scoped). This field should be treated as a denormalized cache or removed (GAP-002). |
 | `service_types_json` | jsonb | no | `[]` | Array of `service_type_id` UUIDs the inspector supports. Drives marketplace filtering (`IMPLEMENTED`). |
-| `client_eligibility_json` | jsonb | no | `[]` | Array of `tenant_id` UUIDs the inspector is allowed to work for (`IMPLEMENTED`). Drives marketplace cross-tenant filtering. |
+| `client_eligibility_json` | jsonb | no | `[]` | **DEPRECATED by Feedback Round 2026-04-13 item 1.** Previously the allow-list of eligible tenants. Remains in place during the migration window; the canonical source after planning is `blocked_clients_json` below. |
+| `blocked_clients_json` | jsonb | no | `[]` | Feedback Round 2026-04-13 item 1, NEW (pending planning). Array of `tenant_id` UUIDs the inspector is explicitly **blocked from**. Empty array means the inspector is eligible for all tenants. Replaces the opt-in model of `client_eligibility_json`. |
+| `full_name` | varchar(300) | **OQ-2** | — | Feedback Round 2026-04-13 item 6, NEW. Obligation level is OPEN QUESTION — see OQ-2 in `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md`. |
+| `address` | jsonb | **OQ-2** | — | Feedback Round 2026-04-13 item 6, NEW. Same shared address shape as tenant/branch/property (feature 003 GAP-001 direction). Obligation level OQ-2. |
+| `abn` | varchar(20) | **OQ-2** | — | Feedback Round 2026-04-13 item 6, NEW. Australian Business Number. Obligation level OQ-2. |
+| `date_of_birth` | date | **OQ-2** | — | Feedback Round 2026-04-13 item 6, NEW. Obligation level OQ-2. |
+| `insurance_file_key` | text | yes | — | Feedback Round 2026-04-13 item 6, NEW. Presigned-upload storage key. |
+| `insurance_expires_at` | date | yes | — | Feedback Round 2026-04-13 item 6, NEW. Expiration policy (what happens when exceeded) is OPEN QUESTION — see OQ-3. |
+| `police_check_file_key` | text | yes | — | Feedback Round 2026-04-13 item 6, NEW. |
+| `police_check_expires_at` | date | yes | — | Feedback Round 2026-04-13 item 6, NEW. Expiration policy OQ-3. |
 | `created_at`, `updated_at`, `deleted_at` | timestamptz | | | Soft delete supported. |
 
 **Indexes**
@@ -62,6 +71,8 @@ PENDING | UPLOADED | FAILED
 - `UNIQUE (email)`
 - `(status)`
 - `(deleted_at)`
+- `(insurance_expires_at)` — added by Feedback Round 2026-04-13 item 6 to support future "expiring soon" queries (the query itself is out of scope until OQ-3 resolves)
+- `(police_check_expires_at)` — same rationale
 
 **Invariants**
 
@@ -69,7 +80,9 @@ PENDING | UPLOADED | FAILED
 - `user_id` is nullable but unique when set — at most one inspector per user.
 - `status = INACTIVE` ⇒ inspector cannot be assigned to new appointments. Existing assignments are preserved.
 - Deactivation is blocked by `IInspectorAppointmentChecker` when the inspector has open appointments.
-- `service_types_json` and `client_eligibility_json` are consumed by `GetMarketplaceOffersUseCase` (feature 005); they must stay in sync with the operator's intended eligibility.
+- `service_types_json` is consumed by `GetMarketplaceOffersUseCase` (feature 005); it must stay in sync with the operator's intended eligibility.
+- `blocked_clients_json` (Feedback Round 2026-04-13 item 1) is the canonical source for tenant eligibility. An inspector is eligible for a tenant iff `tenant.id NOT IN inspector.blocked_clients_json`. Marketplace filtering MUST respect this rule after the migration lands.
+- `client_eligibility_json` is **DEPRECATED** after planning phase of the next round. During migration, `blocked_clients_json` = complement(`client_eligibility_json`) against the active tenant set.
 
 ### `inspector_availability_slots`
 

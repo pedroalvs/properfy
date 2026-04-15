@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useListQuery } from '@/hooks/useApiQuery';
 import { EarningsSummaryCard } from '../components/EarningsSummaryCard';
@@ -53,6 +54,7 @@ function isCurrentMonth(year: number, month: number): boolean {
 
 export function EarningsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -117,6 +119,23 @@ export function EarningsPage() {
           {entries.length} payment{entries.length === 1 ? '' : 's'} in {formatMonthYear(selectedYear, selectedMonth)}
         </p>
       </section>
+
+      {/* Draft Invoice CTA */}
+      <button
+        type="button"
+        onClick={() => navigate('/earnings/draft-invoice')}
+        className="flex w-full items-center justify-between rounded-[20px] border border-primary/20 bg-primary/5 px-4 py-3.5 text-left shadow-sm"
+        data-testid="draft-invoice-cta"
+      >
+        <div className="flex items-center gap-3">
+          <i className="mdi mdi-file-document-outline text-xl text-primary" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-semibold text-primary">Draft Invoice</p>
+            <p className="text-xs text-text-secondary">Generate an invoice for a period</p>
+          </div>
+        </div>
+        <i className="mdi mdi-chevron-right text-xl text-primary" aria-hidden="true" />
+      </button>
 
       <div className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-sm">
         <button

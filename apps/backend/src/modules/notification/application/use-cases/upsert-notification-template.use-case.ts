@@ -1,11 +1,15 @@
-import type { AuthContext, NotificationChannel } from '@properfy/shared';
+import type { AuthContext, NotificationChannel, NotificationClass } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
-import { NotificationForbiddenError } from '../../domain/notification.errors';
-import { MANDATORY_TEMPLATE_CODES } from '../../domain/notification.constants';
+import { NotificationForbiddenError, ProtectedTemplateClassificationError } from '../../domain/notification.errors';
+import {
+  MANDATORY_TEMPLATE_CODES,
+  getProtectedClass,
+  getDefaultClass,
+} from '../../domain/notification.constants';
 import { NotificationTemplateEntity } from '../../domain/notification-template.entity';
 
 const VALID_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS', 'WHATSAPP'];
@@ -17,6 +21,7 @@ export interface UpsertNotificationTemplateInput {
   bodyHtml?: string;
   bodyText: string;
   isActive: boolean;
+  notificationClass?: NotificationClass;
   actor: AuthContext;
 }
 
@@ -28,6 +33,7 @@ export interface UpsertNotificationTemplateOutput {
   subject: string | null;
   bodyText: string;
   isActive: boolean;
+  notificationClass: NotificationClass;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,7 +81,21 @@ export class UpsertNotificationTemplateUseCase {
       throw new ValidationError('Invalid notification channel');
     }
 
-    // 4. Extract variables
+    // 4. Feature 018: resolve and validate notification classification (FR-004, FR-005)
+    const protectedClass = getProtectedClass(input.templateCode);
+    let resolvedClass: NotificationClass;
+    if (protectedClass) {
+      // Protected template codes are immutable — reject reclassification attempts
+      if (input.notificationClass && input.notificationClass !== protectedClass) {
+        throw new ProtectedTemplateClassificationError(input.templateCode, protectedClass);
+      }
+      resolvedClass = protectedClass;
+    } else {
+      // Non-protected: use provided class or fall back to the default map (OPERATIONAL for most)
+      resolvedClass = input.notificationClass ?? getDefaultClass(input.templateCode);
+    }
+
+    // 5. Extract variables
     const allVariables = new Set<string>();
     for (const variable of this.templateRenderer.extractVariables(input.bodyText)) {
       allVariables.add(variable);
@@ -92,7 +112,7 @@ export class UpsertNotificationTemplateUseCase {
     }
     const variablesJson = [...allVariables];
 
-    // 5. Create entity
+    // 6. Create entity
     const now = new Date();
     const template = new NotificationTemplateEntity({
       id: crypto.randomUUID(),
@@ -104,6 +124,7 @@ export class UpsertNotificationTemplateUseCase {
       bodyText: input.bodyText,
       variablesJson,
       isActive: input.isActive,
+      notificationClass: resolvedClass,
       whatsappApprovalStatus: 'PENDING',
       whatsappApprovalReference: null,
       createdAt: now,
@@ -137,6 +158,7 @@ export class UpsertNotificationTemplateUseCase {
       subject: template.subject,
       bodyText: template.bodyText,
       isActive: template.active,
+      notificationClass: template.notificationClass,
       createdAt: template.createdAt.toISOString(),
       updatedAt: template.updatedAt.toISOString(),
     };

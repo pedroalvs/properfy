@@ -37,11 +37,12 @@ export class GetPropertyUseCase {
   async execute(input: GetPropertyInput): Promise<GetPropertyOutput> {
     const { propertyId, actor } = input;
 
-    // Resolve tenantId for scoping
+    // Resolve tenantId for scoping. Only AM is cross-tenant per Sprint 1
+    // W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
     let tenantId: string | undefined;
-    if (actor.role === 'AM' || actor.role === 'OP') {
-      tenantId = input.tenantId; // optional — AM/OP can look up any property
-    } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+    if (actor.role === 'AM') {
+      tenantId = input.tenantId; // optional — AM can look up any property
+    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       tenantId = actor.tenantId!;
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');

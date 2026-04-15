@@ -131,6 +131,67 @@ export function isValidCronExpression(expression: string): boolean {
 }
 
 /**
+ * Feature 019: map a structured recurrence (daily / weekly / monthly) onto a
+ * 5-field cron expression. This is the canonical conversion used by the
+ * scheduled-report create/update use cases. Keeping cron as the storage format
+ * means the existing parser, next-run computation, and legacy call sites stay
+ * unchanged.
+ */
+export type StructuredRecurrenceInput =
+  | { type: 'daily'; hour: number }
+  | { type: 'weekly'; dayOfWeek: number; hour: number }
+  | { type: 'monthly'; dayOfMonth: number; hour: number };
+
+export function recurrenceToCron(recurrence: StructuredRecurrenceInput): string {
+  switch (recurrence.type) {
+    case 'daily':
+      // `0 HH * * *`
+      return `0 ${recurrence.hour} * * *`;
+    case 'weekly':
+      // `0 HH * * D`
+      return `0 ${recurrence.hour} * * ${recurrence.dayOfWeek}`;
+    case 'monthly':
+      // `0 HH D * *`
+      return `0 ${recurrence.hour} ${recurrence.dayOfMonth} * *`;
+  }
+}
+
+/**
+ * Compute the most recent cron tick at or before `before`. Used by the schedule
+ * worker to compute `scheduled_for` for catch-up run ledger rows.
+ */
+export function getPreviousRunTime(expression: string, before: Date): Date | null {
+  const cron = parseCronExpression(expression);
+  const cursor = new Date(before);
+  cursor.setSeconds(0, 0);
+
+  const limit = new Date(before);
+  limit.setDate(limit.getDate() - 366);
+
+  while (cursor > limit) {
+    const month = cursor.getMonth() + 1;
+    const dayOfMonth = cursor.getDate();
+    const dayOfWeek = cursor.getDay();
+    const hour = cursor.getHours();
+    const minute = cursor.getMinutes();
+
+    if (
+      cron.months.includes(month) &&
+      cron.daysOfMonth.includes(dayOfMonth) &&
+      cron.daysOfWeek.includes(dayOfWeek) &&
+      cron.hours.includes(hour) &&
+      cron.minutes.includes(minute)
+    ) {
+      return new Date(cursor);
+    }
+
+    cursor.setMinutes(cursor.getMinutes() - 1);
+  }
+
+  return null;
+}
+
+/**
  * Compute the next run time after `after` for the given cron expression.
  * Searches forward up to 366 days. Returns null if no match is found.
  */

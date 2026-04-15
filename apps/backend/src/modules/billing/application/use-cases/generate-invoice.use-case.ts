@@ -121,6 +121,7 @@ export class GenerateInvoiceUseCase {
       paidByUserId: null,
       paymentReference: null,
       notes: null,
+      draftedByInspectorId: null,
       createdAt: now,
       updatedAt: now,
     });

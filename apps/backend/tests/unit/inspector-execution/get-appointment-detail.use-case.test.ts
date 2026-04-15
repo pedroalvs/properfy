@@ -18,6 +18,8 @@ import {
   ExecutionAppointmentNotFoundError,
   ExecutionT1BlockedError,
 } from '../../../src/modules/inspector-execution/domain/inspection-execution.errors';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import type { AuthContext } from '@properfy/shared';
 
 function makeAppointmentEntity(
@@ -55,10 +57,18 @@ function makeAppointmentEntity(
   });
 }
 
-function makeContact(): AppointmentContactEntity {
+function makeContact(
+  overrides: Partial<ConstructorParameters<typeof AppointmentContactEntity>[0]> = {},
+): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
+    contactId: null,
+    role: 'TENANT',
+    isPrimary: true,
+    snapshotName: null,
+    snapshotEmail: null,
+    snapshotPhone: null,
     tenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
@@ -66,6 +76,7 @@ function makeContact(): AppointmentContactEntity {
     secondaryPhone: '+61400000001',
     createdAt: new Date(),
     updatedAt: new Date(),
+    ...overrides,
   });
 }
 
@@ -83,14 +94,34 @@ function makeRestriction(): AppointmentRestrictionEntity {
   });
 }
 
+function makeTenantEntity(
+  overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
+): TenantEntity {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Acme Realty',
+    legalName: 'Acme Realty Pty Ltd',
+    status: 'ACTIVE',
+    timezone: 'Australia/Sydney',
+    currency: 'AUD',
+    settingsJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
 function makeAppointmentWithRelations(
   appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
   withContact = true,
   withRestrictions = true,
 ): AppointmentWithRelations {
+  const contact = withContact ? makeContact() : null;
   return {
     appointment: makeAppointmentEntity(appointmentOverrides),
-    contact: withContact ? makeContact() : null,
+    contact,
+    contacts: contact ? [contact] : [],
     restrictions: withRestrictions ? [makeRestriction()] : [],
   };
 }
@@ -150,6 +181,7 @@ describe('GetAppointmentDetailUseCase', () => {
   let executionRepo: IInspectionExecutionRepository;
   let assetRepo: IInspectionAssetRepository;
   let serviceTypeReader: IServiceTypeReader;
+  let tenantRepo: ITenantRepository;
   let useCase: GetAppointmentDetailUseCase;
 
   beforeEach(() => {
@@ -190,6 +222,15 @@ describe('GetAppointmentDetailUseCase', () => {
       findByIds: vi.fn(),
     };
 
+    tenantRepo = {
+      findById: vi.fn().mockResolvedValue(makeTenantEntity()),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+
     const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
     useCase = new GetAppointmentDetailUseCase(
       appointmentRepo,
@@ -197,6 +238,7 @@ describe('GetAppointmentDetailUseCase', () => {
       assetRepo,
       serviceTypeReader,
       authorizationService,
+      tenantRepo,
     );
   });
 

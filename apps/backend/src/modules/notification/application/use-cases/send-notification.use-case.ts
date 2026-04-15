@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { NotificationClass } from '@properfy/shared';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { INotificationConsentRepository } from '../../domain/notification-consent.repository';
@@ -14,6 +15,7 @@ import {
   TemplateNotFoundError,
 } from '../../domain/notification.errors';
 import { MAX_RETRY_COUNT, RETRY_DELAYS, JITTER_FACTOR } from '../../domain/notification.constants';
+import { buildUnsubscribeUrl } from './process-unsubscribe.use-case';
 
 export interface SendNotificationInput {
   notificationId: string;
@@ -31,6 +33,10 @@ export interface SendNotificationDeps {
   logger: Logger;
   metrics: MetricsCollector;
   getTenantSettings: (tenantId: string) => Promise<Record<string, unknown>>;
+  /** Feature 018: base URL for unsubscribe link injection (e.g., https://api.properfy.com) */
+  publicBaseUrl: string;
+  /** Feature 018: HMAC secret for unsubscribe token generation */
+  unsubscribeTokenSecret: string;
 }
 
 export class SendNotificationUseCase {
@@ -45,6 +51,8 @@ export class SendNotificationUseCase {
   private readonly logger: Logger;
   private readonly metrics: MetricsCollector;
   private readonly getTenantSettings: (tenantId: string) => Promise<Record<string, unknown>>;
+  private readonly publicBaseUrl: string;
+  private readonly unsubscribeTokenSecret: string;
 
   constructor(deps: SendNotificationDeps) {
     this.notificationRepo = deps.notificationRepo;
@@ -58,6 +66,8 @@ export class SendNotificationUseCase {
     this.logger = deps.logger;
     this.metrics = deps.metrics;
     this.getTenantSettings = deps.getTenantSettings;
+    this.publicBaseUrl = deps.publicBaseUrl;
+    this.unsubscribeTokenSecret = deps.unsubscribeTokenSecret;
   }
 
   async execute(input: SendNotificationInput): Promise<void> {
@@ -70,18 +80,84 @@ export class SendNotificationUseCase {
       throw new NotificationInvalidStatusError();
     }
 
-    // GAP-001: Check consent opt-out
-    const consent = await this.consentRepo.findByRecipientChannelTenant(
-      notification.recipient,
-      notification.channel,
+    // ─── Feature 018: classification-aware consent branching ─────────────────
+    //
+    // The send worker must honor the notification class stamped on the notification
+    // (or resolved from the template at first check for legacy rows without a class).
+    //
+    //   TRANSACTIONAL → always dispatch, bypass consent entirely (FR-013).
+    //   OPERATIONAL   → respect the recipient's opt-out for the OPERATIONAL class (FR-012).
+    //   MARKETING     → Phase 1 has no opt-in collection, so marketing is effectively blocked.
+    //
+    // We determine the effective class via `notification.getEffectiveClass()`, which
+    // returns `notification.notificationClass ?? 'OPERATIONAL'`. Legacy rows without a
+    // stamped class are treated as OPERATIONAL (the conservative default).
+    //
+    // If we need to read from the template (e.g., the stamp was null AND we want the most
+    // up-to-date classification), we fall through to the template load below and cross-check.
+    let effectiveClass: NotificationClass = notification.getEffectiveClass();
+
+    // Load the template ONCE (it's needed for rendering anyway). If the notification
+    // entity has no class stamped, promote the template's class to the effective class.
+    // Otherwise the stamped class wins to honor the spec rule "template class change does
+    // not retroactively affect in-flight notifications".
+    let template = await this.templateRepo.findByTenantCodeChannel(
       notification.tenantId,
+      notification.templateCode,
+      notification.channel,
     );
-    if (consent?.isOptedOut()) {
-      notification.status = 'SKIPPED';
-      notification.failureReason = 'CONSENT_OPT_OUT';
-      notification.updatedAt = new Date();
-      await this.notificationRepo.update(notification);
-      return;
+    if (!template) {
+      template = await this.templateRepo.findByTenantCodeChannel(
+        null,
+        notification.templateCode,
+        notification.channel,
+      );
+    }
+    if (!template) {
+      throw new TemplateNotFoundError();
+    }
+    if (notification.notificationClass === null) {
+      effectiveClass = template.notificationClass;
+    }
+
+    if (effectiveClass === 'TRANSACTIONAL') {
+      // Bypass consent entirely for transactional notifications (FR-013).
+      // This is the most important invariant of feature 018.
+      this.logger.debug(
+        { notificationId: notification.id, templateCode: notification.templateCode },
+        'notification.consent_bypass_transactional',
+      );
+    } else {
+      // OPERATIONAL or MARKETING — check consent
+      const consent = await this.consentRepo.findByScope({
+        tenantId: notification.tenantId,
+        recipient: notification.recipient,
+        channel: notification.channel,
+        notificationClass: effectiveClass,
+      });
+
+      // MARKETING: Phase 1 has no opt-in collection, so absence of an opted-in record
+      // means "blocked". OPERATIONAL: absence of a record means "opted-in" (default).
+      const shouldBlock =
+        (effectiveClass === 'OPERATIONAL' && consent?.isOptedOut() === true) ||
+        (effectiveClass === 'MARKETING' && !(consent && consent.isOptedOut() === false));
+
+      if (shouldBlock) {
+        notification.status = 'SKIPPED_OPT_OUT';
+        notification.failureReason = 'CONSENT_OPT_OUT';
+        notification.updatedAt = new Date();
+        await this.notificationRepo.update(notification);
+        this.logger.info(
+          {
+            notificationId: notification.id,
+            recipient: notification.recipient,
+            channel: notification.channel,
+            notificationClass: effectiveClass,
+          },
+          'notification.skipped_opt_out',
+        );
+        return;
+      }
     }
 
     // GAP-003: Check daily budget cap
@@ -110,23 +186,7 @@ export class SendNotificationUseCase {
       }
     }
 
-    // Template lookup: tenant-specific first, then platform default
-    let template = await this.templateRepo.findByTenantCodeChannel(
-      notification.tenantId,
-      notification.templateCode,
-      notification.channel,
-    );
-    if (!template) {
-      template = await this.templateRepo.findByTenantCodeChannel(
-        null,
-        notification.templateCode,
-        notification.channel,
-      );
-    }
-    if (!template) {
-      throw new TemplateNotFoundError();
-    }
-
+    // Template was already loaded during the consent-branch check above.
     // GAP-002: WhatsApp template approval check
     if (notification.channel === 'WHATSAPP' && !template.isWhatsAppApproved()) {
       notification.status = 'FAILED';
@@ -138,7 +198,19 @@ export class SendNotificationUseCase {
     }
 
     // GAP-004: Validate template variables (warn but don't fail)
-    const variables = notification.payloadJson;
+    // Feature 018: inject unsubscribeUrl for OPERATIONAL notifications. Transactional
+    // notifications do NOT get an unsubscribe link because they cannot be opted out of.
+    const variables: Record<string, string> = { ...notification.payloadJson };
+    if (effectiveClass === 'OPERATIONAL') {
+      variables['unsubscribeUrl'] = buildUnsubscribeUrl(
+        this.publicBaseUrl,
+        notification.recipient,
+        notification.channel,
+        notification.tenantId,
+        this.unsubscribeTokenSecret,
+      );
+    }
+
     const allTemplateContent = [template.subject, template.bodyHtml, template.bodyText]
       .filter(Boolean)
       .join(' ');

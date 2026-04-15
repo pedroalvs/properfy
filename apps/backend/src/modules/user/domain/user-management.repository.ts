@@ -21,6 +21,8 @@ export interface IUserManagementRepository {
     tenantId: string | null,
   ): Promise<UserEntity | null>;
   findByEmail(email: string): Promise<UserEntity | null>;
+  /** Feature 020 FR-019b: phone-input path for data subject erasure resolver. */
+  findByPhone(phone: string): Promise<UserEntity | null>;
   findByTenantId(
     tenantId: string | null,
     filters: UserManagementFilters,

@@ -28,6 +28,7 @@ function mapToEntity(row: any): InspectorInvoiceEntity {
     paidByUserId: row.paid_by_user_id ?? null,
     paymentReference: row.payment_reference ?? null,
     notes: row.notes,
+    draftedByInspectorId: row.drafted_by_inspector_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -144,12 +145,17 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
     const updateData: Record<string, unknown> = {};
     if (data.status !== undefined) updateData.status = data.status;
     if (data.fileKey !== undefined) updateData.file_key = data.fileKey;
+    if (data.generatedByUserId !== undefined) updateData.generated_by_user_id = data.generatedByUserId;
     if (data.generatedAt !== undefined) updateData.generated_at = data.generatedAt;
     if (data.paidAt !== undefined) updateData.paid_at = data.paidAt;
     if (data.paidByUserId !== undefined) updateData.paid_by_user_id = data.paidByUserId;
     if (data.paymentReference !== undefined) updateData.payment_reference = data.paymentReference;
     if (data.notes !== undefined) updateData.notes = data.notes;
     await this.prisma.inspectorInvoice.update({ where: { id }, data: updateData });
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await this.prisma.inspectorInvoice.delete({ where: { id } });
   }
 
   async getReconciliationAggregates(

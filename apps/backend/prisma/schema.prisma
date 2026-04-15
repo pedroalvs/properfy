@@ -105,6 +105,28 @@ enum RestrictionSource {
   IMPORT
 }
 
+enum ContactType {
+  TENANT
+  PROPERTY_MANAGER
+  HOUSEKEEPER
+  BROKER
+  OTHER
+}
+
+enum ContactChannelType {
+  EMAIL
+  PHONE
+}
+
+enum AppointmentContactRole {
+  TENANT
+  TENANT_REPRESENTATIVE
+  HOUSEKEEPER
+  PROPERTY_MANAGER
+  BROKER
+  OTHER
+}
+
 enum ServiceGroupStatus {
   DRAFT
   PUBLISHED
@@ -158,6 +180,7 @@ model Tenant {
   appointment_time_slots AppointmentTimeSlot[]
   service_regions        ServiceRegion[]
   scheduled_reports      ScheduledReport[]
+  contacts               Contact[]
 
   @@index([status])
   @@index([deleted_at])
@@ -212,24 +235,25 @@ model User {
   sessions                  Session[]
   password_reset_tokens     PasswordResetToken[]
   password_history          PasswordHistory[]
-  tenant                    Tenant?              @relation(fields: [tenant_id], references: [id])
-  branch                    Branch?              @relation(fields: [branch_id], references: [id])
+  tenant                    Tenant?               @relation(fields: [tenant_id], references: [id])
+  branch                    Branch?               @relation(fields: [branch_id], references: [id])
   inspector                 Inspector?
-  created_appointments      Appointment[]        @relation("AppointmentCreatedBy")
-  done_marked_appointments  Appointment[]        @relation("AppointmentDoneMarkedBy")
-  done_checked_appointments Appointment[]        @relation("AppointmentDoneCheckedBy")
-  created_service_groups    ServiceGroup[]       @relation("ServiceGroupCreatedBy")
-  initiated_entries         FinancialEntry[]     @relation("EntryInitiator")
-  approved_entries          FinancialEntry[]     @relation("EntryApprover")
-  voided_entries            FinancialEntry[]     @relation("EntryVoider")
-  generated_invoices        InspectorInvoice[]   @relation("InspectorInvoiceGeneratedBy")
-  paid_invoices             InspectorInvoice[]   @relation("InspectorInvoicePaidBy")
+  created_appointments      Appointment[]         @relation("AppointmentCreatedBy")
+  done_marked_appointments  Appointment[]         @relation("AppointmentDoneMarkedBy")
+  done_checked_appointments Appointment[]         @relation("AppointmentDoneCheckedBy")
+  created_service_groups    ServiceGroup[]        @relation("ServiceGroupCreatedBy")
+  initiated_entries         FinancialEntry[]      @relation("EntryInitiator")
+  approved_entries          FinancialEntry[]      @relation("EntryApprover")
+  voided_entries            FinancialEntry[]      @relation("EntryVoider")
+  generated_invoices        InspectorInvoice[]    @relation("InspectorInvoiceGeneratedBy")
+  paid_invoices             InspectorInvoice[]    @relation("InspectorInvoicePaidBy")
+  consent_changes           NotificationConsent[] @relation("NotificationConsentChangedBy")
   generated_tenant_invoices TenantInvoice[]
   requested_reports         Report[]
-  created_imports           AppointmentImport[]  @relation("importCreatedBy")
-  created_property_imports  PropertyImport[]     @relation("propertyImportCreatedBy")
-  created_service_regions   ServiceRegion[]      @relation("ServiceRegionCreatedBy")
-  created_scheduled_reports ScheduledReport[]    @relation("scheduledReportCreatedBy")
+  created_imports           AppointmentImport[]   @relation("importCreatedBy")
+  created_property_imports  PropertyImport[]      @relation("propertyImportCreatedBy")
+  created_service_regions   ServiceRegion[]       @relation("ServiceRegionCreatedBy")
+  created_scheduled_reports ScheduledReport[]     @relation("scheduledReportCreatedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -378,6 +402,17 @@ model Inspector {
   regions_json            Json            @default("[]")
   service_types_json      Json            @default("[]")
   client_eligibility_json Json            @default("[]")
+  // Feedback Round item 1: blocked-clients model (replaces allow-list)
+  blocked_clients_json    Json            @default("[]")
+  // Feedback Round item 6: profile extension fields
+  full_name               String?         @db.VarChar(300)
+  address                 Json?
+  abn                     String?         @db.VarChar(20)
+  date_of_birth           DateTime?       @db.Date
+  insurance_file_key      String?
+  insurance_expires_at    DateTime?       @db.Date
+  police_check_file_key   String?
+  police_check_expires_at DateTime?       @db.Date
   created_at              DateTime        @default(now())
   updated_at              DateTime        @updatedAt
   deleted_at              DateTime?
@@ -394,6 +429,8 @@ model Inspector {
   @@index([status])
   @@index([user_id])
   @@index([deleted_at])
+  @@index([insurance_expires_at])
+  @@index([police_check_expires_at])
   @@map("inspectors")
 }
 
@@ -459,7 +496,7 @@ model Appointment {
   done_marked_by_user  User?         @relation("AppointmentDoneMarkedBy", fields: [done_marked_by_user_id], references: [id])
   done_checked_by_user User?         @relation("AppointmentDoneCheckedBy", fields: [done_checked_by_user_id], references: [id])
 
-  contact           AppointmentContact?
+  contacts          AppointmentContact[]
   restrictions      AppointmentRestriction[]
   portal_tokens     TenantPortalToken[]
   portal_activities TenantPortalActivity[]
@@ -519,19 +556,54 @@ model ServiceGroup {
   @@map("service_groups")
 }
 
+model Contact {
+  id                       String            @id @default(uuid())
+  tenant_id                String
+  type                     ContactType
+  display_name             String            @db.VarChar(200)
+  company                  String?           @db.VarChar(200)
+  primary_email            String?           @db.VarChar(254)
+  primary_phone            String?           @db.VarChar(30)
+  additional_channels_json Json              @default("[]")
+  notes                    String?
+  is_active                Boolean           @default(true)
+  created_at               DateTime          @default(now())
+  updated_at               DateTime          @updatedAt
+
+  tenant               Tenant               @relation(fields: [tenant_id], references: [id])
+  appointment_contacts AppointmentContact[]
+
+  // Partial unique indexes managed in migration SQL (WHERE is_active = true):
+  // - contacts_tenant_email_active_unique
+  // - contacts_tenant_phone_active_unique
+  @@index([tenant_id, type])
+  @@index([tenant_id, is_active])
+  @@index([tenant_id, display_name])
+  @@map("contacts")
+}
+
 model AppointmentContact {
-  id              String   @id @default(uuid())
-  appointment_id  String   @unique
-  tenant_name     String   @db.VarChar(200)
-  primary_email   String?  @db.VarChar(254)
-  secondary_email String?  @db.VarChar(254)
-  primary_phone   String?  @db.VarChar(30)
-  secondary_phone String?  @db.VarChar(30)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id              String                  @id @default(uuid())
+  appointment_id  String
+  contact_id      String?
+  tenant_name     String                  @db.VarChar(200)
+  primary_email   String?                 @db.VarChar(254)
+  secondary_email String?                 @db.VarChar(254)
+  primary_phone   String?                 @db.VarChar(30)
+  secondary_phone String?                 @db.VarChar(30)
+  role            AppointmentContactRole  @default(TENANT)
+  is_primary      Boolean                 @default(true)
+  snapshot_name   String?                 @db.VarChar(200)
+  snapshot_email  String?                 @db.VarChar(254)
+  snapshot_phone  String?                 @db.VarChar(30)
+  created_at      DateTime                @default(now())
+  updated_at      DateTime                @updatedAt
 
   appointment Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  contact     Contact?    @relation(fields: [contact_id], references: [id])
 
+  @@index([appointment_id])
+  @@index([contact_id])
   @@map("appointment_contacts")
 }
 
@@ -552,28 +624,191 @@ model AppointmentRestriction {
   @@map("appointment_restrictions")
 }
 
+// Feature 020: audit retention category tiers
+enum AuditRetentionCategory {
+  FINANCIAL
+  OPERATIONAL_CRITICAL
+  OPERATIONAL_GENERAL
+}
+
+// Feature 020: per-row redaction lifecycle state (for on-demand erasure coordination)
+enum AuditRedactionStatus {
+  NONE
+  PARTIAL
+  FULL
+  IN_PROGRESS
+}
+
+// Feature 020: preservation rule type for retention exemptions.
+// `ACTIVE_DISPUTE` (FR-009) was removed in Sprint 1 W-5 (2026-04-13) — see
+// `specs/020-audit-retention-pii-redaction/spec.md` Delivery Outcome.
+enum PreservationRuleType {
+  CROSS_CHECK
+  LEGAL_HOLD
+}
+
+// Feature 020: data-subject erasure request lifecycle
+enum ErasureRequestStatus {
+  PENDING
+  SCANNING
+  PREVIEW
+  CONFIRMED
+  EXECUTING
+  COMPLETED
+  FAILED
+}
+
 model AuditLog {
-  id            String         @id @default(uuid())
-  tenant_id     String?
-  actor_type    AuditActorType
-  actor_id      String?
-  entity_type   String         @db.VarChar(100)
-  entity_id     String?
-  action        String         @db.VarChar(200)
-  reason        String?        @db.Text
-  before_json   Json?
-  after_json    Json?
-  request_id    String?        @db.VarChar(100)
-  ip_address    String?        @db.VarChar(45)
-  metadata_json Json?
-  created_at    DateTime       @default(now())
+  id                   String                  @id @default(uuid())
+  tenant_id            String?
+  actor_type           AuditActorType
+  actor_id             String?
+  entity_type          String                  @db.VarChar(100)
+  entity_id            String?
+  action               String                  @db.VarChar(200)
+  reason               String?                 @db.Text
+  before_json          Json?
+  after_json           Json?
+  request_id           String?                 @db.VarChar(100)
+  ip_address           String?                 @db.VarChar(45)
+  metadata_json        Json?
+  created_at           DateTime                @default(now())
+  // Feature 020: retention + redaction + cold-storage lifecycle columns
+  retention_category   AuditRetentionCategory?
+  redaction_status     AuditRedactionStatus    @default(NONE)
+  cold_storage         Boolean                 @default(false)
+  preservation_rule_id String?
+
+  preservationRule AuditPreservationRule? @relation(fields: [preservation_rule_id], references: [id], onDelete: SetNull)
 
   @@index([entity_type, entity_id])
   @@index([actor_id])
   @@index([action])
   @@index([tenant_id])
   @@index([created_at])
+  @@index([retention_category, created_at])
+  @@index([redaction_status])
   @@map("audit_logs")
+}
+
+// Feature 020: parallel cold-storage table for audit_logs. Retention worker
+// moves expired entries here in a single-transaction INSERT ... SELECT + DELETE.
+// Schema mirrors AuditLog exactly; FKs are relaxed so moves do not cascade.
+model AuditLogArchive {
+  id                   String                  @id
+  tenant_id            String?
+  actor_type           AuditActorType
+  actor_id             String?
+  entity_type          String                  @db.VarChar(100)
+  entity_id            String?
+  action               String                  @db.VarChar(200)
+  reason               String?                 @db.Text
+  before_json          Json?
+  after_json           Json?
+  request_id           String?                 @db.VarChar(100)
+  ip_address           String?                 @db.VarChar(45)
+  metadata_json        Json?
+  created_at           DateTime
+  retention_category   AuditRetentionCategory?
+  redaction_status     AuditRedactionStatus    @default(NONE)
+  cold_storage         Boolean                 @default(true)
+  preservation_rule_id String?
+  archived_at          DateTime                @default(now())
+
+  @@index([entity_type, entity_id])
+  @@index([actor_id])
+  @@index([action])
+  @@index([tenant_id])
+  @@index([created_at])
+  @@index([archived_at])
+  @@map("audit_logs_archive")
+}
+
+// Feature 020: DB-backed retention category registry (replaces hardcoded tier durations)
+model AuditRetentionCategoryConfig {
+  id                   String                 @id @default(uuid())
+  name                 AuditRetentionCategory @unique
+  retention_years      Int
+  hard_delete_enabled  Boolean                @default(false)
+  description          String?                @db.Text
+  action_patterns_json Json                   @default("[]")
+  created_at           DateTime               @default(now())
+  updated_at           DateTime               @updatedAt
+
+  @@map("audit_retention_category_configs")
+}
+
+// Feature 020: preservation rules (cross-check / active-dispute / legal-hold) that exempt audit entries from retention
+model AuditPreservationRule {
+  id                 String               @id @default(uuid())
+  name               String               @db.VarChar(200)
+  rule_type          PreservationRuleType
+  entity_type        String?              @db.VarChar(100)
+  entity_id          String?
+  tenant_id          String?
+  is_active          Boolean              @default(true)
+  created_by_user_id String
+  created_at         DateTime             @default(now())
+  updated_at         DateTime             @updatedAt
+
+  exemptedAuditLogs AuditLog[]
+
+  @@index([rule_type, is_active])
+  @@index([entity_type, entity_id])
+  @@map("audit_preservation_rules")
+}
+
+// Feature 020: legal holds (per-entity, AM-only, non-disableable while active)
+model AuditLegalHold {
+  id                  String    @id @default(uuid())
+  entity_type         String    @db.VarChar(100)
+  entity_id           String
+  tenant_id           String?
+  reason              String    @db.Text
+  placed_by_user_id   String
+  placed_at           DateTime  @default(now())
+  released_by_user_id String?
+  released_at         DateTime?
+  is_active           Boolean   @default(true)
+
+  @@index([entity_type, entity_id, is_active])
+  @@index([tenant_id])
+  @@map("audit_legal_holds")
+}
+
+// Feature 020: extensible PII field registry (seeds from the existing PII_REGISTRY + FR-012 additions)
+model PiiFieldMapping {
+  id                     String   @id @default(uuid())
+  action_pattern         String   @db.VarChar(200)
+  json_field_path        String   @db.VarChar(500)
+  classification         String   @db.VarChar(50)
+  requires_manual_review Boolean  @default(false)
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  @@unique([action_pattern, json_field_path])
+  @@index([classification])
+  @@map("pii_field_mappings")
+}
+
+// Feature 020: data subject erasure request lifecycle tracking
+model DataSubjectErasureRequest {
+  id                               String               @id @default(uuid())
+  subject_identifier_type          String               @db.VarChar(20)
+  subject_identifier_value         String               @db.VarChar(500)
+  resolved_pii_values_json         Json?
+  status                           ErasureRequestStatus @default(PENDING)
+  entries_found_count              Int?
+  entries_redacted_count           Int?
+  entries_flagged_for_review_count Int?
+  completion_report_json           Json?
+  initiated_by_user_id             String
+  initiated_at                     DateTime             @default(now())
+  completed_at                     DateTime?
+
+  @@index([status])
+  @@index([initiated_by_user_id])
+  @@map("data_subject_erasure_requests")
 }
 
 enum TenantPortalTokenStatus {
@@ -611,6 +846,7 @@ enum FinancialEntryStatus {
 }
 
 enum InspectorInvoiceStatus {
+  PENDING_REVIEW
   OPEN
   CLOSED
   PAID
@@ -653,6 +889,19 @@ enum NotificationStatus {
   DELIVERED
   FAILED
   SKIPPED
+  SKIPPED_OPT_OUT
+}
+
+enum NotificationClass {
+  TRANSACTIONAL
+  OPERATIONAL
+  MARKETING
+}
+
+enum ConsentChangeSource {
+  unsubscribe_link
+  operator_override
+  re_opt_in
 }
 
 model TenantPortalToken {
@@ -676,7 +925,7 @@ model TenantPortalToken {
 }
 
 model TenantPortalActivity {
-  id                     String             @id @default(uuid())
+  id                     String                  @id @default(uuid())
   appointment_id         String
   tenant_portal_token_id String
   action                 TenantPortalAction
@@ -684,7 +933,11 @@ model TenantPortalActivity {
   new_values_json        Json?
   ip_address             String?
   user_agent             String?
-  created_at             DateTime           @default(now())
+  created_at             DateTime                @default(now())
+  // Feature 020: parallel retention + redaction + cold-storage lifecycle (no preservation FK — cross-check rule does not apply here)
+  retention_category     AuditRetentionCategory?
+  redaction_status       AuditRedactionStatus    @default(NONE)
+  cold_storage           Boolean                 @default(false)
 
   appointment Appointment       @relation(fields: [appointment_id], references: [id])
   token       TenantPortalToken @relation(fields: [tenant_portal_token_id], references: [id])
@@ -693,7 +946,32 @@ model TenantPortalActivity {
   @@index([tenant_portal_token_id])
   @@index([action])
   @@index([created_at])
+  @@index([redaction_status])
   @@map("tenant_portal_activities")
+}
+
+// Feature 020: parallel cold-storage table for tenant_portal_activities
+model TenantPortalActivityArchive {
+  id                     String                  @id
+  appointment_id         String
+  tenant_portal_token_id String
+  action                 TenantPortalAction
+  previous_values_json   Json?
+  new_values_json        Json?
+  ip_address             String?
+  user_agent             String?
+  created_at             DateTime
+  retention_category     AuditRetentionCategory?
+  redaction_status       AuditRedactionStatus    @default(NONE)
+  cold_storage           Boolean                 @default(true)
+  archived_at            DateTime                @default(now())
+
+  @@index([appointment_id])
+  @@index([tenant_portal_token_id])
+  @@index([action])
+  @@index([created_at])
+  @@index([archived_at])
+  @@map("tenant_portal_activities_archive")
 }
 
 model InspectionExecution {
@@ -816,9 +1094,10 @@ model InspectorInvoice {
   paid_at              DateTime?
   paid_by_user_id      String?
   payment_reference    String?                @db.VarChar(255)
-  notes                String?
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
+  notes                    String?
+  drafted_by_inspector_id  String?
+  created_at               DateTime               @default(now())
+  updated_at               DateTime               @updatedAt
 
   inspector   Inspector @relation(fields: [inspector_id], references: [id])
   generatedBy User?     @relation("InspectorInvoiceGeneratedBy", fields: [generated_by_user_id], references: [id])
@@ -879,6 +1158,7 @@ model Notification {
   channel             NotificationChannel
   template_code       String              @db.VarChar(100)
   status              NotificationStatus  @default(PENDING)
+  notification_class  NotificationClass?
   provider_name       String?             @db.VarChar(50)
   provider_message_id String?             @db.VarChar(200)
   sent_at             DateTime?
@@ -914,6 +1194,7 @@ model NotificationTemplate {
   body_text                   String                 @db.Text
   variables_json              Json
   is_active                   Boolean                @default(true)
+  notification_class          NotificationClass      @default(OPERATIONAL)
   whatsapp_approval_status    WhatsAppApprovalStatus @default(PENDING)
   whatsapp_approval_reference String?                @db.VarChar(255)
   created_at                  DateTime               @default(now())
@@ -966,6 +1247,29 @@ enum ReportFormat {
   PDF
 }
 
+// Feature 019: schedule delivery targets
+enum ScheduleDeliveryMode {
+  OWNER_ONLY
+  RECIPIENT_LIST
+  TENANT_WIDE
+}
+
+// Feature 019: schedule lifecycle status (distinct from legacy is_active flag)
+enum ScheduleStatus {
+  ACTIVE
+  PAUSED
+}
+
+// Feature 019: per-run ledger status
+enum ScheduleRunStatus {
+  queued
+  running
+  completed
+  failed
+  skipped_catchup
+  skipped_empty
+}
+
 model Report {
   id                   String       @id @default(uuid())
   tenant_id            String?
@@ -975,6 +1279,8 @@ model Report {
   status               ReportStatus @default(PENDING)
   file_key             String?
   requested_by_user_id String
+  // Feature 019: optional back-reference to the scheduled_report that created this report row
+  scheduled_report_id  String?
   started_at           DateTime?
   completed_at         DateTime?
   failed_at            DateTime?
@@ -984,8 +1290,10 @@ model Report {
   created_at           DateTime     @default(now())
   updated_at           DateTime     @updatedAt
 
-  tenant      Tenant? @relation(fields: [tenant_id], references: [id])
-  requestedBy User    @relation(fields: [requested_by_user_id], references: [id])
+  tenant          Tenant?              @relation(fields: [tenant_id], references: [id])
+  requestedBy     User                 @relation(fields: [requested_by_user_id], references: [id])
+  scheduledReport ScheduledReport?     @relation(fields: [scheduled_report_id], references: [id], onDelete: SetNull)
+  scheduleRuns    ScheduledReportRun[]
 
   @@index([tenant_id])
   @@index([report_type])
@@ -993,6 +1301,7 @@ model Report {
   @@index([requested_by_user_id])
   @@index([created_at])
   @@index([expires_at])
+  @@index([scheduled_report_id])
   @@map("reports")
 }
 
@@ -1109,40 +1418,85 @@ model InspectorRegion {
 }
 
 model ScheduledReport {
-  id                 String       @id @default(uuid())
-  tenant_id          String
-  report_type        ReportType
-  filters_json       Json
-  format             ReportFormat @default(XLSX)
-  cron_expression    String       @db.VarChar(100)
-  delivery_email     String       @db.VarChar(254)
-  is_active          Boolean      @default(true)
-  last_run_at        DateTime?
-  next_run_at        DateTime?
-  created_by_user_id String
-  created_at         DateTime     @default(now())
-  updated_at         DateTime     @updatedAt
+  id                        String               @id @default(uuid())
+  tenant_id                 String
+  report_type               ReportType
+  filters_json              Json
+  format                    ReportFormat         @default(XLSX)
+  cron_expression           String               @db.VarChar(100)
+  // Legacy single-recipient delivery field (Feature 019 deprecates this in favor of delivery_mode + recipient_user_ids)
+  delivery_email            String               @db.VarChar(254)
+  // Feature 019: lifecycle columns
+  display_name              String?              @db.VarChar(120)
+  delivery_mode             ScheduleDeliveryMode @default(OWNER_ONLY)
+  recipient_user_ids        Json                 @default("[]")
+  skip_delivery_when_empty  Boolean              @default(false)
+  consecutive_failure_count Int                  @default(0)
+  status                    ScheduleStatus       @default(ACTIVE)
+  deleted_at                DateTime?
+  // Legacy flag kept for back-compat; new code must read `status`
+  is_active                 Boolean              @default(true)
+  last_run_at               DateTime?
+  next_run_at               DateTime?
+  created_by_user_id        String
+  created_at                DateTime             @default(now())
+  updated_at                DateTime             @updatedAt
 
-  tenant    Tenant @relation(fields: [tenant_id], references: [id])
-  createdBy User   @relation("scheduledReportCreatedBy", fields: [created_by_user_id], references: [id])
+  tenant    Tenant               @relation(fields: [tenant_id], references: [id])
+  createdBy User                 @relation("scheduledReportCreatedBy", fields: [created_by_user_id], references: [id])
+  reports   Report[]
+  runs      ScheduledReportRun[]
 
   @@index([tenant_id])
   @@index([is_active, next_run_at])
+  @@index([status, next_run_at])
   @@index([created_by_user_id])
   @@map("scheduled_reports")
 }
 
-model NotificationConsent {
-  id           String              @id @default(uuid())
-  recipient    String              @db.VarChar(320)
-  channel      NotificationChannel
-  tenant_id    String
-  opted_out    Boolean             @default(false)
-  opted_out_at DateTime?
-  created_at   DateTime            @default(now())
-  updated_at   DateTime            @updatedAt
+// Feature 019: per-run ledger for scheduled report executions
+model ScheduledReportRun {
+  id                   String            @id @default(uuid())
+  schedule_id          String
+  report_id            String?
+  status               ScheduleRunStatus
+  scheduled_for        DateTime
+  started_at           DateTime?
+  completed_at         DateTime?
+  error_message        String?
+  recipient_count      Int?
+  delivery_status_json Json?
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
 
-  @@unique([recipient, channel, tenant_id])
+  schedule ScheduledReport @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+  report   Report?         @relation(fields: [report_id], references: [id], onDelete: SetNull)
+
+  @@unique([schedule_id, scheduled_for])
+  @@index([schedule_id, created_at])
+  @@index([report_id])
+  @@index([status])
+  @@map("scheduled_report_runs")
+}
+
+model NotificationConsent {
+  id                 String               @id @default(uuid())
+  recipient          String               @db.VarChar(320)
+  channel            NotificationChannel
+  tenant_id          String
+  notification_class NotificationClass    @default(OPERATIONAL)
+  opted_out          Boolean              @default(false)
+  opted_out_at       DateTime?
+  change_source      ConsentChangeSource?
+  changed_at         DateTime?
+  changed_by_user_id String?
+  reason             String?              @db.Text
+  created_at         DateTime             @default(now())
+  updated_at         DateTime             @updatedAt
+
+  changedBy User? @relation("NotificationConsentChangedBy", fields: [changed_by_user_id], references: [id])
+
+  @@unique([recipient, channel, tenant_id, notification_class])
   @@index([tenant_id])
   @@map("notification_consents")
 }

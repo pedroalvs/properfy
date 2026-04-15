@@ -29,7 +29,9 @@ import type { ConfirmAssetUploadUseCase } from '../application/use-cases/confirm
 import type { SaveExecutionProgressUseCase } from '../application/use-cases/save-execution-progress.use-case';
 import type { ReopenExecutionUseCase } from '../application/use-cases/reopen-execution.use-case';
 import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
+import type { DraftInspectorInvoiceUseCase } from '../../billing/application/use-cases/draft-inspector-invoice.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
+import { draftInvoiceSchema } from '@properfy/shared';
 
 export interface InspectorExecutionRouteContainer {
   getInspectorScheduleUseCase: GetInspectorScheduleUseCase;
@@ -41,6 +43,7 @@ export interface InspectorExecutionRouteContainer {
   requestAssetUploadUseCase: RequestAssetUploadUseCase;
   confirmAssetUploadUseCase: ConfirmAssetUploadUseCase;
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
+  draftInspectorInvoiceUseCase: DraftInspectorInvoiceUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -252,6 +255,36 @@ export async function registerInspectorExecutionRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // POST /v1/inspector/invoices/draft — thin delegation to billing (FR-060)
+  app.post(
+    '/v1/inspector/invoices/draft',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'INSP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Only inspectors can draft invoices' } });
+      }
+      if (!auth.inspectorId) {
+        return reply.status(400).send({ error: { code: 'INSPECTOR_NOT_LINKED', message: 'Inspector not linked to user account' } });
+      }
+
+      const parsed = draftInvoiceSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid draft invoice payload', details: parsed.error.errors },
+        });
+      }
+
+      const result = await container.draftInspectorInvoiceUseCase.execute({
+        inspectorId: auth.inspectorId,
+        periodStart: parsed.data.periodStart,
+        periodEnd: parsed.data.periodEnd,
+      });
+
+      return reply.status(201).send(success(result));
     },
   );
 }

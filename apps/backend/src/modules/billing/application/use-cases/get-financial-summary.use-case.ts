@@ -20,10 +20,11 @@ export class GetFinancialSummaryUseCase {
   async execute(input: GetFinancialSummaryInput): Promise<FinancialEntrySummary> {
     const { actor } = input;
 
+    // Only AM is cross-tenant per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
     let tenantId: string | undefined;
-    if (actor.role === 'AM' || actor.role === 'OP') {
+    if (actor.role === 'AM') {
       tenantId = input.tenantId;
-    } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       tenantId = actor.tenantId!;
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to view financial summary');

@@ -15,7 +15,7 @@ EMAIL | SMS | WHATSAPP
 ```
 
 - `EMAIL` → Resend provider.
-- `SMS` → Twilio provider.
+- `SMS` → Mobile Message provider (approved target; current code still uses Twilio until migration).
 - `WHATSAPP` → Zenvia provider.
 
 Provider selection is hardcoded per channel in Phase 1.
@@ -50,7 +50,7 @@ FAILED ──── manual retry ──▶ PENDING
 | `channel` | `NotificationChannel` | no | — | |
 | `template_code` | varchar(100) | no | — | Looked up against `notification_templates`. |
 | `status` | `NotificationStatus` | no | `PENDING` | |
-| `provider_name` | varchar(50) | yes | — | Set on `SENT` (e.g., `resend`, `twilio`, `zenvia`). |
+| `provider_name` | varchar(50) | yes | — | Set on `SENT` (e.g., `resend`, `mobilemessage`, `zenvia`). Current code still persists `twilio` for SMS until migration. |
 | `provider_message_id` | varchar(200) | yes | — | Used by webhooks to correlate delivery events. |
 | `sent_at` | timestamptz | yes | — | Set on `SENT`. |
 | `delivered_at` | timestamptz | yes | — | Set on `DELIVERED`. |
@@ -120,7 +120,7 @@ Three port interfaces:
 - `ISmsProvider.send(recipient, bodyText) → { messageId }`
 - `IWhatsAppProvider.send(recipient, bodyText) → { messageId }`
 
-Real implementations: `ResendEmailProvider`, `TwilioSmsProvider`, `ZenviaWhatsAppProvider`. Stubs: `StubEmailProvider`, `StubSmsProvider`, `StubWhatsAppProvider`.
+Real implementations: `ResendEmailProvider`, `MobileMessageSmsProvider` (approved target; current code still uses `TwilioSmsProvider`), `ZenviaWhatsAppProvider`. Stubs: `StubEmailProvider`, `StubSmsProvider`, `StubWhatsAppProvider`.
 
 ### Constants
 
@@ -183,7 +183,7 @@ platform default templates: rows with tenant_id = NULL, at most one per (code, c
 | Use case | Writes | Job enqueue | External calls |
 |---|---|---|---|
 | `CreateNotificationUseCase` | Insert notification row | `notification.send` (retryLimit: 0) | — |
-| `SendNotificationUseCase` | Update row with send result or retry state | — (job completes; retries via poll sweep) | Provider send (Resend / Twilio / Zenvia) |
+| `SendNotificationUseCase` | Update row with send result or retry state | — (job completes; retries via poll sweep) | Provider send (Resend / Mobile Message / Zenvia) |
 | `RetryNotificationUseCase` | Reset row to `PENDING` | `notification.send` | — |
 | `PollRetryableNotificationsUseCase` | — | `notification.send` for each overdue row | — |
 | `DispatchRemindersUseCase` | — (delegates to Create) | via Create | — |

@@ -76,12 +76,9 @@ describe('InspectorTable', () => {
     expect(onView).toHaveBeenCalledWith(insp);
   });
 
-  it('edit action calls onEdit with correct inspector', async () => {
-    const user = userEvent.setup();
-    const onEdit = vi.fn();
+  it('does not render pencil edit action (014 FR-019b)', () => {
     const insp = makeInspector();
-    render(<InspectorTable data={[insp]} onEdit={onEdit} />);
-    await user.click(screen.getByLabelText('Edit'));
-    expect(onEdit).toHaveBeenCalledWith(insp);
+    render(<InspectorTable data={[insp]} />);
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 });

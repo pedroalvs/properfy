@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
-import { contactSchema } from './contact';
+import { contactSchema, appointmentContactsArraySchema } from './contact';
 import { restrictionSchema } from './restriction';
 import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
@@ -31,7 +31,10 @@ export const createAppointmentSchema = z.object({
     { message: 'Scheduled date cannot be in the past' },
   ),
   timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format'),
-  contact: contactSchema,
+  /** @deprecated Use `contacts` array instead. Kept for backward compat during transition. */
+  contact: contactSchema.optional(),
+  /** New contacts array (feature 021). Each entry is { contactId } or { inline } with role + isPrimary. */
+  contacts: appointmentContactsArraySchema.optional(),
   restriction: restrictionSchema.optional(),
   keyRequired: z.boolean().default(false),
   meetingLocation: z.string().max(500).optional(),
@@ -41,6 +44,13 @@ export const createAppointmentSchema = z.object({
 }).refine(
   (data) => !!data.propertyId !== !!data.property,
   { message: 'Must provide either propertyId or property (inline), but not both', path: ['propertyId'] },
+).refine(
+  (data) => {
+    const hasLegacy = data.contact !== undefined;
+    const hasNew = data.contacts !== undefined;
+    return (hasLegacy || hasNew) && !(hasLegacy && hasNew);
+  },
+  { message: 'Must provide either contact (legacy) or contacts (array), but not both and not neither', path: ['contacts'] },
 );
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
@@ -51,7 +61,10 @@ export const updateAppointmentSchema = z.object({
   meetingLocation: z.string().max(500).nullable().optional(),
   keyLocation: z.string().max(500).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
+  /** @deprecated Use `contacts` array instead. */
   contact: contactSchema.optional(),
+  /** New contacts array (feature 021). When present, replaces all junction rows. */
+  contacts: appointmentContactsArraySchema.optional(),
   restriction: restrictionSchema.optional(),
   customFields: z.record(z.unknown()).nullable().optional(),
 }).refine(
@@ -60,6 +73,14 @@ export const updateAppointmentSchema = z.object({
     return data.scheduledDate >= todayLocalDateString();
   },
   { message: 'Scheduled date cannot be in the past', path: ['scheduledDate'] },
+).refine(
+  (data) => {
+    const hasLegacy = data.contact !== undefined;
+    const hasNew = data.contacts !== undefined;
+    // Both absent is fine (no contact change). Both present is not.
+    return !(hasLegacy && hasNew);
+  },
+  { message: 'Cannot provide both contact and contacts in the same update', path: ['contacts'] },
 );
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 
@@ -96,6 +117,26 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
     .optional(),
 });
 export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySchema>;
+
+// --- Bulk edit (FR-066..FR-069a) ---
+
+const bulkEditChangesSchema = z.object({
+  assignedInspectorId: z.string().uuid().optional(),
+  scheduledDate: z.string().date().optional(),
+  timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
+  branchId: z.string().uuid().optional(),
+  serviceTypeId: z.string().uuid().optional(),
+  propertyManagerContactId: z.string().uuid().optional(),
+}).strict(); // .strict() rejects unknown keys → APPOINTMENT_BULK_FIELD_NOT_ALLOWED
+
+export const bulkEditAppointmentSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1, 'At least one appointment id is required').max(100, 'Maximum 100 appointments per bulk edit'),
+  changes: bulkEditChangesSchema.refine(
+    (data) => Object.values(data).some((v) => v !== undefined),
+    { message: 'At least one field must be provided in changes' },
+  ),
+});
+export type BulkEditAppointmentInput = z.infer<typeof bulkEditAppointmentSchema>;
 
 export const forceManualConfirmationSchema = z.object({
   tenantConfirmationStatus: z.literal('CONFIRMED'),

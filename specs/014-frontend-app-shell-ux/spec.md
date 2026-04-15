@@ -2,7 +2,7 @@
 
 **Feature Branch**: `014-frontend-app-shell-ux`
 **Created**: 2026-04-06
-**Feature Status**: IMPLEMENTED (Phase 1 shell and core patterns) — gaps in map views, board/kanban, and some responsive edge cases
+**Feature Status**: IMPLEMENTED — Phase 1 shell and core patterns shipped; Phase 2 gaps closed in commits `9566ac1` (2026-04-09, all 6 Phase 2 gaps) and `8770cd2` (2026-04-09, URL-persisted filters + `FilterRequiredState`). Map views were fully closed by feature 016 (geospatial-map-experiences, 2026-04-10) — pins, auto-fit bounds, real Mapbox projection, and backend coordinate exposure are all live. Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/web/src/components/`, `apps/web/src/features/`, `apps/web/src/hooks/`, `apps/web/src/app/router.tsx`
 - Approved rules: `projeto-consolidado/frontend-system-spec.md`, `projeto-consolidado/layout-behavior-rules.md`, `projeto-consolidado/component-inventory.md`, `projeto-consolidado/frontend-decisoes-finais.md`
@@ -39,10 +39,36 @@ An authenticated operator (AM, OP, CL_ADMIN, CL_USER) or inspector (INSP) lands 
 
 ### User Story 2 — Operator browses a data list with filters and table (Priority: P1)
 
-- **Status**: IMPLEMENTED
-- **Source**: code
+- **Status**: IMPLEMENTED (Feedback Round 2026-04-13 items 10, 11, 12 add three cross-cutting UX patterns — pending planning)
+- **Source**: code + approved feedback round
 
 The most common page pattern in Properfy: the operator sees a page title with optional action buttons, a filter bar with search and category filters, and a data table below. This pattern is used for appointments, properties, users, inspectors, tenants, service types, pricing rules, audit logs, and more.
+
+**Feedback Round 2026-04-13 — item 10 (sticky top search)** — APPROVED, transversal UX pattern:
+
+- Every list page's filter bar MUST have a **full-text search input** as the **first** filter (before category / status / date filters).
+- The filter bar row that contains the search input MUST remain **sticky at the top of the scroll container** while the operator scrolls the table. Specifically: when the table scrolls past the page header, the filter bar anchors at the top of the viewport (under the app shell chrome) until the user scrolls back up.
+- This is a UX-level requirement: the search input must remain reachable without scrolling back. It is not merely a visual observation — it affects reachability of the primary affordance on list pages.
+- Implementation affordances (CSS `position: sticky`, intersection observers, or a dedicated sticky component) are plan-phase decisions, not spec constraints.
+- This pattern is inherited by every feature that uses the list page template — Appointments (feature 006 US6), Properties (feature 003), Inspectors (feature 008), Service Types (feature 004), Audit Logs (feature 011), Scheduled Reports (feature 019), etc. Feature specs point at this FR rather than re-stating it.
+
+**Feedback Round 2026-04-13 — item 11 (remove pencil when duplicated with eye)** — APPROVED, transversal UX pattern:
+
+- In any list page where a table row exposes BOTH a "view" (eye) and an "edit" (pencil) action, AND both open the same detail drawer/modal, the "edit" (pencil) action MUST be removed from the row.
+- The "view" (eye) action becomes the single row affordance. The edit capability moves **inside the drawer/modal** as a secondary action (e.g., an Edit button in the drawer header or a per-section edit toggle).
+- This applies transversally: appointments list, properties list, inspectors list, service types list, pricing rules list, users list, tenants list, branches list, audit logs list, reports list, scheduled reports list. Every list page in the admin UI that follows this pattern MUST comply.
+- The rationale is UX clarity: when two affordances lead to the same destination, the second is cognitive noise. Keeping "view" as the entry point + "edit" as an in-drawer action preserves discoverability without duplication.
+- **Scope boundary**: if a list page has a genuinely different destination for view vs edit (e.g., view opens a read-only summary and edit opens a full-screen form), the pattern does not apply. Those cases are rare and must be justified per-spec.
+
+**Feedback Round 2026-04-13 — item 12 (import data template file)** — APPROVED, transversal UX pattern:
+
+- Every import-data screen (property import, appointment import, and any future import surface) MUST expose a **"Download template"** affordance next to the file-upload control.
+- The template is a static XLSX (or CSV — both acceptable) file committed in the repo under a known path (suggested: `apps/web/public/templates/<entity>-import-template.xlsx`). The exact path is a plan-phase decision; the spec only requires that (a) the file exists, (b) it is discoverable from the import screen, (c) its columns match exactly the columns the importer expects.
+- Each import screen also MUST display a one-line caption near the download link describing what the file is (e.g., "Download an example file with the expected column headers.").
+- The importer's parser contract is unchanged by this round. Template maintenance is a documentation responsibility, not a runtime concern.
+- Feature-level specs that own the import flow (003-properties, 006-appointments) reference this pattern and add their own column list — see feature 003 FR (property import) and feature 006 FR-065.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → items 10, 11, 12.
 
 **Why this priority**: This is the dominant page pattern — over 70% of pages follow it.
 
@@ -228,6 +254,9 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-017**: All filter inputs MUST use shadow-based borders (not standard HTML borders) with floating labels, matching the legacy Vuetify outlined dense visual style.
 - **FR-018**: FilterInput (search) MUST debounce onChange by 300ms and show a clear button when the field has a value.
 - **FR-019**: The platform MUST provide FilterSelect, FilterAutocomplete, FilterDateRange, and FilterBoolean components with consistent visual styling.
+- **FR-019a** (Feedback Round 2026-04-13 item 10, NEW, pending planning): On every list page that uses `ListFilterTableTemplate`, the search FilterInput MUST be the **first** child of the FilterBar. The FilterBar row itself MUST remain **sticky at the top of the scroll container** as the operator scrolls the table — so the search input stays reachable without scrolling back up. Specific list pages (e.g., Appointments, feature 006 US6) inherit this rule without re-stating it.
+- **FR-019b** (Feedback Round 2026-04-13 item 11, NEW, pending planning): On any list page where a row exposes both a "view" (eye) and an "edit" (pencil) action that open the same destination, the row MUST expose only the "view" action. The "edit" capability MUST move inside the drawer/modal as a secondary affordance. This applies transversally to every list page in the admin UI. The exception is a list page whose view and edit destinations are genuinely different (rare, must be justified per-spec).
+- **FR-019c** (Feedback Round 2026-04-13 item 12, NEW, pending planning): Every import-data screen (property import, appointment import, future import surfaces) MUST expose a "Download template" affordance next to the file-upload control. The template file is a static XLSX/CSV committed under a known path (e.g., `apps/web/public/templates/<entity>-import-template.xlsx`), with columns matching the importer's accepted column set. A one-line caption near the download link MUST describe the file's purpose. Individual import specs (003, 006) point at this pattern and add their column list.
 
 #### Drawers
 

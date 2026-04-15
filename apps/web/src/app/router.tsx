@@ -56,6 +56,8 @@ const AuditLogListPage = Loadable(lazyRetry(() => import('@/features/audit-logs/
 const AvailabilitySlotListPage = Loadable(lazyRetry(() => import('@/features/availability-slots/pages/AvailabilitySlotListPage').then(m => ({ default: m.AvailabilitySlotListPage }))));
 const TimeSlotConfigPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/TimeSlotConfigPage').then(m => ({ default: m.TimeSlotConfigPage }))));
 const NotificationTemplateListPage = Loadable(lazyRetry(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
+const ConsentLookupPage = Loadable(lazyRetry(() => import('@/features/notification-consents/pages/ConsentLookupPage').then(m => ({ default: m.ConsentLookupPage }))));
+const ScheduledReportListPage = Loadable(lazyRetry(() => import('@/features/scheduled-reports/pages/ScheduledReportListPage').then(m => ({ default: m.ScheduledReportListPage }))));
 const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
 const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
 const AppointmentMapPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
@@ -316,6 +318,22 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <NotificationTemplateListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'notification-consents',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <ConsentLookupPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'scheduled-reports',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <ScheduledReportListPage />
               </AuthGuard>
             ),
           },

@@ -79,3 +79,69 @@ export class InvalidReportTypeError extends DomainError {
     super('INVALID_REPORT_TYPE', `Invalid report type: ${reportType}`, 422);
   }
 }
+
+// ─── Feature 019: scheduled report errors ───────────────────────────────────
+
+export class ScheduleForbiddenError extends ForbiddenError {
+  constructor(message = 'Not permitted on this schedule') {
+    super('SCHEDULE_FORBIDDEN', message);
+  }
+}
+
+export class ScheduleForbiddenReassignmentError extends ForbiddenError {
+  constructor() {
+    super('SCHEDULE_REASSIGN_FORBIDDEN', 'Only Admin Master can reassign schedule ownership');
+  }
+}
+
+export class MaxSchedulesPerUserExceededError extends DomainError {
+  constructor(limit: number) {
+    super(
+      'MAX_SCHEDULES_PER_USER_EXCEEDED',
+      `Maximum of ${limit} active schedules per user reached`,
+      422,
+    );
+  }
+}
+
+export class InvalidRecurrenceError extends DomainError {
+  constructor(detail: string) {
+    super('INVALID_RECURRENCE', `Invalid recurrence: ${detail}`, 422);
+  }
+}
+
+export class IncompatibleRecipientError extends DomainError {
+  constructor(userId: string, reason: string) {
+    super(
+      'INCOMPATIBLE_RECIPIENT',
+      `Recipient ${userId} is not compatible: ${reason}`,
+      422,
+    );
+  }
+}
+
+export class IncompatibleOwnershipError extends DomainError {
+  constructor(userId: string, reason: string) {
+    super(
+      'INCOMPATIBLE_OWNERSHIP',
+      `Target owner ${userId} is not compatible: ${reason}`,
+      422,
+    );
+  }
+}
+
+export class ScheduleRunNotFoundError extends NotFoundError {
+  constructor() {
+    super('SCHEDULE_RUN_NOT_FOUND', 'Scheduled report run not found');
+  }
+}
+
+export class EmptyRecipientListError extends DomainError {
+  constructor() {
+    super(
+      'EMPTY_RECIPIENT_LIST',
+      'RECIPIENT_LIST delivery mode requires at least one recipient',
+      422,
+    );
+  }
+}

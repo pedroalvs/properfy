@@ -200,9 +200,11 @@ describe('DownloadInvoiceUseCase', () => {
       'https://storage.example.com/invoices/insp-1/invoice-1.xlsx?signature=paid',
     );
 
+    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it): inspector invoice download
+    // is AM-only since inspector invoices are not tenant-scoped.
     const result = await useCase.execute({
       invoiceId: 'invoice-1',
-      actor: makeActor({ role: 'OP' }),
+      actor: makeActor({ role: 'AM' }),
     });
 
     expect(result.downloadUrl).toBeDefined();

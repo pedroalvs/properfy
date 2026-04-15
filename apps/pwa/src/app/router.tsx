@@ -44,6 +44,11 @@ const EarningsPage = lazy(() =>
     default: module.EarningsPage,
   })),
 );
+const DraftInvoiceScreen = lazy(() =>
+  import('@/features/earnings/components/DraftInvoiceScreen').then((module) => ({
+    default: module.DraftInvoiceScreen,
+  })),
+);
 
 function RouteLoader() {
   return (
@@ -89,6 +94,7 @@ export const router = createBrowserRouter(
                 { path: 'schedule/:appointmentId', element: lazyElement(AppointmentDetailPage) },
                 { path: 'marketplace', element: lazyElement(MarketplacePage) },
                 { path: 'earnings', element: lazyElement(EarningsPage) },
+                { path: 'earnings/draft-invoice', element: lazyElement(DraftInvoiceScreen) },
                 { path: 'profile', element: lazyElement(ProfilePage) },
               ],
             },

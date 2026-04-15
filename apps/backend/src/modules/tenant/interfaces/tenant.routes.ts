@@ -295,10 +295,11 @@ export async function registerTenantRoutes(
         throw new ValidationError('Invalid query parameters', parsed.error.errors);
       const { page, pageSize, sortBy, sortOrder, tenantId: queryTenantId, ...filters } = parsed.data;
       const actor = request.authContext!;
-      const resolvedTenantId = (actor.role === 'AM' || actor.role === 'OP')
+      // Only AM is cross-tenant per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
+      const resolvedTenantId = actor.role === 'AM'
         ? queryTenantId
         : actor.tenantId ?? undefined;
-      // AM/OP without tenantId context: return empty list (no tenant selected)
+      // AM without tenantId context: return empty list (no tenant selected)
       if (!resolvedTenantId)
         return reply.status(200).send(paginated([], 0, page, pageSize));
       const result = await container.listBranchesUseCase.execute({

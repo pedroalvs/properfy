@@ -4,7 +4,10 @@ import type { INotificationTemplateRepository } from '../../../src/modules/notif
 import type { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
-import { NotificationForbiddenError } from '../../../src/modules/notification/domain/notification.errors';
+import {
+  NotificationForbiddenError,
+  ProtectedTemplateClassificationError,
+} from '../../../src/modules/notification/domain/notification.errors';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
@@ -172,5 +175,73 @@ describe('UpsertNotificationTemplateUseCase', () => {
     expect(result.channel).toBe('EMAIL');
     expect(result.isActive).toBe(true);
     expect(result.updatedAt).toBeDefined();
+  });
+
+  // ─── Feature 018: notification classification (US5) ──────────────────────
+
+  describe('notificationClass (feature 018)', () => {
+    it('defaults non-protected templates to OPERATIONAL when class is omitted', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(makeInput({ templateCode: 'REMINDER_7_DAYS' }));
+
+      expect(result.notificationClass).toBe('OPERATIONAL');
+      const entity = vi.mocked(templateRepo.upsert).mock.calls.at(-1)![0];
+      expect(entity.notificationClass).toBe('OPERATIONAL');
+    });
+
+    it('accepts an explicit OPERATIONAL classification on a non-protected template', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(
+        makeInput({ templateCode: 'REMINDER_5_DAYS', notificationClass: 'OPERATIONAL' }),
+      );
+
+      expect(result.notificationClass).toBe('OPERATIONAL');
+    });
+
+    it('enforces TRANSACTIONAL classification on protected template codes', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(
+        makeInput({ templateCode: 'INSPECTION_CONFIRMED', notificationClass: 'TRANSACTIONAL' }),
+      );
+
+      expect(result.notificationClass).toBe('TRANSACTIONAL');
+    });
+
+    it('auto-classifies protected templates as TRANSACTIONAL when class is omitted', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(makeInput({ templateCode: 'INSPECTION_CANCELLED' }));
+
+      expect(result.notificationClass).toBe('TRANSACTIONAL');
+    });
+
+    it('rejects reclassification of a protected template to OPERATIONAL', async () => {
+      await expect(
+        useCase.execute(
+          makeInput({ templateCode: 'INSPECTION_CONFIRMED', notificationClass: 'OPERATIONAL' }),
+        ),
+      ).rejects.toThrow(ProtectedTemplateClassificationError);
+    });
+
+    it('rejects reclassification of a protected template to MARKETING', async () => {
+      await expect(
+        useCase.execute(
+          makeInput({ templateCode: 'INSPECTION_RESCHEDULED', notificationClass: 'MARKETING' }),
+        ),
+      ).rejects.toThrow(ProtectedTemplateClassificationError);
+    });
+
+    it('allows non-protected templates to be freely reclassified', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(
+        makeInput({ templateCode: 'REMINDER_3_DAYS', notificationClass: 'TRANSACTIONAL' }),
+      );
+
+      expect(result.notificationClass).toBe('TRANSACTIONAL');
+    });
   });
 });

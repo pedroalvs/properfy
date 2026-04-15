@@ -15,6 +15,7 @@ import {
   generateTenantInvoiceSchema,
   listTenantInvoicesQuerySchema,
   regenerateInvoiceSchema,
+  rejectDraftInvoiceSchema,
   financialEntryResponseSchema,
   invoiceResponseSchema,
   tenantInvoiceResponseSchema,
@@ -46,6 +47,8 @@ import type { GenerateTenantInvoiceUseCase } from '../application/use-cases/gene
 import type { RegenerateInspectorInvoiceUseCase } from '../application/use-cases/regenerate-inspector-invoice.use-case';
 import type { RegenerateTenantInvoiceUseCase } from '../application/use-cases/regenerate-tenant-invoice.use-case';
 import type { ListTenantInvoicesUseCase } from '../application/use-cases/list-tenant-invoices.use-case';
+import type { ApproveDraftInvoiceUseCase } from '../application/use-cases/approve-draft-invoice.use-case';
+import type { RejectDraftInvoiceUseCase } from '../application/use-cases/reject-draft-invoice.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface BillingRouteContainer {
@@ -70,6 +73,8 @@ export interface BillingRouteContainer {
   regenerateInspectorInvoiceUseCase: RegenerateInspectorInvoiceUseCase;
   regenerateTenantInvoiceUseCase: RegenerateTenantInvoiceUseCase;
   listTenantInvoicesUseCase: ListTenantInvoicesUseCase;
+  approveDraftInvoiceUseCase: ApproveDraftInvoiceUseCase;
+  rejectDraftInvoiceUseCase: RejectDraftInvoiceUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -519,6 +524,45 @@ export async function registerBillingRoutes(
         actor: request.authContext!,
       });
       return reply.status(202).send(success(result));
+    },
+  );
+
+  // POST /v1/billing/invoices/:invoiceId/approve-draft
+  app.post(
+    '/v1/billing/invoices/:invoiceId/approve-draft',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }) } },
+    async (request, reply) => {
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const result = await container.approveDraftInvoiceUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/billing/invoices/:invoiceId/reject-draft
+  app.post(
+    '/v1/billing/invoices/:invoiceId/reject-draft',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: rejectDraftInvoiceSchema } },
+    async (request, reply) => {
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const parsed = rejectDraftInvoiceSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.rejectDraftInvoiceUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 

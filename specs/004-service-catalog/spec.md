@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-service-catalog`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps + `CORRECTION-004` (ServiceRegion per-tenant) closed in commit `017a883` (2026-04-07, Waves 1–4). `ServiceRegion.tenant_id` is now a non-nullable FK; every repository method is tenant-scoped. Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/{service-type,service-region,pricing-rule}/**`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/schemas/{service-type,service-region,pricing-rule}.ts`, `apps/web/src/features/service-types/**`, `apps/web/src/features/tenants/components/PricingRulesSection.tsx`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`, `apps/backend/CLAUDE.md`, `projeto-consolidado/modelo-dados-executavel.md`, `projeto-consolidado/regras-negocio-respostas-cliente.md`
@@ -146,6 +146,12 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-026**: System MUST audit `pricing_rule.created` and `pricing_rule.updated` with `tenantId` on every entry.
 - **FR-027**: System MUST reject pricing rules referencing a `serviceTypeId` that does not exist in the catalog (`SERVICE_TYPE_NOT_FOUND`).
 - **FR-028**: System MUST reject pricing rules referencing a `branchId` that does not belong to the resolved tenant (`BRANCH_NOT_FOUND`).
+
+#### Inherited UX patterns (Feedback Round 2026-04-13, sanity-check corrective pass)
+
+- **FR-019b (pencil removal when duplicated with eye)**: the admin Service Types list and Pricing Rules list each expose a single "view" action (eye) that opens the detail drawer where edit lives as a secondary affordance. The row-level "edit" (pencil) action MUST NOT be rendered. Inherited transversally from feature 014 FR-019b — no per-spec override.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 11 (pencil removal).
 
 ### Non-Functional Requirements
 

@@ -118,7 +118,7 @@ jobs:
         run: pnpm --filter web build
 
   prisma-validate:
-    name: Prisma migration check
+    name: Prisma schema validation (syntax)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -135,3 +135,82 @@ jobs:
       - name: Validate Prisma schema
         working-directory: apps/backend
         run: npx prisma validate
+
+  # Sprint 1 W-6 — real-database migration check (un-gated 2026-04-13).
+  #
+  # Runs `prisma migrate deploy` against a fresh PostGIS-enabled Postgres
+  # container to prove the migration chain can rebuild the schema from
+  # scratch. This is the auditable counterpart to `prisma validate` (which
+  # only checks schema.prisma syntax, not migration correctness).
+  #
+  # Previously this job was marked `continue-on-error: true` because
+  # CORRECTION-007 (schema migration drift) made a fresh replay impossible.
+  # After the CORRECTION-007 reconciliation sprint (2026-04-13), the chain
+  # is clean end-to-end: all 51 migrations apply on a fresh database and
+  # the second run is a no-op. The flag has been removed — this job is
+  # now a hard gate on every PR and push.
+  #
+  # See `specs/GAPS.md` -> CORRECTION-007 for the full history.
+  prisma-migrate-check:
+    name: Prisma migrate deploy (fresh DB)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: properfy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/properfy_test
+      DIRECT_URL: postgresql://test:test@localhost:5432/properfy_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply migrations against fresh Postgres
+        working-directory: apps/backend
+        run: npx prisma migrate deploy
+      - name: Apply migrations a second time (idempotence check)
+        working-directory: apps/backend
+        run: npx prisma migrate deploy
+
+  # Sprint 1 W-1/W-2/W-3 - real-database integration tests via testcontainers.
+  #
+  # Spins up an ephemeral PostGIS-enabled Postgres via testcontainers inside
+  # the Node process (not via a GitHub Actions service container, because
+  # testcontainers manages its own container lifecycle). Runs the W-1 harness
+  # validation test, W-2 cross-check invariance end-to-end, and W-3 retention
+  # vs erasure concurrency end-to-end.
+  #
+  # This job is the canonical verification of the 006 cross-check invariant
+  # (FR-008) and the 020 IN_PROGRESS concurrency guard under real Prisma +
+  # real SQL. If this job is red, audit-ready is not achievable.
+  integration-db:
+    name: Integration tests (real DB via testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        working-directory: apps/backend
+        run: npx prisma generate
+      - name: Run real-DB integration tests
+        working-directory: apps/backend
+        run: pnpm test:integration:db

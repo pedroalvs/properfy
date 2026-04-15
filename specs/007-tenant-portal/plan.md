@@ -1,189 +1,186 @@
-# Implementation Plan: Tenant Portal
+# Implementation Plan: 007-tenant-portal (Feature 021 Contact Integration Delta)
 
-**Branch**: `007-tenant-portal` | **Date**: 2026-04-05 | **Spec**: [spec.md](./spec.md)
-**Feature Status**: IMPLEMENTED (Phase 1) — Phase 2/3 gaps tracked in [tasks.md](./tasks.md).
+**Branch**: `007-tenant-portal` | **Date**: 2026-04-12 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature 021 architectural revision (dual-write semantics for portal contact update) on top of existing IMPLEMENTED Phase 1.
+**Dependencies**: Feature 021-contacts (IMPLEMENTED), Feature 006-appointments (IMPLEMENTED — junction + snapshot pattern)
+
+> **Scope boundary**: this plan covers ONLY the delta introduced by the 021 architectural revision. The core portal lifecycle (token generation, confirm, reschedule, unavailability, activities, rate limiting, DST handling) is already implemented and tested. This plan does NOT rewrite the portal — it validates and completes the 021 integration.
 
 ## Summary
 
-Own the renter-facing surface for confirming and adjusting an upcoming inspection. Operators generate a unique tokenized link; the renter accesses a stateless portal without an account; every action is rate-limited, audited, and logged as an activity with IP + user agent. The feature is the only place in the platform where `actorType = ANONYMOUS` is valid in the audit log.
+Feature 007's Phase 1 is already shipped and working. The 021 contact registry introduction created a single new requirement: **FR-053** (dual-write on portal contact update). This dual-write is already **implemented in the code** during the 021 closeout — the `UpdateContactUseCase` now writes to both the appointment snapshot and the contact registry, with conflict handling and audit.
+
+**What this plan actually delivers:**
+
+| Item | Nature | Backend | Frontend |
+|---|---|---|---|
+| **FR-053 validation** | Verify the dual-write works correctly end-to-end | ✅ Integration tests | — |
+| **Portal GET data — effective fields** | `get-portal-data.use-case.ts` still reads legacy fields | ✅ Field rename | — |
+| **Token generation — contacts[] source** | Already uses `effective*` accessors | ✅ Verify only | — |
+| **Portal frontend — contact display** | Show `effective*` contact data in the renter UI | — | ✅ Minor field rename |
+
+**What is already done (no work needed):**
+- Dual-write implementation in `UpdateContactUseCase` (done in 021 closeout)
+- `IContactRepository` wired as constructor dependency (done in 021 closeout)
+- `ContactEmailAlreadyExistsError` conflict handling (done in 021 closeout)
+- `contact.portal_update_skipped_conflict` audit action (done in 021 closeout)
+- Token generation uses `effectiveEmail`/`effectivePhone`/`effectiveName` (done in 021)
+- Snapshot + registry update via `updateContactSnapshot` + `contactRepo.update` (done in 021)
+- All existing portal tests pass (175 unit tests, 8 integration tests — verified)
+
+**What still needs work:**
+1. `GetPortalDataUseCase` reads `contact.tenantName`/`contact.primaryEmail` (legacy fields) instead of `effective*` accessors — needs field rename
+2. Integration tests for the dual-write path (conflict handling, legacy rows, snapshot immutability on other appointments)
+3. Portal frontend contact section — read from effective fields in the API response
+4. Verify the portal UPDATE endpoint correctly finds the primary junction row (not just `contact` singular)
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x on Node.js 20.
+**Language/Version**: TypeScript 5.x on Node.js 20 + Fastify (backend), React 18.3 + Vite (web portal)
+**Primary Dependencies**: Prisma ORM, Zod, shared AuditService, feature 021 `IContactRepository` (already wired), feature 006 `IAppointmentRepository` with junction-aware methods
+**Storage**: PostgreSQL (Supabase) — no schema changes needed (021 migration covers everything)
+**Testing**: Vitest (unit + integration)
+**Performance Goals**: Portal GET p95 < 200 ms (unchanged)
 
-**Primary Dependencies**
+### Implemented Reality vs Approved Target
 
-- Backend: Fastify, Prisma, Zod, `@fastify/rate-limit`, shared `AuditService`. No pg-boss workers for renter actions (notifications are delegated via `CreateNotificationUseCase`); a background worker `expire-tokens.worker.ts` handles stale token cleanup.
-- Cross-module ports: `IAppointmentRepository` (006), `IServiceTypeRepository` (004), `IInspectionExecutionRepository` (inspector-execution), `ITenantRepository` (002), `CreateNotificationUseCase` (009).
-- Shared: Zod schemas and enums in `packages/shared/src/schemas/tenant-portal.ts`.
-- Web: React + Vite pages under `apps/web/src/features/tenant-portal/` (renter-facing; no JWT, uses token in URL path).
+| Aspect | Current Code | Target (this plan) |
+|---|---|---|
+| `UpdateContactUseCase` dual-write | ✅ Already writes to snapshot + registry with conflict handling | Verify via integration tests |
+| `GetPortalDataUseCase` contact fields | ❌ Reads `contact.tenantName`, `contact.primaryEmail`, `contact.secondaryEmail`, `contact.primaryPhone`, `contact.secondaryPhone` (legacy field names) | Use `contact.effectiveName`, `contact.effectiveEmail`, `contact.effectivePhone` |
+| `GeneratePortalTokenUseCase` contact fields | ✅ Already uses `contact.effectiveName`, `contact.effectiveEmail`, `contact.effectivePhone` | No change needed |
+| Token scoping | ✅ Bound to `appointment_id` — junction row replacement does not invalidate | Verify via test |
+| Portal frontend contact display | Reads `contactName`, `contactEmail`, `contactPhone` from API response | Should work after backend field rename — verify |
 
-**Storage**
+### What 007 owns vs what 021/006 already provide
 
-- PostgreSQL (Supabase). Tables: `tenant_portal_tokens`, `tenant_portal_activities`, plus writes into `appointments`, `appointment_contacts`, `appointment_restrictions` (owned by feature 006) and `audit_logs` (feature 011).
-
-**Testing**
-
-- Unit: Vitest — every use case, the `TokenService` (including DST edge cases — GAP-010), the portal middleware.
-- Integration: Supertest + real Postgres — every route. Token lifecycle tests (ACTIVE → EXPIRED, revocation cascade on reschedule). Rate limit tests.
-- Frontend: Vitest + RTL for renter-facing pages including expired/revoked states.
-
-**Target Platform**: Backend on Fly.io. Web on static CDN (renter portal runs at a public URL without JWT).
-**Project Type**: Monorepo — backend API + web SPA + shared package.
-**Performance Goals**: Portal GET p95 < 200 ms (mobile network users). Mutations p95 < 400 ms (dominated by audit + notification enqueue).
-**Constraints**: Stateless — no cookies, no client sessions. Raw tokens never persisted or logged. Rate limit 30/min per client on every endpoint.
-**Scale/Scope**: Phase 1 target: thousands of concurrent renters per day, few active tokens per appointment (should always be 0 or 1).
+| Responsibility | Owner | Status |
+|---|---|---|
+| Contact registry CRUD | 021 | ✅ Done |
+| Junction + snapshot schema | 021 | ✅ Done |
+| `IContactRepository` port + Prisma adapter | 021 | ✅ Done |
+| `updateContactSnapshot()` on `IAppointmentRepository` | 021 | ✅ Done |
+| Dual-write in `UpdateContactUseCase` | 021 (implemented in 007's use case) | ✅ Done |
+| Conflict handling + audit | 021 (implemented in 007's use case) | ✅ Done |
+| Portal GET response — effective contact fields | **007** | ❌ Needs fix |
+| Portal contact update — finding primary junction row | **007** | ✅ Already works (reads `result.contact` which is the first/primary from repo) |
+| Integration tests for dual-write path | **007** | ❌ Needs new tests |
+| Portal frontend — display correct fields | **007** | ⚠️ Verify after backend fix |
 
 ## Constitution Check
 
 | Principle | Status | Notes |
 |---|---|---|
-| I. Clean Architecture | PASS | Module split into `domain/`, `application/`, `infrastructure/`, `interfaces/`. `TokenService` lives in `domain/` as a stateless helper. Middleware is in `interfaces/` because it is a framework concern. Cross-module reads go through ports. |
-| II. Multi-Tenant Safety | PASS | The portal is intentionally token-scoped to a single appointment — it does not expose a "tenant context" in the usual sense. Cross-tenant reads are impossible because tokens encode the appointment id. AM/OP token generation scopes the appointment lookup by the operator's own tenant (AM bypasses). |
-| III. Test-Driven Development | PARTIAL | Unit and integration coverage present. DST transition tests are a known gap (GAP-010). Verify 80%+ coverage during review. |
-| IV. Contract-First APIs | PASS | Zod schemas in `packages/shared/src/schemas/tenant-portal.ts` are authoritative. Human projection in [contracts/](./contracts/). |
-| V. Simplicity & Minimal Impact | PASS | The feature does one thing well. Six use cases mapped to six endpoints. `TokenService` is ~50 lines. No speculative abstractions. |
-| VI. State Machine Sovereignty | PASS | This feature does NOT mutate `appointment.status` directly. It only writes `tenantConfirmationStatus`, `scheduledDate`, `timeSlot`, `contact`, and restrictions — tenant-facing fields owned by the appointment entity but not part of its status machine. Reviewers should reject any future change that adds a status transition from here — the correct path is through feature 006. |
-
-**Gate result**: PASS for Phase 1 as implemented.
+| **I. Clean Architecture** | ✅ | `UpdateContactUseCase` accesses `IContactRepository` via DI port, not direct Prisma import |
+| **II. Multi-Tenant Safety** | ✅ | Contact registry update is scoped to `appointment.tenantId`. Uniqueness check uses `existsByEmail(tenantId, ...)` |
+| **III. TDD** | ✅ | Plan includes targeted integration tests for dual-write, conflict, and legacy-row paths |
+| **IV. Contract-First** | ✅ | Portal response shape change is a field rename, not a structural change |
+| **V. Simplicity** | ✅ | The delta is minimal — most work was already done in 021 |
+| **Audit** | ✅ | `contact.portal_update_skipped_conflict` already emitted. `tenant_portal.contact_updated` already emitted. |
 
 ## Project Structure
 
-### Documentation (this feature)
+### Source Code Changes
 
 ```text
-specs/007-tenant-portal/
-├── spec.md
-├── plan.md
-├── data-model.md
-├── contracts/
-│   ├── README.md
-│   └── portal-endpoints.md
-└── tasks.md
+# BACKEND — minimal revisions
+apps/backend/src/modules/tenant-portal/
+├── application/use-cases/
+│   └── get-portal-data.use-case.ts        # Field rename: legacy → effective*
+└── (update-contact.use-case.ts)           # No change needed — dual-write already implemented
+
+# TESTS — new integration tests
+apps/backend/tests/integration/tenant-portal/
+└── portal-contact-dual-write.test.ts      # NEW — FR-053 integration tests
+
+# FRONTEND — verify/fix field reads
+apps/web/src/features/tenant-portal/
+└── (components reading contact fields)    # Verify effective field names
 ```
-
-### Source Code (repository root)
-
-```text
-apps/backend/
-├── prisma/schema.prisma                                 # TenantPortalToken, TenantPortalActivity, TenantPortalTokenStatus, TenantPortalAction
-└── src/
-    └── modules/
-        └── tenant-portal/
-            ├── domain/
-            │   ├── tenant-portal-token.entity.ts
-            │   ├── tenant-portal-token.repository.ts     # port
-            │   ├── tenant-portal-activity.entity.ts
-            │   ├── tenant-portal-activity.repository.ts  # port
-            │   ├── tenant-portal.errors.ts
-            │   └── token.service.ts                      # generateRawToken, hashToken, computeExpiresAt
-            ├── application/
-            │   └── use-cases/
-            │       ├── generate-portal-token.use-case.ts   # operator
-            │       ├── get-portal-data.use-case.ts         # renter GET
-            │       ├── confirm-appointment.use-case.ts
-            │       ├── reschedule-request.use-case.ts
-            │       ├── update-contact.use-case.ts
-            │       └── report-unavailability.use-case.ts
-            ├── infrastructure/
-            │   ├── prisma-tenant-portal-token.repository.ts
-            │   ├── prisma-tenant-portal-activity.repository.ts
-            │   └── workers/
-            │       └── expire-tokens.worker.ts             # scheduled sweep
-            └── interfaces/
-                ├── tenant-portal.routes.ts                 # 5 renter routes + 1 operator route
-                └── portal-token-middleware.ts              # token → portalContext
-
-apps/web/src/features/tenant-portal/                        # renter-facing pages (no JWT)
-packages/shared/src/schemas/tenant-portal.ts
-
-apps/backend/tests/
-├── unit/tenant-portal/
-└── integration/tenant-portal/
-```
-
-**Structure Decision**: Single Clean-Architecture module under `apps/backend/src/modules/tenant-portal/`. The web side is unusual: the renter pages live under a dedicated feature folder and do NOT use the standard auth provider — they consume the token from the URL path directly.
-
-## Cross-Feature Dependencies
-
-- **Feature 001-identity-access** — Only for operator token generation (AM/OP via JWT). Renter endpoints bypass JWT entirely and use the portal token middleware.
-- **Feature 002-tenants-branches** — Reads `ITenantRepository` to fetch the tenant timezone for expiry computation. Blocked by `002#GAP-002` for per-tenant cutoff policy (GAP-007 here).
-- **Feature 004-service-catalog** — Reads `IServiceTypeRepository` to enforce the `ROUTINE`-only reschedule rule.
-- **Feature 006-appointments** — Writes `tenantConfirmationStatus`, `scheduledDate`, `timeSlot`, `contact`, and restrictions on appointments via `IAppointmentRepository`. Does NOT call `ExecuteStatusTransitionUseCase`. Cross-feature handoff contract is formalized by GAP-001 (matching 006#GAP-003).
-- **Feature 008-inspector-execution** — Reads `IInspectionExecutionRepository` to block reschedule when an execution is already in progress.
-- **Feature 009-notifications** — Calls `CreateNotificationUseCase` directly to send the portal link (EMAIL + SMS). Will migrate to typed domain events under GAP-002 (depends on 002#GAP-005).
-- **Feature 011-reports-audit** — Consumes the audit records. This feature is the only caller that writes `actorType = ANONYMOUS`.
-
-## Security & Operational Notes
-
-- **Raw tokens are return-once**: the `GeneratePortalTokenUseCase` returns `rawToken` to the caller once. The database stores only the SHA-256 hash. No code path should ever log, return, or forward the raw token after that.
-- **Middleware re-hashes on lookup**: every incoming request to a portal endpoint re-hashes the URL parameter for DB lookup. The `token_hash` column has a unique index.
-- **Token expiry cutoff** is 7 PM on the day before the scheduled date in the tenant's timezone. Computed via `Intl.DateTimeFormat` to handle DST — reviewers touching `computeExpiresAt` must add fixture-based tests for both DST transitions (GAP-010).
-- **Restricted mode for expired tokens** (not fully "read-only"): the GET endpoint loads an expired token so the renter sees context. Confirm, reschedule, and contact update reject with `PORTAL_ACTION_BLOCKED`. **Exception**: `POST /unavailable` is permitted after cutoff as a late emergency signal (`Source: dossier — regras-negocio:241-243`), flagged as `urgentMode = true`, triggering immediate operator/inspector notification. The portal does not decide the appointment's final outcome — `OP/AM` triages.
-- **Rate limit 30/min per IP**: enforced via `@fastify/rate-limit` config on every endpoint. Tight enough to discourage scraping without impeding legitimate use.
-- **`last_accessed_at` telemetry**: updated on every successful middleware lookup. Useful for analytics; not yet exposed (GAP-009).
-- **Anonymous audit records**: this feature is the only caller writing `actorType: 'ANONYMOUS'`. Audit consumers (feature 011) must handle this actor type.
-- **DST correctness**: the current `computeExpiresAt` implementation uses `Intl.DateTimeFormat` to measure the UTC offset at the candidate instant, then adjusts. It works but is subtle. Treat changes here as high-risk.
-
-## Complexity Tracking
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|---|---|---|
-| Separate `tenant_portal_activities` table alongside `audit_logs` | Activities carry IP + user agent + previous/new snapshots at a finer grain than audit logs and are exposed to renters (indirectly) and to support staff. Mixing them into the shared audit table would overload that schema. | Single-table approach would force the audit table to grow renter-side columns and complicate retention policies. |
-| Restricted mode for EXPIRED tokens (not fully read-only) | Renters need to see what happened after their link expired AND report late unavailability as an emergency exception (dossiê-mandated). Blocking all mutations would prevent the late emergency signal. | Full read-only would block the unavailability exception required by the dossiê. |
-| Cutoff expiry in local-time 7 PM day-before | Renters expect the deadline to land in local-time evening, not at midnight UTC. | A simple `scheduledDate - 12h` rule would drift across DST and timezones. |
-| Middleware at the route level (not a global plugin) | Only portal routes use portal tokens; the rest of the app uses JWT auth. Registering globally would conflict with JWT middleware on other routes. | A global plugin would need a "skip" list that drifts when routes are added. |
-
-Phase 1 deviations above are justified. Phase 2 items introducing new abstractions must add rows here.
 
 ## Execution Strategy
 
-> Detailed task definitions in [`tasks.md`](./tasks.md).
+### Phase 1 — Backend: Field Alignment + Integration Tests
 
-### Phase 2 — Gap Closure
+**Small and focused. No structural changes — just field renames and test coverage.**
 
-#### Wave 1: Quick Fixes + Independent Items (parallel)
+| Step | What | Depends On |
+|---|---|---|
+| 1.1 | Revise `GetPortalDataUseCase` — replace `contact.tenantName` → `contact.effectiveName`, `contact.primaryEmail` → `contact.effectiveEmail`, `contact.primaryPhone` → `contact.effectivePhone`, `contact.secondaryEmail` → `contact.secondaryEmail` (legacy, no effective accessor). Drop `secondaryPhone` from portal response or keep as legacy fallback. | — |
+| 1.2 | Verify `UpdateContactUseCase` dual-write path by reading the code — confirm: (a) writes to snapshot fields, (b) writes to registry when `contact_id IS NOT NULL`, (c) skips registry on email conflict, (d) emits `contact.portal_update_skipped_conflict` audit. No code change expected. | — |
+| 1.3 | Write integration test for portal dual-write in `apps/backend/tests/integration/tenant-portal/portal-contact-dual-write.test.ts` — (a) portal update updates snapshot, (b) portal update updates registry when `contact_id` present, (c) email conflict → snapshot updates, registry skipped, audit written, (d) legacy junction row (`contact_id = NULL`) → only snapshot updated, (e) existing appointment for same contact in a different appointment retains OLD snapshot (snapshot immutability). Minimum 5 cases. | 1.1 |
+| 1.4 | Verify token behavior: token is bound to `appointment_id`, not junction row. Test: update contact via portal → token still works for subsequent GET. | 1.3 |
+| 1.5 | Run existing portal test suite — all 175 unit + 8 integration tests must still pass | 1.1 |
 
-| Order | Gap | Tasks | Rationale |
-|-------|-----|-------|-----------|
-| 1a | GAP-001 — Reschedule handoff | T100–T103 | Mirrors 006#GAP-003 (already done). Migrate portal to use it. |
-| 1b | GAP-005 — Portal activity export | T140–T143 | Simple read endpoint. No dependencies. |
-| 1c | GAP-010 — DST correctness tests | T190–T191 | Tests only. No code changes expected. |
+**Checkpoint**: `pnpm typecheck && pnpm --filter backend test` green. Portal GET returns effective contact fields. Dual-write integration tests pass.
 
-#### Wave 2: Events + Token Improvements (parallel)
+### Phase 2 — Frontend: Verify Contact Display
 
-| Order | Gap | Tasks | Rationale |
-|-------|-----|-------|-----------|
-| 2a | GAP-002 — Domain events | T110–T113 | Emit typed portal events via DomainEventBus. |
-| 2b | GAP-003 — Token replay detection | T120–T122 | Security improvement. |
-| 2c | GAP-004 — Auto-generate token on reschedule | T130–T132 | UX fix. |
+**Trivial — the portal frontend reads from the API response. After the backend fix, verify the response shape matches what the UI expects.**
 
-#### Wave 3: Tenant Configuration (parallel)
+| Step | What | Depends On |
+|---|---|---|
+| 2.1 | Verify portal frontend components read `contactName`, `contactEmail`, `contactPhone` from the API response (these are the serialized field names from the use case output). If the field names changed in the backend, update the frontend reads. | Phase 1 |
+| 2.2 | Run frontend portal tests | 2.1 |
 
-| Order | Gap | Tasks | Rationale |
-|-------|-----|-------|-----------|
-| 3a | GAP-007 — Configurable cutoff | T160–T162 | Uses tenant settings (002#GAP-002 done). |
-| 3b | GAP-008 — Configurable reschedule window | T170–T172 | Same. |
+**Checkpoint**: Portal loads correctly. Renter sees updated contact info.
 
-#### Wave 4: UX + Telemetry (parallel)
+### Phase 3 — Verification
 
-| Order | Gap | Tasks | Rationale |
-|-------|-----|-------|-----------|
-| 4a | GAP-006 — Expired token UX | T150–T151 | Frontend + notification. |
-| 4b | GAP-009 — Telemetry dashboard | T180 | Report design doc. |
+| Step | What |
+|---|---|
+| 3.1 | `pnpm typecheck` all workspaces |
+| 3.2 | `pnpm --filter backend test` — all pass |
+| 3.3 | `pnpm --filter web test` — all pass |
+| 3.4 | Verify no new Prisma migration needed |
 
-```
-Wave 1:  GAP-001 ══╗
-         GAP-005 ══╬══ (parallel)
-         GAP-010 ══╝
+## Testing Strategy
 
-Wave 2:  GAP-002 ══╗
-         GAP-003 ══╬══ (parallel)
-         GAP-004 ══╝
+### Unit Tests (existing — verify pass)
 
-Wave 3:  GAP-007 ══╗
-         GAP-008 ══╝ (parallel)
+| Subject | Location | Expected |
+|---|---|---|
+| `UpdateContactUseCase` | `tests/unit/tenant-portal/update-contact.use-case.test.ts` | 10 tests pass (already verified in 021 closeout) |
+| Gap tests (domain events, token replay) | `tests/unit/tenant-portal/gap-002-003-004.test.ts` | Pass (mocks already updated in 021) |
 
-Wave 4:  GAP-006 ══╗
-         GAP-009 ══╝ (parallel)
-```
+### Integration Tests (new)
+
+| Subject | Location | Cases |
+|---|---|---|
+| Portal dual-write (FR-053) | `tests/integration/tenant-portal/portal-contact-dual-write.test.ts` | (a) snapshot updated, (b) registry updated when contact_id present, (c) email conflict → snapshot updates + registry skipped + audit, (d) legacy row → snapshot only, (e) other appointment snapshot unchanged |
+| Token survives contact update | Same or existing portal test file | Token GET after contact update → still works |
+
+### What we're NOT testing (already covered)
+
+- Token generation, confirm, reschedule, unavailability — all already have exhaustive tests from Phase 1
+- Contact registry CRUD — tested in 021's integration suite
+- Junction + snapshot creation — tested in 006's integration suite
+
+## Residual Risks & Assumptions
+
+### Risks
+
+| Risk | Severity | Mitigation |
+|---|---|---|
+| `GetPortalDataUseCase` field rename breaks frontend | Low | The API response serializes with the same key names. If keys change, it's a find-and-replace in the portal React component. |
+| `secondaryEmail`/`secondaryPhone` legacy fields in portal response | Low | These are expand-phase legacy fields. Keep them in the response for now. They'll be dropped with the column drop migration. |
+| Dual-write already implemented but no integration test | Medium | This plan adds the integration test to close the gap. |
+
+### Assumptions
+
+1. **021 is done and stable**. The dual-write code in `UpdateContactUseCase` is already working (verified by unit tests + 021 typecheck/test pass).
+2. **006 junction pattern is stable**. `appointment_contacts` has `contact_id`, `snapshot_*` fields, `effective*` accessors. All working.
+3. **No schema changes needed**. 021's migration covers everything. No new Prisma migration for this plan.
+4. **Portal frontend is small**. The renter-facing portal is a simple React page. Contact fields are displayed from the API response — a backend field rename propagates automatically if key names are preserved.
+5. **Token semantics are unchanged**. Token is bound to `appointment_id`. Junction row changes don't affect tokens. This was verified in spec analysis and 021 implementation.
+
+### Scope Fences
+
+| What | Why |
+|---|---|
+| Contact registry CRUD endpoints | Feature 021 scope — done |
+| Appointment creation with contacts[] | Feature 006 scope — done |
+| Notification fan-out to all contacts | 006#GAP-011 — deferred |
+| Portal token per secondary contact | Spec explicitly excludes: "Separate per-contact tokens are out of scope" |
+| Column drop on `appointment_contacts` | Expand/contract — separate migration |
+| Portal redesign / multi-contact display in portal | Not in scope — portal shows primary contact only |

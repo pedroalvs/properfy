@@ -82,9 +82,10 @@ export class ListAppointmentsUseCase {
     // RBAC: only AM, OP, CL_ADMIN, CL_USER can list appointments
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.list', entityType: 'Appointment' });
 
-    // Resolve tenantId — AM/OP can omit to see all tenants
+    // Resolve tenantId — only AM is cross-tenant. OP is tenant-scoped
+    // per Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
     const tenantId =
-      actor.role === 'AM' || actor.role === 'OP'
+      actor.role === 'AM'
         ? filters.tenantId
         : actor.tenantId!;
 

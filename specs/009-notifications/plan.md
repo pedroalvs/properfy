@@ -14,7 +14,7 @@ Own the platform's outbound communication: tenant portal links, inspection remin
 **Primary Dependencies**
 
 - Backend: Fastify, Prisma, Zod, pg-boss (send job + scheduled dispatchers + poll-retryable sweep), shared `AuditService`.
-- Providers (production): Resend (EMAIL), Twilio (SMS), Zenvia (WhatsApp).
+- Providers (production target): Resend (EMAIL), Mobile Message (SMS), Zenvia (WhatsApp). Current code still uses Twilio for SMS until the provider migration lands.
 - Providers (tests): `StubEmailProvider`, `StubSmsProvider`, `StubWhatsAppProvider`.
 - Cross-module ports: `IAppointmentRepository` (reminder + escalation dispatchers), `CreateNotificationUseCase` is the canonical internal entry point called by features 006, 007, 008.
 
@@ -39,7 +39,7 @@ Own the platform's outbound communication: tenant portal links, inspection remin
 This feature mixes three layers that readers must distinguish:
 
 - **Business rules** (`Source: dossier`): the 9 mandatory events, their channels, tenant-configurable templates, delivery status tracking, retry with backoff. These are dossiê-mandated and cannot be changed without a product decision.
-- **Infrastructure/operational choices** (`implementation decision`): provider selection (Resend/Twilio/Zenvia), webhook endpoint shapes, retry delay values (15s/45s/2min/5min/15min), jitter factor (10%), pg-boss job config. These can be changed operationally without a dossiê amendment.
+- **Infrastructure/operational choices** (`implementation decision`): provider selection (Resend/Mobile Message/Zenvia), webhook endpoint shapes, retry delay values (15s/45s/2min/5min/15min), jitter factor (10%), pg-boss job config. These can be changed operationally without a dossiê amendment. SMS currently diverges in code (Twilio) and should migrate to Mobile Message.
 - **Deployment baseline** (`implementation decision`): the 10th template (`INSPECTION_UNAVAILABILITY_REPORTED`), the `TemplateRendererService` {{variable}} engine, the fire-and-forget handler pattern. Operationally important but not dossiê-mandated as canonical.
 
 ## Constitution Check
@@ -103,7 +103,7 @@ apps/backend/src/modules/notification/
 │   ├── prisma-notification.repository.ts
 │   ├── prisma-notification-template.repository.ts
 │   ├── resend-email.provider.ts
-│   ├── twilio-sms.provider.ts
+│   ├── twilio-sms.provider.ts              # current code path; target provider is Mobile Message after migration
 │   ├── zenvia-whatsapp.provider.ts
 │   ├── stub-email.provider.ts
 │   ├── stub-sms.provider.ts
@@ -131,8 +131,8 @@ apps/backend/tests/
 
 ## Security & Operational Notes
 
-- **Webhook endpoints are unauthenticated**: providers cannot carry JWTs. Each provider supports signature headers (Resend via Svix; Twilio `X-Twilio-Signature`; Zenvia HMAC). Signature validation is GAP-007.
-- **Provider secrets via environment**: API keys for Resend, Twilio, Zenvia are injected at runtime. Stub providers are wired in test container only.
+- **Webhook endpoints are unauthenticated**: providers cannot carry JWTs. Each provider supports a signature or authenticated callback mechanism (Resend via Svix; Mobile Message to be confirmed in implementation; Zenvia HMAC). Signature validation is GAP-007.
+- **Provider secrets via environment**: API keys for Resend, Mobile Message, Zenvia are injected at runtime. Stub providers are wired in test container only. Current code still uses Twilio env vars for SMS until migration.
 - **Recipient PII in logs**: NFR-005 forbids logging email/phone at production log levels. Send adapter error handlers must redact.
 - **Retry budget is bounded**: 6 attempts across ~25 minutes (`15s + 45s + 2min + 5min + 15min + one more`). Terminal failure is `FAILED`. No DLQ beyond this.
 - **Idempotency on reminders**: guaranteed by `existsByAppointmentAndTemplate` check inside `DispatchRemindersUseCase` — a re-run within the same day will not duplicate.

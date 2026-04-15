@@ -96,9 +96,12 @@ const amContext = {
   inspectorId: null,
 };
 
+// Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13):
+// OP must now carry a tenantId in its JWT. A null-tenant OP is rejected
+// by the auth middleware before reaching any use case.
 const opContext = {
   userId: 'op-1',
-  tenantId: null,
+  tenantId: TENANT_1_ID,
   role: 'OP',
   branchId: null,
   inspectorId: null,
@@ -152,7 +155,7 @@ describe('Multi-tenant isolation', () => {
       expect(res.body.data.tenantId).toBe(TENANT_2_ID);
     });
 
-    it('OP can access property from any tenant', async () => {
+    it('OP (tenant-1) can access property in own tenant (CORRECTION-001 close-it)', async () => {
       mockJwtVerify.mockResolvedValue(opContext);
       mockGetPropertyExecute.mockResolvedValueOnce(fullPropertyResponse(TENANT_1_ID));
 
@@ -162,6 +165,12 @@ describe('Multi-tenant isolation', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.tenantId).toBe(TENANT_1_ID);
+      // The important assertion: OP context carries TENANT_1_ID, not null
+      expect(mockGetPropertyExecute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor: expect.objectContaining({ tenantId: TENANT_1_ID, role: 'OP' }),
+        }),
+      );
     });
   });
 
@@ -203,20 +212,22 @@ describe('Multi-tenant isolation', () => {
       );
     });
 
-    it('OP can access appointment from any tenant (use case receives OP context)', async () => {
+    it('OP can access appointment in own tenant only (CORRECTION-001 close-it)', async () => {
       mockJwtVerify.mockResolvedValue(opContext);
       mockGetAppointmentExecute.mockRejectedValueOnce(
         new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found'),
       );
 
-      const res = await supertest(app.server)
+      await supertest(app.server)
         .get(`/v1/appointments/${APPOINTMENT_ID}`)
         .set('Authorization', 'Bearer op-token');
 
-      // The important assertion: OP context (null tenantId) was passed to the use case
+      // Sprint 1 W-4-IMPL: OP is tenant-scoped. Its AuthContext carries
+      // TENANT_1_ID, not null. The use case receives the tenant-bound OP
+      // context, and any appointment outside that tenant returns 404.
       expect(mockGetAppointmentExecute).toHaveBeenCalledWith(
         expect.objectContaining({
-          actor: expect.objectContaining({ tenantId: null, role: 'OP' }),
+          actor: expect.objectContaining({ tenantId: TENANT_1_ID, role: 'OP' }),
         }),
       );
     });

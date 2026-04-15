@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { TopBar } from '@/components/shell/TopBar';
 import { ProfileCard } from '../components/ProfileCard';
+import { InspectorDetailsCard } from '../components/InspectorDetailsCard';
 import { ChangePasswordSection } from '../components/ChangePasswordSection';
 import { TwoFactorSection } from '../components/TwoFactorSection';
 import { SessionsSection } from '../components/SessionsSection';
@@ -39,6 +40,9 @@ export function ProfilePage() {
           totpEnabled={totpEnabled}
           lastLoginAt={user.lastLoginAt}
         />
+
+        {/* Inspector details */}
+        <InspectorDetailsCard />
 
         {/* Security section */}
         <h2 className="mt-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-muted">Security</h2>

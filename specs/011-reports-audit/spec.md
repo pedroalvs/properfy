@@ -2,7 +2,7 @@
 
 **Feature Branch**: `011-reports-audit`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps closed in commit `d935015` (2026-04-08, Waves 1–3). Four gaps were further closed by downstream features: 011#GAP-002 (CL_ADMIN audit read access) + 011#GAP-001 (retention policy) + 011#GAP-003 (PII redaction) by feature 020 (2026-04-13), and 011#GAP-004 (scheduled reports) + 011#GAP-010 (email delivery of completed reports) by feature 019 (2026-04-12). Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/{report,audit}/**`, `apps/backend/src/shared/infrastructure/audit/**`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/schemas/{report,audit}.ts`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`, `projeto-consolidado/regras-negocio-respostas-cliente.md`
@@ -227,6 +227,12 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 - **FR-060**: System MUST validate all report payloads via Zod schemas in `packages/shared/src/schemas/report.ts`.
 - **FR-061**: System MUST validate all audit list queries via Zod schemas in `packages/shared/src/schemas/audit.ts`.
+
+#### Inherited UX patterns (Feedback Round 2026-04-13, sanity-check corrective pass)
+
+- **FR-019b (pencil removal when duplicated with eye)**: the Reports list and the Audit list each expose a single "view" action (eye) that opens the detail drawer. Neither has an editable detail surface — reports and audit entries are read-only — so the row-level "edit" (pencil) action MUST NOT be rendered in either case. Inherited transversally from feature 014 FR-019b; for these two lists the pattern applies by default since no edit affordance exists anywhere in the flow.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 11 (pencil removal).
 
 ### Non-Functional Requirements
 

@@ -10,6 +10,8 @@ export interface ReportProps {
   status: ReportStatus;
   fileKey: string | null;
   requestedByUserId: string;
+  /** Feature 019: optional back-reference to the schedule that produced this report. */
+  scheduledReportId: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
   failedAt: Date | null;
@@ -28,6 +30,7 @@ export class ReportEntity extends BaseEntity {
   status: ReportStatus;
   fileKey: string | null;
   readonly requestedByUserId: string;
+  readonly scheduledReportId: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
   failedAt: Date | null;
@@ -44,6 +47,7 @@ export class ReportEntity extends BaseEntity {
     this.status = props.status;
     this.fileKey = props.fileKey;
     this.requestedByUserId = props.requestedByUserId;
+    this.scheduledReportId = props.scheduledReportId;
     this.startedAt = props.startedAt;
     this.completedAt = props.completedAt;
     this.failedAt = props.failedAt;

@@ -46,15 +46,16 @@ describe('BillingPeriodType', () => {
 });
 
 describe('InspectorInvoiceStatus', () => {
-  it('should have OPEN, CLOSED, PAID, SUPERSEDED values', () => {
+  it('should have PENDING_REVIEW, OPEN, CLOSED, PAID, SUPERSEDED values', () => {
+    expect(InspectorInvoiceStatus.PENDING_REVIEW).toBe('PENDING_REVIEW');
     expect(InspectorInvoiceStatus.OPEN).toBe('OPEN');
     expect(InspectorInvoiceStatus.CLOSED).toBe('CLOSED');
     expect(InspectorInvoiceStatus.PAID).toBe('PAID');
     expect(InspectorInvoiceStatus.SUPERSEDED).toBe('SUPERSEDED');
   });
 
-  it('should have exactly 4 values', () => {
-    expect(Object.keys(InspectorInvoiceStatus)).toHaveLength(4);
+  it('should have exactly 5 values', () => {
+    expect(Object.keys(InspectorInvoiceStatus)).toHaveLength(5);
   });
 });
 

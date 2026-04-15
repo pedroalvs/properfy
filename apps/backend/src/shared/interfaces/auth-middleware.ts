@@ -26,6 +26,17 @@ export function createAuthMiddleware(
     const token = authHeader.slice(7);
     const ctx = await verifyJwt(token);
 
+    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13):
+    // OP is now a tenant-scoped role. A JWT claiming `role: OP` with
+    // `tenantId: null` is an invalid auth state and must be rejected.
+    // AM remains the only tenant-free role.
+    if (ctx.role === 'OP' && !ctx.tenantId) {
+      throw new UnauthorizedError(
+        'AUTH_UNAUTHORIZED',
+        'OP tokens must carry a tenant scope',
+      );
+    }
+
     // Check tenant status for client roles and resolve CL_USER permissions
     if (ctx.tenantId && (ctx.role === 'CL_ADMIN' || ctx.role === 'CL_USER')) {
       if (checkTenantActive) {

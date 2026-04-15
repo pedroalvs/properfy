@@ -116,7 +116,7 @@ describe('GET /v1/audit-logs', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(mockListAuditLogsExecute).toHaveBeenCalledWith({
-      filters: { entityType: 'APPOINTMENT', action: 'STATUS_TRANSITION' },
+      filters: { entityType: 'APPOINTMENT', action: 'STATUS_TRANSITION', includeArchived: false },
       pagination: { page: 1, pageSize: 10, sortBy: undefined, sortOrder: 'desc' },
       actor: amContext,
     });

@@ -69,8 +69,8 @@ export class ListFinancialEntriesUseCase {
       sortOrder: input.sortOrder,
     };
 
-    if (actor.role === 'AM' || actor.role === 'OP') {
-      // AM/OP can filter by any tenantId; if none provided, returns all
+    if (actor.role === 'AM') {
+      // AM only: can filter by any tenantId; if none provided, returns all
       if (input.tenantId) filters.tenantId = input.tenantId;
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
       if (input.type) filters.entryType = input.type as FinancialEntryFilters['entryType'];
@@ -92,7 +92,9 @@ export class ListFinancialEntriesUseCase {
           },
         });
       }
-    } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+      // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): OP is now
+      // tenant-scoped — same behavior as CL_ADMIN/CL_USER.
       // Client roles: forced tenantId from JWT, ignore query param
       filters.tenantId = actor.tenantId!;
       if (input.inspectorId) filters.inspectorId = input.inspectorId;

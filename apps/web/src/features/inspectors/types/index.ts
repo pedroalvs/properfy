@@ -20,6 +20,14 @@ export interface InspectorDetail extends Inspector {
   regionIds: string[];
   serviceTypes: ServiceTypeEntry[];
   clientEligibility: ClientEligibilityEntry[];
+  fullName?: string | null;
+  abn?: string | null;
+  dateOfBirth?: string | null;
+  insuranceFileKey?: string | null;
+  insuranceExpiresAt?: string | null;
+  policeCheckFileKey?: string | null;
+  policeCheckExpiresAt?: string | null;
+  blockedClients?: string[];
 }
 
 export interface InspectorFormData {
@@ -30,6 +38,14 @@ export interface InspectorFormData {
   regionIds: string[];
   serviceTypes: string;
   clientEligibility: string[];
+  fullName: string;
+  abn: string;
+  dateOfBirth: string;
+  insuranceFileKey: string;
+  insuranceExpiresAt: string;
+  policeCheckFileKey: string;
+  policeCheckExpiresAt: string;
+  blockedClients: string[];
 }
 
 export type InspectorFormErrors = Partial<Record<keyof InspectorFormData, string>>;
@@ -42,6 +58,14 @@ export const EMPTY_INSPECTOR_FORM: InspectorFormData = {
   regionIds: [],
   serviceTypes: '',
   clientEligibility: [],
+  fullName: '',
+  abn: '',
+  dateOfBirth: '',
+  insuranceFileKey: '',
+  insuranceExpiresAt: '',
+  policeCheckFileKey: '',
+  policeCheckExpiresAt: '',
+  blockedClients: [],
 };
 
 export interface InspectorFiltersState {

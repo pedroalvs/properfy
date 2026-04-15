@@ -11,8 +11,23 @@ export const NotificationStatus = {
   DELIVERED: 'DELIVERED',
   FAILED: 'FAILED',
   SKIPPED: 'SKIPPED',
+  SKIPPED_OPT_OUT: 'SKIPPED_OPT_OUT',
 } as const;
 export type NotificationStatus = (typeof NotificationStatus)[keyof typeof NotificationStatus];
+
+export const NotificationClass = {
+  TRANSACTIONAL: 'TRANSACTIONAL',
+  OPERATIONAL: 'OPERATIONAL',
+  MARKETING: 'MARKETING',
+} as const;
+export type NotificationClass = (typeof NotificationClass)[keyof typeof NotificationClass];
+
+export const ConsentChangeSource = {
+  unsubscribe_link: 'unsubscribe_link',
+  operator_override: 'operator_override',
+  re_opt_in: 're_opt_in',
+} as const;
+export type ConsentChangeSource = (typeof ConsentChangeSource)[keyof typeof ConsentChangeSource];
 
 export const WhatsAppApprovalStatus = {
   PENDING: 'PENDING',

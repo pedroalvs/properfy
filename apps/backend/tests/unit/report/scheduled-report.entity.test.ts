@@ -11,6 +11,13 @@ function makeEntity(overrides: Partial<ConstructorParameters<typeof ScheduledRep
     format: 'XLSX',
     cronExpression: '0 8 * * 1',
     deliveryEmail: 'test@example.com',
+    displayName: null,
+    deliveryMode: 'OWNER_ONLY',
+    recipientUserIds: [],
+    skipDeliveryWhenEmpty: false,
+    consecutiveFailureCount: 0,
+    status: 'ACTIVE',
+    deletedAt: null,
     isActive: true,
     lastRunAt: null,
     nextRunAt: new Date(now.getTime() + 86400000),
@@ -37,9 +44,16 @@ describe('ScheduledReportEntity', () => {
       expect(entity.isDue(new Date())).toBe(false);
     });
 
-    it('should return false when inactive', () => {
+    it('should return false when paused', () => {
       const past = new Date(Date.now() - 60000);
-      const entity = makeEntity({ isActive: false, nextRunAt: past });
+      const entity = makeEntity({ isActive: false, status: 'PAUSED', nextRunAt: past });
+
+      expect(entity.isDue(new Date())).toBe(false);
+    });
+
+    it('should return false when soft-deleted', () => {
+      const past = new Date(Date.now() - 60000);
+      const entity = makeEntity({ deletedAt: new Date(), nextRunAt: past });
 
       expect(entity.isDue(new Date())).toBe(false);
     });
@@ -71,6 +85,97 @@ describe('ScheduledReportEntity', () => {
 
       entity.deactivate();
 
+      expect(entity.isActive).toBe(false);
+    });
+  });
+
+  // ─── Feature 019: lifecycle state machine ────────────────────────────────
+
+  describe('feature 019: pause / resume', () => {
+    it('pause() transitions to PAUSED', () => {
+      const entity = makeEntity({ status: 'ACTIVE', isActive: true });
+      entity.pause();
+      expect(entity.status).toBe('PAUSED');
+      expect(entity.isActive).toBe(false);
+    });
+
+    it('pause() is idempotent', () => {
+      const entity = makeEntity({ status: 'PAUSED', isActive: false });
+      entity.pause();
+      expect(entity.status).toBe('PAUSED');
+    });
+
+    it('resume() transitions to ACTIVE and resets the failure counter', () => {
+      const entity = makeEntity({
+        status: 'PAUSED',
+        isActive: false,
+        consecutiveFailureCount: 3,
+      });
+      const nextRun = new Date(Date.now() + 86400000);
+
+      entity.resume(nextRun);
+
+      expect(entity.status).toBe('ACTIVE');
+      expect(entity.isActive).toBe(true);
+      expect(entity.consecutiveFailureCount).toBe(0);
+      expect(entity.nextRunAt).toBe(nextRun);
+    });
+  });
+
+  describe('feature 019: softDelete', () => {
+    it('softDelete() sets deletedAt and pauses the schedule', () => {
+      const entity = makeEntity({ status: 'ACTIVE', isActive: true });
+      entity.softDelete();
+      expect(entity.deletedAt).toBeInstanceOf(Date);
+      expect(entity.status).toBe('PAUSED');
+      expect(entity.isActive).toBe(false);
+    });
+
+    it('isDue() returns false after soft-delete', () => {
+      const past = new Date(Date.now() - 60000);
+      const entity = makeEntity({ nextRunAt: past });
+      entity.softDelete();
+      expect(entity.isDue(new Date())).toBe(false);
+    });
+  });
+
+  describe('feature 019: recordSuccess', () => {
+    it('resets the failure counter and advances timestamps', () => {
+      const entity = makeEntity({ consecutiveFailureCount: 2 });
+      const now = new Date();
+      const nextRun = new Date(now.getTime() + 86400000);
+
+      entity.recordSuccess(now, nextRun);
+
+      expect(entity.consecutiveFailureCount).toBe(0);
+      expect(entity.lastRunAt).toBe(now);
+      expect(entity.nextRunAt).toBe(nextRun);
+    });
+  });
+
+  describe('feature 019: recordFailure / auto-pause', () => {
+    it('increments the counter and returns autoPaused=false for counts 1 and 2', () => {
+      const entity = makeEntity({ consecutiveFailureCount: 0 });
+
+      const r1 = entity.recordFailure(new Date());
+      expect(r1.autoPaused).toBe(false);
+      expect(entity.consecutiveFailureCount).toBe(1);
+      expect(entity.status).toBe('ACTIVE');
+
+      const r2 = entity.recordFailure(new Date());
+      expect(r2.autoPaused).toBe(false);
+      expect(entity.consecutiveFailureCount).toBe(2);
+      expect(entity.status).toBe('ACTIVE');
+    });
+
+    it('auto-pauses at the 3rd consecutive failure', () => {
+      const entity = makeEntity({ consecutiveFailureCount: 2 });
+
+      const r = entity.recordFailure(new Date());
+
+      expect(r.autoPaused).toBe(true);
+      expect(entity.consecutiveFailureCount).toBe(3);
+      expect(entity.status).toBe('PAUSED');
       expect(entity.isActive).toBe(false);
     });
   });

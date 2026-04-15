@@ -55,9 +55,10 @@ export class ListTenantInvoicesUseCase {
       pageSize: input.pageSize,
     };
 
-    if (actor.role === 'AM' || actor.role === 'OP') {
+    // Only AM is cross-tenant per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
+    if (actor.role === 'AM') {
       if (input.tenantId) filters.tenantId = input.tenantId;
-    } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       if (!actor.tenantId) {
         throw new ForbiddenError('TENANT_NOT_LINKED', 'Tenant not linked to user account');
       }

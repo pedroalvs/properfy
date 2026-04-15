@@ -1,5 +1,5 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { NotificationChannel, NotificationStatus } from '@properfy/shared';
+import type { NotificationChannel, NotificationClass, NotificationStatus } from '@properfy/shared';
 
 export interface NotificationProps {
   id: string;
@@ -9,6 +9,7 @@ export interface NotificationProps {
   channel: NotificationChannel;
   templateCode: string;
   status: NotificationStatus;
+  notificationClass: NotificationClass | null;
   providerName: string | null;
   providerMessageId: string | null;
   sentAt: Date | null;
@@ -29,6 +30,12 @@ export class NotificationEntity extends BaseEntity {
   readonly channel: NotificationChannel;
   readonly templateCode: string;
   status: NotificationStatus;
+  /**
+   * Notification class stamped from the template at creation time (feature 018).
+   * Nullable for legacy rows created before 018 — the send worker treats null as OPERATIONAL.
+   * Once set, this field should not be reassigned.
+   */
+  readonly notificationClass: NotificationClass | null;
   providerName: string | null;
   providerMessageId: string | null;
   sentAt: Date | null;
@@ -47,6 +54,7 @@ export class NotificationEntity extends BaseEntity {
     this.channel = props.channel;
     this.templateCode = props.templateCode;
     this.status = props.status;
+    this.notificationClass = props.notificationClass;
     this.providerName = props.providerName;
     this.providerMessageId = props.providerMessageId;
     this.sentAt = props.sentAt;
@@ -56,6 +64,21 @@ export class NotificationEntity extends BaseEntity {
     this.payloadJson = props.payloadJson;
     this.retryCount = props.retryCount;
     this.nextRetryAt = props.nextRetryAt;
+  }
+
+  /**
+   * Returns the effective notification class, treating null (legacy rows) as OPERATIONAL.
+   * This is the authoritative accessor for the send-flow consent check.
+   */
+  getEffectiveClass(): NotificationClass {
+    return this.notificationClass ?? 'OPERATIONAL';
+  }
+
+  /**
+   * True for TRANSACTIONAL notifications that MUST bypass consent checks (FR-013).
+   */
+  isTransactional(): boolean {
+    return this.notificationClass === 'TRANSACTIONAL';
   }
 
   isPending(): boolean {

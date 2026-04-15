@@ -387,6 +387,8 @@ When you (Claude Code) implement or modify code in this project:
 - TypeScript 5.6 on React 18.3 + Vite 5.4 + React Router 6 (data router), TanStack React Query 5, Tailwind CSS 3.4, mapbox-gl 3.20, openapi-fetch (014-frontend-app-shell-ux)
 - TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, existing `AuthorizationService` (015-permissions-rbac-matrix)
 - PostgreSQL (Supabase) — `tenants.settings_json` (JSONB) for permission flags; `audit_logs` for denial records (015-permissions-rbac-matrix)
+- TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, `pg_trgm` for trigram search (021-contacts)
+- PostgreSQL (Supabase) — new `contacts` table (per-tenant registry), revised `appointment_contacts` (junction + snapshot pattern), new enums `ContactType`, `ContactChannelType`, `AppointmentContactRole` (021-contacts)
 
 ## Recent Changes
 - 002-tenants-branches: Added TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, domain port `IAppointmentChecker`

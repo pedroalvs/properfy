@@ -72,18 +72,19 @@ export class UpdatePropertyUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Resolve tenantId for lookup
+    // Resolve tenantId for lookup. Only AM is cross-tenant per Sprint 1
+    // W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
     const tenantId =
-      actor.role === 'AM' || actor.role === 'OP'
-        ? null // AM/OP: we need to find the property first to know its tenant
+      actor.role === 'AM'
+        ? null // AM: we need to find the property first to know its tenant
         : actor.tenantId!;
 
-    // For CL roles, scope by tenantId; for AM/OP, find property to get its tenantId
+    // For OP/CL roles, scope by tenantId; for AM, find property to get its tenantId
     let property;
     if (tenantId) {
       property = await this.propertyRepo.findById(propertyId, tenantId);
     } else {
-      // AM/OP: no tenant scope restriction
+      // AM: no tenant scope restriction
       property = await this.propertyRepo.findById(propertyId, null);
     }
 

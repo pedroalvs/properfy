@@ -43,6 +43,29 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
     limits: { fileSize: 10 * 1024 * 1024 },
   });
 
+  // Feature 018: URL-encoded form body parser for the public unsubscribe flow.
+  // The confirmation page POSTs a form with `application/x-www-form-urlencoded`
+  // from a plain HTML template. Only feature 018 uses this content type — all
+  // other endpoints are JSON. Parser is intentionally minimal.
+  app.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      try {
+        const parsed: Record<string, string> = {};
+        const raw = typeof body === 'string' ? body : body.toString('utf-8');
+        for (const pair of raw.split('&')) {
+          if (!pair) continue;
+          const [k, v = ''] = pair.split('=');
+          if (k) parsed[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' '));
+        }
+        done(null, parsed);
+      } catch (err) {
+        done(err as Error, undefined);
+      }
+    },
+  );
+
   // Global rate limiting (per IP)
   await app.register(rateLimit, {
     max: 200,

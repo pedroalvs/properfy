@@ -2,7 +2,7 @@
 
 **Feature Branch**: `010-billing-ledger`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps closed in commit `fe8c822` (2026-04-08, Waves 1–3). Gap 010#GAP-008 (invoice PAID marking endpoint) was further closed by feature 017 (invoice payment reconciliation, 2026-04-10). Ledger invariants (append-only, approved-immutable, invoice-generation-sovereignty) are preserved end-to-end. Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/billing/**`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/schemas/billing.ts`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`, `projeto-consolidado/regras-negocio-respostas-cliente.md`
@@ -118,10 +118,22 @@ Operators and agency finance users browse the ledger with filters (tenant, appoi
 ### User Story 6 — Operator generates an inspector invoice for a billing period
 
 - **Priority**: P1
-- **Status**: IMPLEMENTED
-- **Source**: code
+- **Status**: IMPLEMENTED (Feedback Round 2026-04-13 item 5 adds a PWA-initiated draft path with a new `PENDING_REVIEW` status — pending planning)
+- **Source**: code + approved feedback round
 
 At the end of a billing period (weekly, biweekly, or monthly — configurable per inspector), an operator generates an `InspectorInvoice` that closes the period. The use case sums all `APPROVED INSPECTOR_PAYOUT` entries for the inspector in the date range, persists an invoice row in `CLOSED` status with the total, and enqueues a `billing.generate-invoice-file` worker to produce the PDF. The same `(inspector_id, period_start, period_end)` tuple is unique — requesting it twice returns the existing invoice idempotently.
+
+**Feedback Round 2026-04-13 — item 5 (inspector-initiated draft invoice)** — APPROVED, pending planning:
+
+Inspectors can now initiate a draft invoice from the PWA via the endpoint owned by feature 008 (FR-060). The draft lands as an `InspectorInvoice` row with a new status `PENDING_REVIEW`, distinct from the operator-driven `OPEN` → `CLOSED` path.
+
+- **Admin review flow**: operators see `PENDING_REVIEW` invoices in the existing invoices list (feature 017's UI inherits this automatically via the status filter). From there, the admin approves via `POST /v1/invoices/:invoiceId/approve-draft` (FR-066 — transitions to `CLOSED` and enqueues the existing `billing.generate-invoice-file` worker) or rejects via `POST /v1/invoices/:invoiceId/reject-draft` (FR-067 — hard-deletes the draft row with a mandatory reason, after writing the audit). A `REJECTED` inspector-invoice status is **not** introduced in this round — rejection removes the row.
+- **No double-write on the ledger**: the draft does NOT duplicate financial entries. It aggregates existing `APPROVED INSPECTOR_PAYOUT` entries the same way the operator path does, but keeps them in the ledger as-is. Approving a `PENDING_REVIEW` draft flips it to `CLOSED`; rejecting it deletes the draft row without touching the financial entries.
+- **Overlap check**: the same `INVOICE_PERIOD_OVERLAP` rule applies across `PENDING_REVIEW`, `OPEN`, `CLOSED`, and `PAID` inspector invoices for the same inspector. A draft and an operator-generated invoice for the same period cannot coexist.
+- **017 reconciliation invariants** (feature 017): the new `PENDING_REVIEW` status is **NOT** a valid source for the payment-reconciliation flow. The mark-as-paid, batch mark-as-paid, and payment reversal endpoints (feature 017) continue to operate only on `CLOSED` invoices. This preserves feature 017's invariant that `financial_entry` is not touched by that module.
+- **Audit**: the `inspector_invoice.drafted` audit entry (written by feature 008's FR-062) is the canonical record of the inspector-initiated draft. The admin review adds a separate `inspector_invoice.approved` or `inspector_invoice.draft_rejected` audit entry.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 5.
 
 **Acceptance Scenarios**:
 
@@ -241,9 +253,18 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-061**: System MUST expose `GET /v1/invoices/:id` / `GET /v1/billing/invoices/:id` returning the full invoice detail.
 - **FR-062**: System MUST expose `GET /v1/invoices/:id/download` / `GET /v1/billing/invoices/:id/download` returning a presigned storage URL. The download is rejected with `INVOICE_FILE_NOT_GENERATED` if the worker hasn't completed or `INVOICE_NOT_READY` if the invoice is not `CLOSED` or `PAID`.
 
+#### Inspector-initiated draft invoice (Feedback Round 2026-04-13 item 5, NEW)
+
+- **FR-064** (Feedback Round 2026-04-13 item 5, NEW, pending planning): The `InspectorInvoiceStatus` enum MUST add a new value `PENDING_REVIEW` distinct from `OPEN`, `CLOSED`, and `PAID`. Semantics: the invoice was created by an inspector from the PWA (via feature 008 FR-060) and awaits admin review. It does not yet participate in the downloadable-PDF or reconciliation flows.
+- **FR-065**: The overlap rule (unique `(inspector_id, period_start, period_end)` and no period overlap with active invoices) MUST treat `PENDING_REVIEW`, `OPEN`, `CLOSED`, and `PAID` as equally blocking. A draft and an operator-generated invoice for the same period cannot coexist.
+- **FR-066** (admin approval endpoint, NEW): System MUST expose `POST /v1/invoices/:invoiceId/approve-draft` (alias `POST /v1/billing/invoices/:invoiceId/approve-draft`), restricted to AM and OP actors (OP scoped to the invoice's tenant). The endpoint MUST reject invoices not in `PENDING_REVIEW` with `INVOICE_NOT_PENDING_REVIEW`. On success it MUST: (a) transition the row to `CLOSED` via a conditional UPDATE (`WHERE status = PENDING_REVIEW`) to guarantee exactly-one approval under concurrency, (b) stamp `generatedByUserId` and `generatedAt` from the approver, (c) enqueue the existing `billing.generate-invoice-file` pg-boss worker (same job name and payload shape as the operator-initiated path — no new worker), (d) emit a `inspector_invoice.approved` audit action with `{ inspectorId, invoiceId, periodStart, periodEnd, totalAmount, draftedByInspectorId, approvedByUserId }`. The endpoint is NOT idempotent via natural key (approving twice returns `INVOICE_NOT_PENDING_REVIEW` on the second call); `Idempotency-Key` header is optional for retry safety under scope `inspector-invoice-approve`.
+- **FR-067** (admin rejection endpoint, NEW): System MUST expose `POST /v1/invoices/:invoiceId/reject-draft` (alias `POST /v1/billing/invoices/:invoiceId/reject-draft`), restricted to AM and OP actors (OP scoped to the invoice's tenant), accepting a mandatory `{ reason: string }` body (min 10 chars). The endpoint MUST reject invoices not in `PENDING_REVIEW` with `INVOICE_NOT_PENDING_REVIEW`. On success it MUST: (a) hard-delete the invoice row (rejection removes the draft — no `REJECTED` status is introduced in this round), (b) leave all referenced `FinancialEntry` rows untouched (the ledger is unaffected — this is the append-only invariant in action; the draft was never a ledger write), (c) emit a `inspector_invoice.draft_rejected` audit action with `{ inspectorId, invoiceId, periodStart, periodEnd, totalAmount, draftedByInspectorId, rejectedByUserId, reason }` BEFORE the delete so the audit record survives the row removal, (d) NOT enqueue any worker. `Idempotency-Key` header is optional under scope `inspector-invoice-reject-draft`.
+- **FR-068**: Feature 017's mark-as-paid, batch mark-as-paid, and payment reversal endpoints MUST reject `PENDING_REVIEW` invoices with an explicit error code (`INVOICE_NOT_READY_FOR_RECONCILIATION`). Feature 017's invariant — that its code path does not touch `financial_entry` — is preserved: rejecting `PENDING_REVIEW` at the reconciliation layer is a route-guard, not a ledger operation.
+- **FR-069**: The `GET /v1/invoices` / `GET /v1/billing/invoices` list endpoint MUST accept `PENDING_REVIEW` as a valid `status` filter value so the admin UI can surface the draft queue. No new endpoint is needed — the admin review UI (feature 017's list) inherits this filter.
+
 #### Cross-cutting
 
-- **FR-070**: System MUST audit every `financial_entry.*` (created, approved, refund_created, manual_adjustment_created) and every `invoice.generated` action.
+- **FR-070**: System MUST audit every `financial_entry.*` (created, approved, refund_created, manual_adjustment_created) and every `invoice.generated`, `inspector_invoice.drafted` (from feature 008), `inspector_invoice.approved`, and `inspector_invoice.draft_rejected` action.
 - **FR-071**: System MUST validate all payloads against Zod schemas in `packages/shared/src/schemas/billing.ts`.
 - **FR-072**: System MUST treat approved entries as immutable — edits are forbidden; corrections happen through refunds or adjustments.
 
@@ -257,7 +278,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 ### Key Entities
 
 - **FinancialEntry** — `id`, `tenant_id`, `appointment_id?`, `inspector_id?`, `entry_type` (`TENANT_DEBIT | INSPECTOR_PAYOUT | REFUND | MANUAL_ADJUSTMENT`), `amount` (Decimal 12,2), `currency`, `status` (`PENDING | APPROVED | CANCELLED`), `description`, `effective_at`, `initiated_by_user_id`, `approved_by_user_id?`, `approved_at?`, `reference_entry_id?`, `reason?`, timestamps.
-- **InspectorInvoice** — `id`, `inspector_id`, `period_start`, `period_end`, `period_type` (`WEEKLY | BIWEEKLY | MONTHLY`), `status` (`OPEN | CLOSED | PAID`), `total_amount`, `currency`, `file_key?`, `generated_by_user_id?`, `generated_at?`, `paid_at?`, `notes?`, timestamps. Unique on `(inspector_id, period_start, period_end)`.
+- **InspectorInvoice** — `id`, `inspector_id`, `period_start`, `period_end`, `period_type` (`WEEKLY | BIWEEKLY | MONTHLY`), `status` (`PENDING_REVIEW | OPEN | CLOSED | PAID` — `PENDING_REVIEW` added by Feedback Round 2026-04-13 item 5, pending planning), `total_amount`, `currency`, `file_key?`, `generated_by_user_id?`, `generated_at?`, `drafted_by_inspector_id?` (Feedback Round 2026-04-13 item 5, NEW — populated on inspector-initiated drafts only), `paid_at?`, `notes?`, timestamps. Unique on `(inspector_id, period_start, period_end)`.
 - **Domain helpers**: `createFinancialEntryId(appointmentId, entryType)` deterministic UUID, entity predicates (`isApproved`, `canBeApproved`, `isSelfApproval`).
 - **Constants**: `SYSTEM_USER_ID` (shared) used as initiator for auto-generated entries.
 

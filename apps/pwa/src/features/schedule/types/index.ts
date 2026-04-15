@@ -22,6 +22,7 @@ export interface InspectorAppointment {
   propertyLongitude: number | null;
   notes: string | null;
   isOverdue?: boolean;
+  agencyName?: string;
 }
 
 export interface InspectorScheduleDayResponse {
@@ -29,6 +30,33 @@ export interface InspectorScheduleDayResponse {
   appointments: Array<{
     id: string;
   }>;
+}
+
+export interface JobDetailsTenantContact {
+  name: string;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface JobDetails {
+  agency: string | null;
+  tenantContacts: JobDetailsTenantContact[];
+  keys: boolean;
+  keyLocation: string | null;
+  keyLocationMapUrl: string | null;
+  propertyManager: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
+  payment: {
+    amount: number;
+    currency: string;
+  } | null;
+  inspectionAppLink: {
+    label: string;
+    url: string;
+  } | null;
 }
 
 export interface InspectorAppointmentDetailResponse {
@@ -54,6 +82,8 @@ export interface InspectorAppointmentDetailResponse {
     propertyLongitude: number | null;
     notes: string | null;
     isOverdue?: boolean;
+    agencyName?: string;
+    jobDetails?: JobDetails;
   };
 }
 

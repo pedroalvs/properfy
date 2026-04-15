@@ -191,9 +191,11 @@ export async function registerInspectorRoutes(
       let resolvedInspectorId: string | undefined;
       if (actor.role === 'INSP') {
         resolvedInspectorId = actor.inspectorId ?? undefined;
-      } else if (actor.role === 'AM' || actor.role === 'OP') {
+      } else if (actor.role === 'AM') {
+        // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): inspectors
+        // are not tenant-scoped, so cross-inspector listing is AM-only.
         resolvedInspectorId = queryInspectorId; // undefined = list all
-      } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+      } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
         resolvedInspectorId = queryInspectorId;
       }
 

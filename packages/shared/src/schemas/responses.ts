@@ -307,6 +307,9 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
     kind: z.string(),
     status: z.string(),
   })),
+  agencyName: z.string().nullable().optional(),
+  payoutAmount: z.number().nullable().optional(),
+  inspectionAppLink: z.string().nullable().optional(),
 });
 
 // ─── Service Group ─────────────────────────────────────────────────────────
@@ -395,6 +398,13 @@ export const auditLogResponseSchema = z.object({
   ipAddress: z.string().nullable(),
   metadataJson: z.unknown().nullable(),
   createdAt: dateStr(),
+  // Feature 020: retention + redaction + cold-storage lifecycle markers
+  retentionCategory: z
+    .enum(['FINANCIAL', 'OPERATIONAL_CRITICAL', 'OPERATIONAL_GENERAL'])
+    .nullable()
+    .optional(),
+  redactionStatus: z.enum(['NONE', 'PARTIAL', 'FULL', 'IN_PROGRESS']).optional(),
+  isArchived: z.boolean().optional(),
 });
 
 // ─── Tenant Portal ─────────────────────────────────────────────────────────
@@ -454,6 +464,7 @@ export const inspectorScheduleItemSchema = z.object({
   keyRequired: z.boolean(),
   meetingLocation: z.string().nullable(),
   executionStatus: z.enum(['NOT_STARTED', 'IN_PROGRESS', 'FINISHED']),
+  agencyName: z.string().nullable().optional(),
 });
 
 export const inspectorScheduleResponseSchema = z.object({
@@ -579,6 +590,8 @@ export const notificationResponseSchema = z.object({
   channel: z.string(),
   templateCode: z.string(),
   status: z.string(),
+  // Feature 018: classification propagated from template at create time
+  notificationClass: z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']).nullable().optional(),
   providerName: z.string().nullable(),
   providerMessageId: z.string().nullable().optional(),
   sentAt: dateStrNullable(),
@@ -602,6 +615,8 @@ export const notificationTemplateResponseSchema = z.object({
   variablesJson: z.unknown().optional(),
   variables: z.unknown().optional(),
   isActive: z.boolean(),
+  // Feature 018: declared classification
+  notificationClass: z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']).optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });
@@ -658,6 +673,18 @@ export const scheduledReportResponseSchema = z.object({
   createdByUserId: z.string().uuid().optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
+  // Feature 019: lifecycle extensions
+  displayName: z.string().nullable().optional(),
+  deliveryMode: z.enum(['OWNER_ONLY', 'RECIPIENT_LIST', 'TENANT_WIDE']).optional(),
+  recipientUserIds: z.array(z.string().uuid()).optional(),
+  skipDeliveryWhenEmpty: z.boolean().optional(),
+  consecutiveFailureCount: z.number().int().optional(),
+  status: z.enum(['ACTIVE', 'PAUSED']).optional(),
+  deletedAt: dateStrNullable().optional(),
+  lastRunStatus: z
+    .enum(['queued', 'running', 'completed', 'failed', 'skipped_catchup', 'skipped_empty'])
+    .nullable()
+    .optional(),
 });
 
 export const scheduledReportCreatedResponseSchema = z.object({

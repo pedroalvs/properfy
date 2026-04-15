@@ -18,6 +18,7 @@ export interface InspectorInvoiceProps {
   paidByUserId: string | null;
   paymentReference: string | null;
   notes: string | null;
+  draftedByInspectorId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +39,7 @@ export class InspectorInvoiceEntity extends BaseEntity {
   paidByUserId: string | null;
   paymentReference: string | null;
   notes: string | null;
+  readonly draftedByInspectorId: string | null;
 
   constructor(props: InspectorInvoiceProps) {
     super(props.id, props.createdAt, props.updatedAt);
@@ -56,6 +58,7 @@ export class InspectorInvoiceEntity extends BaseEntity {
     this.paidByUserId = props.paidByUserId;
     this.paymentReference = props.paymentReference;
     this.notes = props.notes;
+    this.draftedByInspectorId = props.draftedByInspectorId;
   }
 
   isClosed(): boolean {

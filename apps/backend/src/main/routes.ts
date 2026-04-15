@@ -12,6 +12,8 @@ import { registerAppointmentRoutes } from '../modules/appointment/interfaces/app
 import { registerServiceGroupRoutes } from '../modules/service-group/interfaces/service-group.routes';
 import { registerMarketplaceRoutes } from '../modules/service-group/interfaces/marketplace.routes';
 import { registerAuditRoutes } from '../modules/audit/interfaces/audit.routes';
+import { registerAuditErasureRoutes } from '../modules/audit/interfaces/audit-erasure.routes';
+import { registerAuditRetentionRoutes } from '../modules/audit/interfaces/audit-retention.routes';
 import { registerTenantPortalRoutes } from '../modules/tenant-portal/interfaces/tenant-portal.routes';
 import { registerInspectorExecutionRoutes } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 import { registerBillingRoutes } from '../modules/billing/interfaces/billing.routes';
@@ -20,6 +22,7 @@ import { registerNotificationRoutes } from '../modules/notification/interfaces/n
 import { registerDashboardRoutes } from '../modules/dashboard/interfaces/dashboard.routes';
 import { registerAppointmentTimeSlotRoutes } from '../modules/appointment-time-slot/interfaces/appointment-time-slot.routes';
 import { registerServiceRegionRoutes } from '../modules/service-region/interfaces/service-region.routes';
+import { registerContactRoutes } from '../modules/contact/interfaces/http/contact.routes';
 
 export async function registerRoutes(
   app: FastifyInstance,
@@ -94,6 +97,8 @@ export async function registerRoutes(
   await registerServiceGroupRoutes(app, container.serviceGroup);
   await registerMarketplaceRoutes(app, container.marketplace);
   await registerAuditRoutes(app, container.audit);
+  await registerAuditErasureRoutes(app, container.auditErasure);
+  await registerAuditRetentionRoutes(app, container.auditRetention);
   await registerTenantPortalRoutes(app, container.tenantPortal);
   await registerInspectorExecutionRoutes(app, container.inspectorExecution);
   await registerBillingRoutes(app, container.billing);
@@ -102,4 +107,5 @@ export async function registerRoutes(
   await registerDashboardRoutes(app, container.dashboard);
   await registerAppointmentTimeSlotRoutes(app, container.appointmentTimeSlot);
   await registerServiceRegionRoutes(app, container.serviceRegion);
+  await registerContactRoutes(app, container.contact);
 }

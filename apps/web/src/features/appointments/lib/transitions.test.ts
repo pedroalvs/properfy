@@ -21,10 +21,13 @@ describe('getAvailableTransitions', () => {
     ]);
   });
 
-  it('AM from SCHEDULED sees 1 transition (CANCELLED) — done/reject are OP/SYS/INSP only', () => {
+  it('AM from SCHEDULED sees 2 transitions (CANCELLED and REJECTED) — feedback round item 8 (US9)', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'AM');
-    expect(transitions).toHaveLength(1);
-    expect(transitions.map((t) => t.targetStatus)).toEqual([AppointmentStatus.CANCELLED]);
+    expect(transitions).toHaveLength(2);
+    expect(transitions.map((t) => t.targetStatus)).toEqual([
+      AppointmentStatus.CANCELLED,
+      AppointmentStatus.REJECTED,
+    ]);
   });
 
   it('AM from DONE sees 2 transitions (DRAFT/reopen and REJECTED)', () => {

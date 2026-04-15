@@ -84,8 +84,10 @@ export class ExecuteStatusTransitionUseCase {
       if (cached) return cached;
     }
 
-    // 1. Find appointment (AM/OP: tenantId=null for global access, CL roles: own tenant, INSP: any but validated after)
-    const tenantId = actor.role === 'AM' || actor.role === 'OP' ? null : actor.tenantId;
+    // 1. Find appointment. AM: tenantId=null for global access. OP: tenant-
+    //    scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it). CL roles:
+    //    own tenant. INSP: any tenant but validated after via inspector_id.
+    const tenantId = actor.role === 'AM' ? null : actor.tenantId;
     const result = await this.appointmentRepo.findById(appointmentId, tenantId);
     if (!result) throw new AppointmentNotFoundError();
 

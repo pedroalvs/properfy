@@ -60,11 +60,10 @@ function filterByRole(
           t === AppointmentStatus.SCHEDULED
         )
           return false;
-        // AM cannot directly mark SCHEDULED → DONE or SCHEDULED → REJECTED (inspector/OP actions)
+        // AM cannot directly mark SCHEDULED → DONE (inspector action via cross-check)
         if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.DONE)
           return false;
-        if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.REJECTED)
-          return false;
+        // SCHEDULED → REJECTED is allowed for AM (feedback round item 8 — US9)
         return true;
       });
     case 'OP':

@@ -37,18 +37,19 @@ Receive delivery events from Resend.
 
 ---
 
-## POST `/v1/webhooks/twilio`
+## POST `/v1/webhooks/mobile-message`
 
-Receive delivery events from Twilio.
+Receive delivery events from Mobile Message.
 
-- **Auth**: none (`X-Twilio-Signature` validation is GAP-007)
+- **Auth**: none (provider-specific authentication/signature validation is GAP-007; exact Mobile Message webhook verification mechanism must be confirmed during implementation)
 
-**Request body** (Twilio status callback — form-urlencoded or JSON)
+**Request body** (Mobile Message status callback — JSON)
 
 | Field | Type | Notes |
 |---|---|---|
-| `MessageSid` | string | Twilio message id matching `provider_message_id`. |
-| `MessageStatus` | string | Mapped events: `delivered`, `failed`, `undelivered`. |
+| `message_id` | string | Mobile Message id matching `provider_message_id`. |
+| `status` | string | Mapped events: `delivered`, `failed`. |
+| `custom_ref` | string | Optional correlation reference. |
 
 **Response 200**
 

@@ -1,9 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateNotificationUseCase } from '../../../src/modules/notification/application/use-cases/create-notification.use-case';
 import type { INotificationRepository } from '../../../src/modules/notification/domain/notification.repository';
+import type { INotificationTemplateRepository } from '../../../src/modules/notification/domain/notification-template.repository';
 import type { IJobQueue } from '../../../src/shared/domain/job-queue';
 import { NotificationEntity } from '../../../src/modules/notification/domain/notification.entity';
+import {
+  NotificationTemplateEntity,
+  type NotificationTemplateProps,
+} from '../../../src/modules/notification/domain/notification-template.entity';
 import { ValidationError } from '../../../src/shared/domain/errors';
+
+function makeTemplate(overrides: Partial<NotificationTemplateProps> = {}): NotificationTemplateEntity {
+  const now = new Date('2026-03-16T10:00:00.000Z');
+  return new NotificationTemplateEntity({
+    id: 'tmpl-1',
+    tenantId: 'tenant-1',
+    templateCode: 'appointment.reminder',
+    channel: 'EMAIL',
+    subject: 'Reminder',
+    bodyHtml: '<p>Hi</p>',
+    bodyText: 'Hi',
+    variablesJson: [],
+    isActive: true,
+    notificationClass: 'OPERATIONAL',
+    whatsappApprovalStatus: 'APPROVED',
+    whatsappApprovalReference: null,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  });
+}
 
 describe('CreateNotificationUseCase', () => {
   let useCase: CreateNotificationUseCase;
@@ -15,6 +41,11 @@ describe('CreateNotificationUseCase', () => {
     findRetryable: ReturnType<typeof vi.fn>;
     save: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+  };
+  let mockTemplateRepo: {
+    findByTenantCodeChannel: ReturnType<typeof vi.fn>;
+    findAll: ReturnType<typeof vi.fn>;
+    upsert: ReturnType<typeof vi.fn>;
   };
   let mockJobQueue: { enqueue: ReturnType<typeof vi.fn> };
 
@@ -38,11 +69,17 @@ describe('CreateNotificationUseCase', () => {
       update: vi.fn(),
       existsByAppointmentAndTemplate: vi.fn(),
     };
+    mockTemplateRepo = {
+      findByTenantCodeChannel: vi.fn().mockResolvedValue(makeTemplate()),
+      findAll: vi.fn(),
+      upsert: vi.fn(),
+    };
     mockJobQueue = {
       enqueue: vi.fn().mockResolvedValue(undefined),
     };
     useCase = new CreateNotificationUseCase(
       mockRepo as unknown as INotificationRepository,
+      mockTemplateRepo as unknown as INotificationTemplateRepository,
       mockJobQueue as unknown as IJobQueue,
     );
   });
@@ -131,5 +168,55 @@ describe('CreateNotificationUseCase', () => {
 
     expect(mockRepo.save).not.toHaveBeenCalled();
     expect(mockJobQueue.enqueue).not.toHaveBeenCalled();
+  });
+
+  // Feature 018 T032: stamp notificationClass from template at create time
+  describe('feature 018: stamps notificationClass from template', () => {
+    it('stamps OPERATIONAL from tenant template', async () => {
+      mockTemplateRepo.findByTenantCodeChannel.mockResolvedValueOnce(
+        makeTemplate({ notificationClass: 'OPERATIONAL' }),
+      );
+
+      await useCase.execute(baseInput);
+
+      const saved = mockRepo.save.mock.calls[0][0] as NotificationEntity;
+      expect(saved.notificationClass).toBe('OPERATIONAL');
+    });
+
+    it('stamps TRANSACTIONAL from protected template', async () => {
+      mockTemplateRepo.findByTenantCodeChannel.mockResolvedValueOnce(
+        makeTemplate({
+          templateCode: 'INSPECTION_CONFIRMED',
+          notificationClass: 'TRANSACTIONAL',
+        }),
+      );
+
+      await useCase.execute({ ...baseInput, templateCode: 'INSPECTION_CONFIRMED' });
+
+      const saved = mockRepo.save.mock.calls[0][0] as NotificationEntity;
+      expect(saved.notificationClass).toBe('TRANSACTIONAL');
+    });
+
+    it('falls back to platform default template when tenant template is missing', async () => {
+      // First lookup (tenant-scoped) returns null, second lookup (platform) returns template
+      mockTemplateRepo.findByTenantCodeChannel
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(makeTemplate({ tenantId: null, notificationClass: 'OPERATIONAL' }));
+
+      await useCase.execute(baseInput);
+
+      expect(mockTemplateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(2);
+      const saved = mockRepo.save.mock.calls[0][0] as NotificationEntity;
+      expect(saved.notificationClass).toBe('OPERATIONAL');
+    });
+
+    it('stamps null when neither tenant nor platform template exists', async () => {
+      mockTemplateRepo.findByTenantCodeChannel.mockResolvedValue(null);
+
+      await useCase.execute(baseInput);
+
+      const saved = mockRepo.save.mock.calls[0][0] as NotificationEntity;
+      expect(saved.notificationClass).toBeNull();
+    });
   });
 });

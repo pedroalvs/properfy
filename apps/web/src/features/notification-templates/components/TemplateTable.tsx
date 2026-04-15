@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { NotificationClassChip } from './NotificationClassChip';
 import type { NotificationTemplate } from '../types';
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -50,6 +51,12 @@ export function TemplateTable({
           </span>
         );
       },
+    },
+    {
+      key: 'notificationClass',
+      label: 'Class',
+      width: '130px',
+      render: (row) => <NotificationClassChip notificationClass={row.notificationClass} />,
     },
     {
       key: 'subject',

@@ -28,7 +28,10 @@ export interface PaginationParams {
 
 export interface AppointmentWithRelations {
   appointment: AppointmentEntity;
+  /** Primary contact (first in the contacts array). Backward compat. */
   contact: AppointmentContactEntity | null;
+  /** All contacts (junction rows). Primary first, then insertion order. */
+  contacts: AppointmentContactEntity[];
   restrictions: AppointmentRestrictionEntity[];
   // Enriched join fields (populated by findById)
   propertyCode?: string;
@@ -127,6 +130,7 @@ export interface IAppointmentRepository {
     }>,
   ): Promise<void>;
   saveContact(contact: AppointmentContactEntity): Promise<void>;
+  /** @deprecated Use updateContactSnapshot for junction-aware writes. Kept during expand phase. */
   updateContact(
     appointmentId: string,
     data: Partial<{
@@ -137,6 +141,18 @@ export interface IAppointmentRepository {
       secondaryPhone: string | null;
     }>,
   ): Promise<void>;
+  /** Update snapshot fields on a specific junction row. Used by portal dual-write (feature 007 FR-053). */
+  updateContactSnapshot(
+    appointmentId: string,
+    contactJunctionId: string,
+    data: Partial<{
+      snapshotName: string;
+      snapshotEmail: string | null;
+      snapshotPhone: string | null;
+    }>,
+  ): Promise<void>;
+  /** Delete all contact junction rows for an appointment (used by contact replacement flow). */
+  deleteContactsByAppointmentId(appointmentId: string): Promise<void>;
   saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void>;
   deleteRestrictionsByAppointmentId(appointmentId: string): Promise<void>;
   findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]>;

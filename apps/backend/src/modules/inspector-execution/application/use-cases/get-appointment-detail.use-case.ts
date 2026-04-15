@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
-import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IInspectionAssetRepository } from '../../domain/inspection-asset.repository';
 import type { IServiceTypeReader } from '../../domain/service-type-reader';
@@ -14,6 +15,56 @@ import {
 export interface GetAppointmentDetailInput {
   appointmentId: string;
   actor: AuthContext;
+}
+
+export interface JobDetailsAgency {
+  id: string;
+  name: string;
+}
+
+export interface JobDetailsTenantContact {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  isPrimary: boolean;
+}
+
+export interface JobDetailsKeys {
+  keyRequired: boolean;
+  keyLocation: string | null;
+}
+
+export interface JobDetailsKeyLocation {
+  address: string;
+  mapLinkUrl: string;
+}
+
+export interface JobDetailsPropertyManager {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+}
+
+export interface JobDetailsPayment {
+  payoutAmount: number;
+  currency: string;
+}
+
+export interface JobDetailsInspectionAppLink {
+  url: string;
+  label: string;
+}
+
+export interface JobDetails {
+  agency: JobDetailsAgency;
+  tenantContacts: JobDetailsTenantContact[];
+  keys: JobDetailsKeys;
+  keyLocation?: JobDetailsKeyLocation;
+  propertyManager: JobDetailsPropertyManager | null;
+  payment: JobDetailsPayment;
+  inspectionAppLink?: JobDetailsInspectionAppLink;
 }
 
 export interface AppointmentDetailOutput {
@@ -73,6 +124,7 @@ export interface AppointmentDetailOutput {
     kind: string;
     status: string;
   }>;
+  jobDetails: JobDetails | null;
 }
 
 export class GetAppointmentDetailUseCase {
@@ -84,6 +136,7 @@ export class GetAppointmentDetailUseCase {
     private readonly assetRepo: IInspectionAssetRepository,
     private readonly serviceTypeReader: IServiceTypeReader,
     private readonly authorizationService: AuthorizationService,
+    private readonly tenantRepo: ITenantRepository,
   ) {}
 
   async execute(input: GetAppointmentDetailInput): Promise<AppointmentDetailOutput> {
@@ -104,7 +157,7 @@ export class GetAppointmentDetailUseCase {
       throw new ExecutionAppointmentNotFoundError();
     }
 
-    const { appointment, contact, restrictions } = result;
+    const { appointment, contact, contacts, restrictions } = result;
 
     // Verify inspector assignment
     if (appointment.inspectorId !== actor.inspectorId) {
@@ -150,6 +203,9 @@ export class GetAppointmentDetailUseCase {
       .filter((note): note is string => Boolean(note))
       .join(' | ') || null;
 
+    // Build jobDetails payload
+    const jobDetails = await this.buildJobDetails(appointment, contacts);
+
     return {
       id: appointment.id,
       status: appointment.status,
@@ -172,14 +228,14 @@ export class GetAppointmentDetailUseCase {
       keyLocation: appointment.keyLocation,
       tenantName: contact?.tenantName ?? '',
       tenantPhone: contact?.primaryPhone ?? null,
-      tenantEmail: contact?.primaryEmail ?? null,
+      tenantEmail: contact?.effectiveEmail ?? null,
       notes: appointment.notes,
       restrictionsSummary,
       contact: contact
         ? {
-            tenantName: contact.tenantName,
-            primaryEmail: contact.primaryEmail,
-            primaryPhone: contact.primaryPhone,
+            tenantName: contact.effectiveName,
+            primaryEmail: contact.effectiveEmail,
+            primaryPhone: contact.effectivePhone,
             secondaryPhone: contact.secondaryPhone,
           }
         : null,
@@ -211,6 +267,101 @@ export class GetAppointmentDetailUseCase {
         kind: a.kind,
         status: a.status,
       })),
+      jobDetails,
     };
+  }
+
+  private async buildJobDetails(
+    appointment: AppointmentWithRelations['appointment'],
+    contacts: AppointmentWithRelations['contacts'],
+  ): Promise<JobDetails | null> {
+    const tenant = await this.tenantRepo.findById(appointment.tenantId);
+    if (!tenant) {
+      return null;
+    }
+
+    // 1. Agency
+    const agency: JobDetailsAgency = {
+      id: tenant.id,
+      name: tenant.name,
+    };
+
+    // 2. Tenant contacts — exclude PROPERTY_MANAGER and BROKER roles, primary first
+    const tenantContacts: JobDetailsTenantContact[] = contacts
+      .filter((c) => c.role !== 'PROPERTY_MANAGER' && c.role !== 'BROKER')
+      .map((c) => ({
+        name: c.effectiveName,
+        email: c.effectiveEmail,
+        phone: c.effectivePhone,
+        role: c.role,
+        isPrimary: c.isPrimary,
+      }));
+
+    // 3. Keys
+    const keys: JobDetailsKeys = {
+      keyRequired: appointment.keyRequired,
+      keyLocation: appointment.keyLocation,
+    };
+
+    // 4. Key location — only included when keyLocation is non-null
+    const keyLocation: JobDetailsKeyLocation | undefined =
+      appointment.keyLocation != null
+        ? {
+            address: appointment.keyLocation,
+            mapLinkUrl: `https://maps.google.com/?q=${encodeURIComponent(appointment.keyLocation)}`,
+          }
+        : undefined;
+
+    // 5. Property manager — find the PM contact, use effective (snapshot-preferred) fields.
+    // TODO: Full live-registry JOIN is a future enhancement when the repo returns the contact relation.
+    const pmContact = contacts.find((c) => c.role === 'PROPERTY_MANAGER');
+    const propertyManager: JobDetailsPropertyManager | null = pmContact
+      ? {
+          name: pmContact.effectiveName,
+          email: pmContact.effectiveEmail,
+          phone: pmContact.effectivePhone,
+          company: null,
+        }
+      : null;
+
+    // 6. Payment
+    const payment: JobDetailsPayment = {
+      payoutAmount: Number(appointment.payoutAmount),
+      currency: tenant.currency ?? 'AUD',
+    };
+
+    // 7. Inspection app link — read from tenant settings (defensive, no Zod)
+    let inspectionAppLink: JobDetailsInspectionAppLink | undefined;
+    const settings = tenant.settingsJson;
+    if (
+      settings &&
+      typeof settings === 'object' &&
+      'inspectionAppLink' in settings &&
+      settings.inspectionAppLink &&
+      typeof settings.inspectionAppLink === 'object'
+    ) {
+      const link = settings.inspectionAppLink as Record<string, unknown>;
+      if (typeof link.url === 'string' && typeof link.label === 'string') {
+        inspectionAppLink = { url: link.url, label: link.label };
+      }
+    }
+
+    const result: JobDetails = {
+      agency,
+      tenantContacts,
+      keys,
+      propertyManager,
+      payment,
+    };
+
+    if (keyLocation) {
+      result.keyLocation = keyLocation;
+    }
+
+    if (inspectionAppLink) {
+      result.inspectionAppLink = inspectionAppLink;
+    }
+
+    return result;
   }
 }

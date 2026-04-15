@@ -38,14 +38,17 @@ export class DispatchRemindersUseCase {
         let recipient: string;
         let effectiveTemplateCode: string;
 
-        if (contact?.primaryEmail) {
+        const effectiveEmail = contact?.effectiveEmail;
+        const effectivePhone = contact?.effectivePhone;
+
+        if (effectiveEmail) {
           channel = 'EMAIL';
-          recipient = contact.primaryEmail;
+          recipient = effectiveEmail;
           effectiveTemplateCode = templateCode;
-        } else if (contact?.primaryPhone) {
+        } else if (effectivePhone) {
           // GAP-010: SMS fallback when email is missing but phone is present
           channel = 'SMS';
-          recipient = contact.primaryPhone;
+          recipient = effectivePhone;
           effectiveTemplateCode = `${templateCode}_SMS`;
         } else {
           // No email and no phone: skip entirely
@@ -69,7 +72,7 @@ export class DispatchRemindersUseCase {
           channel,
           templateCode: effectiveTemplateCode,
           payloadJson: {
-            tenantName: contact.tenantName,
+            tenantName: contact.effectiveName,
             scheduledDate: appointment.scheduledDate.toISOString().split('T')[0] ?? '',
             timeSlot: appointment.timeSlot,
             appointmentReference: appointment.id,

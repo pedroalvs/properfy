@@ -106,7 +106,7 @@ export function AppointmentImportPage() {
     <div>
       <PageHeader title="Import Appointments" />
 
-      <div className="mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <Link
           to="/appointments"
           className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-primary)] hover:underline"
@@ -114,6 +114,14 @@ export function AppointmentImportPage() {
           <i className="mdi mdi-arrow-left" aria-hidden="true" />
           Back to Appointments
         </Link>
+        <a
+          href="/templates/appointments-import-template.csv"
+          download="appointments-import-template.csv"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-primary)] hover:underline"
+        >
+          <i className="mdi mdi-download" aria-hidden="true" />
+          Download template
+        </a>
       </div>
 
       <ImportWizard steps={STEPS} currentStep={currentStep}>

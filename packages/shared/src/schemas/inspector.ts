@@ -41,7 +41,19 @@ export const createInspectorSchema = z.object({
   regions: z.array(z.string()).default([]),
   regionIds: z.array(z.string().uuid()).default([]),
   serviceTypes: serviceTypesSchema.default([]),
+  /** @deprecated Use blockedClients instead */
   clientEligibility: clientEligibilitySchema.default([]),
+  // Feedback Round item 1: blocked-clients model
+  blockedClients: z.array(z.string().uuid()).default([]),
+  // Feedback Round item 6: profile extension
+  fullName: z.string().max(300).optional(),
+  address: z.record(z.unknown()).optional().nullable(),
+  abn: z.string().max(20).optional(),
+  dateOfBirth: z.string().date().optional(),
+  insuranceFileKey: z.string().optional(),
+  insuranceExpiresAt: z.string().date().optional(),
+  policeCheckFileKey: z.string().optional(),
+  policeCheckExpiresAt: z.string().date().optional(),
 });
 export type CreateInspectorInput = z.infer<typeof createInspectorSchema>;
 
@@ -54,7 +66,17 @@ export const updateInspectorSchema = z.object({
   regions: z.array(z.string()).optional(),
   regionIds: z.array(z.string().uuid()).optional(),
   serviceTypes: serviceTypesSchema.optional(),
+  /** @deprecated Use blockedClients instead */
   clientEligibility: clientEligibilitySchema.optional(),
+  blockedClients: z.array(z.string().uuid()).optional(),
+  fullName: z.string().max(300).optional().nullable(),
+  address: z.record(z.unknown()).optional().nullable(),
+  abn: z.string().max(20).optional().nullable(),
+  dateOfBirth: z.string().date().optional().nullable(),
+  insuranceFileKey: z.string().optional().nullable(),
+  insuranceExpiresAt: z.string().date().optional().nullable(),
+  policeCheckFileKey: z.string().optional().nullable(),
+  policeCheckExpiresAt: z.string().date().optional().nullable(),
 });
 export type UpdateInspectorInput = z.infer<typeof updateInspectorSchema>;
 

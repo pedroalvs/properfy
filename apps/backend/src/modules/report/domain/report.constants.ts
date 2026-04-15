@@ -15,6 +15,16 @@ export const MAX_CONCURRENT_REPORTS = 3;
 export const REPORT_FILE_RETENTION_DAYS = 30;
 export const PRESIGNED_URL_TTL_SECONDS = 3600;
 
+// Feature 019: scheduled reports constants
+/** Maximum active (non-paused, non-deleted) schedules per user. */
+export const MAX_SCHEDULES_PER_USER = 10;
+/** Upper bound on catch-up rows inserted per worker tick to prevent runaway inserts. */
+export const SCHEDULE_CATCHUP_MAX = 100;
+/** Minutes to delay the next run when a tick hits the concurrent-report limit. */
+export const SCHEDULE_RETRY_BACKOFF_ON_LIMIT_MINUTES = 5;
+/** Number of consecutive failures that triggers automatic pause + owner notification. */
+export const SCHEDULE_AUTO_PAUSE_FAILURE_THRESHOLD = 3;
+
 export const RESTRICTED_REPORT_TYPES: ReportType[] = [
   'INSPECTOR_PERFORMANCE',
   'CONFIRMATION_STATUS',

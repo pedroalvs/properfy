@@ -2,7 +2,7 @@
 
 **Feature Branch**: `003-properties`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps closed in commit `0808dae` (2026-04-07, Waves 1–4). Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/property/**`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/{schemas,enums}/property*`, `apps/web/src/features/properties/**`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`, `apps/backend/CLAUDE.md`, `projeto-consolidado/modelo-dados-executavel.md`
@@ -119,10 +119,25 @@ When a property is created or its address changes, a background job enqueues a M
 ### User Story 6 — Bulk import properties from XLSX or CSV
 
 - **Priority**: P2
-- **Status**: IMPLEMENTED
-- **Source**: code
+- **Status**: IMPLEMENTED (Feedback Round 2026-04-13 item 12 adds a downloadable template file on the import UI — pending planning, pure frontend delta)
+- **Source**: code + approved feedback round
 
 An agency admin (CL_ADMIN), AM, or OP uploads a spreadsheet (XLSX or CSV) with many properties at once. The upload is idempotent via an `Idempotency-Key` header: replaying the same key with the same payload returns the same result, while a different payload with the same key is rejected. The file is stored in Supabase Storage, a `PropertyImport` record is created in `PENDING`, and an async worker processes rows row-by-row, recording successes, warnings, and errors. The caller polls a status endpoint to see progress.
+
+**Feedback Round 2026-04-13 — item 12 (import template file)** — APPROVED, pending planning:
+
+- The property import screen MUST expose a **"Download template"** affordance next to the file-upload control.
+- The template is a static XLSX (or CSV — both formats acceptable) whose columns match exactly what the importer expects. Minimum column set: `propertyCode`, `type` (one of the `PropertyType` enum values), `street`, `addressLine2`, `suburb`, `postcode`, `state`, `country`, `branchName` (optional), `notes`. The template SHOULD include one or two example rows to illustrate the expected formatting.
+- Suggested location: `apps/web/public/templates/properties-import-template.xlsx` (exact path is a plan-phase decision, not a spec constraint).
+- A one-line caption near the download link describes the purpose, e.g., "Download an example file with the expected column headers."
+- The importer's parser contract is unchanged. Template maintenance is a documentation responsibility. See feature 014 FR-019c for the transversal UX pattern.
+
+**Inherited UX patterns from feature 014** (Feedback Round 2026-04-13, sanity-check corrective pass):
+
+- **FR-019b (pencil removal when duplicated with eye)**: the properties list row exposes a single "view" action (eye) that opens the detail drawer where edit lives as a secondary affordance. The row-level "edit" (pencil) action MUST NOT be rendered. Inherited transversally from feature 014 FR-019b — no per-spec override.
+- **FR-019c (import template download)**: the property import UI inherits the template-download pattern — see item 12 above for the property-specific column set.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 11 (pencil removal) and item 12 (import template).
 
 **Independent Test**: Upload a 10-row XLSX with 2 invalid rows, poll `GET /v1/properties/import/:importId`, confirm `status` progresses to `DONE` with `successCount=8` and `errorCount=2` and `errorsJson` contains the row-level messages.
 
@@ -190,6 +205,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted. Th
 - **FR-015** (`implementation decision — dossiê defines import layout for appointments, not properties; property import is an extension of that concept`): System MUST expose bulk import via `POST /v1/properties/import` accepting `.xlsx` and `.csv`, requiring an `Idempotency-Key` header, rate-limited to 5 requests per minute per client.
 - **FR-016** (`implementation decision`): System MUST store the uploaded import file in object storage via `IReportStorageService.upload` with `fileKey = imports/properties/<importId>/<filename>`.
 - **FR-017** (`implementation decision`): System MUST persist an import job record (`PropertyImport`) and enqueue a `property.import` worker that updates `status`, `successCount`, `errorCount`, and `errorsJson` as rows are processed.
+- **FR-017a** (Feedback Round 2026-04-13 item 12, NEW, pending planning): The property import UI MUST expose a "Download template" affordance next to the file-upload control. The template is a static XLSX/CSV committed under `apps/web/public/templates/` (exact path is a plan-phase decision), with columns matching the importer's accepted columns. Minimum column set is listed under US6. A caption near the download link describes the file's purpose. Inherits the transversal pattern from feature 014 FR-019c.
 - **FR-018**: System MUST write an audit record for every `property.created`, `property.updated`, and `property.deleted` action, including `before`/`after` snapshots where applicable and `tenantId`.
 - **FR-019** (`implementation decision`): System MUST return `branchName` alongside branch id on list results to avoid N+1 lookups in the UI.
 - **FR-020**: System MUST validate all property payloads against Zod schemas in `packages/shared/src/schemas/property.ts`.

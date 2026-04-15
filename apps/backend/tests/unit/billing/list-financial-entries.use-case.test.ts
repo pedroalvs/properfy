@@ -286,18 +286,20 @@ describe('ListFinancialEntriesUseCase', () => {
     );
   });
 
-  it('should allow OP to filter by any tenantId', async () => {
+  it('should force OP to their own tenantId (CORRECTION-001 close-it)', async () => {
     vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
     vi.mocked(entryRepo.count).mockResolvedValue(0);
 
+    // Sprint 1 W-4-IMPL: OP is tenant-scoped; any tenantId from the filter
+    // is ignored and replaced with the actor's tenantId from the JWT.
     await useCase.execute({
       ...defaultInput,
-      tenantId: 'tenant-5',
-      actor: makeActor({ role: 'OP' }),
+      tenantId: 'tenant-5', // attempted cross-tenant filter — must be ignored
+      actor: makeActor({ role: 'OP', tenantId: 'op-tenant' }),
     });
 
     expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-5' }),
+      expect.objectContaining({ tenantId: 'op-tenant' }),
       expect.any(Object),
     );
   });
@@ -327,24 +329,19 @@ describe('ListFinancialEntriesUseCase', () => {
     );
   });
 
-  it('should audit log when OP accesses cross-tenant financial data', async () => {
+  it('should not produce a cross-tenant audit log for OP (CORRECTION-001 close-it)', async () => {
     vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
     vi.mocked(entryRepo.count).mockResolvedValue(0);
 
+    // Sprint 1 W-4-IMPL: OP can no longer list cross-tenant financial data,
+    // so the cross_tenant_list audit branch never fires for OP.
     await useCase.execute({
       ...defaultInput,
-      tenantId: 'tenant-5',
+      tenantId: 'tenant-5', // ignored — OP is forced to their own tenant
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1', userId: 'op-1' }),
     });
 
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'financial_entry.cross_tenant_list',
-        actorType: 'USER',
-        actorId: 'op-1',
-        tenantId: 'tenant-5',
-      }),
-    );
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 
   it('should not audit log when AM lists without tenant filter', async () => {

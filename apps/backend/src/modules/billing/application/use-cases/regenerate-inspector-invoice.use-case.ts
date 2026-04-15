@@ -86,6 +86,7 @@ export class RegenerateInspectorInvoiceUseCase {
       paidByUserId: null,
       paymentReference: null,
       notes: reason ?? null,
+      draftedByInspectorId: null,
       createdAt: now,
       updatedAt: now,
     });

@@ -89,6 +89,11 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment }: Ap
           </span>
         </div>
 
+        {/* Agency name */}
+        {appointment.agencyName && (
+          <p className="mt-0.5 text-xs text-text-muted" data-testid="agency-name">{appointment.agencyName}</p>
+        )}
+
         {/* Address */}
         <p className="mt-1.5 text-sm leading-5 text-text-secondary">{fullAddress}</p>
 

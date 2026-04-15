@@ -1,6 +1,6 @@
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import { mapInspectorAppointmentDetail } from '../lib/adapters';
-import type { InspectorAppointment, InspectorAppointmentDetailResponse } from '../types';
+import type { InspectorAppointment, InspectorAppointmentDetailResponse, JobDetails } from '../types';
 
 export function useInspectorAppointment(appointmentId: string) {
   const query = useDetailQuery<InspectorAppointmentDetailResponse['data']>(
@@ -12,10 +12,13 @@ export function useInspectorAppointment(appointmentId: string) {
     },
   );
 
+  const raw = query.data?.data as InspectorAppointmentDetailResponse['data'] | undefined;
+
   return {
     ...query,
-    data: query.data
-      ? { data: mapInspectorAppointmentDetail({ data: query.data.data as InspectorAppointmentDetailResponse['data'] }) as InspectorAppointment }
+    data: raw
+      ? { data: mapInspectorAppointmentDetail({ data: raw }) as InspectorAppointment }
       : undefined,
+    jobDetails: raw?.jobDetails as JobDetails | undefined,
   };
 }

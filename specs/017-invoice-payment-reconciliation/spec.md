@@ -179,6 +179,12 @@ An operator reviews a summary view showing: total invoiced amount for a period, 
 - **FR-019**: Every mark-as-paid action MUST produce an audit record with: actor, invoice ID, `paidAt`, `paymentReference`, previous status, new status.
 - **FR-020**: Every payment reversal MUST produce an audit record with: actor, invoice ID, reason, previous status, new status.
 
+#### Inherited UX patterns (Feedback Round 2026-04-13, sanity-check corrective pass)
+
+- **FR-019b (pencil removal when duplicated with eye)**: the Invoices reconciliation list row exposes a single "view" action (eye) that opens the invoice detail drawer where mark-as-paid, reverse-payment, approve-draft, and reject-draft affordances live as secondary actions. The row-level "edit" (pencil) action MUST NOT be rendered. Inherited transversally from feature 014 FR-019b — no per-spec override. This also implicitly covers the admin review surface for feature 010 FR-066 / FR-067 (`PENDING_REVIEW` draft invoices from the PWA), since the draft queue is rendered through this same list with a `status=PENDING_REVIEW` filter.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 11 (pencil removal).
+
 ### Key Entities
 
 - **InspectorInvoice** (extended, not new) — Existing entity from `010-billing-ledger`. Extended with payment fields: `paid_at` (timestamptz, nullable), `paid_by_user_id` (uuid, FK to users, nullable), `payment_reference` (varchar, nullable). Status transitions: `CLOSED → PAID` (mark) and `PAID → CLOSED` (reversal).

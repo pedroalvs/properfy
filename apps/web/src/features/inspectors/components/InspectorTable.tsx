@@ -10,7 +10,6 @@ interface InspectorTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (inspector: Inspector) => void;
-  onEdit?: (inspector: Inspector) => void;
 }
 
 export function InspectorTable({
@@ -20,7 +19,6 @@ export function InspectorTable({
   onRetryError,
   pagination,
   onView,
-  onEdit,
 }: InspectorTableProps) {
   const columns: DataTableColumn<Inspector>[] = [
     {
@@ -68,11 +66,6 @@ export function InspectorTable({
               icon: 'mdi-eye-outline',
               label: 'View',
               onClick: () => onView?.(row),
-            },
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
             },
           ]}
         />

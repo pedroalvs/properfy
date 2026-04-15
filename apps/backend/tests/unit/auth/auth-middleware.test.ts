@@ -67,15 +67,27 @@ describe('createAuthMiddleware', () => {
     expect(req.authContext).toEqual(ctx);
   });
 
-  it('should skip tenant check for OP role', async () => {
-    const ctx = { userId: 'u1', tenantId: null, role: 'OP', branchId: null, inspectorId: null };
+  it('should skip tenant check for OP role but require tenantId', async () => {
+    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): OP is now
+    // tenant-scoped. A JWT claiming role=OP with tenantId=null is invalid.
+    const ctx = { userId: 'u1', tenantId: 'op-tenant', role: 'OP', branchId: null, inspectorId: null };
     const verifier = vi.fn().mockResolvedValue(ctx);
     const checker = vi.fn();
     const middleware = createAuthMiddleware(verifier, checker);
     const req = makeRequest('token');
 
     await middleware(req, reply);
+    // checker is only called for CL_ADMIN / CL_USER — OP still skips it,
+    // same as AM, because OP is trusted not to need active-tenant validation.
     expect(checker).not.toHaveBeenCalled();
+  });
+
+  it('should reject OP JWT with null tenantId (CORRECTION-001 close-it)', async () => {
+    const ctx = { userId: 'u1', tenantId: null, role: 'OP', branchId: null, inspectorId: null };
+    const verifier = vi.fn().mockResolvedValue(ctx);
+    const middleware = createAuthMiddleware(verifier, vi.fn());
+    const req = makeRequest('token');
+    await expect(middleware(req, reply)).rejects.toThrow(/tenant/i);
   });
 
   it('should skip tenant check for INSP role', async () => {

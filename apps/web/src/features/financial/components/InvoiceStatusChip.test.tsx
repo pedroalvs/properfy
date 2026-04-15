@@ -4,6 +4,7 @@ import type { InvoiceStatus } from '@/lib/status-colors';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
+  PENDING_REVIEW: 'Pending Review',
   OPEN: 'Open',
   CLOSED: 'Closed',
   PAID: 'Paid',

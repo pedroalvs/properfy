@@ -3,6 +3,8 @@ import type { IReportStorageService } from '../../domain/report-storage.service'
 import type { IXlsxGenerator } from '../../domain/xlsx-generator';
 import type { IReportGenerator } from '../../domain/report-generator';
 import type { IReportDataReader, ReportDataFilters } from '../../domain/report-data-reader';
+import type { IScheduledReportRunRepository } from '../../domain/scheduled-report-run.repository';
+import type { DeliverScheduledReportUseCase } from './deliver-scheduled-report.use-case';
 import { REPORT_COLUMNS } from '../../domain/report.constants';
 
 export interface ReportNotificationSender {
@@ -32,6 +34,9 @@ export class ProcessReportJobUseCase {
     private readonly notificationSender?: ReportNotificationSender,
     private readonly userReader?: ReportUserReader,
     private readonly generatorMap?: ReportGeneratorMap,
+    // Feature 019: optional deps for scheduled-report routing
+    private readonly scheduledReportRunRepo?: IScheduledReportRunRepository,
+    private readonly deliverScheduledReportUseCase?: DeliverScheduledReportUseCase,
   ) {}
 
   async execute(reportId: string): Promise<void> {
@@ -118,13 +123,44 @@ export class ProcessReportJobUseCase {
       report.markReady(fileKey, rows.length);
       await this.reportRepo.update(report);
 
-      // 9. Send email notification to the requesting user
-      await this.sendReportReadyNotification(report.id, report.tenantId, report.requestedByUserId, report.reportType);
+      // 9. Feature 019: route to the delivery fan-out use case when the report
+      //    was created by a schedule. The fan-out resolves recipients per the
+      //    schedule's delivery mode and records per-recipient outcomes on the
+      //    ScheduledReportRun. On-demand reports keep the single-recipient path.
+      if (report.scheduledReportId && this.deliverScheduledReportUseCase && this.scheduledReportRunRepo) {
+        const run = await this.scheduledReportRunRepo.findByReportId(report.id);
+        if (run) {
+          try {
+            await this.deliverScheduledReportUseCase.execute({ runId: run.id });
+          } catch {
+            // Delivery failure must not affect report state. Individual recipient
+            // failures are captured in `delivery_status_json` on the run.
+          }
+        }
+      } else if (!report.scheduledReportId) {
+        await this.sendReportReadyNotification(
+          report.id,
+          report.tenantId,
+          report.requestedByUserId,
+          report.reportType,
+        );
+      }
     } catch (error) {
       // 10. Mark failed
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       report.markFailed(errorMessage);
       await this.reportRepo.update(report);
+
+      // Feature 019 US1: notify the requesting user that the report failed.
+      // For scheduled reports, only the owner is notified; recipient fan-out
+      // is not applicable to failed runs.
+      await this.sendReportFailedNotification(
+        report.id,
+        report.tenantId,
+        report.requestedByUserId,
+        report.reportType,
+        errorMessage,
+      );
     }
   }
 
@@ -160,6 +196,47 @@ export class ProcessReportJobUseCase {
       });
     } catch {
       // Notification failure should not fail the report processing
+    }
+  }
+
+  /**
+   * Feature 019 US1: emit a `REPORT_FAILED` notification to the requesting user
+   * when report generation fails. Graceful no-op if the user has no email.
+   */
+  private async sendReportFailedNotification(
+    reportId: string,
+    tenantId: string | null,
+    requestedByUserId: string,
+    reportType: string,
+    errorMessage: string,
+  ): Promise<void> {
+    if (!this.notificationSender || !this.userReader || !tenantId) {
+      return;
+    }
+
+    try {
+      const user = await this.userReader.findById(requestedByUserId);
+      if (!user?.email) {
+        return;
+      }
+
+      const downloadLink = `/reports/${reportId}`;
+
+      await this.notificationSender.execute({
+        tenantId,
+        recipient: user.email,
+        channel: 'EMAIL',
+        templateCode: 'REPORT_FAILED',
+        payloadJson: {
+          userName: user.name,
+          reportType,
+          reportId,
+          errorMessage,
+          downloadLink,
+        },
+      });
+    } catch {
+      // Notification failure must not affect report state
     }
   }
 }

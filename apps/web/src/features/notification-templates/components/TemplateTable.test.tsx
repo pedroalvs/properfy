@@ -13,6 +13,7 @@ function makeTemplate(overrides: Partial<NotificationTemplate> = {}): Notificati
     subject: 'Inspection Scheduled',
     body: 'Hello {{tenant_name}}',
     active: true,
+    notificationClass: 'OPERATIONAL',
     requiredVariables: ['tenant_name'],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',

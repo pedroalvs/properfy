@@ -101,6 +101,14 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         regionIds: data.regionIds.length > 0 ? data.regionIds : [],
         serviceTypes: parseServiceTypeEntries(data.serviceTypes),
         clientEligibility: parseClientEligibilityEntries(data.clientEligibility),
+        fullName: data.fullName?.trim() || undefined,
+        abn: data.abn?.trim() || undefined,
+        dateOfBirth: data.dateOfBirth || undefined,
+        insuranceFileKey: data.insuranceFileKey?.trim() || undefined,
+        insuranceExpiresAt: data.insuranceExpiresAt || undefined,
+        policeCheckFileKey: data.policeCheckFileKey?.trim() || undefined,
+        policeCheckExpiresAt: data.policeCheckExpiresAt || undefined,
+        blockedClients: data.blockedClients.length > 0 ? data.blockedClients : [],
       };
 
       let apiError: { error?: { code?: string; message?: string } } | undefined;

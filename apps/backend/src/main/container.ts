@@ -124,8 +124,28 @@ import { AuthorizationService } from '../shared/domain/authorization.service';
 // Audit module
 import { PrismaAuditLogRepository } from '../modules/audit/infrastructure/prisma-audit-log.repository';
 import { PersistentAuditService } from '../modules/audit/application/services/persistent-audit.service';
+// Feature 020: retention + preservation + PII mapping repositories
+import { PrismaAuditRetentionCategoryRepository } from '../modules/audit/infrastructure/prisma-audit-retention-category.repository';
+import { PrismaAuditPreservationRuleRepository } from '../modules/audit/infrastructure/prisma-audit-preservation-rule.repository';
+import { PrismaAuditLegalHoldRepository } from '../modules/audit/infrastructure/prisma-audit-legal-hold.repository';
+import { PrismaPiiFieldMappingRepository } from '../modules/audit/infrastructure/prisma-pii-field-mapping.repository';
+import { PrismaDataSubjectErasureRequestRepository } from '../modules/audit/infrastructure/prisma-data-subject-erasure-request.repository';
+import { PrismaErasurePiiResolver } from '../modules/audit/infrastructure/prisma-erasure-pii-resolver';
 import { ListAuditLogsUseCase } from '../modules/audit/application/use-cases/list-audit-logs.use-case';
 import type { AuditRouteContainer } from '../modules/audit/interfaces/audit.routes';
+import type { AuditErasureRouteContainer } from '../modules/audit/interfaces/audit-erasure.routes';
+import type { AuditRetentionRouteContainer } from '../modules/audit/interfaces/audit-retention.routes';
+import { PreviewDataSubjectErasureUseCase } from '../modules/audit/application/use-cases/preview-data-subject-erasure.use-case';
+import { ExecuteDataSubjectErasureUseCase } from '../modules/audit/application/use-cases/execute-data-subject-erasure.use-case';
+import { GetDataSubjectErasureRequestUseCase } from '../modules/audit/application/use-cases/get-data-subject-erasure-request.use-case';
+import { ListDataSubjectErasureRequestsUseCase } from '../modules/audit/application/use-cases/list-data-subject-erasure-requests.use-case';
+import { UpsertRetentionCategoryUseCase } from '../modules/audit/application/use-cases/upsert-retention-category.use-case';
+import { UpsertPreservationRuleUseCase } from '../modules/audit/application/use-cases/upsert-preservation-rule.use-case';
+import { PlaceLegalHoldUseCase } from '../modules/audit/application/use-cases/place-legal-hold.use-case';
+import { ReleaseLegalHoldUseCase } from '../modules/audit/application/use-cases/release-legal-hold.use-case';
+import { UpsertPiiFieldMappingUseCase } from '../modules/audit/application/use-cases/upsert-pii-field-mapping.use-case';
+import { TriggerRetentionRunUseCase } from '../modules/audit/application/use-cases/trigger-retention-run.use-case';
+import { ListRetentionRunsUseCase } from '../modules/audit/application/use-cases/list-retention-runs.use-case';
 
 // Service group module
 import { PrismaServiceGroupRepository } from '../modules/service-group/infrastructure/prisma-service-group.repository';
@@ -199,6 +219,8 @@ import { GenerateTenantInvoiceUseCase } from '../modules/billing/application/use
 import { RegenerateInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-inspector-invoice.use-case';
 import { RegenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-tenant-invoice.use-case';
 import { ListTenantInvoicesUseCase } from '../modules/billing/application/use-cases/list-tenant-invoices.use-case';
+import { ApproveDraftInvoiceUseCase } from '../modules/billing/application/use-cases/approve-draft-invoice.use-case';
+import { RejectDraftInvoiceUseCase } from '../modules/billing/application/use-cases/reject-draft-invoice.use-case';
 import { PrismaTenantInvoiceRepository } from '../modules/billing/infrastructure/prisma-tenant-invoice.repository';
 import type { BillingRouteContainer } from '../modules/billing/interfaces/billing.routes';
 
@@ -220,6 +242,16 @@ import { ListReportsUseCase } from '../modules/report/application/use-cases/list
 import { ProcessReportJobUseCase } from '../modules/report/application/use-cases/process-report-job.use-case';
 import { CreateScheduledReportUseCase } from '../modules/report/application/use-cases/create-scheduled-report.use-case';
 import { ListScheduledReportsUseCase } from '../modules/report/application/use-cases/list-scheduled-reports.use-case';
+import { GetScheduledReportUseCase } from '../modules/report/application/use-cases/get-scheduled-report.use-case';
+import { UpdateScheduledReportUseCase } from '../modules/report/application/use-cases/update-scheduled-report.use-case';
+import { PauseScheduledReportUseCase } from '../modules/report/application/use-cases/pause-scheduled-report.use-case';
+import { ResumeScheduledReportUseCase } from '../modules/report/application/use-cases/resume-scheduled-report.use-case';
+import { DeleteScheduledReportUseCase } from '../modules/report/application/use-cases/delete-scheduled-report.use-case';
+import { ReassignScheduleOwnershipUseCase } from '../modules/report/application/use-cases/reassign-schedule-ownership.use-case';
+import { ListScheduleRunsUseCase } from '../modules/report/application/use-cases/list-schedule-runs.use-case';
+import { DeliverScheduledReportUseCase } from '../modules/report/application/use-cases/deliver-scheduled-report.use-case';
+import { PrismaScheduledReportRunRepository } from '../modules/report/infrastructure/prisma-scheduled-report-run.repository';
+import { PrismaScheduleRecipientResolver } from '../modules/report/infrastructure/prisma-schedule-recipient-resolver';
 import { PrismaScheduledReportRepository } from '../modules/report/infrastructure/prisma-scheduled-report.repository';
 import { ProcessSchedulesWorker } from '../modules/report/infrastructure/workers/process-schedules.worker';
 import type { ReportRouteContainer } from '../modules/report/interfaces/report.routes';
@@ -248,6 +280,11 @@ import { PollRetryableNotificationsUseCase } from '../modules/notification/appli
 import { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
 import { ProcessUnsubscribeUseCase } from '../modules/notification/application/use-cases/process-unsubscribe.use-case';
+import { RenderUnsubscribePageUseCase } from '../modules/notification/application/use-cases/render-unsubscribe-page.use-case';
+import { ListConsentsByRecipientUseCase } from '../modules/notification/application/use-cases/list-consents-by-recipient.use-case';
+import { OverrideConsentUseCase } from '../modules/notification/application/use-cases/override-consent.use-case';
+import { ReOptInUseCase } from '../modules/notification/application/use-cases/re-opt-in.use-case';
+import { UnsubscribeTokenService } from '../modules/notification/domain/unsubscribe-token.service';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
 import { createWebhookSignatureValidator } from '../modules/notification/infrastructure/webhook-signature-validator';
 
@@ -284,6 +321,14 @@ import { NotifyInspectorsOnRegionDeactivationHandler } from '../modules/service-
 import { SERVICE_REGION_EVENTS } from '../shared/application/events/domain-event-bus';
 import type { ServiceRegionRouteContainer } from '../modules/service-region/interfaces/service-region.routes';
 
+// Contact module
+import { PrismaContactRepository } from '../modules/contact/infrastructure/prisma-contact.repository';
+import { CreateContactUseCase } from '../modules/contact/application/use-cases/create-contact.use-case';
+import { UpdateContactUseCase as UpdateContactRegistryUseCase } from '../modules/contact/application/use-cases/update-contact.use-case';
+import { GetContactUseCase } from '../modules/contact/application/use-cases/get-contact.use-case';
+import { ListContactsUseCase } from '../modules/contact/application/use-cases/list-contacts.use-case';
+import type { ContactRouteContainer } from '../modules/contact/interfaces/http/contact.routes';
+
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
@@ -299,6 +344,8 @@ import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment
 import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
 import { ListAppointmentContactsUseCase } from '../modules/appointment/application/use-cases/list-appointment-contacts.use-case';
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
+import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
+import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
@@ -327,6 +374,8 @@ export interface AppContainer {
   appointment: AppointmentRouteContainer;
   appointmentTimeSlot: AppointmentTimeSlotRouteContainer;
   audit: AuditRouteContainer;
+  auditErasure: AuditErasureRouteContainer;
+  auditRetention: AuditRetentionRouteContainer;
   serviceGroup: ServiceGroupRouteContainer;
   marketplace: MarketplaceRouteContainer;
   tenantPortal: TenantPortalRouteContainer;
@@ -336,6 +385,7 @@ export interface AppContainer {
   notification: NotificationRouteContainer;
   dashboard: DashboardRouteContainer;
   serviceRegion: ServiceRegionRouteContainer;
+  contact: ContactRouteContainer;
   geocodeWorker: GeocodeWorker;
   geocodeRetryWorker: GeocodeRetryWorker;
   propertyImportWorker: ImportPropertyWorker;
@@ -356,6 +406,12 @@ export function createContainer(logger: Logger): AppContainer {
   const env = getEnv();
   const auditLogRepo = new PrismaAuditLogRepository(prisma);
   const auditService = new PersistentAuditService(auditLogRepo, logger);
+  // Feature 020: retention + preservation + PII registry repositories
+  const auditRetentionCategoryRepo = new PrismaAuditRetentionCategoryRepository(prisma);
+  const auditPreservationRuleRepo = new PrismaAuditPreservationRuleRepository(prisma);
+  const auditLegalHoldRepo = new PrismaAuditLegalHoldRepository(prisma);
+  const piiFieldMappingRepo = new PrismaPiiFieldMappingRepository(prisma);
+  const dataSubjectErasureRequestRepo = new PrismaDataSubjectErasureRequestRepository(prisma);
   const authorizationService = new AuthorizationService(auditService);
 
   // S3 client for Supabase storage (optional — falls back to stubs when not configured)
@@ -482,6 +538,13 @@ export function createContainer(logger: Logger): AppContainer {
   const listPricingRulesUseCase = new ListPricingRulesUseCase(pricingRuleRepo, tenantRepo);
   const updatePricingRuleUseCase = new UpdatePricingRuleUseCase(pricingRuleRepo, tenantRepo, auditService);
 
+  // Contact repository + use cases
+  const contactRepo = new PrismaContactRepository(prisma);
+  const createContactUseCase = new CreateContactUseCase(contactRepo, auditService);
+  const updateContactRegistryUseCase = new UpdateContactRegistryUseCase(contactRepo, auditService);
+  const getContactUseCase = new GetContactUseCase(contactRepo);
+  const listContactsUseCase = new ListContactsUseCase(contactRepo);
+
   // Service region repository (instantiated early for inspector and marketplace use)
   const serviceRegionRepo = new PrismaServiceRegionRepository(prisma);
 
@@ -500,10 +563,15 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification repositories and create use case (needed before appointments for handler wiring)
   const notificationRepo = new PrismaNotificationRepository(prisma);
+  const notificationTemplateRepo = new PrismaNotificationTemplateRepository(prisma);
   const notificationJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
-  const createNotificationUseCase = new CreateNotificationUseCase(notificationRepo, notificationJobQueue);
+  const createNotificationUseCase = new CreateNotificationUseCase(
+    notificationRepo,
+    notificationTemplateRepo,
+    notificationJobQueue,
+  );
 
   // Password reset use cases (depend on createNotificationUseCase)
   const requestPasswordResetUseCase = new RequestPasswordResetUseCase(userRepo, passwordResetTokenRepo, createNotificationUseCase, auditService);
@@ -541,12 +609,16 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
-    createPropertyUseCase, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo,
+    createPropertyUseCase, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo, contactRepo,
   );
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
-  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo);
+  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo, contactRepo);
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
+  const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
+    appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
+    appointmentTimeSlotRepo, auditService, authorizationService,
+  );
   // Notification handlers (depend on appointmentRepo, propertyRepo, createNotificationUseCase)
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
     appointmentRepo, propertyRepo, createNotificationUseCase, logger, metrics,
@@ -572,7 +644,7 @@ export function createContainer(logger: Logger): AppContainer {
   const tokenService = new TokenService();
   const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
   const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo);
-  const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus);
+  const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, tokenService, auditService, createNotificationUseCase);
   const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
 
@@ -611,7 +683,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, inspectionExecutionRepo, authorizationService,
   );
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
-    appointmentRepo, inspectionExecutionRepo, inspectionAssetRepo, serviceTypeReaderForExec, authorizationService,
+    appointmentRepo, inspectionExecutionRepo, inspectionAssetRepo, serviceTypeReaderForExec, authorizationService, tenantRepo,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, tenantSettingsReader, authorizationService,
@@ -623,6 +695,7 @@ export function createContainer(logger: Logger): AppContainer {
   const requestAssetUploadUseCase = new RequestAssetUploadUseCase(
     inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo, authorizationService,
   );
+  const draftInspectorInvoiceUseCase = new DraftInspectorInvoiceUseCase(prisma, auditService);
   const confirmAssetUploadUseCase = new ConfirmAssetUploadUseCase(
     inspectionAssetRepo, storageService, authorizationService,
   );
@@ -634,7 +707,36 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   // Audit use cases
-  const listAuditLogsUseCase = new ListAuditLogsUseCase(auditLogRepo, userManagementRepo);
+  const listAuditLogsUseCase = new ListAuditLogsUseCase(
+    auditLogRepo,
+    userManagementRepo,
+    piiFieldMappingRepo,
+  );
+
+  // Feature 020: data subject erasure workflow (AM-only, LGPD compliance)
+  const erasurePiiResolver = new PrismaErasurePiiResolver(userManagementRepo, auditLogRepo);
+  const previewDataSubjectErasureUseCase = new PreviewDataSubjectErasureUseCase(
+    dataSubjectErasureRequestRepo,
+    auditLogRepo,
+    piiFieldMappingRepo,
+    erasurePiiResolver,
+    prisma,
+  );
+  const executeDataSubjectErasureUseCase = new ExecuteDataSubjectErasureUseCase(
+    dataSubjectErasureRequestRepo,
+    auditLogRepo,
+    piiFieldMappingRepo,
+    erasurePiiResolver,
+    auditService,
+    prisma,
+    logger,
+  );
+  const getDataSubjectErasureRequestUseCase = new GetDataSubjectErasureRequestUseCase(
+    dataSubjectErasureRequestRepo,
+  );
+  const listDataSubjectErasureRequestsUseCase = new ListDataSubjectErasureRequestsUseCase(
+    dataSubjectErasureRequestRepo,
+  );
 
   // Service group repositories and use cases
   const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
@@ -689,6 +791,8 @@ export function createContainer(logger: Logger): AppContainer {
   const regenerateInspectorInvoiceUseCase = new RegenerateInspectorInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
   const regenerateTenantInvoiceUseCase = new RegenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
   const listTenantInvoicesUseCase = new ListTenantInvoicesUseCase(tenantInvoiceRepo);
+  const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService, billingJobQueue);
+  const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
 
   // Report repositories and use cases
   const reportRepo = new PrismaReportRepository(prisma);
@@ -709,18 +813,76 @@ export function createContainer(logger: Logger): AppContainer {
     CSV: csvGenerator,
     PDF: pdfGenerator,
   };
-  const processReportJobUseCase = new ProcessReportJobUseCase(
-    reportRepo, reportStorageService, xlsxGenerator, reportDataReader,
-    createNotificationUseCase, userManagementRepo, generatorMap,
+  // Note: processReportJobUseCase is constructed later (after scheduledReportRunRepo
+  // and deliverScheduledReportUseCase exist) to wire in the Feature 019 fan-out hook.
+
+  // Scheduled report repositories and use cases (Feature 019)
+  const scheduledReportRepo = new PrismaScheduledReportRepository(prisma);
+  const scheduledReportRunRepo = new PrismaScheduledReportRunRepository(prisma);
+  const scheduleRecipientResolver = new PrismaScheduleRecipientResolver(userManagementRepo);
+  const createScheduledReportUseCase = new CreateScheduledReportUseCase(
+    scheduledReportRepo,
+    auditService,
+    userManagementRepo,
+    authorizationService,
+  );
+  const listScheduledReportsUseCase = new ListScheduledReportsUseCase(
+    scheduledReportRepo,
+    scheduledReportRunRepo,
+  );
+  const getScheduledReportUseCase = new GetScheduledReportUseCase(
+    scheduledReportRepo,
+    scheduledReportRunRepo,
+  );
+  const updateScheduledReportUseCase = new UpdateScheduledReportUseCase(
+    scheduledReportRepo,
+    auditService,
+  );
+  const pauseScheduledReportUseCase = new PauseScheduledReportUseCase(
+    scheduledReportRepo,
+    auditService,
+  );
+  const resumeScheduledReportUseCase = new ResumeScheduledReportUseCase(
+    scheduledReportRepo,
+    auditService,
+  );
+  const deleteScheduledReportUseCase = new DeleteScheduledReportUseCase(
+    scheduledReportRepo,
+    auditService,
+  );
+  const reassignScheduleOwnershipUseCase = new ReassignScheduleOwnershipUseCase(
+    scheduledReportRepo,
+    userManagementRepo,
+    auditService,
+  );
+  const listScheduleRunsUseCase = new ListScheduleRunsUseCase(
+    scheduledReportRepo,
+    scheduledReportRunRepo,
+  );
+  const deliverScheduledReportUseCase = new DeliverScheduledReportUseCase(
+    scheduledReportRepo,
+    scheduledReportRunRepo,
+    reportRepo,
+    scheduleRecipientResolver,
+    createNotificationUseCase,
+    auditService,
+    logger,
   );
 
-  // Scheduled report repositories and use cases
-  const scheduledReportRepo = new PrismaScheduledReportRepository(prisma);
-  const createScheduledReportUseCase = new CreateScheduledReportUseCase(scheduledReportRepo, auditService);
-  const listScheduledReportsUseCase = new ListScheduledReportsUseCase(scheduledReportRepo);
+  // Feature 019: construct processReportJobUseCase AFTER its schedule deps are ready
+  const processReportJobUseCase = new ProcessReportJobUseCase(
+    reportRepo,
+    reportStorageService,
+    xlsxGenerator,
+    reportDataReader,
+    createNotificationUseCase,
+    userManagementRepo,
+    generatorMap,
+    scheduledReportRunRepo,
+    deliverScheduledReportUseCase,
+  );
 
-  // Notification providers and services (notificationRepo created above)
-  const notificationTemplateRepo = new PrismaNotificationTemplateRepository(prisma);
+  // Notification providers and services (notificationRepo + notificationTemplateRepo created above)
   const notificationAttemptRepo = new PrismaNotificationAttemptRepository(prisma);
   const emailProvider = env.RESEND_API_KEY && env.RESEND_FROM_EMAIL
     ? new ResendEmailProvider(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL)
@@ -754,6 +916,9 @@ export function createContainer(logger: Logger): AppContainer {
     logger,
     metrics,
     getTenantSettings,
+    // Feature 018: unsubscribe URL injection for operational notifications
+    publicBaseUrl: env.PUBLIC_BASE_URL,
+    unsubscribeTokenSecret: env.NOTIFICATION_UNSUBSCRIBE_SECRET,
   });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo);
@@ -772,7 +937,23 @@ export function createContainer(logger: Logger): AppContainer {
   const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue, logger);
   const dispatchRemindersUseCase = new DispatchRemindersUseCase(appointmentRepo, notificationRepo, createNotificationUseCase);
   const dispatchEscalationsUseCase = new DispatchEscalationsUseCase(appointmentRepo, branchRepo, notificationRepo, createNotificationUseCase);
-  const processUnsubscribeUseCase = new ProcessUnsubscribeUseCase(consentRepo, env.NOTIFICATION_UNSUBSCRIBE_SECRET);
+  const unsubscribeTokenService = new UnsubscribeTokenService(env.NOTIFICATION_UNSUBSCRIBE_SECRET);
+  const processUnsubscribeUseCase = new ProcessUnsubscribeUseCase(
+    consentRepo,
+    unsubscribeTokenService,
+    auditService,
+  );
+  const renderUnsubscribePageUseCase = new RenderUnsubscribePageUseCase(unsubscribeTokenService);
+  const listConsentsByRecipientUseCase = new ListConsentsByRecipientUseCase(
+    consentRepo,
+    authorizationService,
+  );
+  const overrideConsentUseCase = new OverrideConsentUseCase(
+    consentRepo,
+    authorizationService,
+    auditService,
+  );
+  const reOptInUseCase = new ReOptInUseCase(consentRepo, unsubscribeTokenService, auditService);
 
   // Dashboard repositories and use cases
   const dashboardRepo = new PrismaDashboardRepository(prisma);
@@ -820,7 +1001,14 @@ export function createContainer(logger: Logger): AppContainer {
   const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
   const keyExpiryCheckWorker = new KeyExpiryCheckWorker(jwtService, auditService, logger);
   const expireFilesWorker = new ExpireFilesWorker(reportRepo, reportStorageService, logger);
-  const processSchedulesWorker = new ProcessSchedulesWorker(scheduledReportRepo, requestReportUseCase, logger);
+  const processSchedulesWorker = new ProcessSchedulesWorker(
+    scheduledReportRepo,
+    scheduledReportRunRepo,
+    requestReportUseCase,
+    userManagementRepo,
+    auditService,
+    logger,
+  );
   const generateInvoiceFileWorker = new GenerateInvoiceFileWorker(
     inspectorInvoiceRepo, financialEntryRepo, xlsxGenerator, reportStorageService, logger,
   );
@@ -830,7 +1018,37 @@ export function createContainer(logger: Logger): AppContainer {
     inspectionExecutionRepo, appointmentRepo, createNotificationUseCase, logger,
   );
   const expirePriorityWorker = new ExpirePriorityWorker(serviceGroupRepo, auditService, logger);
-  const auditRetentionWorker = new AuditRetentionWorker(prisma, logger);
+  const auditRetentionWorker = new AuditRetentionWorker(
+    prisma,
+    auditLogRepo,
+    auditRetentionCategoryRepo,
+    auditLegalHoldRepo,
+    auditPreservationRuleRepo,
+    auditService,
+    logger,
+    env.AUDIT_RETENTION_BATCH_SIZE,
+  );
+
+  // Feature 020 US5: operator control use cases
+  const upsertRetentionCategoryUseCase = new UpsertRetentionCategoryUseCase(
+    auditRetentionCategoryRepo,
+    auditService,
+  );
+  const upsertPreservationRuleUseCase = new UpsertPreservationRuleUseCase(
+    auditPreservationRuleRepo,
+    auditService,
+  );
+  const placeLegalHoldUseCase = new PlaceLegalHoldUseCase(auditLegalHoldRepo, auditService);
+  const releaseLegalHoldUseCase = new ReleaseLegalHoldUseCase(auditLegalHoldRepo, auditService);
+  const upsertPiiFieldMappingUseCase = new UpsertPiiFieldMappingUseCase(
+    piiFieldMappingRepo,
+    auditService,
+  );
+  const triggerRetentionRunUseCase = new TriggerRetentionRunUseCase(
+    auditRetentionWorker,
+    auditService,
+  );
+  const listRetentionRunsUseCase = new ListRetentionRunsUseCase(auditLogRepo);
 
   const appointmentImportWorker = new AppointmentImportWorker(
     appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger, appointmentTimeSlotRepo,
@@ -958,6 +1176,7 @@ export function createContainer(logger: Logger): AppContainer {
       getImportStatusUseCase,
       listAppointmentContactsUseCase,
       deleteAppointmentUseCase,
+      bulkEditAppointmentsUseCase,
       appointmentRepo,
       jwtService,
       tenantRepo,
@@ -973,6 +1192,29 @@ export function createContainer(logger: Logger): AppContainer {
     },
     audit: {
       listAuditLogsUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    auditErasure: {
+      previewDataSubjectErasureUseCase,
+      executeDataSubjectErasureUseCase,
+      getDataSubjectErasureRequestUseCase,
+      listDataSubjectErasureRequestsUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    auditRetention: {
+      upsertRetentionCategoryUseCase,
+      upsertPreservationRuleUseCase,
+      placeLegalHoldUseCase,
+      releaseLegalHoldUseCase,
+      upsertPiiFieldMappingUseCase,
+      triggerRetentionRunUseCase,
+      listRetentionRunsUseCase,
+      retentionCategoryRepo: auditRetentionCategoryRepo,
+      preservationRuleRepo: auditPreservationRuleRepo,
+      legalHoldRepo: auditLegalHoldRepo,
+      piiFieldMappingRepo,
       jwtService,
       tenantRepo,
     },
@@ -1019,6 +1261,7 @@ export function createContainer(logger: Logger): AppContainer {
       requestAssetUploadUseCase,
       confirmAssetUploadUseCase,
       getMarketplaceOffersUseCase,
+      draftInspectorInvoiceUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1044,6 +1287,8 @@ export function createContainer(logger: Logger): AppContainer {
       regenerateInspectorInvoiceUseCase,
       regenerateTenantInvoiceUseCase,
       listTenantInvoicesUseCase,
+      approveDraftInvoiceUseCase,
+      rejectDraftInvoiceUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1055,6 +1300,14 @@ export function createContainer(logger: Logger): AppContainer {
       processReportJobUseCase,
       createScheduledReportUseCase,
       listScheduledReportsUseCase,
+      // Feature 019
+      getScheduledReportUseCase,
+      updateScheduledReportUseCase,
+      pauseScheduledReportUseCase,
+      resumeScheduledReportUseCase,
+      deleteScheduledReportUseCase,
+      reassignScheduleOwnershipUseCase,
+      listScheduleRunsUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1071,6 +1324,10 @@ export function createContainer(logger: Logger): AppContainer {
       dispatchRemindersUseCase,
       dispatchEscalationsUseCase,
       processUnsubscribeUseCase,
+      renderUnsubscribePageUseCase,
+      listConsentsByRecipientUseCase,
+      overrideConsentUseCase,
+      reOptInUseCase,
       jwtService,
       tenantRepo,
       webhookSignatureValidator,
@@ -1088,6 +1345,14 @@ export function createContainer(logger: Logger): AppContainer {
       deactivateServiceRegionUseCase,
       deleteServiceRegionUseCase,
       resolveRegionsUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    contact: {
+      createContactUseCase,
+      updateContactUseCase: updateContactRegistryUseCase,
+      getContactUseCase,
+      listContactsUseCase,
       jwtService,
       tenantRepo,
     },

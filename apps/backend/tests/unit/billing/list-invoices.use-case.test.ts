@@ -105,7 +105,7 @@ describe('ListInvoicesUseCase', () => {
     );
   });
 
-  it('should return paginated result', async () => {
+  it('should return paginated result (AM actor)', async () => {
     const { useCase, invoiceRepo } = sut;
 
     vi.mocked(invoiceRepo.findAll).mockResolvedValue([makeInvoice()]);
@@ -114,7 +114,9 @@ describe('ListInvoicesUseCase', () => {
     const result = await useCase.execute({
       page: 3,
       pageSize: 5,
-      actor: makeActor({ role: 'OP' }),
+      // Sprint 1 W-4-IMPL (CORRECTION-001 close-it): inspector invoice list
+      // is AM-only because inspector invoices are not tenant-scoped.
+      actor: makeActor({ role: 'AM' }),
     });
 
     expect(result.total).toBe(25);
@@ -150,7 +152,22 @@ describe('ListInvoicesUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should allow OP to filter by inspectorId', async () => {
+  it('should reject OP from inspector invoice list (CORRECTION-001 close-it)', async () => {
+    const { useCase } = sut;
+
+    // Sprint 1 W-4-IMPL: OP no longer has cross-inspector access because
+    // inspector invoices are not tenant-scoped.
+    await expect(
+      useCase.execute({
+        inspectorId: 'insp-2',
+        page: 1,
+        pageSize: 10,
+        actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should allow AM to filter by inspectorId', async () => {
     const { useCase, invoiceRepo } = sut;
 
     vi.mocked(invoiceRepo.findAll).mockResolvedValue([]);
@@ -160,7 +177,7 @@ describe('ListInvoicesUseCase', () => {
       inspectorId: 'insp-2',
       page: 1,
       pageSize: 10,
-      actor: makeActor({ role: 'OP' }),
+      actor: makeActor({ role: 'AM' }),
     });
 
     expect(invoiceRepo.findAll).toHaveBeenCalledWith(

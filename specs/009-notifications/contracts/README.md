@@ -7,7 +7,7 @@
 ## File layout
 
 - [`notification-endpoints.md`](./notification-endpoints.md) — operator list/detail/retry and template management.
-- [`webhook-endpoints.md`](./webhook-endpoints.md) — provider webhooks (Resend, Twilio, Zenvia).
+- [`webhook-endpoints.md`](./webhook-endpoints.md) — provider webhooks (Resend, Mobile Message, Zenvia).
 
 ## Conventions
 

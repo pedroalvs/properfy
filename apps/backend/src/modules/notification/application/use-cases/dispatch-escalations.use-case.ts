@@ -51,7 +51,7 @@ export class DispatchEscalationsUseCase {
             channel: 'EMAIL',
             templateCode: 'PROPERTY_MANAGER_ESCALATION',
             payloadJson: {
-              tenantName: contact?.tenantName ?? '',
+              tenantName: contact?.effectiveName ?? '',
               scheduledDate: appointment.scheduledDate.toISOString().split('T')[0] ?? '',
               timeSlot: appointment.timeSlot,
               appointmentReference: appointment.id,
@@ -67,7 +67,8 @@ export class DispatchEscalationsUseCase {
       }
 
       // Tenant SMS Alert
-      if (contact?.primaryPhone) {
+      const effectivePhone = contact?.effectivePhone;
+      if (effectivePhone) {
         const smsAlreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
           appointment.id,
           'TENANT_SMS_ALERT',
@@ -76,11 +77,11 @@ export class DispatchEscalationsUseCase {
           await this.createNotification.execute({
             tenantId: appointment.tenantId,
             appointmentId: appointment.id,
-            recipient: contact.primaryPhone,
+            recipient: effectivePhone,
             channel: 'SMS',
             templateCode: 'TENANT_SMS_ALERT',
             payloadJson: {
-              tenantName: contact.tenantName,
+              tenantName: contact.effectiveName,
               scheduledDate: appointment.scheduledDate.toISOString().split('T')[0] ?? '',
               timeSlot: appointment.timeSlot,
             },

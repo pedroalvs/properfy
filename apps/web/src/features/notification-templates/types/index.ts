@@ -1,4 +1,4 @@
-import type { NotificationChannel } from '@properfy/shared';
+import type { NotificationChannel, NotificationClass } from '@properfy/shared';
 
 export interface NotificationTemplate {
   id: string;
@@ -8,9 +8,23 @@ export interface NotificationTemplate {
   subject: string;
   body: string;
   active: boolean;
+  /** Feature 018: classification — TRANSACTIONAL templates cannot be reclassified. */
+  notificationClass: NotificationClass;
   requiredVariables: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+/** Feature 018: protected codes that must remain TRANSACTIONAL. UI mirrors backend. */
+export const PROTECTED_TEMPLATE_CODES: readonly string[] = [
+  'INSPECTION_CONFIRMED',
+  'INSPECTION_RESCHEDULED',
+  'INSPECTION_CANCELLED',
+  'INSPECTION_UNAVAILABILITY_REPORTED',
+] as const;
+
+export function isProtectedTemplateCode(code: string): boolean {
+  return PROTECTED_TEMPLATE_CODES.includes(code);
 }
 
 export interface TemplateFormData {

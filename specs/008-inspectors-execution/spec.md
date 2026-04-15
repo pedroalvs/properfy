@@ -2,7 +2,7 @@
 
 **Feature Branch**: `008-inspectors-execution`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps closed in commit `2226b1d` (2026-04-08, Waves 1–3). Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/{inspector,inspector-execution}/**`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/schemas/{inspector,inspector-execution}.ts`, `apps/web/src/features/inspectors/**`, `apps/pwa/src/features/{schedule,offers}/**`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`, `projeto-consolidado/regras-negocio-respostas-cliente.md`
@@ -22,19 +22,37 @@
 ### User Story 1 — Onboard an inspector (operator)
 
 - **Priority**: P1
-- **Status**: IMPLEMENTED
-- **Source**: code
+- **Status**: IMPLEMENTED (with Feedback Round 2026-04-13 deltas pending planning — items 1 and 6)
+- **Source**: code + approved feedback round
 
-An AM or OP creates a new inspector with name, email, phone, payment settings, and initial eligibility (service types they can handle, client tenants they are allowed to work for, regions they cover). The inspector starts in `ACTIVE` status. A user account can be linked later so the inspector can log in to the PWA.
+An AM or OP creates a new inspector with profile data (name, contact), compliance documents (insurance, police check, ABN, DOB), payment settings, and eligibility configuration (service types they can handle, which client tenants they are **blocked** from — see item 1 below — and regions they cover). The inspector starts in `ACTIVE` status. A user account can be linked later so the inspector can log in to the PWA.
 
 **Independent Test**: As AM, `POST /v1/inspectors` with full payload. Confirm the row exists with the submitted JSON fields and an audit record is written.
 
 **Acceptance Scenarios**:
 
-1. **Given** an AM or OP actor, **When** they submit `POST /v1/inspectors` with valid payload, **Then** an inspector is created in `ACTIVE` with the submitted `serviceTypesJson`, `clientEligibilityJson`, `regionsJson`, and `paymentSettingsJson`.
+1. **Given** an AM or OP actor, **When** they submit `POST /v1/inspectors` with valid payload, **Then** an inspector is created in `ACTIVE` with the submitted `serviceTypesJson`, `blockedClientsJson` (see Feedback Round 2026-04-13 item 1), `regionsJson`, `paymentSettingsJson`, and the new profile fields from Feedback Round 2026-04-13 item 6.
 2. **Given** an email already in use, **When** a new inspector is created, **Then** the request fails with `INSPECTOR_EMAIL_CONFLICT`.
 3. **Given** any non-AM/OP actor, **When** they call create, **Then** the request is rejected with `FORBIDDEN`.
 4. **Given** `regionIds` in the payload (shortcut for populating `InspectorRegion` join rows), **When** submitted, **Then** the join rows are created atomically with the inspector insert.
+
+**Feedback Round 2026-04-13 — item 1 (client eligibility inversion)** — APPROVED, pending planning:
+
+- The persistent data model shifts from "eligible tenant ids" to "**blocked** tenant ids". An inspector with an empty `blockedClientsJson` is eligible for **all** tenants by default.
+- The UI on `New Inspector` / `Edit Inspector` MUST replace the checkbox list of eligible clients with a **multi-select dropdown** of blocked tenants. The dropdown defaults to empty (= fully eligible).
+- Marketplace filtering logic inverts accordingly: an inspector is a candidate for a tenant when the tenant's id is NOT present in the inspector's `blockedClientsJson`.
+- Existing `clientEligibilityJson` data must be migrated on the plan-phase: for every inspector with a non-empty list, `blockedClientsJson` becomes the **complement** of that list against the currently-active tenant set. This is a one-time data-migration activity, not a runtime rule.
+- Audit entries for inspector create/update record the new `blockedClientsJson` shape.
+
+**Feedback Round 2026-04-13 — item 6 (inspector profile extension)** — APPROVED, obligation levels deferred:
+
+- Added fields on the inspector row: `full_name`, `address`, `abn` (Australian Business Number), `date_of_birth`, `insurance_file_key` + `insurance_expires_at`, `police_check_file_key` + `police_check_expires_at`.
+- Files are uploaded via the existing presigned-URL storage path (Supabase Storage bucket reused). No new storage integration.
+- The UI surface for these fields lives in both `PWA > Profile` (self-service) and the admin `New Inspector` / `Edit Inspector` screen.
+- Obligation levels (mandatory vs optional vs required-before-first-assignment) are **`OPEN QUESTION — pending decision`**. See `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → OQ-2.
+- Expiration lifecycle (what happens when `insurance_expires_at` or `police_check_expires_at` passes) is **`OPEN QUESTION — pending decision`**. See OQ-3. The spec commits to persisting the dates and making them queryable; behavioral consequences are intentionally left open.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → items 1 and 6.
 
 ---
 
@@ -64,6 +82,12 @@ Operators browse inspectors with status and region filters, read detail pages, a
 - **Source**: code
 
 Inspectors or operators declare the time slots an inspector is available on specific dates, with optional region and capacity. Slots are consumed by the marketplace and scheduling UIs (though the capacity counter is not wired to appointments yet — see GAP-003). Inspectors self-serve their own slots via the PWA; AM/OP can manage any inspector.
+
+**Feedback Round 2026-04-13 — item 9 (PWA availability slots)** — ALIGNMENT, no new scope:
+
+This US already covers the customer's request that inspectors declare availability from the PWA. The INSP self-serve path in acceptance scenario #1 (`POST /v1/availability-slots` without `inspectorId` — derived from JWT) is the exact flow requested. No new FRs are added; this is a confirmation that US3 is the correct home for the requirement. If the PWA UI for this surface is incomplete at the moment (form affordances, period selection, bulk creation), the gap is a frontend polish item rather than a new backend scope and will be captured during `/speckit.plan` when 008 enters its next iteration.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 9 (alignment).
 
 **Independent Test**: Create a slot as an inspector for tomorrow 9-12. List via `GET /v1/availability-slots`. Patch the capacity to 2. Confirm persistence and audit.
 
@@ -115,10 +139,21 @@ An AM or OP deactivates an inspector that is no longer working for the platform.
 ### User Story 6 — Inspector views their daily schedule (PWA)
 
 - **Priority**: P1
-- **Status**: IMPLEMENTED
-- **Source**: code
+- **Status**: IMPLEMENTED (Feedback Round 2026-04-13 item 2 adds 2 display fields to the schedule-date view — no new endpoints, no new business logic)
+- **Source**: code + approved feedback round
 
 An inspector opens the PWA and sees appointments assigned to them for a given date (or the next N days). The list respects the **T-1 visibility rule**: `ROUTINE` appointments whose tenant confirmation is still `PENDING` and which do not have `keyRequired` are hidden on the day-of and day-before, to protect inspectors from showing up to an unconfirmed property. `INGOING`/`OUTGOING` appointments are always visible when `SCHEDULED`. Appointments with `UNAVAILABLE` tenant confirmation are permanently hidden.
+
+**Feedback Round 2026-04-13 — item 2 (schedule date view extras)** — APPROVED:
+
+Each appointment block in `PWA > Schedule > Date` MUST display:
+
+1. **The agency name** (i.e., `tenant.name` of the appointment's owning tenant). Source of truth is the existing `Tenant.name` column; no new data persistence. The `/v1/inspector/schedule` response MUST include this field (either pre-joined or via a lightweight include) — see FR-022 addition below.
+2. **A key icon** next to the appointment block when `appointment.key_required = true`. Same as the existing flag on the model; no new data persistence. The schedule response MUST include `keyRequired` in each row.
+
+This is a display-only delta. The T-1 rule, authorization, and the existing FRs for this US are unchanged.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 2.
 
 **Why this priority**: This is the inspector's primary daily tool. Without it, they cannot plan routes or start work.
 
@@ -134,6 +169,71 @@ An inspector opens the PWA and sees appointments assigned to them for a given da
 6. **Given** any appointment with `tenantConfirmationStatus = UNAVAILABLE`, **When** loaded, **Then** it is hidden.
 7. **Given** a non-INSP actor, **When** they call the schedule endpoint, **Then** the request is rejected with `FORBIDDEN`.
 8. **Given** any INSP actor, **When** they call `GET /v1/inspector/appointments/:appointmentId`, **Then** the detailed view is returned (bypasses T-1 — the inspector already has the id).
+
+---
+
+### User Story 6a — Inspector views job details (PWA)
+
+- **Priority**: P1 (added by Feedback Round 2026-04-13, item 3)
+- **Status**: NEW — pending planning
+- **Source**: approved feedback round
+
+After tapping an appointment in their schedule, the inspector lands on a `PWA > Schedule > Job Details` screen that consolidates every piece of context they need to arrive, execute, and contact the right people. Today's job-details view is a thin placeholder; this round turns it into the main operational surface for the inspector between "I accepted this job" and "I press Start."
+
+**Why this priority**: this screen is the single biggest time-saver for inspectors in the field. Scattering the information across multiple tabs or external documents adds friction and error risk.
+
+**Independent Test**: Seed a `SCHEDULED` appointment with: a tenant, a non-empty primary contact (linked via feature 021 contact registry), `keyRequired = true`, a key-pickup address, a property manager contact (`appointment_contacts` junction row with `role = PROPERTY_MANAGER`), a price snapshot, and a configured inspection-app URL. As the INSP actor, call `GET /v1/inspector/appointments/:id`. Verify every Job Details section is present in the response with the expected shape.
+
+**Contact resolution (feature 021 architectural revision)**:
+
+- **`tenantContacts`**: resolved from `appointment_contacts` junction rows where `role != PROPERTY_MANAGER` and `role != BROKER`. The response uses **snapshot fields** (`snapshot_name`, `snapshot_email`, `snapshot_phone`) for tenant-type contacts — the inspector needs the data as it was when the appointment was created, consistent with notifications sent. Primary contact first, then insertion order.
+- **`propertyManager`**: resolved from the `appointment_contacts` junction row with `role = PROPERTY_MANAGER`. For this section, the response uses **live data from the `contacts` registry** (via `contact_id` JOIN) — the inspector needs the PM's current phone number to call them on the way to the property. If `contact_id IS NULL` (legacy row), fall back to snapshot fields. The response includes `displayName`, `primaryEmail`, `primaryPhone`, and `company` from the registry.
+
+**Acceptance Scenarios**:
+
+1. **Given** an INSP actor assigned to the appointment, **When** they request job details, **Then** the response includes a `jobDetails` payload with 7 sections: `agency`, `tenantContacts`, `keys`, `keyLocation`, `propertyManager`, `payment`, `inspectionAppLink`.
+2. **Given** `appointment.key_required = true` and a populated `key_location` (address/coordinates), **When** job details are fetched, **Then** the `keys` section includes a `mapLinkUrl` that opens in the platform's native map app (Google Maps / Apple Maps deep link).
+3. **Given** an appointment with multiple tenant contacts (via feature 021 junction), **When** job details are fetched, **Then** the `tenantContacts` section returns an ordered list with the primary contact first, each entry carrying the snapshot name, snapshot email, and snapshot phone.
+4. **Given** an appointment with a property manager contact (junction row with `role = PROPERTY_MANAGER` and a non-null `contact_id`), **When** job details are fetched, **Then** the `propertyManager` section includes the **live** PM name, email, phone, and company from the `contacts` registry.
+5. **Given** an appointment with a pricing snapshot, **When** job details are fetched, **Then** the `payment` section shows the inspector's payout amount and currency — NOT the tenant price.
+6. **Given** a tenant that has a configured inspection-app URL (third-party app link), **When** job details are fetched, **Then** the `inspectionAppLink` section returns the URL and a human-readable label for a deep-link action in the PWA.
+7. **Given** an appointment without an inspection-app URL configured, **When** job details are fetched, **Then** the `inspectionAppLink` section is omitted (not `null`) and the PWA hides the affordance.
+
+**Scope boundary — OUT OF SCOPE for this round**:
+
+- **Per-agency / per-broker login credentials** (username + password for the inspector to log into the third-party system). This was explicitly asked for and explicitly deferred. See `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → OQ-1 (`pending decision`). The PWA MUST NOT surface any credential management until OQ-1 is resolved. A future spec revision will re-introduce this once the product decision lands.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 3 + OQ-1.
+
+---
+
+### User Story 6b — Inspector generates a draft invoice from the PWA
+
+- **Priority**: P2 (added by Feedback Round 2026-04-13, item 5)
+- **Status**: NEW — pending planning
+- **Source**: approved feedback round
+
+From the `PWA > Earnings > Draft Invoice > Select period` surface, an inspector picks a period (start + end date), previews the inspector-payout financial entries that fall in that window, and generates a draft `InspectorInvoice` which is then sent to admin for review. This is a PWA-initiated variant of an invoice flow that today only admin can drive (feature 010).
+
+**Why this priority**: unblocks the inspector from having to email admin every period. Aligns with item 5 of the feedback round without introducing any new external financial integration.
+
+**Independent Test**: As an INSP, seed three approved `INSPECTOR_PAYOUT` financial entries in the last 30 days for your inspector id. Call `POST /v1/inspector/invoices/draft` with `{ periodStart, periodEnd }`. Verify an `InspectorInvoice` row is created in the new `PENDING_REVIEW` status with the correct totals and audit entry. Verify admin can then approve/reject the draft via the existing billing module.
+
+**Acceptance Scenarios**:
+
+1. **Given** an INSP actor, **When** they `POST /v1/inspector/invoices/draft` with a valid period that contains at least one `APPROVED` `INSPECTOR_PAYOUT` financial entry assigned to the caller's inspector id, **Then** an `InspectorInvoice` is created with the aggregated total, currency, period, the list of included entry ids, and `status = PENDING_REVIEW`.
+2. **Given** a period with zero eligible entries, **When** the draft is requested, **Then** the request fails with `INVOICE_EMPTY_PERIOD` (do not create an empty draft).
+3. **Given** a period that overlaps an existing non-`REJECTED`, non-`CANCELLED` inspector invoice, **When** the draft is requested, **Then** the request fails with `INVOICE_PERIOD_OVERLAP` — the inspector must not create duplicate drafts.
+4. **Given** a successfully generated draft, **When** admin lists inspector invoices with `status = PENDING_REVIEW`, **Then** the new row appears and is actionable via the existing admin approve / reject flow (see feature 010).
+5. **Given** a non-INSP actor, **When** the draft endpoint is called, **Then** the request is rejected with `FORBIDDEN`.
+6. **Given** an INSP actor without `inspectorId` linked on the token, **When** the draft endpoint is called, **Then** the request fails with `INSPECTOR_NOT_LINKED`.
+
+**Scope boundary — what this is NOT**:
+- Not a payment execution path. The draft is a **review artifact**, not a transfer. Admin still owns the approval and eventual `PAID` marking.
+- Not a new ledger model. The financial entries already exist in feature 010; this round only gives the inspector a way to roll them up into a draft invoice.
+- Not an external finance/gateway integration. Zero new third-party calls.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 5.
 
 ---
 
@@ -228,12 +328,14 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 #### Inspector entity
 
-- **FR-001**: System MUST allow AM and OP to create, read, update, and deactivate inspectors. OP is scoped to inspectors eligible for their own tenant (via `clientEligibilityJson`).
+- **FR-001**: System MUST allow AM and OP to create, read, update, and deactivate inspectors. OP is scoped to inspectors eligible for their own tenant (per the block-list model — see FR-006a).
 - **FR-002**: System MUST enforce global uniqueness of `inspectors.email`.
 - **FR-003**: System MUST support linking an inspector 1:1 to a user account via `POST /v1/inspectors/:id/link-user`. The target user MUST have role `INSP`.
 - **FR-004**: System MUST block inspector deactivation if the inspector is assigned to any open appointment (checked via `IInspectorAppointmentChecker`).
 - **FR-005**: System MUST audit every inspector create, update, link, and deactivate.
-- **FR-006**: System MUST persist `payment_settings_json`, `service_types_json`, `client_eligibility_json`, and `regions_json` on the inspector row. `client_eligibility_json` and `service_types_json` drive marketplace filtering (`IMPLEMENTED`). `regions_json` is a **legacy/transitional field** (`implementation decision` — the canonical source for region coverage is the `inspector_regions` join table linked to tenant-scoped `ServiceRegion` rows; see GAP-002). `regions_json` should be treated as a denormalized cache or removed once GAP-002 lands.
+- **FR-006**: System MUST persist `payment_settings_json`, `service_types_json`, and `regions_json` on the inspector row. `service_types_json` drives marketplace filtering (`IMPLEMENTED`). `regions_json` is a **legacy/transitional field** (`implementation decision` — the canonical source for region coverage is the `inspector_regions` join table linked to tenant-scoped `ServiceRegion` rows; see GAP-002). `regions_json` should be treated as a denormalized cache or removed once GAP-002 lands.
+- **FR-006a** (Feedback Round 2026-04-13 item 1, NEW, pending planning): System MUST persist `blocked_clients_json` — an array of tenant ids that the inspector is explicitly **blocked from**. Default is the empty array, meaning the inspector is eligible for all tenants. Marketplace filtering MUST treat absence from this list as eligibility. The previous `client_eligibility_json` field is deprecated; the migration-phase of the next plan MUST compute `blocked_clients_json` as the complement of the old eligible list against the currently active tenant set, for every existing inspector. The admin UI on `New Inspector` / `Edit Inspector` MUST render a **multi-select dropdown** of tenants for this field (not the previous checkbox list of eligible clients).
+- **FR-006b** (Feedback Round 2026-04-13 item 6, NEW, pending planning): System MUST persist additional inspector profile fields: `full_name`, `address`, `abn`, `date_of_birth`, `insurance_file_key`, `insurance_expires_at`, `police_check_file_key`, `police_check_expires_at`. The two file_key columns MUST reference files stored via the existing presigned-upload pipeline (Supabase Storage, same bucket used for inspection assets or a new dedicated `inspector-documents` bucket — naming decision is part of the next plan, not part of spec scope). **Obligation levels are `OPEN QUESTION — OQ-2`** — the spec persists and validates structurally; `nullable` vs `required` is not decided here. **Expiration behavior is `OPEN QUESTION — OQ-3`** — the dates are stored and queryable; the operational consequences (block assignment, notify operator, auto-deactivate, etc.) are deferred.
 
 #### Availability slots
 
@@ -250,6 +352,8 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
   - `tenantConfirmationStatus = CONFIRMED` — always visible.
   - `tenantConfirmationStatus = UNAVAILABLE` — always hidden.
   - `ROUTINE + PENDING + !keyRequired` — hidden on the day-of and day-before; visible T-2 and beyond.
+- **FR-022** (Feedback Round 2026-04-13 item 2, NEW, pending planning): The `GET /v1/inspector/schedule` response MUST include `agencyName` (joined from `tenants.name` via `appointments.tenant_id`) and `keyRequired` on each row. These are display-only fields; the T-1 rule and authorization are unchanged. The PWA schedule date view consumes both fields and renders a key icon when `keyRequired = true`.
+- **FR-023** (Feedback Round 2026-04-13 item 3, NEW, pending planning): The `GET /v1/inspector/appointments/:id` response MUST include a `jobDetails` payload with 7 structured sections: `agency` (tenant name + id), `tenantContacts` (ordered list including primary + any additional contacts per feature 006 FR-004a — see item 4), `keys` (key_required flag + key_location description), `keyLocation` (address + optional coordinates + platform-specific map link), `propertyManager` (name + email + phone + optional agency reference), `payment` (inspector payout amount + currency from the appointment's pricing snapshot — NOT the tenant price), and `inspectionAppLink` (deep-link URL and label when configured for the tenant; field omitted entirely when not configured). **Per-agency login credentials are explicitly out of scope** — see OQ-1.
 
 #### Start inspection
 
@@ -280,11 +384,24 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-056**: System MUST route the `SCHEDULED → DONE` transition through `ExecuteStatusTransitionUseCase` — never via direct DB write. This preserves state-machine sovereignty.
 - **FR-057**: System MUST NOT create financial entries on finish. Financial entries wait for operator cross-check (feature 006).
 
+#### PWA Earnings — inspector-initiated invoice draft
+
+- **FR-060** (Feedback Round 2026-04-13 item 5, NEW, pending planning): System MUST expose `POST /v1/inspector/invoices/draft` to INSP actors, accepting a `{ periodStart, periodEnd }` payload. **Ownership split** (planner-critical): the HTTP route and its Fastify handler live under `apps/backend/src/modules/inspector/interfaces/http/` (feature 008 surface), but the domain use case — `DraftInspectorInvoiceUseCase` — MUST live under `apps/backend/src/modules/billing/application/use-cases/` (feature 010 domain). The 008 handler is a **thin delegation**: validate JWT → resolve `inspectorId` → call the billing use case → map the result to the HTTP response. All invoice-shape logic (period aggregation, overlap detection, status assignment, audit emission) lives in billing; 008 owns only the INSP-specific HTTP surface and the INSP actor gate. The created invoice row uses the new `PENDING_REVIEW` status (feature 010 FR-064) and carries the inspector id derived from the JWT. No cross-inspector drafts.
+- **FR-061**: The draft endpoint MUST fail with `INVOICE_EMPTY_PERIOD` when the window contains zero eligible `INSPECTOR_PAYOUT` financial entries, and with `INVOICE_PERIOD_OVERLAP` when the window overlaps an existing non-`REJECTED`, non-`CANCELLED` inspector invoice for the same inspector. The overlap check MUST cover both `PENDING_REVIEW` and `APPROVED` / `PAID` invoices.
+- **FR-062**: The draft endpoint MUST write a `inspector_invoice.drafted` audit entry that captures the inspector id, period, total, and the list of included financial entry ids.
+- **FR-063**: The admin-side approve/reject flow for inspector invoices lives entirely in feature 010 — see feature 010 FR-066 (`POST /v1/invoices/:invoiceId/approve-draft`) and feature 010 FR-067 (`POST /v1/invoices/:invoiceId/reject-draft`). Feature 008 does NOT expose an admin-side surface for inspector invoices; the PWA only owns the draft-creation entry point.
+
 #### Cross-cutting
 
 - **FR-070**: System MUST audit every execution write (`inspection_execution.started`, `inspection_execution.finished`) and add a mirror entry on the appointment timeline.
 - **FR-071**: System MUST validate all payloads via Zod schemas in `packages/shared/src/schemas/{inspector,inspector-execution}.ts`.
 - **FR-072**: System MUST expose `GET /v1/inspector/offers` as a PWA-convenience alias for the marketplace list (delegates to feature 005).
+
+#### Inherited UX patterns (Feedback Round 2026-04-13, sanity-check corrective pass)
+
+- **FR-019b (pencil removal when duplicated with eye)**: the admin Inspectors list row exposes a single "view" action (eye) that opens the detail drawer where edit lives as a secondary affordance. The row-level "edit" (pencil) action MUST NOT be rendered. Inherited transversally from feature 014 FR-019b — no per-spec override.
+
+> **Feedback Round 2026-04-13** — see `specs/feedback-rounds/2026-04-13-customer-feedback-round-1.md` → item 11 (pencil removal).
 
 ### Non-Functional Requirements
 
@@ -295,7 +412,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 ### Key Entities
 
-- **Inspector** — `id`, optional `user_id` (1:1 for PWA login), name, email (unique), phone, `status`, `payment_settings_json`, `regions_json` (**legacy/transitional** — canonical source is `inspector_regions`; see GAP-002), `service_types_json`, `client_eligibility_json` (`IMPLEMENTED` — drives marketplace filtering), timestamps + soft delete.
+- **Inspector** — `id`, optional `user_id` (1:1 for PWA login), name, email (unique), phone, `status`, `payment_settings_json`, `regions_json` (**legacy/transitional** — canonical source is `inspector_regions`; see GAP-002), `service_types_json`, `client_eligibility_json` (**DEPRECATED by Feedback Round 2026-04-13 item 1**, replaced by `blocked_clients_json`), `blocked_clients_json` (Feedback Round 2026-04-13 item 1, NEW — array of tenant ids the inspector is blocked from; empty = fully eligible), profile fields (Feedback Round 2026-04-13 item 6, NEW — `full_name`, `address`, `abn`, `date_of_birth`), compliance-document fields (Feedback Round 2026-04-13 item 6, NEW — `insurance_file_key`, `insurance_expires_at`, `police_check_file_key`, `police_check_expires_at`), timestamps + soft delete. Obligation levels on the new profile + compliance fields are **OQ-2**; expiration lifecycle is **OQ-3**.
 - **InspectorAvailabilitySlot** — declared time slots per inspector, with optional `region_json` hint (`implementation decision` — transitional; the canonical direction is to align slot regions with tenant-scoped `ServiceRegion` once GAP-002 lands) and capacity (not yet wired to booking — GAP-003).
 - **InspectionExecution** — one per appointment; `started_at`, `finished_at`, start/finish coordinates (decimal 10,7), `checklist_json`, `notes`.
 - **InspectionAsset** — photos, documents, signatures. Tied to execution and appointment. Includes `storage_key` (unique), `mime_type`, `kind`, `status`, `upload_expires_at`.

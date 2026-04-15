@@ -1,180 +1,134 @@
----
-description: "Implementation and backlog tracking for Tenant Portal"
----
+# Tasks: 007-tenant-portal (Feature 021 Contact Integration Delta)
 
-# Tasks: Tenant Portal
+**Input**: `specs/007-tenant-portal/spec.md`, `plan.md`
+**Prerequisites**: Feature 021-contacts IMPLEMENTED. Feature 006-appointments IMPLEMENTED (junction + snapshot). plan.md rewritten 2026-04-12.
+**Tests**: Mandatory — TDD per constitution Principle III.
 
-**Input**: [`spec.md`](./spec.md), [`plan.md`](./plan.md), [`data-model.md`](./data-model.md), [`contracts/`](./contracts/)
-**Tests**: Required per constitution Principle III. Raw-token leakage and DST correctness are the highest-risk surfaces.
-**Organization**: Two sections — Baseline Implemented (shipped) and Open Backlog (Phase 2/3).
+**Scope**: ONLY the delta from the 021 architectural revision. The core portal lifecycle (token generation, confirm, reschedule, unavailability, activities, rate limiting, DST) is already shipped with exhaustive tests (175 unit + 8 integration). This file tracks the contact integration delta, not the full portal module.
 
-## Format
+## Format: `[ID] [P?] [Story?] Description`
 
-- `[x]` shipped; `[ ]` open.
-- `[P]` may run in parallel.
-- `[Story]` maps to a user story in `spec.md` (US1–US6) or a `GAP-xxx`.
+- **[P]**: Can run in parallel (different files, no dependency on incomplete tasks)
+- **[Story]**: Maps to US5 (contact update) from spec.md
+- Exact file paths included
 
 ---
 
-# SECTION 1 — Baseline Implemented
+## Phase 1: Backend — Field Alignment + Dual-Write Verification
 
-> Already done on the active branch. Do not reimplement.
+**Purpose**: Fix the one use case still reading legacy contact fields. Add integration tests for the dual-write path that was implemented in 021 but lacks dedicated test coverage in the portal context.
 
-## Setup & Foundational (shipped)
+**Critical path**: Phase 2 depends on Phase 1 completion.
 
-- [x] T001 Prisma schema: `TenantPortalToken`, `TenantPortalActivity`, `TenantPortalTokenStatus`, `TenantPortalAction`.
-- [x] T002 Shared Zod schemas in `packages/shared/src/schemas/tenant-portal.ts`.
-- [x] T003 Domain entities (`TenantPortalTokenEntity`, `TenantPortalActivityEntity`) and typed errors.
-- [x] T004 `TokenService` with `generateRawToken`, `hashToken`, `computeExpiresAt` (DST-aware).
-- [x] T005 Domain ports `ITenantPortalTokenRepository`, `ITenantPortalActivityRepository`.
-- [x] T006 Prisma adapters for both repositories.
-- [x] T007 Portal token middleware (`createPortalTokenMiddleware`) auto-expiring tokens on access.
-- [x] T008 `expire-tokens.worker.ts` pg-boss scheduled sweep.
+### Field alignment
 
-## US1 — Generate portal token (shipped)
+- [x] T001 [US5] Revise **two use cases** to read effective accessors instead of legacy fields:
+  **(a) `get-portal-data.use-case.ts`** (portal GET response): change `contact.tenantName` → `contact.effectiveName`, `contact.primaryEmail` → `contact.effectiveEmail`, `contact.primaryPhone` → `contact.effectivePhone`. Keep serialized key names unchanged (`tenantName`, `primaryEmail`, `primaryPhone`) so the API response shape doesn't break frontend consumers. Keep `contact.secondaryEmail` and `contact.secondaryPhone` as-is (legacy, no effective accessor).
+  **(b) `update-contact.use-case.ts`** (portal UPDATE return value, lines ~196-212): the return statement has fallback reads like `contact?.tenantName ?? null` and `contact?.primaryEmail ?? null` for fields the renter did NOT update. Change these fallbacks to: `contact?.effectiveName ?? null`, `contact?.effectiveEmail ?? null`, `contact?.effectivePhone ?? null`. The input-derived branches (`input.contact.primaryEmail !== undefined ? input.contact.primaryEmail : ...`) are correct and don't change — only the else-branch fallback reads need the fix. Keep `secondaryEmail`/`secondaryPhone` fallbacks as-is (legacy).
 
-- [x] T010 [US1] `GeneratePortalTokenUseCase` with AM/OP guard, revoke-existing, hash-only storage, expiry computation, notification enqueue.
-- [x] T011 [US1] Route `POST /v1/appointments/:appointmentId/portal-token`.
-- [x] T012 [US1] Unit tests including notification enqueue assertions.
-- [x] T013 [US1] Integration tests covering revoke-existing behavior.
+### Dual-write code verification (no code change expected)
 
-## US2 — Get portal data (shipped)
+- [x] T002 [US5] **VERIFY ONLY** — Read `apps/backend/src/modules/tenant-portal/application/use-cases/update-contact.use-case.ts` and confirm the following are all present: (a) step 5 writes legacy fields via `appointmentRepo.updateContact()`, (b) step 5b writes snapshot fields via `appointmentRepo.updateContactSnapshot()`, (c) step 5c writes to contact registry via `contactRepo.update()` when `contact.contactId IS NOT NULL`, (d) on `ContactEmailAlreadyExistsError`, the registry write is skipped silently and `contact.portal_update_skipped_conflict` audit is emitted, (e) when `contact_id IS NULL` (legacy row), only steps 5 + 5b execute (no registry write attempted). If any of these are missing → fix. If all present → mark as verified, no code change.
 
-- [x] T020 [US2] `GetPortalDataUseCase` returning appointment summary, agency, property, contact, restrictions, confirmation status.
-- [x] T021 [US2] Route `GET /v1/tenant-portal/:token` with middleware and 30/min rate limit.
-- [x] T022 [US2] Integration test exercising ACTIVE → EXPIRED auto-transition.
-- [x] T023 [US2] Integration test for REVOKED and INVALID token error paths.
+- [x] T003 [US5] **VERIFY ONLY** — Read `apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts` and confirm it already uses `result.contact.effectiveName`, `result.contact.effectiveEmail`, `result.contact.effectivePhone` for notification recipient resolution. This was done in 021 Phase 3 — verify it's still correct. No code change expected.
 
-## US3 — Confirm appointment (shipped)
+### Integration tests (NEW)
 
-- [x] T030 [US3] `ConfirmAppointmentUseCase` with read-only guard, idempotency, stale-restriction replacement, activity + audit, fire-and-forget notification.
-- [x] T031 [US3] Route `POST /v1/tenant-portal/:token/confirm`.
-- [x] T032 [US3] Unit tests including the idempotent re-call.
-- [x] T033 [US3] Integration test asserting `actorType = ANONYMOUS` audit record.
+- [x] T004 [US5] Write route-level test (mock container pattern, matching existing `tenant-portal.routes.test.ts` structure) for portal dual-write in `apps/backend/tests/integration/tenant-portal/portal-contact-dual-write.test.ts`. Cases:
+  - (a) **Snapshot updated**: mock `findById` returns appointment with contact that has `contact_id = 'c1'`. Call `updateContact` with new `primaryEmail`. Assert `updateContactSnapshot` was called with new `snapshotEmail`.
+  - (b) **Registry updated**: same setup. Assert `contactRepo.update` was called with the new `primaryEmail`.
+  - (c) **Email conflict → registry skipped**: mock `contactRepo.existsByEmail` to return `true` (conflict). Call update. Assert `updateContactSnapshot` was still called (snapshot updates). Assert `contactRepo.update` was NOT called. Assert audit `contact.portal_update_skipped_conflict` was emitted.
+  - (d) **Legacy row (contact_id = NULL)**: mock `findById` returns contact with `contactId = null`. Call update. Assert `updateContactSnapshot` was called. Assert `contactRepo.update` was NOT called (no registry write for legacy rows).
+  - (e) **Token survives contact update**: call `updateContact`, then call the portal GET. Assert GET still returns 200 (token not invalidated by contact change).
+  Minimum 5 cases.
 
-## US4 — Reschedule request (shipped)
+- [x] T005 [P] [US5] Write route-level test for snapshot immutability across appointments in `apps/backend/tests/integration/tenant-portal/portal-contact-snapshot-immutability.test.ts` — **Note**: this tests the 021 snapshot immutability invariant in the portal context, not a portal-only flow. The portal only touches appointment A's snapshot; B's snapshot is structurally untouched by design. Setup: two appointments (A and B) linked to the same registry contact. Update contact via portal for appointment A. Assert: (a) appointment A's snapshot is updated, (b) appointment B's snapshot is unchanged (frozen at link time), (c) the registry contact reflects the new value. Minimum 2 cases.
 
-- [x] T040 [US4] `RescheduleRequestUseCase` with ROUTINE-only guard, inspection-in-progress guard, past-date guard, 30-day window guard, confirmation reset, token revocation cascade.
-- [x] T041 [US4] Route `POST /v1/tenant-portal/:token/reschedule`.
-- [x] T042 [US4] Unit tests for every rejection branch.
-- [x] T043 [US4] Integration test asserting the reschedule revokes all tokens for the appointment.
+### Existing test suite verification
 
-## US5 — Update contact (shipped)
+- [x] T006 Run existing portal unit tests: `pnpm --filter backend test tests/unit/tenant-portal/` — must pass (175 tests). This verifies no regression from T001.
 
-- [x] T050 [US5] `UpdateContactUseCase` with at-least-one-field guard.
-- [x] T051 [US5] Route `PATCH /v1/tenant-portal/:token/contact`.
-- [x] T052 [US5] Tests including the empty-after-update rejection.
+- [x] T007 Run existing portal integration tests: `pnpm --filter backend test tests/integration/tenant-portal/` — must pass (8+ tests). This verifies existing portal flows still work after the field rename.
 
-## US6 — Report unavailability (shipped)
-
-- [x] T060 [US6] `ReportUnavailabilityUseCase`.
-- [x] T061 [US6] Route `POST /v1/tenant-portal/:token/unavailable`.
-- [x] T062 [US6] Tests.
-
-## Frontend (shipped)
-
-- [x] T090 Web pages under `apps/web/src/features/tenant-portal/` — renter-facing, no JWT, consumes token from URL.
-- [x] T091 Components and hooks for confirm / reschedule / contact update / unavailability flows.
-- [x] T092 Component tests.
-
-## Cross-cutting (shipped)
-
-- [x] T095 Container wiring injecting all ports plus `CreateNotificationUseCase` for link delivery.
-- [x] T096 Rate limit plugin applied per-endpoint (30/min).
+**Checkpoint**: `pnpm typecheck && pnpm --filter backend test` green. Portal GET returns effective contact data under the same serialized key names. Dual-write integration tests pass. Existing 175 + 8 tests pass.
 
 ---
 
-# SECTION 2 — Open Backlog
+## Phase 2: Frontend — Verify Contact Display
 
-> Only pick up work from this section. Every task must follow TDD and produce an audit record on write paths.
+**Purpose**: Confirm the portal frontend React components still render correctly after the backend field alignment. Since T001 preserves the serialized key names (`tenantName`, `primaryEmail`, etc.), zero frontend changes are expected.
 
-## Phase 2 — Gap closure
+- [x] T008 [US5] **VERIFY ONLY** — Read `apps/web/src/features/tenant-portal/components/ContactForm.tsx` and confirm it reads `contact.tenantName`, `contact.primaryEmail`, `contact.secondaryEmail`, `contact.primaryPhone`, `contact.secondaryPhone` from the API response. Since T001 preserves these key names (only the backend source accessor changed, not the serialized key), no frontend code change is expected. If key names DID change → update the component. Mark as verified.
 
-### GAP-001 — Formal reschedule handoff with feature 006
+- [x] T009 [US5] **VERIFY ONLY** — Read `apps/web/src/features/tenant-portal/pages/PortalPage.tsx` and verify the portal data response is consumed correctly. Check that the contact section displays `tenantName`, `primaryEmail`, `primaryPhone`. No change expected.
 
-- [ ] T100 [GAP-001] Mirror of 006#GAP-003 — land in the same PR.
-- [ ] T101 [GAP-001] Expose `RescheduleAppointmentFromPortalUseCase` from feature 006 that writes `scheduledDate`, `timeSlot`, and resets `tenantConfirmationStatus`.
-- [ ] T102 [GAP-001] Migrate `RescheduleRequestUseCase` to call the new entry point instead of writing through `IAppointmentRepository` directly.
-- [ ] T103 [GAP-001] Tests covering the full round-trip.
+- [x] T010 Run frontend portal tests: `pnpm --filter web test -- src/features/tenant-portal/` — must pass. This verifies the portal UI still renders correctly.
 
-### GAP-002 — Domain events for portal actions
+**Checkpoint**: Portal frontend passes all tests. Renter sees correct contact info. Zero frontend changes needed (verified).
 
-- [ ] T110 [GAP-002] Depends on 002#GAP-005 (event bus).
-- [ ] T111 [GAP-002] Emit `tenant_portal.confirmed.v1`, `tenant_portal.rescheduled.v1`, `tenant_portal.contact_updated.v1`, `tenant_portal.unavailable.v1` after successful writes.
-- [ ] T112 [GAP-002] Migrate feature 009-notifications from the inline `onNotificationHandler` to event subscription.
-- [ ] T113 [GAP-002] Tests.
+---
 
-### GAP-003 — Token replay detection / single-use mutations
+## Phase 3: Verification
 
-- [ ] T120 [GAP-003] Decision: mark tokens as single-use after a successful mutation, or add per-token rate limit.
-- [ ] T121 [GAP-003] Implement the chosen strategy with Prisma migration if needed.
-- [ ] T122 [GAP-003] Tests covering the single-use / rate-limit semantics.
+**Purpose**: Full-suite verification across all workspaces.
 
-### GAP-004 — Auto-generate new token on reschedule
+- [x] T011 Run `pnpm typecheck` across all workspaces — must pass
+- [x] T012 Run `pnpm --filter backend test` — all tests pass (including new dual-write tests from T004-T005)
+- [x] T013 Run `pnpm --filter web test` — all tests pass
+- [x] T014 Verify no new Prisma migration needed — `npx prisma validate` clean. No schema changes in this round (021 migration covers all).
+- [x] T015 Grep for remaining legacy field reads in portal use cases: `grep -rn 'contact\.tenantName\|contact\.primaryEmail\|contact\.primaryPhone' apps/backend/src/modules/tenant-portal/application/` — should return zero hits in `get-portal-data.use-case.ts` (only `effective*` accessors). Legacy reads in `update-contact.use-case.ts` are acceptable (they write to legacy columns during expand phase). Non-portal files are out of scope.
 
-- [ ] T130 [GAP-004] After a successful reschedule, call `GeneratePortalTokenUseCase` inline to issue a new token for the new date.
-- [ ] T131 [GAP-004] Return the new token in the reschedule response OR notify the renter via email/SMS with the new link (preferred).
-- [ ] T132 [GAP-004] Tests.
+**Checkpoint**: Feature 007 contact integration delta complete. All verifications pass.
 
-### GAP-005 — Portal activity export endpoint
+---
 
-- [ ] T140 [GAP-005] `ListPortalActivitiesUseCase` for AM/OP scoped by tenant.
-- [ ] T141 [GAP-005] Route `GET /v1/appointments/:appointmentId/portal-activities`.
-- [ ] T142 [GAP-005] Web UI in the appointment detail page.
-- [ ] T143 [GAP-005] Tests.
+## Residual Notes
 
-### GAP-006 — Web UX for EXPIRED tokens
+### What is NOT in this task list
 
-- [x] T150 [GAP-006] Backend: add `isExpired` and `canRequestNewLink` flags to `portalDataResponseSchema` and `GetPortalDataUseCase` response. Schema in `packages/shared/src/schemas/responses.ts`, use case in `apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-data.use-case.ts`.
-- [ ] T151 [GAP-006] Frontend: render a friendly "request a new link" CTA when `token.isExpired = true && token.canRequestNewLink = true`, distinct from the error page for revoked/invalid.
-- [ ] T152 [GAP-006] Trigger an operator notification via feature 009 when a renter clicks the CTA so the agency can resend.
+- **Contact registry CRUD** — feature 021 scope, done
+- **Appointment creation with contacts[]** — feature 006 scope, done
+- **Dual-write implementation** — already implemented in 021 closeout, only verified here
+- **Column drop** on `appointment_contacts` — expand/contract, separate migration later
+- **Notification fan-out** to all contacts — 006#GAP-011, deferred
+- **Portal token per secondary contact** — explicitly excluded in spec
+- **Portal redesign / multi-contact display** — portal shows primary contact only
+- **Portal confirm / reschedule / unavailability** — already implemented and tested in Phase 1
 
-### GAP-007 — Configurable cutoff per tenant
+### Classification of work
 
-- [ ] T160 [GAP-007] Depends on 002#GAP-002 (rich tenant settings).
-- [ ] T161 [GAP-007] Read `tenant.settings_json.portalCutoffTime` and `portalCutoffDaysBefore` in `TokenService.computeExpiresAt`; fall back to defaults when absent.
-- [ ] T162 [GAP-007] Tests with multiple tenant configurations.
+| Task | Nature | Code change? |
+|---|---|---|
+| T001 | Field rename (legacy → effective accessor) | ✅ Yes — ~5 lines |
+| T002 | Code verification (dual-write) | ❌ Read-only verification |
+| T003 | Code verification (token gen) | ❌ Read-only verification |
+| T004 | New integration test | ✅ Yes — new test file |
+| T005 | New integration test | ✅ Yes — new test file |
+| T006-T007 | Run existing tests | ❌ Execution only |
+| T008-T009 | Frontend verification | ❌ Read-only verification (likely zero changes) |
+| T010-T015 | Verification suite | ❌ Execution only |
 
-### GAP-008 — Configurable reschedule window per tenant
-
-- [ ] T170 [GAP-008] Depends on 002#GAP-002.
-- [ ] T171 [GAP-008] Read `tenant.settings_json.portalRescheduleWindowDays` in `RescheduleRequestUseCase`.
-- [ ] T172 [GAP-008] Tests.
-
-### GAP-009 — `last_accessed_at` telemetry dashboard
-
-- [x] T180 [GAP-009] Design document: `specs/007-tenant-portal/portal-telemetry-design.md` — defines metrics (M1-M5), SQL query patterns, XLSX export columns, summary card layout, and integration with feature 011-reports-audit as a `PORTAL_ENGAGEMENT` report type.
-- [ ] T181 [GAP-009] Add `PORTAL_ENGAGEMENT` to `ReportType` enum in `packages/shared`.
-- [ ] T182 [GAP-009] Implement `PortalEngagementReportWorker` with the SQL queries from the design doc.
-- [ ] T183 [GAP-009] Implement `GetPortalEngagementSummaryUseCase` for the dashboard summary card.
-- [ ] T184 [GAP-009] Tests for the report worker and summary use case.
-
-### GAP-010 — DST correctness tests
-
-- [ ] T190 [GAP-010] Add fixture-based tests for `TokenService.computeExpiresAt` covering both DST transitions for `Australia/Sydney` (April and October).
-- [ ] T191 [GAP-010] Optionally extend to Brazilian timezones as a secondary check.
-
-## Phase 3 — Polish & cross-cutting
-
-- [ ] T200 [P] Verify module coverage ≥ 80% with `pnpm --filter backend test -- --coverage`.
-- [ ] T201 [P] Grep CI: ensure no raw portal token ever appears in any log output, audit record, or error message.
-- [ ] T202 Confirm OpenAPI export reflects all six endpoints and the frontend client regenerates cleanly.
-- [ ] T203 Incremental supersede of legacy specs:
-  - Add a banner to `specs/backend/tenant-portal.spec.md` and `specs/web/tenant-portal.spec.md` marking them as SUPERSEDED once this feature is approved.
-  - Remove the legacy files only after the next feature migration cycle.
-- [ ] T204 Add a VIEW activity row on GET portal data (optional enhancement — captures engagement signals).
+**Summary**: 2 tasks produce new code (T001 field rename, T004-T005 tests). 3 tasks are read-only verification. 7 tasks are test execution / verification.
 
 ---
 
 ## Dependencies & Execution Order
 
-- **GAP-001** pairs with 006#GAP-003 and should land together.
-- **GAP-002** depends on 002#GAP-005 (event bus).
-- **GAP-007** and **GAP-008** depend on 002#GAP-002 (rich settings schema).
-- **GAP-004** should land before **GAP-003** so renters are not stranded by single-use rules without an automatic link refresh.
+### Phase Dependencies
 
-## Notes
+- **Phase 1 (Backend)**: No dependencies beyond 021/006 being done. **BLOCKS** Phase 2.
+- **Phase 2 (Frontend)**: Depends on Phase 1 (API response shape must be stable).
+- **Phase 3 (Verification)**: Depends on all previous phases.
 
-- Raw tokens must never appear in logs. Phase 3 task T201 enforces this via grep.
-- `actorType = ANONYMOUS` is unique to this feature. Downstream consumers (feature 011) must handle it.
-- Close each `GAP-xxx` by promoting in `spec.md` and updating `specs/GAPS.md`.
+### Critical Path
+
+```
+T001 (field rename) → T004-T005 (integration tests) → T006-T007 (existing test verification)
+→ T008-T009 (frontend verification) → T011-T015 (full verification)
+```
+
+### Parallel Opportunities
+
+- T002 and T003 (code verifications) can run in parallel with T001.
+- T004 and T005 (integration tests) can run in parallel with each other.
+- T008 and T009 (frontend verifications) can run in parallel.

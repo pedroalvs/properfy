@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentStatus, todayLocalDateString } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, todayLocalDateString } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -25,8 +25,17 @@ import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
 import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
-import type { AppointmentFormData, AppointmentFormErrors } from '../types';
-import { EMPTY_FORM_DATA } from '../types';
+import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
+import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
+
+const CONTACT_ROLE_OPTIONS = [
+  { value: AppointmentContactRole.TENANT, label: 'Tenant' },
+  { value: AppointmentContactRole.TENANT_REPRESENTATIVE, label: 'Tenant Representative' },
+  { value: AppointmentContactRole.HOUSEKEEPER, label: 'Housekeeper' },
+  { value: AppointmentContactRole.PROPERTY_MANAGER, label: 'Property Manager' },
+  { value: AppointmentContactRole.BROKER, label: 'Broker' },
+  { value: AppointmentContactRole.OTHER, label: 'Other' },
+];
 
 interface AppointmentFormDrawerProps {
   open: boolean;
@@ -113,6 +122,28 @@ export function AppointmentFormDrawer({
   // Populate form in edit mode
   useEffect(() => {
     if (isEditMode && appointment) {
+      // Build contacts array from new-shape or legacy fields
+      const contacts: ContactFormEntry[] =
+        appointment.contacts && appointment.contacts.length > 0
+          ? appointment.contacts.map((c) => ({
+              key: c.id ?? crypto.randomUUID(),
+              name: c.snapshotName ?? '',
+              email: c.snapshotEmail ?? '',
+              phone: c.snapshotPhone ?? '',
+              role: c.role ?? ('TENANT' as AppointmentContactRole),
+              isPrimary: c.isPrimary ?? false,
+            }))
+          : [
+              {
+                key: crypto.randomUUID(),
+                name: appointment.contactName ?? '',
+                email: appointment.contactEmail ?? '',
+                phone: appointment.contactPhone ?? '',
+                role: 'TENANT' as AppointmentContactRole,
+                isPrimary: true,
+              },
+            ];
+
       const data: AppointmentFormData = {
         branchId: appointment.branchId,
         propertyId: appointment.propertyId,
@@ -122,6 +153,7 @@ export function AppointmentFormDrawer({
         contactName: appointment.contactName,
         contactPhone: appointment.contactPhone ?? '',
         contactEmail: appointment.contactEmail ?? '',
+        contacts,
         keyRequired: appointment.keyRequired,
         meetingLocation: appointment.meetingLocation ?? '',
         keyLocation: appointment.keyLocation ?? '',
@@ -228,6 +260,47 @@ export function AppointmentFormDrawer({
     },
     [],
   );
+
+  const addContact = useCallback(() => {
+    setForm((prev) => ({
+      ...prev,
+      contacts: [...prev.contacts, createEmptyContact()],
+    }));
+  }, []);
+
+  const removeContact = useCallback((key: string) => {
+    setForm((prev) => {
+      const updated = prev.contacts.filter((c) => c.key !== key);
+      // If we removed the primary, make the first one primary
+      if (updated.length > 0 && !updated.some((c) => c.isPrimary)) {
+        const first = updated[0]!;
+        updated[0] = { key: first.key, name: first.name, email: first.email, phone: first.phone, role: first.role, isPrimary: true };
+      }
+      return { ...prev, contacts: updated };
+    });
+  }, []);
+
+  const updateContact = useCallback(
+    (key: string, field: keyof ContactFormEntry, value: string | boolean) => {
+      setForm((prev) => ({
+        ...prev,
+        contacts: prev.contacts.map((c) =>
+          c.key === key ? { ...c, [field]: value } : c,
+        ),
+      }));
+    },
+    [],
+  );
+
+  const setPrimaryContact = useCallback((key: string) => {
+    setForm((prev) => ({
+      ...prev,
+      contacts: prev.contacts.map((c) => ({
+        ...c,
+        isPrimary: c.key === key,
+      })),
+    }));
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     const mode = isEditMode ? 'edit' : 'create';
@@ -423,32 +496,80 @@ export function AppointmentFormDrawer({
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Tenant Contact" columns={2}>
-                    <FormField label="Tenant Name" required error={errors.contactName}>
-                      <TextInput
-                        value={form.contactName}
-                        onChange={(v) => updateField('contactName', v)}
-                        placeholder="Full name"
-                        error={!!errors.contactName}
-                        aria-label="Tenant Name"
-                      />
-                    </FormField>
-                    <FormField label="Phone" error={errors.contactPhone}>
-                      <PhoneInput
-                        value={form.contactPhone}
-                        onChange={(v) => updateField('contactPhone', v)}
-                        error={!!errors.contactPhone}
-                        aria-label="Phone"
-                      />
-                    </FormField>
-                    <FormField label="Email" error={errors.contactEmail}>
-                      <EmailInput
-                        value={form.contactEmail}
-                        onChange={(v) => updateField('contactEmail', v)}
-                        error={!!errors.contactEmail}
-                        aria-label="Email"
-                      />
-                    </FormField>
+                  <FormSection title="Contacts">
+                    {form.contacts.map((contact, idx) => (
+                      <div key={contact.key} className="rounded border border-black/10 p-4 mb-3">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-semibold text-secondary">
+                            Contact {idx + 1}
+                          </span>
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                              <input
+                                type="radio"
+                                name="primaryContact"
+                                checked={contact.isPrimary}
+                                onChange={() => setPrimaryContact(contact.key)}
+                                className="accent-primary"
+                              />
+                              <span className={contact.isPrimary ? 'font-semibold text-primary' : 'text-text-secondary'}>
+                                Primary
+                              </span>
+                            </label>
+                            {form.contacts.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeContact(contact.key)}
+                                className="text-error hover:text-error/80 text-sm font-medium"
+                                aria-label={`Remove contact ${idx + 1}`}
+                              >
+                                <i className="mdi mdi-close-circle-outline text-lg" aria-hidden="true" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <FormField label="Name" required error={errors.contacts?.[idx]?.name}>
+                            <TextInput
+                              value={contact.name}
+                              onChange={(v) => updateContact(contact.key, 'name', v)}
+                              placeholder="Full name"
+                              error={!!errors.contacts?.[idx]?.name}
+                              aria-label={`Contact ${idx + 1} Name`}
+                            />
+                          </FormField>
+                          <FormField label="Role" required error={errors.contacts?.[idx]?.role}>
+                            <SelectInput
+                              value={contact.role}
+                              onChange={(v) => updateContact(contact.key, 'role', v)}
+                              options={CONTACT_ROLE_OPTIONS}
+                              placeholder="Select role"
+                              aria-label={`Contact ${idx + 1} Role`}
+                            />
+                          </FormField>
+                          <FormField label="Email" error={errors.contacts?.[idx]?.email}>
+                            <EmailInput
+                              value={contact.email}
+                              onChange={(v) => updateContact(contact.key, 'email', v)}
+                              error={!!errors.contacts?.[idx]?.email}
+                              aria-label={`Contact ${idx + 1} Email`}
+                            />
+                          </FormField>
+                          <FormField label="Phone" error={errors.contacts?.[idx]?.phone}>
+                            <PhoneInput
+                              value={contact.phone}
+                              onChange={(v) => updateContact(contact.key, 'phone', v)}
+                              error={!!errors.contacts?.[idx]?.phone}
+                              aria-label={`Contact ${idx + 1} Phone`}
+                            />
+                          </FormField>
+                        </div>
+                      </div>
+                    ))}
+                    <Button variant="secondary" onClick={addContact}>
+                      <i className="mdi mdi-plus" aria-hidden="true" />
+                      Add Contact
+                    </Button>
                   </FormSection>
 
                   <FormSection title="Access & Key" columns={2}>

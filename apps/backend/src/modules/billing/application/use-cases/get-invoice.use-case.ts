@@ -40,8 +40,10 @@ export class GetInvoiceUseCase {
       throw new InvoiceNotFoundError();
     }
 
-    // 2. Scope check
-    if (actor.role === 'AM' || actor.role === 'OP') {
+    // 2. Scope check. Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13):
+    //    inspector invoices are not tenant-scoped, so cross-inspector access
+    //    is AM-only. OP loses access to inspector invoices by ID.
+    if (actor.role === 'AM') {
       // Full access
     } else if (actor.role === 'INSP') {
       if (!actor.inspectorId) {

@@ -1,180 +1,248 @@
----
-description: "Implementation and backlog tracking for Inspectors & Execution"
----
+# Tasks: 008-inspectors-execution (Feedback Round Deltas)
 
-# Tasks: Inspectors & Execution
+**Input**: `specs/008-inspectors-execution/spec.md`, `plan.md`, `data-model.md`
+**Prerequisites**: 021-contacts IMPLEMENTED. 006-appointments IMPLEMENTED. 007-tenant-portal IMPLEMENTED. plan.md rewritten 2026-04-14.
+**Tests**: Mandatory — TDD per constitution Principle III.
 
-**Input**: [`spec.md`](./spec.md), [`plan.md`](./plan.md), [`data-model.md`](./data-model.md), [`contracts/`](./contracts/)
-**Tests**: Required per constitution Principle III. Idempotency, T-1 rule consistency, and state transition correctness are the highest-risk surfaces.
-**Organization**: Two sections — Baseline Implemented (shipped) and Open Backlog (Phase 2/3).
+**Scope**: ONLY the feedback-round deltas (items 1, 2, 3, 5, 6). The core execution flow (start, finish, assets, T-1, idempotency) is already shipped. This file tracks extensions, not the full module.
 
-## Format
+**010 dependency**: `DraftInspectorInvoiceUseCase` and `PENDING_REVIEW` status do NOT exist in the billing module yet. Tasks that depend on 010 are marked explicitly. They can be implemented as stubs or deferred until 010 delivers.
 
-- `[x]` shipped; `[ ]` open.
-- `[P]` may run in parallel.
-- `[Story]` maps to a user story in `spec.md` (US1–US9) or a `GAP-xxx`.
+## Format: `[ID] [P?] [Story?] Description`
 
----
-
-# SECTION 1 — Baseline Implemented
-
-> Already done on the active branch. Do not reimplement.
-
-## Setup & Foundational (shipped)
-
-- [x] T001 Prisma schema: `Inspector`, `InspectorAvailabilitySlot`, `InspectionExecution`, `InspectionAsset`, plus enums.
-- [x] T002 Shared Zod schemas in `packages/shared/src/schemas/{inspector,inspector-execution}.ts`.
-- [x] T003 Domain entities and typed errors for both modules.
-- [x] T004 Domain ports `IInspectorRepository`, `IAvailabilitySlotRepository`, `IInspectorAppointmentChecker`, `IInspectionExecutionRepository`, `IInspectionAssetRepository`, `IStorageService`, `IServiceTypeReader`, `IIdempotencyService`.
-- [x] T005 Pure domain services `T1VisibilityService`, `InspectionTimeWindowService`, `allowed-mime-types.ts` matrix.
-- [x] T006 Prisma adapters for all ports + `SupabaseStorageService` and `StubStorageService`.
-- [x] T007 Background workers: `expire-assets.worker.ts`, `notify-stuck.worker.ts`.
-
-## US1–US5 — Inspector CRUD, slots, link, deactivate (shipped)
-
-- [x] T010 [US1] `CreateInspectorUseCase` with AM/OP guard, email uniqueness, region join population.
-- [x] T011 [US1] Route `POST /v1/inspectors`.
-- [x] T012 [US1] Unit + integration tests.
-- [x] T020 [US2] `GetInspectorUseCase`, `ListInspectorsUseCase`, `UpdateInspectorUseCase`.
-- [x] T021 [US2] Routes GET/PATCH.
-- [x] T030 [US3] `CreateAvailabilitySlotUseCase`, `ListAvailabilitySlotsUseCase`, `UpdateAvailabilitySlotUseCase` (flat + scoped routes).
-- [x] T031 [US3] Tests including INSP self-serve, AM/OP any-inspector.
-- [x] T040 [US4] `LinkInspectorToUserUseCase` with INSP-role guard and 1:1 uniqueness.
-- [x] T041 [US4] Route `POST /v1/inspectors/:id/link-user`.
-- [x] T050 [US5] `DeactivateInspectorUseCase` with `IInspectorAppointmentChecker` block, reason required, audit.
-- [x] T051 [US5] Route `POST /v1/inspectors/:id/deactivate`.
-- [x] T052 [US5] Test with real checker for the open-appointments block.
-
-## US6 — Inspector schedule with T-1 rule (shipped)
-
-- [x] T060 [US6] `GetInspectorScheduleUseCase` applying `T1VisibilityService` to filter the list.
-- [x] T061 [US6] `GetAppointmentDetailUseCase` for the detail view.
-- [x] T062 [US6] Routes `GET /v1/inspector/schedule`, `GET /v1/inspector/appointments/:appointmentId`.
-- [x] T063 [US6] Unit tests for `T1VisibilityService` covering every branch of the rule (ROUTINE/INGOING/OUTGOING × CONFIRMED/PENDING/UNAVAILABLE × keyRequired true/false × T-0/T-1/T-2).
-- [x] T064 [US6] Integration tests verifying the schedule endpoint honors the rule.
-
-## US7 — Start inspection (shipped)
-
-- [x] T070 [US7] `StartInspectionUseCase` with INSP guard, idempotency, T-1 rule, time-window rule, geolocation capture, audit.
-- [x] T071 [US7] Route `POST /v1/inspector/appointments/:id/start` requiring `Idempotency-Key`.
-- [x] T072 [US7] Unit tests for every error branch (T1 blocked, time window, missing key, wrong inspector, already finished).
-- [x] T073 [US7] Integration test for idempotent replay.
-
-## US8 — Asset upload (shipped)
-
-- [x] T080 [US8] `RequestAssetUploadUseCase` with MIME whitelist, 15 min TTL, presigned URL via storage port.
-- [x] T081 [US8] `ConfirmAssetUploadUseCase` verifying object existence in storage.
-- [x] T082 [US8] Routes `POST /v1/inspector/appointments/:id/assets`, `PATCH .../assets/:assetId/confirm`.
-- [x] T083 [US8] `expire-assets.worker.ts` reaping PENDING rows past TTL.
-- [x] T084 [US8] Unit tests for MIME matrix, ownership check, expiry.
-
-## US9 — Finish inspection (shipped)
-
-- [x] T090 [US9] `FinishInspectionUseCase` with execution validation, asset validation (min photos, signature check), checklist non-empty guard, state transition via feature 006.
-- [x] T091 [US9] Route `POST /v1/inspector/appointments/:id/finish` requiring `Idempotency-Key`.
-- [x] T092 [US9] Unit tests for every rejection branch.
-- [x] T093 [US9] Integration test asserting finish triggers `SCHEDULED → DONE` via `ExecuteStatusTransitionUseCase` and records `appointment.done_pending_crosscheck` (no financial entries created).
-- [x] T094 [US9] Integration test for idempotent replay within 24 h.
-
-## Cross-cutting (shipped)
-
-- [x] T095 `/v1/inspector/offers` alias route delegating to feature 005 `GetMarketplaceOffersUseCase`.
-- [x] T096 `notify-stuck.worker.ts` scheduled job surfacing started-but-not-finished executions.
-- [x] T097 Container wiring: inspector and inspector-execution modules, including cross-module ports to appointments, service types, storage, idempotency.
-- [x] T098 Web pages under `apps/web/src/features/inspectors/`.
-- [x] T099 PWA pages under `apps/pwa/src/features/{schedule,offers}/`.
+- **[P]**: Can run in parallel
+- **[Story]**: Maps to US1, US6, US6a, US6b from spec.md
+- **[DEP:010]**: Depends on feature 010 billing module delivering the draft invoice use case
 
 ---
 
-# SECTION 2 — Open Backlog
+## Phase 1: Schema + Shared + Domain Foundation
 
-> Only pick up work from this section. Every task must follow TDD.
+**Purpose**: Prisma migration (blocked_clients + profile fields), shared schemas, domain entity. MUST complete before any use case work.
 
-## Phase 2 — Gap closure
+**Critical path**: every subsequent phase depends on Phase 1.
 
-### GAP-001 — Geolocation verification at start
+### Prisma schema + migration
 
-- [ ] T100 [GAP-001] Depends on 003#GAP-003 (property PostGIS backfill).
-- [ ] T101 [GAP-001] Compute distance between the start coordinates and the property's geocoded `coordinates` in `StartInspectionUseCase`.
-- [ ] T102 [GAP-001] Reject or flag starts beyond a configurable radius (default 500m).
-- [ ] T103 [GAP-001] Tests with fixture coordinates.
+- [x] T001 [US1] Add `blocked_clients_json` column to Inspector model in `apps/backend/prisma/schema.prisma` — `Json @default("[]")`. Keep `client_eligibility_json` (deprecated, expand phase — no drop).
 
-### GAP-002 — Consolidate inspector region data
+- [x] T002 [US1] Add inspector profile columns to Prisma schema — `full_name` (varchar 300, nullable), `address` (Json, nullable), `abn` (varchar 20, nullable), `date_of_birth` (Date, nullable), `insurance_file_key` (text, nullable), `insurance_expires_at` (Date, nullable), `police_check_file_key` (text, nullable), `police_check_expires_at` (Date, nullable). Add indexes on `insurance_expires_at` and `police_check_expires_at`. All nullable per OQ-2.
 
-- [ ] T110 [GAP-002] Decision: `inspector_regions` join table is authoritative; remove `inspectors.regions_json` OR treat it as a denormalized cache.
-- [ ] T111 [GAP-002] Prisma migration if the column is removed.
-- [ ] T112 [GAP-002] Update marketplace filtering and manual assignment to read from the join table exclusively.
-- [ ] T113 [GAP-002] Backfill + regression tests.
+- [x] T003 Generate Prisma migration `add_inspector_profile_blocked_clients`. Include data migration SQL. **Critical**: the current `client_eligibility_json` is NOT a flat array of tenant IDs — it's an array of objects `[{ "tenantId": "uuid", "eligible": true/false }]` (see `ClientEligibilityEntry` in shared). The complement must: (a) extract tenant IDs where `eligible = true` as the "allowed set", (b) compute `blocked_clients_json` = all active tenants NOT in the allowed set. SQL approach:
+  ```sql
+  UPDATE inspectors SET blocked_clients_json = (
+    SELECT COALESCE(jsonb_agg(t.id), '[]'::jsonb)
+    FROM tenants t
+    WHERE t.status = 'ACTIVE'
+      AND t.id::text NOT IN (
+        SELECT e->>'tenantId'
+        FROM jsonb_array_elements(inspectors.client_eligibility_json) AS e
+        WHERE (e->>'eligible')::boolean = true
+      )
+  )
+  WHERE jsonb_array_length(client_eligibility_json) > 0
+    AND blocked_clients_json = '[]'::jsonb;
+  ```
+  For inspectors with empty `client_eligibility_json` (= was eligible for all), leave `blocked_clients_json = '[]'` (= still eligible for all). The `WHERE blocked_clients_json = '[]'` guard makes the migration idempotent. Verify with `npx prisma validate`.
 
-### GAP-003 — Availability slot booking integration
+- [x] T004 [P] Write unit test for the blocked-clients complement logic in `apps/backend/tests/unit/inspector/blocked-clients-complement.test.ts` — (a) inspector eligible for tenants [A, B] out of [A, B, C, D] → blocked = [C, D], (b) inspector eligible for all (empty list) → blocked = [] (still eligible for all), (c) inspector eligible for no one → blocked = [A, B, C, D] (all tenants). Minimum 3 cases. This tests the migration logic conceptually (the actual SQL runs in the migration, but the test validates the complement algorithm).
 
-- [ ] T120 [GAP-003] Decrement `capacity` on `AWAITING_INSPECTOR → SCHEDULED` when an appointment is assigned to an inspector whose slot covers the date/time.
-- [ ] T121 [GAP-003] Restore `capacity` on cancellation.
-- [ ] T122 [GAP-003] Reject booking when `capacity = 0`.
-- [ ] T123 [GAP-003] Tests covering assignment + cancellation round-trip.
+### Shared schemas
 
-### GAP-004 — Centralize T-1 rule
+- [x] T005 [P] Revise `packages/shared/src/schemas/inspector.ts` — add fields to create/update schemas: `blockedClientsJson` (array of uuid strings), `fullName` (string, optional), `address` (object, optional), `abn` (string, optional, max 20), `dateOfBirth` (date string, optional), `insuranceFileKey` (string, optional), `insuranceExpiresAt` (date string, optional), `policeCheckFileKey` (string, optional), `policeCheckExpiresAt` (date string, optional). Keep existing fields. Export types.
 
-- [ ] T130 [GAP-004] Move the rule call into a dedicated repository method `findVisibleForInspector(inspectorId, dateRange)` that applies `T1VisibilityService` internally.
-- [ ] T131 [GAP-004] Migrate `GetInspectorScheduleUseCase` and `StartInspectionUseCase` to consume the new method.
-- [ ] T132 [GAP-004] Tests asserting the rule is applied in exactly one place.
+- [x] T006 [P] Create `draftInvoiceSchema` in `packages/shared/src/schemas/inspector-execution.ts` — `{ periodStart: z.string().date(), periodEnd: z.string().date() }` with refine: `periodEnd > periodStart`. Export as `DraftInvoiceInput`.
 
-### GAP-005 — Configurable time window per tenant or service type
+- [x] T007 [P] Write schema tests in `packages/shared/src/schemas/inspector.test.ts` — blocked_clients valid/invalid, profile fields valid, ABN max length, date format. Minimum 5 new cases.
 
-- [ ] T140 [GAP-005] Depends on 002#GAP-002 (rich tenant settings).
-- [ ] T141 [GAP-005] Read `tenant.settings_json.inspectionWindowBefore` and `.inspectionWindowAfter` in `InspectionTimeWindowService`; fall back to defaults.
-- [ ] T142 [GAP-005] Optional: per-service-type override via `checklistTemplate`.
-- [ ] T143 [GAP-005] Tests.
+### Domain entity
 
-### GAP-006 — Pause / auto-save in-progress execution
+- [x] T008 [US1] Revise `apps/backend/src/modules/inspector/domain/inspector.entity.ts` — add `blockedClientsJson: string[]` + all profile fields to `InspectorProps` and `InspectorEntity`. Add `isBlockedForTenant(tenantId: string): boolean` helper (returns `this.blockedClientsJson.includes(tenantId)`). **Also deprecate and rewrite `isEligibleForTenant()`**: the current implementation reads the old `clientEligibilityJson` shape (`entry.tenantId === tenantId && entry.eligible`). Rewrite to: `return !this.isBlockedForTenant(tenantId)` — eligibility is now the inverse of being blocked. Keep the method name for callers but change the implementation. This ensures `GetInspectorUseCase` (line 56) and the `ListInspectorsUseCase` post-filter (line 102) both use the new model without changing their call sites.
 
-- [ ] T150 [GAP-006] Add a `PATCH /v1/inspector/appointments/:id/execution` endpoint that saves `checklistJson` and `notes` without finishing.
-- [ ] T151 [GAP-006] PWA: auto-save every N seconds during the inspection.
-- [ ] T152 [GAP-006] Tests.
+- [x] T009 Revise `apps/backend/src/modules/inspector/infrastructure/prisma-inspector.repository.ts` — map new columns in the `mapToEntity` function. Read `blocked_clients_json` alongside legacy `client_eligibility_json`.
 
-### GAP-007 — Re-open finished execution
+**Checkpoint**: `pnpm typecheck && pnpm --filter shared test` green. Migration applies. Entity has new fields.
 
-- [ ] T160 [GAP-007] Decision: allow AM to re-open a finished execution for limited edits (add missing photos).
-- [ ] T161 [GAP-007] If approved: new use case `ReopenExecutionUseCase` writing a `resumed_at` timestamp and keeping the original `started_at`.
-- [ ] T162 [GAP-007] Coordinate with feature 006 on the state implications (DONE appointment with re-opened execution).
+---
 
-### GAP-008 — Asset retention policy
+## Phase 2: Backend — Inspector CRUD + Marketplace Eligibility (FR-006a, FR-006b)
 
-- [ ] T170 [GAP-008] Runbook `docs/ops/inspection-asset-retention.md`.
-- [ ] T171 [GAP-008] Optional scheduled job moving assets older than N months to cold storage.
+**Purpose**: Use cases accept new fields. Marketplace filtering inverted from allow-list to block-list.
 
-### GAP-009 — Typed JSON fields on inspector
+- [x] T010 [US1] Revise `apps/backend/src/modules/inspector/application/use-cases/create-inspector.use-case.ts` — accept `blockedClientsJson`, `fullName`, `address`, `abn`, `dateOfBirth`, `insuranceFileKey`, `insuranceExpiresAt`, `policeCheckFileKey`, `policeCheckExpiresAt` in input. Persist to new columns. Audit includes new fields in `after` snapshot.
 
-- [ ] T180 [GAP-009] Define Zod schemas for `paymentSettingsJson`, `regionsJson`, `serviceTypesJson`, `clientEligibilityJson` in shared.
-- [ ] T181 [GAP-009] Validate on write in create/update use cases.
-- [ ] T182 [GAP-009] Backfill log of offenders.
-- [ ] T183 [GAP-009] Tests.
+- [x] T011 [US1] Revise `apps/backend/src/modules/inspector/application/use-cases/update-inspector.use-case.ts` — same new fields in input. Partial update: only provided fields are written. Audit includes `before`/`after` for changed fields.
 
-### GAP-010 — Extract time-window service for feature 006 reuse
+- [x] T012 [US1] Invert marketplace eligibility logic in **both** the repository and entity consumption paths: **(a) Repository filter** in `prisma-inspector.repository.ts`: the current code post-filters via `i.isEligibleForTenant(tenantId)` (lines ~98-102) and uses a raw Prisma query on `client_eligibility_json` for the marketplace check (lines ~114-119). Replace both with the new model: `!i.isBlockedForTenant(tenantId)` for the post-filter, and `WHERE NOT (blocked_clients_json @> to_jsonb(tenantId::text))` for the raw query. Empty `blocked_clients_json` = eligible for all. **(b) Use case callers**: `GetInspectorUseCase` (line ~56) and `ListInspectorsUseCase` (line ~102) call `isEligibleForTenant()` — these callers don't need changes because T008 rewrites the method to use blocked-clients internally. But verify both paths work after T008.
 
-- [ ] T190 [GAP-010] Move `InspectionTimeWindowService` to `shared/domain/` or a dedicated schedule module.
-- [ ] T191 [GAP-010] Consume it from feature 006 force-confirmation and reschedule flows.
-- [ ] T192 [GAP-010] Tests.
+- [x] T013 Revise inspector route handlers in `apps/backend/src/modules/inspector/interfaces/inspector.routes.ts` — validate new fields via the revised Zod schemas. Pass to use cases. Serialize profile fields in GET response.
 
-## Phase 3 — Polish & cross-cutting
+- [x] T014 [P] Write integration test for inspector create with profile fields in `apps/backend/tests/integration/inspector/inspector-profile-crud.test.ts` — (a) create with all profile fields → persisted, (b) create with minimal fields (all nullable) → ok, (c) update blocked_clients → persisted, (d) audit includes new fields. Minimum 4 cases.
 
-- [ ] T200 [P] Verify module coverage ≥ 80% with `pnpm --filter backend test -- --coverage` for both inspector and inspector-execution.
-- [ ] T201 [P] End-to-end assertion: every execution write path emits the expected audit records (start: 2, finish: 2 + 006 transition events).
-- [ ] T202 Confirm OpenAPI export reflects all inspector and execution endpoints; regenerate frontend clients.
-- [ ] T203 Incremental supersede of legacy specs: banner on `specs/backend/inspector-execution.spec.md` and `specs/pwa/execution.spec.md`.
-- [ ] T204 Review redaction of inspector PII (payment settings, phone) in error logs.
+- [x] T015 Write integration test for marketplace eligibility inversion in `apps/backend/tests/integration/inspector/blocked-clients-marketplace.test.ts` — (a) inspector with empty blocked_clients = eligible for all tenants, (b) inspector blocked from tenant A → not returned for tenant A, returned for tenant B, (c) legacy inspector with only `client_eligibility_json` (pre-migration) → falls back correctly (or fails gracefully). Minimum 3 cases.
+
+**Checkpoint**: inspector CRUD works with new fields. Marketplace uses block-list. All existing inspector tests pass.
+
+---
+
+## Phase 3: Backend — Schedule + Job Details + Draft Invoice (FR-022, FR-023, FR-060)
+
+**Purpose**: Enrich schedule and job-details responses. Wire the draft invoice endpoint.
+
+### Schedule extras (FR-022)
+
+- [x] T016 [US6] Revise `apps/backend/src/modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case.ts` — add `agencyName` to each schedule row. **Source**: the schedule use case calls `findVisibleForInspector()` which returns `AppointmentListItem[]`. Each item already has `tenantName: string` (the agency display name, joined by the repository from `tenants.name`). The fix is to map `agencyName: item.tenantName` into the `ScheduleAppointmentItem` response — no new query needed, just a serialization addition. Also add `agencyName` to the `ScheduleAppointmentItem` interface. **Note**: `keyRequired` is already present in the schedule response (verified in code, line 85) — no change needed for that field, only verify it's still there.
+
+- [x] T017 [P] [US6] Write integration test for schedule extras in `apps/backend/tests/integration/inspector-execution/schedule-extras.test.ts` — (a) schedule response includes `agencyName` per row, (b) `keyRequired = true` row has `keyRequired: true` in response. Minimum 2 cases.
+
+### Job Details enrichment (FR-023)
+
+- [x] T018 [US6a] Revise `apps/backend/src/modules/inspector-execution/application/use-cases/get-appointment-detail.use-case.ts` — build structured `jobDetails` payload with 7 sections:
+  - `agency`: `{ id: appointment.tenantId, name: tenant.name }` — read via existing `tenantRepo` or from the `AppointmentWithRelations` enrichment
+  - `tenantContacts`: from `appointment.contacts[]` where `role != PROPERTY_MANAGER && role != BROKER`, using snapshot fields (`effectiveName`, `effectiveEmail`, `effectivePhone`), primary first
+  - `keys`: `{ keyRequired: appointment.keyRequired, keyLocation: appointment.keyLocation }`
+  - `keyLocation`: when `keyLocation` is non-null, include it as text AND generate `mapLinkUrl`: `https://maps.google.com/?q=${encodeURIComponent(keyLocation)}`. This is required per spec FR-023 acceptance scenario 2 — not optional. When `keyLocation` is null, omit both fields.
+  - `propertyManager`: from junction row with `role = PROPERTY_MANAGER`. Use **live registry data** via `contact_id` JOIN when `contact_id IS NOT NULL` (inspector needs current PM phone). Fall back to snapshot for legacy rows.
+  - `payment`: `{ payoutAmount: appointment.payoutAmount, currency: appointment.currency ?? tenant.currency }` — from the pricing snapshot, NOT the tenant price
+  - `inspectionAppLink`: read `settingsJson.inspectionAppLink` from the tenant record. Validate defensively: the value must be an object with `{ url: string, label: string }` — if present and valid, include in response; if absent or malformed, omit the field entirely (not `null`, no crash). Use a simple Zod `.safeParse()` inline to guard against malformed tenant settings.
+
+- [x] T019 [P] [US6a] Write integration test for Job Details sections in `apps/backend/tests/integration/inspector-execution/job-details-enrichment.test.ts` — (a) response has all 7 sections with correct data, (b) tenantContacts uses snapshot fields (primary first), (c) PM uses live registry data when `contact_id` present, (d) `inspectionAppLink` omitted when not configured, (e) `payment` shows payout amount not tenant price. Minimum 5 cases.
+
+### Draft invoice surface (FR-060) — **depends on 010**
+
+- [x] T020 [US6b] [DEP:010] Create `apps/backend/src/modules/billing/application/use-cases/draft-inspector-invoice.use-case.ts` — **This is a 010 use case, placed in the billing domain as part of 008's delivery.** When 010 is later planned/implemented, its tasks.md MUST reference this use case as already-delivered — do NOT re-create it. Aggregates approved `INSPECTOR_PAYOUT` financial entries for the given `(inspectorId, periodStart, periodEnd)`. Creates `InspectorInvoice` with `status = PENDING_REVIEW`. Checks period overlap against existing non-rejected invoices. Emits `inspector_invoice.drafted` audit. Returns the created invoice.
+  **NOTE**: Requires `PENDING_REVIEW` to be added to `InspectorInvoiceStatus` enum in Prisma. If 010 has not delivered this yet, this task includes adding the enum value + its migration. If 010 already has it, skip the enum addition.
+
+- [x] T021 [US6b] [DEP:010] Create thin delegation route `POST /v1/inspector/invoices/draft` in `apps/backend/src/modules/inspector-execution/interfaces/inspector-execution.routes.ts` — preHandler: authenticate, RBAC check INSP only, resolve `inspectorId` from JWT. Validate body via `draftInvoiceSchema`. Call `DraftInspectorInvoiceUseCase`. Return `201` with the created invoice summary.
+
+- [x] T022 [US6b] [DEP:010] Wire `DraftInspectorInvoiceUseCase` in DI container — instantiate in billing section, inject into inspector-execution route container.
+
+- [x] T023 [P] [US6b] [DEP:010] Write integration test for draft invoice in `apps/backend/tests/integration/inspector-execution/draft-invoice.test.ts` — (a) happy path: INSP with 3 approved payouts → invoice created in PENDING_REVIEW with correct total, (b) empty period → `INVOICE_EMPTY_PERIOD`, (c) overlapping period → `INVOICE_PERIOD_OVERLAP`, (d) non-INSP → 403, (e) INSP without inspectorId → error. Minimum 5 cases.
+
+**Checkpoint**: schedule shows agency name + keyRequired. Job Details returns 7 sections. Draft invoice creates PENDING_REVIEW row (when 010 is ready) or stubs are in place.
+
+---
+
+## Phase 4: Frontend — Web Admin
+
+**Purpose**: Inspector form with profile fields + blocked-clients dropdown. Can start after Phase 2.
+
+- [x] T024 [P] [US1] Revise `apps/web/src/features/inspectors/components/InspectorFormDrawer.tsx` — add profile form fields: `fullName` (text), `address` (text/structured), `abn` (text, max 20), `dateOfBirth` (date picker). Add document upload section: insurance (file upload via presigned URL + `insuranceExpiresAt` date picker), police check (same pattern + `policeCheckExpiresAt`). All fields optional (OQ-2 unresolved).
+
+- [x] T025 [US1] Revise the blocked-clients section in `InspectorFormDrawer.tsx` — replace the existing client eligibility checkbox list (if any) with a **multi-select dropdown** of tenants. The dropdown fetches tenants via existing `GET /v1/tenants` endpoint. Selected values are the blocked tenants. Empty selection = eligible for all. Submit as `blockedClientsJson: string[]`. **Read from `blockedClientsJson`** (the post-migration field), NOT from the deprecated `clientEligibilityJson`. When editing an existing inspector, the form populates the dropdown from the inspector's `blockedClientsJson` array.
+
+- [x] T026 [P] [US1] Revise `apps/web/src/features/inspectors/components/InspectorDetailSections.tsx` — display new profile data: full name, address, ABN, DOB, insurance doc link + expiry, police check doc link + expiry. Document links open the presigned download URL.
+
+- [x] T027 [P] Remove pencil icon from inspector list rows in `apps/web/src/features/inspectors/pages/InspectorListPage.tsx` — inherited from 014 FR-019b. If list already only has eye (view) action, mark as verified.
+
+**Checkpoint**: Web admin inspector form accepts all new fields. Blocked-clients is a dropdown.
+
+---
+
+## Phase 5: Frontend — PWA
+
+**Purpose**: Schedule extras, Job Details, Draft Invoice, Profile. Can start after Phase 3.
+
+### Schedule (item 2)
+
+- [x] T028 [US6] Revise `apps/pwa/src/features/schedule/components/` — render `agencyName` on each appointment card. Render a key icon (e.g., `mdi-key`) when `keyRequired = true`. Read both fields from the schedule API response.
+
+### Job Details (item 3)
+
+- [x] T029 [US6a] Create Job Details screen at `apps/pwa/src/features/schedule/components/JobDetailsScreen.tsx` (or revise existing placeholder) — render 7 sections from the `GET /v1/inspector/appointments/:id` response:
+  - **Agency**: tenant name
+  - **Tenant Contacts**: list with name, email (mailto link), phone (tel link). Primary first.
+  - **Keys**: "Key required" badge + key location text
+  - **Key Location**: address text + "Open in Maps" link (map-link URL from response)
+  - **Property Manager**: name, email, phone, company. Uses live registry data (from response).
+  - **Payment**: payout amount + currency. NOT the tenant price.
+  - **Inspection App Link**: deep-link button with label. Hidden when field absent.
+
+### Draft Invoice (item 5) — depends on 010
+
+- [x] T030 [US6b] [DEP:010] Create Draft Invoice screen at `apps/pwa/src/features/earnings/components/DraftInvoiceScreen.tsx` — period picker (start date + end date), preview of financial entries in the period (call a read endpoint or display totals from the draft response), submit button calling `POST /v1/inspector/invoices/draft`. Show result: invoice created or error message.
+  **NOTE**: This screen is only functional when 010's billing use case is implemented. Until then, the submit will return an error. The screen can be built with the API contract defined but non-functional end-to-end.
+
+### Profile (item 6)
+
+- [x] T031 [US1] Create or revise Profile screen at `apps/pwa/src/features/profile/components/ProfileScreen.tsx` — self-service fields: full name, address, ABN, DOB (read-only or editable depending on product decision — for now, display + edit). Insurance and police check document upload (presigned URL flow matching web admin pattern). Expiration dates displayed.
+
+**Checkpoint**: PWA shows agency name + key icon on schedule. Job Details renders 7 sections. Draft Invoice screen exists (functional when 010 is ready). Profile shows new fields.
+
+---
+
+## Phase 6: Verification
+
+- [x] T032 Run `pnpm typecheck` across all workspaces — must pass
+- [x] T033 Run `pnpm --filter backend test` — all tests pass (including new tests from T004, T014-T015, T017, T019, T023)
+- [x] T034 Run `pnpm --filter web test` — all pass
+- [x] T035 Run `pnpm --filter pwa test` — all pass (if test infrastructure exists)
+- [x] T036 Verify Prisma migration: `npx prisma validate` clean. Migration applies from scratch on testcontainers.
+- [x] T037 Verify `client_eligibility_json` still exists in schema (not dropped — expand phase)
+- [x] T038 Verify `blocked_clients_json` has correct data after migration: inspectors that were eligible for all → `[]`, inspectors with specific eligibility → complement computed
+
+**Checkpoint**: Feature 008 deltas complete. All verifications pass.
+
+---
+
+## Residual Notes
+
+### 010 dependency status
+
+`DraftInspectorInvoiceUseCase`, `PENDING_REVIEW` enum value, and `approve-draft` / `reject-draft` endpoints do **NOT exist** in the billing module as of 2026-04-14. Tasks T020-T023 and T030 are tagged `[DEP:010]`.
+
+**Options for implementation order**:
+1. **Implement 010 billing deltas first** (recommended if 010 is next in queue) → then 008's draft invoice tasks work end-to-end
+2. **Implement 008 T020 as part of 008** (creating the use case + enum in billing) → acceptable if the team treats it as an 008-owned deliverable with billing domain placement
+3. **Stub T020** with a `throw new Error('Not implemented — waiting for 010')` → defer to 010 round
+
+The plan recommends option 2: T020 creates the use case in billing's domain, and 010's plan can reference it as already-delivered.
+
+### Open Questions (not resolved in this round)
+
+- **OQ-1**: Per-agency login credentials — PWA MUST NOT surface credential management
+- **OQ-2**: Profile field obligation levels — all nullable for now
+- **OQ-3**: Document expiration lifecycle — dates stored, no behavioral consequences
+
+### What is NOT in this task list
+
+- Execution flow (start, finish, assets) — unchanged
+- T-1 rule — unchanged
+- State machine — unchanged
+- Contact registry CRUD — 021 done
+- Appointment contacts array — 006 done
+- Portal dual-write — 007 done
+- Column drop on `client_eligibility_json` — expand/contract
+- Availability slot booking automation — GAP-003
 
 ---
 
 ## Dependencies & Execution Order
 
-- **GAP-001** depends on 003#GAP-003 (PostGIS on properties).
-- **GAP-004** should land before introducing any new consumer of the T-1 rule.
-- **GAP-005** depends on 002#GAP-002 (rich tenant settings).
-- **GAP-010** is a refactor that unblocks cleaner cross-feature time-window handling.
+### Phase Dependencies
 
-## Notes
+- **Phase 1 (Schema)**: No dependencies beyond 021/006/007 being done. **BLOCKS all other phases.**
+- **Phase 2 (CRUD)**: Depends on Phase 1. **BLOCKS** Phases 4 (web form needs new fields).
+- **Phase 3 (Schedule/Details/Invoice)**: Depends on Phase 1. T020-T023 depend on 010 (or are self-contained if option 2). **BLOCKS** Phase 5 (PWA needs enriched responses).
+- **Phase 4 (Web Admin)**: Depends on Phase 2. Independent of Phase 3.
+- **Phase 5 (PWA)**: Depends on Phase 3.
+- **Phase 6 (Verification)**: Depends on all.
 
-- State-machine sovereignty: finish MUST call `ExecuteStatusTransitionUseCase` — reviewers block any PR that writes `appointment.status` directly from this module.
-- Idempotency on start/finish is mandatory. Missing key is a hard error.
-- Close each `GAP-xxx` by promoting in `spec.md` and updating `specs/GAPS.md`.
+### Critical Path
+
+```
+T001-T003 (schema/migration) → T005-T006 (shared schemas) → T008-T009 (entity/repo)
+→ T010-T013 (CRUD + marketplace inversion) → T014-T015 (integration tests)
+→ T016-T019 (schedule/details) → T020-T023 (draft invoice, DEP:010)
+→ T024-T031 (frontend) → T032-T038 (verification)
+```
+
+### Parallel Opportunities
+
+**Phase 1**: T004 (complement test), T005 (shared schemas), T006 (draft invoice schema), T007 (schema tests) — all parallelizable after T001-T003.
+
+**Phase 2**: T014 (profile CRUD test), T015 (marketplace test) — parallelizable.
+
+**Phase 3**: T017 (schedule test), T019 (Job Details test) — parallelizable. T023 (draft invoice test) parallelizable with T019 but depends on T020.
+
+**Phase 4+5**: T024/T026/T027 (web) parallelizable. T028/T029/T031 (PWA) parallelizable.

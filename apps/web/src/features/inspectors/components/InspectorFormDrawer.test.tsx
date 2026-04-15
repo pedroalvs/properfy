@@ -53,6 +53,10 @@ const MOCK_INSPECTOR = {
   phone: '11888888888', status: 'ACTIVE',
   regions: ['Centro', 'Norte'], regionIds: [], serviceTypes: [{ serviceTypeId: '123e4567-e89b-12d3-a456-426614174000', certified: false }],
   clientEligibility: [{ tenantId: 'ten-01', eligible: true }],
+  fullName: 'Carlos Alberto Silva', abn: '12345678901', dateOfBirth: '1990-05-15',
+  insuranceFileKey: 'uploads/insurance.pdf', insuranceExpiresAt: '2027-06-30',
+  policeCheckFileKey: 'uploads/police.pdf', policeCheckExpiresAt: '2027-12-31',
+  blockedClients: ['ten-02'],
 };
 
 vi.mock('../hooks/useInspectorDetail', () => ({
@@ -133,6 +137,9 @@ describe('InspectorFormDrawer', () => {
     expect(screen.getByText('Create Inspector')).toBeInTheDocument();
     expect(screen.getByText('Personal Details')).toBeInTheDocument();
     expect(screen.getByText('Coverage')).toBeInTheDocument();
+    expect(screen.getByText('Profile & Compliance')).toBeInTheDocument();
+    expect(screen.getByText('Insurance')).toBeInTheDocument();
+    expect(screen.getByText('Police Check')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
@@ -161,10 +168,22 @@ describe('InspectorFormDrawer', () => {
     expect(mockSave).not.toHaveBeenCalled();
   });
 
-  it('renders client eligibility section with tenant checkboxes for AM role', async () => {
+  it('renders blocked tenants section with tenant checkboxes for AM role', async () => {
     renderDrawer();
-    expect(await screen.findByText('Client Eligibility')).toBeInTheDocument();
+    const blockedTenantElements = await screen.findAllByText('Blocked Tenants');
+    expect(blockedTenantElements.length).toBeGreaterThanOrEqual(1);
     expect(await screen.findByLabelText('Imobiliaria Alpha')).toBeInTheDocument();
     expect(screen.getByLabelText('Imobiliaria Beta')).toBeInTheDocument();
+  });
+
+  it('renders profile and compliance fields', () => {
+    renderDrawer();
+    expect(screen.getByLabelText('Full Name')).toBeInTheDocument();
+    expect(screen.getByLabelText('ABN')).toBeInTheDocument();
+    expect(screen.getByLabelText('Date of Birth')).toBeInTheDocument();
+    expect(screen.getByLabelText('Insurance File Key')).toBeInTheDocument();
+    expect(screen.getByLabelText('Insurance Expiry')).toBeInTheDocument();
+    expect(screen.getByLabelText('Police Check File Key')).toBeInTheDocument();
+    expect(screen.getByLabelText('Police Check Expiry')).toBeInTheDocument();
   });
 });

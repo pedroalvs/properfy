@@ -19,6 +19,7 @@ export interface ScheduleAppointmentItem {
   tenantConfirmationStatus: string;
   keyRequired: boolean;
   meetingLocation: string | null;
+  agencyName: string;
   executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED';
   isOverdue?: boolean;
 }
@@ -84,6 +85,7 @@ export class GetInspectorScheduleUseCase {
         tenantConfirmationStatus: appt.tenantConfirmationStatus,
         keyRequired: appt.keyRequired,
         meetingLocation: appt.meetingLocation,
+        agencyName: item.tenantName ?? '',
         executionStatus,
       };
     });
@@ -131,6 +133,7 @@ export class GetInspectorScheduleUseCase {
           tenantConfirmationStatus: appt.tenantConfirmationStatus,
           keyRequired: appt.keyRequired,
           meetingLocation: appt.meetingLocation,
+          agencyName: item.tenantName ?? '',
           executionStatus,
           isOverdue: true,
         };

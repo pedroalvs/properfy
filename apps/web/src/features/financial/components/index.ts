@@ -16,4 +16,5 @@ export { InvoiceDetailDrawer } from './InvoiceDetailDrawer';
 export { GenerateInvoiceModal } from './GenerateInvoiceModal';
 export { MarkInvoicePaidModal } from './MarkInvoicePaidModal';
 export { ReversePaymentModal } from './ReversePaymentModal';
+export { RejectDraftModal } from './RejectDraftModal';
 export { ReconciliationSummary } from './ReconciliationSummary';

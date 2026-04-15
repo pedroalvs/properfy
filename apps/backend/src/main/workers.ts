@@ -192,7 +192,18 @@ export async function registerWorkers(
   await boss.work('audit.retention', withJobMetrics('audit.retention', async (job) => {
     logger.info({ jobId: job.id }, 'Processing audit.retention job');
     const result = await auditRetentionWorker.execute();
-    logger.info({ jobId: job.id, deletedCount: result.deletedCount, preservedCount: result.preservedCount }, 'Audit retention sweep completed');
+    logger.info(
+      {
+        jobId: job.id,
+        movedCount: result.movedCount,
+        preservedCount: result.preservedCount,
+        hardDeletedCount: result.hardDeletedCount,
+        skippedInProgressCount: result.skippedInProgressCount,
+        tenantPortalMovedCount: result.tenantPortalMovedCount,
+        erroredCount: result.erroredCount,
+      },
+      'Audit retention sweep completed',
+    );
   }));
 
   // DLQ monitor — alert on accumulated failed jobs

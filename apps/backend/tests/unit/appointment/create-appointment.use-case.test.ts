@@ -501,7 +501,7 @@ describe('CreateAppointmentUseCase', () => {
       expect(result.status).toBe('DRAFT');
     });
 
-    it('should accept past scheduledDate for OP', async () => {
+    it('should accept past scheduledDate for OP (tenant-scoped per CORRECTION-001 close-it)', async () => {
       vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
       vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
       vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
@@ -510,7 +510,8 @@ describe('CreateAppointmentUseCase', () => {
       const result = await useCase.execute({
         ...baseInput,
         scheduledDate: '2020-01-01',
-        actor: makeActor({ role: 'OP' }),
+        // Sprint 1 W-4-IMPL: OP must have a tenantId
+        actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
       });
 
       expect(result.status).toBe('DRAFT');

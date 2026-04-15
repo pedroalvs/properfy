@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-tenants-branches`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps closed in commit `6963198` (2026-04-07, Waves 1–5). Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/tenant/**`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/{schemas,enums}/tenant*`, `apps/web/src/features/tenants/**`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`, `apps/backend/CLAUDE.md`, `projeto-consolidado/modelo-dados-executavel.md`

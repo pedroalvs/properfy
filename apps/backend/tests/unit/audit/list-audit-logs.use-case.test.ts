@@ -88,6 +88,7 @@ describe('ListAuditLogsUseCase', () => {
     expect(repo.findAll).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
       expect.any(Object),
+      expect.any(Object),
     );
   });
 
@@ -120,6 +121,7 @@ describe('ListAuditLogsUseCase', () => {
     expect(repo.findAll).toHaveBeenCalledWith(
       expect.objectContaining({ entityType: 'ServiceGroup', action: 'service_group.created' }),
       expect.any(Object),
+      expect.any(Object),
     );
   });
 
@@ -144,6 +146,7 @@ describe('ListAuditLogsUseCase', () => {
       // CL_ADMIN always scoped to own tenant, ignoring provided tenantId
       expect(repo.findAll).toHaveBeenCalledWith(
         expect.objectContaining({ tenantId: 'tenant-1' }),
+        expect.any(Object),
         expect.any(Object),
       );
     });
@@ -214,6 +217,7 @@ describe('ListAuditLogsUseCase', () => {
       expect(repo.findAll).toHaveBeenCalledWith(
         expect.objectContaining({ q: 'cancelled by client' }),
         expect.any(Object),
+        expect.any(Object),
       );
     });
 
@@ -244,6 +248,164 @@ describe('ListAuditLogsUseCase', () => {
 
       expect(result.data).toHaveLength(0);
       expect(result.total).toBe(0);
+    });
+  });
+
+  // ─── Feature 020 US4: role-based read masking + includeArchived ──────────
+
+  describe('Feature 020 — role-based read masking (FR-025)', () => {
+    const piiMappings = [
+      {
+        id: 'p1',
+        actionPattern: 'user.',
+        jsonFieldPath: 'email',
+        classification: 'direct' as const,
+        requiresManualReview: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        appliesTo(action: string) {
+          return action.startsWith('user.');
+        },
+      },
+      {
+        id: 'p2',
+        actionPattern: 'user.',
+        jsonFieldPath: 'phone',
+        classification: 'direct' as const,
+        requiresManualReview: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        appliesTo(action: string) {
+          return action.startsWith('user.');
+        },
+      },
+      {
+        id: 'p3',
+        actionPattern: 'user.',
+        jsonFieldPath: 'name',
+        classification: 'direct' as const,
+        requiresManualReview: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        appliesTo(action: string) {
+          return action.startsWith('user.');
+        },
+      },
+    ];
+    const piiRepo = {
+      findAll: vi.fn().mockResolvedValue(piiMappings),
+      findByAction: vi.fn(),
+      findById: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    beforeEach(() => {
+      piiRepo.findAll.mockResolvedValue(piiMappings);
+      useCase = new ListAuditLogsUseCase(
+        repo as unknown as IAuditLogRepository,
+        undefined,
+        piiRepo as any,
+      );
+    });
+
+    function makeUserEntry() {
+      return makeAuditLog({
+        action: 'user.updated',
+        afterJson: { email: 'user@example.com', phone: '+5511999998888', name: 'John Doe', other: 'keep' },
+      });
+    }
+
+    it('AM sees raw PII', async () => {
+      repo.findAll.mockResolvedValue([makeUserEntry()]);
+      const result = await useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: amActor,
+      });
+      expect((result.data[0]!.afterJson as any).email).toBe('user@example.com');
+      expect((result.data[0]!.afterJson as any).phone).toBe('+5511999998888');
+      expect((result.data[0]!.afterJson as any).name).toBe('John Doe');
+    });
+
+    it('OP sees partial masks', async () => {
+      repo.findAll.mockResolvedValue([makeUserEntry()]);
+      const result = await useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: opActor,
+      });
+      const after = result.data[0]!.afterJson as any;
+      expect(after.email).toBe('use***@example.com');
+      expect(after.phone).toBe('***8888');
+      expect(after.name).toBe('J. D.');
+      expect(after.other).toBe('keep');
+    });
+
+    it('CL_ADMIN sees blanket [MASKED]', async () => {
+      repo.findAll.mockResolvedValue([makeUserEntry()]);
+      const result = await useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: clAdminActor,
+      });
+      expect(result.data[0]!.beforeJson).toBe('[MASKED]');
+      expect(result.data[0]!.afterJson).toBe('[MASKED]');
+    });
+
+    it('already-redacted (FULL) entries bypass masking — sentinel preserved', async () => {
+      repo.findAll.mockResolvedValue([
+        makeAuditLog({
+          action: 'user.updated',
+          afterJson: { email: '[REDACTED]', name: '[REDACTED]' },
+          redactionStatus: 'FULL',
+        }),
+      ]);
+      const result = await useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: amActor,
+      });
+      expect((result.data[0]!.afterJson as any).email).toBe('[REDACTED]');
+      expect((result.data[0]!.afterJson as any).name).toBe('[REDACTED]');
+    });
+  });
+
+  describe('Feature 020 — includeArchived opt-in (FR-026a)', () => {
+    it('CL_ADMIN with includeArchived=true → 403', async () => {
+      await expect(
+        useCase.execute({
+          filters: { includeArchived: true },
+          pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+          actor: clAdminActor,
+        }),
+      ).rejects.toThrow(/INCLUDE_ARCHIVED_FORBIDDEN|archived/i);
+    });
+
+    it('AM with includeArchived=true passes option to repo', async () => {
+      await useCase.execute({
+        filters: { includeArchived: true },
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: amActor,
+      });
+      expect(repo.findAll).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        expect.objectContaining({ includeArchived: true }),
+      );
+    });
+
+    it('isArchived flag propagates to DTO when set on entity', async () => {
+      repo.findAll.mockResolvedValue([
+        makeAuditLog({ isArchived: true }),
+      ]);
+      const result = await useCase.execute({
+        filters: { includeArchived: true },
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: amActor,
+      });
+      expect(result.data[0]!.isArchived).toBe(true);
     });
   });
 });

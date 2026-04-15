@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-service-groups-marketplace`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps closed in commit `25434b9` (2026-04-07, Waves 1–4). Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/service-group/**`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/{schemas,enums}/service-group.ts`, `apps/web/src/features/{service-groups,marketplace}/**`, `apps/pwa/src/features/offers/**`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`, `apps/backend/CLAUDE.md`, `projeto-consolidado/regras-negocio-respostas-cliente.md`, `projeto-consolidado/state-machine-executavel.md`, `projeto-consolidado/service-group-exceptions.md`

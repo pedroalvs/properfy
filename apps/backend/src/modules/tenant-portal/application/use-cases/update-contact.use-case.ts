@@ -1,9 +1,11 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { TENANT_PORTAL_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
+import { ContactEmailAlreadyExistsError } from '../../../contact/domain/contact.errors';
 import {
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
@@ -32,6 +34,7 @@ export class UpdateContactUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly domainEventBus?: DomainEventBus,
+    private readonly contactRepo?: IContactRepository,
   ) {}
 
   async execute(input: UpdateContactInput) {
@@ -90,8 +93,63 @@ export class UpdateContactUseCase {
       updateData.secondaryPhone = input.contact.secondaryPhone;
     }
 
-    // 5. Update contact
+    // 5. Update contact (legacy fields)
     await this.appointmentRepo.updateContact(input.appointmentId, updateData);
+
+    // 5b. Also update snapshot fields on the primary junction row (feature 021 expand phase)
+    if (contact) {
+      const snapshotUpdate: Partial<{ snapshotName: string; snapshotEmail: string | null; snapshotPhone: string | null }> = {};
+      if (input.contact.primaryEmail !== undefined) snapshotUpdate.snapshotEmail = input.contact.primaryEmail;
+      if (input.contact.primaryPhone !== undefined) snapshotUpdate.snapshotPhone = input.contact.primaryPhone;
+      if (Object.keys(snapshotUpdate).length > 0) {
+        await this.appointmentRepo.updateContactSnapshot(input.appointmentId, contact.id, snapshotUpdate);
+      }
+
+      // 5c. Dual-write to contact registry (feature 021 FR-053)
+      // When contact_id is present, update the registry contact's live data.
+      // On email uniqueness conflict, skip silently and audit.
+      if (this.contactRepo && contact.contactId) {
+        const registryUpdate: Partial<{ displayName: string; primaryEmail: string | null; primaryPhone: string | null }> = {};
+        if (input.contact.primaryEmail !== undefined) registryUpdate.primaryEmail = input.contact.primaryEmail;
+        if (input.contact.primaryPhone !== undefined) registryUpdate.primaryPhone = input.contact.primaryPhone;
+
+        if (Object.keys(registryUpdate).length > 0) {
+          try {
+            // Check email uniqueness before updating (only if email changed)
+            if (registryUpdate.primaryEmail !== undefined && registryUpdate.primaryEmail !== null) {
+              const emailConflict = await this.contactRepo.existsByEmail(
+                appointment.tenantId,
+                registryUpdate.primaryEmail,
+                contact.contactId,
+              );
+              if (emailConflict) {
+                throw new ContactEmailAlreadyExistsError();
+              }
+            }
+
+            await this.contactRepo.update(contact.contactId, appointment.tenantId, registryUpdate);
+          } catch (err) {
+            if (err instanceof ContactEmailAlreadyExistsError) {
+              // Conflict: skip registry update silently, audit for operator reconciliation
+              this.auditService.log({
+                action: 'contact.portal_update_skipped_conflict',
+                actorType: 'ANONYMOUS',
+                entityType: 'contact',
+                entityId: contact.contactId,
+                tenantId: appointment.tenantId,
+                metadata: {
+                  appointmentId: input.appointmentId,
+                  conflictingEmail: registryUpdate.primaryEmail,
+                  reason: 'Email already exists on another active contact in this tenant',
+                },
+              });
+            } else {
+              throw err; // Re-throw unexpected errors
+            }
+          }
+        }
+      }
+    }
 
     // 6. Record CONTACT_UPDATED activity
     const activity = new TenantPortalActivityEntity({
@@ -133,13 +191,13 @@ export class UpdateContactUseCase {
       });
     }
 
-    // 9. Return the updated contact fields merged with existing
+    // 9. Return the updated contact fields merged with existing (use effective accessors for fallback)
     return {
-      tenantName: contact?.tenantName ?? null,
+      tenantName: contact?.effectiveName ?? null,
       primaryEmail:
         input.contact.primaryEmail !== undefined
           ? input.contact.primaryEmail
-          : (contact?.primaryEmail ?? null),
+          : (contact?.effectiveEmail ?? null),
       secondaryEmail:
         input.contact.secondaryEmail !== undefined
           ? input.contact.secondaryEmail
@@ -147,7 +205,7 @@ export class UpdateContactUseCase {
       primaryPhone:
         input.contact.primaryPhone !== undefined
           ? input.contact.primaryPhone
-          : (contact?.primaryPhone ?? null),
+          : (contact?.effectivePhone ?? null),
       secondaryPhone:
         input.contact.secondaryPhone !== undefined
           ? input.contact.secondaryPhone

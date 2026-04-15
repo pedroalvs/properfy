@@ -43,6 +43,7 @@ describe('InvoiceDetailDrawer', () => {
     mockUseInvoiceDetail.mockReturnValue({ invoice: null, isLoading: false, isError: false, refetch: vi.fn() });
     const { container } = render(
       <InvoiceDetailDrawer invoiceId={null} open={false} onClose={vi.fn()} />,
+      { wrapper: createQueryWrapper() },
     );
     expect(container.querySelector('[data-testid="drawer-panel"]')).not.toBeInTheDocument();
   });
@@ -51,6 +52,7 @@ describe('InvoiceDetailDrawer', () => {
     mockUseInvoiceDetail.mockReturnValue({ invoice: null, isLoading: true, isError: false, refetch: vi.fn() });
     render(
       <InvoiceDetailDrawer invoiceId="inv-01" open={true} onClose={vi.fn()} />,
+      { wrapper: createQueryWrapper() },
     );
     expect(screen.getByRole('status')).toBeInTheDocument();
   });

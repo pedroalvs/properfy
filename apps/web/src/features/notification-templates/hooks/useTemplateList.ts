@@ -35,6 +35,8 @@ export function useTemplateList(): UseTemplateListReturn {
     subject: (raw['subject'] as string) ?? '',
     body: (raw['bodyText'] ?? raw['body']) as string,
     active: (raw['isActive'] ?? raw['active']) as boolean,
+    // Feature 018: default to OPERATIONAL if the backend omits the field (legacy rows)
+    notificationClass: (raw['notificationClass'] as NotificationTemplate['notificationClass']) ?? 'OPERATIONAL',
     requiredVariables: (raw['variables'] ?? raw['variablesJson'] ?? raw['requiredVariables'] ?? []) as string[],
     createdAt: raw['createdAt'] as string,
     updatedAt: raw['updatedAt'] as string,

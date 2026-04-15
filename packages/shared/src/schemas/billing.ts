@@ -106,9 +106,14 @@ export const reconciliationSummaryResponseSchema = z.object({
 });
 export type ReconciliationSummaryResponse = z.infer<typeof reconciliationSummaryResponseSchema>;
 
+export const rejectDraftInvoiceSchema = z.object({
+  reason: z.string().min(10).max(1000),
+});
+export type RejectDraftInvoiceInput = z.infer<typeof rejectDraftInvoiceSchema>;
+
 export const listInvoicesQuerySchema = z.object({
   inspectorId: z.string().uuid().optional(),
-  status: z.enum(['OPEN', 'CLOSED', 'PAID', 'SUPERSEDED']).optional(),
+  status: z.enum(['PENDING_REVIEW', 'OPEN', 'CLOSED', 'PAID', 'SUPERSEDED']).optional(),
   fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
   toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
   page: z.coerce.number().int().min(1).default(1),

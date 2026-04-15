@@ -19,6 +19,15 @@ function makeInspector(
     paymentSettingsJson: {},
     serviceTypesJson: [{ serviceTypeId: 'service-1', certified: false }],
     clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
+    blockedClientsJson: [],
+    fullName: null,
+    address: null,
+    abn: null,
+    dateOfBirth: null,
+    insuranceFileKey: null,
+    insuranceExpiresAt: null,
+    policeCheckFileKey: null,
+    policeCheckExpiresAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
@@ -101,7 +110,7 @@ describe('GetInspectorUseCase', () => {
 
   it('should throw INSPECTOR_NOT_FOUND for CL_ADMIN when not eligible', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(
-      makeInspector({ clientEligibilityJson: [{ tenantId: 'tenant-2', eligible: true }] }),
+      makeInspector({ clientEligibilityJson: [{ tenantId: 'tenant-2', eligible: true }], blockedClientsJson: ['tenant-1'] }),
     );
 
     await expect(

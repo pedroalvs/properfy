@@ -52,6 +52,7 @@ const MOCK_TEMPLATE: NotificationTemplate = {
   subject: 'Inspection at {{propertyAddress}}',
   body: 'Hello {{tenantName}}, your inspection is on {{scheduledDate}}.',
   active: true,
+  notificationClass: 'OPERATIONAL',
   requiredVariables: ['tenantName', 'scheduledDate'],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',

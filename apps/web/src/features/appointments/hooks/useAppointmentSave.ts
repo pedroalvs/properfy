@@ -1,16 +1,39 @@
 import { useState, useCallback } from 'react';
-import { RestrictionSource, createAppointmentSchema, updateAppointmentSchema } from '@properfy/shared';
+import { RestrictionSource, ContactType, createAppointmentSchema, updateAppointmentSchema } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 
-/** Map flat form fields to the nested shape expected by the shared Zod schema. */
-function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
-  const contact = {
+/** Build the contacts array payload from form entries. */
+function buildContactsPayload(data: AppointmentFormData) {
+  if (data.contacts && data.contacts.length > 0) {
+    return data.contacts.map((c) => ({
+      inline: {
+        type: ContactType.TENANT,
+        displayName: c.name.trim(),
+        ...(c.email.trim() ? { primaryEmail: c.email.trim() } : { primaryEmail: null }),
+        ...(c.phone.trim() ? { primaryPhone: c.phone.trim() } : { primaryPhone: null }),
+      },
+      role: c.role,
+      isPrimary: c.isPrimary,
+    }));
+  }
+  return undefined;
+}
+
+/** Build legacy contact object from flat fields (backward compat). */
+function buildLegacyContact(data: AppointmentFormData) {
+  return {
     tenantName: data.contactName.trim(),
     ...(data.contactEmail.trim() ? { primaryEmail: data.contactEmail.trim() } : {}),
     ...(data.contactPhone.trim() ? { primaryPhone: data.contactPhone.trim() } : {}),
   };
+}
+
+/** Map flat form fields to the nested shape expected by the shared Zod schema. */
+function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
+  const contacts = buildContactsPayload(data);
+  const contact = buildLegacyContact(data);
 
   const restriction = data.hasRestriction
     ? {
@@ -27,7 +50,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
       serviceTypeId: data.serviceTypeId || undefined,
       scheduledDate: data.scheduledDate || undefined,
       timeSlot: data.timeSlot || undefined,
-      contact,
+      ...(contacts ? { contacts } : { contact }),
       ...(data.hasRestriction ? { restriction } : {}),
       keyRequired: data.keyRequired,
       ...(data.meetingLocation.trim() ? { meetingLocation: data.meetingLocation.trim() } : {}),
@@ -43,7 +66,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
     meetingLocation: data.meetingLocation.trim() || null,
     keyLocation: data.keyLocation.trim() || null,
     notes: data.notes.trim() || null,
-    contact,
+    ...(contacts ? { contacts } : { contact }),
     ...(data.restrictionTouched ? { restriction } : {}),
   };
 }

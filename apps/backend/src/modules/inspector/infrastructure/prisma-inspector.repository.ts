@@ -29,6 +29,15 @@ function mapToEntity(row: {
   regions_json: unknown;
   service_types_json: unknown;
   client_eligibility_json: unknown;
+  blocked_clients_json: unknown;
+  full_name: string | null;
+  address: unknown;
+  abn: string | null;
+  date_of_birth: Date | null;
+  insurance_file_key: string | null;
+  insurance_expires_at: Date | null;
+  police_check_file_key: string | null;
+  police_check_expires_at: Date | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -44,6 +53,15 @@ function mapToEntity(row: {
       (row.payment_settings_json as PaymentSettings) ?? {},
     serviceTypesJson: (row.service_types_json as ServiceTypeEntry[]) ?? [],
     clientEligibilityJson: (row.client_eligibility_json as ClientEligibilityEntry[]) ?? [],
+    blockedClientsJson: Array.isArray(row.blocked_clients_json) ? (row.blocked_clients_json as string[]) : [],
+    fullName: row.full_name ?? null,
+    address: row.address as Record<string, unknown> | null,
+    abn: row.abn ?? null,
+    dateOfBirth: row.date_of_birth ?? null,
+    insuranceFileKey: row.insurance_file_key ?? null,
+    insuranceExpiresAt: row.insurance_expires_at ?? null,
+    policeCheckFileKey: row.police_check_file_key ?? null,
+    policeCheckExpiresAt: row.police_check_expires_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -111,13 +129,21 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       const where = this.buildWhere(filters);
       const rows = await this.prisma.inspector.findMany({
         where,
-        select: { client_eligibility_json: true },
+        select: { client_eligibility_json: true, blocked_clients_json: true },
       });
       return rows.filter((r) => {
+        // New blocked-clients model: not blocked means eligible
+        const blocked = Array.isArray(r.blocked_clients_json) ? (r.blocked_clients_json as string[]) : [];
+        if (blocked.includes(filters.tenantId!)) return false;
+        // Legacy fallback: check client_eligibility_json during expand phase
         const eligibility = (r.client_eligibility_json as ClientEligibilityEntry[]) ?? [];
-        return eligibility.some(
-          (entry) => entry.tenantId === filters.tenantId! && entry.eligible,
-        );
+        if (eligibility.length > 0) {
+          return eligibility.some(
+            (entry) => entry.tenantId === filters.tenantId! && entry.eligible,
+          );
+        }
+        // If no legacy data and not blocked, inspector is eligible
+        return true;
       }).length;
     }
     const where = this.buildWhere(filters);
@@ -135,6 +161,15 @@ export class PrismaInspectorRepository implements IInspectorRepository {
         payment_settings_json: inspector.paymentSettingsJson as Prisma.InputJsonValue,
         service_types_json: inspector.serviceTypesJson,
         client_eligibility_json: inspector.clientEligibilityJson,
+        blocked_clients_json: inspector.blockedClientsJson,
+        full_name: inspector.fullName,
+        address: inspector.address as Prisma.InputJsonValue,
+        abn: inspector.abn,
+        date_of_birth: inspector.dateOfBirth,
+        insurance_file_key: inspector.insuranceFileKey,
+        insurance_expires_at: inspector.insuranceExpiresAt,
+        police_check_file_key: inspector.policeCheckFileKey,
+        police_check_expires_at: inspector.policeCheckExpiresAt,
       },
     });
   }
@@ -150,6 +185,15 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       paymentSettingsJson: PaymentSettings;
       serviceTypesJson: ServiceTypeEntry[];
       clientEligibilityJson: ClientEligibilityEntry[];
+      blockedClientsJson: string[];
+      fullName: string | null;
+      address: Record<string, unknown> | null;
+      abn: string | null;
+      dateOfBirth: Date | null;
+      insuranceFileKey: string | null;
+      insuranceExpiresAt: Date | null;
+      policeCheckFileKey: string | null;
+      policeCheckExpiresAt: Date | null;
       deletedAt: Date | null;
     }>,
   ): Promise<void> {
@@ -164,6 +208,24 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       updateData['service_types_json'] = data.serviceTypesJson;
     if (data.clientEligibilityJson !== undefined)
       updateData['client_eligibility_json'] = data.clientEligibilityJson;
+    if (data.blockedClientsJson !== undefined)
+      updateData['blocked_clients_json'] = data.blockedClientsJson;
+    if (data.fullName !== undefined)
+      updateData['full_name'] = data.fullName;
+    if (data.address !== undefined)
+      updateData['address'] = data.address;
+    if (data.abn !== undefined)
+      updateData['abn'] = data.abn;
+    if (data.dateOfBirth !== undefined)
+      updateData['date_of_birth'] = data.dateOfBirth;
+    if (data.insuranceFileKey !== undefined)
+      updateData['insurance_file_key'] = data.insuranceFileKey;
+    if (data.insuranceExpiresAt !== undefined)
+      updateData['insurance_expires_at'] = data.insuranceExpiresAt;
+    if (data.policeCheckFileKey !== undefined)
+      updateData['police_check_file_key'] = data.policeCheckFileKey;
+    if (data.policeCheckExpiresAt !== undefined)
+      updateData['police_check_expires_at'] = data.policeCheckExpiresAt;
     if (data.deletedAt !== undefined)
       updateData['deleted_at'] = data.deletedAt;
     await this.prisma.inspector.update({ where: { id }, data: updateData });

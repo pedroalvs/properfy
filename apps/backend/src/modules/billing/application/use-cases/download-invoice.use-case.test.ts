@@ -28,8 +28,10 @@ describe('DownloadInvoiceUseCase', () => {
       actor: {
         userId: 'user-1',
         tenantId: null,
-        role: 'OP',
-        email: 'op@test.com',
+        // Sprint 1 W-4-IMPL (CORRECTION-001 close-it): inspector invoice
+        // download is AM-only because inspector invoices are not tenant-scoped.
+        role: 'AM',
+        email: 'am@test.com',
       } as any,
     });
 

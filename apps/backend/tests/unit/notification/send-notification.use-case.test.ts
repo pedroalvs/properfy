@@ -36,6 +36,7 @@ function makeNotification(overrides: Partial<NotificationProps> = {}): Notificat
     channel: 'EMAIL',
     templateCode: 'INSPECTION_NOTICE',
     status: 'PENDING',
+    notificationClass: null,
     providerName: null,
     providerMessageId: null,
     sentAt: null,
@@ -62,6 +63,7 @@ function makeTemplate(overrides: Partial<NotificationTemplateProps> = {}): Notif
     bodyText: 'Hello {{tenantName}}, your inspection is on {{date}}',
     variablesJson: ['tenantName', 'date'],
     isActive: true,
+    notificationClass: 'OPERATIONAL',
     whatsappApprovalStatus: 'APPROVED',
     whatsappApprovalReference: null,
     createdAt: now,
@@ -89,6 +91,10 @@ function makeSut() {
   };
   const consentRepo: INotificationConsentRepository = {
     findByRecipientChannelTenant: vi.fn().mockResolvedValue(null),
+    findByScope: vi.fn().mockResolvedValue(null),
+    listByRecipient: vi.fn().mockResolvedValue([]),
+    countSkippedForRecipient: vi.fn().mockResolvedValue(0),
+    findById: vi.fn().mockResolvedValue(null),
     upsert: vi.fn(),
   };
   const attemptRepo: INotificationAttemptRepository = {
@@ -134,6 +140,8 @@ function makeSut() {
     logger,
     metrics: metricsObj,
     getTenantSettings,
+    publicBaseUrl: 'http://test.properfy.local',
+    unsubscribeTokenSecret: 'test-unsubscribe-secret',
   });
 
   return {
@@ -473,21 +481,26 @@ describe('SendNotificationUseCase', () => {
         recipient: 'user@example.com',
         channel: 'EMAIL' as any,
         tenantId: 'tenant-1',
+        notificationClass: 'OPERATIONAL',
         optedOut: true,
         optedOutAt: now,
+        changeSource: 'unsubscribe_link',
+        changedAt: now,
+        changedByUserId: null,
+        reason: null,
         createdAt: now,
         updatedAt: now,
       });
 
-      vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
       const sut = makeSut();
-      vi.mocked(sut.consentRepo.findByRecipientChannelTenant).mockResolvedValue(consent);
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(consent);
 
       await sut.useCase.execute({ notificationId: 'notif-1' });
 
       const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
-      expect(updated.status).toBe('SKIPPED');
+      expect(updated.status).toBe('SKIPPED_OPT_OUT');
       expect(updated.failureReason).toBe('CONSENT_OPT_OUT');
       expect(sut.emailProvider.send).not.toHaveBeenCalled();
     });
@@ -501,15 +514,20 @@ describe('SendNotificationUseCase', () => {
         recipient: 'user@example.com',
         channel: 'EMAIL' as any,
         tenantId: 'tenant-1',
+        notificationClass: 'OPERATIONAL',
         optedOut: false,
         optedOutAt: null,
+        changeSource: null,
+        changedAt: null,
+        changedByUserId: null,
+        reason: null,
         createdAt: now,
         updatedAt: now,
       });
 
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
-      vi.mocked(sut.consentRepo.findByRecipientChannelTenant).mockResolvedValue(consent);
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(consent);
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
       vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
 
@@ -521,7 +539,7 @@ describe('SendNotificationUseCase', () => {
     it('should send notification when no consent record exists', async () => {
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
-      vi.mocked(sut.consentRepo.findByRecipientChannelTenant).mockResolvedValue(null);
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(null);
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
       vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
 
@@ -531,11 +549,184 @@ describe('SendNotificationUseCase', () => {
     });
   });
 
+  // Feature 018: classification-aware consent branching
+  describe('feature 018: notificationClass branching', () => {
+    async function optedOutConsent(notificationClass: 'OPERATIONAL' | 'MARKETING' | 'TRANSACTIONAL') {
+      const { NotificationConsentEntity: ConsentClass } = await import(
+        '../../../src/modules/notification/domain/notification-consent.entity'
+      );
+      return new ConsentClass({
+        id: 'consent-1',
+        recipient: 'user@example.com',
+        channel: 'EMAIL' as any,
+        tenantId: 'tenant-1',
+        notificationClass,
+        optedOut: true,
+        optedOutAt: now,
+        changeSource: 'unsubscribe_link',
+        changedAt: now,
+        changedByUserId: null,
+        reason: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    it('TRANSACTIONAL bypasses consent even when recipient is opted out', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ notificationClass: 'TRANSACTIONAL', templateCode: 'INSPECTION_CONFIRMED' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'INSPECTION_CONFIRMED', notificationClass: 'TRANSACTIONAL' }),
+      );
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(await optedOutConsent('OPERATIONAL'));
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalledTimes(1);
+      // consentRepo.findByScope is NOT called for TRANSACTIONAL
+      expect(sut.consentRepo.findByScope).not.toHaveBeenCalled();
+      const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
+      expect(updated.status).toBe('SENT');
+    });
+
+    it('OPERATIONAL with null class on notification falls back to template class and respects opt-out', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ notificationClass: null }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ notificationClass: 'OPERATIONAL' }),
+      );
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(await optedOutConsent('OPERATIONAL'));
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
+      expect(updated.status).toBe('SKIPPED_OPT_OUT');
+      expect(updated.failureReason).toBe('CONSENT_OPT_OUT');
+      expect(sut.emailProvider.send).not.toHaveBeenCalled();
+    });
+
+    it('MARKETING is blocked when no opted-in record exists (Phase 1 dead code)', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ notificationClass: 'MARKETING' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ notificationClass: 'MARKETING' }),
+      );
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(null);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
+      expect(updated.status).toBe('SKIPPED_OPT_OUT');
+      expect(sut.emailProvider.send).not.toHaveBeenCalled();
+    });
+
+    it('MARKETING is allowed when recipient has an explicit opted-in record', async () => {
+      const { NotificationConsentEntity: ConsentClass } = await import(
+        '../../../src/modules/notification/domain/notification-consent.entity'
+      );
+      const consent = new ConsentClass({
+        id: 'consent-mkt-1',
+        recipient: 'user@example.com',
+        channel: 'EMAIL' as any,
+        tenantId: 'tenant-1',
+        notificationClass: 'MARKETING',
+        optedOut: false,
+        optedOutAt: null,
+        changeSource: 're_opt_in',
+        changedAt: now,
+        changedByUserId: null,
+        reason: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ notificationClass: 'MARKETING' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ notificationClass: 'MARKETING' }),
+      );
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(consent);
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalled();
+    });
+
+    it('OPERATIONAL email renders with an unsubscribeUrl variable injected', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({
+          notificationClass: 'OPERATIONAL',
+          payloadJson: { tenantName: 'John', date: '2026-03-20' },
+        }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({
+          subject: 'Reminder for {{tenantName}}',
+          bodyHtml: '<p>Hi {{tenantName}}. Unsubscribe: {{unsubscribeUrl}}</p>',
+          bodyText: 'Hi {{tenantName}}. Unsubscribe: {{unsubscribeUrl}}',
+        }),
+      );
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(null);
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      const sendCall = vi.mocked(sut.emailProvider.send).mock.calls[0];
+      // Signature: recipient, subject, bodyHtml, bodyText
+      const bodyHtml = sendCall[2] as string;
+      const bodyText = sendCall[3] as string;
+      // The template renderer HTML-escapes `=` as `&#x3D;` when interpolating URL values.
+      // What matters is that the URL's path prefix survives the render — it's stripped only
+      // if the variable is missing altogether.
+      expect(bodyHtml).toContain('http://test.properfy.local/v1/notifications/unsubscribe');
+      expect(bodyText).toContain('http://test.properfy.local/v1/notifications/unsubscribe');
+    });
+
+    it('TRANSACTIONAL email does NOT get unsubscribeUrl injected', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({
+          notificationClass: 'TRANSACTIONAL',
+          templateCode: 'INSPECTION_CONFIRMED',
+          payloadJson: { tenantName: 'John', date: '2026-03-20' },
+        }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({
+          templateCode: 'INSPECTION_CONFIRMED',
+          notificationClass: 'TRANSACTIONAL',
+          subject: 'Confirmed for {{tenantName}}',
+          bodyHtml: '<p>Confirmed {{tenantName}} {{unsubscribeUrl}}</p>',
+          bodyText: 'Confirmed {{tenantName}} {{unsubscribeUrl}}',
+        }),
+      );
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      const sendCall = vi.mocked(sut.emailProvider.send).mock.calls[0];
+      const bodyText = sendCall[3] as string;
+      // Unsubscribe URL variable is absent → Handlebars renders as empty string
+      expect(bodyText).not.toContain('http://test.properfy.local');
+    });
+  });
+
   // GAP-003: Per-tenant budget / rate limit
   describe('GAP-003: daily budget cap', () => {
     it('should fail with BUDGET_EXCEEDED when email cap is reached', async () => {
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification({ channel: 'EMAIL' }));
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
       vi.mocked(sut.getTenantSettings).mockResolvedValue({ notificationDailyCapEmail: 10 });
       vi.mocked(sut.notificationRepo.countByTenantChannelSince).mockResolvedValue(10);
 
@@ -551,6 +742,9 @@ describe('SendNotificationUseCase', () => {
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
         makeNotification({ channel: 'SMS', recipient: '+61400000000' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null }),
       );
       vi.mocked(sut.getTenantSettings).mockResolvedValue({ notificationDailyCapSms: 5 });
       vi.mocked(sut.notificationRepo.countByTenantChannelSince).mockResolvedValue(5);

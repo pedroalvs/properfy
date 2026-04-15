@@ -55,13 +55,14 @@ export class CreatePricingRuleUseCase {
     const { serviceTypeId, priceAmount, payoutType, payoutValue, bonusRuleJson, status, actor } =
       input;
 
-    // RBAC: AM/OP any tenant (tenantId required), CL_ADMIN own tenant, others forbidden
+    // RBAC: AM any tenant (tenantId required). OP/CL_ADMIN scoped to own
+    // tenant per Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
     if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'CL_ADMIN') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
     const resolvedTenantId =
-      actor.role === 'AM' || actor.role === 'OP'
+      actor.role === 'AM'
         ? input.tenantId
         : actor.tenantId;
 

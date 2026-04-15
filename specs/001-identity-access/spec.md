@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-identity-access`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps closed in commit `33039b8` (2026-04-07, Waves 1–6) with Phase 3 audit polish in `8c9e7af`. Gap 001#GAP-003 (CL_USER fine-grained permissions) was further consolidated into the centralized AuthorizationService by feature 015 (`48a6a3d`, 2026-04-09). Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/{auth,user}`, `apps/backend/src/shared/interfaces/auth-middleware.ts`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/{schemas,enums,types}`, `apps/web/src/features/auth`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`

@@ -266,6 +266,12 @@ export class AppointmentImportWorker {
     const contact = new AppointmentContactEntity({
       id: crypto.randomUUID(),
       appointmentId,
+      contactId: null,
+      role: 'TENANT' as const,
+      isPrimary: true,
+      snapshotName: row.tenantName,
+      snapshotEmail: row.tenantEmail ?? null,
+      snapshotPhone: row.tenantPhone ?? null,
       tenantName: row.tenantName,
       primaryEmail: row.tenantEmail ?? null,
       secondaryEmail: null,

@@ -106,10 +106,10 @@ export class GetPortalDataUseCase {
       },
       contact: contact
         ? {
-            tenantName: contact.tenantName,
-            primaryEmail: contact.primaryEmail,
+            tenantName: contact.effectiveName,
+            primaryEmail: contact.effectiveEmail,
             secondaryEmail: contact.secondaryEmail,
-            primaryPhone: contact.primaryPhone,
+            primaryPhone: contact.effectivePhone,
             secondaryPhone: contact.secondaryPhone,
           }
         : null,

@@ -27,6 +27,14 @@ export function useInspectorDetail(id: string | null): UseInspectorDetailReturn 
       clientEligibility: Array.isArray(raw.clientEligibilityJson) ? raw.clientEligibilityJson : [],
       regionsCount: regionIds.length,
       serviceTypesCount: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson.length : 0,
+      fullName: raw.fullName ?? null,
+      abn: raw.abn ?? null,
+      dateOfBirth: raw.dateOfBirth ?? null,
+      insuranceFileKey: raw.insuranceFileKey ?? null,
+      insuranceExpiresAt: raw.insuranceExpiresAt ?? null,
+      policeCheckFileKey: raw.policeCheckFileKey ?? null,
+      policeCheckExpiresAt: raw.policeCheckExpiresAt ?? null,
+      blockedClients: Array.isArray(raw.blockedClients) ? raw.blockedClients : [],
     };
   }, [raw]);
 

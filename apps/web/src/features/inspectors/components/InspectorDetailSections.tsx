@@ -1,6 +1,6 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatDateTime, toLocalISODate } from '@/lib/format-date';
+import { formatDate, formatDateTime, toLocalISODate } from '@/lib/format-date';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import type { InspectorDetail } from '../types';
 
@@ -71,18 +71,45 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
     return tenantNameMap.get(id) ?? id;
   });
 
+  const blockedClientLabels = (inspector.blockedClients ?? []).map(
+    (id) => tenantNameMap.get(id) ?? id,
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <FormSection title="Personal Details">
         <DetailRow label="Name" value={inspector.name} />
+        <DetailRow label="Full Name" value={inspector.fullName} />
         <DetailRow label="Email" value={inspector.email} />
         <DetailRow label="Phone" value={inspector.phone} />
+        <DetailRow label="ABN" value={inspector.abn} />
+        <DetailRow label="Date of Birth" value={inspector.dateOfBirth ? formatDate(inspector.dateOfBirth) : null} />
+      </FormSection>
+
+      <FormSection title="Insurance &amp; Police Check">
+        <DetailRow
+          label="Insurance File"
+          value={inspector.insuranceFileKey ?? null}
+        />
+        <DetailRow
+          label="Insurance Expiry"
+          value={inspector.insuranceExpiresAt ? formatDate(inspector.insuranceExpiresAt) : null}
+        />
+        <DetailRow
+          label="Police Check File"
+          value={inspector.policeCheckFileKey ?? null}
+        />
+        <DetailRow
+          label="Police Check Expiry"
+          value={inspector.policeCheckExpiresAt ? formatDate(inspector.policeCheckExpiresAt) : null}
+        />
       </FormSection>
 
       <FormSection title="Coverage">
         <DetailRow label="Regions" value={formatList(regionLabels)} />
         <DetailRow label="Service Types" value={formatList(serviceTypeLabels)} />
         <DetailRow label="Client Eligibility" value={formatList(clientEligibilityLabels)} />
+        <DetailRow label="Blocked Tenants" value={formatList(blockedClientLabels)} />
       </FormSection>
 
       <FormSection title="Workload">

@@ -226,3 +226,28 @@ export class AppointmentImportIdempotencyPayloadMismatchError extends ConflictEr
     );
   }
 }
+
+// Bulk edit errors (FR-066..FR-069)
+export class AppointmentBulkFieldNotAllowedError extends DomainError {
+  constructor(field: string) {
+    super('APPOINTMENT_BULK_FIELD_NOT_ALLOWED', `Field '${field}' is not allowed in bulk edit`);
+  }
+}
+
+export class AppointmentBulkLimitExceededError extends DomainError {
+  constructor() {
+    super('APPOINTMENT_BULK_LIMIT_EXCEEDED', 'Maximum 100 appointments per bulk edit request');
+  }
+}
+
+export class AppointmentBulkBranchChangeNotAllowedError extends DomainError {
+  constructor(appointmentId: string) {
+    super('APPOINTMENT_BULK_BRANCH_CHANGE_NOT_ALLOWED', `Branch change not allowed for appointment ${appointmentId} (must be in DRAFT)`);
+  }
+}
+
+export class AppointmentContactsRequiredError extends DomainError {
+  constructor() {
+    super('APPOINTMENT_CONTACTS_REQUIRED', 'At least one contact is required');
+  }
+}

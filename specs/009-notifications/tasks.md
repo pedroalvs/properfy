@@ -29,7 +29,7 @@ description: "Implementation and backlog tracking for Notifications"
 - [x] T005 Domain helper `TemplateRendererService` ({{variable}} substitution).
 - [x] T006 Constants (`MANDATORY_TEMPLATE_CODES`, `RETRY_DELAYS`, `MAX_RETRY_COUNT`, `JITTER_FACTOR`).
 - [x] T007 Prisma adapters for both repositories.
-- [x] T008 Provider adapters (Resend, Twilio, Zenvia) and stub twins.
+- [x] T008 Provider adapters (Resend, SMS provider, Zenvia) and stub twins. Current code uses Twilio for SMS; approved target is Mobile Message.
 
 ## US1 — Create notification (shipped)
 
@@ -50,7 +50,7 @@ description: "Implementation and backlog tracking for Notifications"
 ## US4 — Provider webhooks (shipped)
 
 - [x] T040 [US4] `HandleProviderWebhookUseCase` mapping provider events to internal states.
-- [x] T041 [US4] Routes `POST /v1/webhooks/resend`, `/twilio`, `/zenvia` with always-200 guarantee.
+- [x] T041 [US4] Routes `POST /v1/webhooks/resend`, `/mobile-message`, `/zenvia` with always-200 guarantee. Current code still exposes `/twilio` for SMS until migration.
 - [x] T042 [US4] Integration tests with fixture payloads per provider.
 
 ## US5 — Reminder dispatcher (shipped)
@@ -148,7 +148,7 @@ description: "Implementation and backlog tracking for Notifications"
 ### GAP-007 — Webhook signature validation (HIGH, security)
 
 - [ ] T170 [GAP-007] Resend: validate Svix signatures via `svix` library.
-- [ ] T171 [GAP-007] Twilio: validate `X-Twilio-Signature` using the provided helper.
+- [ ] T171 [GAP-007] Mobile Message: validate the provider's webhook authentication/signature mechanism once the SMS migration lands.
 - [ ] T172 [GAP-007] Zenvia: validate HMAC.
 - [ ] T173 [GAP-007] On invalid signature, return 401 without processing — this is a DIFFERENT semantic from the always-200 rule for legitimate unknown events.
 - [ ] T174 [GAP-007] Tests with valid and invalid signatures per provider.

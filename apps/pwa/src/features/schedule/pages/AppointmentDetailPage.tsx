@@ -8,6 +8,7 @@ import { TenantConfirmationBanner } from '../components/TenantConfirmationBanner
 import { PropertyAddressSection } from '../components/PropertyAddressSection';
 import { TenantContactSection } from '../components/TenantContactSection';
 import { KeyDetailsSection } from '../components/KeyDetailsSection';
+import { JobDetailsSection } from '../components/JobDetailsSection';
 import { StartInspectionButton } from '../components/StartInspectionButton';
 import { useInspectorAppointment } from '../hooks/useInspectorAppointment';
 import { useLocalExecutionState } from '@/features/execution/hooks/useLocalExecutionState';
@@ -16,7 +17,7 @@ import { formatScheduleDate, formatTimeWindow } from '../lib/time-slot';
 
 export function AppointmentDetailPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
-  const { data, isLoading, isError, refetch } = useInspectorAppointment(appointmentId!);
+  const { data, isLoading, isError, refetch, jobDetails } = useInspectorAppointment(appointmentId!);
   const { state: localExecutionState, isRestored } = useLocalExecutionState(appointmentId!);
 
   if (isLoading) {
@@ -132,6 +133,9 @@ export function AppointmentDetailPage() {
             <p className="mt-1 text-sm text-text-primary">{apt.notes}</p>
           </section>
         )}
+
+        {/* Job Details */}
+        {jobDetails && <JobDetailsSection jobDetails={jobDetails} />}
 
         {/* CTA */}
         {showCTA && (

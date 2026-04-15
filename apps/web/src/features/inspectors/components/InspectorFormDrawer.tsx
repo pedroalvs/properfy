@@ -10,6 +10,7 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { PhoneInput } from '@/components/forms/PhoneInput';
+import { DateInput } from '@/components/forms/DateInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
@@ -76,6 +77,14 @@ export function InspectorFormDrawer({
         regionIds: inspector.regionIds ?? [],
         serviceTypes: (inspector.serviceTypes ?? []).map((s) => s.serviceTypeId).join(','),
         clientEligibility: (inspector.clientEligibility ?? []).map((c) => c.tenantId),
+        fullName: inspector.fullName ?? '',
+        abn: inspector.abn ?? '',
+        dateOfBirth: inspector.dateOfBirth ?? '',
+        insuranceFileKey: inspector.insuranceFileKey ?? '',
+        insuranceExpiresAt: inspector.insuranceExpiresAt ?? '',
+        policeCheckFileKey: inspector.policeCheckFileKey ?? '',
+        policeCheckExpiresAt: inspector.policeCheckExpiresAt ?? '',
+        blockedClients: inspector.blockedClients ?? [],
       };
       setForm(data);
       setInitialData(data);
@@ -135,6 +144,14 @@ export function InspectorFormDrawer({
       : current.filter((id) => id !== tenantId);
     updateField('clientEligibility', next);
   }, [form.clientEligibility, updateField]);
+
+  const toggleBlockedClient = useCallback((tenantId: string, checked: boolean) => {
+    const current = form.blockedClients;
+    const next = checked
+      ? Array.from(new Set([...current, tenantId]))
+      : current.filter((id) => id !== tenantId);
+    updateField('blockedClients', next);
+  }, [form.blockedClients, updateField]);
 
   const handleSubmit = useCallback(async () => {
     const mode = isEditMode ? 'edit' : 'create';
@@ -256,9 +273,67 @@ export function InspectorFormDrawer({
                     </FormField>
                   </FormSection>
 
+                  <FormSection title="Profile &amp; Compliance" columns={2}>
+                    <FormField label="Full Name" error={errors.fullName}>
+                      <TextInput
+                        value={form.fullName}
+                        onChange={(v) => updateField('fullName', v)}
+                        aria-label="Full Name"
+                      />
+                    </FormField>
+                    <FormField label="ABN" error={errors.abn}>
+                      <TextInput
+                        value={form.abn}
+                        onChange={(v) => updateField('abn', v.slice(0, 20))}
+                        aria-label="ABN"
+                      />
+                    </FormField>
+                    <FormField label="Date of Birth" error={errors.dateOfBirth}>
+                      <DateInput
+                        value={form.dateOfBirth}
+                        onChange={(v) => updateField('dateOfBirth', v)}
+                        aria-label="Date of Birth"
+                      />
+                    </FormField>
+                  </FormSection>
+
+                  <FormSection title="Insurance" columns={2}>
+                    <FormField label="Insurance File Key" error={errors.insuranceFileKey}>
+                      <TextInput
+                        value={form.insuranceFileKey}
+                        onChange={(v) => updateField('insuranceFileKey', v)}
+                        aria-label="Insurance File Key"
+                      />
+                    </FormField>
+                    <FormField label="Insurance Expiry" error={errors.insuranceExpiresAt}>
+                      <DateInput
+                        value={form.insuranceExpiresAt}
+                        onChange={(v) => updateField('insuranceExpiresAt', v)}
+                        aria-label="Insurance Expiry"
+                      />
+                    </FormField>
+                  </FormSection>
+
+                  <FormSection title="Police Check" columns={2}>
+                    <FormField label="Police Check File Key" error={errors.policeCheckFileKey}>
+                      <TextInput
+                        value={form.policeCheckFileKey}
+                        onChange={(v) => updateField('policeCheckFileKey', v)}
+                        aria-label="Police Check File Key"
+                      />
+                    </FormField>
+                    <FormField label="Police Check Expiry" error={errors.policeCheckExpiresAt}>
+                      <DateInput
+                        value={form.policeCheckExpiresAt}
+                        onChange={(v) => updateField('policeCheckExpiresAt', v)}
+                        aria-label="Police Check Expiry"
+                      />
+                    </FormField>
+                  </FormSection>
+
                   {isAmOp && (
-                    <FormSection title="Client Eligibility">
-                      <FormField label="Eligible Clients" error={errors.clientEligibility}>
+                    <FormSection title="Blocked Tenants">
+                      <FormField label="Blocked Tenants" error={errors.blockedClients}>
                         <div className="flex flex-col gap-3 rounded border border-black/10 px-3 py-3">
                           {tenantOptions.length > 0 ? (
                             <div className="grid gap-2">
@@ -266,16 +341,19 @@ export function InspectorFormDrawer({
                                 <Checkbox
                                   key={option.value}
                                   label={option.label}
-                                  checked={form.clientEligibility.includes(option.value)}
-                                  onChange={(checked) => toggleClientEligibility(option.value, checked)}
+                                  checked={form.blockedClients.includes(option.value)}
+                                  onChange={(checked) => toggleBlockedClient(option.value, checked)}
                                 />
                               ))}
                             </div>
                           ) : (
                             <p className="text-sm text-text-muted">
-                              {isLoadingTenants ? 'Loading clients...' : 'No active clients available.'}
+                              {isLoadingTenants ? 'Loading tenants...' : 'No active tenants available.'}
                             </p>
                           )}
+                          <p className="text-xs text-text-muted">
+                            Selected tenants are blocked. Empty means eligible for all.
+                          </p>
                         </div>
                       </FormField>
                     </FormSection>

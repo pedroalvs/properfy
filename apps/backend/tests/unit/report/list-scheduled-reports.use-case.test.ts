@@ -8,9 +8,12 @@ import type { AuthContext } from '@properfy/shared';
 function makeSut() {
   const scheduledReportRepo: IScheduledReportRepository = {
     findById: vi.fn(),
+    findByIdIncludingDeleted: vi.fn(),
+    findDueForProcessing: vi.fn().mockResolvedValue([]),
     findDueSchedules: vi.fn().mockResolvedValue([]),
     findAll: vi.fn().mockResolvedValue([]),
     count: vi.fn().mockResolvedValue(0),
+    countActiveByOwner: vi.fn().mockResolvedValue(0),
     save: vi.fn(),
     update: vi.fn(),
   };
@@ -29,6 +32,13 @@ function makeScheduledReport(overrides: Partial<ConstructorParameters<typeof Sch
     format: 'XLSX',
     cronExpression: '0 8 * * 1',
     deliveryEmail: 'test@example.com',
+    displayName: null,
+    deliveryMode: 'OWNER_ONLY',
+    recipientUserIds: [],
+    skipDeliveryWhenEmpty: false,
+    consecutiveFailureCount: 0,
+    status: 'ACTIVE',
+    deletedAt: null,
     isActive: true,
     lastRunAt: null,
     nextRunAt: new Date(now.getTime() + 86400000),
@@ -96,14 +106,32 @@ describe('ListScheduledReportsUseCase', () => {
     expect(scheduledReportRepo.findAll).toHaveBeenCalledWith({}, 1, 20);
   });
 
-  it('should reject CL_ADMIN', async () => {
+  it('should scope CL_ADMIN to own tenant (feature 019 RBAC broadening)', async () => {
+    vi.mocked(scheduledReportRepo.findAll).mockResolvedValue([]);
+    vi.mocked(scheduledReportRepo.count).mockResolvedValue(0);
     const auth = makeAuth({ role: 'CL_ADMIN', tenantId: 'tenant-1' });
-    await expect(useCase.execute({ page: 1, pageSize: 20 }, auth)).rejects.toThrow(ForbiddenError);
+
+    await useCase.execute({ page: 1, pageSize: 20 }, auth);
+
+    expect(scheduledReportRepo.findAll).toHaveBeenCalledWith(
+      { tenantId: 'tenant-1' },
+      1,
+      20,
+    );
   });
 
-  it('should reject CL_USER', async () => {
-    const auth = makeAuth({ role: 'CL_USER', tenantId: 'tenant-1' });
-    await expect(useCase.execute({ page: 1, pageSize: 20 }, auth)).rejects.toThrow(ForbiddenError);
+  it('should scope CL_USER to own tenant AND own userId (feature 019 RBAC broadening)', async () => {
+    vi.mocked(scheduledReportRepo.findAll).mockResolvedValue([]);
+    vi.mocked(scheduledReportRepo.count).mockResolvedValue(0);
+    const auth = makeAuth({ role: 'CL_USER', tenantId: 'tenant-1', userId: 'user-42' });
+
+    await useCase.execute({ page: 1, pageSize: 20 }, auth);
+
+    expect(scheduledReportRepo.findAll).toHaveBeenCalledWith(
+      { tenantId: 'tenant-1', createdByUserId: 'user-42' },
+      1,
+      20,
+    );
   });
 
   it('should reject INSP', async () => {

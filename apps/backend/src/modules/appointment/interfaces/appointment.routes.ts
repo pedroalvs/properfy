@@ -6,6 +6,7 @@ import {
   statusTransitionSchema,
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
+  bulkEditAppointmentSchema,
   appointmentResponseSchema,
   forceManualConfirmationResponseSchema,
   appointmentContactResponseSchema,
@@ -28,6 +29,7 @@ import type { ImportAppointmentsUseCase } from '../application/use-cases/import-
 import type { GetImportStatusUseCase } from '../application/use-cases/get-import-status.use-case';
 import type { ListAppointmentContactsUseCase } from '../application/use-cases/list-appointment-contacts.use-case';
 import type { DeleteAppointmentUseCase } from '../application/use-cases/delete-appointment.use-case';
+import type { BulkEditAppointmentsUseCase } from '../application/use-cases/bulk-edit-appointments.use-case';
 import type { ReopenForRescheduleUseCase } from '../application/use-cases/reopen-for-reschedule.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
@@ -46,6 +48,7 @@ export interface AppointmentRouteContainer {
   getImportStatusUseCase: GetImportStatusUseCase;
   listAppointmentContactsUseCase: ListAppointmentContactsUseCase;
   deleteAppointmentUseCase: DeleteAppointmentUseCase;
+  bulkEditAppointmentsUseCase: BulkEditAppointmentsUseCase;
   appointmentRepo: { findContactById(id: string): Promise<object | null> };
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
@@ -396,6 +399,30 @@ export async function registerAppointmentRoutes(
       const contact = await container.appointmentRepo.findContactById(params.data.contactId);
       if (!contact) throw new ContactNotFoundError();
       return reply.status(200).send(success(contact));
+    },
+  );
+
+  // POST /v1/appointments/bulk-edit (FR-066..FR-069a)
+  app.post(
+    '/v1/appointments/bulk-edit',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      const parsed = bulkEditAppointmentSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid bulk edit payload', details: parsed.error.errors },
+        });
+      }
+
+      const result = await container.bulkEditAppointmentsUseCase.execute({
+        ids: parsed.data.ids,
+        changes: parsed.data.changes,
+        actor: auth,
+        requestId: (request as any).requestId,
+      });
+
+      return reply.status(200).send(success(result));
     },
   );
 }

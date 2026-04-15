@@ -80,6 +80,12 @@ function mapContactToEntity(row: any): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: row.id,
     appointmentId: row.appointment_id,
+    contactId: row.contact_id ?? null,
+    role: row.role ?? 'TENANT',
+    isPrimary: row.is_primary ?? true,
+    snapshotName: row.snapshot_name ?? null,
+    snapshotEmail: row.snapshot_email ?? null,
+    snapshotPhone: row.snapshot_phone ?? null,
     tenantName: row.tenant_name,
     primaryEmail: row.primary_email,
     secondaryEmail: row.secondary_email,
@@ -117,7 +123,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const row = await this.prisma.appointment.findFirst({
       where,
       include: {
-        contact: true,
+        contacts: true,
         restrictions: true,
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
         branch: { select: { name: true } },
@@ -129,7 +135,14 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (!row) return null;
 
     const appointment = mapToEntity(row);
-    const contact = row.contact ? mapContactToEntity(row.contact) : null;
+    // Sort contacts: primary first, then insertion order
+    const sortedContacts = [...row.contacts].sort((a, b) => {
+      if (a.is_primary && !b.is_primary) return -1;
+      if (!a.is_primary && b.is_primary) return 1;
+      return a.created_at.getTime() - b.created_at.getTime();
+    });
+    const allContacts = sortedContacts.map(mapContactToEntity);
+    const contact = allContacts[0] ?? null;
     const restrictions = row.restrictions.map(mapRestrictionToEntity);
 
     const propertyAddress = row.property
@@ -139,6 +152,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return {
       appointment,
       contact,
+      contacts: allContacts,
       restrictions,
       propertyCode: row.property?.property_code ?? '',
       propertyAddress,
@@ -164,7 +178,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
       include: {
-        contact: { select: { tenant_name: true, primary_phone: true, primary_email: true } },
+        contacts: { select: { id: true, appointment_id: true, contact_id: true, role: true, is_primary: true, snapshot_name: true, snapshot_email: true, snapshot_phone: true, tenant_name: true, primary_email: true, secondary_email: true, primary_phone: true, secondary_phone: true, created_at: true, updated_at: true } },
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
         tenant: { select: { name: true } },
         branch: { select: { name: true } },
@@ -174,7 +188,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
     return rows.map((row) => {
       const appointment = mapToEntity(row);
-      const contact = row.contact ? mapContactToEntity(row.contact) : null;
+      const contact = row.contacts[0] ? mapContactToEntity(row.contacts[0]) : null;
       const propertyAddress = row.property
         ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
         : '';
@@ -289,6 +303,12 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       data: {
         id: contact.id,
         appointment_id: contact.appointmentId,
+        contact_id: contact.contactId,
+        role: contact.role as any,
+        is_primary: contact.isPrimary,
+        snapshot_name: contact.snapshotName,
+        snapshot_email: contact.snapshotEmail,
+        snapshot_phone: contact.snapshotPhone,
         tenant_name: contact.tenantName,
         primary_email: contact.primaryEmail,
         secondary_email: contact.secondaryEmail,
@@ -315,9 +335,35 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.primaryPhone !== undefined) updateData['primary_phone'] = data.primaryPhone;
     if (data.secondaryPhone !== undefined) updateData['secondary_phone'] = data.secondaryPhone;
 
-    await this.prisma.appointmentContact.update({
+    await this.prisma.appointmentContact.updateMany({
       where: { appointment_id: appointmentId },
       data: updateData,
+    });
+  }
+
+  async updateContactSnapshot(
+    appointmentId: string,
+    contactJunctionId: string,
+    data: Partial<{
+      snapshotName: string;
+      snapshotEmail: string | null;
+      snapshotPhone: string | null;
+    }>,
+  ): Promise<void> {
+    const updateData: Record<string, unknown> = {};
+    if (data.snapshotName !== undefined) updateData['snapshot_name'] = data.snapshotName;
+    if (data.snapshotEmail !== undefined) updateData['snapshot_email'] = data.snapshotEmail;
+    if (data.snapshotPhone !== undefined) updateData['snapshot_phone'] = data.snapshotPhone;
+
+    await this.prisma.appointmentContact.updateMany({
+      where: { id: contactJunctionId, appointment_id: appointmentId },
+      data: updateData,
+    });
+  }
+
+  async deleteContactsByAppointmentId(appointmentId: string): Promise<void> {
+    await this.prisma.appointmentContact.deleteMany({
+      where: { appointment_id: appointmentId },
     });
   }
 
@@ -346,14 +392,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         scheduled_date: { gte: startOfDay, lt: endOfDay },
         deleted_at: null,
       },
-      include: { contact: true, restrictions: true },
+      include: { contacts: true, restrictions: true },
     });
 
     return rows.map((row) => {
       const appointment = mapToEntity(row);
-      const contact = row.contact ? mapContactToEntity(row.contact) : null;
+      const allContacts = row.contacts.map(mapContactToEntity);
+      const contact = allContacts[0] ?? null;
       const restrictions = row.restrictions.map(mapRestrictionToEntity);
-      return { appointment, contact, restrictions };
+      return { appointment, contact, contacts: allContacts, restrictions };
     });
   }
 
@@ -396,9 +443,12 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         { notes: { contains: filters.search, mode: 'insensitive' } },
         { property: { property_code: { contains: filters.search, mode: 'insensitive' } } },
         { property: { street: { contains: filters.search, mode: 'insensitive' } } },
-        { contact: { tenant_name: { contains: filters.search, mode: 'insensitive' } } },
-        { contact: { primary_phone: { contains: filters.search, mode: 'insensitive' } } },
-        { contact: { primary_email: { contains: filters.search, mode: 'insensitive' } } },
+        { contacts: { some: { tenant_name: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { primary_phone: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { primary_email: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { snapshot_name: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { snapshot_email: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { snapshot_phone: { contains: filters.search } } } },
       ];
     }
     if (filters.ungroupedOnly) {

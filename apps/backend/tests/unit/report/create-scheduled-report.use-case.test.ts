@@ -14,9 +14,12 @@ import type { CreateScheduledReportInput } from '../../../src/modules/report/app
 function makeSut() {
   const scheduledReportRepo: IScheduledReportRepository = {
     findById: vi.fn(),
+    findByIdIncludingDeleted: vi.fn(),
+    findDueForProcessing: vi.fn().mockResolvedValue([]),
     findDueSchedules: vi.fn().mockResolvedValue([]),
     findAll: vi.fn().mockResolvedValue([]),
     count: vi.fn().mockResolvedValue(0),
+    countActiveByOwner: vi.fn().mockResolvedValue(0),
     save: vi.fn(),
     update: vi.fn(),
   };
@@ -36,6 +39,9 @@ function makeInput(overrides: Partial<CreateScheduledReportInput> = {}): CreateS
     format: 'XLSX',
     cronExpression: '0 8 * * 1',
     deliveryEmail: 'reports@example.com',
+    deliveryMode: 'OWNER_ONLY',
+    recipientUserIds: [],
+    skipDeliveryWhenEmpty: false,
     ...overrides,
   };
 }
@@ -92,23 +98,54 @@ describe('CreateScheduledReportUseCase', () => {
     expect(scheduledReportRepo.save).toHaveBeenCalledOnce();
   });
 
-  it('should reject CL_ADMIN', async () => {
+  it('should allow CL_ADMIN within own tenant (feature 019 RBAC broadening)', async () => {
     const input = makeInput();
     const auth = makeAuth({ role: 'CL_ADMIN', tenantId: 'tenant-1' });
 
-    await expect(useCase.execute(input, auth)).rejects.toThrow(ForbiddenError);
+    const result = await useCase.execute(input, auth);
+
+    expect(result.id).toBeDefined();
+    expect(scheduledReportRepo.save).toHaveBeenCalledOnce();
   });
 
-  it('should reject CL_USER', async () => {
+  it('should allow CL_USER within own tenant when no authorizationService is wired (feature 019 RBAC broadening)', async () => {
     const input = makeInput();
     const auth = makeAuth({ role: 'CL_USER', tenantId: 'tenant-1' });
 
-    await expect(useCase.execute(input, auth)).rejects.toThrow(ForbiddenError);
+    const result = await useCase.execute(input, auth);
+
+    expect(result.id).toBeDefined();
+  });
+
+  it('should reject CL_USER when authorizationService denies the export_reports permission', async () => {
+    const input = makeInput();
+    const auth = makeAuth({ role: 'CL_USER', tenantId: 'tenant-1' });
+
+    const denyingAuthService = {
+      assertClUserPermission: vi.fn().mockImplementation(() => {
+        throw new ForbiddenError('FORBIDDEN', 'Missing export_reports permission');
+      }),
+    };
+    const forbiddingUseCase = new CreateScheduledReportUseCase(
+      scheduledReportRepo,
+      auditService,
+      undefined,
+      denyingAuthService as any,
+    );
+
+    await expect(forbiddingUseCase.execute(input, auth)).rejects.toThrow(ForbiddenError);
   });
 
   it('should reject INSP', async () => {
     const input = makeInput();
     const auth = makeAuth({ role: 'INSP' });
+
+    await expect(useCase.execute(input, auth)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should reject TNT', async () => {
+    const input = makeInput();
+    const auth = makeAuth({ role: 'TNT' });
 
     await expect(useCase.execute(input, auth)).rejects.toThrow(ForbiddenError);
   });

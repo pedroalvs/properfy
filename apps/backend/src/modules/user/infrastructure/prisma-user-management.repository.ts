@@ -80,6 +80,14 @@ export class PrismaUserManagementRepository
     return row ? mapToEntity(row) : null;
   }
 
+  /** Feature 020 FR-019b: phone-input path for data subject erasure resolver. */
+  async findByPhone(phone: string): Promise<UserEntity | null> {
+    const row = await this.prisma.user.findFirst({
+      where: { phone, deleted_at: null },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
   async findByTenantId(
     tenantId: string | null,
     filters: UserManagementFilters,

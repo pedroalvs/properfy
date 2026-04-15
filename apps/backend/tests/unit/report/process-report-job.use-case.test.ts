@@ -19,6 +19,7 @@ function makeReport(overrides: Partial<ConstructorParameters<typeof ReportEntity
     status: 'PENDING',
     fileKey: null,
     requestedByUserId: 'user-1',
+    scheduledReportId: null,
     startedAt: null,
     completedAt: null,
     failedAt: null,
@@ -420,7 +421,8 @@ describe('ProcessReportJobUseCase', () => {
       });
     });
 
-    it('does not send notification when report fails', async () => {
+    // Feature 019 US1: failure path now emits REPORT_FAILED
+    it('sends REPORT_FAILED notification when report fails', async () => {
       const report = makeReport();
       vi.mocked(reportRepo.findById).mockResolvedValue(report);
       vi.mocked(dataReader.getInspectionRows).mockRejectedValue(new Error('fail'));
@@ -428,7 +430,50 @@ describe('ProcessReportJobUseCase', () => {
       await useCase.execute('report-1');
 
       expect(report.status).toBe('FAILED');
-      expect(notificationSender.execute).not.toHaveBeenCalled();
+      expect(notificationSender.execute).toHaveBeenCalledWith({
+        tenantId: 'tenant-1',
+        recipient: 'john@example.com',
+        channel: 'EMAIL',
+        templateCode: 'REPORT_FAILED',
+        payloadJson: {
+          userName: 'John Doe',
+          reportType: 'INSPECTIONS_DONE',
+          reportId: 'report-1',
+          errorMessage: 'fail',
+          downloadLink: '/reports/report-1',
+        },
+      });
+    });
+
+    // Feature 019 US1: graceful no-op when user has no email on failure
+    it('does not throw on failure when user has no email', async () => {
+      const report = makeReport();
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      vi.mocked(dataReader.getInspectionRows).mockRejectedValue(new Error('fail'));
+      vi.mocked(userReader.findById).mockResolvedValue({ id: 'user-1', name: 'John', email: '' });
+
+      await useCase.execute('report-1');
+
+      expect(report.status).toBe('FAILED');
+      // Notification was NOT sent because email is empty
+      const failedCalls = vi.mocked(notificationSender.execute).mock.calls.filter(
+        (c) => c[0].templateCode === 'REPORT_FAILED',
+      );
+      expect(failedCalls).toHaveLength(0);
+    });
+
+    // Feature 019: scheduled reports skip the single-recipient REPORT_READY path
+    it('suppresses REPORT_READY notification when report has scheduledReportId', async () => {
+      const report = makeReport({ scheduledReportId: 'sched-1' });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+
+      await useCase.execute('report-1');
+
+      expect(report.status).toBe('READY');
+      const readyCalls = vi.mocked(notificationSender.execute).mock.calls.filter(
+        (c) => c[0].templateCode === 'REPORT_READY',
+      );
+      expect(readyCalls).toHaveLength(0);
     });
 
     it('does not send notification for platform-wide reports (null tenantId)', async () => {

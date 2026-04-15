@@ -35,6 +35,7 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
       { serviceTypeId: '123e4567-e89b-12d3-a456-426614174001', certified: false },
     ],
     clientEligibility: [],
+    blockedClients: [],
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
     ...overrides,
@@ -98,6 +99,7 @@ describe('InspectorDetailSections', () => {
   it('renders section titles', () => {
     render(<InspectorDetailSections inspector={makeInspector()} />, { wrapper });
     expect(screen.getByText('Personal Details')).toBeInTheDocument();
+    expect(screen.getByText('Insurance & Police Check')).toBeInTheDocument();
     expect(screen.getByText('Coverage')).toBeInTheDocument();
     expect(screen.getByText('Record')).toBeInTheDocument();
   });
@@ -136,5 +138,43 @@ describe('InspectorDetailSections', () => {
       { wrapper },
     );
     expect(screen.getByText('Imobiliaria Alpha, Imobiliaria Beta')).toBeInTheDocument();
+  });
+
+  it('shows profile fields (full name, ABN, DOB) when present', () => {
+    render(
+      <InspectorDetailSections inspector={makeInspector({
+        fullName: 'Carlos Alberto Silva',
+        abn: '12345678901',
+        dateOfBirth: '1990-05-15',
+      })} />,
+      { wrapper },
+    );
+    expect(screen.getByText('Carlos Alberto Silva')).toBeInTheDocument();
+    expect(screen.getByText('12345678901')).toBeInTheDocument();
+    expect(screen.getByText('15/05/1990')).toBeInTheDocument();
+  });
+
+  it('shows insurance and police check details when present', () => {
+    render(
+      <InspectorDetailSections inspector={makeInspector({
+        insuranceFileKey: 'uploads/insurance-cert.pdf',
+        insuranceExpiresAt: '2027-06-30',
+        policeCheckFileKey: 'uploads/police-check.pdf',
+        policeCheckExpiresAt: '2027-12-31',
+      })} />,
+      { wrapper },
+    );
+    expect(screen.getByText('uploads/insurance-cert.pdf')).toBeInTheDocument();
+    expect(screen.getByText('30/06/2027')).toBeInTheDocument();
+    expect(screen.getByText('uploads/police-check.pdf')).toBeInTheDocument();
+    expect(screen.getByText('31/12/2027')).toBeInTheDocument();
+  });
+
+  it('shows blocked tenants when present', () => {
+    render(
+      <InspectorDetailSections inspector={makeInspector({ blockedClients: ['ten-01'] })} />,
+      { wrapper },
+    );
+    expect(screen.getByText('Imobiliaria Alpha')).toBeInTheDocument();
   });
 });

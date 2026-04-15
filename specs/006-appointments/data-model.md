@@ -32,6 +32,16 @@ TENANT | AGENCY | INSPECTOR
 
 Identifies which party reported the restriction.
 
+### `AppointmentContactRole` (Feedback Round 2026-04-13 item 4 + feature 021 architectural revision)
+
+```
+TENANT | TENANT_REPRESENTATIVE | HOUSEKEEPER | PROPERTY_MANAGER | BROKER | OTHER
+```
+
+Identifies the contact's **role in this specific appointment**. This is a contextual classification, distinct from `ContactType` (feature 021) which describes the contact's permanent identity type. A person who is `ContactType = PROPERTY_MANAGER` in the registry could act as `AppointmentContactRole = OTHER` in an appointment where they're filling in. The two enums are deliberately separate.
+
+`BROKER` was added to align with `ContactType`. `OTHER` is the escape hatch for contacts that don't fit the typed roles. Default on create: `TENANT`.
+
 ## State Machine
 
 The authoritative transition matrix lives in `apps/backend/src/modules/appointment/domain/appointment-state-machine.ts`. **Every transition MUST go through `ExecuteStatusTransitionUseCase`** (constitution Principle VI). Direct DB writes to `appointments.status` are forbidden outside migrations.
@@ -46,7 +56,7 @@ The authoritative transition matrix lives in `apps/backend/src/modules/appointme
 | 6 | `AWAITING_INSPECTOR` | `REJECTED` | AM, OP | **yes** | no |
 | 7 | `SCHEDULED` | `DONE` | INSP, OP | no | **yes** |
 | 8 | `SCHEDULED` | `CANCELLED` | AM, OP, CL_ADMIN, CL_USER | **yes** | no |
-| 9 | `SCHEDULED` | `REJECTED` | OP, SYS | **yes** | no |
+| 9 | `SCHEDULED` | `REJECTED` | OP, SYS | **yes** | no | <!-- Feedback Round 2026-04-13 item 8: already in matrix; the gap is a missing Reject affordance on the web drawer, not a state-machine change. -->
 | 10 | `REJECTED` | `DRAFT` | AM, OP | **yes** | no |
 | 11 | `REJECTED` | `AWAITING_INSPECTOR` | AM, OP | **yes** | no |
 | 12 | `CANCELLED` | `DRAFT` | AM, OP | **yes** | no |
@@ -120,21 +130,55 @@ The authoritative transition matrix lives in `apps/backend/src/modules/appointme
 
 ### `appointment_contacts`
 
+**Model shape (Feedback Round 2026-04-13 item 4 + feature 021 architectural revision)**: rewritten as a **junction + snapshot** table. Each row links an appointment to a contact in the registry (feature 021) and freezes the contact's name/email/phone at link time. The snapshot is the audit-safe record of who was contacted; the registry contact is the live source of truth for current data.
+
+> **Supersedes**: the corrective-pass model from 2026-04-12 that stored `additional_emails_json` / `additional_phones_json` directly on this table. Multiple channels now live on the `contacts` registry entity (feature 021). This table is a pure junction with snapshot fields.
+
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
 | `id` | uuid | no | generated | PK |
-| `appointment_id` | uuid | no | — | **UNIQUE** → `appointments.id`, `ON DELETE CASCADE`. |
-| `tenant_name` | varchar(200) | no | — | Renter's display name. |
-| `primary_email` | varchar(254) | yes | — | |
-| `secondary_email` | varchar(254) | yes | — | |
-| `primary_phone` | varchar(30) | yes | — | |
-| `secondary_phone` | varchar(30) | yes | — | |
-| `created_at`, `updated_at` | timestamptz | no | | |
+| `appointment_id` | uuid | no | — | FK → `appointments.id`, `ON DELETE CASCADE`. Multiple rows per appointment are allowed. |
+| `contact_id` | uuid | yes | — | FK → `contacts.id` (feature 021). **Nullable** for backward compatibility: existing appointments migrated from the legacy schema have `contact_id = NULL` with snapshot fields populated from the old inline data. New appointments SHOULD always link to a registry contact. |
+| `role` | `AppointmentContactRole` | no | `TENANT` | Contextual role of this contact in this specific appointment. Distinct from `contacts.type` (identity type). |
+| `is_primary` | boolean | no | `false` | Exactly one row per appointment MUST be `true`. The primary contact is the default recipient for tenant-portal tokens and notifications. |
+| `snapshot_name` | varchar(200) | no | — | Frozen at link time from `contacts.display_name`. Immutable after creation (except via portal contact update — see feature 007). |
+| `snapshot_email` | varchar(254) | yes | — | Frozen at link time from `contacts.primary_email`. |
+| `snapshot_phone` | varchar(30) | yes | — | Frozen at link time from `contacts.primary_phone`. |
+| `created_at` | timestamptz | no | `now()` | |
+| `updated_at` | timestamptz | no | `now()` | |
+
+**Indexes**
+
+- `(appointment_id)` — replaces the previous `UNIQUE (appointment_id)` index (multiple rows per appointment).
+- Partial unique index `UNIQUE (appointment_id) WHERE is_primary = TRUE` — enforces exactly one primary per appointment at the DB level.
+- `(contact_id)` — for reverse lookup: "all appointments linked to this contact".
+- Partial unique index `UNIQUE (appointment_id, contact_id) WHERE contact_id IS NOT NULL` — prevents linking the same registry contact to the same appointment twice.
 
 **Invariants**
 
-- One-to-one with appointment.
-- At least one contact field (email or phone) should be present in practice; not enforced at the DB level.
+- **One-or-more** contacts per appointment.
+- **Exactly one** contact per appointment has `is_primary = TRUE`. Enforced by the partial unique index.
+- **Snapshot is frozen at link time**: `snapshot_name`, `snapshot_email`, `snapshot_phone` are populated from the `contacts` registry row when the junction is created and are NOT updated when the registry contact is later modified. The only exception is the tenant portal contact update path (feature 007 FR-050–FR-052), where the renter corrects their own data — this updates both the snapshot and the registry contact.
+- **At least one snapshot channel on the primary contact**: the primary contact's `snapshot_email` or `snapshot_phone` MUST be non-null (inherited from the `contacts` entity invariant). Not enforced at the DB level on the junction; enforced at the application layer during linkage.
+- **`contact_id = NULL`** is valid only for legacy migrated rows. New rows created after feature 021 SHOULD always have a non-null `contact_id`. The application layer logs a warning if a new junction row is created without a `contact_id` — this aids migration monitoring.
+- **No duplicate registry contact per appointment**: the partial unique index on `(appointment_id, contact_id) WHERE contact_id IS NOT NULL` prevents the same person from appearing twice on the same appointment. Different roles for the same person on the same appointment are not supported (use `OTHER` as the catch-all if needed).
+
+**Migration strategy**
+
+The migration is coordinated with feature 021's schema expansion (see `specs/021-contacts/data-model.md` for the full plan):
+
+1. **Phase 1 (additive)**: Add `contact_id`, `snapshot_name`, `snapshot_email`, `snapshot_phone` columns (all nullable initially). Create `AppointmentContactRole` enum.
+2. **Phase 2 (backfill)**: For each existing `appointment_contacts` row:
+   - Copy `tenant_name` → `snapshot_name`
+   - Copy `primary_email` → `snapshot_email`
+   - Copy `primary_phone` → `snapshot_phone`
+   - Set `is_primary = TRUE` (legacy rows are the sole contact)
+   - Set `role = 'TENANT'` (legacy implicit role)
+   - Leave `contact_id = NULL` (no auto-creation of registry contacts for legacy data)
+3. **Phase 3 (column drop)**: After code is updated to use snapshot fields, drop legacy columns: `tenant_name`, `primary_email`, `secondary_email`, `primary_phone`, `secondary_phone`, `additional_emails_json`, `additional_phones_json`.
+4. **Phase 4 (tighten)**: Make `snapshot_name` NOT NULL. Add partial unique indexes.
+
+The expand/contract pattern ensures zero downtime. Phase 3 is gated on all consumers reading from snapshot fields.
 
 ### `appointment_restrictions`
 

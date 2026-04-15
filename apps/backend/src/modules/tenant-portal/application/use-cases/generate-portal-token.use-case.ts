@@ -100,15 +100,16 @@ export class GeneratePortalTokenUseCase {
       const payloadJson = {
         portalToken: rawToken,
         scheduledDate: scheduledDateStr,
-        tenantName: result.contact.tenantName,
+        tenantName: result.contact.effectiveName,
       };
 
       // Send EMAIL notification if email available
-      if (result.contact.primaryEmail) {
+      const recipientEmail = result.contact.effectiveEmail;
+      if (recipientEmail) {
         await this.createNotificationUseCase.execute({
           tenantId: appointment.tenantId,
           appointmentId: input.appointmentId,
-          recipient: result.contact.primaryEmail,
+          recipient: recipientEmail,
           channel: 'EMAIL',
           templateCode: 'TENANT_PORTAL_LINK',
           payloadJson,
@@ -116,11 +117,12 @@ export class GeneratePortalTokenUseCase {
       }
 
       // Send SMS notification if phone available
-      if (result.contact.primaryPhone) {
+      const recipientPhone = result.contact.effectivePhone;
+      if (recipientPhone) {
         await this.createNotificationUseCase.execute({
           tenantId: appointment.tenantId,
           appointmentId: input.appointmentId,
-          recipient: result.contact.primaryPhone,
+          recipient: recipientPhone,
           channel: 'SMS',
           templateCode: 'TENANT_PORTAL_LINK',
           payloadJson,

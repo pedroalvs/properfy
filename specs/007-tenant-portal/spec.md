@@ -2,7 +2,7 @@
 
 **Feature Branch**: `007-tenant-portal`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps closed in commit `4188fe8` (2026-04-07, Waves 1–4). The `tenant_portal_activities` surface is brought under the feature 020 retention + redaction framework. Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/tenant-portal/**`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/schemas/tenant-portal.ts`, `apps/web/src/features/tenant-portal/**`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`, `projeto-consolidado/regras-negocio-respostas-cliente.md`
@@ -105,18 +105,30 @@ The renter proposes a new date and time slot through the portal. The platform va
 ### User Story 5 — Renter updates contact details
 
 - **Priority**: P2
-- **Status**: IMPLEMENTED
-- **Source**: code
+- **Status**: IMPLEMENTED (Feedback Round 2026-04-13 + feature 021 architectural revision extends the update semantics — pending planning)
+- **Source**: code + architectural-review
 
 The renter corrects their name, emails, or phones through the portal. At least one contact field must be present after the update. Activity and audit are recorded.
 
-**Independent Test**: Update primary email. Confirm the contact row reflects the change and an activity record with `action = CONTACT_UPDATED` exists.
+**Feature 021 architectural revision — dual-write semantics** (NEW, pending planning):
+
+When the renter updates their contact details via the portal, the system MUST update **both** the appointment snapshot and the contact registry:
+
+1. **Appointment snapshot** (`appointment_contacts.snapshot_name`, `snapshot_email`, `snapshot_phone`): updated immediately. This ensures the appointment record reflects the renter's corrected data for notifications and audit.
+2. **Contact registry** (`contacts.display_name`, `primary_email`, `primary_phone`): updated when `contact_id IS NOT NULL` on the junction row. If the junction row is a legacy row (`contact_id = NULL`), only the snapshot is updated (no registry write).
+
+**Rationale**: the renter is correcting **their own data** — this is not an external system updating a record on behalf of someone else. The correction should propagate to the registry so the agency sees the latest contact info on future appointments. This is the only code path that updates both snapshot and registry. All other snapshot writes are frozen at link time.
+
+**Conflict handling**: if the renter updates `primary_email` to a value that already exists on another active contact in the same tenant, the registry update is **skipped silently** (the snapshot still updates). The system does NOT fail the portal action — portal UX must remain frictionless. An audit record `contact.portal_update_skipped_conflict` is written so operators can reconcile manually.
+
+**Independent Test**: Update primary email via portal. Confirm (a) the appointment snapshot reflects the change, (b) the registry contact reflects the change (when `contact_id` is present), (c) an activity record with `action = CONTACT_UPDATED` exists, (d) an existing appointment for the same contact in a different appointment still has the OLD snapshot.
 
 **Acceptance Scenarios**:
 
-1. **Given** an ACTIVE token and a valid partial contact payload, **When** the renter calls `PATCH /v1/tenant-portal/:token/contact`, **Then** the contact fields are updated and activity + audit are written.
+1. **Given** an ACTIVE token and a valid partial contact payload, **When** the renter calls `PATCH /v1/tenant-portal/:token/contact`, **Then** the appointment snapshot fields are updated, the registry contact is updated (if `contact_id` is present), and activity + audit are written.
 2. **Given** a payload that would leave all contact fields empty, **When** submitted, **Then** the request fails with `PORTAL_NO_CONTACT_FIELDS`.
 3. **Given** an EXPIRED token, **When** update is attempted, **Then** the request fails with `PORTAL_ACTION_BLOCKED`.
+4. **Given** a registry contact update where the new `primary_email` conflicts with another active contact in the same tenant, **When** submitted, **Then** the snapshot updates normally but the registry update is skipped. An audit record `contact.portal_update_skipped_conflict` is written.
 
 ---
 
@@ -206,6 +218,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-050**: System MUST block update when `isReadOnly = true`.
 - **FR-051**: System MUST require at least one contact field present after update (`PORTAL_NO_CONTACT_FIELDS`).
 - **FR-052**: System MUST record a `CONTACT_UPDATED` activity and an audit record.
+- **FR-053** (feature 021 architectural revision, NEW, pending planning): System MUST apply a **dual-write** on contact update: (a) update the `appointment_contacts` snapshot fields (`snapshot_name`, `snapshot_email`, `snapshot_phone`) for the primary contact row of this appointment, AND (b) update the linked `contacts` registry row (`display_name`, `primary_email`, `primary_phone`) when `contact_id IS NOT NULL`. When `contact_id IS NULL` (legacy rows), only the snapshot is updated. When the registry update would violate the per-tenant email uniqueness constraint, the registry update is **skipped silently** — the snapshot still updates, and an audit record `contact.portal_update_skipped_conflict` is written for operator reconciliation. This is the **only code path** in the system that updates both snapshot and registry.
 
 #### Report Unavailability
 
@@ -254,7 +267,7 @@ Full schema in [`data-model.md`](./data-model.md). HTTP contracts in [`contracts
 - The 30-day reschedule window is a product policy, not a system constraint. Changing it requires spec amendment.
 - Renters never see other appointments — tokens are strictly scoped to one appointment.
 - Portal operates without cookies or client state. Every request is stateless and carries the token in the URL path.
-- Contact updates through the portal overwrite the existing contact row; they do not create a history table.
+- Contact updates through the portal apply a dual-write: the appointment snapshot is updated AND the registry contact is updated (when `contact_id IS NOT NULL`). See FR-053 for conflict handling. No history table — the `tenant_portal_activities` row with `previous_values_json` / `new_values_json` serves as the audit trail.
 
 ## Known Gaps
 

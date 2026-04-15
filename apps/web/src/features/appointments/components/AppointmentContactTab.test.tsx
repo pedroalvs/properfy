@@ -44,13 +44,49 @@ const MOCK_APPOINTMENT: AppointmentDetail = {
   ],
 };
 
+const MOCK_WITH_CONTACTS: AppointmentDetail = {
+  ...MOCK_APPOINTMENT,
+  contacts: [
+    {
+      id: 'ac-1',
+      contactId: null,
+      role: 'TENANT' as any,
+      isPrimary: true,
+      snapshotName: 'John Doe',
+      snapshotEmail: 'john@example.com',
+      snapshotPhone: '+5511999000000',
+    },
+    {
+      id: 'ac-2',
+      contactId: null,
+      role: 'HOUSEKEEPER' as any,
+      isPrimary: false,
+      snapshotName: 'Maria Silva',
+      snapshotEmail: 'maria@example.com',
+      snapshotPhone: '+5511888000000',
+    },
+  ],
+};
+
 describe('AppointmentContactTab', () => {
-  it('renders contact information section', () => {
+  it('renders contact information from legacy single contact fields', () => {
     render(<AppointmentContactTab appointment={MOCK_APPOINTMENT} />);
     expect(screen.getByText('Contact Information')).toBeInTheDocument();
     expect(screen.getByText('John Doe')).toBeInTheDocument();
     expect(screen.getByText('+5511999000000')).toBeInTheDocument();
     expect(screen.getByText('john@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Tenant')).toBeInTheDocument();
+    expect(screen.getByText('Primary')).toBeInTheDocument();
+  });
+
+  it('renders multiple contacts from contacts array', () => {
+    render(<AppointmentContactTab appointment={MOCK_WITH_CONTACTS} />);
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+    expect(screen.getByText('Tenant')).toBeInTheDocument();
+    expect(screen.getByText('Housekeeper')).toBeInTheDocument();
+    expect(screen.getByText('Primary')).toBeInTheDocument();
+    expect(screen.getByText('maria@example.com')).toBeInTheDocument();
   });
 
   it('renders access restrictions section', () => {
@@ -61,7 +97,7 @@ describe('AppointmentContactTab', () => {
     expect(screen.getByText('Ring the bell')).toBeInTheDocument();
   });
 
-  it('shows dash for null values', () => {
+  it('shows dash for null contact values in legacy mode', () => {
     const apt: AppointmentDetail = {
       ...MOCK_APPOINTMENT,
       contactPhone: null,
@@ -72,5 +108,28 @@ describe('AppointmentContactTab', () => {
     render(<AppointmentContactTab appointment={apt} />);
     const dashes = screen.getAllByText('\u2014');
     expect(dashes.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('shows dash for null snapshot values in contacts array mode', () => {
+    const apt: AppointmentDetail = {
+      ...MOCK_APPOINTMENT,
+      contacts: [
+        {
+          id: 'ac-1',
+          contactId: null,
+          role: 'TENANT' as any,
+          isPrimary: true,
+          snapshotName: 'Jane',
+          snapshotEmail: null,
+          snapshotPhone: null,
+        },
+      ],
+    };
+    render(<AppointmentContactTab appointment={apt} />);
+    expect(screen.getByText('Jane')).toBeInTheDocument();
+    const dashes = screen.getAllByText('\u2014');
+    // At least 2 dashes for null email and phone in the contact row,
+    // plus more from the access restrictions section
+    expect(dashes.length).toBeGreaterThanOrEqual(2);
   });
 });

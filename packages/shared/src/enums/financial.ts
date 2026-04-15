@@ -22,6 +22,7 @@ export const BillingPeriodType = {
 export type BillingPeriodType = (typeof BillingPeriodType)[keyof typeof BillingPeriodType];
 
 export const InspectorInvoiceStatus = {
+  PENDING_REVIEW: 'PENDING_REVIEW',
   OPEN: 'OPEN',
   CLOSED: 'CLOSED',
   PAID: 'PAID',

@@ -121,6 +121,7 @@
   --color-money-negative: rgb(239, 83, 80);
 
   /* Invoice status backgrounds */
+  --color-invoice-pending-review: #FFE0B2;
   --color-invoice-sent: #B3E5FC;
   --color-invoice-overdue: #FFCCBC;
 

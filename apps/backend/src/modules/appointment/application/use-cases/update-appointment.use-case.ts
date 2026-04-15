@@ -1,7 +1,9 @@
-import { todayUTCDateString, type AuthContext } from '@properfy/shared';
+import { todayUTCDateString, type AuthContext, type AppointmentContactRole } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
+import type { IContactRepository } from '../../../contact/domain/contact.repository';
+import { ContactEntity } from '../../../contact/domain/contact.entity';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
@@ -24,6 +26,7 @@ export interface UpdateAppointmentInput {
     keyLocation?: string | null;
     notes?: string | null;
     customFields?: Record<string, unknown> | null;
+    /** @deprecated Use contacts array */
     contact?: {
       tenantName: string;
       primaryEmail?: string | null;
@@ -31,6 +34,21 @@ export interface UpdateAppointmentInput {
       primaryPhone?: string | null;
       secondaryPhone?: string | null;
     };
+    /** New contacts array (feature 021). When present, replaces all junction rows. */
+    contacts?: Array<{
+      contactId?: string;
+      inline?: {
+        type: string;
+        displayName: string;
+        company?: string | null;
+        primaryEmail?: string | null;
+        primaryPhone?: string | null;
+        additionalChannels?: Array<{ channel: string; value: string; label?: string }>;
+        notes?: string | null;
+      };
+      role: string;
+      isPrimary: boolean;
+    }>;
     restriction?: {
       isHome: boolean;
       unavailableDays?: string[] | null;
@@ -74,6 +92,7 @@ export class UpdateAppointmentUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo?: ITenantRepository,
     private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
+    private readonly contactRepo?: IContactRepository,
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
@@ -87,9 +106,9 @@ export class UpdateAppointmentUseCase {
       this.authorizationService.assertClUserPermission(actor, 'reschedule_appointments');
     }
 
-    // Resolve tenantId for lookup (null = global access for AM/OP)
-    const tenantId =
-      actor.role === 'AM' || actor.role === 'OP' ? null : actor.tenantId;
+    // Resolve tenantId for lookup. Only AM is cross-tenant; OP is tenant-
+    // scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
+    const tenantId = actor.role === 'AM' ? null : actor.tenantId;
 
     const found = await this.appointmentRepo.findById(appointmentId, tenantId);
     if (!found || found.appointment.isDeleted()) {
@@ -166,10 +185,55 @@ export class UpdateAppointmentUseCase {
       updateData,
     );
 
-    // Upsert contact
-    if (data.contact !== undefined) {
+    // Upsert contacts
+    if (data.contacts !== undefined && this.contactRepo) {
+      // New path: contacts array replacement (feature 021)
+      if (data.contacts.length === 0) {
+        throw new ValidationError('APPOINTMENT_CONTACTS_REQUIRED', 'At least one contact is required');
+      }
+      // Delete old junction rows, insert new with fresh snapshots
+      await this.appointmentRepo.deleteContactsByAppointmentId(appointmentId);
+      const now = new Date();
+      for (const entry of data.contacts) {
+        let cId: string | null = null;
+        let sName: string;
+        let sEmail: string | null;
+        let sPhone: string | null;
+
+        if (entry.contactId) {
+          const reg = await this.contactRepo.findById(entry.contactId, appointment.tenantId);
+          if (!reg) throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+          if (!reg.isActive) throw new ValidationError('APPOINTMENT_CONTACT_INACTIVE', `Contact ${entry.contactId} is not active`);
+          cId = reg.id;
+          sName = reg.displayName;
+          sEmail = reg.primaryEmail;
+          sPhone = reg.primaryPhone;
+        } else if (entry.inline) {
+          const nc = new ContactEntity({
+            id: crypto.randomUUID(), tenantId: appointment.tenantId,
+            type: entry.inline.type as any, displayName: entry.inline.displayName,
+            company: entry.inline.company ?? null,
+            primaryEmail: entry.inline.primaryEmail ?? null, primaryPhone: entry.inline.primaryPhone ?? null,
+            additionalChannels: (entry.inline.additionalChannels ?? []) as any,
+            notes: entry.inline.notes ?? null, isActive: true, createdAt: now, updatedAt: now,
+          });
+          await this.contactRepo.save(nc);
+          cId = nc.id; sName = nc.displayName; sEmail = nc.primaryEmail; sPhone = nc.primaryPhone;
+        } else {
+          throw new ValidationError('APPOINTMENT_CONTACT_INVALID', 'Each contact must have contactId or inline');
+        }
+
+        await this.appointmentRepo.saveContact(new AppointmentContactEntity({
+          id: crypto.randomUUID(), appointmentId, contactId: cId,
+          role: entry.role as AppointmentContactRole, isPrimary: entry.isPrimary,
+          snapshotName: sName, snapshotEmail: sEmail, snapshotPhone: sPhone,
+          tenantName: sName, primaryEmail: sEmail, secondaryEmail: null,
+          primaryPhone: sPhone, secondaryPhone: null, createdAt: now, updatedAt: now,
+        }));
+      }
+    } else if (data.contact !== undefined) {
+      // Legacy path: single contact upsert (backward compat)
       if (found.contact) {
-        // Update existing contact
         await this.appointmentRepo.updateContact(appointmentId, {
           tenantName: data.contact.tenantName,
           primaryEmail: data.contact.primaryEmail ?? null,
@@ -178,18 +242,16 @@ export class UpdateAppointmentUseCase {
           secondaryPhone: data.contact.secondaryPhone ?? null,
         });
       } else {
-        // Create new contact
         const now = new Date();
         const contact = new AppointmentContactEntity({
-          id: crypto.randomUUID(),
-          appointmentId,
-          tenantName: data.contact.tenantName,
-          primaryEmail: data.contact.primaryEmail ?? null,
+          id: crypto.randomUUID(), appointmentId, contactId: null,
+          role: 'TENANT' as AppointmentContactRole, isPrimary: true,
+          snapshotName: data.contact.tenantName, snapshotEmail: data.contact.primaryEmail ?? null,
+          snapshotPhone: data.contact.primaryPhone ?? null,
+          tenantName: data.contact.tenantName, primaryEmail: data.contact.primaryEmail ?? null,
           secondaryEmail: data.contact.secondaryEmail ?? null,
-          primaryPhone: data.contact.primaryPhone ?? null,
-          secondaryPhone: data.contact.secondaryPhone ?? null,
-          createdAt: now,
-          updatedAt: now,
+          primaryPhone: data.contact.primaryPhone ?? null, secondaryPhone: data.contact.secondaryPhone ?? null,
+          createdAt: now, updatedAt: now,
         });
         await this.appointmentRepo.saveContact(contact);
       }

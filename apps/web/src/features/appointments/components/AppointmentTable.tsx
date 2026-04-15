@@ -12,6 +12,8 @@ interface AppointmentTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (appointment: Appointment) => void;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 export function AppointmentTable({
@@ -21,8 +23,65 @@ export function AppointmentTable({
   onRetryError,
   pagination,
   onView,
+  selectedIds,
+  onSelectionChange,
 }: AppointmentTableProps) {
+  const selectable = selectedIds !== undefined && onSelectionChange !== undefined;
+
+  const allVisibleSelected =
+    selectable && data.length > 0 && data.every((row) => selectedIds!.includes(row.id));
+
+  const toggleAll = () => {
+    if (!onSelectionChange) return;
+    if (allVisibleSelected) {
+      onSelectionChange(selectedIds!.filter((id) => !data.some((row) => row.id === id)));
+    } else {
+      const existing = new Set(selectedIds!);
+      onSelectionChange([...selectedIds!, ...data.filter((row) => !existing.has(row.id)).map((row) => row.id)]);
+    }
+  };
+
+  const toggleRow = (id: string) => {
+    if (!onSelectionChange || !selectedIds) return;
+    if (selectedIds.includes(id)) {
+      onSelectionChange(selectedIds.filter((sid) => sid !== id));
+    } else {
+      onSelectionChange([...selectedIds, id]);
+    }
+  };
+
+  const selectionColumn: DataTableColumn<Appointment> | null = selectable
+    ? {
+        key: '_selection',
+        label: '',
+        width: '48px',
+        headerRender: () => (
+          <input
+            type="checkbox"
+            checked={allVisibleSelected}
+            onChange={toggleAll}
+            className="h-4 w-4 accent-primary"
+            aria-label="Select all"
+          />
+        ),
+        render: (row) => (
+          <input
+            type="checkbox"
+            checked={selectedIds!.includes(row.id)}
+            onChange={(e) => {
+              e.stopPropagation();
+              toggleRow(row.id);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 accent-primary"
+            aria-label={`Select appointment ${row.code}`}
+          />
+        ),
+      }
+    : null;
+
   const columns: DataTableColumn<Appointment>[] = [
+    ...(selectionColumn ? [selectionColumn] : []),
     {
       key: 'code',
       label: 'Code',

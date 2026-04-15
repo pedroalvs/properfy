@@ -42,6 +42,7 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   contactName: 'João Silva',
   contactPhone: '11999999999',
   contactEmail: 'joao@email.com',
+  contacts: [],
   keyRequired: false,
   meetingLocation: '',
   keyLocation: '',
@@ -69,7 +70,6 @@ describe('useAppointmentSave', () => {
     expect(errors.serviceTypeId).toBeDefined();
     expect(errors.scheduledDate).toBeDefined();
     expect(errors.timeSlot).toBeDefined();
-    expect(errors.contactName).toBeDefined();
   });
 
   it('validate returns no errors for valid create form data', () => {

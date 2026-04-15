@@ -4,7 +4,11 @@ import {
   requestReportSchema,
   listReportsQuerySchema,
   createScheduledReportSchema,
+  updateScheduledReportSchema,
+  pauseScheduleSchema,
+  reassignOwnershipSchema,
   listScheduledReportsQuerySchema,
+  listScheduleRunsQuerySchema,
   reportResponseSchema,
   reportRequestedResponseSchema,
   reportDownloadResponseSchema,
@@ -23,6 +27,13 @@ import type { ListReportsUseCase } from '../application/use-cases/list-reports.u
 import type { ProcessReportJobUseCase } from '../application/use-cases/process-report-job.use-case';
 import type { CreateScheduledReportUseCase } from '../application/use-cases/create-scheduled-report.use-case';
 import type { ListScheduledReportsUseCase } from '../application/use-cases/list-scheduled-reports.use-case';
+import type { GetScheduledReportUseCase } from '../application/use-cases/get-scheduled-report.use-case';
+import type { UpdateScheduledReportUseCase } from '../application/use-cases/update-scheduled-report.use-case';
+import type { PauseScheduledReportUseCase } from '../application/use-cases/pause-scheduled-report.use-case';
+import type { ResumeScheduledReportUseCase } from '../application/use-cases/resume-scheduled-report.use-case';
+import type { DeleteScheduledReportUseCase } from '../application/use-cases/delete-scheduled-report.use-case';
+import type { ReassignScheduleOwnershipUseCase } from '../application/use-cases/reassign-schedule-ownership.use-case';
+import type { ListScheduleRunsUseCase } from '../application/use-cases/list-schedule-runs.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface ReportRouteContainer {
@@ -33,6 +44,14 @@ export interface ReportRouteContainer {
   processReportJobUseCase: ProcessReportJobUseCase;
   createScheduledReportUseCase: CreateScheduledReportUseCase;
   listScheduledReportsUseCase: ListScheduledReportsUseCase;
+  // Feature 019 additions
+  getScheduledReportUseCase: GetScheduledReportUseCase;
+  updateScheduledReportUseCase: UpdateScheduledReportUseCase;
+  pauseScheduledReportUseCase: PauseScheduledReportUseCase;
+  resumeScheduledReportUseCase: ResumeScheduledReportUseCase;
+  deleteScheduledReportUseCase: DeleteScheduledReportUseCase;
+  reassignScheduleOwnershipUseCase: ReassignScheduleOwnershipUseCase;
+  listScheduleRunsUseCase: ListScheduleRunsUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
 }
@@ -175,6 +194,205 @@ export async function registerReportRoutes(
         request.authContext!,
       );
       return reply.status(200).send(paginated(result.data, result.meta.total, page, pageSize));
+    },
+  );
+
+  // Feature 019: GET /v1/reports/schedules/:id (detail)
+  app.get(
+    '/v1/reports/schedules/:scheduleId',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = z.object({ scheduleId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid schedule id', params.error.errors);
+      }
+      const result = await container.getScheduledReportUseCase.execute(
+        params.data.scheduleId,
+        request.authContext!,
+      );
+      return reply.status(200).send(
+        success({
+          id: result.schedule.id,
+          tenantId: result.schedule.tenantId,
+          reportType: result.schedule.reportType,
+          filtersJson: result.schedule.filtersJson,
+          format: result.schedule.format,
+          cronExpression: result.schedule.cronExpression,
+          displayName: result.schedule.displayName,
+          deliveryMode: result.schedule.deliveryMode,
+          recipientUserIds: result.schedule.recipientUserIds,
+          skipDeliveryWhenEmpty: result.schedule.skipDeliveryWhenEmpty,
+          consecutiveFailureCount: result.schedule.consecutiveFailureCount,
+          status: result.schedule.status,
+          isActive: result.schedule.isActive,
+          lastRunAt: result.schedule.lastRunAt?.toISOString() ?? null,
+          nextRunAt: result.schedule.nextRunAt?.toISOString() ?? null,
+          lastRunStatus: result.lastRunStatus,
+          createdByUserId: result.schedule.createdByUserId,
+          createdAt: result.schedule.createdAt.toISOString(),
+          updatedAt: result.schedule.updatedAt.toISOString(),
+        }),
+      );
+    },
+  );
+
+  // Feature 019: PUT /v1/reports/schedules/:id
+  app.put(
+    '/v1/reports/schedules/:scheduleId',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = z.object({ scheduleId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid schedule id', params.error.errors);
+      }
+      const body = updateScheduledReportSchema.safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError('Request payload is invalid', body.error.errors);
+      }
+      const updated = await container.updateScheduledReportUseCase.execute(
+        { id: params.data.scheduleId, ...body.data },
+        request.authContext!,
+      );
+      return reply.status(200).send(
+        success({
+          id: updated.id,
+          displayName: updated.displayName,
+          deliveryMode: updated.deliveryMode,
+          recipientUserIds: updated.recipientUserIds,
+          skipDeliveryWhenEmpty: updated.skipDeliveryWhenEmpty,
+          cronExpression: updated.cronExpression,
+          nextRunAt: updated.nextRunAt?.toISOString() ?? null,
+          status: updated.status,
+        }),
+      );
+    },
+  );
+
+  // Feature 019: POST /v1/reports/schedules/:id/pause
+  app.post(
+    '/v1/reports/schedules/:scheduleId/pause',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = z.object({ scheduleId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid schedule id', params.error.errors);
+      }
+      const body = pauseScheduleSchema.safeParse(request.body ?? {});
+      if (!body.success) {
+        throw new ValidationError('Request payload is invalid', body.error.errors);
+      }
+      const updated = await container.pauseScheduledReportUseCase.execute(
+        { id: params.data.scheduleId, reason: body.data.reason },
+        request.authContext!,
+      );
+      return reply.status(200).send(success({ id: updated.id, status: updated.status }));
+    },
+  );
+
+  // Feature 019: POST /v1/reports/schedules/:id/resume
+  app.post(
+    '/v1/reports/schedules/:scheduleId/resume',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = z.object({ scheduleId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid schedule id', params.error.errors);
+      }
+      const updated = await container.resumeScheduledReportUseCase.execute(
+        params.data.scheduleId,
+        request.authContext!,
+      );
+      return reply.status(200).send(
+        success({
+          id: updated.id,
+          status: updated.status,
+          nextRunAt: updated.nextRunAt?.toISOString() ?? null,
+        }),
+      );
+    },
+  );
+
+  // Feature 019: DELETE /v1/reports/schedules/:id (soft-delete)
+  app.delete(
+    '/v1/reports/schedules/:scheduleId',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = z.object({ scheduleId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid schedule id', params.error.errors);
+      }
+      await container.deleteScheduledReportUseCase.execute(
+        params.data.scheduleId,
+        request.authContext!,
+      );
+      return reply.status(204).send();
+    },
+  );
+
+  // Feature 019: POST /v1/reports/schedules/:id/reassign (AM only)
+  app.post(
+    '/v1/reports/schedules/:scheduleId/reassign',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = z.object({ scheduleId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid schedule id', params.error.errors);
+      }
+      const body = reassignOwnershipSchema.safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError('Request payload is invalid', body.error.errors);
+      }
+      const updated = await container.reassignScheduleOwnershipUseCase.execute(
+        {
+          scheduleId: params.data.scheduleId,
+          newOwnerUserId: body.data.newOwnerUserId,
+          reason: body.data.reason,
+        },
+        request.authContext!,
+      );
+      return reply.status(200).send(
+        success({ id: updated.id, createdByUserId: updated.createdByUserId }),
+      );
+    },
+  );
+
+  // Feature 019: GET /v1/reports/schedules/:id/runs
+  app.get(
+    '/v1/reports/schedules/:scheduleId/runs',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = z.object({ scheduleId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid schedule id', params.error.errors);
+      }
+      const query = listScheduleRunsQuerySchema.safeParse(request.query);
+      if (!query.success) {
+        throw new ValidationError('Invalid query parameters', query.error.errors);
+      }
+      const result = await container.listScheduleRunsUseCase.execute(
+        {
+          scheduleId: params.data.scheduleId,
+          page: query.data.page,
+          pageSize: query.data.pageSize,
+        },
+        request.authContext!,
+      );
+      const data = result.data.map((run) => ({
+        id: run.id,
+        scheduleId: run.scheduleId,
+        reportId: run.reportId,
+        status: run.status,
+        scheduledFor: run.scheduledFor.toISOString(),
+        startedAt: run.startedAt?.toISOString() ?? null,
+        completedAt: run.completedAt?.toISOString() ?? null,
+        errorMessage: run.errorMessage,
+        recipientCount: run.recipientCount,
+        deliveryStatusJson: run.deliveryStatusJson,
+        createdAt: run.createdAt.toISOString(),
+      }));
+      return reply
+        .status(200)
+        .send(paginated(data, result.meta.total, query.data.page, query.data.pageSize));
     },
   );
 }

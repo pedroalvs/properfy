@@ -16,6 +16,7 @@ export interface InvoicePagination {
 export interface InvoiceUpdateData {
   status?: string;
   fileKey?: string | null;
+  generatedByUserId?: string | null;
   generatedAt?: Date | null;
   paidAt?: Date | null;
   paidByUserId?: string | null;
@@ -45,6 +46,7 @@ export interface IInspectorInvoiceRepository {
   count(filters: InvoiceFilters): Promise<number>;
   save(invoice: InspectorInvoiceEntity): Promise<void>;
   update(id: string, data: InvoiceUpdateData): Promise<void>;
+  deleteById(id: string): Promise<void>;
   /**
    * Returns raw aggregate rows grouped by (status, currency) filtered by generatedAt range.
    * Only includes invoices in CLOSED or PAID status.

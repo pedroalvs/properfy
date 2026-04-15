@@ -42,7 +42,7 @@ List notifications with filters and pagination.
       "channel": "EMAIL",
       "templateCode": "INSPECTION_NOTICE",
       "status": "SENT|DELIVERED|FAILED|PENDING",
-      "providerName": "resend|twilio|zenvia|null",
+      "providerName": "resend|mobilemessage|zenvia|null",
       "providerMessageId": "string|null",
       "sentAt": "ISO-8601|null",
       "deliveredAt": "ISO-8601|null",

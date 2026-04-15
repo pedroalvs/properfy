@@ -58,7 +58,8 @@ export class ListPricingRulesUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    const isGlobal = actor.role === 'AM' || actor.role === 'OP';
+    // Only AM is cross-tenant per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
+    const isGlobal = actor.role === 'AM';
     const resolvedTenantId = isGlobal ? filters.tenantId : actor.tenantId;
 
     if (!resolvedTenantId) {

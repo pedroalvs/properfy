@@ -13,7 +13,7 @@ export class PrismaReportDataReader implements IReportDataReader {
         branch: true,
         property: true,
         inspector: true,
-        contact: true,
+        contacts: true,
       },
       orderBy: { scheduled_date: 'asc' },
     });
@@ -29,9 +29,9 @@ export class PrismaReportDataReader implements IReportDataReader {
       scheduledDate: a.scheduled_date?.toISOString().split('T')[0] ?? '',
       timeSlot: a.time_slot,
       status: a.status,
-      tenantName: a.contact?.tenant_name ?? '',
-      tenantEmail: a.contact?.primary_email ?? '',
-      tenantPhone: a.contact?.primary_phone ?? '',
+      tenantName: a.contacts?.[0]?.tenant_name ?? '',
+      tenantEmail: a.contacts?.[0]?.primary_email ?? '',
+      tenantPhone: a.contacts?.[0]?.primary_phone ?? '',
       inspector: a.inspector?.name ?? '',
       confirmationStatus: a.tenant_confirmation_status,
       keyRequired: a.key_required ? 'Yes' : 'No',
@@ -98,7 +98,7 @@ export class PrismaReportDataReader implements IReportDataReader {
       include: {
         service_type: true,
         property: true,
-        contact: true,
+        contacts: true,
         portal_tokens: { orderBy: { created_at: 'desc' }, take: 1 },
         notifications: { where: { template_code: 'INITIAL_NOTICE' }, orderBy: { created_at: 'desc' }, take: 1 },
       },
@@ -113,8 +113,8 @@ export class PrismaReportDataReader implements IReportDataReader {
         serviceType: a.service_type?.name ?? '',
         propertyAddress: a.property?.street ?? '',
         scheduledDate: a.scheduled_date?.toISOString().split('T')[0] ?? '',
-        tenantName: a.contact?.tenant_name ?? '',
-        tenantPhone: a.contact?.primary_phone ?? '',
+        tenantName: a.contacts?.[0]?.tenant_name ?? '',
+        tenantPhone: a.contacts?.[0]?.primary_phone ?? '',
         confirmationStatus: a.tenant_confirmation_status,
         initialNoticeSent: lastReminder?.sent_at?.toISOString() ?? '',
         lastReminderSent: lastReminder?.sent_at?.toISOString() ?? '',
@@ -178,9 +178,9 @@ export class PrismaReportDataReader implements IReportDataReader {
       where.OR = [
         { property: { street: { contains: filters.search, mode: 'insensitive' } } },
         { property: { suburb: { contains: filters.search, mode: 'insensitive' } } },
-        { contact: { tenant_name: { contains: filters.search, mode: 'insensitive' } } },
-        { contact: { primary_phone: { contains: filters.search, mode: 'insensitive' } } },
-        { contact: { primary_email: { contains: filters.search, mode: 'insensitive' } } },
+        { contacts: { some: { tenant_name: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { primary_phone: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { primary_email: { contains: filters.search, mode: 'insensitive' } } } },
       ];
     }
     if (filters.emailNotificationStatus) {

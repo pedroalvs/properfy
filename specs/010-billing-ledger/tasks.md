@@ -1,183 +1,176 @@
----
-description: "Implementation and backlog tracking for Billing & Ledger"
----
+# Tasks: 010-billing-ledger (Draft Invoice Admin Review Delta)
 
-# Tasks: Billing & Ledger
+**Input**: `specs/010-billing-ledger/spec.md`, `plan.md`
+**Prerequisites**: 008-inspectors-execution IMPLEMENTED (`DraftInspectorInvoiceUseCase`, `PENDING_REVIEW` enum, `drafted_by_inspector_id` column). plan.md rewritten 2026-04-14.
+**Tests**: Mandatory — TDD per constitution Principle III.
 
-**Input**: [`spec.md`](./spec.md), [`plan.md`](./plan.md), [`data-model.md`](./data-model.md), [`contracts/`](./contracts/)
-**Tests**: Mandatory per constitution Principle III. The hard precondition (`DONE_CHECK_REQUIRED`), self-approval guard, and deterministic UUID idempotency are the highest-risk surfaces.
-**Organization**: Two sections — Baseline Implemented (shipped) and Open Backlog (Phase 2/3).
+**Scope**: ONLY the admin approve/reject delta for inspector-drafted invoices (FR-066..FR-069). The core billing ledger is already shipped. This file does NOT cover entry creation, approval, refund, manual adjustment, or reconciliation.
 
-## Format
+## Format: `[ID] [P?] Description`
 
-- `[x]` shipped; `[ ]` open.
-- `[P]` may run in parallel.
-- `[Story]` maps to a user story in `spec.md` (US1–US8) or a `GAP-xxx`.
+- **[P]**: Can run in parallel
+- Exact file paths included
 
 ---
 
-# SECTION 1 — Baseline Implemented
+## Phase 1: Backend — Approve + Reject + Filter
 
-> Already done on the active branch. Do not reimplement.
+**Purpose**: Two new use cases, two new routes, one filter update, verification of the existing reconciliation guard. MUST complete before frontend.
 
-## Setup & Foundational (shipped)
+**Critical path**: every frontend task depends on Phase 1.
 
-- [x] T001 Prisma schema: `FinancialEntry`, `InspectorInvoice`, plus enums (`FinancialEntryType`, `FinancialEntryStatus`, `InspectorInvoiceStatus`, `BillingPeriodType`).
-- [x] T002 Shared Zod schemas in `packages/shared/src/schemas/billing.ts`.
-- [x] T003 Domain entities and typed errors (`EntryNotFound`, `EntryNotPending`, `EntrySelfApprovalNotAllowed`, `EntryNotRefundable`, `RefundAlreadyExists`, `InvoicePeriodOverlap`, `InvoiceNotReady`, `InvoiceFileNotGenerated`, `FinancialEntryDoneCheckRequired`, ...).
-- [x] T004 Domain ports `IFinancialEntryRepository`, `IInspectorInvoiceRepository`.
-- [x] T005 Deterministic UUID helper `createFinancialEntryId`.
-- [x] T006 Prisma adapters for both repositories.
-- [x] T007 pg-boss worker `generate-invoice-file.worker.ts` for PDF generation.
-- [x] T008 Shared `SYSTEM_USER_ID` constant.
+### Error codes + schemas
 
-## US1 — Auto-create entries on DONE + cross-check (shipped)
+- [x] T001 [P] Add `InvoiceNotPendingReviewError` to `apps/backend/src/modules/billing/domain/billing.errors.ts` — status 409, code `INVOICE_NOT_PENDING_REVIEW`, message "Invoice is not in PENDING_REVIEW status"
 
-- [x] T010 [US1] `CreateFinancialEntriesOnDoneUseCase` with hard precondition (`doneCheckedByUserId` required), deterministic UUIDs, graceful duplicate handling, idempotency cache, system-initiated audit.
-- [x] T011 [US1] Wired into feature 006 `ExecuteStatusTransitionUseCase` and `PerformCrossCheckUseCase` via `onDoneHandler` port.
-- [x] T012 [US1] Unit tests covering the `DONE_CHECK_REQUIRED` branch, idempotent re-invocation, unique-violation recovery.
-- [x] T013 [US1] Integration test exercising the full flow (DONE → cross-check → entries exist).
+- [x] T002 [P] Add schemas to `packages/shared/src/schemas/billing.ts`:
+  **(a)** `rejectDraftInvoiceSchema` = `z.object({ reason: z.string().min(10).max(1000) })`. Export as `RejectDraftInvoiceInput`.
+  **(b)** Update `listInvoicesQuerySchema` status enum: add `PENDING_REVIEW` to the allowed values (`z.enum(['PENDING_REVIEW', 'OPEN', 'CLOSED', 'PAID', 'SUPERSEDED'])`)
 
-## US2 — Two-person approval (shipped)
+### Domain/repo prerequisites (C1 + C2 + C3 from analyze)
 
-- [x] T020 [US2] `ApproveFinancialEntryUseCase` with AM/OP guard, self-approval rejection, conditional UPDATE.
-- [x] T021 [US2] Routes `POST /v1/financial/entries/:id/approve` and the PATCH alias.
-- [x] T022 [US2] Unit tests for every rejection branch.
-- [x] T023 [US2] Concurrency integration test: two operators approve simultaneously, exactly one succeeds.
+- [x] T002a Add `draftedByInspectorId: string | null` to `InspectorInvoiceProps` and `InspectorInvoiceEntity` in `apps/backend/src/modules/billing/domain/inspector-invoice.entity.ts`. Map `row.drafted_by_inspector_id` in `mapToEntity` in `apps/backend/src/modules/billing/infrastructure/prisma-inspector-invoice.repository.ts`. This field already exists in the Prisma schema (from 008's migration) but is not read back by the entity. The approve and reject use cases need it for the audit payload.
 
-## US3 — Manual adjustment (shipped)
+- [x] T002b Add `deleteById(id: string): Promise<void>` to `IInspectorInvoiceRepository` interface in `apps/backend/src/modules/billing/domain/inspector-invoice.repository.ts`. Implement in `PrismaInspectorInvoiceRepository`: `await this.prisma.inspectorInvoice.delete({ where: { id } })`. The reject use case needs this to hard-delete through the domain port.
 
-- [x] T030 [US3] `CreateManualAdjustmentUseCase` with tenant active check, appointment/inspector/reference cross-tenant guard, idempotency.
-- [x] T031 [US3] Route `POST /v1/financial/entries/adjust`.
-- [x] T032 [US3] Tests including cross-tenant rejections.
+- [x] T002c Add `generatedByUserId: string | null` and `generatedAt: Date | null` to `InvoiceUpdateData` in `apps/backend/src/modules/billing/domain/inspector-invoice.repository.ts`. Update the Prisma adapter's `update` method to map these fields: `if (data.generatedByUserId !== undefined) updateData['generated_by_user_id'] = data.generatedByUserId; if (data.generatedAt !== undefined) updateData['generated_at'] = data.generatedAt;`. The approve use case needs these to stamp who approved and when.
 
-## US4 — Refund (shipped)
+### Approve use case (FR-066)
 
-- [x] T040 [US4] `CreateRefundUseCase` with approved-debit guard, uniqueness per source, idempotency.
-- [x] T041 [US4] Route `POST /v1/financial/entries/:id/refund`.
-- [x] T042 [US4] Unit + integration tests.
+- [x] T003 Create `apps/backend/src/modules/billing/application/use-cases/approve-draft-invoice.use-case.ts` — constructor: `IInspectorInvoiceRepository`, `AuditService`, `AuthorizationService`, `IJobQueue` (from `shared/domain/job-queue` — same pattern as `GenerateInvoiceUseCase`, NOT raw pg-boss).
+  `execute({ invoiceId, actor })`:
+  (a) RBAC: AM/OP only. **OP scoping note**: follow the same pattern as `MarkInvoicePaidUseCase` — that use case does AM/OP role check only, no per-tenant scoping on invoices. Apply the same here. If the team later decides to add OP-tenant-scoping for invoices, it should be done consistently across all invoice use cases, not just this one.
+  (b) Load invoice by ID via `invoiceRepo.findById()`. Not found → `InvoiceNotFoundError`.
+  (c) Status check: if NOT `PENDING_REVIEW` → throw `InvoiceNotPendingReviewError`.
+  (d) **Conditional UPDATE for concurrency**: call `invoiceRepo.update(invoiceId, { status: 'CLOSED', generatedByUserId: actor.userId, generatedAt: new Date() })` — BUT wrap it with a concurrency guard. Use `prisma.inspectorInvoice.updateMany({ where: { id: invoiceId, status: 'PENDING_REVIEW' }, data: { status: 'CLOSED', generated_by_user_id: actor.userId, generated_at: new Date() } })` and check `result.count === 0` → throw `InvoiceNotPendingReviewError`. This guarantees exactly-one-approval under concurrent requests. **Implementation note**: this may require a dedicated `approveConditional(id, data)` method on the repository, or the use case can call Prisma directly via an injected client for this single operation. Follow whichever pattern the team prefers — the key invariant is the `WHERE status = 'PENDING_REVIEW'` guard.
+  (e) Enqueue `billing.generate-invoice-file` via `jobQueue.enqueue('billing.generate-invoice-file', { invoiceId })` — using `IJobQueue` port (same as `GenerateInvoiceUseCase`).
+  (f) Emit `inspector_invoice.approved` audit with `{ inspectorId: invoice.inspectorId, invoiceId, periodStart, periodEnd, totalAmount, draftedByInspectorId: invoice.draftedByInspectorId, approvedByUserId: actor.userId }`. The `draftedByInspectorId` comes from the entity (T002a adds it).
+  (g) Return `{ invoiceId, status: 'CLOSED', generatedByUserId: actor.userId, generatedAt }`.
 
-## US5 — List, read, summary (shipped)
+### Reject use case (FR-067)
 
-- [x] T050 [US5] `ListFinancialEntriesUseCase`, `GetFinancialEntryUseCase`, `GetFinancialSummaryUseCase`.
-- [x] T051 [US5] Routes `GET /v1/financial/entries[/:id]`, `GET /v1/financial/entries/summary`.
-- [x] T052 [US5] Tests including CL role tenant scoping and multi-currency summary edge case.
+- [x] T004 Create `apps/backend/src/modules/billing/application/use-cases/reject-draft-invoice.use-case.ts` — constructor: `IInspectorInvoiceRepository`, `AuditService`, `AuthorizationService`.
+  `execute({ invoiceId, reason, actor })`:
+  (a) RBAC: AM/OP only (same scoping pattern as approve — see T003 note).
+  (b) Load invoice by ID via `invoiceRepo.findById()`. Not found → `InvoiceNotFoundError`.
+  (c) Status check: if NOT `PENDING_REVIEW` → throw `InvoiceNotPendingReviewError`.
+  (d) **Emit audit BEFORE delete**: `inspector_invoice.draft_rejected` with `{ inspectorId: invoice.inspectorId, invoiceId, periodStart, periodEnd, totalAmount, draftedByInspectorId: invoice.draftedByInspectorId, rejectedByUserId: actor.userId, reason }`. The `draftedByInspectorId` comes from the entity (T002a). The audit survives the row deletion.
+  (e) Hard-delete via `invoiceRepo.deleteById(invoiceId)` (T002b adds this method). Alternatively, use a conditional delete with `WHERE status = 'PENDING_REVIEW'` for concurrency safety — if 0 rows deleted, throw `InvoiceNotPendingReviewError`.
+  (f) Do NOT touch any `FinancialEntry` rows — the draft was never a ledger write.
+  (g) Do NOT enqueue any worker.
+  (h) Return `{ invoiceId, status: 'DELETED' }`.
 
-## US6 — Generate inspector invoice (shipped)
+### Route handlers
 
-- [x] T060 [US6] `GenerateInvoiceUseCase` with AM/OP guard, exact-match idempotency, overlap detection, payout sum, worker enqueue.
-- [x] T061 [US6] Routes `POST /v1/invoices/generate` and `/v1/billing/invoices/generate`.
-- [x] T062 [US6] Unit tests for overlap, exact-match, empty period.
+- [x] T005 Add two route handlers to `apps/backend/src/modules/billing/interfaces/billing.routes.ts`:
+  **(a)** `POST /v1/billing/invoices/:invoiceId/approve-draft` — preHandler: authenticate, validate `invoiceId` param (UUID). Call `ApproveDraftInvoiceUseCase`. Return 200 with result.
+  **(b)** `POST /v1/billing/invoices/:invoiceId/reject-draft` — preHandler: authenticate, validate `invoiceId` param + body via `rejectDraftInvoiceSchema`. Call `RejectDraftInvoiceUseCase`. Return 200 with result.
+  Both: AM/OP RBAC enforced by the use cases. CL/INSP → 403.
 
-## US7 — Download invoice PDF (shipped)
+### DI wiring
 
-- [x] T070 [US7] `DownloadInvoiceUseCase` returning presigned URL.
-- [x] T071 [US7] Routes `GET /v1/invoices/:id/download` and `/v1/billing/invoices/:id/download`.
-- [x] T072 [US7] Tests covering `INVOICE_NOT_READY` and `INVOICE_FILE_NOT_GENERATED`.
+- [x] T006 Wire `ApproveDraftInvoiceUseCase` and `RejectDraftInvoiceUseCase` in `apps/backend/src/main/container.ts` — instantiate in the billing section, inject `inspectorInvoiceRepo`, `auditService`, `authorizationService`, and `jobQueue` (`IJobQueue` — same instance used by `GenerateInvoiceUseCase`) for approve. Reject only needs repo + audit + authz. Add both to `BillingRouteContainer` interface. Update `tests/helpers/mock-container.ts` with mock entries for both use cases.
 
-## US8 — List / get invoices (shipped)
+### Unit tests
 
-- [x] T080 [US8] `ListInvoicesUseCase`, `GetInvoiceUseCase`.
-- [x] T081 [US8] Routes (both path variants).
-- [x] T082 [US8] Tests covering INSP scoping to own invoices.
+- [x] T007 [P] Write unit test for `ApproveDraftInvoiceUseCase` in `apps/backend/tests/unit/billing/approve-draft-invoice.use-case.test.ts`:
+  (a) Happy path: PENDING_REVIEW invoice → status becomes CLOSED, generatedByUserId stamped, worker enqueued, audit `inspector_invoice.approved` emitted. Assert audit payload includes `draftedByInspectorId`.
+  (b) Non-PENDING_REVIEW invoice → `InvoiceNotPendingReviewError`.
+  (c) Invoice not found → `InvoiceNotFoundError`.
+  (d) Non-AM/OP actor → RBAC error.
+  Minimum 4 cases.
 
-## Cross-cutting (shipped)
+- [x] T008 [P] Write unit test for `RejectDraftInvoiceUseCase` in `apps/backend/tests/unit/billing/reject-draft-invoice.use-case.test.ts`:
+  (a) Happy path: PENDING_REVIEW invoice → audit `inspector_invoice.draft_rejected` emitted with reason, row deleted. Assert audit is emitted BEFORE delete (mock call order).
+  (b) Non-PENDING_REVIEW invoice → `InvoiceNotPendingReviewError`.
+  (c) Missing/short reason → validation error (handled at route level, but test that use case requires reason).
+  (d) Invoice not found → `InvoiceNotFoundError`.
+  Minimum 4 cases.
 
-- [x] T095 Container wiring injecting all ports and workers.
-- [x] T096 Audit wiring for every write path.
+### FR-068 verification (reconciliation guard)
+
+- [x] T009 **VERIFY + TEST** — Write a test case in `apps/backend/tests/unit/billing/fr-068-pending-review-guard.test.ts` confirming that `MarkInvoicePaidUseCase` rejects a `PENDING_REVIEW` invoice. Setup: mock invoice with `status = 'PENDING_REVIEW'`. Call `markInvoicePaid`. Assert `InvoiceNotClosedError` is thrown. This is already enforced by `canBeMarkedPaid()` returning false for non-CLOSED — this test confirms the invariant explicitly for the new status value. **No code change needed** — test only.
+
+### Integration tests
+
+- [x] T010 Write integration test in `apps/backend/tests/integration/billing/draft-invoice-admin-review.test.ts`:
+  (a) Approve happy path: seed PENDING_REVIEW invoice, call `POST /v1/billing/invoices/:id/approve-draft` as AM → 200, invoice status in mock becomes CLOSED.
+  (b) Reject happy path: seed PENDING_REVIEW invoice, call `POST /v1/billing/invoices/:id/reject-draft` as AM with reason → 200.
+  (c) Approve on CLOSED invoice → 409 `INVOICE_NOT_PENDING_REVIEW`.
+  (d) Reject without reason → 400.
+  (e) CL_ADMIN calls approve → 403.
+  (f) List with `?status=PENDING_REVIEW` → returns only PENDING_REVIEW invoices.
+  Minimum 6 cases.
+
+**Checkpoint**: `pnpm typecheck && pnpm --filter backend test` green. Approve transitions to CLOSED + enqueues worker. Reject hard-deletes + audits. PENDING_REVIEW filterable in list. FR-068 guard verified.
 
 ---
 
-# SECTION 2 — Open Backlog
+## Phase 2: Frontend — Admin Buttons + Filter
 
-> Only pick up work from this section. Every task must follow TDD.
+**Purpose**: Approve/Reject affordances in the invoice detail view. PENDING_REVIEW in the list status filter.
 
-## Phase 2 — Gap closure
+- [x] T011 Revise the invoice detail drawer/view in `apps/web/src/features/billing/components/` (find the component that renders invoice details — likely `InvoiceDetailDrawer.tsx` or similar). When `invoice.status === 'PENDING_REVIEW'`:
+  **(a)** Show an "Approve" button (primary/green). On click → call `POST /v1/billing/invoices/:id/approve-draft`. On success → refresh invoice detail, show success toast.
+  **(b)** Show a "Reject" button (danger/red). On click → open a reason modal (text area, min 10 chars). On submit → call `POST /v1/billing/invoices/:id/reject-draft` with `{ reason }`. On success → navigate back to list (invoice deleted), show success toast.
+  **(c)** Both buttons hidden for non-AM/OP roles (read from auth context).
 
-### GAP-001 — Cancel use case for PENDING entries
+- [x] T012 [P] Add `PENDING_REVIEW` to the invoice list status filter dropdown in `apps/web/src/features/billing/` — find the filter component that renders the status select. Add `{ label: 'Pending Review', value: 'PENDING_REVIEW' }` to the options.
 
-- [ ] T100 [GAP-001] `CancelFinancialEntryUseCase` (AM/OP only) with `WHERE status = PENDING` conditional update and mandatory reason.
-- [ ] T101 [GAP-001] Route `POST /v1/financial/entries/:id/cancel`.
-- [ ] T102 [GAP-001] Tests asserting `PENDING → CANCELLED` only; `APPROVED` entries cannot be cancelled.
+- [x] T013 [P] Add status chip color for `PENDING_REVIEW` in `apps/web/src/lib/status-colors.ts` (or wherever billing status colors are mapped) — use `warning` / orange styling to distinguish from `OPEN`.
 
-### GAP-002 — Automatic DONE→REJECTED compensation (HIGH)
+**Checkpoint**: Admin can approve/reject draft invoices from the UI. PENDING_REVIEW visible in list filter.
 
-- [ ] T110 [GAP-002] Pair with 006#GAP-002 (event-driven compensation).
-- [ ] T111 [GAP-002] Consumer in billing subscribes to `appointment.done_rejected.v1` (depends on 002#GAP-005 bus).
-- [ ] T112 [GAP-002] On event: cancel PENDING entries for the appointment OR auto-create a `REFUND` for approved `TENANT_DEBIT` + an opposing adjustment for `INSPECTOR_PAYOUT`.
-- [ ] T113 [GAP-002] Tests covering both pending and approved entry scenarios.
+---
 
-### GAP-003 — Partial refunds
+## Phase 3: Verification
 
-- [ ] T120 [GAP-003] Design doc: partial refund semantics (one per debit? multiple? cap at full amount?).
-- [ ] T121 [GAP-003] Update `CreateRefundUseCase` to accept an optional `amount` (default full).
-- [ ] T122 [GAP-003] Update uniqueness guard to allow multiple refunds as long as the sum does not exceed the original debit.
-- [ ] T123 [GAP-003] Tests.
+- [x] T014 Run `pnpm typecheck` across all workspaces — must pass
+- [x] T015 Run `pnpm --filter backend test` — all pass (including T007-T010 new tests)
+- [x] T016 Run `pnpm --filter web test` — all pass
+- [x] T017 Verify no new Prisma migration needed — `npx prisma validate` clean. 008's migration covers all schema changes.
+- [x] T018 Verify ledger invariant: grep for any code path that writes to `financial_entries` during approve or reject — must be zero. The approve path only changes invoice status + enqueues PDF worker. The reject path only deletes the invoice row.
 
-### GAP-004 — Tenant invoice rolled-up document
+**Checkpoint**: Feature 010 draft invoice admin review delta complete. All verifications pass.
 
-- [ ] T130 [GAP-004] New `TenantInvoice` entity + Prisma migration.
-- [ ] T131 [GAP-004] `GenerateTenantInvoiceUseCase` summing `TENANT_DEBIT - REFUND + MANUAL_ADJUSTMENT` for a period.
-- [ ] T132 [GAP-004] PDF worker + download endpoint.
-- [ ] T133 [GAP-004] Web UI.
+---
 
-### GAP-005 — Tenant-timezone period boundaries
+## Residual Notes
 
-- [ ] T140 [GAP-005] Depends on 002#GAP-002 (rich tenant settings — read `timezone` and `billingPeriod`).
-- [ ] T141 [GAP-005] Update `GenerateInvoiceUseCase` to interpret period boundaries in the tenant/inspector's timezone.
-- [ ] T142 [GAP-005] Tests with fixture dates across timezone boundaries.
+### What is NOT in this task list
 
-### GAP-006 — Void approved entries
+- `DraftInspectorInvoiceUseCase` — 008 delivered it
+- Entry creation, approval, refund, manual adjustment — core billing, already shipped
+- Operator-initiated invoice generation — already shipped
+- Payment reconciliation (mark-paid, batch, reverse) — feature 017, already shipped
+- Invoice PDF template — existing worker, no change
+- `REJECTED` status for invoices — spec explicitly excludes
 
-- [ ] T150 [GAP-006] Decision: is an explicit VOID needed beyond refunds/adjustments? Capture in a design doc.
-- [ ] T151 [GAP-006] If approved: add `VOIDED` enum value or reuse `CANCELLED` for this path. AM only with mandatory reason.
-- [ ] T152 [GAP-006] Tests.
+### What was already implicitly handled
 
-### GAP-007 — Invoice regeneration
-
-- [ ] T160 [GAP-007] `RegenerateInvoiceUseCase` (AM only) that invalidates the current invoice and creates a new one with a revised total.
-- [ ] T161 [GAP-007] Persist a version chain (original → regenerated).
-- [ ] T162 [GAP-007] Tests.
-
-### GAP-008 — Invoice PAID marking endpoint
-
-- [ ] T170 [GAP-008] `MarkInvoicePaidUseCase` (AM/OP) with `WHERE status = CLOSED` conditional update, optional `paid_at` timestamp.
-- [ ] T171 [GAP-008] Route `POST /v1/invoices/:id/mark-paid` (+ `/v1/billing/invoices/:id/mark-paid`).
-- [ ] T172 [GAP-008] Tests.
-
-### GAP-009 — Summary endpoint date range
-
-- [ ] T180 [GAP-009] Extend `GetFinancialSummaryUseCase` with optional `effectiveFrom` and `effectiveTo` filters.
-- [ ] T181 [GAP-009] Update route query schema.
-- [ ] T182 [GAP-009] Tests covering month-to-date and year-to-date queries.
-
-### GAP-010 — Consolidate duplicate invoice routes
-
-- [ ] T190 [GAP-010] Deprecate `/v1/invoices/*` in favor of `/v1/billing/invoices/*`.
-- [ ] T191 [GAP-010] Return `Deprecation` and `Sunset` headers on the legacy paths for one release.
-- [ ] T192 [GAP-010] Migrate all frontend clients.
-- [ ] T193 [GAP-010] Remove legacy routes after the deprecation window.
-
-## Phase 3 — Polish & cross-cutting
-
-- [ ] T200 [P] Verify module coverage ≥ 80% with `pnpm --filter backend test -- --coverage` on `billing/`.
-- [ ] T201 [P] CI audit: ensure no code path writes `FinancialEntry.status = APPROVED` without running through `ApproveFinancialEntryUseCase`.
-- [ ] T202 Confirm OpenAPI export reflects all endpoints; regenerate frontend clients.
-- [ ] T203 Incremental supersede of legacy specs: banner on `specs/backend/billing.spec.md` and `specs/web/financial.spec.md`.
-- [ ] T204 Document reconciliation workflow in the ops runbook — how operators mark invoices `PAID` after bank transfer.
+- **FR-068** (017 reconciliation guard): `canBeMarkedPaid()` only returns `true` for `CLOSED`. `PENDING_REVIEW` is already blocked. T009 adds an explicit test to confirm.
+- **FR-065** (overlap rule): the overlap check in `DraftInspectorInvoiceUseCase` (from 008) already covers `PENDING_REVIEW` as a blocking status.
 
 ---
 
 ## Dependencies & Execution Order
 
-- **GAP-002** (auto compensation) depends on 002#GAP-005 (event bus) and pairs with 006#GAP-002.
-- **GAP-004** (tenant invoice) is a significant addition and should ship with its own web UI.
-- **GAP-005** (timezone periods) depends on 002#GAP-002.
-- **GAP-008** (mark paid) is a small but high-value gap — prioritize early.
+### Phase Dependencies
 
-## Notes
+- **Phase 1 (Backend)**: No dependencies beyond 008 being done. **BLOCKS Phase 2.**
+- **Phase 2 (Frontend)**: Depends on Phase 1 (API endpoints must exist).
+- **Phase 3 (Verification)**: Depends on all.
 
-- The ledger is append-only. Reviewers must block any PR that enables hard delete of `FinancialEntry` rows outside a migration.
-- The two-person approval rule is non-negotiable. Any path that bypasses self-approval check is a bug.
-- Financial entries are the authoritative record of money; all reports and dashboards read from this table directly.
-- Close each `GAP-xxx` by promoting in `spec.md` and updating `specs/GAPS.md`.
+### Critical Path
+
+```
+T001-T002 (errors + schemas) → T003-T004 (use cases) → T005-T006 (routes + DI)
+→ T007-T010 (tests) → T011-T013 (frontend) → T014-T018 (verification)
+```
+
+### Parallel Opportunities
+
+- T001 + T002 parallelizable
+- T007 + T008 (unit tests) parallelizable with each other and after T003-T004
+- T009 (FR-068 verification) parallelizable with T007-T008
+- T012 + T013 (filter + status chip) parallelizable with T011

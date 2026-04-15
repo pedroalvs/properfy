@@ -2,13 +2,13 @@
 
 **Feature Branch**: `009-notifications`
 **Created**: 2026-04-05
-**Feature Status**: IMPLEMENTED (Phase 1) — pending review for Phase 2/3 gaps
+**Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps + 1 correction closed in commit `ec2a873` (2026-04-08, Waves 1–4). Gap 009#GAP-001 (unsubscribe / opt-out management) was further closed by feature 018 (consent notification prefs, 2026-04-11). Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.
 **Sources**:
 - Code: `apps/backend/src/modules/notification/**`, `apps/backend/prisma/schema.prisma`, `packages/shared/src/schemas/notification.ts`
 - Approved rules: `.specify/memory/constitution.md`, `CLAUDE.md`, `projeto-consolidado/regras-negocio-respostas-cliente.md`
 - Legacy spec (to be superseded on approval): `specs/backend/notification.spec.md`
 
-> **Domain context.** Notifications are the platform's outbound communication channel. They deliver tenant-portal links, inspection reminders (7/5/3 days before), property manager escalations, renter SMS alerts, and event-driven confirmations across three channels: EMAIL (Resend), SMS (Twilio), and WhatsApp (Zenvia). Every notification is created as a row, enqueued as a pg-boss job, rendered from a template, and dispatched. Provider webhooks update delivery status. Failures retry with exponential backoff and terminal-fail after the maximum attempts.
+> **Domain context.** Notifications are the platform's outbound communication channel. They deliver tenant-portal links, inspection reminders (7/5/3 days before), property manager escalations, renter SMS alerts, and event-driven confirmations across three channels: EMAIL (Resend), SMS (Mobile Message), and WhatsApp (Zenvia). Every notification is created as a row, enqueued as a pg-boss job, rendered from a template, and dispatched. Provider webhooks update delivery status. Failures retry with exponential backoff and terminal-fail after the maximum attempts.
 >
 > **Reading guide.** Every user story declares `Priority`, `Status`, `Source`. Status: `IMPLEMENTED` | `APPROVED` | `GAP`. Source: `code` | `dossier` | `inferred`.
 
@@ -38,7 +38,7 @@ Any caller (another use case, a scheduled dispatcher, or a domain event handler)
 - **Status**: IMPLEMENTED
 - **Source**: code
 
-The pg-boss worker picks up a `notification.send` job and invokes `SendNotificationUseCase`. The use case loads the notification and the matching template (tenant-specific if present, platform default otherwise), renders the subject/body using a simple `{{variable}}` substitution, and dispatches through the appropriate provider adapter (Resend for EMAIL, Twilio for SMS, Zenvia for WhatsApp). On success, `status = SENT`, `provider_name` and `provider_message_id` are persisted. On failure, the retry counter increments and `next_retry_at` is scheduled using the exponential backoff with jitter.
+The pg-boss worker picks up a `notification.send` job and invokes `SendNotificationUseCase`. The use case loads the notification and the matching template (tenant-specific if present, platform default otherwise), renders the subject/body using a simple `{{variable}}` substitution, and dispatches through the appropriate provider adapter (Resend for EMAIL, Mobile Message for SMS, Zenvia for WhatsApp). On success, `status = SENT`, `provider_name` and `provider_message_id` are persisted. On failure, the retry counter increments and `next_retry_at` is scheduled using the exponential backoff with jitter.
 
 **Independent Test**: Create a notification via US1, run the send use case directly (stub providers return a fake message id). Confirm status flips to `SENT` and message id is recorded.
 
@@ -77,7 +77,7 @@ An operator with access to the notifications list finds a `FAILED` notification 
 - **Status**: IMPLEMENTED
 - **Source**: code
 
-Each provider posts delivery events to a dedicated webhook endpoint (`/v1/webhooks/resend`, `/v1/webhooks/twilio`, `/v1/webhooks/zenvia`). The use case looks up the notification by `provider_message_id` and updates `status`, `delivered_at`, or `failure_reason` as appropriate. The endpoint always returns `200 { received: true }` to avoid provider retry loops even when the lookup fails.
+Each provider posts delivery events to a dedicated webhook endpoint (`/v1/webhooks/resend`, `/v1/webhooks/mobile-message`, `/v1/webhooks/zenvia`). The use case looks up the notification by `provider_message_id` and updates `status`, `delivered_at`, or `failure_reason` as appropriate. The endpoint always returns `200 { received: true }` to avoid provider retry loops even when the lookup fails.
 
 **Independent Test**: Seed a `SENT` notification with a known `provider_message_id`. Post a Resend `email.delivered` webhook with that id. Confirm the row transitions to `DELIVERED`.
 
@@ -85,7 +85,7 @@ Each provider posts delivery events to a dedicated webhook endpoint (`/v1/webhoo
 
 1. **Given** a Resend webhook with `type = email.delivered` and a matching `data.id`, **When** posted to `/v1/webhooks/resend`, **Then** the notification moves to `DELIVERED` with `delivered_at` set.
 2. **Given** a Resend webhook with `type = email.bounced` or `email.complained`, **When** posted, **Then** the notification moves to `FAILED` with the event captured in `failure_reason`.
-3. **Given** a Twilio webhook with `MessageStatus = delivered|failed|undelivered`, **When** posted to `/v1/webhooks/twilio`, **Then** the notification is updated analogously.
+3. **Given** a Mobile Message status webhook with `status = delivered|failed`, **When** posted to `/v1/webhooks/mobile-message`, **Then** the notification is updated analogously.
 4. **Given** a Zenvia webhook with `status = delivered|failed|rejected`, **When** posted to `/v1/webhooks/zenvia`, **Then** the notification is updated analogously.
 5. **Given** an unknown `provider_message_id`, **When** a webhook posts, **Then** the endpoint still returns `200 { received: true }` — the event is silently ignored. (Logged internally.)
 6. **Given** any webhook endpoint, **When** called, **Then** authentication is NOT required (providers cannot carry our JWTs). Signature validation is a Phase 2 gap.
@@ -104,9 +104,9 @@ A scheduled pg-boss job invokes `DispatchRemindersUseCase` daily. The use case i
 
 **Acceptance Scenarios**:
 
-1. **Given** an appointment scheduled 7 days from today with `primary_email` on the contact, **When** the dispatcher runs, **Then** one `REMINDER_7_DAYS` notification is enqueued.
+1. **Given** an appointment scheduled 7 days from today with a primary contact whose `snapshot_email` is non-null, **When** the dispatcher runs, **Then** one `REMINDER_7_DAYS` notification is enqueued to that `snapshot_email`.
 2. **Given** the same dispatcher runs twice in the same day, **When** on the second run, **Then** no duplicate is created (`existsByAppointmentAndTemplate` check).
-3. **Given** an appointment with no `primary_email`, **When** the dispatcher runs, **Then** the notification is skipped (counted in `skipped`) — no SMS fallback in Phase 1.
+3. **Given** an appointment whose primary contact has `snapshot_email = NULL`, **When** the dispatcher runs, **Then** the notification is skipped (counted in `skipped`) — no SMS fallback in Phase 1.
 4. **Given** appointments on T+5 and T+3 days, **When** the dispatcher runs, **Then** it emits `REMINDER_5_DAYS` and `REMINDER_3_DAYS` respectively.
 
 ---
@@ -216,7 +216,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 - **FR-001**: System MUST persist every outbound notification as a `Notification` row before dispatching.
 - **FR-002**: System MUST enqueue `notification.send` pg-boss jobs with `retryLimit: 0` — internal retry logic handles backoff, not pg-boss.
-- **FR-003** (`implementation decision for provider selection — dossiê names Resend for email and "Twilio ou Zenvia" for SMS but does not mandate specific provider-to-channel binding`): System MUST support three channels: `EMAIL` (currently Resend), `SMS` (currently Twilio), `WhatsApp` (currently Zenvia). Provider selection is hardcoded per channel in Phase 1 — this is an **infrastructure/operational choice**, not a domain rule. Providers may be swapped without a dossiê amendment.
+- **FR-003** (`Status: APPROVED RULE — code diverges`, `implementation decision for provider selection — dossiê names Resend for email and "Twilio ou Zenvia" for SMS but does not mandate specific provider-to-channel binding`): System MUST support three channels: `EMAIL` (currently Resend), `SMS` (approved provider: Mobile Message; current code still uses Twilio until the migration lands), `WhatsApp` (currently Zenvia). Provider selection is hardcoded per channel in Phase 1 — this is an **infrastructure/operational choice**, not a domain rule. Providers may be swapped without a dossiê amendment.
 - **FR-004**: System MUST render templates using `{{variable}}` substitution with `payload_json` as the variable source.
 - **FR-005**: System MUST look up templates with tenant-specific priority over platform default via `findByTenantCodeChannel(tenant_id OR null, code, channel)`.
 - **FR-006**: System MUST fail sending with `TEMPLATE_NOT_FOUND` when neither a tenant-specific nor platform-default template exists.
@@ -231,10 +231,10 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 #### Provider webhooks
 
-- **FR-020**: System MUST expose provider-specific webhook endpoints: `/v1/webhooks/resend`, `/v1/webhooks/twilio`, `/v1/webhooks/zenvia`.
+- **FR-020** (`Status: APPROVED RULE — code diverges`): System MUST expose provider-specific webhook endpoints: `/v1/webhooks/resend`, `/v1/webhooks/mobile-message`, `/v1/webhooks/zenvia`. Current code still exposes `/v1/webhooks/twilio` for SMS until the provider migration lands.
 - **FR-021**: System MUST always respond `200 { received: true }` to webhooks, even on unknown `provider_message_id`, to prevent provider retry storms.
 - **FR-022**: System MUST map provider events to internal states: `delivered → DELIVERED`, `bounced/failed/complained/rejected → FAILED`.
-- **FR-023** (`Status: GAP, Source: dossier`): System SHOULD validate provider webhook signatures where supported (Resend, Twilio). Currently missing — tracked as GAP-007.
+- **FR-023** (`Status: GAP, Source: dossier`): System SHOULD validate provider webhook signatures where supported (Resend, Mobile Message, Zenvia). Currently missing — tracked as GAP-007.
 
 #### Scheduled dispatchers
 
@@ -245,8 +245,8 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 #### Event-driven handlers
 
-- **FR-040**: System MUST consume appointment state transitions via `notify-on-status-transition.handler.ts` and emit the corresponding template codes (`INSPECTION_NOTICE`, `INSPECTION_CANCELLED`, etc.).
-- **FR-041**: System MUST consume tenant portal actions via `notify-on-tenant-portal-action.handler.ts` and emit `INSPECTION_CONFIRMED`, `INSPECTION_RESCHEDULED`, `INSPECTION_UNAVAILABILITY_REPORTED`.
+- **FR-040**: System MUST consume appointment state transitions via `notify-on-status-transition.handler.ts` and emit the corresponding template codes (`INSPECTION_NOTICE`, `INSPECTION_CANCELLED`, etc.). **Recipient resolution (feature 021 architectural revision, pending planning)**: the handler MUST resolve the notification recipient from the appointment's **primary contact snapshot** (`appointment_contacts.snapshot_email` where `is_primary = true`), NOT from the live `contacts` registry. Rationale: the snapshot reflects the contact as known when the appointment was linked — this is the address the tenant portal link was sent to, and the address the renter expects to receive communications at. Using the live registry would risk sending to an updated email the renter has not yet verified. When `snapshot_email` is null on the primary contact, the notification is skipped (existing behavior, counted in `skipped` — see GAP-001 and GAP-010).
+- **FR-041**: System MUST consume tenant portal actions via `notify-on-tenant-portal-action.handler.ts` and emit `INSPECTION_CONFIRMED`, `INSPECTION_RESCHEDULED`, `INSPECTION_UNAVAILABILITY_REPORTED`. Same recipient resolution rule as FR-040: use the primary contact's `snapshot_email`, not the registry.
 - **FR-041b** (`Status: APPROVED RULE, Source: dossier — regras-negocio:241-243 + feature 007 FR-060b`): When the tenant portal reports late unavailability (`urgentMode = true`, after the 7 PM cutoff), the notification handler MUST treat this as a **critical/urgent notification** — immediate delivery to the operator AND the assigned inspector (including WhatsApp per dossiê "enviar notificação ao inspetor via WhatsApp que o serviço foi cancelado"). This is not a routine informational notification; it is an operational escalation requiring immediate triage.
 - **FR-042**: System MUST treat handler invocations as fire-and-forget from the caller's perspective — handler failures do not fail the upstream operation.
 
@@ -291,7 +291,7 @@ Full schema in [`data-model.md`](./data-model.md). HTTP contracts in [`contracts
 
 ## Assumptions
 
-- Provider selection is fixed per channel in Phase 1 (Resend / Twilio / Zenvia). Multi-provider failover is not in scope.
+- Provider selection is fixed per channel in Phase 1 (Resend / Mobile Message / Zenvia). Current code still uses Twilio for SMS until the provider migration lands. Multi-provider failover is not in scope.
 - Templates use a simple `{{variable}}` substitution. Conditionals, loops, and partials are out of scope.
 - Rate limiting per recipient is the provider's responsibility in Phase 1. The platform does not impose its own rate limits.
 - WhatsApp template pre-approval with Meta is handled manually by operators outside the platform in Phase 1.
@@ -309,7 +309,7 @@ Full schema in [`data-model.md`](./data-model.md). HTTP contracts in [`contracts
 | GAP-004 | Strict variables validation on send | M | `variables_json` in the template is descriptive — not enforced at send time. Missing variables render as empty strings silently. |
 | GAP-005 | Proper templating engine | L | Current `{{variable}}` renderer cannot handle conditionals (e.g., "if primaryEmail else primaryPhone"), loops (e.g., restriction lists), or HTML escaping. Consider Handlebars/MJML for email. |
 | GAP-006 | Poll-retryable batch cap | L | `PollRetryableNotificationsUseCase` has no batch limit — a large backlog could overwhelm the worker. |
-| GAP-007 | Webhook signature validation | H | Webhooks are currently unauthenticated. A malicious caller could forge delivery events. Each provider supports HMAC signatures (Resend: Svix; Twilio: `X-Twilio-Signature`; Zenvia: HMAC). |
+| GAP-007 | Webhook signature validation | H | Webhooks are currently unauthenticated. A malicious caller could forge delivery events. Each provider supports a signature or authenticated callback mechanism (Resend: Svix; Mobile Message: provider-specific webhook authentication to be confirmed in implementation; Zenvia: HMAC). |
 | GAP-008 | Handler exception alerting | M | Fire-and-forget handlers silently swallow errors. Operations cannot see when transition-driven notifications fail to enqueue. |
 | GAP-009 | Per-attempt audit trail | L | Only the latest failure is persisted on the row. Historical attempts are lost. Helpful for provider dispute investigations. |
 | GAP-010 | SMS fallback when email missing | M | Reminder dispatcher skips appointments without email. Product likely wants SMS fallback when phone is present. |

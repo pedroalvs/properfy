@@ -36,7 +36,8 @@ export class ExportImportErrorsUseCase {
       entityType: 'Property',
     });
 
-    const tenantScope = (actor.role === 'AM' || actor.role === 'OP') ? null : actor.tenantId;
+    // Only AM is cross-tenant per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
+    const tenantScope = actor.role === 'AM' ? null : actor.tenantId;
     const importRecord = await this.importRepo.findById(importId, tenantScope);
 
     if (!importRecord) {
