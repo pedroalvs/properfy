@@ -56,8 +56,9 @@ COPY --from=builder /app/packages/shared/dist/ packages/shared/dist/
 COPY --from=builder /app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/ \
      node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/
 
-# Copy built backend bundle
+# Copy built backend bundle + static assets needed at runtime
 COPY --from=builder /app/apps/backend/dist/ apps/backend/dist/
+COPY --from=builder /app/apps/backend/src/modules/notification/interfaces/unsubscribe-page.html apps/backend/dist/
 COPY --from=builder /app/apps/backend/prisma/ apps/backend/prisma/
 
 WORKDIR /app/apps/backend
