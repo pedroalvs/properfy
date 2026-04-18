@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/services/api';
+import { ContactAutocomplete } from './ContactAutocomplete';
+import type { ContactSearchResult } from '../hooks/useContactSearch';
 
 interface BulkEditField {
   key: string;
@@ -34,6 +36,7 @@ interface BulkEditModalProps {
 export function BulkEditModal({ selectedIds, open, onClose, onSuccess }: BulkEditModalProps) {
   const [enabledFields, setEnabledFields] = useState<Record<string, boolean>>({});
   const [values, setValues] = useState<Record<string, string>>({});
+  const [pmContactLabel, setPmContactLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BulkEditResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -42,6 +45,7 @@ export function BulkEditModal({ selectedIds, open, onClose, onSuccess }: BulkEdi
   const reset = useCallback(() => {
     setEnabledFields({});
     setValues({});
+    setPmContactLabel('');
     setResult(null);
     setErrorMessage(null);
     setErrorsExpanded(false);
@@ -61,10 +65,25 @@ export function BulkEditModal({ selectedIds, open, onClose, onSuccess }: BulkEdi
           delete copy[key];
           return copy;
         });
+        if (key === 'propertyManagerContactId') setPmContactLabel('');
       }
       return next;
     });
   };
+
+  const handlePmContactSelect = useCallback((contact: ContactSearchResult) => {
+    setValues((prev) => ({ ...prev, propertyManagerContactId: contact.id }));
+    setPmContactLabel(contact.displayName);
+  }, []);
+
+  const handlePmContactClear = useCallback(() => {
+    setValues((prev) => {
+      const copy = { ...prev };
+      delete copy.propertyManagerContactId;
+      return copy;
+    });
+    setPmContactLabel('');
+  }, []);
 
   const handleSubmit = async () => {
     const changes: Record<string, unknown> = {};
@@ -187,15 +206,26 @@ export function BulkEditModal({ selectedIds, open, onClose, onSuccess }: BulkEdi
                 {field.label}
               </label>
               {enabledFields[field.key] && (
-                <input
-                  type={field.key === 'scheduledDate' ? 'date' : 'text'}
-                  value={values[field.key] ?? ''}
-                  onChange={(e) =>
-                    setValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                  }
-                  placeholder={field.placeholder}
-                  className="w-full rounded border border-border-subtle bg-card-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-primary"
-                />
+                field.key === 'propertyManagerContactId' ? (
+                  <ContactAutocomplete
+                    value={pmContactLabel}
+                    selectedContactId={values.propertyManagerContactId}
+                    onSelect={handlePmContactSelect}
+                    onClear={handlePmContactClear}
+                    placeholder="Search property manager..."
+                    aria-label="Property Manager Contact"
+                  />
+                ) : (
+                  <input
+                    type={field.key === 'scheduledDate' ? 'date' : 'text'}
+                    value={values[field.key] ?? ''}
+                    onChange={(e) =>
+                      setValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                    placeholder={field.placeholder}
+                    className="w-full rounded border border-border-subtle bg-card-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-primary"
+                  />
+                )
               )}
             </div>
           ))}

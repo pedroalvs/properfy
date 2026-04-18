@@ -24,9 +24,11 @@ import { PropertyFormDrawer } from '@/features/properties/components/PropertyFor
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
+import { ContactAutocomplete } from './ContactAutocomplete';
 import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
 import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
+import type { ContactSearchResult } from '../hooks/useContactSearch';
 
 const CONTACT_ROLE_OPTIONS = [
   { value: AppointmentContactRole.TENANT, label: 'Tenant' },
@@ -127,6 +129,7 @@ export function AppointmentFormDrawer({
         appointment.contacts && appointment.contacts.length > 0
           ? appointment.contacts.map((c) => ({
               key: c.id ?? crypto.randomUUID(),
+              contactId: c.contactId ?? undefined,
               name: c.snapshotName ?? '',
               email: c.snapshotEmail ?? '',
               phone: c.snapshotPhone ?? '',
@@ -291,6 +294,37 @@ export function AppointmentFormDrawer({
     },
     [],
   );
+
+  const selectRegistryContact = useCallback(
+    (key: string, contact: ContactSearchResult) => {
+      setForm((prev) => ({
+        ...prev,
+        contacts: prev.contacts.map((c) =>
+          c.key === key
+            ? {
+                ...c,
+                contactId: contact.id,
+                name: contact.displayName,
+                email: contact.primaryEmail ?? '',
+                phone: contact.primaryPhone ?? '',
+              }
+            : c,
+        ),
+      }));
+    },
+    [],
+  );
+
+  const clearRegistryContact = useCallback((key: string) => {
+    setForm((prev) => ({
+      ...prev,
+      contacts: prev.contacts.map((c) =>
+        c.key === key
+          ? { ...c, contactId: undefined, name: '', email: '', phone: '' }
+          : c,
+      ),
+    }));
+  }, []);
 
   const setPrimaryContact = useCallback((key: string) => {
     setForm((prev) => ({
@@ -497,75 +531,125 @@ export function AppointmentFormDrawer({
                   </FormSection>
 
                   <FormSection title="Contacts">
-                    {form.contacts.map((contact, idx) => (
-                      <div key={contact.key} className="rounded border border-black/10 p-4 mb-3">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-semibold text-secondary">
-                            Contact {idx + 1}
-                          </span>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-                              <input
-                                type="radio"
-                                name="primaryContact"
-                                checked={contact.isPrimary}
-                                onChange={() => setPrimaryContact(contact.key)}
-                                className="accent-primary"
+                    {form.contacts.map((contact, idx) => {
+                      const isLinked = !!contact.contactId;
+                      return (
+                        <div key={contact.key} className="rounded border border-black/10 p-4 mb-3">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-semibold text-secondary">
+                              Contact {idx + 1}
+                              {isLinked && (
+                                <span className="ml-2 text-xs font-normal text-success">
+                                  <i className="mdi mdi-link-variant" aria-hidden="true" /> Linked
+                                </span>
+                              )}
+                            </span>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="primaryContact"
+                                  checked={contact.isPrimary}
+                                  onChange={() => setPrimaryContact(contact.key)}
+                                  className="accent-primary"
+                                />
+                                <span className={contact.isPrimary ? 'font-semibold text-primary' : 'text-text-secondary'}>
+                                  Primary
+                                </span>
+                              </label>
+                              {form.contacts.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeContact(contact.key)}
+                                  className="text-error hover:text-error/80 text-sm font-medium"
+                                  aria-label={`Remove contact ${idx + 1}`}
+                                >
+                                  <i className="mdi mdi-close-circle-outline text-lg" aria-hidden="true" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {!isLinked && (
+                            <div className="mb-3">
+                              <FormField label="Search existing contact">
+                                <ContactAutocomplete
+                                  value={contact.name}
+                                  selectedContactId={contact.contactId}
+                                  onSelect={(c) => selectRegistryContact(contact.key, c)}
+                                  onClear={() => clearRegistryContact(contact.key)}
+                                  placeholder="Search by name, email or phone..."
+                                  aria-label={`Search contact ${idx + 1}`}
+                                />
+                              </FormField>
+                              <p className="mt-1 text-xs text-text-muted">
+                                Or fill in the fields below to create a new contact
+                              </p>
+                            </div>
+                          )}
+
+                          {isLinked && (
+                            <div className="mb-3">
+                              <div className="flex items-center justify-between rounded bg-primary/5 px-3 py-2">
+                                <span className="text-sm text-text-primary">
+                                  {contact.name}
+                                  {contact.email && <span className="text-text-secondary"> &middot; {contact.email}</span>}
+                                  {contact.phone && <span className="text-text-secondary"> &middot; {contact.phone}</span>}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => clearRegistryContact(contact.key)}
+                                  className="text-xs font-medium text-primary hover:underline"
+                                  aria-label={`Unlink contact ${idx + 1}`}
+                                >
+                                  Change
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <FormField label="Name" required error={errors.contacts?.[idx]?.name}>
+                              <TextInput
+                                value={contact.name}
+                                onChange={(v) => updateContact(contact.key, 'name', v)}
+                                placeholder="Full name"
+                                error={!!errors.contacts?.[idx]?.name}
+                                disabled={isLinked}
+                                aria-label={`Contact ${idx + 1} Name`}
                               />
-                              <span className={contact.isPrimary ? 'font-semibold text-primary' : 'text-text-secondary'}>
-                                Primary
-                              </span>
-                            </label>
-                            {form.contacts.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeContact(contact.key)}
-                                className="text-error hover:text-error/80 text-sm font-medium"
-                                aria-label={`Remove contact ${idx + 1}`}
-                              >
-                                <i className="mdi mdi-close-circle-outline text-lg" aria-hidden="true" />
-                              </button>
-                            )}
+                            </FormField>
+                            <FormField label="Role" required error={errors.contacts?.[idx]?.role}>
+                              <SelectInput
+                                value={contact.role}
+                                onChange={(v) => updateContact(contact.key, 'role', v)}
+                                options={CONTACT_ROLE_OPTIONS}
+                                placeholder="Select role"
+                                aria-label={`Contact ${idx + 1} Role`}
+                              />
+                            </FormField>
+                            <FormField label="Email" error={errors.contacts?.[idx]?.email}>
+                              <EmailInput
+                                value={contact.email}
+                                onChange={(v) => updateContact(contact.key, 'email', v)}
+                                error={!!errors.contacts?.[idx]?.email}
+                                disabled={isLinked}
+                                aria-label={`Contact ${idx + 1} Email`}
+                              />
+                            </FormField>
+                            <FormField label="Phone" error={errors.contacts?.[idx]?.phone}>
+                              <PhoneInput
+                                value={contact.phone}
+                                onChange={(v) => updateContact(contact.key, 'phone', v)}
+                                error={!!errors.contacts?.[idx]?.phone}
+                                disabled={isLinked}
+                                aria-label={`Contact ${idx + 1} Phone`}
+                              />
+                            </FormField>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <FormField label="Name" required error={errors.contacts?.[idx]?.name}>
-                            <TextInput
-                              value={contact.name}
-                              onChange={(v) => updateContact(contact.key, 'name', v)}
-                              placeholder="Full name"
-                              error={!!errors.contacts?.[idx]?.name}
-                              aria-label={`Contact ${idx + 1} Name`}
-                            />
-                          </FormField>
-                          <FormField label="Role" required error={errors.contacts?.[idx]?.role}>
-                            <SelectInput
-                              value={contact.role}
-                              onChange={(v) => updateContact(contact.key, 'role', v)}
-                              options={CONTACT_ROLE_OPTIONS}
-                              placeholder="Select role"
-                              aria-label={`Contact ${idx + 1} Role`}
-                            />
-                          </FormField>
-                          <FormField label="Email" error={errors.contacts?.[idx]?.email}>
-                            <EmailInput
-                              value={contact.email}
-                              onChange={(v) => updateContact(contact.key, 'email', v)}
-                              error={!!errors.contacts?.[idx]?.email}
-                              aria-label={`Contact ${idx + 1} Email`}
-                            />
-                          </FormField>
-                          <FormField label="Phone" error={errors.contacts?.[idx]?.phone}>
-                            <PhoneInput
-                              value={contact.phone}
-                              onChange={(v) => updateContact(contact.key, 'phone', v)}
-                              error={!!errors.contacts?.[idx]?.phone}
-                              aria-label={`Contact ${idx + 1} Phone`}
-                            />
-                          </FormField>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <Button variant="secondary" onClick={addContact}>
                       <i className="mdi mdi-plus" aria-hidden="true" />
                       Add Contact

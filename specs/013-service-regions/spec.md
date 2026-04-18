@@ -18,7 +18,7 @@
 
 ### User Story 1 — Operator defines a geographic service region for a tenant (Priority: P1)
 
-- **Status**: IMPLEMENTED (with DIVERGENCE — no tenant scoping in code)
+- **Status**: IMPLEMENTED (~~DIVERGENCE~~ RESOLVED — tenant scoping added in CORRECTION-004, 2026-04-07)
 - **Source**: code + dossier
 
 An Admin Master or Operator draws a polygon on a map (or submits GeoJSON coordinates) to define a named geographic area where a tenant's inspection services operate. The region carries a display color for map visualization and is immediately active. Each region belongs to exactly one tenant and region names are unique within that tenant.
@@ -40,7 +40,7 @@ An Admin Master or Operator draws a polygon on a map (or submits GeoJSON coordin
 
 ### User Story 2 — System resolves which regions cover a set of appointment properties (Priority: P1)
 
-- **Status**: IMPLEMENTED (with DIVERGENCE — resolve query is not tenant-scoped)
+- **Status**: IMPLEMENTED (~~DIVERGENCE~~ RESOLVED — resolve query tenant-scoped in CORRECTION-004, 2026-04-07)
 - **Source**: code
 
 When the operational team prepares a service group for the marketplace, the system must determine which regions contain each appointment's property. The resolution uses the canonical geospatial rule: a property's coordinates fall inside a region's polygon boundary (inclusive of boundary points). The response includes the count of active inspectors assigned to each matched region and lists any appointments with no matching region.
@@ -55,7 +55,7 @@ When the operational team prepares a service group for the marketplace, the syst
 2. **Given** a property whose coordinates fall exactly on a region boundary, **When** resolved, **Then** the property is considered inside the region (boundary-inclusive).
 3. **Given** an appointment whose property has no coordinates (geocoding pending or failed), **When** resolved, **Then** that appointment appears in `unmatchedAppointmentIds`.
 4. **Given** an appointment whose property coordinates fall in no active region, **When** resolved, **Then** that appointment appears in `unmatchedAppointmentIds`.
-5. **Given** a tenant-scoped resolve, **When** executed, **Then** only regions belonging to the appointment's tenant are considered — cross-tenant regions are never matched. (`DIVERGENCE`: code currently matches globally.)
+5. **Given** a tenant-scoped resolve, **When** executed, **Then** only regions belonging to the appointment's tenant are considered — cross-tenant regions are never matched. (~~DIVERGENCE~~ RESOLVED: tenant scoping enforced since CORRECTION-004.)
 6. **Given** a non-AM/OP actor, **When** they call the resolve endpoint, **Then** the request is rejected with `FORBIDDEN`.
 
 ---
@@ -182,7 +182,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 #### Region CRUD
 
-- **FR-001** (`DIVERGENCE — no tenant_id in code`): System MUST store service regions with a **mandatory `tenant_id`**. Every region belongs to exactly one tenant. The code currently stores regions WITHOUT `tenant_id` — this is a known divergence that must be corrected.
+- **FR-001** (~~DIVERGENCE~~ RESOLVED — `tenant_id` added in CORRECTION-004): System MUST store service regions with a **mandatory `tenant_id`**. Every region belongs to exactly one tenant.
 - **FR-002**: System MUST enforce `UNIQUE (tenant_id, name)` — region names are unique only within the same tenant. Names may repeat across tenants.
 - **FR-003**: System MUST validate GeoJSON on create and update: `type` must be `Polygon`, each ring must have at least 4 coordinates, first coordinate must equal last (closed ring).
 - **FR-004**: System MUST store both a `geojson` (jsonb, application source of truth) and a `geom` (PostGIS `GEOMETRY(Polygon, 4326)`) column. Writes to `geojson` must also update `geom` atomically.
@@ -195,7 +195,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 #### Region Resolution (Geospatial)
 
 - **FR-010**: System MUST resolve regions for a batch of appointment IDs (max 25) by matching each appointment's property coordinates against active region polygons using `ST_Contains(region.geom, property.coordinates)`.
-- **FR-011** (`DIVERGENCE — code matches globally`): Region resolution MUST be tenant-scoped — each appointment is matched only against regions belonging to the same tenant as the appointment.
+- **FR-011** (~~DIVERGENCE~~ RESOLVED — tenant scoping enforced since CORRECTION-004): Region resolution MUST be tenant-scoped — each appointment is matched only against regions belonging to the same tenant as the appointment.
 - **FR-012**: Boundary inclusion MUST be the default — points on the polygon boundary are considered inside.
 - **FR-013**: Properties with null coordinates (geocoding pending/failed) MUST be reported as unmatched.
 - **FR-014**: When a property falls inside multiple overlapping regions, ALL matching regions MUST be returned. The system does not select a single winner.
@@ -263,10 +263,10 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 | ID | Title | Impact | Context |
 |---|---|---|---|
-| GAP-001 | Tenant scoping correction (CORRECTION-004) | **CRITICAL** | `service_regions` table has no `tenant_id` column. Must add column, backfill existing rows, add `UNIQUE(tenant_id, name)` constraint, scope all queries. This is a **DIVERGENCE** from an approved rule — not a future enhancement. |
+| ~~GAP-001~~ | ~~Tenant scoping correction (CORRECTION-004)~~ | ~~CRITICAL~~ | **RESOLVED** (commit `017a883`, 2026-04-07). `tenant_id` is now a non-nullable FK. All queries tenant-scoped. `UNIQUE(tenant_id, name)` constraint active. |
 | GAP-002 | Consolidate inspector region data (legacy `regions_json`) | M | `inspectors.regions_json` is legacy/transitional. The canonical source is `InspectorRegion` join table. Need to deprecate and eventually remove `regions_json`. Coordinate with feature 008. |
 | GAP-003 | PostGIS `geom` column population consistency | H | The `geom` column is populated on region create/update via raw SQL, but there is no verification that `geojson` and `geom` stay in sync. Need a validation check or trigger. Also, `properties.coordinates` PostGIS column population is inconsistent (tracked in 003#GAP-003). |
-| GAP-004 | Resolve endpoint tenant scoping | **CRITICAL** | The `resolveRegionsForAppointments` query joins `service_regions` to `properties` via `appointments` without filtering by `tenant_id`. Must add tenant filtering. This is a **DIVERGENCE**. |
+| ~~GAP-004~~ | ~~Resolve endpoint tenant scoping~~ | ~~CRITICAL~~ | **RESOLVED** (commit `017a883`, 2026-04-07). `resolveRegionsForAppointments` now filters by `tenant_id`. |
 | GAP-005 | MultiPolygon support | L | Current validation accepts only `Polygon` type. Some agencies may need MultiPolygon for non-contiguous coverage areas (e.g., islands). |
 | GAP-006 | Region overlap warnings | L | System allows overlapping regions silently. A future enhancement could warn operators when a new/updated region overlaps existing ones in the same tenant. |
 | GAP-007 | Resolve endpoint batch size limit | L | Hard cap at 25 appointments per resolve call. For large service groups, this requires multiple calls. Consider increasing or adding a streaming/pagination approach. |

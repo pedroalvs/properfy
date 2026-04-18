@@ -26,7 +26,7 @@ function makeReport(overrides: Partial<ReportProps> = {}): ReportEntity {
     failedAt: null,
     errorMessage: null,
     rowCount: 42,
-    expiresAt: new Date('2026-04-15T07:00:45Z'),
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     createdAt: new Date('2026-03-16T07:00:00Z'),
     updatedAt: new Date('2026-03-16T07:00:45Z'),
     ...overrides,

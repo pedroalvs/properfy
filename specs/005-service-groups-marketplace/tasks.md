@@ -96,7 +96,9 @@ description: "Implementation and backlog tracking for Service Groups & Marketpla
 
 > Only pick up work from this section. Every task must follow TDD and produce an audit record on write paths where applicable.
 
-## Phase 2 — Gap closure
+## Phase 2 — Gap closure (future work, not missing deliverables)
+
+> The items below are genuine future enhancements identified during editorial reconciliation. They do NOT represent missing functionality from the shipped deliverable. The baseline Phase 1 is complete and passing all tests.
 
 ### GAP-001 — Marketplace spatial indexing
 

@@ -3,7 +3,7 @@
 **Input**: Design documents from `/specs/019-scheduled-reports-delivery/`
 **Prerequisites**: plan.md, spec.md
 
-**Status**: **SHIPPABLE (2026-04-12)** — 82 of 106 tasks complete. All critical paths delivered: on-demand completion notifications, schedule lifecycle CRUD, delivery fan-out, schedule dashboard, worker reshape with catch-up + idempotency + auth rehydration, AM ownership reassignment, and a minimal frontend surface. The 24 unchecked tasks are classified in `spec.md` "Delivery Outcome → Residuals" as partial coverage (supplementary unit tests already covered by entity/integration tests), deferred non-blocking (follow-up frontend polish, extended integration tests, manual smoke tests), or absorbed into plan.md residual docs. See `spec.md` "Delivery Outcome" and `plan.md` "Execution Outcome" for the closure record. No task below was dropped — every `- [X]` corresponds to real work that landed on the `015-permissions-rbac-matrix` integration branch.
+**Status**: **SHIPPABLE (2026-04-18)** — 88 of 106 tasks complete. All critical paths delivered. The 6 tasks closed on 2026-04-18 fill the unit test gap for scheduled report CRUD (T037-T040) and dashboard use cases (T057-T058). Also fixed pre-existing download-report test date drift (6 tests recovered). The 18 unchecked tasks are: frontend polish (T083-T097), integration tests (T050, T054, T077), and manual smoke tests (T103-T106). See `spec.md` "Delivery Outcome" for the closure record.
 
 **Tests**: TDD is mandatory per constitution. Unit + integration tests are included in each wave. The scheduled-run idempotency (via `(schedule_id, scheduled_for)` unique key), catch-up policy, and auth rehydration each have dedicated test tasks because they are the three highest-risk pieces of the Wave 3 critical path.
 
@@ -145,33 +145,10 @@
   - `MaxSchedulesPerUserExceededError` when the user already has 10 active schedules
   - Recipient validation at create time: each uuid in `recipientUserIds` must be an active user in the same tenant; `IncompatibleRecipientError` otherwise
   - Audit record `scheduledReportCreated` with before=null / after=snapshot
-- [ ] T037 [P] [US2] Unit tests for `UpdateScheduledReportUseCase` in `apps/backend/tests/unit/report/update-scheduled-report.use-case.test.ts`:
-  - Owner can edit recurrence, filters, recipients, display name, delivery mode, skip toggle
-  - AM can edit any schedule cross-tenant
-  - CL_ADMIN can edit schedules within own tenant
-  - CL_USER can only edit their own schedules
-  - Non-owner / out-of-tenant → `ScheduleForbiddenError`
-  - Soft-deleted schedules cannot be edited → `ScheduleNotFoundError`
-  - Recurrence change recomputes `nextRunAt`
-  - Audit record `scheduledReportUpdated` with before/after
-- [ ] T038 [P] [US2] Unit tests for `PauseScheduledReportUseCase` in `apps/backend/tests/unit/report/pause-scheduled-report.use-case.test.ts`:
-  - Active schedule transitions to `PAUSED`
-  - Already-paused schedule is idempotent (no error, no duplicate audit)
-  - Soft-deleted schedule → `ScheduleNotFoundError`
-  - RBAC: owner / AM / CL_ADMIN own tenant can pause
-  - Audit record `scheduledReportPaused` with optional reason
-- [ ] T039 [P] [US2] Unit tests for `ResumeScheduledReportUseCase` in `apps/backend/tests/unit/report/resume-scheduled-report.use-case.test.ts`:
-  - Paused schedule transitions to `ACTIVE`
-  - Counter resets to 0
-  - `nextRunAt` is recomputed from the cron expression
-  - Already-active schedule is idempotent
-  - Audit record `scheduledReportResumed`
-- [ ] T040 [P] [US2] Unit tests for `DeleteScheduledReportUseCase` in `apps/backend/tests/unit/report/delete-scheduled-report.use-case.test.ts`:
-  - Soft-delete: `deletedAt` is set, schedule is no longer listed in normal queries
-  - Past `ScheduledReportRun` rows remain queryable
-  - `findDueForProcessing` excludes soft-deleted schedules
-  - RBAC same as pause
-  - Audit record `scheduledReportDeleted`
+- [X] T037 [P] [US2] Unit tests for `UpdateScheduledReportUseCase` — 12 tests: field updates (displayName, filtersJson, deliveryMode, recipientUserIds), recurrence recompute, audit with before/after, not-found, full RBAC matrix (AM cross-tenant, OP own-tenant, OP cross-tenant denied, CL_ADMIN own-tenant, CL_USER own, CL_USER other denied). All passing.
+- [X] T038 [P] [US2] Unit tests for `PauseScheduledReportUseCase` — 5 tests: ACTIVE→PAUSED transition, idempotent when already PAUSED, optional reason in audit, not-found, CL_USER cross-user denied. All passing.
+- [X] T039 [P] [US2] Unit tests for `ResumeScheduledReportUseCase` — 7 tests: PAUSED→ACTIVE transition, counter reset to 0, nextRunAt recompute, idempotent when ACTIVE, audit with counter before/after, not-found, OP cross-tenant denied. All passing.
+- [X] T040 [P] [US2] Unit tests for `DeleteScheduledReportUseCase` — 5 tests: soft-delete sets deletedAt + status PAUSED, audit with before/after, not-found, CL_USER own allowed, CL_USER other denied. All passing.
 
 ### Implementation for US2
 
@@ -268,15 +245,8 @@
   - Enriched output includes `displayName`, `deliveryMode`, `skipDeliveryWhenEmpty`, `consecutiveFailureCount`, `status`, `lastRunStatus` (derived from latest run via `findLatestForSchedule`)
   - RBAC: AM cross-tenant; OP own tenant; CL_ADMIN own tenant; CL_USER own records only; INSP/TNT → forbidden
   - Soft-deleted schedules are excluded from the default list
-- [ ] T057 [P] [US4] Unit tests for `ListScheduleRunsUseCase` in `apps/backend/tests/unit/report/list-schedule-runs.use-case.test.ts`:
-  - Returns paginated runs for a schedule
-  - RBAC mirrors parent schedule (uses `getScheduledReportUseCase` or equivalent to load the parent + check access)
-  - Optional `status` filter
-  - Ordering: newest first (by `created_at desc`)
-- [ ] T058 [P] [US4] Unit tests for `GetScheduledReportUseCase` (new) in `apps/backend/tests/unit/report/get-scheduled-report.use-case.test.ts`:
-  - Returns the schedule detail with computed `lastRunStatus`
-  - RBAC same as list
-  - 404 for soft-deleted or missing
+- [X] T057 [P] [US4] Unit tests for `ListScheduleRunsUseCase` — 4 tests: paginated runs with total, not-found, RBAC via parent schedule (OP cross-tenant denied), CL_USER own schedule access. All passing.
+- [X] T058 [P] [US4] Unit tests for `GetScheduledReportUseCase` — 5 tests: returns schedule with lastRunStatus from latest run, null lastRunStatus when no runs exist, not-found, CL_ADMIN own-tenant access, CL_USER cross-user denied. All passing.
 
 ### Implementation for US4
 

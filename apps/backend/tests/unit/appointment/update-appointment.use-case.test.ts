@@ -406,9 +406,13 @@ describe('UpdateAppointmentUseCase', () => {
       const uc = new UpdateAppointmentUseCase(appointmentRepo, auditService, authzService);
       vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 30);
+      const futureDateStr = futureDate.toISOString().split('T')[0]!;
+
       const result = await uc.execute({
         appointmentId: 'appt-1',
-        data: { scheduledDate: '2026-04-15' },
+        data: { scheduledDate: futureDateStr },
         actor: makeActor({ role: 'CL_USER', clUserPermissions: ['reschedule_appointments'] }),
       });
       expect(result.id).toBe('appt-1');

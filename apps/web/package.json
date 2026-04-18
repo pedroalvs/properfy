@@ -10,7 +10,8 @@
     "test": "NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=1/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=2/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=3/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=4/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=5/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=6/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=7/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=8/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=9/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=10/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=11/12 && NODE_OPTIONS=--max-old-space-size=8192 vitest run --shard=12/12",
     "test:watch": "vitest",
     "lint": "eslint src --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-draw": "^1.5.1",
@@ -26,6 +27,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",

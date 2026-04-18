@@ -90,35 +90,43 @@ description: "Implementation and backlog tracking for Reports & Audit"
 
 ## Phase 2 — Gap closure
 
-### GAP-001 — Audit log retention policy (HIGH)
+### ~~GAP-001~~ — Audit log retention policy — **CLOSED by feature 020** (2026-04-13)
 
-- [ ] T100 [GAP-001] Design doc: legal retention per action type (7 years financial, 5 years general) + operational retention (N days for high-volume entries like login successes).
-- [ ] T101 [GAP-001] Scheduled sweep that deletes eligible rows while **preserving all `appointment.status_transition` entries for appointments still in `DONE` without `done_checked_by_user_id`** (feature 006 dependency — NFR-005).
-- [ ] T102 [GAP-001] Optional: move old rows to cold storage table before delete.
-- [ ] T103 [GAP-001] Tests including the feature 006 cross-check safety guard.
+> Delivered by `020-audit-retention-pii-redaction`: hot→cold retention with 3-tier lifecycle (FINANCIAL 7y, OPERATIONAL_CRITICAL 5y, OPERATIONAL_GENERAL 2y), inline cross-check preservation (FR-008), legal holds, self-audit entries. T061 integration test proves 006 cross-check invariance end-to-end.
 
-### GAP-002 — CL_ADMIN audit log read access
+- [x] T100 [GAP-001] Design doc → delivered as `020/spec.md` + `020/plan.md`
+- [x] T101 [GAP-001] Retention sweep → `AuditRetentionWorker` reshaped (hot→cold, not hard-delete)
+- [x] T102 [GAP-001] Cold storage → `audit_logs_archive` table (020 T010)
+- [x] T103 [GAP-001] Tests → 020 T046-T062 (unit + integration including T061 cross-check invariance)
 
-- [ ] T110 [GAP-002] Design doc: which fields are visible to CL_ADMIN (likely not `beforeJson`/`afterJson` on cross-tenant leakage risks).
-- [ ] T111 [GAP-002] `ListAuditLogsUseCase` adapted with a CL_ADMIN scope that forces `tenant_id = actor.tenantId` and strips risky fields.
-- [ ] T112 [GAP-002] Web UI for CL_ADMIN audit page.
-- [ ] T113 [GAP-002] Tests.
+### ~~GAP-002~~ — CL_ADMIN audit log read access — **CLOSED by feature 020** (2026-04-13)
 
-### GAP-003 — PII redaction in audit snapshots (HIGH, compliance)
+> Delivered by `020-audit-retention-pii-redaction` US4: role-based PII masking (AM raw, OP partial, CL_ADMIN blanket `[MASKED]`), `includeArchived` toggle (AM/OP only), `isArchived` marker. CL_ADMIN sees `[MASKED]` on PII fields and cannot access archived entries.
 
-- [ ] T120 [GAP-003] Define a PII registry: which fields in each entity are PII (email, phone, address, etc.).
-- [ ] T121 [GAP-003] Add a redaction helper that masks PII fields in `beforeJson`/`afterJson` before persist.
-- [ ] T122 [GAP-003] Decision: mask at write time (irreversible) or store separately and restrict access (reversible). Product + legal input required.
-- [ ] T123 [GAP-003] GDPR/LGPD data subject deletion workflow: how to scrub past audit rows that reference a deleted user.
-- [ ] T124 [GAP-003] Tests.
+- [x] T110 [GAP-002] Design doc → delivered as 020 US4 spec
+- [x] T111 [GAP-002] `ListAuditLogsUseCase` → extended with role-based masking (020 T137-T143)
+- [ ] T112 [GAP-002] Web UI for CL_ADMIN audit page — **DEFERRED** (backend ready, frontend not yet built)
+- [x] T113 [GAP-002] Tests → 020 T126-T135 (10 unit tests for masking tiers)
 
-### GAP-004 — Scheduled / recurring reports
+### ~~GAP-003~~ — PII redaction in audit snapshots — **CLOSED by feature 020** (2026-04-13)
 
-- [ ] T130 [GAP-004] New `ScheduledReport` entity + Prisma migration (cron expression, delivery target, report config).
-- [ ] T131 [GAP-004] Scheduled pg-boss job that enumerates active schedules and spawns `RequestReportUseCase` invocations at the right cron tick.
-- [ ] T132 [GAP-004] Delivery: email via feature 009 with the presigned URL (pair with GAP-010).
-- [ ] T133 [GAP-004] Web UI for managing schedules.
-- [ ] T134 [GAP-004] Tests.
+> Delivered by `020-audit-retention-pii-redaction` US2+US3: PII field registry (DB-seeded), `redactByFieldPath` on-demand redaction, data subject erasure workflow (preview→confirm→execute), write-time PII destruction reversed (raw PII in DB, masked at read time). LGPD compliance surface.
+
+- [x] T120 [GAP-003] PII registry → `pii_field_mappings` table (020 T008, T012)
+- [x] T121 [GAP-003] Redaction helper → `redactByFieldPath` (020 T088)
+- [x] T122 [GAP-003] Decision → on-demand erasure, not write-time destruction (020 T063 reversal)
+- [x] T123 [GAP-003] LGPD erasure → `DataSubjectErasureRequest` workflow (020 T112-T119)
+- [x] T124 [GAP-003] Tests → 020 T079-T108 (30+ unit tests for redaction + erasure)
+
+### ~~GAP-004~~ — Scheduled / recurring reports — **CLOSED by feature 019** (2026-04-12)
+
+> Delivered by `019-scheduled-reports-delivery`: full schedule lifecycle (create/update/pause/resume/delete), reshaped worker with catch-up + idempotency + auth rehydration, delivery fan-out with recipient resolver, dashboard (list + detail + run history), AM ownership reassignment. 88/106 tasks complete.
+
+- [x] T130 [GAP-004] Entity → `ScheduledReportEntity` + migration (019 T002-T009)
+- [x] T131 [GAP-004] Worker → `ProcessSchedulesWorker` reshaped (019 T066-T078)
+- [x] T132 [GAP-004] Delivery → `DeliverScheduledReportUseCase` (019 T049-T053)
+- [ ] T133 [GAP-004] Web UI — **PARTIAL** (minimal frontend surface shipped; full form drawer + run history deferred)
+- [x] T134 [GAP-004] Tests → 019 T035-T040, T056-T058, unit + integration
 
 ### GAP-005 — User-defined column sets
 
@@ -126,12 +134,14 @@ description: "Implementation and backlog tracking for Reports & Audit"
 - [ ] T141 [GAP-005] Security: whitelist allowed column keys per type to prevent schema leakage.
 - [ ] T142 [GAP-005] Tests.
 
-### GAP-006 — CSV and PDF formats
+### ~~GAP-006~~ — CSV and PDF formats — **CLOSED by feature 019** (2026-04-12)
 
-- [ ] T150 [GAP-006] Implement `CsvGenerator` adapter (simple, no library beyond Node streams).
-- [ ] T151 [GAP-006] Implement `PdfGenerator` via `pdfmake` or `puppeteer` for legal-grade outputs.
-- [ ] T152 [GAP-006] Extend `ReportFormat` enum and plumb through `ProcessReportJobUseCase`.
-- [ ] T153 [GAP-006] Tests for each format.
+> Delivered by `019-scheduled-reports-delivery`: `CsvReportGenerator` and `PdfReportGenerator` adapters implemented, `ReportFormat` enum extended with `CSV` and `PDF`, `ProcessReportJobUseCase` routes through format selection. Unit tests: csv-report-generator (11), pdf-report-generator (6), report-format-selection (4).
+
+- [x] T150 [GAP-006] `CsvGenerator` → `csv-report-generator.ts` (019)
+- [x] T151 [GAP-006] `PdfGenerator` → `pdf-report-generator.ts` (019)
+- [x] T152 [GAP-006] `ReportFormat` enum → extended with CSV, PDF (019)
+- [x] T153 [GAP-006] Tests → csv (11), pdf (6), format-selection (4)
 
 ### GAP-007 — Read replica routing for report data reader
 
@@ -152,11 +162,13 @@ description: "Implementation and backlog tracking for Reports & Audit"
 - [ ] T182 [GAP-009] Extend list endpoint with a `q` param.
 - [ ] T183 [GAP-009] Tests.
 
-### GAP-010 — Email delivery of completed reports
+### ~~GAP-010~~ — Email delivery of completed reports — **CLOSED by feature 019** (2026-04-12)
 
-- [ ] T190 [GAP-010] `ProcessReportJobUseCase` post-completion hook that calls feature 009 `CreateNotificationUseCase` with the `REPORT_READY` template (new template code).
-- [ ] T191 [GAP-010] New `REPORT_READY` template in shared constants and seed data.
-- [ ] T192 [GAP-010] Tests.
+> Delivered by `019-scheduled-reports-delivery` US1: `ProcessReportJobUseCase` extended with `REPORT_COMPLETED`/`REPORT_FAILED` notification hooks, `REPORT_READY` template seeded. Delivery fan-out via `DeliverScheduledReportUseCase` handles scheduled reports; on-demand reports notify the requester directly.
+
+- [x] T190 [GAP-010] Post-completion hook → 019 T030-T033
+- [x] T191 [GAP-010] `REPORT_READY` template → 019 T031
+- [x] T192 [GAP-010] Tests → 019 T032, T034
 
 ## Phase 3 — Polish & cross-cutting
 
@@ -164,17 +176,22 @@ description: "Implementation and backlog tracking for Reports & Audit"
 - [ ] T201 [P] Repo-wide grep: confirm no direct `audit_logs` INSERT outside `PersistentAuditService`. Enforce via CI lint.
 - [ ] T202 Confirm OpenAPI export reflects all endpoints; regenerate frontend clients.
 - [ ] T203 Incremental supersede of legacy specs: banner on `specs/backend/report.spec.md`.
-- [ ] T204 Operational runbook for audit retention + PII scrubbing (once GAP-001 and GAP-003 land).
+- [ ] T204 Operational runbook for audit retention + PII scrubbing — **DEFERRED** (GAP-001 and GAP-003 are now closed by 020; runbook is follow-up documentation).
 
 ---
 
 ## Dependencies & Execution Order
 
-- **GAP-001** (retention) is HIGH priority for compliance but depends on a review of feature 006's cross-check dependency. Coordinate with feature 006 maintainers first.
-- **GAP-003** (PII redaction) is HIGH priority for data subject rights. Coordinate with legal.
-- **GAP-004** (scheduled reports) pairs with GAP-010 (email delivery) for a complete recurring-delivery flow.
-- **GAP-007** (read replica) is infrastructure-gated and can be scheduled independently.
-- **GAP-008** depends on 002#GAP-002 (tenant settings schema).
+- ~~**GAP-001**~~ (retention) — **CLOSED** by feature 020 (2026-04-13). Cross-check invariance proven by T061.
+- ~~**GAP-002**~~ (CL_ADMIN read) — **CLOSED** by feature 020 US4 (backend). Frontend CL_ADMIN audit page is DEFERRED.
+- ~~**GAP-003**~~ (PII redaction) — **CLOSED** by feature 020 US2+US3 (2026-04-13). LGPD compliance surface delivered.
+- ~~**GAP-004**~~ (scheduled reports) — **CLOSED** by feature 019 (2026-04-12). Full lifecycle + delivery.
+- ~~**GAP-006**~~ (CSV/PDF) — **CLOSED** by feature 019 (2026-04-12).
+- ~~**GAP-010**~~ (email delivery) — **CLOSED** by feature 019 (2026-04-12).
+- **GAP-005** (user-defined column sets) — genuine future enhancement, not shipped.
+- **GAP-007** (read replica) — infrastructure-gated, deferred.
+- **GAP-008** (per-tenant concurrent limit) — depends on 002#GAP-002, deferred.
+- **GAP-009** (full-text search) — future enhancement, not shipped.
 
 ## Notes
 

@@ -80,6 +80,7 @@ export interface AppointmentTransition {
 
 export interface ContactFormEntry {
   key: string;
+  contactId?: string;
   name: string;
   email: string;
   phone: string;

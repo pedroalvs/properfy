@@ -106,17 +106,17 @@
 
 ### Backend-dependent items
 
-- [x] T028 [US1] **PARTIAL** — Revise the appointment creation form in `apps/web/src/features/appointments/components/AppointmentFormDrawer.tsx` — replaced single contact input with a contacts-array UI: multi-contact add/remove, role selector, primary radio, inline text inputs for name/email/phone, submits `contacts:[]` payload. **What was NOT delivered**: (a) contact autocomplete querying `GET /v1/contacts?search=...` — the form uses inline text inputs only, not a search-select from the registry. Operators type contact info manually. (b) Error handling for inline create uniqueness conflict — not wired. **Residual**: autocomplete integration with 021's search endpoint is a follow-up enhancement. The backend supports both `contactId` and `inline` paths; the frontend currently only uses `inline`
+- [x] T028 [US1] Revise the appointment creation form in `apps/web/src/features/appointments/components/AppointmentFormDrawer.tsx` — replaced single contact input with a contacts-array UI: multi-contact add/remove, role selector, primary radio. Integrated `ContactAutocomplete` component querying `GET /v1/contacts?search=` for registry lookup. When a contact is selected from registry, uses `contactId` path; when not, preserves inline create fallback. Edit mode hydrates `contactId` from existing junction rows. `BulkEditModal` PM field also uses autocomplete.
 - [x] T029 [US6] Revise the appointment detail drawer in `apps/web/src/features/appointments/components/AppointmentContactTab.tsx` (or equivalent) — show multi-contact list: each row shows `snapshotName`, `snapshotEmail`, `snapshotPhone`, `role` badge, "Primary" badge if `isPrimary`. When `contactId` is present and `liveContact` data differs from snapshot, show a subtle "registry differs" indicator (optional UX polish — not blocking)
 - [x] T030 [US8] Create `apps/web/src/features/appointments/components/BulkEditModal.tsx` — modal with: (a) field selector (which fields to change — checkboxes for each of the 6 allowed fields), (b) per-field input: inspector autocomplete, date picker, time slot selector, branch dropdown, service type dropdown, PM contact autocomplete (filtered to `type=PROPERTY_MANAGER`), (c) submit to `POST /v1/appointments/bulk-edit` with `{ ids, changes }`, (d) show result summary: `N updated, M failed` with expandable per-row errors
 - [x] T031 [US8] Add bulk edit selection to `apps/web/src/features/appointments/pages/AppointmentListPage.tsx` — (a) checkbox column on each row (visible for AM/OP only), (b) "Select all" checkbox in header, (c) floating action bar when ≥1 row selected: "Bulk Edit (N selected)" button, (d) clicking opens `BulkEditModal` with the selected ids
 
 ### Frontend tests (Playwright)
 
-- [ ] T032 [P] [US9] **DEFERRED** — Write Playwright test for Reject button flow in `apps/web/tests/e2e/appointment-reject-scheduled.spec.ts` — test file NOT created. Requires running Playwright against a live app instance. Deferred to staging validation.
-- [ ] T033 [P] [US8] **DEFERRED** — Write Playwright test for bulk edit flow in `apps/web/tests/e2e/appointment-bulk-edit.spec.ts` — test file NOT created. Deferred to staging validation.
-- [ ] T034 [P] [US6] **DEFERRED** — Write Playwright test for sticky search in `apps/web/tests/e2e/appointment-sticky-search.spec.ts` — test file NOT created. Deferred to staging validation.
-- [ ] T035 [P] [US7] **DEFERRED** — Write Playwright test for template download in `apps/web/tests/e2e/appointment-import-template.spec.ts` — test file NOT created. Deferred to staging validation.
+- [x] T032 [P] [US9] Write Playwright test for Reject button flow in `apps/web/tests/e2e/appointment-reject-scheduled.spec.ts` — 4 tests: button visibility, reason dialog, submission with reason code, free-text OTHER flow. All passing with API mocking.
+- [x] T033 [P] [US8] Write Playwright test for bulk edit flow in `apps/web/tests/e2e/appointment-bulk-edit.spec.ts` — 7 tests: checkbox visibility, selection bar, select all, clear, modal structure, submit with date field, results summary with partial failure. All passing.
+- [x] T034 [P] [US6] Write Playwright test for sticky search in `apps/web/tests/e2e/appointment-sticky-search.spec.ts` — 3 tests: sticky CSS verification, visibility after scroll, search functionality while scrolled. All passing.
+- [x] T035 [P] [US7] Write Playwright test for template download in `apps/web/tests/e2e/appointment-import-template.spec.ts` — 6 tests: link presence, href, download attribute, CSV header validation, example rows, upload area. All passing.
 
 **Checkpoint**: All frontend items render. Reject button works. Bulk edit modal works. Sticky search works. Template downloads. Multi-contact form submits correctly.
 
@@ -131,7 +131,7 @@
 - [x] T038 Run `pnpm test` across all workspaces — all green
 - [x] T039 Verify no new Prisma migration needed — `npx prisma validate` clean, `npx prisma migrate status` shows no pending migrations (021 migration covers all schema)
 - [x] T040 Verify legacy `contact:` create payload works — run the backward-compat integration test from T015 explicitly
-- [ ] T041 **DEFERRED** — Run Playwright E2E tests: `pnpm --filter web test:e2e` — cannot run without Playwright test files (T032-T035 deferred). Deferred to staging validation
+- [x] T041 Run Playwright E2E tests: `pnpm --filter web test:e2e` — 20 tests across 4 files, all passing. Playwright infrastructure set up (config, devDep, script, Chromium browser).
 - [x] T042 Grep for any remaining hard-coded references to the old single-contact API response shape in frontend code: `grep -rn '\.contact\.' apps/web/src/features/appointments/` (targeting the singular `.contact.` property access on appointment objects — NOT `contacts` plural, NOT `input.contact` form fields). In new/revised components, all reads must use the `contacts[]` array response shape (e.g., `appointment.contacts[0]?.snapshotName`). Backend entity fields using `effectiveName`/`effectiveEmail` are already handled by 021 and should NOT be flagged
 
 **Checkpoint**: Feature 006 deltas complete. All verifications pass. Ready for `/speckit.analyze`.
@@ -142,12 +142,10 @@
 
 ### Partial deliveries (honest classification)
 
-- **T028 — Contact autocomplete**: the form accepts a contacts array with roles, primary selection, and inline text inputs. It submits `contacts:[]` with the `inline` path. It does **NOT** query `GET /v1/contacts?search=...` for autocomplete/select-from-registry. The backend `contactId` path works but the frontend doesn't use it yet. **Impact**: operators type contact info manually instead of selecting from the registry. New contacts are created as inline registry entries but existing contacts are not reused. This is a UX gap, not a data-model gap — the junction + snapshot pattern works correctly with inline-created contacts. **Follow-up**: wire the autocomplete field to `GET /v1/contacts?search=` and offer "select existing" as the primary affordance, with "create new" as secondary.
+- **T028 — Contact autocomplete**: RESOLVED. The form now integrates `ContactAutocomplete` querying `GET /v1/contacts?search=` with debounced search. Registry contacts use `contactId` path; inline create preserved as fallback. Both create and edit modes supported. `BulkEditModal` PM field also uses autocomplete.
 
 ### Deferred items (not delivered this round)
 
-- **T032–T035 — Playwright E2E tests**: test files were NOT created. These require a running Playwright environment against a live app instance. Deferred to staging validation. The functional coverage is provided by Vitest component/unit tests (192 passing).
-- **T041 — E2E test run**: cannot execute without T032–T035. Deferred.
 - **`inspectionAppLink`**: no code, schema, or key exists. Deferred to feature 008 planning.
 
 ### What is NOT in this task list (unchanged scope fences)

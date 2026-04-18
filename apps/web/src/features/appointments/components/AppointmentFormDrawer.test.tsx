@@ -51,6 +51,17 @@ vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
   PropertyFormDrawer: ({ open }: { open: boolean }) => (open ? <div>Property Drawer</div> : null),
 }));
 
+vi.mock('../hooks/useContactSearch', () => ({
+  useContactSearch: () => ({
+    search: '',
+    debouncedSearch: '',
+    results: [],
+    isSearching: false,
+    setSearch: vi.fn(),
+    reset: vi.fn(),
+  }),
+}));
+
 const mockSave = vi.fn();
 const mockValidate = vi.fn();
 
@@ -180,6 +191,12 @@ describe('AppointmentFormDrawer', () => {
 
     expect(screen.getByText('Assignment')).toBeInTheDocument();
     expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
+  });
+
+  it('renders contact autocomplete search field in create mode', () => {
+    renderDrawer();
+    expect(screen.getByText('Search existing contact')).toBeInTheDocument();
+    expect(screen.getByText(/Or fill in the fields below/)).toBeInTheDocument();
   });
 
   it('assigns inspector from the edit drawer via appointment transition', async () => {

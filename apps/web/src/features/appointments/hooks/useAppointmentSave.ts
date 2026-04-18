@@ -7,16 +7,25 @@ import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 /** Build the contacts array payload from form entries. */
 function buildContactsPayload(data: AppointmentFormData) {
   if (data.contacts && data.contacts.length > 0) {
-    return data.contacts.map((c) => ({
-      inline: {
-        type: ContactType.TENANT,
-        displayName: c.name.trim(),
-        ...(c.email.trim() ? { primaryEmail: c.email.trim() } : { primaryEmail: null }),
-        ...(c.phone.trim() ? { primaryPhone: c.phone.trim() } : { primaryPhone: null }),
-      },
-      role: c.role,
-      isPrimary: c.isPrimary,
-    }));
+    return data.contacts.map((c) => {
+      if (c.contactId) {
+        return {
+          contactId: c.contactId,
+          role: c.role,
+          isPrimary: c.isPrimary,
+        };
+      }
+      return {
+        inline: {
+          type: ContactType.TENANT,
+          displayName: c.name.trim(),
+          ...(c.email.trim() ? { primaryEmail: c.email.trim() } : { primaryEmail: null }),
+          ...(c.phone.trim() ? { primaryPhone: c.phone.trim() } : { primaryPhone: null }),
+        },
+        role: c.role,
+        isPrimary: c.isPrimary,
+      };
+    });
   }
   return undefined;
 }

@@ -30,9 +30,9 @@ description: "Task list for Appointment Time Slots feature implementation"
 
 **Purpose**: Verify existing project structure and shared schemas are in place.
 
-- [ ] T001 Verify Prisma schema for `AppointmentTimeSlot` model in `apps/backend/prisma/schema.prisma` — confirm `UNIQUE (tenant_id, branch_id, start_time, end_time)` and indexes `(tenant_id, branch_id, is_active)`, `(tenant_id, is_active)` exist.
-- [ ] T002 [P] Verify shared Zod schemas in `packages/shared/src/schemas/appointment-time-slot.ts` — confirm `createAppointmentTimeSlotSchema`, `updateAppointmentTimeSlotSchema`, `listAppointmentTimeSlotsQuerySchema`, `listEffectiveTimeSlotsQuerySchema`, response schemas exist and align with contracts.
-- [ ] T003 [P] Verify domain entity `AppointmentTimeSlotEntity` in `apps/backend/src/modules/appointment-time-slot/domain/appointment-time-slot.entity.ts` — confirm `compositeValue` getter returns `"<startTime>-<endTime>"`.
+- [x] T001 Verify Prisma schema for `AppointmentTimeSlot` model in `apps/backend/prisma/schema.prisma` — confirm `UNIQUE (tenant_id, branch_id, start_time, end_time)` and indexes `(tenant_id, branch_id, is_active)`, `(tenant_id, is_active)` exist.
+- [x] T002 [P] Verify shared Zod schemas in `packages/shared/src/schemas/appointment-time-slot.ts` — confirm `createAppointmentTimeSlotSchema`, `updateAppointmentTimeSlotSchema`, `listAppointmentTimeSlotsQuerySchema`, `listEffectiveTimeSlotsQuerySchema`, response schemas exist and align with contracts.
+- [x] T003 [P] Verify domain entity `AppointmentTimeSlotEntity` in `apps/backend/src/modules/appointment-time-slot/domain/appointment-time-slot.entity.ts` — confirm `compositeValue` getter returns `"<startTime>-<endTime>"`.
 
 ---
 
@@ -42,11 +42,11 @@ description: "Task list for Appointment Time Slots feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 Verify domain port `IAppointmentTimeSlotRepository` in `apps/backend/src/modules/appointment-time-slot/domain/appointment-time-slot.repository.ts` — confirm `create`, `update`, `findById`, `findAll`, `findEffective`, `softDelete` methods.
-- [ ] T005 [P] Verify domain errors `AppointmentTimeSlotNotFoundError` and `AppointmentTimeSlotConflictError` in `apps/backend/src/modules/appointment-time-slot/domain/appointment-time-slot.errors.ts`.
-- [ ] T006 [P] Add new domain error `AppointmentTimeSlotOverlapError` in `apps/backend/src/modules/appointment-time-slot/domain/appointment-time-slot.errors.ts` for FR-003b overlap detection.
-- [ ] T007 Verify Prisma repository `PrismaAppointmentTimeSlotRepository` in `apps/backend/src/modules/appointment-time-slot/infrastructure/prisma-appointment-time-slot.repository.ts` — confirm `findEffective` implements the branch-override-or-tenant-default pattern per data-model.md.
-- [ ] T008 Verify container wiring in `apps/backend/src/main/container.ts` — confirm all use cases and the repository are injected.
+- [x] T004 Verify domain port `IAppointmentTimeSlotRepository` in `apps/backend/src/modules/appointment-time-slot/domain/appointment-time-slot.repository.ts` — confirm `create`, `update`, `findById`, `findAll`, `findEffective`, `softDelete` methods.
+- [x] T005 [P] Verify domain errors `AppointmentTimeSlotNotFoundError` and `AppointmentTimeSlotConflictError` in `apps/backend/src/modules/appointment-time-slot/domain/appointment-time-slot.errors.ts`.
+- [x] T006 [P] Add new domain error `AppointmentTimeSlotOverlapError` in `apps/backend/src/modules/appointment-time-slot/domain/appointment-time-slot.errors.ts` for FR-003b overlap detection.
+- [x] T007 Verify Prisma repository `PrismaAppointmentTimeSlotRepository` in `apps/backend/src/modules/appointment-time-slot/infrastructure/prisma-appointment-time-slot.repository.ts` — confirm `findEffective` implements the branch-override-or-tenant-default pattern per data-model.md.
+- [x] T008 Verify container wiring in `apps/backend/src/main/container.ts` — confirm all use cases and the repository are injected.
 
 **Checkpoint**: Foundation ready — user story implementation can now begin in parallel.
 
@@ -62,14 +62,14 @@ description: "Task list for Appointment Time Slots feature implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T009 [P] [US1] Unit test for `CreateAppointmentTimeSlotUseCase` in `apps/backend/tests/unit/appointment-time-slot/create-appointment-time-slot.use-case.test.ts` — cover: happy path, `startTime >= endTime` rejection, `BRANCH_NOT_FOUND`, CL_ADMIN cross-tenant rejection, CL_USER/INSP forbidden.
-- [ ] T010 [P] [US1] Integration test for `POST /v1/time-slots` in `apps/backend/tests/integration/appointment-time-slot/appointment-time-slot.routes.test.ts` — cover: 201 success, `TIME_SLOT_CONFLICT` on duplicate, `FORBIDDEN` for CL_USER.
+- [x] T009 [P] [US1] Unit test for `CreateAppointmentTimeSlotUseCase` in `apps/backend/tests/unit/appointment-time-slot/create-appointment-time-slot.use-case.test.ts` — cover: happy path, `startTime >= endTime` rejection, `BRANCH_NOT_FOUND`, CL_ADMIN cross-tenant rejection, CL_USER/INSP forbidden.
+- [x] T010 [P] [US1] Integration test for `POST /v1/time-slots` in `apps/backend/tests/integration/appointment-time-slot/appointment-time-slot.routes.test.ts` — cover: 201 success, `TIME_SLOT_CONFLICT` on duplicate, `FORBIDDEN` for CL_USER.
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Verify `CreateAppointmentTimeSlotUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/create-appointment-time-slot.use-case.ts` — confirm RBAC (AM/OP/CL_ADMIN), tenant scoping, branch validation, audit, and time validation.
-- [ ] T012 [US1] Add overlap detection to `CreateAppointmentTimeSlotUseCase` — before inserting, query active slots in the same `(tenant_id, branch_id)` scope and reject if `new.startTime < existing.endTime AND new.endTime > existing.startTime`. Adjacent (touching) slots are allowed. Throw `AppointmentTimeSlotOverlapError`. (FR-003b — APPROVED RULE NOT YET IMPLEMENTED.)
-- [ ] T013 [US1] Verify route `POST /v1/time-slots` in `apps/backend/src/modules/appointment-time-slot/interfaces/appointment-time-slot.routes.ts`.
+- [x] T011 [US1] Verify `CreateAppointmentTimeSlotUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/create-appointment-time-slot.use-case.ts` — confirm RBAC (AM/OP/CL_ADMIN), tenant scoping, branch validation, audit, and time validation.
+- [x] T012 [US1] Add overlap detection to `CreateAppointmentTimeSlotUseCase` — before inserting, query active slots in the same `(tenant_id, branch_id)` scope and reject if `new.startTime < existing.endTime AND new.endTime > existing.startTime`. Adjacent (touching) slots are allowed. Throw `AppointmentTimeSlotOverlapError`. (FR-003b — APPROVED RULE NOT YET IMPLEMENTED.)
+- [x] T013 [US1] Verify route `POST /v1/time-slots` in `apps/backend/src/modules/appointment-time-slot/interfaces/appointment-time-slot.routes.ts`.
 
 **Checkpoint**: At this point, operators can create and list time slots. The effective-slot resolution works for appointment creation.
 
@@ -83,14 +83,14 @@ description: "Task list for Appointment Time Slots feature implementation"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T014 [P] [US4] Unit test for `ListEffectiveTimeSlotsUseCase` in `apps/backend/tests/unit/appointment-time-slot/list-effective-time-slots.use-case.test.ts` — cover: branch override hides tenant defaults, fallback to tenant defaults, CL_USER allowed, INSP forbidden.
-- [ ] T015 [P] [US4] Integration test for `GET /v1/time-slots/effective` in `apps/backend/tests/integration/appointment-time-slot/appointment-time-slot.routes.test.ts` — cover: branch override vs. default fallback end-to-end, FORBIDDEN for INSP.
+- [x] T014 [P] [US4] Unit test for `ListEffectiveTimeSlotsUseCase` in `apps/backend/tests/unit/appointment-time-slot/list-effective-time-slots.use-case.test.ts` — cover: branch override hides tenant defaults, fallback to tenant defaults, CL_USER allowed, INSP forbidden.
+- [x] T015 [P] [US4] Integration test for `GET /v1/time-slots/effective` in `apps/backend/tests/integration/appointment-time-slot/appointment-time-slot.routes.test.ts` — cover: branch override vs. default fallback end-to-end, FORBIDDEN for INSP.
 
 ### Implementation for User Story 4
 
-- [ ] T016 [US4] Verify `ListEffectiveTimeSlotsUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/list-effective-time-slots.use-case.ts` — confirm branch-override-or-tenant-default resolution, tenant scoping, and RBAC.
-- [ ] T017 [US4] Verify route `GET /v1/time-slots/effective` in `apps/backend/src/modules/appointment-time-slot/interfaces/appointment-time-slot.routes.ts`.
-- [ ] T018 [US4] Verify feature 006 integration — confirm `CreateAppointmentUseCase` calls `findEffective` and rejects invalid `timeSlot` values.
+- [x] T016 [US4] Verify `ListEffectiveTimeSlotsUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/list-effective-time-slots.use-case.ts` — confirm branch-override-or-tenant-default resolution, tenant scoping, and RBAC.
+- [x] T017 [US4] Verify route `GET /v1/time-slots/effective` in `apps/backend/src/modules/appointment-time-slot/interfaces/appointment-time-slot.routes.ts`.
+- [x] T018 [US4] Verify feature 006 integration — confirm `CreateAppointmentUseCase` calls `findEffective` and rejects invalid `timeSlot` values.
 
 **Checkpoint**: Effective-slot resolution is verified. Appointment creation validates time slots against the catalog.
 
@@ -104,11 +104,11 @@ description: "Task list for Appointment Time Slots feature implementation"
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T019 [P] [US5] Integration test verifying that after `POST /v1/tenants` (feature 002), the new tenant has exactly 2 default time slots (`09:00-12:00`, `14:00-17:00`) with `branchId = null`.
+- [x] T019 [P] [US5] Integration test verifying that after `POST /v1/tenants` (feature 002), the new tenant has exactly 2 default time slots (`09:00-12:00`, `14:00-17:00`) with `branchId = null`.
 
 ### Implementation for User Story 5
 
-- [ ] T020 [US5] Verify seeding logic in `apps/backend/src/modules/tenant/application/use-cases/create-tenant.use-case.ts` — confirm it calls `IAppointmentTimeSlotRepository.create()` for 2 default slots with correct values.
+- [x] T020 [US5] Verify seeding logic in `apps/backend/src/modules/tenant/application/use-cases/create-tenant.use-case.ts` — confirm it calls `IAppointmentTimeSlotRepository.create()` for 2 default slots with correct values.
 
 **Checkpoint**: New tenants are immediately operational for scheduling.
 
@@ -122,14 +122,14 @@ description: "Task list for Appointment Time Slots feature implementation"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T021 [P] [US2] Unit test for `UpdateAppointmentTimeSlotUseCase` in `apps/backend/tests/unit/appointment-time-slot/update-appointment-time-slot.use-case.test.ts` — cover: happy path, time validation, CL_ADMIN cross-tenant rejection, audit before/after.
-- [ ] T022 [P] [US2] Integration test for `PATCH /v1/time-slots/:id` — cover: 200 success, deactivation hides from effective list.
+- [x] T021 [P] [US2] Unit test for `UpdateAppointmentTimeSlotUseCase` in `apps/backend/tests/unit/appointment-time-slot/update-appointment-time-slot.use-case.test.ts` — cover: happy path, time validation, CL_ADMIN cross-tenant rejection, audit before/after.
+- [x] T022 [P] [US2] Integration test for `PATCH /v1/time-slots/:id` — cover: 200 success, deactivation hides from effective list.
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Verify `UpdateAppointmentTimeSlotUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/update-appointment-time-slot.use-case.ts`.
-- [ ] T024 [US2] Add overlap detection to `UpdateAppointmentTimeSlotUseCase` — same logic as T012 but check against OTHER active slots in the scope (exclude the slot being updated). (FR-003b.)
-- [ ] T025 [US2] Verify route `PATCH /v1/time-slots/:id`.
+- [x] T023 [US2] Verify `UpdateAppointmentTimeSlotUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/update-appointment-time-slot.use-case.ts`.
+- [x] T024 [US2] Add overlap detection to `UpdateAppointmentTimeSlotUseCase` — same logic as T012 but check against OTHER active slots in the scope (exclude the slot being updated). (FR-003b.)
+- [x] T025 [US2] Verify route `PATCH /v1/time-slots/:id`.
 
 **Checkpoint**: Slot management is complete (create + update + deactivate).
 
@@ -143,13 +143,13 @@ description: "Task list for Appointment Time Slots feature implementation"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T026 [P] [US3] Unit test for `DeleteAppointmentTimeSlotUseCase` in `apps/backend/tests/unit/appointment-time-slot/delete-appointment-time-slot.use-case.test.ts` — cover: happy path, CL_ADMIN cross-tenant rejection, already-deleted rejection.
-- [ ] T027 [P] [US3] Integration test for `DELETE /v1/time-slots/:id` — cover: 204 success, 404 on re-delete.
+- [x] T026 [P] [US3] Unit test for `DeleteAppointmentTimeSlotUseCase` in `apps/backend/tests/unit/appointment-time-slot/delete-appointment-time-slot.use-case.test.ts` — cover: happy path, CL_ADMIN cross-tenant rejection, already-deleted rejection.
+- [x] T027 [P] [US3] Integration test for `DELETE /v1/time-slots/:id` — cover: 204 success, 404 on re-delete.
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Verify `DeleteAppointmentTimeSlotUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/delete-appointment-time-slot.use-case.ts`.
-- [ ] T029 [US3] Verify route `DELETE /v1/time-slots/:id`.
+- [x] T028 [US3] Verify `DeleteAppointmentTimeSlotUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/delete-appointment-time-slot.use-case.ts`.
+- [x] T029 [US3] Verify route `DELETE /v1/time-slots/:id`.
 
 **Checkpoint**: Full slot lifecycle is complete (create + update + deactivate + delete).
 
@@ -163,13 +163,13 @@ description: "Task list for Appointment Time Slots feature implementation"
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T030 [P] [US6] Unit test for `ListAppointmentTimeSlotsUseCase` in `apps/backend/tests/unit/appointment-time-slot/list-appointment-time-slots.use-case.test.ts` — cover: tenant scoping, CL_USER/INSP forbidden, `includeInactive` filter.
-- [ ] T031 [P] [US6] Integration test for `GET /v1/time-slots` — cover: filter combinations, FORBIDDEN for CL_USER.
+- [x] T030 [P] [US6] Unit test for `ListAppointmentTimeSlotsUseCase` in `apps/backend/tests/unit/appointment-time-slot/list-appointment-time-slots.use-case.test.ts` — cover: tenant scoping, CL_USER/INSP forbidden, `includeInactive` filter.
+- [x] T031 [P] [US6] Integration test for `GET /v1/time-slots` — cover: filter combinations, FORBIDDEN for CL_USER.
 
 ### Implementation for User Story 6
 
-- [ ] T032 [US6] Verify `ListAppointmentTimeSlotsUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/list-appointment-time-slots.use-case.ts`.
-- [ ] T033 [US6] Verify route `GET /v1/time-slots`.
+- [x] T032 [US6] Verify `ListAppointmentTimeSlotsUseCase` in `apps/backend/src/modules/appointment-time-slot/application/use-cases/list-appointment-time-slots.use-case.ts`.
+- [x] T033 [US6] Verify route `GET /v1/time-slots`.
 
 **Checkpoint**: All 6 user stories are independently functional.
 
@@ -177,11 +177,11 @@ description: "Task list for Appointment Time Slots feature implementation"
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T034 [P] Verify module coverage ≥ 80% with `pnpm --filter backend test -- --coverage` on `appointment-time-slot/`.
-- [ ] T035 [P] Confirm every time-slot write path (create/update/delete) emits exactly one audit record — end-to-end assertion test.
-- [ ] T036 Confirm OpenAPI export reflects all 5 endpoints (`POST`, `GET list`, `GET effective`, `PATCH`, `DELETE`) and the frontend client regenerates cleanly.
-- [ ] T037 Verify GAP-001: confirm that feature 007 tenant-portal reschedule flow presents effective slots for the appointment's branch (if not wired, create a follow-up task).
-- [ ] T038 Run `pnpm lint && pnpm typecheck` to verify no regressions.
+- [x] T034 [P] Verify module coverage ≥ 80% with `pnpm --filter backend test -- --coverage` on `appointment-time-slot/`.
+- [x] T035 [P] Confirm every time-slot write path (create/update/delete) emits exactly one audit record — end-to-end assertion test.
+- [x] T036 Confirm OpenAPI export reflects all 5 endpoints (`POST`, `GET list`, `GET effective`, `PATCH`, `DELETE`) and the frontend client regenerates cleanly.
+- [x] T037 Verify GAP-001: confirm that feature 007 tenant-portal reschedule flow presents effective slots for the appointment's branch (if not wired, create a follow-up task).
+- [x] T038 Run `pnpm lint && pnpm typecheck` to verify no regressions.
 
 ---
 

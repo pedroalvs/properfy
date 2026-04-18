@@ -197,6 +197,121 @@ describe('useAppointmentSave', () => {
     });
   });
 
+  it('uses contactId path when contact has contactId', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    const dataWithContactId: AppointmentFormData = {
+      ...VALID_CREATE_DATA,
+      contacts: [
+        {
+          key: 'k-1',
+          contactId: 'f47ac10b-58cc-4372-a567-0e02b2c3d499',
+          name: 'John Doe',
+          email: 'john@test.com',
+          phone: '11999999999',
+          role: 'TENANT' as any,
+          isPrimary: true,
+        },
+      ],
+    };
+
+    await act(async () => {
+      await result.current.save(dataWithContactId);
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/v1/appointments', {
+      body: expect.objectContaining({
+        contacts: [
+          {
+            contactId: 'f47ac10b-58cc-4372-a567-0e02b2c3d499',
+            role: 'TENANT',
+            isPrimary: true,
+          },
+        ],
+      }),
+    });
+  });
+
+  it('uses inline path when contact has no contactId', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    const dataWithInline: AppointmentFormData = {
+      ...VALID_CREATE_DATA,
+      contacts: [
+        {
+          key: 'k-1',
+          name: 'Jane Doe',
+          email: 'jane@test.com',
+          phone: '',
+          role: 'PROPERTY_MANAGER' as any,
+          isPrimary: true,
+        },
+      ],
+    };
+
+    await act(async () => {
+      await result.current.save(dataWithInline);
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/v1/appointments', {
+      body: expect.objectContaining({
+        contacts: [
+          {
+            inline: {
+              type: 'TENANT',
+              displayName: 'Jane Doe',
+              primaryEmail: 'jane@test.com',
+              primaryPhone: null,
+            },
+            role: 'PROPERTY_MANAGER',
+            isPrimary: true,
+          },
+        ],
+      }),
+    });
+  });
+
+  it('supports mixed contactId and inline contacts', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    const mixedData: AppointmentFormData = {
+      ...VALID_CREATE_DATA,
+      contacts: [
+        {
+          key: 'k-1',
+          contactId: 'f47ac10b-58cc-4372-a567-0e02b2c3d499',
+          name: 'Registry Contact',
+          email: 'reg@test.com',
+          phone: '',
+          role: 'TENANT' as any,
+          isPrimary: true,
+        },
+        {
+          key: 'k-2',
+          name: 'New Contact',
+          email: '',
+          phone: '11888888888',
+          role: 'HOUSEKEEPER' as any,
+          isPrimary: false,
+        },
+      ],
+    };
+
+    await act(async () => {
+      await result.current.save(mixedData);
+    });
+
+    const call = mockPost.mock.calls[0]!;
+    const contacts = (call[1] as any).body.contacts;
+    expect(contacts).toHaveLength(2);
+    expect(contacts[0]).toEqual({ contactId: 'f47ac10b-58cc-4372-a567-0e02b2c3d499', role: 'TENANT', isPrimary: true });
+    expect(contacts[1]).toHaveProperty('inline');
+    expect(contacts[1].inline.displayName).toBe('New Contact');
+  });
+
   it('save returns failure on API error', async () => {
     mockPost.mockResolvedValueOnce({ data: undefined, error: { error: { message: 'Server error' } } });
     const wrapper = createQueryWrapper();

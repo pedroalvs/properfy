@@ -228,4 +228,89 @@ describe('W-2 / T061: 006 cross-check invariance under retention (real DB)', () 
     expect(await prisma.auditLog.count({ where: { id: auditEntryId } })).toBe(0);
     expect(await prisma.auditLogArchive.count({ where: { id: auditEntryId } })).toBe(1);
   });
+
+  /**
+   * T062 — Financial retention integrity end-to-end.
+   *
+   * Proves the FINANCIAL tier's 7-year retention is honored: a
+   * `financial.entry_created` audit entry from 6 years ago MUST stay in
+   * hot storage even when the OPERATIONAL_CRITICAL/GENERAL tiers would
+   * have moved it.
+   */
+  it('preserves a financial audit entry that is within the 7-year FINANCIAL tier', async () => {
+    if (!harness) throw new Error('harness not initialized');
+    const { prisma } = harness;
+
+    const fixture = await seedLegacyDoneAppointment(prisma, {
+      tenantName: 'T062 Financial Tenant',
+    });
+
+    const financialEntryId = '00000000-0000-0000-0000-00000000t0f1';
+    const sixYearsAgo = new Date();
+    sixYearsAgo.setFullYear(sixYearsAgo.getFullYear() - 6);
+
+    await prisma.auditLog.create({
+      data: {
+        id: financialEntryId,
+        tenant_id: fixture.tenantId,
+        actor_type: 'USER',
+        actor_id: fixture.userId,
+        entity_type: 'FinancialEntry',
+        entity_id: 'fe-' + Math.random().toString(36).slice(2, 10),
+        action: 'financial.entry_created',
+        before_json: null,
+        after_json: { type: 'TENANT_DEBIT', amount: '150.00' },
+        metadata_json: { source: 'T062 test seed' },
+        created_at: sixYearsAgo,
+        retention_category: 'FINANCIAL',
+        redaction_status: 'NONE',
+        cold_storage: false,
+      },
+    });
+
+    // Sanity check: entry exists in hot, not in archive
+    expect(await prisma.auditLog.count({ where: { id: financialEntryId } })).toBe(1);
+    expect(await prisma.auditLogArchive.count({ where: { id: financialEntryId } })).toBe(0);
+
+    // Ensure FINANCIAL tier retention is set to 7 years (the default from migration seed)
+    const financialConfig = await prisma.auditRetentionCategoryConfig.findUnique({
+      where: { name: 'FINANCIAL' },
+    });
+    expect(financialConfig).not.toBeNull();
+    expect(financialConfig!.retention_years).toBeGreaterThanOrEqual(7);
+
+    // Lower OPERATIONAL tiers to effectively 0 so they would eagerly move
+    await prisma.auditRetentionCategoryConfig.update({
+      where: { name: 'OPERATIONAL_CRITICAL' },
+      data: { retention_years: 0.000000001 },
+    });
+    await prisma.auditRetentionCategoryConfig.update({
+      where: { name: 'OPERATIONAL_GENERAL' },
+      data: { retention_years: 0.000000001 },
+    });
+
+    // Run the real retention worker
+    const logger = silentLogger();
+    const auditLogRepo = new PrismaAuditLogRepository(prisma);
+    const categoryRepo = new PrismaAuditRetentionCategoryRepository(prisma);
+    const legalHoldRepo = new PrismaAuditLegalHoldRepository(prisma);
+    const preservationRuleRepo = new PrismaAuditPreservationRuleRepository(prisma);
+    const auditService = new PersistentAuditService(auditLogRepo, logger as any);
+
+    const worker = new AuditRetentionWorker(
+      prisma,
+      auditLogRepo,
+      categoryRepo,
+      legalHoldRepo,
+      preservationRuleRepo,
+      auditService,
+      logger as any,
+      100,
+    );
+    await worker.execute();
+
+    // Assert the FINANCIAL entry is STILL in hot storage (7y tier > 6y age)
+    expect(await prisma.auditLog.count({ where: { id: financialEntryId } })).toBe(1);
+    expect(await prisma.auditLogArchive.count({ where: { id: financialEntryId } })).toBe(0);
+  });
 });
