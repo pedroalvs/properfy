@@ -130,8 +130,13 @@ export class GeneratePortalTokenUseCase {
       }
     }
 
+    // Return shape matches the wire contract (portalTokenResponseSchema):
+    // `token` is the unhashed value the client needs to deep-link; the DB
+    // holds `tokenHash` only. Bug B-5 (QA 2026-04-18) — this field used to be
+    // `rawToken`, which made the Fastify response serializer drop it and
+    // surface a 500 on /v1/appointments/:id/portal-token.
     return {
-      rawToken,
+      token: rawToken,
       expiresAt,
     };
   }

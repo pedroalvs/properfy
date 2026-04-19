@@ -442,4 +442,123 @@ describe('UpdateAppointmentUseCase', () => {
       expect(result.id).toBe('appt-1');
     });
   });
+
+  // Regression: Bug B-1 (QA round 2026-04-18).
+  // PATCH /v1/appointments/:id returned 500 when the frontend replayed an
+  // inline contact whose email or phone already existed as an active registry
+  // row — the inline branch called contactRepo.save() blindly and hit the
+  // contacts_tenant_email_active_unique / ..._phone_active_unique partial
+  // indexes. The fix reuses the matching registry row instead of creating a
+  // duplicate.
+  describe('inline contact reuse (Bug B-1 regression)', () => {
+    const tenantId = 'tenant-1';
+    const appointmentId = 'appt-1';
+
+    function makeContactRepo(existing: unknown) {
+      return {
+        findById: vi.fn(),
+        findAll: vi.fn(),
+        count: vi.fn(),
+        search: vi.fn(),
+        save: vi.fn(),
+        update: vi.fn(),
+        existsByEmail: vi.fn(),
+        existsByPhone: vi.fn(),
+        findActiveByEmailOrPhone: vi.fn().mockResolvedValue(existing),
+        findAppointmentsByContactId: vi.fn(),
+        countAppointmentsByContactId: vi.fn(),
+      };
+    }
+
+    it('reuses an existing active contact when inline email/phone collide', async () => {
+      const existing = {
+        id: 'registry-contact-1',
+        tenantId,
+        displayName: 'Existing Tenant',
+        primaryEmail: 'tenant@example.com',
+        primaryPhone: null,
+      };
+      const contactRepo = makeContactRepo(existing);
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ tenantId }),
+      );
+      (appointmentRepo as any).deleteContactsByAppointmentId = vi.fn();
+
+      const uc = new UpdateAppointmentUseCase(
+        appointmentRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        undefined,
+        contactRepo as any,
+      );
+
+      await uc.execute({
+        appointmentId,
+        data: {
+          contacts: [
+            {
+              inline: {
+                type: 'TENANT',
+                displayName: 'Re-typed Tenant',
+                primaryEmail: 'tenant@example.com',
+              },
+              role: 'TENANT',
+              isPrimary: true,
+            },
+          ],
+        },
+        actor: makeActor(),
+      });
+
+      expect(contactRepo.findActiveByEmailOrPhone).toHaveBeenCalledWith(
+        tenantId,
+        'tenant@example.com',
+        null,
+      );
+      expect(contactRepo.save).not.toHaveBeenCalled();
+      expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
+        expect.objectContaining({ contactId: 'registry-contact-1' }),
+      );
+    });
+
+    it('creates a new registry contact when no active match exists', async () => {
+      const contactRepo = makeContactRepo(null);
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ tenantId }),
+      );
+      (appointmentRepo as any).deleteContactsByAppointmentId = vi.fn();
+
+      const uc = new UpdateAppointmentUseCase(
+        appointmentRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        undefined,
+        contactRepo as any,
+      );
+
+      await uc.execute({
+        appointmentId,
+        data: {
+          contacts: [
+            {
+              inline: {
+                type: 'TENANT',
+                displayName: 'Brand New',
+                primaryEmail: 'brand.new@example.com',
+              },
+              role: 'TENANT',
+              isPrimary: true,
+            },
+          ],
+        },
+        actor: makeActor(),
+      });
+
+      expect(contactRepo.findActiveByEmailOrPhone).toHaveBeenCalled();
+      expect(contactRepo.save).toHaveBeenCalledTimes(1);
+      expect(appointmentRepo.saveContact).toHaveBeenCalled();
+    });
+  });
 });

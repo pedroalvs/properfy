@@ -1,4 +1,4 @@
-import { NotFoundError, ConflictError, DomainError, ValidationError } from '../../../shared/domain/errors';
+import { NotFoundError, ConflictError, DomainError } from '../../../shared/domain/errors';
 
 export class EntryNotFoundError extends NotFoundError {
   constructor() {
@@ -138,12 +138,14 @@ export class InvoiceNotPaidError extends ConflictError {
   }
 }
 
-export class InvoicePaymentDateInvalidError extends ValidationError {
+export class InvoicePaymentDateInvalidError extends DomainError {
   constructor(public readonly kind: 'future' | 'before_generated_at') {
     super(
+      'INVOICE_PAYMENT_DATE_INVALID',
       kind === 'future'
         ? 'paidAt cannot be in the future (server UTC + 1h grace window exceeded)'
         : 'paidAt cannot be before the invoice generatedAt timestamp',
+      400,
       { kind },
     );
   }

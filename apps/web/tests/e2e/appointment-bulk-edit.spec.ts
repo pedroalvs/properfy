@@ -91,7 +91,7 @@ test.describe('Bulk Edit Flow (T033)', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ updated: 2, failed: 0, errors: [] }),
+        body: JSON.stringify({ data: { updated: 2, failed: [] } }),
       });
     });
 
@@ -128,9 +128,10 @@ test.describe('Bulk Edit Flow (T033)', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          updated: 1,
-          failed: 1,
-          errors: [{ id: 'apt-2', message: 'Appointment is in DONE status' }],
+          data: {
+            updated: 1,
+            failed: [{ id: 'apt-2', code: 'APPOINTMENT_NOT_DRAFT', message: 'Appointment is in DONE status' }],
+          },
         }),
       });
     });

@@ -199,6 +199,41 @@ describe('MarkInvoicePaidUseCase', () => {
     ).rejects.toThrow(InvoicePaymentDateInvalidError);
   });
 
+  // Bug B-7 (QA 2026-04-18). Datetime-local pickers truncate seconds, so
+  // "mark paid now" can submit a timestamp a few hundred ms before the
+  // invoice's generatedAt. A 1-minute grace absorbs that without letting
+  // genuinely-backdated payments through.
+  it('should accept paidAt within the 1-minute truncation grace window', async () => {
+    const sut = makeSut();
+    const generatedAt = new Date(Date.now() - 30 * 1000); // 30s ago
+    invoiceRepo.findById.mockResolvedValue(
+      makeClosedInvoice({ generatedAt }),
+    );
+    // 45s before generatedAt — inside the 60s grace
+    const slightlyEarly = new Date(generatedAt.getTime() - 45 * 1000).toISOString();
+
+    const result = await sut.execute({
+      invoiceId: 'inv-1',
+      paidAt: slightlyEarly,
+      actor: opActor,
+    });
+
+    expect(result.status).toBe('PAID');
+  });
+
+  it('exposes INVOICE_PAYMENT_DATE_INVALID error code (not VALIDATION_ERROR)', async () => {
+    const sut = makeSut();
+    const tooEarly = '2026-03-01T00:00:00.000Z'; // well before generatedAt
+
+    try {
+      await sut.execute({ invoiceId: 'inv-1', paidAt: tooEarly, actor: opActor });
+      expect.fail('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(InvoicePaymentDateInvalidError);
+      expect((err as InvoicePaymentDateInvalidError).code).toBe('INVOICE_PAYMENT_DATE_INVALID');
+    }
+  });
+
   it('should reject non-AM/OP actor (CL_ADMIN)', async () => {
     const sut = makeSut();
     const clientActor = {

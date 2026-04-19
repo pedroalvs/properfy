@@ -12,6 +12,16 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 /** Grace window in milliseconds to absorb clock skew when validating "future" paidAt values (Q4 clarification). */
 const FUTURE_GRACE_MS = 60 * 60 * 1000; // 1 hour
 
+/**
+ * Grace window in milliseconds for the "paidAt is before generatedAt" check.
+ * Client-side date pickers (datetime-local, date) truncate precision below the
+ * minute — sending e.g. `2026-04-18T14:45:00.000Z` when the invoice was in
+ * fact generated at `2026-04-18T14:45:23.456Z`. Absorbing a small truncation
+ * window prevents the UI from surfacing a 400 on the default "mark paid now"
+ * flow immediately after an invoice is generated. Bug B-7 (QA 2026-04-18).
+ */
+const BEFORE_GENERATED_GRACE_MS = 60 * 1000; // 1 minute
+
 export interface MarkInvoicePaidInput {
   invoiceId: string;
   paidAt?: string; // ISO datetime, defaults to now
@@ -37,7 +47,7 @@ export function validatePaidAt(paidAt: Date, generatedAt: Date | null, now: Date
   if (paidAt.getTime() > now.getTime() + FUTURE_GRACE_MS) {
     throw new InvoicePaymentDateInvalidError('future');
   }
-  if (generatedAt && paidAt.getTime() < generatedAt.getTime()) {
+  if (generatedAt && paidAt.getTime() < generatedAt.getTime() - BEFORE_GENERATED_GRACE_MS) {
     throw new InvoicePaymentDateInvalidError('before_generated_at');
   }
 }
