@@ -95,7 +95,13 @@ export class GeneratePortalTokenUseCase {
       },
     });
 
-    // 9. Send portal link notification
+    // 9. Send portal link notification — fire-and-forget. The token itself
+    // has already been persisted; a notification send failure (missing
+    // template row, provider hiccup, queue error, etc.) must not turn the
+    // endpoint into a 500. The same fire-and-forget pattern is used by
+    // RescheduleRequestUseCase when it auto-refreshes the token. Bug B-5
+    // (QA 2026-04-19) — the previous implementation `await`ed both sends
+    // unconditionally, and any downstream error bubbled up as 500.
     if (this.createNotificationUseCase && result.contact) {
       const payloadJson = {
         portalToken: rawToken,
@@ -103,30 +109,36 @@ export class GeneratePortalTokenUseCase {
         tenantName: result.contact.effectiveName,
       };
 
-      // Send EMAIL notification if email available
       const recipientEmail = result.contact.effectiveEmail;
       if (recipientEmail) {
-        await this.createNotificationUseCase.execute({
-          tenantId: appointment.tenantId,
-          appointmentId: input.appointmentId,
-          recipient: recipientEmail,
-          channel: 'EMAIL',
-          templateCode: 'TENANT_PORTAL_LINK',
-          payloadJson,
-        });
+        try {
+          await this.createNotificationUseCase.execute({
+            tenantId: appointment.tenantId,
+            appointmentId: input.appointmentId,
+            recipient: recipientEmail,
+            channel: 'EMAIL',
+            templateCode: 'TENANT_PORTAL_LINK',
+            payloadJson,
+          });
+        } catch {
+          // fire-and-forget; token is already saved
+        }
       }
 
-      // Send SMS notification if phone available
       const recipientPhone = result.contact.effectivePhone;
       if (recipientPhone) {
-        await this.createNotificationUseCase.execute({
-          tenantId: appointment.tenantId,
-          appointmentId: input.appointmentId,
-          recipient: recipientPhone,
-          channel: 'SMS',
-          templateCode: 'TENANT_PORTAL_LINK',
-          payloadJson,
-        });
+        try {
+          await this.createNotificationUseCase.execute({
+            tenantId: appointment.tenantId,
+            appointmentId: input.appointmentId,
+            recipient: recipientPhone,
+            channel: 'SMS',
+            templateCode: 'TENANT_PORTAL_LINK',
+            payloadJson,
+          });
+        } catch {
+          // fire-and-forget; token is already saved
+        }
       }
     }
 
