@@ -347,4 +347,40 @@ describe('GeneratePortalTokenUseCase', () => {
       }),
     );
   });
+
+  // Regression: Bug B-5 round 2 (QA 2026-04-19). The notification send step
+  // is a side effect; if the template is missing or the provider fails, the
+  // endpoint must still return the freshly persisted token rather than
+  // surface the failure as a 500.
+  it('still returns the token when the notification send throws', async () => {
+    const failingNotificationUseCase = {
+      execute: vi.fn().mockRejectedValue(new Error('template TENANT_PORTAL_LINK not found')),
+    };
+    const contact = {
+      effectiveName: 'Jane Doe',
+      effectiveEmail: 'jane@example.com',
+      effectivePhone: null,
+    };
+    appointmentRepo.findById.mockResolvedValueOnce({
+      appointment: makeAppointment(),
+      contact,
+      restrictions: [],
+    });
+
+    const uc = new GeneratePortalTokenUseCase(
+      tokenRepo as unknown as ITenantPortalTokenRepository,
+      appointmentRepo as unknown as IAppointmentRepository,
+      tenantRepo as unknown as ITenantRepository,
+      tokenService as unknown as TokenService,
+      auditService as unknown as PersistentAuditService,
+      failingNotificationUseCase as any,
+    );
+
+    const result = await uc.execute(makeInput({ actor: makeAMContext() }));
+
+    expect(tokenRepo.save).toHaveBeenCalled();
+    expect(failingNotificationUseCase.execute).toHaveBeenCalledTimes(1);
+    expect(result.token).toBeTruthy();
+    expect(result.expiresAt).toBeInstanceOf(Date);
+  });
 });

@@ -39,8 +39,21 @@ interface BatchResponseData {
   skipped: BatchSkipped[];
 }
 
+/**
+ * Produce a `YYYY-MM-DDTHH:mm` string in the user's LOCAL timezone for
+ * `<input type="datetime-local">`. Using `toISOString().slice(0, 16)` here
+ * was wrong — that's UTC, but datetime-local interprets its value as local
+ * time, so on submission `new Date(value).toISOString()` would add the local
+ * offset (e.g. +3h in Brazil), pushing paidAt into the future and tripping
+ * the server's 1-hour future-grace check. Bug B-7 (QA 2026-04-19).
+ */
 function defaultPaidAt(): string {
-  return new Date().toISOString().slice(0, 16);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
+    `T${pad(now.getHours())}:${pad(now.getMinutes())}`
+  );
 }
 
 function friendlyError(status: number | undefined, code: string | undefined): string {

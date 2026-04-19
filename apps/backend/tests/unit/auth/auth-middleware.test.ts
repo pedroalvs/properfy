@@ -67,9 +67,7 @@ describe('createAuthMiddleware', () => {
     expect(req.authContext).toEqual(ctx);
   });
 
-  it('should skip tenant check for OP role but require tenantId', async () => {
-    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): OP is now
-    // tenant-scoped. A JWT claiming role=OP with tenantId=null is invalid.
+  it('should allow OP JWT with a tenantId and skip the active-tenant check', async () => {
     const ctx = { userId: 'u1', tenantId: 'op-tenant', role: 'OP', branchId: null, inspectorId: null };
     const verifier = vi.fn().mockResolvedValue(ctx);
     const checker = vi.fn();
@@ -77,17 +75,24 @@ describe('createAuthMiddleware', () => {
     const req = makeRequest('token');
 
     await middleware(req, reply);
-    // checker is only called for CL_ADMIN / CL_USER — OP still skips it,
-    // same as AM, because OP is trusted not to need active-tenant validation.
+    // checker is only called for CL_ADMIN / CL_USER — OP skips it like AM.
     expect(checker).not.toHaveBeenCalled();
+    expect(req.authContext).toEqual(ctx);
   });
 
-  it('should reject OP JWT with null tenantId (CORRECTION-001 close-it)', async () => {
+  // Regression guard (QA 2026-04-19): OP is cross-tenant per CLAUDE.md §6,
+  // so a JWT with `role=OP` and `tenantId=null` must be accepted. A prior
+  // middleware guard rejected these tokens and broke every OP request.
+  it('should allow OP JWT with null tenantId (cross-tenant OP)', async () => {
     const ctx = { userId: 'u1', tenantId: null, role: 'OP', branchId: null, inspectorId: null };
     const verifier = vi.fn().mockResolvedValue(ctx);
-    const middleware = createAuthMiddleware(verifier, vi.fn());
+    const checker = vi.fn();
+    const middleware = createAuthMiddleware(verifier, checker);
     const req = makeRequest('token');
-    await expect(middleware(req, reply)).rejects.toThrow(/tenant/i);
+
+    await middleware(req, reply);
+    expect(checker).not.toHaveBeenCalled();
+    expect(req.authContext).toEqual(ctx);
   });
 
   it('should skip tenant check for INSP role', async () => {

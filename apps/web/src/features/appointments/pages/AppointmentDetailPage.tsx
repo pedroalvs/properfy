@@ -9,6 +9,8 @@ import { AppointmentStatusChip } from '@/features/appointments/components/Appoin
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import { api } from '@/services/api';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
@@ -51,6 +53,8 @@ export function AppointmentDetailPage() {
 
   const isPrivileged = user ? isPrivilegedRole(user.role) : false;
   const canEdit = user ? CAN_EDIT_ROLES.includes(user.role) : false;
+  const { showSuccess, showError } = useSnackbar();
+  const [isGeneratingPortalToken, setIsGeneratingPortalToken] = useState(false);
   const tabs = [
     ...BASE_TABS,
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
@@ -76,6 +80,12 @@ export function AppointmentDetailPage() {
     (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'DRAFT') &&
     !appointment.inspectorId &&
     (user?.role === 'OP' || user?.role === 'AM');
+  const canSendPortalLink = !!appointment &&
+    isPrivileged &&
+    appointment.status !== 'DONE' &&
+    appointment.status !== 'CANCELLED' &&
+    appointment.status !== 'REJECTED' &&
+    (!!appointment.contactEmail || !!appointment.contactPhone);
 
   const handleEdit = useCallback(() => {
     if (!canEditAppointment) {
@@ -83,6 +93,38 @@ export function AppointmentDetailPage() {
     }
     setEditOpen(true);
   }, [canEditAppointment]);
+
+  const handleGeneratePortalToken = useCallback(async () => {
+    if (!appointment) return;
+    setIsGeneratingPortalToken(true);
+    try {
+      const { data, error } = await api.POST(
+        `/v1/appointments/${appointment.id}/portal-token` as never,
+        {} as never,
+      );
+      if (error) {
+        const err = error as { error?: { message?: string } };
+        showError(err?.error?.message ?? 'Failed to generate portal link');
+        return;
+      }
+      const token = (data as { token?: string })?.token;
+      if (token) {
+        const url = `${window.location.origin}/tenant-portal/${token}`;
+        try {
+          await navigator.clipboard.writeText(url);
+          showSuccess('Portal link generated and copied to clipboard');
+        } catch {
+          showSuccess(`Portal link generated: ${url}`);
+        }
+      } else {
+        showSuccess('Portal link generated');
+      }
+    } catch {
+      showError('Failed to generate portal link');
+    } finally {
+      setIsGeneratingPortalToken(false);
+    }
+  }, [appointment, showSuccess, showError]);
 
   if (isLoading) {
     return (
@@ -145,6 +187,17 @@ export function AppointmentDetailPage() {
             >
               <i className="mdi mdi-account-check text-base" aria-hidden="true" />
               Assign Inspector
+            </Button>
+          )}
+          {canSendPortalLink && (
+            <Button
+              variant="secondary"
+              onClick={handleGeneratePortalToken}
+              loading={isGeneratingPortalToken}
+              data-testid="send-portal-link-button"
+            >
+              <i className="mdi mdi-link-variant text-base" aria-hidden="true" />
+              Send Portal Link
             </Button>
           )}
           {canCrossCheckDone && (
