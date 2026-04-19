@@ -20,10 +20,12 @@ const EDITABLE_FIELDS: BulkEditField[] = [
   { key: 'propertyManagerContactId', label: 'Property Manager Contact', placeholder: 'Contact ID' },
 ];
 
+/** Matches the backend `BulkEditResult` from
+ *  `apps/backend/src/modules/appointment/application/use-cases/bulk-edit-appointments.use-case.ts`.
+ *  `failed` is the list of per-appointment failures; the count is `failed.length`. */
 interface BulkEditResult {
   updated: number;
-  failed: number;
-  errors: Array<{ id: string; message: string }>;
+  failed: Array<{ id: string; code: string; message: string }>;
 }
 
 interface BulkEditModalProps {
@@ -107,8 +109,11 @@ export function BulkEditModal({ selectedIds, open, onClose, onSuccess }: BulkEdi
         const err = error as any;
         setErrorMessage(err?.error?.message ?? 'Bulk edit failed');
       } else if (data) {
-        setResult(data as BulkEditResult);
-        if ((data as BulkEditResult).failed === 0) {
+        // Backend wraps in { data: { updated, failed: [...] } } via success().
+        const body = (data as { data?: BulkEditResult } | BulkEditResult) as any;
+        const payload: BulkEditResult = (body?.data ?? body) as BulkEditResult;
+        setResult(payload);
+        if ((payload.failed?.length ?? 0) === 0) {
           onSuccess();
         }
       }
@@ -154,24 +159,24 @@ export function BulkEditModal({ selectedIds, open, onClose, onSuccess }: BulkEdi
             <span className="rounded bg-green-100 px-2 py-1 text-green-800">
               {result.updated} updated
             </span>
-            {result.failed > 0 && (
+            {result.failed.length > 0 && (
               <span className="rounded bg-red-100 px-2 py-1 text-red-800">
-                {result.failed} failed
+                {result.failed.length} failed
               </span>
             )}
           </div>
 
-          {result.errors.length > 0 && (
+          {result.failed.length > 0 && (
             <div>
               <button
                 className="text-sm font-medium text-primary hover:underline"
                 onClick={() => setErrorsExpanded((v) => !v)}
               >
-                {errorsExpanded ? 'Hide' : 'Show'} error details ({result.errors.length})
+                {errorsExpanded ? 'Hide' : 'Show'} error details ({result.failed.length})
               </button>
               {errorsExpanded && (
                 <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm text-text-secondary">
-                  {result.errors.map((err) => (
+                  {result.failed.map((err) => (
                     <li key={err.id} className="rounded border border-border-subtle px-3 py-2">
                       <span className="font-mono text-xs text-text-muted">{err.id.slice(0, 8)}...</span>{' '}
                       {err.message}

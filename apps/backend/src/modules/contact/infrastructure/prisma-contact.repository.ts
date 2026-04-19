@@ -213,6 +213,25 @@ export class PrismaContactRepository implements IContactRepository {
     return count > 0;
   }
 
+  async findActiveByEmailOrPhone(
+    tenantId: string,
+    email: string | null,
+    phone: string | null,
+  ): Promise<ContactEntity | null> {
+    if (!email && !phone) return null;
+    const or: Array<Record<string, unknown>> = [];
+    if (email) or.push({ primary_email: email });
+    if (phone) or.push({ primary_phone: phone });
+    const row = await this.prisma.contact.findFirst({
+      where: {
+        tenant_id: tenantId,
+        is_active: true,
+        OR: or,
+      } as any,
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
   async existsByPhone(tenantId: string, phone: string, excludeContactId?: string): Promise<boolean> {
     const where: Record<string, unknown> = {
       tenant_id: tenantId,

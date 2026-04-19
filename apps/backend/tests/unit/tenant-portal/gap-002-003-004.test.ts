@@ -529,7 +529,7 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       }),
     };
     const generatePortalTokenUseCase = {
-      execute: vi.fn().mockResolvedValue({ rawToken: 'new-raw-token', expiresAt: new Date('2026-04-25') }),
+      execute: vi.fn().mockResolvedValue({ token: 'new-raw-token', expiresAt: new Date('2026-04-25') }),
     };
 
     const useCase = new RescheduleRequestUseCase(

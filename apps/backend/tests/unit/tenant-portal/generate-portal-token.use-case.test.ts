@@ -184,7 +184,7 @@ describe('GeneratePortalTokenUseCase', () => {
   it('should generate token successfully for AM actor', async () => {
     const result = await useCase.execute(makeInput({ actor: makeAMContext() }));
 
-    expect(result.rawToken).toBe('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab');
+    expect(result.token).toBe('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab');
     expect(result.expiresAt).toEqual(new Date('2026-04-14T08:00:00Z'));
 
     // AM passes null tenantId for query
@@ -194,7 +194,7 @@ describe('GeneratePortalTokenUseCase', () => {
   it('should generate token successfully for OP actor', async () => {
     const result = await useCase.execute(makeInput({ actor: makeOPContext() }));
 
-    expect(result.rawToken).toBe('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab');
+    expect(result.token).toBe('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab');
     expect(result.expiresAt).toEqual(new Date('2026-04-14T08:00:00Z'));
 
     // OP passes their tenantId for query
@@ -215,8 +215,8 @@ describe('GeneratePortalTokenUseCase', () => {
   it('should return raw token (not hash)', async () => {
     const result = await useCase.execute(makeInput());
 
-    expect(result.rawToken).toBe('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab');
-    expect(result.rawToken).not.toBe('hashed-token-sha256');
+    expect(result.token).toBe('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab');
+    expect(result.token).not.toBe('hashed-token-sha256');
   });
 
   it('should save token entity with hashed token', async () => {

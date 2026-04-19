@@ -209,16 +209,36 @@ export class UpdateAppointmentUseCase {
           sEmail = reg.primaryEmail;
           sPhone = reg.primaryPhone;
         } else if (entry.inline) {
-          const nc = new ContactEntity({
-            id: crypto.randomUUID(), tenantId: appointment.tenantId,
-            type: entry.inline.type as any, displayName: entry.inline.displayName,
-            company: entry.inline.company ?? null,
-            primaryEmail: entry.inline.primaryEmail ?? null, primaryPhone: entry.inline.primaryPhone ?? null,
-            additionalChannels: (entry.inline.additionalChannels ?? []) as any,
-            notes: entry.inline.notes ?? null, isActive: true, createdAt: now, updatedAt: now,
-          });
-          await this.contactRepo.save(nc);
-          cId = nc.id; sName = nc.displayName; sEmail = nc.primaryEmail; sPhone = nc.primaryPhone;
+          // Reuse an existing active registry contact whose email/phone
+          // matches the inline payload before creating a new row. This keeps
+          // repeated edits idempotent and prevents the
+          // contacts_tenant_email_active_unique /
+          // contacts_tenant_phone_active_unique partial indexes from
+          // surfacing as a 500.
+          const inlineEmail = entry.inline.primaryEmail ?? null;
+          const inlinePhone = entry.inline.primaryPhone ?? null;
+          const existing = await this.contactRepo.findActiveByEmailOrPhone(
+            appointment.tenantId,
+            inlineEmail,
+            inlinePhone,
+          );
+          if (existing) {
+            cId = existing.id;
+            sName = existing.displayName;
+            sEmail = existing.primaryEmail;
+            sPhone = existing.primaryPhone;
+          } else {
+            const nc = new ContactEntity({
+              id: crypto.randomUUID(), tenantId: appointment.tenantId,
+              type: entry.inline.type as any, displayName: entry.inline.displayName,
+              company: entry.inline.company ?? null,
+              primaryEmail: inlineEmail, primaryPhone: inlinePhone,
+              additionalChannels: (entry.inline.additionalChannels ?? []) as any,
+              notes: entry.inline.notes ?? null, isActive: true, createdAt: now, updatedAt: now,
+            });
+            await this.contactRepo.save(nc);
+            cId = nc.id; sName = nc.displayName; sEmail = nc.primaryEmail; sPhone = nc.primaryPhone;
+          }
         } else {
           throw new ValidationError('APPOINTMENT_CONTACT_INVALID', 'Each contact must have contactId or inline');
         }

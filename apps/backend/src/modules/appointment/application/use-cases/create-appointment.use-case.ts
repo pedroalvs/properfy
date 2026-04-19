@@ -322,26 +322,45 @@ export class CreateAppointmentUseCase {
           snapshotEmail = registryContact.primaryEmail;
           snapshotPhone = registryContact.primaryPhone;
         } else if (entry.inline) {
-          // Create new registry contact inline
-          const newContact = new ContactEntity({
-            id: crypto.randomUUID(),
+          // Reuse an existing active registry contact whose email/phone
+          // matches the inline payload before creating a new row. Keeps the
+          // inline path idempotent and prevents the
+          // contacts_tenant_email_active_unique /
+          // contacts_tenant_phone_active_unique partial indexes from
+          // surfacing as a 500 on repeat submissions.
+          const inlineEmail = entry.inline.primaryEmail ?? null;
+          const inlinePhone = entry.inline.primaryPhone ?? null;
+          const existing = await this.contactRepo.findActiveByEmailOrPhone(
             tenantId,
-            type: entry.inline.type as any,
-            displayName: entry.inline.displayName,
-            company: entry.inline.company ?? null,
-            primaryEmail: entry.inline.primaryEmail ?? null,
-            primaryPhone: entry.inline.primaryPhone ?? null,
-            additionalChannels: (entry.inline.additionalChannels ?? []) as any,
-            notes: entry.inline.notes ?? null,
-            isActive: true,
-            createdAt: now,
-            updatedAt: now,
-          });
-          await this.contactRepo.save(newContact);
-          contactId = newContact.id;
-          snapshotName = newContact.displayName;
-          snapshotEmail = newContact.primaryEmail;
-          snapshotPhone = newContact.primaryPhone;
+            inlineEmail,
+            inlinePhone,
+          );
+          if (existing) {
+            contactId = existing.id;
+            snapshotName = existing.displayName;
+            snapshotEmail = existing.primaryEmail;
+            snapshotPhone = existing.primaryPhone;
+          } else {
+            const newContact = new ContactEntity({
+              id: crypto.randomUUID(),
+              tenantId,
+              type: entry.inline.type as any,
+              displayName: entry.inline.displayName,
+              company: entry.inline.company ?? null,
+              primaryEmail: inlineEmail,
+              primaryPhone: inlinePhone,
+              additionalChannels: (entry.inline.additionalChannels ?? []) as any,
+              notes: entry.inline.notes ?? null,
+              isActive: true,
+              createdAt: now,
+              updatedAt: now,
+            });
+            await this.contactRepo.save(newContact);
+            contactId = newContact.id;
+            snapshotName = newContact.displayName;
+            snapshotEmail = newContact.primaryEmail;
+            snapshotPhone = newContact.primaryPhone;
+          }
         } else {
           throw new ValidationError('APPOINTMENT_CONTACT_INVALID', 'Each contact must have either contactId or inline');
         }
