@@ -174,8 +174,11 @@ describe('createAppointmentSchema', () => {
 
 describe('updateAppointmentSchema', () => {
   it('should be valid with a partial update', () => {
+    // Dynamic 30-days-ahead date so the fixture never drifts into the past
+    // and fires the "Scheduled date cannot be in the past" refine.
+    const future = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
     const result = updateAppointmentSchema.safeParse({
-      scheduledDate: '2026-04-15',
+      scheduledDate: future,
       timeSlot: '10:00-11:00',
     });
     expect(result.success).toBe(true);
