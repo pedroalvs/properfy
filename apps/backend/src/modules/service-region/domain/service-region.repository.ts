@@ -3,6 +3,10 @@ import type { ServiceRegionEntity } from './service-region.entity';
 export interface ServiceRegionFilters {
   status?: string;
   search?: string;
+  /** Narrows the result set to a specific tenant. When undefined together
+   *  with a null `tenantId` argument on findAll/count, the query is
+   *  platform-wide (AM only). */
+  tenantId?: string;
 }
 
 export interface PaginationParams {
@@ -20,14 +24,15 @@ export interface ResolvedRegion {
 }
 
 export interface IServiceRegionRepository {
-  findById(id: string, tenantId: string): Promise<ServiceRegionEntity | null>;
+  findById(id: string, tenantId: string | null): Promise<ServiceRegionEntity | null>;
   findByName(tenantId: string, name: string): Promise<ServiceRegionEntity | null>;
+  /** Pass `tenantId: null` to query across all tenants (AM only). */
   findAll(
-    tenantId: string,
+    tenantId: string | null,
     filters: ServiceRegionFilters,
     pagination: PaginationParams,
   ): Promise<ServiceRegionEntity[]>;
-  count(tenantId: string, filters: ServiceRegionFilters): Promise<number>;
+  count(tenantId: string | null, filters: ServiceRegionFilters): Promise<number>;
   save(region: ServiceRegionEntity): Promise<void>;
   update(
     id: string,

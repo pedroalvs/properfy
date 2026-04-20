@@ -286,12 +286,15 @@ describe('GAP-002: Domain events for portal actions', () => {
         eventBus,
       );
 
+      const newDate = new Date(Date.now() + 7 * 24 * 3600 * 1000)
+        .toISOString()
+        .split('T')[0]!;
       await useCase.execute({
         tokenId: 'token-1',
         appointmentId: 'appt-1',
         isReadOnly: false,
         isUsed: false,
-        newDate: '2026-04-20',
+        newDate,
         newTimeSlot: 'AFTERNOON',
         ipAddress: '127.0.0.1',
         userAgent: 'Test/1.0',
@@ -300,7 +303,7 @@ describe('GAP-002: Domain events for portal actions', () => {
       expect(emitted).toHaveLength(1);
       expect((emitted[0] as any).type).toBe(TENANT_PORTAL_EVENTS.RESCHEDULED);
       expect((emitted[0] as any).payload.appointmentId).toBe('appt-1');
-      expect((emitted[0] as any).payload.newDate).toBe('2026-04-20');
+      expect((emitted[0] as any).payload.newDate).toBe(newDate);
     });
   });
 });
@@ -403,7 +406,7 @@ describe('GAP-003: Token replay detection', () => {
         appointmentId: 'appt-1',
         isReadOnly: false,
         isUsed: true,
-        newDate: '2026-04-20',
+        newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
         newTimeSlot: 'AFTERNOON',
         ipAddress: '127.0.0.1',
         userAgent: 'Test/1.0',
@@ -420,7 +423,7 @@ describe('GAP-003: Token replay detection', () => {
         appointmentId: 'appt-1',
         isReadOnly: false,
         isUsed: false,
-        newDate: '2026-04-20',
+        newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
         newTimeSlot: 'AFTERNOON',
         ipAddress: '127.0.0.1',
         userAgent: 'Test/1.0',
@@ -522,11 +525,11 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     const tenantRepo = { findById: vi.fn().mockResolvedValue(makeTenant()) };
     const auditService = { log: vi.fn() } as unknown as PersistentAuditService;
     const reopenForReschedule = {
-      execute: vi.fn().mockResolvedValue({
+      execute: vi.fn().mockImplementation(async (input: { newScheduledDate: string; newTimeSlot: string }) => ({
         id: 'appt-1', previousStatus: 'SCHEDULED', status: 'DRAFT',
-        scheduledDate: '2026-04-20', timeSlot: 'AFTERNOON',
+        scheduledDate: input.newScheduledDate, timeSlot: input.newTimeSlot,
         tenantConfirmationStatus: 'PENDING',
-      }),
+      })),
     };
     const generatePortalTokenUseCase = {
       execute: vi.fn().mockResolvedValue({ token: 'new-raw-token', expiresAt: new Date('2026-04-25') }),
@@ -557,7 +560,7 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       appointmentId: 'appt-1',
       isReadOnly: false,
       isUsed: false,
-      newDate: '2026-04-20',
+      newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
       newTimeSlot: 'AFTERNOON',
       ipAddress: '127.0.0.1',
       userAgent: 'Test/1.0',
@@ -578,19 +581,22 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     const { useCase, generatePortalTokenUseCase } = buildRescheduleWithTokenGen();
     generatePortalTokenUseCase.execute.mockRejectedValueOnce(new Error('Token generation failure'));
 
+    const newDate = new Date(Date.now() + 7 * 24 * 3600 * 1000)
+      .toISOString()
+      .split('T')[0]!;
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
       isReadOnly: false,
       isUsed: false,
-      newDate: '2026-04-20',
+      newDate,
       newTimeSlot: 'AFTERNOON',
       ipAddress: '127.0.0.1',
       userAgent: 'Test/1.0',
     });
 
     expect(result.tenantConfirmationStatus).toBe('PENDING');
-    expect(result.scheduledDate).toBe('2026-04-20');
+    expect(result.scheduledDate).toBe(newDate);
   });
 
   it('does not generate token when generatePortalTokenUseCase is not provided', async () => {
@@ -602,11 +608,11 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     const tenantRepo = { findById: vi.fn().mockResolvedValue(makeTenant()) };
     const auditService = { log: vi.fn() } as unknown as PersistentAuditService;
     const reopenForReschedule = {
-      execute: vi.fn().mockResolvedValue({
+      execute: vi.fn().mockImplementation(async (input: { newScheduledDate: string; newTimeSlot: string }) => ({
         id: 'appt-1', previousStatus: 'SCHEDULED', status: 'DRAFT',
-        scheduledDate: '2026-04-20', timeSlot: 'AFTERNOON',
+        scheduledDate: input.newScheduledDate, timeSlot: input.newTimeSlot,
         tenantConfirmationStatus: 'PENDING',
-      }),
+      })),
     };
 
     const useCase = new RescheduleRequestUseCase(
@@ -626,7 +632,7 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       appointmentId: 'appt-1',
       isReadOnly: false,
       isUsed: false,
-      newDate: '2026-04-20',
+      newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
       newTimeSlot: 'AFTERNOON',
       ipAddress: '127.0.0.1',
       userAgent: 'Test/1.0',

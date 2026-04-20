@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Dialog } from '@/components/ui/Dialog';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -55,6 +56,8 @@ export function AppointmentDetailPage() {
   const canEdit = user ? CAN_EDIT_ROLES.includes(user.role) : false;
   const { showSuccess, showError } = useSnackbar();
   const [isGeneratingPortalToken, setIsGeneratingPortalToken] = useState(false);
+  const [portalLinkUrl, setPortalLinkUrl] = useState<string | null>(null);
+  const [portalLinkCopied, setPortalLinkCopied] = useState(false);
   const tabs = [
     ...BASE_TABS,
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
@@ -97,6 +100,7 @@ export function AppointmentDetailPage() {
   const handleGeneratePortalToken = useCallback(async () => {
     if (!appointment) return;
     setIsGeneratingPortalToken(true);
+    setPortalLinkCopied(false);
     try {
       const { data, error } = await api.POST(
         `/v1/appointments/${appointment.id}/portal-token` as never,
@@ -107,24 +111,41 @@ export function AppointmentDetailPage() {
         showError(err?.error?.message ?? 'Failed to generate portal link');
         return;
       }
-      const token = (data as { token?: string })?.token;
-      if (token) {
-        const url = `${window.location.origin}/tenant-portal/${token}`;
-        try {
-          await navigator.clipboard.writeText(url);
-          showSuccess('Portal link generated and copied to clipboard');
-        } catch {
-          showSuccess(`Portal link generated: ${url}`);
-        }
-      } else {
-        showSuccess('Portal link generated');
+      const token = (data as { token?: string; data?: { token?: string } })?.token
+        ?? (data as { data?: { token?: string } })?.data?.token;
+      if (!token) {
+        showError('Portal link generated but token was not returned');
+        return;
       }
+      const url = `${window.location.origin}/tenant-portal/${token}`;
+      // Show the URL in a dialog so QA / operators can always read and copy
+      // it even when `navigator.clipboard` isn't granted (Playwright MCP,
+      // insecure contexts, browser policy). The best-effort clipboard write
+      // is a convenience, not the source of truth.
+      setPortalLinkUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        setPortalLinkCopied(true);
+      } catch {
+        // ignore — user can copy from the dialog
+      }
+      showSuccess('Portal link generated');
     } catch {
       showError('Failed to generate portal link');
     } finally {
       setIsGeneratingPortalToken(false);
     }
   }, [appointment, showSuccess, showError]);
+
+  const handleCopyPortalLink = useCallback(async () => {
+    if (!portalLinkUrl) return;
+    try {
+      await navigator.clipboard.writeText(portalLinkUrl);
+      setPortalLinkCopied(true);
+    } catch {
+      showError('Copy failed — please copy manually from the field above');
+    }
+  }, [portalLinkUrl, showError]);
 
   if (isLoading) {
     return (
@@ -287,6 +308,51 @@ export function AppointmentDetailPage() {
         variant="warning"
         loading={isCrossChecking}
       />
+      <Dialog
+        open={!!portalLinkUrl}
+        onClose={() => setPortalLinkUrl(null)}
+        title="Portal link generated"
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setPortalLinkUrl(null)}>
+              Close
+            </Button>
+            <Button variant="primary" onClick={handleCopyPortalLink}>
+              {portalLinkCopied ? 'Copied ✓' : 'Copy link'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-text-secondary">
+            Share this link with the tenant. It grants access to the tenant portal for this
+            appointment and expires before the scheduled date.
+          </p>
+          <input
+            type="text"
+            readOnly
+            value={portalLinkUrl ?? ''}
+            aria-label="Portal link URL"
+            data-testid="portal-link-url"
+            className="w-full rounded border border-border-subtle bg-app-bg px-3 py-2 font-mono text-xs text-text-primary"
+            onFocus={(e) => e.currentTarget.select()}
+          />
+          {portalLinkUrl && (
+            <a
+              href={portalLinkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline"
+            >
+              Open portal in new tab →
+            </a>
+          )}
+          <p className="text-xs text-text-muted">
+            Email and SMS notifications are also queued automatically when the tenant has an
+            email or phone on file.
+          </p>
+        </div>
+      </Dialog>
     </div>
   );
 }

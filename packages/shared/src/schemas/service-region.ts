@@ -35,6 +35,9 @@ export type UpdateServiceRegionInput = z.infer<typeof updateServiceRegionSchema>
 export const listServiceRegionsQuerySchema = paginationSchema.extend({
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   search: z.string().max(255).optional(),
+  /** Optional tenant filter. Platform-wide roles (AM) use it to narrow the
+   *  list; tenant-scoped roles have it forced to their JWT tenantId. */
+  tenantId: z.string().uuid().optional(),
 });
 export type ListServiceRegionsQueryInput = z.infer<typeof listServiceRegionsQuerySchema>;
 

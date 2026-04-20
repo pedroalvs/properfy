@@ -20,6 +20,7 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:refresh-demo": "tsx prisma/refresh-demo-seed.ts",
+    "qa:provision-users": "tsx prisma/provision-qa-users.ts",
     "generate:openapi": "NODE_ENV=test tsx src/scripts/generate-openapi.ts"
   },
   "prisma": {
