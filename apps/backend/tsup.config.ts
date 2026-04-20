@@ -1,14 +1,20 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: [
-    'src/main/server.ts',
+  // Object entries pin output names so we keep `dist/server.js` flat at
+  // the root (the path expected by the Dockerfile `CMD`). Adding the
+  // provision script as a second entry without this map would relocate
+  // the server bundle to `dist/src/main/server.js` and crash-loop the
+  // Fly.io machines on boot (the failure mode that took staging down on
+  // 2026-04-20T22:57Z).
+  entry: {
+    server: 'src/main/server.ts',
     // Operational script: bundled so it ships inside the production image
     // without pulling tsx into prod deps. Runs via
     //   `node dist/provision-qa-users.js`
     // as part of the Fly.io release_command chain.
-    'prisma/provision-qa-users.ts',
-  ],
+    'provision-qa-users': 'prisma/provision-qa-users.ts',
+  },
   format: ['esm'],
   target: 'node20',
   platform: 'node',
