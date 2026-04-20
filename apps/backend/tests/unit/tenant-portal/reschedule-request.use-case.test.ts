@@ -85,13 +85,21 @@ function makeTenant(overrides: Partial<ConstructorParameters<typeof TenantEntity
   });
 }
 
+// Use a date 14 days in the future so the fixture never drifts into the past
+// once real-world time crosses the hard-coded value (bug pattern we hit on
+// 2026-04-20 — every literal `newDate: '2026-04-XX'` that became "today" or
+// earlier started tripping `PortalDateInPastError`).
+const FUTURE_DATE = new Date(Date.now() + 14 * 24 * 3600 * 1000)
+  .toISOString()
+  .split('T')[0]!;
+
 function makeInput(overrides: Partial<RescheduleRequestInput> = {}): RescheduleRequestInput {
   return {
     tokenId: 'token-1',
     appointmentId: 'appt-1',
     isReadOnly: false,
     isUsed: false,
-    newDate: '2026-04-20',
+    newDate: FUTURE_DATE,
     newTimeSlot: 'AFTERNOON',
     ipAddress: '127.0.0.1',
     userAgent: 'TestAgent/1.0',
@@ -195,19 +203,21 @@ describe('RescheduleRequestUseCase', () => {
     };
     auditService = { log: vi.fn() };
     executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
+    // Echo the input date back so window-boundary tests that pass a custom
+    // `newDate` don't have to maintain a parallel fixture.
     reopenForRescheduleUseCase = {
-      execute: vi.fn().mockResolvedValue({
+      execute: vi.fn().mockImplementation(async (input: { newScheduledDate: string; newTimeSlot: string }) => ({
         id: 'appt-1',
         previousStatus: 'SCHEDULED',
         status: 'DRAFT',
         previousScheduledDate: '2026-04-15',
-        scheduledDate: '2026-04-20',
+        scheduledDate: input.newScheduledDate,
         previousTimeSlot: 'MORNING',
-        timeSlot: 'AFTERNOON',
+        timeSlot: input.newTimeSlot,
         previousInspectorId: 'inspector-1',
         inspectorId: null,
         tenantConfirmationStatus: 'PENDING',
-      }),
+      })),
     };
 
     useCase = new RescheduleRequestUseCase(
@@ -226,7 +236,7 @@ describe('RescheduleRequestUseCase', () => {
     const result = await useCase.execute(makeInput());
 
     expect(result).toEqual({
-      scheduledDate: '2026-04-20',
+      scheduledDate: FUTURE_DATE,
       timeSlot: 'AFTERNOON',
       tenantConfirmationStatus: 'PENDING',
     });
@@ -234,7 +244,7 @@ describe('RescheduleRequestUseCase', () => {
     // Should call reopenForRescheduleUseCase instead of appointmentRepo.update
     expect(reopenForRescheduleUseCase.execute).toHaveBeenCalledWith({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-20',
+      newScheduledDate: FUTURE_DATE,
       newTimeSlot: 'AFTERNOON',
       reason: 'Tenant portal reschedule request',
       actor: {
@@ -319,7 +329,7 @@ describe('RescheduleRequestUseCase', () => {
       tenantConfirmationStatus: 'PENDING',
     });
     expect(savedActivity.newValuesJson).toEqual({
-      scheduledDate: '2026-04-20',
+      scheduledDate: FUTURE_DATE,
       timeSlot: 'AFTERNOON',
       tenantConfirmationStatus: 'PENDING',
     });
@@ -450,9 +460,14 @@ describe('RescheduleRequestUseCase', () => {
       settingsJson: { portalRescheduleWindowDays: 14 },
     }));
 
-    // 5 days from scheduled date (2026-04-15) is within 14-day window
-    const result = await useCase.execute(makeInput({ newDate: '2026-04-20' }));
-    expect(result.scheduledDate).toBe('2026-04-20');
+    // 5 days ahead of today is always both inside the 14-day window and
+    // never in the past (was previously a literal '2026-04-20', which
+    // drifted into the past once real-world time crossed that date).
+    const inWindow = new Date(Date.now() + 5 * 24 * 3600 * 1000)
+      .toISOString()
+      .split('T')[0]!;
+    const result = await useCase.execute(makeInput({ newDate: inWindow }));
+    expect(result.scheduledDate).toBe(inWindow);
   });
 
   it('should use 30-day default when tenant not found', async () => {

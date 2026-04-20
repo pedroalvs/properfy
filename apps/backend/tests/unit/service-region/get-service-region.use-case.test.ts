@@ -88,13 +88,29 @@ describe('GetServiceRegionUseCase', () => {
     ).rejects.toThrow(ServiceRegionNotFoundError);
   });
 
-  it('should reject when actor has no tenantId', async () => {
-    await expect(
-      useCase.execute({
-        regionId: 'region-1',
-        actor: makeActor({ tenantId: null }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+  // Bug C-B1 (QA 2026-04-20): AM JWTs carry `tenantId: null`. Regions
+  // opened from the platform-wide list must be retrievable without a
+  // tenant scope in the actor context.
+  it('allows AM with null tenantId to fetch a region cross-tenant', async () => {
+    const region = new (await import('../../../src/modules/service-region/domain/service-region.entity')).ServiceRegionEntity({
+      id: 'region-1',
+      tenantId: 'tenant-1',
+      name: 'Sydney CBD',
+      geojson: {},
+      color: '#3b82f6',
+      status: 'ACTIVE',
+      createdByUserId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(regionRepo.findById).mockResolvedValue(region);
+
+    await useCase.execute({
+      regionId: 'region-1',
+      actor: makeActor({ tenantId: null }),
+    });
+
+    expect(regionRepo.findById).toHaveBeenCalledWith('region-1', null);
   });
 
   it('should reject CL_ADMIN role', async () => {

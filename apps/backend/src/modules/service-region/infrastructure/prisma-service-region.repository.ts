@@ -41,10 +41,10 @@ function mapToEntity(row: RegionRow): ServiceRegionEntity {
 export class PrismaServiceRegionRepository implements IServiceRegionRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findById(id: string, tenantId: string): Promise<ServiceRegionEntity | null> {
-    const row = await this.prisma.serviceRegion.findFirst({
-      where: { id, tenant_id: tenantId },
-    });
+  async findById(id: string, tenantId: string | null): Promise<ServiceRegionEntity | null> {
+    const where: Record<string, unknown> = { id };
+    if (tenantId) where['tenant_id'] = tenantId;
+    const row = await this.prisma.serviceRegion.findFirst({ where });
     return row ? mapToEntity(row) : null;
   }
 
@@ -59,7 +59,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
   }
 
   async findAll(
-    tenantId: string,
+    tenantId: string | null,
     filters: ServiceRegionFilters,
     pagination: PaginationParams,
   ): Promise<ServiceRegionEntity[]> {
@@ -75,7 +75,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     return rows.map(mapToEntity);
   }
 
-  async count(tenantId: string, filters: ServiceRegionFilters): Promise<number> {
+  async count(tenantId: string | null, filters: ServiceRegionFilters): Promise<number> {
     const where = this.buildWhere(tenantId, filters);
     return this.prisma.serviceRegion.count({ where });
   }
@@ -253,8 +253,12 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     });
   }
 
-  private buildWhere(tenantId: string, filters: ServiceRegionFilters) {
-    const where: Record<string, unknown> = { tenant_id: tenantId };
+  private buildWhere(tenantId: string | null, filters: ServiceRegionFilters) {
+    const where: Record<string, unknown> = {};
+    // Honour the per-role tenant scope. When the caller is cross-tenant (AM)
+    // and no filter is provided, omit tenant_id to return all tenants.
+    const effectiveTenant = tenantId ?? filters.tenantId ?? null;
+    if (effectiveTenant) where['tenant_id'] = effectiveTenant;
     if (filters.status) where['status'] = filters.status;
     if (filters.search) {
       where['OR'] = [

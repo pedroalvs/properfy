@@ -121,7 +121,7 @@ describe('RescheduleForm', () => {
 
     // Fill in form fields
     fireEvent.change(screen.getByLabelText('date-input'), {
-      target: { value: '2026-04-20' },
+      target: { value: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0] },
     });
     fireEvent.change(screen.getByLabelText('text-input'), {
       target: { value: '14:00-16:00' },
@@ -141,7 +141,7 @@ describe('RescheduleForm', () => {
     );
 
     fireEvent.change(screen.getByLabelText('date-input'), {
-      target: { value: '2026-04-20' },
+      target: { value: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0] },
     });
     fireEvent.change(screen.getByLabelText('text-input'), {
       target: { value: '14:00-16:00' },

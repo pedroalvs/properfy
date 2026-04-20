@@ -5,7 +5,10 @@ primary_region = 'syd'
   dockerfile = 'apps/backend/Dockerfile'
 
 [deploy]
-  release_command = 'sh -lc "cd /app/apps/backend && prisma migrate deploy"'
+  # Migrate first, then refresh the QA role fixtures (AM / OP / CL_ADMIN /
+  # CL_USER). The provision-qa-users script is bundled by tsup into dist/
+  # and is idempotent — safe to rerun on every staging release.
+  release_command = 'sh -lc "cd /app/apps/backend && prisma migrate deploy && node dist/prisma/provision-qa-users.js"'
 
 [env]
   NODE_ENV = 'staging'

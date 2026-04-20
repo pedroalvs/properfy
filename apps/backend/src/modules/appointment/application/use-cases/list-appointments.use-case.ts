@@ -82,12 +82,20 @@ export class ListAppointmentsUseCase {
     // RBAC: only AM, OP, CL_ADMIN, CL_USER can list appointments
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.list', entityType: 'Appointment' });
 
-    // Resolve tenantId — only AM is cross-tenant. OP is tenant-scoped
-    // per Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
-    const tenantId =
-      actor.role === 'AM'
+    // Resolve tenantId. AM and OP are both cross-tenant per CLAUDE.md §6 —
+    // their JWT carries `tenantId: null`, and the `filters.tenantId` query
+    // param (when provided) narrows the result set. Tenant-scoped roles
+    // (CL_ADMIN, CL_USER, INSP) are pinned to their JWT tenantId and any
+    // filter they pass is ignored (defense-in-depth).
+    //
+    // Bug C-B2 (QA 2026-04-20): the previous branch treated OP like a
+    // tenant-scoped role and coerced its (null) tenantId via `!`, silently
+    // dropping the query filter and returning the full cross-tenant set
+    // regardless of `?tenantId=`.
+    const tenantId: string | undefined =
+      actor.role === 'AM' || actor.role === 'OP'
         ? filters.tenantId
-        : actor.tenantId!;
+        : actor.tenantId ?? undefined;
 
     const repoFilters: AppointmentFilters = {
       tenantId,

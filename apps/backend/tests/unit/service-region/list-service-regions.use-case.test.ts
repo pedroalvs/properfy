@@ -84,14 +84,47 @@ describe('ListServiceRegionsUseCase', () => {
     expect(regionRepo.count).toHaveBeenCalledWith('tenant-1', {});
   });
 
-  it('should reject when actor has no tenantId', async () => {
-    await expect(
-      useCase.execute({
-        filters: {},
-        pagination: { page: 1, pageSize: 20, sortOrder: 'asc' },
-        actor: makeActor({ tenantId: null }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+  // Bug C-B1 (QA 2026-04-20): AM JWTs carry `tenantId: null`, so the
+  // previous "tenant context required" guard locked platform-wide roles
+  // out of the Service Regions page entirely. The use case now lets AM
+  // (and OP) query cross-tenant, and honours `filters.tenantId` when the
+  // caller narrows the list from the UI.
+  it('allows AM with null tenantId to list cross-tenant', async () => {
+    const regionA = makeRegion('tenant-1', 'Sydney CBD');
+    const regionB = makeRegion('tenant-2', 'Melbourne CBD');
+    vi.mocked(regionRepo.findAll).mockResolvedValue([regionA, regionB]);
+    vi.mocked(regionRepo.count).mockResolvedValue(2);
+
+    const result = await useCase.execute({
+      filters: {},
+      pagination: { page: 1, pageSize: 20, sortOrder: 'asc' },
+      actor: makeActor({ tenantId: null }),
+    });
+
+    expect(result.data).toHaveLength(2);
+    expect(regionRepo.findAll).toHaveBeenCalledWith(
+      null,
+      {},
+      { page: 1, pageSize: 20, sortOrder: 'asc' },
+    );
+  });
+
+  it('narrows AM listing to filters.tenantId when provided', async () => {
+    const region = makeRegion('tenant-1', 'Sydney CBD');
+    vi.mocked(regionRepo.findAll).mockResolvedValue([region]);
+    vi.mocked(regionRepo.count).mockResolvedValue(1);
+
+    await useCase.execute({
+      filters: { tenantId: 'tenant-1' },
+      pagination: { page: 1, pageSize: 20, sortOrder: 'asc' },
+      actor: makeActor({ tenantId: null }),
+    });
+
+    expect(regionRepo.findAll).toHaveBeenCalledWith(
+      null,
+      { tenantId: 'tenant-1' },
+      { page: 1, pageSize: 20, sortOrder: 'asc' },
+    );
   });
 
   it('should reject CL_USER role', async () => {

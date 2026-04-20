@@ -257,4 +257,57 @@ describe('ListAppointmentsUseCase', () => {
       }),
     );
   });
+
+  // Bug C-B2 (QA 2026-04-20). OP is cross-tenant per CLAUDE.md §6; the
+  // previous branch coerced its null JWT tenantId via `!` and silently
+  // dropped the query filter, so `?tenantId=X` returned every tenant.
+  describe('OP tenant scope (Bug C-B2 regression)', () => {
+    it('returns cross-tenant when OP does not pass tenantId', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'OP', tenantId: null }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: undefined }),
+        defaultPagination,
+      );
+    });
+
+    it('narrows OP listing when tenantId filter is provided', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      await useCase.execute({
+        filters: { tenantId: 'tenant-sps' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'OP', tenantId: null }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 'tenant-sps' }),
+        defaultPagination,
+      );
+    });
+
+    it('ignores tenantId filter for CL roles and pins to JWT tenantId', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { tenantId: 'tenant-other' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-own' }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 'tenant-own' }),
+        defaultPagination,
+      );
+    });
+  });
 });

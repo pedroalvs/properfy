@@ -1,5 +1,4 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
 import { ServiceRegionNotFoundError } from '../../domain/service-region.errors';
@@ -63,9 +62,10 @@ export class GetServiceRegionUseCase {
     };
   }
 
-  private resolveTenantId(actor: AuthContext): string {
-    if (!actor.tenantId) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
+  /** Null for cross-tenant roles (AM/OP). Pinned to JWT tenantId otherwise. */
+  private resolveTenantId(actor: AuthContext): string | null {
+    if (actor.role === 'AM' || actor.role === 'OP') {
+      return actor.tenantId ?? null;
     }
     return actor.tenantId;
   }
