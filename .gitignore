@@ -22,6 +22,10 @@ apps/backend/src/generated/
 coverage/
 .nyc_output/
 
+# Playwright run artifacts (per-run, noisy in git status)
+apps/web/playwright-report/
+apps/web/test-results/
+
 # Editor
 .vscode/
 .idea/
