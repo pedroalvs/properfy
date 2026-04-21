@@ -49,12 +49,11 @@ describe('TemplateTable', () => {
     const templates = [
       makeTemplate({ id: 'tpl-1', channel: 'EMAIL' }),
       makeTemplate({ id: 'tpl-2', channel: 'SMS', code: 'REMINDER_7D' }),
-      makeTemplate({ id: 'tpl-3', channel: 'WHATSAPP', code: 'ALERT' }),
+      makeTemplate({ id: 'tpl-3', channel: 'SMS', code: 'ALERT' }),
     ];
     render(<TemplateTable data={templates} />);
     expect(screen.getByText('EMAIL')).toBeInTheDocument();
-    expect(screen.getByText('SMS')).toBeInTheDocument();
-    expect(screen.getByText('WHATSAPP')).toBeInTheDocument();
+    expect(screen.getAllByText('SMS').length).toBeGreaterThanOrEqual(2);
   });
 
   it('shows active boolean icon for active templates', () => {

@@ -44,12 +44,12 @@ describe('TemplatePreview', () => {
     expect(screen.queryByTestId('preview-subject')).not.toBeInTheDocument();
   });
 
-  it('hides subject for WHATSAPP channel', () => {
+  it('hides subject for SMS channel', () => {
     render(
       <TemplatePreview
         subject="Test Subject"
         body="Test Body"
-        channel="WHATSAPP"
+        channel="SMS"
       />,
     );
 

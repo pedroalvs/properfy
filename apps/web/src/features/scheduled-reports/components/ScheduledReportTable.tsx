@@ -1,14 +1,14 @@
 import type { ScheduledReport } from '../types';
 import { ScheduleStatusChip } from './ScheduleStatusChip';
 import { ScheduleRunStatusChip } from './ScheduleRunStatusChip';
+import { ScheduledReportRowActions } from './ScheduledReportRowActions';
 
 interface ScheduledReportTableProps {
   data: ScheduledReport[];
   loading?: boolean;
+  onEdit?: (schedule: ScheduledReport) => void;
   onViewRuns?: (schedule: ScheduledReport) => void;
-  onPause?: (schedule: ScheduledReport) => void;
-  onResume?: (schedule: ScheduledReport) => void;
-  onDelete?: (schedule: ScheduledReport) => void;
+  onMutated?: () => void;
 }
 
 function formatRecurrence(cronExpression: string): string {
@@ -35,10 +35,9 @@ function formatRecurrence(cronExpression: string): string {
 export function ScheduledReportTable({
   data,
   loading,
+  onEdit,
   onViewRuns,
-  onPause,
-  onResume,
-  onDelete,
+  onMutated,
 }: ScheduledReportTableProps) {
   if (loading) {
     return <div className="p-6 text-sm text-text-secondary">Loading schedules…</div>;
@@ -78,34 +77,13 @@ export function ScheduledReportTable({
               <td className="py-2 px-3">
                 {row.lastRunStatus ? <ScheduleRunStatusChip status={row.lastRunStatus} /> : '—'}
               </td>
-              <td className="py-2 px-3 text-xs">
-                <button
-                  onClick={() => onViewRuns?.(row)}
-                  className="mr-2 text-primary underline hover:text-primary/80"
-                >
-                  Runs
-                </button>
-                {row.status === 'ACTIVE' ? (
-                  <button
-                    onClick={() => onPause?.(row)}
-                    className="mr-2 text-primary underline hover:text-primary/80"
-                  >
-                    Pause
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => onResume?.(row)}
-                    className="mr-2 text-primary underline hover:text-primary/80"
-                  >
-                    Resume
-                  </button>
-                )}
-                <button
-                  onClick={() => onDelete?.(row)}
-                  className="text-red-600 underline hover:text-red-500"
-                >
-                  Delete
-                </button>
+              <td className="py-2 px-3">
+                <ScheduledReportRowActions
+                  report={row}
+                  onEdit={() => onEdit?.(row)}
+                  onViewRuns={() => onViewRuns?.(row)}
+                  onMutated={() => onMutated?.()}
+                />
               </td>
             </tr>
           ))}
