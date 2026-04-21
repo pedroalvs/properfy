@@ -84,8 +84,8 @@ This is **not** audit-ready backlog scope. It is a new finding that needs its ow
 
 ### CORRECTION-001: OP Must Be Tenant-Scoped (ALL features)
 
-**Status**: **OPEN — product decision pending (as of 2026-04-13)**
-**Impact**: HIGH — security and data isolation concern
+**Status**: **SUPERSEDED by DEC-003 (2026-04-19)** — see `specs/DECISIONS.md`. Superseded phrasing: "OPEN — product decision pending (as of 2026-04-13)".
+**Impact**: ~~HIGH — security and data isolation concern~~ (resolved)
 **Detail**: `.specify/memory/correction-op-tenant-scope.md`
 
 The codebase treats OP as tenant-free in list/read paths (`tenant_id = null`, cross-tenant access). The approved dossier requires OP to have a mandatory `tenant_id` and operate only within its tenant. This affects every feature (001–011 + several 012+ flows). AM is the only tenant-free role.
@@ -93,6 +93,8 @@ The codebase treats OP as tenant-free in list/read paths (`tenant_id = null`, cr
 **Verification 2026-04-13**: the divergence is still live. Grep of `actor.role === 'OP'` returns hits in at least 20 use-case files across `appointment`, `property`, `billing`, `user`, `tenant`, and `inspector` modules, and the pattern consistently reads `actor.role === 'AM' || actor.role === 'OP' ? filters.tenantId : actor.tenantId!` (i.e., OP is allowed to omit the tenant filter). `AuthorizationService.assertTenantScope` short-circuits on `actor.role === 'AM'` only, but list endpoints that accept a nullable `tenantId` bypass it.
 
 **Why this was not closed by the 015–020 window**: feature 015 centralized `AuthorizationService` and the role matrix but deliberately did **not** rewire every cross-tenant list call site — that was out of the 015 scope. Subsequent features (016..020) inherited the existing pattern.
+
+**Superseded 2026-04-19 (DEC-003)**: QA + auth-middleware audit confirmed OP cross-tenant is the correct and intended behaviour per CLAUDE.md §6. OP `tenant_id = null` in JWT; scope is supplied via `?tenantId=` query param when needed. This correction is closed.
 
 **Explicit follow-up registration**:
 

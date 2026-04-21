@@ -98,11 +98,11 @@ description: "Implementation and backlog tracking for Service Catalog (service t
 
 > **APPROVED RULE — code/schema diverges.** The dossiê requires `service_regions.tenant_id` as mandatory. The column does not exist in the current schema. This migration is a prerequisite for GAP-004 (spatial matching must be tenant-scoped) and for GAP-006 (multi-polygon support).
 
-- [ ] T126 [CORRECTION-004] Prisma migration: add `tenant_id uuid NOT NULL` to `service_regions` with FK → `tenants.id` (expand phase: add nullable first, backfill, then set NOT NULL).
-- [ ] T127 [CORRECTION-004] Add `UNIQUE (tenant_id, name)` index; drop the current name-only uniqueness if any.
-- [ ] T128 [CORRECTION-004] Update all repository methods, use cases, and routes to require and scope by `tenant_id`.
-- [ ] T129 [CORRECTION-004] Backfill script to assign each existing region to the correct tenant (requires operational decision on orphaned regions).
-- [ ] T129b [CORRECTION-004] Tests: region CRUD scoped by tenant; cross-tenant region access rejected.
+- [x] T126 [CORRECTION-004] Prisma migration: add `tenant_id uuid NOT NULL` to `service_regions` with FK → `tenants.id` (expand phase: add nullable first, backfill, then set NOT NULL). *(Delivered — commit `017a883`, verified 2026-04-13)*
+- [x] T127 [CORRECTION-004] Add `UNIQUE (tenant_id, name)` index; drop the current name-only uniqueness if any. *(Delivered — commit `017a883`)*
+- [x] T128 [CORRECTION-004] Update all repository methods, use cases, and routes to require and scope by `tenant_id`. *(Delivered — commit `017a883`)*
+- [x] T129 [CORRECTION-004] Backfill script to assign each existing region to the correct tenant (requires operational decision on orphaned regions). *(Delivered — deterministic backfill in migration)*
+- [x] T129b [CORRECTION-004] Tests: region CRUD scoped by tenant; cross-tenant region access rejected. *(Delivered — see `specs/013-service-regions/spec.md:21,43,185,198,266`)*
 
 ### GAP-004 — PostGIS `geom` population and spatial index
 
