@@ -137,7 +137,7 @@ This research verifies the actual state of the notification module against the s
 }
 ```
 
-**Tenant scoping**: AM can query across tenants (with a mandatory `tenantId` query param). OP is scoped to own tenant (enforced via `authContext.tenantId`).
+**Tenant scoping**: AM and OP are both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 — they may query any tenant via the optional `?tenantId=` query parameter; when omitted, results span all tenants. Superseded phrasing: "AM can query across tenants (with a mandatory `tenantId` query param). OP is scoped to own tenant (enforced via `authContext.tenantId`)".
 
 **Skipped count**: A single aggregation query on the notification table `WHERE status = 'SKIPPED_OPT_OUT' AND recipient = ... AND tenant_id = ...`.
 

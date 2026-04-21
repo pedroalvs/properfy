@@ -13,7 +13,7 @@ One endpoint: the audit log read surface. There is NO write endpoint — every a
 List audit log entries with filters and pagination. Restricted to platform operators.
 
 - **Auth**: required
-- **Allowed roles**: `AM` (any tenant), `OP` (own tenant only — scoped by `tenantId` from JWT). CL_ADMIN, CL_USER, INSP are forbidden.
+- **Allowed roles**: `AM` (cross-tenant), `OP` (cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 — optional `?tenantId=` narrows the view). CL_ADMIN has tenant-scoped read access (feature 020, closes 011#GAP-002). CL_USER, INSP are forbidden. Superseded phrasing: "OP (own tenant only — scoped by `tenantId` from JWT)".
 
 **Query params** (`listAuditLogsQuerySchema`)
 

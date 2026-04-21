@@ -4,7 +4,7 @@
 **Status**: IMPLEMENTED (with DIVERGENCE — tenant scoping incomplete)
 **Source**: `apps/backend/src/modules/service-region/interfaces/service-region.routes.ts`, `packages/shared/src/schemas/service-region.ts`
 
-Service regions are **tenant-scoped** (each region has a mandatory `tenant_id`). AM can manage regions for any tenant; OP manages regions within their own tenant only. CL_ADMIN and CL_USER can read regions for their own tenant. INSP can read only their assigned regions.
+Service regions are **tenant-scoped** at the storage layer (each region has a mandatory `tenant_id`). AM and OP are both cross-tenant actors per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 — the list endpoint returns rows for every tenant by default and accepts an optional `?tenantId=` query filter to narrow. Mutation endpoints (create, update, delete, deactivate) require an explicit tenant association through the region payload or path. CL_ADMIN and CL_USER can read regions for their own tenant only. INSP can read only their assigned regions. Superseded phrasing: "OP manages regions within their own tenant only".
 
 > **Note**: This contract was extracted from `specs/004-service-catalog/contracts/service-region-endpoints.md`. This is now the canonical location.
 

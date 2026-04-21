@@ -30,7 +30,7 @@ An Admin Master or Operator draws a polygon on a map (or submits GeoJSON coordin
 **Acceptance Scenarios**:
 
 1. **Given** an AM actor, **When** they submit a create request with `tenantId`, `name`, valid `geojson` (Polygon), and optional `color`, **Then** an active region is created under that tenant, and an audit record is written.
-2. **Given** an OP actor, **When** they submit a create request without `tenantId`, **Then** the region is created under their own tenant (from JWT).
+2. **Given** an OP actor (cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003), **When** they submit a create request, **Then** they MUST supply `tenantId` in the payload like AM (since OP's JWT carries `tenantId = null`). Superseded phrasing: "OP submits a create request without `tenantId` … the region is created under their own tenant (from JWT)".
 3. **Given** a valid create request with a `name` that already exists for the same tenant, **When** submitted, **Then** the request fails with `REGION_NAME_CONFLICT`.
 4. **Given** a region name that exists in tenant A, **When** AM creates a region with the same name in tenant B, **Then** the request succeeds (names are unique per tenant, not globally).
 5. **Given** a GeoJSON with fewer than 4 coordinates per ring, or an open ring (first != last coordinate), **When** submitted, **Then** the request fails with `VALIDATION_ERROR`.

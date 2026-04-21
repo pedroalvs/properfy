@@ -253,8 +253,8 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 #### List, read, manage
 
 - **FR-050**: System MUST expose `GET /v1/notifications` (paginated with filters) and `GET /v1/notifications/:id` (detail) for operator troubleshooting.
-- **FR-051**: System MUST scope notification reads by tenant for CL and OP roles; only AM may cross-tenant.
-- **FR-052**: System MUST expose `PUT /v1/notification-templates/:templateCode/:channel` (upsert) and `GET /v1/notification-templates` (list). AM may manage platform defaults (`tenantId = null`). OP should manage only own-tenant overrides (`implementation decision` — code currently allows OP to edit platform defaults, which grants cross-tenant influence; this should be reviewed against the OP tenant-scoped rule). CL_ADMIN manages own-tenant overrides only.
+- **FR-051**: System MUST scope notification reads by tenant for CL roles. AM and OP are both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 — they see cross-tenant notifications by default and may narrow via `?tenantId=`. Superseded phrasing: "scope notification reads by tenant for CL and OP roles; only AM may cross-tenant".
+- **FR-052**: System MUST expose `PUT /v1/notification-templates/:templateCode/:channel` (upsert) and `GET /v1/notification-templates` (list). AM and OP may manage platform defaults (`tenantId = null`) and any tenant override — both are cross-tenant per DEC-003. CL_ADMIN manages own-tenant overrides only. The earlier correction track T205/T206 (forbid OP from upserting `tenantId = null`) is superseded; OP is trusted with platform defaults as an operator role.
 - **FR-053**: System MUST enforce `UNIQUE (tenant_id, template_code, channel)` on templates.
 
 #### Cross-cutting

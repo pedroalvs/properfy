@@ -1224,7 +1224,7 @@ None directly. The tenant module is purely internal. Notification configuration 
 - [ ] CL_ADMIN from tenant A cannot GET, PATCH, or list resources of tenant B (even with valid JWT)
 - [ ] JWT with tenant_id claim that exists but is INACTIVE: CL user requests should be rejected with `AUTH_TENANT_INACTIVE`
 - [ ] AM with tenant_id=null in JWT should access all tenants without restriction
-- [ ] OP with tenant_id=null should only access read endpoints
+- [ ] OP with tenant_id=null may access read and mutation endpoints across tenants per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 (cross-tenant operator). Superseded phrasing: "OP with tenant_id=null should only access read endpoints".
 - [ ] Soft-deleted tenant: GET by id returns 404, not the deleted record
 - [ ] All audit log entries for tenant operations must include tenant_id, actor_id, before_json, after_json
 - [ ] Creating a branch for a tenant the CL_ADMIN does not belong to returns 403, not a DB constraint error

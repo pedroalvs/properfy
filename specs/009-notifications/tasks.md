@@ -172,12 +172,14 @@ description: "Implementation and backlog tracking for Notifications"
 - [ ] T201 [GAP-010] If yes: extend `DispatchRemindersUseCase` to select SMS when primary_email is null and primary_phone present. Use a separate template code (`REMINDER_7_DAYS_SMS`).
 - [ ] T202 [GAP-010] Tests.
 
-### CORRECTION — OP should not edit platform-default templates
+### ~~CORRECTION — OP should not edit platform-default templates~~ (SUPERSEDED)
 
-> **IMPLEMENTED (implementation decision to review).** The code currently allows OP to upsert templates with `tenantId = null` (platform defaults). Since OP is tenant-scoped, this grants cross-tenant influence — a platform default template edited by one OP affects all tenants. Per the OP tenant-scoped rule, OP should only manage tenant-specific overrides for their own tenant. AM should be the only role managing platform defaults.
+> ~~The code currently allows OP to upsert templates with `tenantId = null` (platform defaults). Since OP is tenant-scoped…~~
+>
+> **Superseded by `specs/DECISIONS.md` DEC-003 (2026-04-19).** OP is cross-tenant per CLAUDE.md §6. OP editing platform defaults is the expected operator capability, not an escape hatch. T205 / T206 below are marked OBSOLETE and will not be implemented.
 
-- [ ] T205 [CORRECTION] Restrict `UpsertNotificationTemplateUseCase`: when `actor.role === 'OP'`, reject requests where `tenantId` is `null` or differs from `actor.tenantId`. Only AM may write platform defaults.
-- [ ] T206 [CORRECTION] Integration test asserting OP cannot upsert a template with `tenantId = null` and receives `FORBIDDEN`.
+- [x] ~~T205~~ OBSOLETE — OP is cross-tenant; no restriction needed on platform-default template writes.
+- [x] ~~T206~~ OBSOLETE — corresponding integration assertion would contradict the current contract.
 
 ## Phase 3 — Polish & cross-cutting
 

@@ -28,7 +28,7 @@ Identity & Access provides authentication (email + password + TOTP 2FA), session
 | Principle | Status | Notes |
 |---|---|---|
 | I. Clean Architecture | PASS | Modules follow `domain/` -> `application/` -> `infrastructure/` -> `interfaces/` with inward dependencies. Auth module: entities + ports in `domain/`, use cases + services in `application/`, Prisma repos + workers in `infrastructure/`, Fastify routes in `interfaces/`. User module follows the same pattern. |
-| II. Multi-Tenant Safety | PASS | `tenant_id` on `users` (null only for AM). JWT carries `tenant_id` + `role`. Auth middleware populates `AuthContext`. Repositories scoped by tenant. RBAC in use cases. OP documented as tenant-scoped per constitution v1.2.0. |
+| II. Multi-Tenant Safety | PASS | `tenant_id` on `users` is null for platform-wide roles (AM and OP per CLAUDE.md §6). JWT carries `tenant_id` + `role`. Auth middleware populates `AuthContext`. Repositories scoped by tenant. RBAC in use cases. The "OP is tenant-scoped per constitution v1.2.0" note from an earlier revision is superseded by `specs/DECISIONS.md` DEC-003 (2026-04-19) — the auth-middleware regression that enforced tenant-scoping was reverted after QA. |
 | III. Test-Driven Development | PASS | Unit tests for every use case + service. Integration tests for routes. Schema validation tests in shared package. 80%+ coverage target for this critical module. |
 | IV. Contract-First APIs | PASS | Zod schemas in `packages/shared/src/schemas/{auth,user}.ts`. Routes derive from schemas. Contracts documented in `contracts/{auth-endpoints,user-endpoints}.md`. |
 | V. Simplicity and Minimal Impact | PASS | No speculative abstractions. Clean separation between auth (authentication) and user (administration) modules. |

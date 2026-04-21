@@ -56,7 +56,7 @@ AM and OP users open the audit log page to investigate an incident or look up th
 **Acceptance Scenarios**:
 
 1. **Given** an AM actor, **When** they `GET /v1/audit-logs`, **Then** the response is paginated with every audit row matching the filter; no tenant scoping is applied.
-2. **Given** an OP actor with `tenantId` in the token, **When** they call the endpoint, **Then** only audit rows with matching `tenant_id` are returned.
+2. **Given** an OP actor (cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003), **When** they call the endpoint, **Then** audit rows are returned cross-tenant by default; an optional `?tenantId=` query param narrows the result to a single tenant when the operator wants a focused view. Superseded phrasing: "OP actor with `tenantId` in the token … only audit rows with matching `tenant_id`".
 3. **Given** a CL actor or INSP actor, **When** they call the endpoint, **Then** the request is rejected with `FORBIDDEN`. Audit log access is restricted to platform operators.
 4. **Given** audit rows with `actorType = USER`, **When** listed, **Then** `actorName` is resolved from the user repository in a batch query (avoids N+1).
 5. **Given** audit rows with `actorType = SYSTEM`, **When** listed, **Then** `actorName = "System"` is returned regardless of `actorId`.
@@ -183,7 +183,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 #### Audit read endpoint
 
 - **FR-010** (`Phase 1 baseline — dossiê mandates audit trail but does not define the read endpoint RBAC`): System MUST restrict `GET /v1/audit-logs` to AM and OP only. CL and INSP actors are forbidden. CL_ADMIN read access is tracked as GAP-002.
-- **FR-011**: System MUST scope results to `actor.tenantId` when the caller is OP (OP has mandatory `tenantId`). AM is cross-tenant (`tenantId = null`).
+- **FR-011**: System MUST scope results to `actor.tenantId` when the caller is CL_ADMIN. AM and OP are both cross-tenant (`tenantId = null` in JWT) per CLAUDE.md §6 and `specs/DECISIONS.md` DEC-003 — list endpoints honour an optional `?tenantId=` query parameter to narrow the view. Superseded phrasing: "scope results to `actor.tenantId` when the caller is OP (OP has mandatory `tenantId`)".
 - **FR-012**: System MUST resolve actor names from the user repository in a single batch query to avoid N+1.
 - **FR-013**: System MUST support filters: `entityType`, `entityId`, `actorId`, `action`, `fromDate`, `toDate`, plus pagination with sort.
 

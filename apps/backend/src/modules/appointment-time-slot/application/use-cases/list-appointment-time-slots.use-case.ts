@@ -42,19 +42,26 @@ export class ListAppointmentTimeSlotsUseCase {
       entityType: 'AppointmentTimeSlot',
     });
 
-    // AM/OP can query any tenant; CL_ADMIN can only query own tenant.
+    // AM/OP can query any tenant; CL_ADMIN is pinned to their own tenant.
+    // Resolve explicitly instead of chaining `?? ''` — empty string is not
+    // a valid tenant_id and was only used previously as a "missing value"
+    // placeholder, which is exactly the kind of sentinel we are removing
+    // (see specs/DECISIONS.md DEC-003).
     let tenantId: string;
     if (actor.role === 'CL_ADMIN') {
-      tenantId = actor.tenantId!;
       if (input.tenantId && input.tenantId !== actor.tenantId) {
         throw new ForbiddenError('AUTH_FORBIDDEN', 'Cannot list time slots for another tenant');
       }
+      tenantId = actor.tenantId!;
     } else {
-      // AM/OP: tenantId required from query
-      tenantId = input.tenantId ?? actor.tenantId ?? '';
-      if (!tenantId) {
+      // AM/OP: tenantId required from query; own JWT tenant is a legit
+      // fallback only when it's non-null (AM/OP with null JWT tenantId
+      // must pass an explicit `input.tenantId`).
+      const resolved = input.tenantId ?? actor.tenantId ?? null;
+      if (!resolved) {
         throw new ValidationError('tenantId is required for this role');
       }
+      tenantId = resolved;
     }
 
     const entities = await this.timeSlotRepo.findAll({

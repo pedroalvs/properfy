@@ -4,7 +4,7 @@
 **Status**: IMPLEMENTED
 **Source**: `apps/backend/src/modules/service-region/interfaces/service-region.routes.ts`, `packages/shared/src/schemas/service-region.ts`
 
-Service regions are **tenant-scoped** (each region has a mandatory `tenant_id`). AM can manage regions for any tenant; OP manages regions within their own tenant only. They are consumed by the inspector marketplace (feature 005) and by the inspector-region mapping owned by the inspector module.
+Service regions are **tenant-scoped** at the storage layer (each region has a mandatory `tenant_id`). AM and OP are both cross-tenant operators per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 — both may manage regions for any tenant by supplying `tenantId` in the payload. They are consumed by the inspector marketplace (feature 005) and by the inspector-region mapping owned by the inspector module. Superseded phrasing: "OP manages regions within their own tenant only".
 
 ---
 

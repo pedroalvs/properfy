@@ -28,7 +28,7 @@ This feature is **cross-cutting** — it standardizes and completes the authoriz
 
 **Rationale**: The spec explicitly states (Assumptions): "This spec documents the approved rule but does not own the migration." The correction affects ~80 use cases across the backend and needs its own coordinated effort.
 
-**Impact on this feature**: The `AuthorizationService` helpers we build MUST be designed assuming OP is tenant-scoped (the approved rule). Existing use cases that treat OP as global will be corrected in the separate track, but new code written here must follow the approved rule.
+**Impact on this feature**: ~~The `AuthorizationService` helpers we build MUST be designed assuming OP is tenant-scoped (the approved rule).~~ **Superseded by `specs/DECISIONS.md` DEC-003 (2026-04-19)**: OP is cross-tenant per CLAUDE.md §6. Use cases pass `null` as `tenantId` for AM and OP, and list endpoints honour `?tenantId=` query filters when an operator wants to narrow the view. No migration pending.
 
 ---
 

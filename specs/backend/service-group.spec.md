@@ -417,7 +417,7 @@ interface ListServiceGroupsInput {
 ```
 
 **Process:**
-1. Build query scoped to `tenant_id` (OP: from auth context; AM: from `tenantId` param or all).
+1. Build query scoped to `tenant_id` (AM and OP: from `tenantId` param or all — both cross-tenant per `specs/DECISIONS.md` DEC-003; CL roles: derived from JWT). Superseded phrasing: "OP: from auth context; AM: from `tenantId` param or all".
 2. Apply filters.
 3. Return paginated result.
 

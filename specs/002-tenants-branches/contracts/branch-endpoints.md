@@ -116,9 +116,9 @@ Flat variant used by the web portal. Derives tenant scope from JWT for client ro
 
 **Behavior**:
 
-- AM **with** `tenantId`: returns that tenant's branches.
-- AM **without** `tenantId`: returns an empty page (`total = 0`, `data = []`). No error.
-- OP / CL_ADMIN / CL_USER: returns branches of their own tenant, regardless of any `tenantId` passed.
+- AM / OP **with** `tenantId`: returns that tenant's branches (both roles are cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003).
+- AM / OP **without** `tenantId`: returns an empty page (`total = 0`, `data = []`). No error. Use the explicit `tenantId` filter to narrow the view.
+- CL_ADMIN / CL_USER: returns branches of their own tenant, regardless of any `tenantId` passed (filter is ignored for tenant-scoped roles as defense-in-depth). Superseded phrasing: "OP / CL_ADMIN / CL_USER: returns branches of their own tenant, regardless of any `tenantId` passed" — OP was restored to cross-tenant on 2026-04-19.
 
 **Response 200**: same shape as the tenant-scoped variant.
 

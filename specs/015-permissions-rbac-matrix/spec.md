@@ -30,7 +30,7 @@ Every action in the platform is scoped by the actor's role. AM operates globally
 **Acceptance Scenarios**:
 
 1. **Given** an AM actor, **When** they perform any action, **Then** they may target any tenant by specifying `tenantId`. No scope restriction applies.
-2. **Given** an OP actor, **When** they perform any action, **Then** the system scopes all queries and writes to the OP's own `tenantId` (from JWT). Cross-tenant access is forbidden. (`DIVERGENCE`: code currently treats OP with `tenant_id = null`, granting cross-tenant access.)
+2. **Given** an OP actor, **When** they perform any action, **Then** they may target any tenant by specifying `?tenantId=` (OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003); when omitted, list endpoints return cross-tenant rows. Privilege-escalation guards (e.g., OP cannot create AM/OP users) still apply. Superseded phrasing: "the system scopes all queries and writes to the OP's own `tenantId` (from JWT). Cross-tenant access is forbidden. (`DIVERGENCE`: code currently treats OP with `tenant_id = null`, granting cross-tenant access.)".
 3. **Given** a CL_ADMIN or CL_USER actor, **When** they perform any action, **Then** the system scopes all queries and writes to their `tenantId` (from JWT). Attempting to access another tenant's data returns not found or forbidden.
 4. **Given** an INSP actor, **When** they access appointments, **Then** only appointments where `inspectorId` matches the actor's `inspectorId` are visible. Unassigned appointments are not found.
 5. **Given** any actor with a `tenantId` set, **When** their tenant is inactive or deleted, **Then** all requests are rejected at the middleware level with `TenantInactive`.
@@ -186,7 +186,7 @@ The system enforces guardrails against privilege escalation (e.g., CL_ADMIN prom
 **Acceptance Scenarios**:
 
 1. **Given** a CL_ADMIN actor, **When** they attempt to create or promote a user to AM, OP, or INSP, **Then** the request is rejected with `FORBIDDEN`.
-2. **Given** an OP actor, **When** they attempt to create an internal user (AM/OP with `tenant_id = null`), **Then** the request is rejected with `FORBIDDEN`. (OP is tenant-scoped.)
+2. **Given** an OP actor, **When** they attempt to create an internal user (AM or OP), **Then** the request is rejected with `FORBIDDEN` by the privilege-escalation rule — OP may only create `CL_ADMIN` / `CL_USER`. (OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003; the earlier "tenant-scoped" justification has been superseded — the restriction persists but its rationale is privilege escalation, not tenant scope.)
 3. **Given** the inspector who marked an appointment as DONE, **When** the same inspector's user account attempts the cross-check, **Then** the system rejects with `CROSS_CHECK_SELF_APPROVAL`.
 4. **Given** the operator who initiated a financial entry, **When** they attempt to approve the same entry, **Then** the system rejects with `SELF_APPROVAL_FORBIDDEN`.
 
@@ -213,7 +213,7 @@ Two runtime-only actors exist that are not persisted as user roles: TNT (tenant 
 
 ### Edge Cases
 
-- **OP tenant scope correction impact**: When OP is corrected to be tenant-scoped, all use cases that currently pass `null` as `tenantId` for OP must be updated to use `actor.tenantId`. This affects ~80 use cases across the backend.
+- **OP tenant scope — status**: ~~When OP is corrected to be tenant-scoped, all use cases that currently pass `null` as `tenantId` for OP must be updated to use `actor.tenantId`.~~ **Superseded by `specs/DECISIONS.md` DEC-003 (2026-04-19)**: after a brief tenant-scoping roll-forward that broke every OP request in staging, the restoration confirmed OP as cross-tenant per CLAUDE.md §6. Use cases pass `null` as `tenantId` for AM/OP and honour `?tenantId=` query filters where applicable. No migration pending.
 - **CL_USER with no permissions**: A CL_USER whose tenant has zero CL_USER permissions enabled is effectively read-only. They can list/view entities but cannot create, modify, or transition anything.
 - **CL_ADMIN of inactive tenant**: The auth middleware rejects client-role tokens for inactive tenants before the request reaches any use case. CL_ADMIN cannot perform actions on their own inactive tenant.
 - **Inspector deactivation with open appointments**: Deactivating an inspector requires no open (non-terminal) appointments assigned to them. The system blocks deactivation until appointments are reassigned or completed.
@@ -226,7 +226,7 @@ Two runtime-only actors exist that are not persisted as user roles: TNT (tenant 
 
 #### Role Scope Model
 
-- **FR-001** (`APPROVED, DIVERGENCE in code`): AM MUST be the only role with `tenant_id = null`. All other roles (OP, CL_ADMIN, CL_USER, INSP as user) MUST have a non-null `tenant_id`. OP queries MUST be scoped to their own tenant.
+- **FR-001** (`SUPERSEDED by specs/DECISIONS.md DEC-003, 2026-04-19`): AM and OP both have `tenant_id = null` (platform-wide roles per CLAUDE.md §6). CL_ADMIN, CL_USER, and INSP-as-user MUST have a non-null `tenant_id`. OP list endpoints honour an optional `?tenantId=` query param to narrow the view; OP get/mutation endpoints are cross-tenant by default. Superseded phrasing: "AM MUST be the only role with `tenant_id = null`. … OP queries MUST be scoped to their own tenant".
 - **FR-002**: CL_ADMIN and CL_USER MUST only see and modify data belonging to their own tenant. Cross-tenant access MUST return not-found or forbidden.
 - **FR-003**: INSP MUST only access resources they are personally assigned to (appointments via `inspectorId`, regions via `InspectorRegion`, own profile). Unassigned resources MUST not be visible.
 - **FR-004**: TNT actors MUST only access the specific appointment linked to their authentication token. No other platform data is accessible.
@@ -287,7 +287,7 @@ Two runtime-only actors exist that are not persisted as user roles: TNT (tenant 
 - Authentication (login, tokens, sessions, TOTP) is fully covered by `001-identity-access`. This spec does not redefine those mechanics.
 - The `AuthContext` is populated by the auth middleware and is available in every use case. This is established infrastructure.
 - Tenant settings are stored in `tenants.settings_json` (a JSON column). No separate settings table exists. This is sufficient for the current permission model.
-- The OP tenant scope correction (DIVERGENCE) is a known cross-feature correction tracked in `.specify/memory/correction-op-tenant-scope.md`. This spec documents the approved rule but does not own the migration.
+- ~~The OP tenant scope correction (DIVERGENCE) is a known cross-feature correction tracked in `.specify/memory/correction-op-tenant-scope.md`.~~ **Superseded by `specs/DECISIONS.md` DEC-003 (2026-04-19)** — OP is cross-tenant per CLAUDE.md §6. The correction-to-tenant-scope track was rolled back after a QA regression. No migration is pending.
 - CL_USER permission flags are additive: start with zero permissions (read-only), add flags to enable specific actions. There is no "deny" mechanism — absence of flag means denied.
 - The permission model is **flat** (flag-based), not hierarchical. CL_USER permissions do not inherit from CL_ADMIN. Each role has its own independent capability set.
 - INSP has no configurable permissions — their access is fixed to own assignments and marketplace.
@@ -297,7 +297,7 @@ Two runtime-only actors exist that are not persisted as user roles: TNT (tenant 
 
 | ID | Title | Impact | Context |
 |---|---|---|---|
-| GAP-001 | OP tenant scope correction | **CRITICAL** | OP is treated as global (`tenant_id = null`) in ~80 use cases. Must be corrected to be tenant-scoped. Tracked in `.specify/memory/correction-op-tenant-scope.md`. Cross-feature impact. |
+| ~~GAP-001~~ | ~~OP tenant scope correction~~ | **CLOSED / SUPERSEDED** | Superseded by `specs/DECISIONS.md` DEC-003 (2026-04-19). OP is cross-tenant per CLAUDE.md §6; the tenant-scope roll-forward was reverted after staging QA. List endpoints honour `?tenantId=` filter; get-by-id is cross-tenant. No migration pending. |
 | GAP-002 | CL_ADMIN user management gate | H | CL_ADMIN can currently create users without checking the `enable_user_management` tenant setting. Must add the check. Tracked as `001#GAP-003`. |
 | GAP-003 | CL_USER permission enforcement completeness | RESOLVED | All 7 canonical CL_USER permission flags are implemented and enforced in their respective use cases: `cancel_appointments`, `reject_appointments`, `force_confirmation`, `reschedule_appointments`, `create_appointments`, `create_properties`, `export_reports`. |
 | GAP-004 | Centralized authorization service | M | Permission checks are currently inline in each use case. A shared `AuthorizationService` exposing `can(actor, action, resource)` would reduce duplication and ensure consistency. Tracked as `001#GAP-003` (T122). |

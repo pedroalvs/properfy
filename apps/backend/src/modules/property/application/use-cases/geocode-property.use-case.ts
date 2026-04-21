@@ -26,8 +26,12 @@ export class GeocodePropertyUseCase {
       entityId: propertyId,
     });
 
-    // AM/OP can access properties across tenants
-    const property = await this.propertyRepo.findById(propertyId, '');
+    // AM/OP are cross-tenant for this operation (pure geocoding, no
+    // tenant-bound business rule). Pass `null` explicitly instead of the
+    // old `''` empty-string sentinel — the repo's `buildWhere` treats
+    // both as falsy, but `null` communicates the intent in the type and
+    // removes the magic-string footgun. See specs/DECISIONS.md DEC-003.
+    const property = await this.propertyRepo.findById(propertyId, null);
     if (!property || property.isDeleted()) {
       throw new PropertyNotFoundError();
     }

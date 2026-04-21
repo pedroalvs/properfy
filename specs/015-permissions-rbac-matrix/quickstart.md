@@ -63,6 +63,6 @@ pnpm typecheck
 
 - **No new database tables** — role matrix is a code constant, permissions use existing `tenants.settings_json`
 - **No middleware-level authorization** — constitution mandates authorization in the application layer
-- **OP tenant scope correction is out of scope** — tracked separately in `.specify/memory/correction-op-tenant-scope.md`
+- ~~**OP tenant scope correction is out of scope** — tracked separately in `.specify/memory/correction-op-tenant-scope.md`~~ **Superseded by `specs/DECISIONS.md` DEC-003 (2026-04-19)**: OP is cross-tenant per CLAUDE.md §6; no correction pending.
 - **Flat permission model** — no role inheritance; each role has independent capabilities
 - **Audit on denial** — every FORBIDDEN response produces an audit record through the centralized helpers

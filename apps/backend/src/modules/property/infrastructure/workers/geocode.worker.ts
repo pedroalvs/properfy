@@ -14,7 +14,10 @@ export class GeocodeWorker {
 
   async execute(data: { propertyId: string }): Promise<void> {
     const { propertyId } = data;
-    const property = await this.propertyRepo.findById(propertyId, '');
+    // Background worker — cross-tenant by design (no actor, just a job
+    // payload). `null` makes the intent explicit; the old `''` sentinel
+    // only worked because the repo's `buildWhere` treats it as falsy.
+    const property = await this.propertyRepo.findById(propertyId, null);
     if (!property || property.isDeleted()) {
       this.logger.warn({ propertyId }, 'Property not found for geocoding');
       return;

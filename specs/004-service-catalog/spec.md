@@ -49,7 +49,7 @@ Admin Master creates, lists, reads, and updates service types. Each type has a g
 - **Status**: IMPLEMENTED
 - **Source**: code
 
-Operators (AM, OP) define tenant-scoped geographic polygons (via GeoJSON) representing the areas where a specific agency offers inspection services. AM can manage regions for any tenant; OP manages regions within their own tenant. Regions have a name, polygon, and presentation color. They can be deactivated (with reason) and then deleted, in two steps -- active regions cannot be deleted. Regions are referenced by the inspector-region join table (feature handled in inspector domain) and by service groups (feature 005).
+Operators (AM, OP) define tenant-scoped geographic polygons (via GeoJSON) representing the areas where a specific agency offers inspection services. Both AM and OP can manage regions across tenants per CLAUDE.md §6 and `specs/DECISIONS.md` DEC-003 (OP is cross-tenant, not pinned to a single agency). Mutations (create/update/delete) still carry a mandatory `tenant_id` on the region row — the cross-tenant nature only applies to which tenants the operator may target. Regions have a name, polygon, and presentation color. They can be deactivated (with reason) and then deleted, in two steps -- active regions cannot be deleted. Regions are referenced by the inspector-region join table (feature handled in inspector domain) and by service groups (feature 005).
 
 > **CORRECTION (2026-04-06)**: The original spec described service regions as a global (platform-wide) entity. The dossier and business rules establish that regions are **tenant-scoped** -- each agency defines its own service areas. The current codebase stores regions without `tenant_id`, which is a DIVERGENCE that must be corrected. See `data-model.md` for the required schema change.
 
@@ -59,7 +59,7 @@ Operators (AM, OP) define tenant-scoped geographic polygons (via GeoJSON) repres
 
 **Acceptance Scenarios**:
 
-1. **Given** an AM (any tenant) or OP (own tenant only), **When** they `POST /v1/service-regions` with a valid GeoJSON `Polygon` and `tenantId`, **Then** a region is created with `status = ACTIVE`, default color `#3b82f6` if omitted, `createdByUserId` captured, and an audit record is written. OP's `tenantId` is derived from JWT.
+1. **Given** an AM or OP actor (both cross-tenant per `specs/DECISIONS.md` DEC-003), **When** they `POST /v1/service-regions` with a valid GeoJSON `Polygon` and `tenantId` in the payload, **Then** a region is created with `status = ACTIVE`, default color `#3b82f6` if omitted, `createdByUserId` captured, and an audit record is written. Superseded phrasing: "OP (own tenant only) … OP's `tenantId` is derived from JWT" — OP now supplies `tenantId` in the payload like AM.
 2. **Given** any non-AM/OP actor, **When** they call create, **Then** the request is rejected with `FORBIDDEN`.
 3. **Given** any authorized actor, **When** they `GET /v1/service-regions`, **Then** results are paginated with `status` and `search` filters.
 4. **Given** an AM or OP, **When** they `PATCH /v1/service-regions/:id`, **Then** name/polygon/color/status updates persist and are audited.
@@ -140,7 +140,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-020**: System MUST enforce unique `(tenant_id, service_type_id, branch_id)` per pricing rule, treating `branch_id = NULL` as the tenant-wide fallback.
 - **FR-021**: System MUST resolve pricing at appointment time by preferring the active branch-level rule over the active tenant-level fallback (`resolvePricingRule` domain function).
 - **FR-022**: System MUST restrict pricing rule create and update to AM, OP, and CL_ADMIN (own tenant). Client users (`CL_USER`) and inspectors (`INSP`) are forbidden.
-- **FR-023**: System MUST derive `tenantId` from JWT for OP and CL_ADMIN; AM must supply `tenantId` in the payload.
+- **FR-023**: System MUST derive `tenantId` from JWT for CL_ADMIN; AM and OP (both cross-tenant per `specs/DECISIONS.md` DEC-003) must supply `tenantId` in the payload. Superseded phrasing: "derive `tenantId` from JWT for OP".
 - **FR-024**: System MUST persist `payoutType` (`FIXED | PERCENTAGE`) and `payoutValue` per rule; the consumer (feature 010-billing) interprets `payoutValue` according to the type.
 - **FR-025**: System MUST NOT hard-delete pricing rules; deactivation is via `status = INACTIVE`.
 - **FR-026**: System MUST audit `pricing_rule.created` and `pricing_rule.updated` with `tenantId` on every entry.

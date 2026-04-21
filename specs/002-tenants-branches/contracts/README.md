@@ -13,7 +13,7 @@
 
 - All paths are prefixed with `/v1`.
 - All endpoints require a Bearer JWT and go through the `authMiddleware` preHandler.
-- The middleware rejects client-role and OP JWTs for `INACTIVE` tenants; handlers for this feature can assume the caller's tenant is `ACTIVE` when the role is OP, CL_ADMIN, or CL_USER. AM (`tenant_id = null`) bypasses the tenant status check.
+- The middleware rejects client-role JWTs (CL_ADMIN, CL_USER) for `INACTIVE` tenants; handlers can assume the caller's tenant is `ACTIVE` when the role is CL_ADMIN or CL_USER. AM and OP (`tenant_id = null` per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003) bypass the tenant status check entirely. Superseded phrasing: "rejects client-role and OP JWTs for `INACTIVE` tenants … OP, CL_ADMIN, or CL_USER. AM (`tenant_id = null`) bypasses the tenant status check".
 - RBAC rules are enforced **at the use-case layer**, not in the route handler.
 - Request and response bodies are JSON; field names are `camelCase`.
 - Error envelope on failure: `{ "error": { "code": string, "message": string, "details"?: object } }`.

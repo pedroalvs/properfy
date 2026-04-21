@@ -33,5 +33,5 @@
 
 - The role matrix table is a core deliverable of this spec and is intended to be the canonical reference for all feature specs.
 - This spec references specific field names (`settings_json`, `clUserPermissions`, `inspectorId`) as these are domain terms, not implementation details.
-- The OP tenant scope correction (GAP-001) is documented here but owned by the cross-feature correction track. This spec defines the approved rule; other specs own the migration.
+- ~~The OP tenant scope correction (GAP-001) is documented here but owned by the cross-feature correction track.~~ **Superseded by `specs/DECISIONS.md` DEC-003 (2026-04-19)**: OP is cross-tenant per CLAUDE.md §6. The correction track was rolled back after a staging QA regression; no migration is pending.
 - CL_USER permission flags are additive (whitelist model). The 6-flag list is treated as the complete current set.

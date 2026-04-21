@@ -323,7 +323,7 @@ Four waves, with Wave 2 (send-flow enforcement) as the most delicate because it 
 - **`SendNotificationUseCase`** — extended tests: `TRANSACTIONAL` bypass (opt-out exists but still sent), `OPERATIONAL` enforcement (opt-out → `SKIPPED_OPT_OUT`), `OPERATIONAL` without opt-out (normal send), `MARKETING` blocked when no opt-in exists
 - **`ProcessUnsubscribeUseCase`** — extended tests: valid token → opt-out recorded, expired token → error, tampered signature → error, audit record written
 - **`UpsertNotificationTemplateUseCase`** — extended tests: protected template (e.g., `INSPECTION_CONFIRMED`) cannot be reclassified to OPERATIONAL; valid classification update succeeds
-- **`ListConsentsByRecipientUseCase`** (new) — returns the correct shape; AM/OP only; tenant-scoped
+- **`ListConsentsByRecipientUseCase`** (new) — returns the correct shape; AM/OP only (both cross-tenant per `specs/DECISIONS.md` DEC-003); optional `?tenantId=` narrows the view. Superseded phrasing: "AM/OP only; tenant-scoped".
 - **`OverrideConsentUseCase`** (new) — missing reason rejected; valid override transitions status; audit contains the reason and actor
 - **`ReOptInUseCase`** (new) — valid token → status flips; audit written with source `re_opt_in`
 - **`RenderUnsubscribePageUseCase`** (new) — valid token → page payload; expired token → null; invalid signature → null

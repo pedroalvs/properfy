@@ -132,7 +132,7 @@ AM creates internal (platform-wide) or tenant users; OP creates users within the
 **Acceptance Scenarios**:
 
 1. **Given** an AM actor, **When** they call `POST /v1/tenants/:tenantId/users` with valid payload, **Then** a new user is created scoped to that tenant.
-2. **Given** an AM actor, **When** they call `POST /v1/users` for an internal user (AM/OP), **Then** a user with `tenant_id = null` is created. OP cannot create internal users — OP is tenant-scoped and may only create users within their own tenant.
+2. **Given** an AM actor, **When** they call `POST /v1/users` for an internal user (AM/OP), **Then** a user with `tenant_id = null` is created. OP cannot create internal users — blocked by the privilege-escalation rule (`OP` may only create `CL_ADMIN` / `CL_USER`), not by tenant scope. OP and AM are both platform-wide per CLAUDE.md §6 and `specs/DECISIONS.md` DEC-003.
 3. **Given** a CL_ADMIN actor, **When** they attempt to create a user outside their own `tenant_id` or with a non-client role, **Then** the request is rejected with `Forbidden`.
 4. **Given** a CL_ADMIN actor whose tenant has NOT enabled user management in settings, **When** they attempt to create a user, **Then** the request is rejected with `Forbidden` (`APPROVED RULE — not yet fully enforced; depends on 001#GAP-003 fine-grained permissions and 002#GAP-002 tenant settings`).
 5. **Given** any actor, **When** creating a user with an email already in use, **Then** the request fails with `UserEmailConflict`.
@@ -154,7 +154,7 @@ Admins and tenant admins browse a paginated, filterable list of users; update na
 
 1. **Given** an authorized actor, **When** they call `GET /v1/tenants/:tenantId/users`, **Then** the response is paginated with `status`, `role`, and text search filters honored.
 2. **Given** an authorized actor and a user in their scope, **When** they call `PUT /v1/tenants/:tenantId/users/:userId`, **Then** provided fields are updated and an audit record is written.
-3. **Given** an AM or OP (own tenant only), **When** they call `POST /v1/tenants/:tenantId/users/:userId/deactivate`, **Then** `status` becomes `INACTIVE`, all sessions for that user are revoked, and an audit record is written.
+3. **Given** an AM or OP actor (both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003), **When** they call `POST /v1/tenants/:tenantId/users/:userId/deactivate`, **Then** `status` becomes `INACTIVE`, all sessions for that user are revoked, and an audit record is written. Superseded phrasing: "AM or OP (own tenant only)".
 4. **Given** a CL_ADMIN, **When** they attempt to deactivate a user of another tenant, **Then** the request is rejected with `Forbidden`.
 
 ---
@@ -171,7 +171,7 @@ An AM or OP (within their own tenant) resets another user's password when the us
 
 **Acceptance Scenarios**:
 
-1. **Given** an AM or OP (own tenant only) actor, **When** they submit a valid new password, **Then** the target user's password hash is updated, sessions are revoked, and the action is audited.
+1. **Given** an AM or OP actor (both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003), **When** they submit a valid new password, **Then** the target user's password hash is updated, sessions are revoked, and the action is audited. Superseded phrasing: "AM or OP (own tenant only)".
 2. **Given** a non-AM/OP actor, **When** they call this endpoint, **Then** the request is rejected with `Forbidden`.
 3. **Given** a password that fails the policy, **When** submitted, **Then** the request fails with `PasswordTooWeak`.
 
@@ -191,7 +191,7 @@ Every protected endpoint receives an `AuthContext` carrying `userId`, `tenantId`
 
 1. **Given** a valid JWT, **When** the auth middleware runs, **Then** `request.authContext` is populated with the decoded claims.
 2. **Given** a client-role token for an inactive tenant, **When** the auth middleware runs, **Then** the request is rejected with `TenantInactive`.
-3. **Given** an AM token (`tenant_id = null`), **When** the auth middleware runs, **Then** the tenant status check is skipped. For OP tokens (`tenant_id` set), the tenant status check applies the same way as for client roles.
+3. **Given** an AM or OP token (both `tenant_id = null` per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003), **When** the auth middleware runs, **Then** the tenant status check is skipped — these are platform-wide roles. Client-role tokens (CL_ADMIN, CL_USER) with `tenant_id` set still undergo the tenant status check. Superseded phrasing: "For OP tokens (`tenant_id` set), the tenant status check applies the same way as for client roles".
 4. **Given** a token signed with a previous key (within the 30-day grace period), **When** verified, **Then** it is accepted; beyond the grace period it is rejected.
 
 ---

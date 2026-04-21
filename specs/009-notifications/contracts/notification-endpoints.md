@@ -119,7 +119,7 @@ List templates for the authenticated actor's scope.
 Upsert a template.
 
 - **Auth**: required
-- **Allowed roles**: AM (any `tenant_id` including NULL for platform defaults); OP (own tenant only — `implementation decision`: the code currently also allows OP to edit platform defaults with `tenantId = null`, but this grants cross-tenant influence; per the OP tenant-scoped rule, OP should only manage tenant-specific template overrides); CL_ADMIN (own tenant only)
+- **Allowed roles**: AM and OP (both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 — may manage any `tenant_id` including NULL for platform defaults); CL_ADMIN (own tenant only). Superseded phrasing: "OP (own tenant only … per the OP tenant-scoped rule, OP should only manage tenant-specific template overrides)".
 - **Audit**: yes (`notification_template.upserted`)
 
 **Path params**

@@ -13,13 +13,13 @@ All endpoints require a Bearer JWT.
 Aggregate ledger totals by type, optionally scoped to a tenant.
 
 - **Auth**: required
-- **Allowed roles**: AM (any tenant); OP (own tenant only); CL_ADMIN, CL_USER (own tenant only, `tenantId` is ignored)
+- **Allowed roles**: AM and OP (any tenant — both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003); CL_ADMIN, CL_USER (own tenant only, `tenantId` is ignored). Superseded phrasing: "OP (own tenant only)".
 
 **Query params**
 
 | Name | Type | Notes |
 |---|---|---|
-| `tenantId` | uuid | AM only (OP is auto-scoped to own tenant). |
+| `tenantId` | uuid | AM and OP (both cross-tenant per `specs/DECISIONS.md` DEC-003). Superseded phrasing: "AM only (OP is auto-scoped to own tenant)". |
 
 **Response 200**
 
@@ -45,14 +45,14 @@ Aggregate ledger totals by type, optionally scoped to a tenant.
 List financial entries with filters and pagination.
 
 - **Auth**: required
-- **Allowed roles**: AM (any tenant); OP (own tenant); CL_ADMIN, CL_USER (own tenant)
+- **Allowed roles**: AM and OP (any tenant — both cross-tenant per `specs/DECISIONS.md` DEC-003); CL_ADMIN, CL_USER (own tenant). Superseded phrasing: "OP (own tenant)".
 
 **Query params** (`listFinancialEntriesQuerySchema`)
 
 | Name | Type | Notes |
 |---|---|---|
 | `page`, `pageSize` | int | Pagination. |
-| `tenantId` | uuid | AM only (OP is auto-scoped to own tenant). |
+| `tenantId` | uuid | AM and OP (both cross-tenant per `specs/DECISIONS.md` DEC-003). Superseded phrasing: "AM only (OP is auto-scoped to own tenant)". |
 | `appointmentId` | uuid | |
 | `inspectorId` | uuid | |
 | `entryType` | `TENANT_DEBIT\|INSPECTOR_PAYOUT\|REFUND\|MANUAL_ADJUSTMENT` | |

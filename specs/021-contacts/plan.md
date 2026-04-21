@@ -106,7 +106,7 @@ Feature 021 introduces a **per-tenant contact registry** as a cross-cutting capa
 | Principle | Status | Notes |
 |---|---|---|
 | **I. Clean Architecture** | ✅ PASS | New `contact/` module follows `domain/ → application/ → infrastructure/ → interfaces/` layering. Cross-module access via ports (e.g., appointment module imports `IContactRepository` port, not Prisma adapter). |
-| **II. Multi-Tenant Safety** | ✅ PASS | `contacts.tenant_id` is mandatory. Repository always scopes by tenant. AM is the only cross-tenant accessor. OP is tenant-scoped. Partial unique indexes are per-tenant. No cross-tenant contact sharing by design. |
+| **II. Multi-Tenant Safety** | ✅ PASS | `contacts.tenant_id` is mandatory. Repository always scopes by tenant. AM and OP are both cross-tenant accessors per CLAUDE.md §6 (list endpoints honour `?tenantId=` filter). Superseded note: "OP is tenant-scoped" — restored per `specs/DECISIONS.md` DEC-003 (2026-04-19). Partial unique indexes are per-tenant. No cross-tenant contact sharing by design. |
 | **III. Test-Driven Development** | ✅ PASS | Plan includes unit tests (validation helpers, entity), integration tests (CRUD, search, junction linkage, snapshot immutability, portal dual-write), real-DB tests for migration safety. |
 | **IV. Contract-First APIs** | ✅ PASS | New endpoints use Zod schemas in `packages/shared`. Existing schemas revised. OpenAPI auto-generated from Fastify routes. |
 | **V. Simplicity** | ✅ PASS | No speculative abstractions. No merge engine. No cross-tenant features. JSON for additional channels (bounded cardinality, no need for separate table). Nullable `contact_id` for backward compat instead of forced migration. |

@@ -35,7 +35,7 @@ An AM, OP, or CL_ADMIN creates a contact under their tenant. The contact has a t
 
 1. **Given** an authorized actor (AM, OP, CL_ADMIN), **When** they `POST /v1/contacts` with valid payload, **Then** a contact is created scoped to the resolved tenant.
 2. **Given** an AM actor with a `tenantId` in the payload, **When** they create a contact, **Then** the contact is scoped to the specified tenant (AM can create cross-tenant).
-3. **Given** an OP or CL_ADMIN actor, **When** they attempt to specify a different `tenantId`, **Then** the system ignores it and uses the JWT-resolved tenant.
+3. **Given** a CL_ADMIN actor, **When** they attempt to specify a different `tenantId`, **Then** the system ignores it and uses the JWT-resolved tenant. OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 and may supply any `tenantId` like AM. Superseded phrasing: "Given an OP or CL_ADMIN actor … the system ignores it and uses the JWT-resolved tenant".
 4. **Given** a CL_USER, INSP, or TNT actor, **When** they call create, **Then** the request is rejected with `FORBIDDEN`.
 5. **Given** a payload where `primary_email` matches an existing active contact in the same tenant, **When** create is attempted, **Then** the request fails with `CONTACT_EMAIL_ALREADY_EXISTS`. The operator should link the existing contact instead.
 6. **Given** a payload with an `additional_channels` entry that duplicates `primary_email` or `primary_phone`, **When** submitted, **Then** the request fails with `CONTACT_CHANNEL_DUPLICATED`.
@@ -159,7 +159,7 @@ All FRs below are `Status: NEW, Source: architectural-review` unless otherwise n
 #### Search & Autocomplete
 
 - **FR-010**: System MUST expose `GET /v1/contacts` with filters: `search` (trigram or ILIKE on `display_name`, `primary_email`, `primary_phone`), `type`, `isActive` (default `true`), `tenantId` (AM only), and standard pagination (`page`, `pageSize`, `sortBy`, `sortOrder`).
-- **FR-011**: System MUST scope results by the actor's tenant (OP, CL roles) or the specified `tenantId` (AM).
+- **FR-011**: System MUST scope results by the actor's tenant (CL roles) or the specified `tenantId` (AM, OP — both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003). Superseded phrasing: "scope results by the actor's tenant (OP, CL roles) or the specified `tenantId` (AM)".
 
 #### Read & Detail
 

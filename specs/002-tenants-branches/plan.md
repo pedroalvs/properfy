@@ -28,7 +28,7 @@ Tenants & Branches owns the real-estate agency (tenant) and branch (filial) life
 | Principle | Status | Notes |
 |---|---|---|
 | I. Clean Architecture | PASS | Tenant module: `domain/` → `application/` → `infrastructure/` → `interfaces/`. Ports: `ITenantRepository`, `IBranchRepository`, `IAppointmentChecker`. |
-| II. Multi-Tenant Safety | PASS | Every repo method accepts `tenantId`. Use cases derive `tenantId` from JWT for OP/client roles. AM is the only cross-tenant role. OP is tenant-scoped. |
+| II. Multi-Tenant Safety | PASS | Every repo method accepts `tenantId`. Use cases derive `tenantId` from JWT for CL roles. AM and OP are both cross-tenant per CLAUDE.md §6 — list endpoints honour an optional `?tenantId=` filter for narrowing. Superseded text: "OP is tenant-scoped" (restored per `specs/DECISIONS.md` DEC-003, 2026-04-19). |
 | III. Test-Driven Development | PARTIAL | Broad unit/integration coverage. Phase 2 items must land with TDD. |
 | IV. Contract-First APIs | PASS | Zod schemas in `packages/shared/src/schemas/tenant.ts`. Contracts in `contracts/`. |
 | V. Simplicity & Minimal Impact | PASS | No speculative abstractions. Appointment checker port justified by cross-module dependency. |

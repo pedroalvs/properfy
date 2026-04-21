@@ -51,7 +51,7 @@ Create a new real-estate agency tenant in `PENDING` status.
 List tenants with pagination, status filter, and text search.
 
 - **Auth**: required
-- **Allowed roles**: `AM` only (OP cannot list all tenants; OP sees their own tenant via `GET /v1/tenants/:tenantId`)
+- **Allowed roles**: `AM` only — product decision (the all-tenants list view is reserved for AM). OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 and reads any tenant via `GET /v1/tenants/:tenantId`. Superseded phrasing: "OP cannot list all tenants; OP sees their own tenant via `GET /v1/tenants/:tenantId`".
 
 **Query params** (`listTenantsQuerySchema`)
 

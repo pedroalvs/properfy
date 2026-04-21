@@ -217,7 +217,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 - **FR-040**: System MUST validate all service-group and marketplace payloads against Zod schemas in `packages/shared/src/schemas/service-group.ts`.
 - **FR-041**: System MUST audit every state transition with `before`/`after` snapshots and `tenantId`.
-- **FR-042** (`Source: dossier — marketplace queries are scoped by inspector_id and eligibility, never by tenant_id; see modelo-dados-executavel.md:98`): System MUST scope service group reads by tenant for OP and client roles (when consumed by feature 006 or UI lists). **For marketplace reads (INSP actor), scoping is by inspector eligibility (service type + client + region), NOT by tenant_id** — inspectors see cross-tenant offers by design. Future changes MUST NOT add tenant-scope filtering to the marketplace list.
+- **FR-042** (`Source: dossier — marketplace queries are scoped by inspector_id and eligibility, never by tenant_id; see modelo-dados-executavel.md:98`): System MUST scope service group reads by tenant for **client roles (CL_ADMIN, CL_USER)**. AM and OP are cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 — their list endpoints return cross-tenant rows by default and accept an optional `?tenantId=` filter for narrowing. (Superseded phrasing: "scope service group reads by tenant for OP and client roles".) **For marketplace reads (INSP actor), scoping is by inspector eligibility (service type + client + region), NOT by tenant_id** — inspectors see cross-tenant offers by design. Future changes MUST NOT add implicit tenant-scope filtering to the marketplace list.
 
 ### Non-Functional Requirements
 

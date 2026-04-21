@@ -53,7 +53,7 @@ Create a user scoped to a tenant.
 
 ## POST `/v1/users`
 
-Create an internal (platform-wide) user — AM only. `tenant_id` is null on the created row. OP cannot use this endpoint because OP is tenant-scoped and cannot create users with `tenant_id = null`.
+Create an internal (platform-wide) user — AM only. `tenant_id` is null on the created row. OP cannot use this endpoint because the privilege-escalation rule forbids OP from creating AM/OP users (not because of tenant scope — OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003, and OP users themselves also have `tenant_id = null`).
 
 - **Auth**: required
 - **Allowed roles**: `AM`

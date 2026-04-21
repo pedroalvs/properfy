@@ -195,7 +195,7 @@
 
 - [X] T053 [US3] Create `apps/backend/src/modules/notification/application/use-cases/list-consents-by-recipient.use-case.ts` — constructor takes `consentRepo`, `authorizationService`. `execute({ recipient, tenantId?, channel?, actor })`:
   1. `assertRoles(actor, ['AM', 'OP'], { action: 'consent.list', entityType: 'NotificationConsent' })`
-  2. Resolve tenant scope: AM uses `tenantId` from input (required); OP uses `actor.tenantId` (enforced)
+  2. Resolve tenant scope: AM and OP both use the optional `tenantId` from input (cross-tenant per `specs/DECISIONS.md` DEC-003). When omitted, the query spans all tenants. Superseded phrasing: "AM uses `tenantId` from input (required); OP uses `actor.tenantId` (enforced)".
   3. Call `consentRepo.listByRecipient({ tenantId, recipient, channel })`
   4. Call `consentRepo.countSkippedForRecipient({ tenantId, recipient })`
   5. Return `{ recipient, entries: [...], skippedCount }`

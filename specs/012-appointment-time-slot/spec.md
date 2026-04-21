@@ -104,7 +104,7 @@ An operator or client admin browses the full time-slot catalog for a tenant to a
 
 **Acceptance Scenarios**:
 
-1. **Given** an AM, OP (own tenant), or CL_ADMIN (own tenant), **When** they call `GET /v1/time-slots` with `tenantId` and optional `branchId`/`includeInactive`, **Then** matching slots are returned.
+1. **Given** an AM, OP, or CL_ADMIN actor (AM and OP both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003; CL_ADMIN tenant-scoped), **When** they call `GET /v1/time-slots` with `tenantId` and optional `branchId`/`includeInactive`, **Then** matching slots are returned. Superseded phrasing: "OP (own tenant)".
 2. **Given** a CL_USER or INSP, **When** they call the admin list, **Then** the request is rejected with `FORBIDDEN`.
 
 ---
@@ -132,7 +132,7 @@ An operator or client admin browses the full time-slot catalog for a tenant to a
 - **FR-008**: System MUST audit every create, update, and delete with `before`/`after` snapshots via the shared `AuditService`.
 - **FR-009** (`implementation decision` — dossiê does not define default seeding values): System MUST seed 2 default time slots (`09:00-12:00` sortOrder 1, `14:00-17:00` sortOrder 2) with `branchId = null` when a new tenant is created.
 - **FR-010**: System MUST expose effective time slots to any authenticated non-INSP actor for their own tenant via `GET /v1/time-slots/effective?branchId=<id>`.
-- **FR-011**: System MUST expose the admin list endpoint `GET /v1/time-slots` with `tenantId`, optional `branchId`, and optional `includeInactive` filters. Accessible to AM, OP (own tenant), and CL_ADMIN (own tenant) only.
+- **FR-011**: System MUST expose the admin list endpoint `GET /v1/time-slots` with `tenantId`, optional `branchId`, and optional `includeInactive` filters. Accessible to AM, OP (cross-tenant per `specs/DECISIONS.md` DEC-003), and CL_ADMIN (own tenant) only. CL_USER and INSP are forbidden (also per `specs/DECISIONS.md` DEC-002). Superseded phrasing: "OP (own tenant), and CL_ADMIN (own tenant)".
 
 ### Key Entities
 

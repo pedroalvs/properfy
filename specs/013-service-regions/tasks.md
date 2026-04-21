@@ -112,13 +112,13 @@ description: "Implementation and backlog tracking for Service Regions"
 
 - [ ] T120 [P] [US1] Unit test: create region with valid tenant_id, verify entity has `tenantId` in `apps/backend/tests/unit/service-region/create-service-region.use-case.test.ts`.
 - [ ] T121 [P] [US1] Unit test: create region with duplicate name in same tenant -> `REGION_NAME_CONFLICT`; same name in different tenant -> success.
-- [ ] T122 [P] [US1] Unit test: OP creates region, tenantId derived from authContext; AM creates with explicit tenantId.
+- [ ] T122 [P] [US1] Unit test: AM and OP both create regions with explicit `tenantId` in the payload (both cross-tenant per `specs/DECISIONS.md` DEC-003). Superseded phrasing: "OP creates region, tenantId derived from authContext".
 - [ ] T123 [P] [US1] Unit test: CL_ADMIN, CL_USER, INSP actors -> `FORBIDDEN`.
 
 ### Implementation
 
-- [ ] T124 [US1] Update `CreateServiceRegionUseCase`: resolve `tenantId` from authContext (OP) or request (AM), validate name uniqueness within tenant, pass `tenantId` to repository in `apps/backend/src/modules/service-region/application/use-cases/create-service-region.use-case.ts`.
-- [ ] T125 [US1] Update create route: accept `tenantId` in body (AM) or derive from JWT (OP) in `apps/backend/src/modules/service-region/interfaces/service-region.routes.ts`.
+- [ ] T124 [US1] Update `CreateServiceRegionUseCase`: AM and OP both supply `tenantId` from the request payload (both cross-tenant per `specs/DECISIONS.md` DEC-003); CL_ADMIN derives from JWT. Validate name uniqueness within tenant, pass `tenantId` to repository in `apps/backend/src/modules/service-region/application/use-cases/create-service-region.use-case.ts`. Superseded phrasing: "resolve `tenantId` from authContext (OP) or request (AM)".
+- [ ] T125 [US1] Update create route: accept `tenantId` in body for AM and OP; derive from JWT for CL_ADMIN in `apps/backend/src/modules/service-region/interfaces/service-region.routes.ts`. Superseded phrasing: "accept `tenantId` in body (AM) or derive from JWT (OP)".
 - [ ] T126 [US1] Integration test: full create flow with tenant scoping and name conflict in `apps/backend/tests/integration/service-region/service-region.routes.test.ts`.
 
 **Checkpoint**: Region creation is tenant-scoped. Name uniqueness enforced per tenant.

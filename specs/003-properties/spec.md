@@ -51,7 +51,7 @@ Any authenticated user with access to a tenant browses that tenant's properties 
 
 1. **Given** an AM, **When** they call `GET /v1/properties` with no `tenantId`, **Then** properties across all tenants are returned (subject to pagination).
 2. **Given** an AM with a `tenantId` filter, **When** submitted, **Then** only that tenant's properties are returned.
-3. **Given** an OP, CL_ADMIN, or CL_USER, **When** they call `GET /v1/properties`, **Then** only their own tenant's properties are returned regardless of any `tenantId` filter passed.
+3. **Given** a CL_ADMIN or CL_USER, **When** they call `GET /v1/properties`, **Then** only their own tenant's properties are returned regardless of any `tenantId` filter passed. OP behaves like AM (cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003) — supplies `?tenantId=` to narrow, otherwise sees cross-tenant rows. Superseded phrasing: "Given an OP, CL_ADMIN, or CL_USER … only their own tenant's properties".
 4. **Given** any actor, **When** `hasCoordinates=true` is passed, **Then** only properties with non-null `latitude` and `longitude` are returned.
 5. **Given** any actor, **When** they call `GET /v1/properties/:propertyId`, **Then** the full property detail is returned; cross-tenant reads by CL roles return `PROPERTY_NOT_FOUND` (never `FORBIDDEN`).
 
@@ -191,7 +191,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted. Th
 - **FR-001**: System MUST enforce `UNIQUE (tenant_id, property_code)` on property creation.
 - **FR-002**: System MUST reject property creation when the parent tenant is not `ACTIVE`.
 - **FR-003**: System MUST reject property creation or update when a supplied `branchId` is not `ACTIVE` or does not belong to the property's tenant.
-- **FR-004**: System MUST derive `tenant_id` from JWT for OP and CL roles and forbid overriding it via request payload. Only AM may specify a `tenantId` in the request.
+- **FR-004**: System MUST derive `tenant_id` from JWT for CL roles and forbid overriding it via request payload. AM and OP (both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003) MAY specify a `tenantId` in the request. Superseded phrasing: "derive `tenant_id` from JWT for OP and CL roles … Only AM may specify a `tenantId`".
 - **FR-005** (`Source: dossier — infra-tecnologia-production-ready.md:181`): System MUST start every new property with `geocodingStatus = PENDING` and enqueue a `property.geocode` job. On geocode failure, mark `pending_geocode` for operational treatment.
 - **FR-006** (`implementation decision`): System MUST treat a queue enqueue failure on create as non-fatal for the HTTP request (property stays `PENDING` and can be re-queued).
 - **FR-007** (`implementation decision`): System MUST reset `geocodingStatus` to `PENDING` and enqueue a new geocoding job whenever any address component changes AND no explicit coordinates are provided in the same patch.

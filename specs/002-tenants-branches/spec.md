@@ -51,7 +51,7 @@ AM browses all tenants with pagination, status filter, and text search. OP can o
 
 1. **Given** an AM actor, **When** they call `GET /v1/tenants`, **Then** the response is paginated (`page`, `pageSize`, `total`) with tenants including `branchCount`.
 2. **Given** a `status` filter, **When** provided, **Then** only tenants matching that status are returned. The `search` query matches `name` or `legalName` substrings.
-3. **Given** an OP, CL_ADMIN, or CL_USER, **When** they call `GET /v1/tenants`, **Then** the request is rejected with `Forbidden`. OP can only view their own tenant via `GET /v1/tenants/:tenantId`.
+3. **Given** a CL_ADMIN or CL_USER, **When** they call `GET /v1/tenants`, **Then** the request is rejected with `Forbidden`. OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 and may use `GET /v1/tenants/:tenantId` for any tenant; the list endpoint `GET /v1/tenants` remains AM-only by product decision (see `tenant-endpoints.md`). Superseded phrasing: "Given an OP, CL_ADMIN, or CL_USER … OP can only view their own tenant via `GET /v1/tenants/:tenantId`".
 4. **Given** any authorized actor, **When** they call `GET /v1/tenants/:tenantId`, **Then** the tenant detail is returned; soft-deleted tenants are treated as `TenantNotFound`.
 
 ---
@@ -84,13 +84,13 @@ AM updates any tenant field (`name`, `legalName`, `timezone`, `currency`, `setti
 - **Status**: IMPLEMENTED
 - **Source**: code
 
-AM or OP (own tenant) deactivates a tenant that is no longer using the platform. Deactivation is blocked if the tenant has any open appointments (in `DRAFT`, `AWAITING_INSPECTOR`, or `SCHEDULED`) and requires a textual reason for audit. Deactivated tenants cause the auth middleware (feature 001) to reject client-role tokens for that tenant.
+AM or OP (both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003) deactivates a tenant that is no longer using the platform. Deactivation is blocked if the tenant has any open appointments (in `DRAFT`, `AWAITING_INSPECTOR`, or `SCHEDULED`) and requires a textual reason for audit. Deactivated tenants cause the auth middleware (feature 001) to reject client-role tokens for that tenant. Superseded phrasing: "AM or OP (own tenant)".
 
 **Independent Test**: Create a tenant with open appointments, attempt to deactivate → expect `TenantHasOpenAppointments`. Cancel or complete the appointments, deactivate again → expect success and audit record. Verify a CL_ADMIN user of that tenant can no longer authenticate (cross-feature with 001).
 
 **Acceptance Scenarios**:
 
-1. **Given** an AM or OP (own tenant) actor and a tenant in `ACTIVE` or `PENDING` status with no open appointments, **When** they call `POST /v1/tenants/:tenantId/deactivate` with a reason, **Then** the tenant's `status` becomes `INACTIVE` and an audit record is written with `before`, `after`, and `reason`.
+1. **Given** an AM or OP actor (both cross-tenant per `specs/DECISIONS.md` DEC-003) and a tenant in `ACTIVE` or `PENDING` status with no open appointments, **When** they call `POST /v1/tenants/:tenantId/deactivate` with a reason, **Then** the tenant's `status` becomes `INACTIVE` and an audit record is written with `before`, `after`, and `reason`. Superseded phrasing: "AM or OP (own tenant)".
 2. **Given** a tenant with at least one open appointment, **When** AM or OP attempts deactivation, **Then** the request fails with `TenantHasOpenAppointments` and the tenant stays unchanged.
 3. **Given** an already-inactive tenant, **When** AM or OP attempts deactivation, **Then** the request fails with `TenantAlreadyInactive`.
 4. **Given** a non-AM/OP actor (or OP attempting on a different tenant), **When** they call the deactivation endpoint, **Then** the request is rejected with `Forbidden`.
@@ -112,7 +112,7 @@ AM (any tenant), OP (own tenant only), or CL_ADMIN (own tenant, **conditional on
 
 **Acceptance Scenarios**:
 
-1. **Given** an AM, OP (own tenant), or CL_ADMIN (own tenant), **When** they call `POST /v1/tenants/:tenantId/branches` with valid payload, **Then** a branch is created with `status = ACTIVE`, linked to the tenant, and an audit record is written.
+1. **Given** an AM, OP (cross-tenant per `specs/DECISIONS.md` DEC-003), or CL_ADMIN (own tenant), **When** they call `POST /v1/tenants/:tenantId/branches` with valid payload, **Then** a branch is created with `status = ACTIVE`, linked to the tenant, and an audit record is written. Superseded phrasing: "OP (own tenant)".
 2. **Given** a tenant in `PENDING` or `INACTIVE` status, **When** any actor attempts to create a branch, **Then** the request fails with `TenantInactive`.
 3. **Given** a branch name already used within the same tenant, **When** a new branch is attempted, **Then** the request fails with `BranchNameConflict`. (Uniqueness is scoped to the tenant — the same name can exist in a different tenant.)
 4. **Given** a CL_ADMIN actor and a tenant that is not their own, **When** they call create-branch, **Then** the request is rejected with `Forbidden`.
@@ -147,7 +147,7 @@ AM (any tenant), OP (own tenant only), or CL_ADMIN (own tenant) updates branch d
 Operators and agency users browse branches with pagination, status filter, and text search. AM can query any tenant's branches; OP, CL_ADMIN, and CL_USER are scoped to their own tenant automatically via JWT context. Two shapes are exposed:
 
 - `GET /v1/tenants/:tenantId/branches` — tenant-scoped path variant, used when the caller already has the tenant id.
-- `GET /v1/branches` — flat variant used by the web portal; derives tenant from JWT for OP and client roles, or from the `tenantId` query param for AM. If AM omits `tenantId`, an empty paginated list is returned.
+- `GET /v1/branches` — flat variant used by the web portal; AM and OP both supply `tenantId` via query param (both cross-tenant per `specs/DECISIONS.md` DEC-003); CL_ADMIN/CL_USER derive tenant from JWT. If AM or OP omits `tenantId`, an empty paginated list is returned. Superseded phrasing: "derives tenant from JWT for OP and client roles, or from the `tenantId` query param for AM".
 
 **Independent Test**: Seed branches across two tenants. As CL_USER of tenant A, call `GET /v1/branches` → expect only tenant A branches. As AM, call `GET /v1/branches?tenantId=<B>` → expect tenant B branches.
 
@@ -166,13 +166,13 @@ Operators and agency users browse branches with pagination, status filter, and t
 - **Status**: IMPLEMENTED
 - **Source**: code
 
-AM or OP (own tenant) deactivates a branch that is being closed. Deactivation is blocked while the branch has open appointments and requires a textual reason for audit.
+AM or OP (both cross-tenant per `specs/DECISIONS.md` DEC-003) deactivates a branch that is being closed. Deactivation is blocked while the branch has open appointments and requires a textual reason for audit. Superseded phrasing: "AM or OP (own tenant)".
 
 **Independent Test**: Create an open appointment on a branch → attempt deactivation → expect `BranchHasOpenAppointments`. Resolve the appointment → deactivate again → expect success.
 
 **Acceptance Scenarios**:
 
-1. **Given** an AM or OP (own tenant) actor and an `ACTIVE` branch with no open appointments, **When** they call `POST /v1/tenants/:tenantId/branches/:branchId/deactivate` with a reason, **Then** the branch's `status` becomes `INACTIVE` and an audit record is written.
+1. **Given** an AM or OP actor (both cross-tenant per `specs/DECISIONS.md` DEC-003) and an `ACTIVE` branch with no open appointments, **When** they call `POST /v1/tenants/:tenantId/branches/:branchId/deactivate` with a reason, **Then** the branch's `status` becomes `INACTIVE` and an audit record is written. Superseded phrasing: "AM or OP (own tenant)".
 2. **Given** a branch with at least one open appointment, **When** AM or OP attempts deactivation, **Then** the request fails with `BranchHasOpenAppointments`.
 3. **Given** an already-inactive branch, **When** AM or OP attempts deactivation, **Then** the request fails with `BranchAlreadyInactive`.
 4. **Given** a non-AM/OP actor (or OP attempting on a different tenant), **When** they call the deactivation endpoint, **Then** the request is rejected with `Forbidden`.
@@ -185,8 +185,8 @@ AM or OP (own tenant) deactivates a branch that is being closed. Deactivation is
 - **Legal name reuse**: legal name uniqueness is global and does NOT exclude soft-deleted rows. To reuse a legal name, the old tenant must be hard-deleted at the database level (not exposed via API).
 - **Settings deep-merge vs. delete**: the current update path deep-merges and therefore cannot clear a nested key. Setting a key to `null` is respected only if the JSON merge preserves the null. Explicit key removal is not supported in Phase 1.
 - **Branch uniqueness case-sensitivity**: branch names are compared as stored — the current index is `UNIQUE (tenant_id, name)` with no lower-cased projection. Rename collisions are detected case-sensitively. The legacy spec calls for case-insensitive comparison (see GAP-007).
-- **Cross-tenant branch access**: OP and CL users attempting to read a branch of another tenant receive `BranchNotFound` (not `Forbidden`) because the tenant-scoped repository hides existence.
-- **Empty `tenantId` query on `GET /v1/branches` by AM**: intentionally returns an empty page rather than 400 — this simplifies the frontend when no tenant is selected yet. OP always sees their own tenant's branches.
+- **Cross-tenant branch access**: CL users attempting to read a branch of another tenant receive `BranchNotFound` (not `Forbidden`) because the tenant-scoped repository hides existence. AM and OP are cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 and may legitimately read branches from any tenant. Superseded phrasing: "OP … attempting to read a branch of another tenant receive `BranchNotFound`".
+- **Empty `tenantId` query on `GET /v1/branches`**: intentionally returns an empty page rather than 400 — this simplifies the frontend when no tenant is selected yet. Applies to AM and OP equally (both cross-tenant). Superseded phrasing: "OP always sees their own tenant's branches."
 
 ## Requirements
 
@@ -207,7 +207,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-010**: System MUST block branch deactivation under the same open-appointments rule (scoped to the branch).
 - **FR-011**: System MUST require a textual `reason` on every deactivation, persisted in the audit record.
 - **FR-012**: System MUST produce an audit record for every tenant/branch create, update, and deactivate operation, including `before`/`after` snapshots.
-- **FR-013**: System MUST scope all tenant-aware queries by `tenant_id` and MUST NOT trust tenant identifiers from request bodies/queries when the caller is OP or a client role (CL_ADMIN, CL_USER) — tenant is read from JWT. Only AM may specify a `tenantId` in the request.
+- **FR-013**: System MUST scope all tenant-aware queries by `tenant_id` and MUST NOT trust tenant identifiers from request bodies/queries when the caller is a client role (CL_ADMIN, CL_USER) — tenant is read from JWT. AM and OP (both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003) MAY specify a `tenantId` in the request to narrow the operation. Superseded phrasing: "when the caller is OP or a client role … Only AM may specify a `tenantId` in the request".
 - **FR-014**: System MUST validate all tenant/branch payloads against Zod schemas in `packages/shared/src/schemas/tenant.ts`.
 - **FR-015**: System MUST reject branch creation when the tenant is not `ACTIVE`.
 - **FR-016**: System MUST treat soft-deleted tenants and branches as non-existent in all read and write operations except historical foreign-key references.

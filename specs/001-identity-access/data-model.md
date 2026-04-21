@@ -42,7 +42,7 @@ ACTIVE | INACTIVE | LOCKED
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
 | `id` | uuid | no | generated | PK |
-| `tenant_id` | uuid | yes | — | FK → `tenants.id`. Null for AM only. OP has mandatory `tenant_id`. |
+| `tenant_id` | uuid | yes | — | FK → `tenants.id`. Null for AM and OP (both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003). Superseded phrasing: "Null for AM only. OP has mandatory `tenant_id`". |
 | `branch_id` | uuid | yes | — | FK → `branches.id`. Optional even for tenant users. |
 | `role` | `UserRole` | no | — | |
 | `name` | varchar(200) | no | — | Display name. |
@@ -70,7 +70,7 @@ ACTIVE | INACTIVE | LOCKED
 
 **Invariants**
 
-- `tenant_id IS NULL` ⇔ `role = AM`. OP must have a non-null `tenant_id`.
+- `tenant_id IS NULL` ⇔ `role IN (AM, OP)` (both platform-wide roles per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003). Superseded phrasing: "`tenant_id IS NULL` ⇔ `role = AM`. OP must have a non-null `tenant_id`".
 - `totp_enabled = true` ⇒ `totp_secret IS NOT NULL`.
 - `status = LOCKED` ⇒ `locked_until > now()` at the moment the lock is applied.
 - `deleted_at IS NOT NULL` ⇒ user cannot authenticate, cannot be listed, cannot be updated.
@@ -116,7 +116,7 @@ Encoded into the JWT access token body; signed with RS256 using a key identified
 | Field | Type | Notes |
 |---|---|---|
 | `sub` | string (uuid) | User id. |
-| `tenant_id` | string (uuid) \| null | Null for AM only. OP always has a `tenant_id`. |
+| `tenant_id` | string (uuid) \| null | Null for AM and OP (both cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003). Superseded phrasing: "Null for AM only. OP always has a `tenant_id`". |
 | `role` | `UserRole` | |
 | `branch_id` | string (uuid) \| null | |
 | `inspector_id` | string (uuid) \| null | Populated for INSP role; null otherwise. |
