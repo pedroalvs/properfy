@@ -9,8 +9,8 @@
 
 ### CORRECTION-007: Schema Migration Drift
 
-**Status**: **RESOLVED IN REPO — production cleanup pending operator (2026-04-13)**
-**Impact**: HIGH until production `_prisma_migrations` is cleaned up; LOW thereafter.
+**Status**: **FULLY RESOLVED (2026-04-21)** — `prisma migrate status` against production reports `Database schema is up to date!` (53 migrations applied). Superseded phrasing: "RESOLVED IN REPO — production cleanup pending operator (2026-04-13)".
+**Impact**: ~~HIGH until production `_prisma_migrations` is cleaned up~~ — resolved. All four defects closed.
 **Surfaced by**: Sprint 1 W-1 testcontainers harness — first run against a clean Postgres container failed with `P3015: Could not find the migration file at prisma/migrations/20260406000000_add_password_reset_tokens/migration.sql`.
 
 **Resolution status by defect**:
