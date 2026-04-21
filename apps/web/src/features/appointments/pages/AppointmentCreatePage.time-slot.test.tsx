@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
+import type * as SnackbarModule from '@/hooks/useSnackbar';
 import { AppointmentCreatePage } from './AppointmentCreatePage';
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -16,7 +17,7 @@ vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
 }));
 
 vi.mock('@/hooks/useSnackbar', async () => {
-  const actual = await vi.importActual<typeof import('@/hooks/useSnackbar')>('@/hooks/useSnackbar');
+  const actual = await vi.importActual<typeof SnackbarModule>('@/hooks/useSnackbar');
   return {
     ...actual,
     useSnackbar: () => ({

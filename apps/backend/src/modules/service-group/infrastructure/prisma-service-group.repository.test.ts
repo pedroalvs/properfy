@@ -197,8 +197,6 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     // Page 3, pageSize 10 => offset 20, limit 10
     // The raw query should have been called with the inspectorId, service types, client eligibility, limit, offset
     expect(queryRaw).toHaveBeenCalledTimes(1);
-    // Verify limit and offset values are passed (they appear as interpolated params)
-    const rawCallValues = queryRaw.mock.calls[0][0];
     // The tagged template params are accessible via the second arg onwards
     const params = queryRaw.mock.calls[0].slice(1);
     // params should include: inspectorId, serviceTypes, clientEligibility, limit (10), offset (20)

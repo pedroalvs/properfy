@@ -3,7 +3,6 @@ import { generateInvoiceSchema } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
-import { TextInput } from '@/components/forms/TextInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { useSnackbar } from '@/hooks/useSnackbar';

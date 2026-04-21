@@ -20,7 +20,6 @@ const ALLOWED_FIELDS = new Set([
 ]);
 
 const TERMINAL_STATUSES = new Set(['DONE', 'REJECTED', 'CANCELLED']);
-const DRAFT_ONLY_FIELDS = new Set(['branchId', 'serviceTypeId']);
 
 export interface BulkEditInput {
   ids: string[];

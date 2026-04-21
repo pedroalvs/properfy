@@ -50,7 +50,7 @@ export class CreateInspectorUseCase {
   ) {}
 
   async execute(input: CreateInspectorInput): Promise<CreateInspectorOutput> {
-    const { name, email, phone, paymentSettings, regions, regionIds, serviceTypes, clientEligibility, actor } = input;
+    const { name, email, phone, paymentSettings, regionIds, serviceTypes, clientEligibility, actor } = input;
 
     this.authorizationService!.assertRoles(actor, ['AM', 'OP'], {
       action: 'inspector.create',

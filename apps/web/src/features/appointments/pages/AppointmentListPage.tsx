@@ -12,7 +12,6 @@ import { useAppointmentList } from '../hooks/useAppointmentList';
 
 const CAN_CREATE_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 const CAN_MAP_IMPORT_ROLES: string[] = [UserRole.AM, UserRole.OP];
-const GLOBAL_ROLES: string[] = [UserRole.AM, UserRole.OP];
 const CAN_BULK_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP];
 
 export function AppointmentListPage() {
@@ -28,8 +27,6 @@ export function AppointmentListPage() {
     setFilters,
     pagination,
   } = useAppointmentList();
-
-  const isGlobalRole = user ? GLOBAL_ROLES.includes(user.role) : false;
 
   const branchOptions = useMemo(() => {
     const seen = new Map<string, string>();

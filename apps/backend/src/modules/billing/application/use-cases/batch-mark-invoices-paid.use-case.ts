@@ -1,6 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice.repository';
-import { InvoicePaymentDateInvalidError } from '../../domain/billing.errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { validatePaidAt } from './mark-invoice-paid.use-case';

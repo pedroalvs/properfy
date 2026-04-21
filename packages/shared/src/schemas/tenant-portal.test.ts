@@ -67,8 +67,18 @@ describe('confirmAppointmentPortalSchema', () => {
 });
 
 describe('rescheduleRequestPortalSchema', () => {
+  // Use a dynamic future date so this fixture never turns into a ticking
+  // time bomb when downstream consumers add past-date refines. The shared
+  // schema currently only validates the YYYY-MM-DD shape, but keeping the
+  // convention consistent with the rest of the suite means the fixture
+  // remains safe even if the refine tightens later.
+  const futureDate = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 30);
+    return d.toISOString().split('T')[0]!;
+  })();
   const validInput = {
-    newDate: '2026-04-15',
+    newDate: futureDate,
     newTimeSlot: '08:00-10:00',
   };
 

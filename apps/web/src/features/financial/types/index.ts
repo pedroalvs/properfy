@@ -1,5 +1,4 @@
 import type { BillingPeriodType, FinancialEntryType, FinancialEntryStatus, InspectorInvoiceStatus } from '@properfy/shared';
-import type { InvoiceStatus } from '@/lib/status-colors';
 
 export interface FinancialEntry {
   id: string;

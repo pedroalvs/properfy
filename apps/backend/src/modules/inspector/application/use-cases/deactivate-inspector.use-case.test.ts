@@ -5,7 +5,6 @@ import { AuthorizationService } from '../../../../shared/domain/authorization.se
 import {
   InspectorNotFoundError,
   InspectorAlreadyInactiveError,
-  InspectorHasOpenAppointmentsError,
 } from '../../domain/inspector.errors';
 
 const AM_ACTOR = {

@@ -1,8 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import {
-  AppointmentTimeSlotEntity,
-  type AppointmentTimeSlotProps,
-} from '../domain/appointment-time-slot.entity';
+import { AppointmentTimeSlotEntity } from '../domain/appointment-time-slot.entity';
 import type {
   IAppointmentTimeSlotRepository,
   AppointmentTimeSlotFilters,

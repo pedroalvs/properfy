@@ -50,8 +50,7 @@ export function MapMarker({
       marker.remove();
       markerRef.current = null;
     };
-    // Intentionally only depend on getMap so we create the marker once and update via setLngLat below
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally only depend on getMap so we create the marker once and update via setLngLat below.
   }, [getMap]);
 
   // Update marker position when coordinates change

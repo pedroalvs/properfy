@@ -6,7 +6,6 @@ import type {
   PropertyFilters,
   PaginationParams,
   PropertyWithBranch,
-  NearLocationFilter,
 } from '../domain/property.repository';
 import type { PropertyType, GeocodingStatus } from '@properfy/shared';
 

@@ -7,7 +7,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { getNextRunTime, getPreviousRunTime } from '../../domain/cron-parser';
 import { ScheduledReportRunEntity } from '../../domain/scheduled-report-run.entity';
-import { ScheduledReportEntity } from '../../domain/scheduled-report.entity';
+import type { ScheduledReportEntity } from '../../domain/scheduled-report.entity';
 import {
   SCHEDULE_CATCHUP_MAX,
   SCHEDULE_RETRY_BACKOFF_ON_LIMIT_MINUTES,

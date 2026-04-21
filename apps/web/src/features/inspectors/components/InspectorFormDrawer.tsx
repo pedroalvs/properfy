@@ -137,14 +137,6 @@ export function InspectorFormDrawer({
     updateField('regionIds', next);
   }, [form.regionIds, updateField]);
 
-  const toggleClientEligibility = useCallback((tenantId: string, checked: boolean) => {
-    const current = form.clientEligibility;
-    const next = checked
-      ? Array.from(new Set([...current, tenantId]))
-      : current.filter((id) => id !== tenantId);
-    updateField('clientEligibility', next);
-  }, [form.clientEligibility, updateField]);
-
   const toggleBlockedClient = useCallback((tenantId: string, checked: boolean) => {
     const current = form.blockedClients;
     const next = checked

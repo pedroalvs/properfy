@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import {
   listFinancialEntriesQuerySchema,
@@ -573,7 +573,7 @@ export async function registerBillingRoutes(
   const SUNSET_DATE = 'Sun, 01 Feb 2027 00:00:00 GMT';
   const DEPRECATION_LINK = '</v1/billing/invoices>; rel="successor-version"';
 
-  function addDeprecationHeaders(reply: import('fastify').FastifyReply): void {
+  function addDeprecationHeaders(reply: FastifyReply): void {
     reply.header('Deprecation', DEPRECATION_DATE);
     reply.header('Sunset', SUNSET_DATE);
     reply.header('Link', DEPRECATION_LINK);

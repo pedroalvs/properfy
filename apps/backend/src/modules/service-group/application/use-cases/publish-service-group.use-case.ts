@@ -5,6 +5,7 @@ import type { DomainEventBus } from '../../../../shared/application/events/domai
 import { SERVICE_GROUP_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
+import type { ServiceGroupEntity } from '../../domain/service-group.entity';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
@@ -133,7 +134,7 @@ export class PublishServiceGroupUseCase {
   }
 }
 
-function mapGroupToOutput(group: import('../../domain/service-group.entity').ServiceGroupEntity): PublishServiceGroupOutput {
+function mapGroupToOutput(group: ServiceGroupEntity): PublishServiceGroupOutput {
   return {
     id: group.id,
     tenantId: group.tenantId,

@@ -23,7 +23,7 @@ interface PricingRulesSectionProps {
   currency: string;
 }
 
-export function PricingRulesSection({ tenantId, tenantName, currency }: PricingRulesSectionProps) {
+export function PricingRulesSection({ tenantId, tenantName, currency: _currency }: PricingRulesSectionProps) {
   const {
     data,
     isLoading,
