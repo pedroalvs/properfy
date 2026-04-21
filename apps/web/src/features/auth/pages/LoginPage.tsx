@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/api-error';
 import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
@@ -255,7 +255,16 @@ export function LoginPage() {
                 </button>
               </form>
 
-              <div className="mt-6 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3">
+              <div className="mt-4 text-center">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-semibold text-primary transition hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3">
                 <p className="text-xs leading-5 text-text-secondary">
                   Need help? Contact your administrator for access, password resets or two-factor
                   support.

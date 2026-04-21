@@ -14,6 +14,7 @@ import { PricingRulesSection } from '../components/PricingRulesSection';
 import { TenantFormDrawer } from '../components/TenantFormDrawer';
 import { useTenantAdminDetail } from '../hooks/useTenantAdminDetail';
 import { useTenantDeactivate } from '../hooks/useTenantDeactivate';
+import { useTenantActivate } from '../hooks/useTenantActivate';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -29,11 +30,20 @@ export function TenantDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [showActivateConfirm, setShowActivateConfirm] = useState(false);
 
   const { deactivate, isDeactivating } = useTenantDeactivate(
     id ?? null,
     () => {
       setShowDeactivateConfirm(false);
+      refetch();
+    },
+  );
+
+  const { activate, isActivating } = useTenantActivate(
+    id ?? null,
+    () => {
+      setShowActivateConfirm(false);
       refetch();
     },
   );
@@ -67,6 +77,18 @@ export function TenantDetailPage() {
     setShowDeactivateConfirm(false);
   }, []);
 
+  const handleActivateClick = useCallback(() => {
+    setShowActivateConfirm(true);
+  }, []);
+
+  const handleConfirmActivate = useCallback(() => {
+    activate();
+  }, [activate]);
+
+  const handleCancelActivate = useCallback(() => {
+    setShowActivateConfirm(false);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="px-8 py-6">
@@ -89,7 +111,9 @@ export function TenantDetailPage() {
 
   const secondaryActions = tenant.status === 'ACTIVE'
     ? [{ label: 'Deactivate', icon: 'mdi-close-circle-outline', onClick: handleDeactivateClick }]
-    : [];
+    : tenant.status === 'INACTIVE'
+      ? [{ label: 'Activate', icon: 'mdi-check-circle-outline', onClick: handleActivateClick }]
+      : [];
 
   return (
     <div className="px-8 py-6">
@@ -161,6 +185,18 @@ export function TenantDetailPage() {
         loading={isDeactivating}
         onConfirm={handleConfirmDeactivate}
         onClose={handleCancelDeactivate}
+      />
+
+      <ConfirmDialog
+        open={showActivateConfirm}
+        title="Activate Agency"
+        message={`Are you sure you want to activate "${tenant.name}"? This will restore access for all associated branches and users.`}
+        confirmLabel="Activate"
+        cancelLabel="Cancel"
+        variant="warning"
+        loading={isActivating}
+        onConfirm={handleConfirmActivate}
+        onClose={handleCancelActivate}
       />
     </div>
   );

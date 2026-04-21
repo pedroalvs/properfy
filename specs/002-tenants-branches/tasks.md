@@ -111,7 +111,7 @@ description: "Implementation and backlog tracking for Tenants & Branches"
 - [x] T100 [GAP-001] `ActivateTenantUseCase` — AM-only, `PENDING→ACTIVE` and `INACTIVE→ACTIVE`, `canBeActivated()` method on entity, audit with optional reason.
 - [x] T101 [GAP-001] Route `POST /v1/tenants/:tenantId/activate` with `activateSchema` (optional reason).
 - [x] T102 [GAP-001] 7 unit tests: PENDING→ACTIVE, INACTIVE→ACTIVE, already active, non-AM forbidden, not found, reason in audit, no reason.
-- [ ] T103 [GAP-001] Web action in `TenantDetailPage` (AM only). **DEFERRED** — backend complete.
+- [x] T103 [GAP-001] Activate action in `TenantDetailPage` with confirm dialog + `useTenantActivate` hook. Visible for INACTIVE tenants.
 - [ ] T104 [GAP-001] Integration check: activating a tenant unblocks CL user authentication. **DEFERRED** — needs integration test environment.
 
 ### GAP-002 — Rich tenant settings schema ✅

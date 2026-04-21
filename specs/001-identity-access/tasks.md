@@ -114,7 +114,7 @@ description: "Implementation and backlog tracking for Identity & Access"
 - [x] T104 [GAP-001] Routes `POST /v1/auth/forgot-password` (public, 5/min), `POST /v1/auth/reset-password` (public, 10/min).
 - [x] T105 [GAP-001] Uses `CreateNotificationUseCase` with template code `PASSWORD_RESET`. pg-boss delivery via existing `notification.send` worker.
 - [x] T106 [GAP-001] 14 unit tests (7 request + 7 consume) + 8 schema tests. All passing.
-- [ ] T107 [GAP-001] Web page `ForgotPasswordPage.tsx` and reset flow. **DEFERRED** — depends on frontend API client regeneration.
+- [x] T107 [GAP-001] `ForgotPasswordPage.tsx` + `useForgotPassword` hook + route `/forgot-password` + "Forgot password?" link in `LoginPage.tsx`. 7 component tests.
 
 ### GAP-002 — Admin manual unlock ✅
 
