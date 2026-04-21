@@ -3,7 +3,7 @@
 **Last Updated**: 2026-04-13 (editorial reconciliation sprint)
 **Status**: Living document — add/remove rows as gaps are closed and new features are migrated.
 
-> **Reconciliation note (2026-04-13).** Between the 2026-04-06 snapshot and today, features 012..020 were specified and/or implemented and the Phase 2 gap-closure waves for 001–011 + 014 landed. This document has been brought into alignment with the repository state. See the **Closed gaps** table below for the per-feature closure commits. One correction (`CORRECTION-001`) remains explicitly open and is tracked in its own section with classification `OPEN — product decision pending`.
+> **Reconciliation note (2026-04-13).** Between the 2026-04-06 snapshot and today, features 012..020 were specified and/or implemented and the Phase 2 gap-closure waves for 001–011 + 014 landed. This document has been brought into alignment with the repository state. See the **Closed gaps** table below for the per-feature closure commits. `CORRECTION-001` (OP tenant scoping) was superseded by DEC-003 (2026-04-19) — see `specs/DECISIONS.md` and the `Critical Corrections` section below.
 
 ## Critical Corrections (take priority over all gaps)
 
@@ -207,7 +207,7 @@ Everything previously listed as `APPROVED` for features 001–011 has been moved
 | 011#GAP-005 | User-defined column sets | L | PROPOSED | Not approved; report customization idea |
 | 011#GAP-009 | Audit log full-text search | L | PROPOSED | Not approved; investigation ergonomics idea |
 
-**Plus**: `CORRECTION-001` (OP tenant scoping) — see the `Critical Corrections` section at the top of this file. Classification: **OPEN — product decision pending**.
+**Plus**: `CORRECTION-001` (OP tenant scoping) — **SUPERSEDED by DEC-003 (2026-04-19)**; see `specs/DECISIONS.md` and the `Critical Corrections` section. Superseded phrasing: "OPEN — product decision pending".
 
 ## Closed gaps
 
