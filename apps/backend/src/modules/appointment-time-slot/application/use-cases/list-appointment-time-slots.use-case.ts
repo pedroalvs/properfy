@@ -32,14 +32,19 @@ export class ListAppointmentTimeSlotsUseCase {
   async execute(input: ListAppointmentTimeSlotsInput): Promise<ListAppointmentTimeSlotsOutput[]> {
     const { actor } = input;
 
-    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], {
+    // Management page only — spec 012 contracts line 56 explicitly forbids
+    // CL_USER and INSP on GET /v1/time-slots. CL_USER consumes time slots
+    // via GET /v1/time-slots/effective (the effective resolution endpoint)
+    // which powers the appointment form dropdown. See specs/DECISIONS.md
+    // DEC-002.
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
       action: 'appointment_time_slot.list',
       entityType: 'AppointmentTimeSlot',
     });
 
-    // AM/OP can query any tenant; CL_ADMIN/CL_USER can only query own tenant
+    // AM/OP can query any tenant; CL_ADMIN can only query own tenant.
     let tenantId: string;
-    if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+    if (actor.role === 'CL_ADMIN') {
       tenantId = actor.tenantId!;
       if (input.tenantId && input.tenantId !== actor.tenantId) {
         throw new ForbiddenError('AUTH_FORBIDDEN', 'Cannot list time slots for another tenant');
