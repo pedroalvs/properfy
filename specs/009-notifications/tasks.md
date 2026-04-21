@@ -147,11 +147,11 @@ description: "Implementation and backlog tracking for Notifications"
 
 ### GAP-007 — Webhook signature validation (HIGH, security)
 
-- [ ] T170 [GAP-007] Resend: validate Svix signatures via `svix` library.
-- [ ] T171 [GAP-007] Mobile Message: validate the provider's webhook authentication/signature mechanism once the SMS migration lands.
-- [ ] T172 [GAP-007] Zenvia: validate HMAC.
-- [ ] T173 [GAP-007] On invalid signature, return 401 without processing — this is a DIFFERENT semantic from the always-200 rule for legitimate unknown events.
-- [ ] T174 [GAP-007] Tests with valid and invalid signatures per provider.
+- [x] T170 [GAP-007] Resend: validate Svix signatures via `svix` library. *(Delivered — `webhook-signature-validator.ts`: Svix HMAC-SHA256 with svix-id/svix-timestamp/svix-signature headers)*
+- [ ] T171 [GAP-007] Mobile Message: validate the provider's webhook authentication/signature mechanism once the SMS migration lands. *(Pending — no MobileMsg handler exists yet; follow-up when SMS migration lands)*
+- [x] T172 [GAP-007] Zenvia: validate HMAC. *(Delivered — `webhook-signature-validator.ts`: HMAC-SHA256 via x-zenvia-signature)*
+- [x] T173 [GAP-007] On invalid signature, return 401 without processing — this is a DIFFERENT semantic from the always-200 rule for legitimate unknown events. *(Delivered — routes return 401 before processing when `webhookSignatureValidator.validate*` returns false)*
+- [x] T174 [GAP-007] Tests with valid and invalid signatures per provider. *(Delivered — `tests/unit/notification/webhook-signature-validator.test.ts`)*
 
 ### GAP-008 — Handler exception alerting
 

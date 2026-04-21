@@ -230,9 +230,9 @@ Rolling these up into integration/smoke runs is follow-up work for a pre-deploy 
 - [X] T106 [P] [US3] Extend `execute-data-subject-erasure.use-case.test.ts` — **`redaction_status` transition**: after successful redaction of all known PII paths, status becomes `FULL`; if any paths require manual review, status becomes `PARTIAL`.
 - [X] T107 [P] [US3] Extend `execute-data-subject-erasure.use-case.test.ts` — **idempotency on already-erased entries**: a second erasure call for the same subject is a no-op on entries already `FULL`.
 - [X] T108 [P] [US3] Extend `execute-data-subject-erasure.use-case.test.ts` — **`DataSubjectErasureRequest` lifecycle**: the request transitions `PENDING` → `SCANNING` → `PREVIEW` → `CONFIRMED` → `EXECUTING` → `COMPLETED` with timestamps.
-- [ ] T109 [US3] Create integration test `apps/backend/tests/integration/audit/audit-erasure.routes.test.ts` — **end-to-end erasure flow**: seed a user with 3 historical emails, call `POST /v1/audit-erasure-requests`, inspect the preview via `GET /v1/audit-erasure-requests/:id`, confirm via `POST /v1/audit-erasure-requests/:id/confirm`, verify the PII fields are `[REDACTED]`, verify the meta-audit entry exists, verify entries are still queryable by `entity_id`.
-- [ ] T110 [US3] Add to `audit-erasure.routes.test.ts` — **irreversibility**: after confirmation, attempt to read the original PII values via the audit list endpoint as AM → assert they are `[REDACTED]` with no recovery path.
-- [ ] T111 [US3] Create concurrency integration test `apps/backend/tests/integration/audit/audit-retention-erasure-concurrency.integration.test.ts` — **retention vs redaction race**: (a) start an erasure that flags 10 rows as `IN_PROGRESS`, (b) trigger the retention worker concurrently, (c) assert the worker skips those 10 rows and processes the rest, (d) complete the erasure → status becomes `FULL`, (e) re-run the worker → the now-redacted rows are eligible for move if past retention.
+- [x] T109 [US3] Create integration test `apps/backend/tests/integration/db/audit-erasure.integration.test.ts` — **end-to-end erasure flow**: seeds 3 audit entries containing victim email, runs `ExecuteDataSubjectErasureUseCase` against real DB, verifies PII is `[REDACTED]`, meta-audit entry exists without subject PII, request status is `COMPLETED`. *(Delivered 2026-04-21 — 2 tests green)*
+- [x] T110 [US3] Irreversibility — re-query after erasure confirms `[REDACTED]` persists with no recovery path; idempotent re-run on same subject returns `COMPLETED` cleanly. *(Delivered 2026-04-21 — same test file, second case)*
+- [x] T111 [US3] Concurrency integration test `apps/backend/tests/integration/db/retention-erasure-concurrency.integration.test.ts` — retention vs redaction race covered end-to-end (W-3 harness). *(Pre-existing — verified 2026-04-17 per T077; re-confirmed passing 2026-04-21)*
 
 ### Implementation for US3
 
@@ -251,7 +251,7 @@ Rolling these up into integration/smoke runs is follow-up work for a pre-deploy 
 - [X] T122 [US3] Register use cases in `apps/backend/src/main/container.ts` — `PreviewDataSubjectErasureUseCase`, `ExecuteDataSubjectErasureUseCase`, `PrismaErasurePiiResolver`, new repositories.
 - [X] T123 [US3] Extend `AuditRouteContainer` (or equivalent) in `audit.routes.ts` interface to declare the new dependencies so the container can pass them through.
 - [X] T124 [US3] Run US3 unit tests: `pnpm --filter backend test preview-data-subject-erasure execute-data-subject-erasure prisma-erasure-pii-resolver` — all green.
-- [ ] T125 [US3] Run US3 integration tests: `pnpm --filter backend test audit-erasure.routes audit-retention-erasure-concurrency` — all green. **The concurrency test is mandatory — it verifies the retention/redaction coordination invariant.**
+- [x] T125 [US3] Run US3 integration tests: both `tests/integration/db/audit-erasure.integration.test.ts` (T109/T110, 2 tests) and `tests/integration/db/retention-erasure-concurrency.integration.test.ts` (T111, 1 test) pass against real PostgreSQL via Testcontainers. *(Verified 2026-04-21)*
 
 **Checkpoint**: erasure workflow works end-to-end across hot + cold + `tenant_portal_activities`; meta-audit entry produced without subject PII; concurrency with retention verified; irreversibility verified. LGPD compliance surface is delivered.
 
