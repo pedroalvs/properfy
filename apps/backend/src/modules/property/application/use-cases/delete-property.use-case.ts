@@ -33,9 +33,17 @@ export class DeletePropertyUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Resolve tenantId for lookup
-    const tenantId =
-      actor.role === 'CL_ADMIN' ? actor.tenantId! : '';
+    // Resolve tenant scope for lookup:
+    //   - AM / OP: cross-tenant → `null` (repo omits the tenant_id filter).
+    //   - CL_ADMIN: pinned to the JWT tenantId.
+    // Previously this used `''` as a magic "global scope" sentinel because
+    // the repo's `buildWhere` treats the empty string as falsy. That's
+    // fragile — a caller passing a genuinely empty tenantId by mistake
+    // would silently escalate to cross-tenant. Using `null` keeps the
+    // same runtime behaviour (the repo already handles null properly)
+    // while making the intent explicit and type-safe.
+    const tenantId: string | null =
+      actor.role === 'AM' || actor.role === 'OP' ? null : actor.tenantId;
 
     const property = await this.propertyRepo.findById(propertyId, tenantId);
     if (!property) {

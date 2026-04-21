@@ -176,4 +176,47 @@ describe('DeletePropertyUseCase', () => {
       }),
     ).rejects.toThrow(ForbiddenError);
   });
+
+  // Defense-in-depth: the repo's tenant filter is the first gate, but if
+  // it ever loosens (or the caller supplies the wrong `tenantId`), the
+  // use case must still refuse to delete a row that isn't in the actor's
+  // tenant. Previously the scope plumbing used an empty-string sentinel;
+  // this regression pins the `null`-based contract explicitly.
+  it('should pass the actor tenant scope to findById for CL_ADMIN', async () => {
+    propertyRepo.findById.mockResolvedValue(makeProperty({ tenantId: 'tenant-1' }));
+    appointmentChecker.hasOpenAppointmentsForProperty.mockResolvedValue(false);
+
+    await useCase.execute({
+      propertyId: 'prop-1',
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(propertyRepo.findById).toHaveBeenCalledWith('prop-1', 'tenant-1');
+  });
+
+  it('should pass null tenant scope to findById for AM (cross-tenant)', async () => {
+    propertyRepo.findById.mockResolvedValue(makeProperty({ tenantId: 'tenant-other' }));
+    appointmentChecker.hasOpenAppointmentsForProperty.mockResolvedValue(false);
+
+    await useCase.execute({
+      propertyId: 'prop-1',
+      actor: makeActor({ role: 'AM', tenantId: null }),
+    });
+
+    expect(propertyRepo.findById).toHaveBeenCalledWith('prop-1', null);
+  });
+
+  it('should reject CL_ADMIN attempting to delete a property in another tenant', async () => {
+    // Simulate a loosened repo that surfaces a row from another tenant —
+    // use case must still throw based on the post-lookup equality check.
+    propertyRepo.findById.mockResolvedValue(makeProperty({ tenantId: 'tenant-other' }));
+
+    await expect(
+      useCase.execute({
+        propertyId: 'prop-1',
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+    expect(propertyRepo.update).not.toHaveBeenCalled();
+  });
 });
