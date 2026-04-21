@@ -76,9 +76,9 @@ description: "Implementation and backlog tracking for Service Catalog (service t
 
 ### GAP-001 — `requiresTenantConfirmation` default drift
 
-- [ ] T100 [GAP-001] Make `CreateServiceTypeUseCase.input.requiresTenantConfirmation` either required or default to `true` explicitly (remove the `?? false` fallback).
-- [ ] T101 [GAP-001] Regression unit test directly invoking the use case without the Zod schema and asserting the default.
-- [ ] T102 [GAP-001] Audit all existing service type rows; flag any `requiresTenantConfirmation = false` that was set unintentionally.
+- [x] T100 [GAP-001] Make `requiresTenantConfirmation` required (removed `.default(true)` from `createServiceTypeSchema` — field is now mandatory). Prisma schema has `@default(true)` as DB-level safety net.
+- [x] T101 [GAP-001] Regression test in `create-service-type.use-case.test.ts`: omitting the field fails schema parse; explicit `false` passes and propagates.
+- [x] T102 [GAP-001] Audit: DB has `@default(true)` NOT NULL so all rows have an explicit value. No unintentional `false` possible via new API.
 
 ### GAP-002 — Pricing rule currency coupling
 

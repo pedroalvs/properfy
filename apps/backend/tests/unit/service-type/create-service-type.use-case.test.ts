@@ -75,26 +75,34 @@ describe('CreateServiceTypeUseCase', () => {
     );
   });
 
-  it('should default requiresTenantConfirmation to true via Zod schema', async () => {
-    vi.mocked(serviceTypeRepo.findByCode).mockResolvedValue(null);
-
-    // Simulate what happens when the Zod schema parses input without requiresTenantConfirmation:
-    // the schema defaults it to true, so the use case always receives it.
+  it('should require explicit requiresTenantConfirmation — schema rejects omitted value', async () => {
     const { createServiceTypeSchema } = await import('@properfy/shared');
-    const parsed = createServiceTypeSchema.parse({
+    const result = createServiceTypeSchema.safeParse({
       code: 'OUTGOING',
       name: 'Outgoing Inspection',
       flowType: 'OUTGOING',
+      // requiresTenantConfirmation intentionally omitted
     });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const paths = result.error.issues.map((i) => i.path.join('.'));
+      expect(paths).toContain('requiresTenantConfirmation');
+    }
+  });
 
-    expect(parsed.requiresTenantConfirmation).toBe(true);
+  it('should accept explicit requiresTenantConfirmation=false', async () => {
+    vi.mocked(serviceTypeRepo.findByCode).mockResolvedValue(null);
+    vi.mocked(serviceTypeRepo.save).mockResolvedValue(makeServiceType({ requiresTenantConfirmation: false }));
 
     const result = await useCase.execute({
-      ...parsed,
+      code: 'OUTGOING',
+      name: 'Outgoing Inspection',
+      flowType: 'OUTGOING',
+      requiresTenantConfirmation: false,
       actor: makeActor(),
     });
 
-    expect(result.requiresTenantConfirmation).toBe(true);
+    expect(result.requiresTenantConfirmation).toBe(false);
   });
 
   it('should reject non-AM roles', async () => {

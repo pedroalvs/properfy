@@ -5,7 +5,7 @@ export const createServiceTypeSchema = z.object({
   code: z.string().min(1).max(50).trim().toUpperCase(),
   name: z.string().min(1).max(200).trim(),
   flowType: z.enum(['ROUTINE', 'INGOING', 'OUTGOING']),
-  requiresTenantConfirmation: z.boolean().default(true),
+  requiresTenantConfirmation: z.boolean(),
 });
 export type CreateServiceTypeInput = z.infer<typeof createServiceTypeSchema>;
 
