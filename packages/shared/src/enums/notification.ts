@@ -1,7 +1,6 @@
 export const NotificationChannel = {
   EMAIL: 'EMAIL',
   SMS: 'SMS',
-  WHATSAPP: 'WHATSAPP',
 } as const;
 export type NotificationChannel = (typeof NotificationChannel)[keyof typeof NotificationChannel];
 
@@ -28,13 +27,6 @@ export const ConsentChangeSource = {
   re_opt_in: 're_opt_in',
 } as const;
 export type ConsentChangeSource = (typeof ConsentChangeSource)[keyof typeof ConsentChangeSource];
-
-export const WhatsAppApprovalStatus = {
-  PENDING: 'PENDING',
-  APPROVED: 'APPROVED',
-  REJECTED: 'REJECTED',
-} as const;
-export type WhatsAppApprovalStatus = (typeof WhatsAppApprovalStatus)[keyof typeof WhatsAppApprovalStatus];
 
 export const NotificationAttemptStatus = {
   PENDING: 'PENDING',

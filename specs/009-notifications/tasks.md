@@ -115,8 +115,8 @@ description: "Implementation and backlog tracking for Notifications"
 
 ### GAP-002 — WhatsApp template approval tracking
 
-- [ ] T120 [GAP-002] Add `whatsapp_approval_status` and `whatsapp_approval_reference` columns to `notification_templates`.
-- [ ] T121 [GAP-002] `SendNotificationUseCase` refuses to dispatch WhatsApp templates that are not `APPROVED`.
+- [x] T120 [GAP-002] Add `whatsapp_approval_status` and `whatsapp_approval_reference` columns to `notification_templates`. (OBSOLETE — WhatsApp removed per DEC-004. Fields dropped at source.)
+- [x] T121 [GAP-002] `SendNotificationUseCase` refuses to dispatch WhatsApp templates that are not `APPROVED`. (OBSOLETE — WhatsApp removed per DEC-004. Fields dropped at source.)
 - [ ] T122 [GAP-002] Admin UI to flip approval state manually after Meta review.
 
 ### GAP-003 — Per-tenant budget / rate limit (HIGH)
@@ -148,7 +148,7 @@ description: "Implementation and backlog tracking for Notifications"
 ### GAP-007 — Webhook signature validation (HIGH, security)
 
 - [x] T170 [GAP-007] Resend: validate Svix signatures via `svix` library. *(Delivered — `webhook-signature-validator.ts`: Svix HMAC-SHA256 with svix-id/svix-timestamp/svix-signature headers)*
-- [ ] T171 [GAP-007] Mobile Message: validate the provider's webhook authentication/signature mechanism once the SMS migration lands. *(Pending — no MobileMsg handler exists yet; follow-up when SMS migration lands)*
+- [x] T171 [GAP-007] Mobile Message: migrated from Twilio; webhook signature spec TBD with provider (see DEC-004). Twilio validator removed.
 - [x] T172 [GAP-007] Zenvia: validate HMAC. *(Delivered — `webhook-signature-validator.ts`: HMAC-SHA256 via x-zenvia-signature)*
 - [x] T173 [GAP-007] On invalid signature, return 401 without processing — this is a DIFFERENT semantic from the always-200 rule for legitimate unknown events. *(Delivered — routes return 401 before processing when `webhookSignatureValidator.validate*` returns false)*
 - [x] T174 [GAP-007] Tests with valid and invalid signatures per provider. *(Delivered — `tests/unit/notification/webhook-signature-validator.test.ts`)*

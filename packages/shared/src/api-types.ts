@@ -6308,7 +6308,7 @@ export interface paths {
                     sortOrder?: "asc" | "desc";
                     tenantId?: string;
                     appointmentId?: string;
-                    channel?: "EMAIL" | "SMS" | "WHATSAPP";
+                    channel?: "EMAIL" | "SMS";
                     status?: "PENDING" | "SENT" | "DELIVERED" | "FAILED";
                     templateCode?: string;
                     fromDate?: string;
@@ -6526,45 +6526,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/webhooks/twilio": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            received: true;
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/webhooks/zenvia": {
+    "/v1/webhooks/mobile-message": {
         parameters: {
             query?: never;
             header?: never;
@@ -6614,7 +6576,7 @@ export interface paths {
                 query?: {
                     tenantId?: string;
                     templateCode?: string;
-                    channel?: "EMAIL" | "SMS" | "WHATSAPP";
+                    channel?: "EMAIL" | "SMS";
                     includeDefaults?: boolean;
                 };
                 header?: never;

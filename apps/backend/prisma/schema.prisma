@@ -865,12 +865,6 @@ enum InspectionAssetStatus {
   UPLOAD_FAILED
 }
 
-enum WhatsAppApprovalStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 enum NotificationAttemptStatus {
   PENDING
   SUCCESS
@@ -880,7 +874,6 @@ enum NotificationAttemptStatus {
 enum NotificationChannel {
   EMAIL
   SMS
-  WHATSAPP
 }
 
 enum NotificationStatus {
@@ -1195,8 +1188,6 @@ model NotificationTemplate {
   variables_json              Json
   is_active                   Boolean                @default(true)
   notification_class          NotificationClass      @default(OPERATIONAL)
-  whatsapp_approval_status    WhatsAppApprovalStatus @default(PENDING)
-  whatsapp_approval_reference String?                @db.VarChar(255)
   created_at                  DateTime               @default(now())
   updated_at                  DateTime               @updatedAt
 

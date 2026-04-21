@@ -72,7 +72,7 @@ describe('listNotificationsQuerySchema', () => {
   });
 
   it('should accept all valid channel values', () => {
-    for (const channel of ['EMAIL', 'SMS', 'WHATSAPP']) {
+    for (const channel of ['EMAIL', 'SMS']) {
       const result = listNotificationsQuerySchema.safeParse({ channel });
       expect(result.success).toBe(true);
     }
@@ -225,7 +225,7 @@ describe('listNotificationTemplatesQuerySchema', () => {
   });
 
   it('should accept all valid channel values', () => {
-    for (const channel of ['EMAIL', 'SMS', 'WHATSAPP']) {
+    for (const channel of ['EMAIL', 'SMS']) {
       const result = listNotificationTemplatesQuerySchema.safeParse({ channel });
       expect(result.success).toBe(true);
     }

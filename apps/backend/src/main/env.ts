@@ -33,18 +33,13 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
 
-  // Optional Twilio
-  TWILIO_ACCOUNT_SID: z.string().optional(),
-  TWILIO_AUTH_TOKEN: z.string().optional(),
-  TWILIO_PHONE_NUMBER: z.string().optional(),
-
-  // Optional WhatsApp (Zenvia)
-  WHATSAPP_API_KEY: z.string().optional(),
-  WHATSAPP_API_URL: z.string().optional(),
-
   // Optional webhook signature secrets (skip validation when absent — dev mode)
   RESEND_WEBHOOK_SECRET: z.string().optional(),
-  ZENVIA_WEBHOOK_SECRET: z.string().optional(),
+
+  // Optional MobileMessage (SMS provider)
+  MOBILE_MESSAGE_API_KEY: z.string().optional(),
+  MOBILE_MESSAGE_SENDER_ID: z.string().optional(),
+  MOBILE_MESSAGE_WEBHOOK_SECRET: z.string().optional(),
 
   // Optional Mapbox
   MAPBOX_ACCESS_TOKEN: z.string().optional(),
@@ -112,8 +107,8 @@ export function validateEnv(source: Record<string, string | undefined> = process
       strictIssues.push('  - Resend: RESEND_API_KEY and RESEND_FROM_EMAIL are required in staging/production');
     }
 
-    if (!result.data.TWILIO_ACCOUNT_SID || !result.data.TWILIO_AUTH_TOKEN || !result.data.TWILIO_PHONE_NUMBER) {
-      strictIssues.push('  - Twilio: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER are required in staging/production');
+    if (!result.data.MOBILE_MESSAGE_API_KEY || !result.data.MOBILE_MESSAGE_SENDER_ID) {
+      strictIssues.push('  - MobileMessage: MOBILE_MESSAGE_API_KEY and MOBILE_MESSAGE_SENDER_ID are required in staging/production');
     }
 
     if (!result.data.MAPBOX_ACCESS_TOKEN) {

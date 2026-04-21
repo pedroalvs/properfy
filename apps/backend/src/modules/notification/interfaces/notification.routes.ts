@@ -174,9 +174,9 @@ export async function registerNotificationRoutes(
     },
   );
 
-  // POST /v1/webhooks/twilio
+  // POST /v1/webhooks/mobile-message
   app.post(
-    '/v1/webhooks/twilio',
+    '/v1/webhooks/mobile-message',
     { schema: { response: { 200: webhookAckResponseSchema } } },
     async (request, reply) => {
       const rawBody = typeof request.body === 'string'
@@ -184,74 +184,26 @@ export async function registerNotificationRoutes(
         : JSON.stringify(request.body);
       const headers = request.headers as Record<string, string | undefined>;
 
-      // Build the full webhook URL for Twilio signature validation
-      const protocol = (request.headers['x-forwarded-proto'] as string) ?? 'https';
-      const host = request.headers['host'] ?? 'localhost';
-      const webhookUrl = `${protocol}://${host}${request.url}`;
-
-      const valid = container.webhookSignatureValidator.validateTwilio(
-        { 'x-twilio-signature': headers['x-twilio-signature'] },
-        rawBody,
-        webhookUrl,
-      );
-      if (!valid) {
-        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Invalid webhook signature' } });
-      }
-
-      const body = request.body as { MessageSid?: string; MessageStatus?: string };
-      const providerMessageId = body?.MessageSid;
-      const messageStatus = body?.MessageStatus;
-
-      if (providerMessageId && messageStatus) {
-        let event: string | null = null;
-        if (messageStatus === 'delivered') event = 'delivered';
-        else if (messageStatus === 'failed' || messageStatus === 'undelivered') event = 'failed';
-
-        if (event) {
-          await container.handleProviderWebhookUseCase.execute({
-            provider: 'twilio',
-            providerMessageId,
-            event,
-            occurredAt: new Date().toISOString(),
-            rawPayload: body,
-          });
-        }
-      }
-
-      return reply.status(200).send({ received: true });
-    },
-  );
-
-  // POST /v1/webhooks/zenvia
-  app.post(
-    '/v1/webhooks/zenvia',
-    { schema: { response: { 200: webhookAckResponseSchema } } },
-    async (request, reply) => {
-      const rawBody = typeof request.body === 'string'
-        ? request.body
-        : JSON.stringify(request.body);
-      const headers = request.headers as Record<string, string | undefined>;
-
-      const valid = container.webhookSignatureValidator.validateZenvia(
-        { 'x-zenvia-signature': headers['x-zenvia-signature'] },
+      const valid = container.webhookSignatureValidator.validateMobileMessage(
+        { 'x-mobilemessage-signature': headers['x-mobilemessage-signature'] },
         rawBody,
       );
       if (!valid) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Invalid webhook signature' } });
       }
 
-      const body = request.body as { id?: string; status?: string };
-      const providerMessageId = body?.id;
+      const body = request.body as { message_id?: string; status?: string };
+      const providerMessageId = body?.message_id;
       const status = body?.status;
 
       if (providerMessageId && status) {
         let event: string | null = null;
         if (status === 'delivered') event = 'delivered';
-        else if (status === 'failed' || status === 'rejected') event = 'failed';
+        else if (status === 'failed' || status === 'undelivered') event = 'failed';
 
         if (event) {
           await container.handleProviderWebhookUseCase.execute({
-            provider: 'zenvia',
+            provider: 'mobile-message',
             providerMessageId,
             event,
             occurredAt: new Date().toISOString(),

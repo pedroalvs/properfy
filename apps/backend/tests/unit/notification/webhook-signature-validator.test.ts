@@ -72,102 +72,46 @@ describe('WebhookSignatureValidator', () => {
     });
   });
 
-  describe('Twilio', () => {
-    const authToken = 'twilio-test-auth-token';
+  describe('MobileMessage', () => {
+    const secret = 'mobile-message-test-secret';
 
-    function makeTwilioSignature(url: string, params: Record<string, string>): string {
-      const sortedKeys = Object.keys(params).sort();
-      let dataString = url;
-      for (const key of sortedKeys) {
-        dataString += key + params[key];
-      }
-      return createHmac('sha1', authToken).update(dataString).digest('base64');
-    }
-
-    it('accepts valid Twilio signature', () => {
-      const validator = createWebhookSignatureValidator({ twilioAuthToken: authToken });
-      const url = 'https://example.com/v1/webhooks/twilio';
-      const params = { MessageSid: 'SM123', MessageStatus: 'delivered' };
-      const body = new URLSearchParams(params).toString();
-      const signature = makeTwilioSignature(url, params);
-
-      const result = validator.validateTwilio(
-        { 'x-twilio-signature': signature },
-        body,
-        url,
-      );
-      expect(result).toBe(true);
-    });
-
-    it('rejects invalid Twilio signature', () => {
-      const validator = createWebhookSignatureValidator({ twilioAuthToken: authToken });
-
-      const result = validator.validateTwilio(
-        { 'x-twilio-signature': 'invalidsig' },
-        'MessageSid=SM123&MessageStatus=delivered',
-        'https://example.com/v1/webhooks/twilio',
-      );
-      expect(result).toBe(false);
-    });
-
-    it('rejects when signature header is missing', () => {
-      const validator = createWebhookSignatureValidator({ twilioAuthToken: authToken });
-
-      const result = validator.validateTwilio({}, 'body', 'https://example.com/v1/webhooks/twilio');
-      expect(result).toBe(false);
-    });
-
-    it('skips validation when secret is not configured (dev mode)', () => {
-      const validator = createWebhookSignatureValidator({});
-      const result = validator.validateTwilio(
-        { 'x-twilio-signature': 'anything' },
-        'body',
-        'https://example.com/v1/webhooks/twilio',
-      );
-      expect(result).toBe(true);
-    });
-  });
-
-  describe('Zenvia', () => {
-    const secret = 'zenvia-test-secret';
-
-    function makeZenviaSignature(body: string): string {
+    function makeMobileMessageSignature(body: string): string {
       return createHmac('sha256', secret).update(body).digest('hex');
     }
 
-    it('accepts valid Zenvia signature', () => {
-      const validator = createWebhookSignatureValidator({ zenviaWebhookSecret: secret });
-      const body = '{"id":"msg-1","status":"delivered"}';
-      const signature = makeZenviaSignature(body);
+    it('accepts valid MobileMessage signature', () => {
+      const validator = createWebhookSignatureValidator({ mobileMessageWebhookSecret: secret });
+      const body = '{"message_id":"mm-1","status":"delivered"}';
+      const signature = makeMobileMessageSignature(body);
 
-      const result = validator.validateZenvia(
-        { 'x-zenvia-signature': signature },
+      const result = validator.validateMobileMessage(
+        { 'x-mobilemessage-signature': signature },
         body,
       );
       expect(result).toBe(true);
     });
 
-    it('rejects invalid Zenvia signature', () => {
-      const validator = createWebhookSignatureValidator({ zenviaWebhookSecret: secret });
+    it('rejects invalid MobileMessage signature', () => {
+      const validator = createWebhookSignatureValidator({ mobileMessageWebhookSecret: secret });
 
-      const result = validator.validateZenvia(
-        { 'x-zenvia-signature': 'invalidsig' },
-        '{"id":"msg-1","status":"delivered"}',
+      const result = validator.validateMobileMessage(
+        { 'x-mobilemessage-signature': 'invalidsig' },
+        '{"message_id":"mm-1","status":"delivered"}',
       );
       expect(result).toBe(false);
     });
 
     it('rejects when signature header is missing', () => {
-      const validator = createWebhookSignatureValidator({ zenviaWebhookSecret: secret });
+      const validator = createWebhookSignatureValidator({ mobileMessageWebhookSecret: secret });
 
-      const result = validator.validateZenvia({}, '{"id":"msg-1"}');
+      const result = validator.validateMobileMessage({}, '{"message_id":"mm-1"}');
       expect(result).toBe(false);
     });
 
     it('skips validation when secret is not configured (dev mode)', () => {
       const validator = createWebhookSignatureValidator({});
-      const result = validator.validateZenvia(
-        { 'x-zenvia-signature': 'anything' },
+      const result = validator.validateMobileMessage(
+        { 'x-mobilemessage-signature': 'anything' },
         'body',
       );
       expect(result).toBe(true);

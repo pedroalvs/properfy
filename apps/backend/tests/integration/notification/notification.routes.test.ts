@@ -43,8 +43,7 @@ vi.mock('../../../src/main/container', () => ({
       jwtService: { verify: mockJwtVerify },
       webhookSignatureValidator: {
         validateResend: vi.fn().mockReturnValue(true),
-        validateTwilio: vi.fn().mockReturnValue(true),
-        validateZenvia: vi.fn().mockReturnValue(true),
+        validateMobileMessage: vi.fn().mockReturnValue(true),
       },
     },
   }),
@@ -190,40 +189,20 @@ describe('POST /v1/webhooks/resend', () => {
   });
 });
 
-describe('POST /v1/webhooks/twilio', () => {
+describe('POST /v1/webhooks/mobile-message', () => {
   it('should return 200 and call handleProviderWebhookUseCase (no auth required)', async () => {
     mockHandleProviderWebhookExecute.mockResolvedValueOnce(undefined);
 
     const res = await supertest(app.server)
-      .post('/v1/webhooks/twilio')
-      .send({ MessageSid: 'SM123', MessageStatus: 'delivered' });
+      .post('/v1/webhooks/mobile-message')
+      .send({ message_id: 'mm-msg-1', status: 'delivered' });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ received: true });
     expect(mockHandleProviderWebhookExecute).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: 'twilio',
-        providerMessageId: 'SM123',
-        event: 'delivered',
-      }),
-    );
-  });
-});
-
-describe('POST /v1/webhooks/zenvia', () => {
-  it('should return 200 and call handleProviderWebhookUseCase (no auth required)', async () => {
-    mockHandleProviderWebhookExecute.mockResolvedValueOnce(undefined);
-
-    const res = await supertest(app.server)
-      .post('/v1/webhooks/zenvia')
-      .send({ id: 'zen-msg-1', status: 'delivered' });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ received: true });
-    expect(mockHandleProviderWebhookExecute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: 'zenvia',
-        providerMessageId: 'zen-msg-1',
+        provider: 'mobile-message',
+        providerMessageId: 'mm-msg-1',
         event: 'delivered',
       }),
     );

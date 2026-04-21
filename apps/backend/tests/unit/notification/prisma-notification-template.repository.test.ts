@@ -13,8 +13,7 @@ function makeTemplate(overrides: Partial<ConstructorParameters<typeof Notificati
     bodyText: 'Hello',
     variablesJson: ['tenantName'],
     isActive: true,
-    whatsappApprovalStatus: 'PENDING',
-    whatsappApprovalReference: null,
+    notificationClass: 'OPERATIONAL',
     createdAt: new Date('2026-03-24T00:00:00.000Z'),
     updatedAt: new Date('2026-03-24T00:00:00.000Z'),
     ...overrides,
@@ -58,8 +57,7 @@ describe('PrismaNotificationTemplateRepository', () => {
         body_text: 'Hello',
         variables_json: ['tenantName'],
         is_active: true,
-        whatsapp_approval_status: 'PENDING',
-        whatsapp_approval_reference: null,
+        notification_class: 'OPERATIONAL',
       },
     });
     expect(prisma.notificationTemplate.create).not.toHaveBeenCalled();
@@ -81,8 +79,7 @@ describe('PrismaNotificationTemplateRepository', () => {
         body_text: 'Hello',
         variables_json: ['tenantName'],
         is_active: true,
-        whatsapp_approval_status: 'PENDING',
-        whatsapp_approval_reference: null,
+        notification_class: 'OPERATIONAL',
       },
     });
     expect(prisma.notificationTemplate.update).not.toHaveBeenCalled();

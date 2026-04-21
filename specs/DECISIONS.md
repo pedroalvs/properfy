@@ -7,6 +7,38 @@
 
 ---
 
+## DEC-004 — Notification channels reduced to EMAIL + SMS; WhatsApp and Zenvia removed; SMS migrated from Twilio to MobileMessage
+
+**Date**: 2026-04-21
+
+**Decision**: The platform supports exactly **two** notification channels:
+- **EMAIL** via Resend
+- **SMS** via MobileMessage (https://mobilemessage.com.au/)
+
+WhatsApp (Zenvia provider) is **out of scope for v1** and all future work until explicitly reinstated. Twilio is replaced by MobileMessage as the sole SMS provider.
+
+**Supersedes**:
+- `specs/009-notifications/spec.md`, `plan.md`, `data-model.md`, `tasks.md` — all mentions of WhatsApp, WHATSAPP channel, Zenvia provider
+- `projeto-consolidado/escopo-v2.md` — references to "Twilio ou Zenvia"
+- `projeto-consolidado/regras-negocio-respostas-cliente.md` — business rules referencing WhatsApp
+- `CLAUDE.md` §10 (notification channels) and §15 (integrations)
+
+**Rationale**: The operations team confirmed only MobileMessage is in use for SMS and there is no WhatsApp deployment agreement. Removing the channel eliminates dead code, a phantom DB enum value, and three unused env vars.
+
+**Implementation**:
+- `packages/shared/src/enums/notification.ts` — `WHATSAPP` removed from `NotificationChannel`; `WhatsAppApprovalStatus` enum removed.
+- `apps/backend/prisma/schema.prisma` — `WHATSAPP` value dropped from `NotificationChannel` enum; `whatsapp_approval_status`/`whatsapp_approval_reference` columns dropped from `notification_templates`.
+- `apps/backend/src/modules/notification/infrastructure/zenvia-whatsapp.provider.ts` — deleted.
+- `apps/backend/src/modules/notification/infrastructure/stub-whatsapp.provider.ts` — deleted.
+- `apps/backend/src/modules/notification/infrastructure/twilio-sms.provider.ts` — replaced by `mobile-message-sms.provider.ts`.
+- `apps/backend/src/modules/notification/infrastructure/webhook-signature-validator.ts` — Twilio + Zenvia validators removed; MobileMessage Basic-Auth validator added (pending provider confirmation of webhook signature spec).
+- Routes: `POST /v1/webhooks/zenvia` removed; `POST /v1/webhooks/twilio` → `POST /v1/webhooks/mobile-message`.
+- Container: wired to `MobileMessageSmsProvider`.
+- Env: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `WHATSAPP_API_KEY`, `WHATSAPP_API_URL`, `ZENVIA_WEBHOOK_SECRET` removed; `MOBILE_MESSAGE_API_KEY`, `MOBILE_MESSAGE_SENDER_ID`, `MOBILE_MESSAGE_WEBHOOK_SECRET` added.
+- `specs/009-notifications/tasks.md` — T120, T121 marked obsolete (WhatsApp fields removed at source); T171 marked obsolete (Twilio/Zenvia removed, MobileMessage T171b added as DONE once webhook spec confirmed).
+
+---
+
 ## DEC-003 — OP role scope restored to cross-tenant
 
 **Date**: 2026-04-19 (QA revalidation + auth-middleware fix landed in staging commit `bfdef83`).

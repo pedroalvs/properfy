@@ -25,12 +25,6 @@ export class NotificationForbiddenError extends ForbiddenError {
   }
 }
 
-export class WhatsAppTemplateNotApprovedError extends DomainError {
-  constructor() {
-    super('WHATSAPP_TEMPLATE_NOT_APPROVED', 'WhatsApp template is not approved', 422);
-  }
-}
-
 /**
  * Feature 018: thrown when an operator attempts to reclassify a protected template
  * (e.g., INSPECTION_CONFIRMED cannot be OPERATIONAL — it must remain TRANSACTIONAL).

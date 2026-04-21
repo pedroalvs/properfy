@@ -2,14 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { NotificationChannel, NotificationStatus } from './notification';
 
 describe('NotificationChannel', () => {
-  it('should have EMAIL, SMS, WHATSAPP values', () => {
+  it('should have EMAIL, SMS values', () => {
     expect(NotificationChannel.EMAIL).toBe('EMAIL');
     expect(NotificationChannel.SMS).toBe('SMS');
-    expect(NotificationChannel.WHATSAPP).toBe('WHATSAPP');
   });
 
-  it('should have exactly 3 channels', () => {
-    expect(Object.keys(NotificationChannel)).toHaveLength(3);
+  it('should have exactly 2 channels', () => {
+    expect(Object.keys(NotificationChannel)).toHaveLength(2);
   });
 
   it('should not have PUSH channel', () => {

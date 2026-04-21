@@ -82,16 +82,15 @@ describe('validateEnv', () => {
       ...validEnv,
       RESEND_API_KEY: 'key',
       RESEND_FROM_EMAIL: 'noreply@test.com',
-      TWILIO_ACCOUNT_SID: 'sid',
-      TWILIO_AUTH_TOKEN: 'token',
-      TWILIO_PHONE_NUMBER: '+1234567890',
+      MOBILE_MESSAGE_API_KEY: 'mm-key',
+      MOBILE_MESSAGE_SENDER_ID: 'PROPERFY',
       SUPABASE_S3_ENDPOINT: 'https://storage.example.com',
       SUPABASE_S3_ACCESS_KEY_ID: 'access-key',
       SUPABASE_S3_SECRET_ACCESS_KEY: 'secret-key',
     });
 
     expect(result.RESEND_API_KEY).toBe('key');
-    expect(result.TWILIO_ACCOUNT_SID).toBe('sid');
+    expect(result.MOBILE_MESSAGE_API_KEY).toBe('mm-key');
     expect(result.SUPABASE_S3_ENDPOINT).toBe('https://storage.example.com');
   });
 });

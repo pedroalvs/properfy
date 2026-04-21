@@ -7,7 +7,6 @@ import type { INotificationAttemptRepository } from '../../../src/modules/notifi
 import type {
   IEmailProvider,
   ISmsProvider,
-  IWhatsAppProvider,
 } from '../../../src/modules/notification/domain/providers';
 import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
 import {
@@ -64,8 +63,6 @@ function makeTemplate(overrides: Partial<NotificationTemplateProps> = {}): Notif
     variablesJson: ['tenantName', 'date'],
     isActive: true,
     notificationClass: 'OPERATIONAL',
-    whatsappApprovalStatus: 'APPROVED',
-    whatsappApprovalReference: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -108,9 +105,6 @@ function makeSut() {
   const smsProvider: ISmsProvider = {
     send: vi.fn(),
   };
-  const whatsAppProvider: IWhatsAppProvider = {
-    send: vi.fn(),
-  };
   const templateRenderer = new TemplateRendererService();
   const logger = {
     info: vi.fn(),
@@ -135,7 +129,6 @@ function makeSut() {
     attemptRepo,
     emailProvider,
     smsProvider,
-    whatsAppProvider,
     templateRenderer,
     logger,
     metrics: metricsObj,
@@ -151,7 +144,6 @@ function makeSut() {
     attemptRepo,
     emailProvider,
     smsProvider,
-    whatsAppProvider,
     templateRenderer,
     logger,
     metrics: metricsObj,
@@ -166,7 +158,6 @@ describe('SendNotificationUseCase', () => {
   let attemptRepo: INotificationAttemptRepository;
   let emailProvider: IEmailProvider;
   let smsProvider: ISmsProvider;
-  let whatsAppProvider: IWhatsAppProvider;
   let useCase: SendNotificationUseCase;
 
   beforeEach(() => {
@@ -177,7 +168,6 @@ describe('SendNotificationUseCase', () => {
     attemptRepo = sut.attemptRepo;
     emailProvider = sut.emailProvider;
     smsProvider = sut.smsProvider;
-    whatsAppProvider = sut.whatsAppProvider;
     useCase = sut.useCase;
   });
 
@@ -271,22 +261,6 @@ describe('SendNotificationUseCase', () => {
     );
   });
 
-  it('should render template and send WhatsApp via WhatsApp provider', async () => {
-    const notification = makeNotification({ channel: 'WHATSAPP', recipient: '+5511888888888' });
-    const template = makeTemplate({ channel: 'WHATSAPP', subject: null, bodyHtml: null });
-
-    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
-    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
-    vi.mocked(whatsAppProvider.send).mockResolvedValue({ messageId: 'msg-wa-1' });
-
-    await useCase.execute({ notificationId: 'notif-1' });
-
-    expect(whatsAppProvider.send).toHaveBeenCalledWith(
-      '+5511888888888',
-      'Hello John, your inspection is on 2026-03-20',
-    );
-  });
-
   it('should update notification to SENT on provider success with providerName and providerMessageId', async () => {
     const notification = makeNotification();
 
@@ -365,108 +339,6 @@ describe('SendNotificationUseCase', () => {
 
     const updated = vi.mocked(notificationRepo.update).mock.calls[0][0];
     expect(updated.failureReason).toBe('Connection refused');
-  });
-
-  // GAP-002: WhatsApp template approval tracking
-  describe('GAP-002: WhatsApp template approval', () => {
-    it('should send WhatsApp when template is APPROVED', async () => {
-      const notification = makeNotification({ channel: 'WHATSAPP', recipient: '+5511888888888' });
-      const template = makeTemplate({
-        channel: 'WHATSAPP',
-        subject: null,
-        bodyHtml: null,
-        whatsappApprovalStatus: 'APPROVED',
-      });
-
-      vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
-      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
-      vi.mocked(whatsAppProvider.send).mockResolvedValue({ messageId: 'msg-wa-ok' });
-
-      await useCase.execute({ notificationId: 'notif-1' });
-
-      expect(whatsAppProvider.send).toHaveBeenCalled();
-      const updated = vi.mocked(notificationRepo.update).mock.calls[0][0];
-      expect(updated.status).toBe('SENT');
-    });
-
-    it('should fail WhatsApp notification when template is PENDING approval', async () => {
-      const notification = makeNotification({ channel: 'WHATSAPP', recipient: '+5511888888888' });
-      const template = makeTemplate({
-        channel: 'WHATSAPP',
-        subject: null,
-        bodyHtml: null,
-        whatsappApprovalStatus: 'PENDING',
-      });
-
-      vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
-      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
-
-      await useCase.execute({ notificationId: 'notif-1' });
-
-      expect(whatsAppProvider.send).not.toHaveBeenCalled();
-      const updated = vi.mocked(notificationRepo.update).mock.calls[0][0];
-      expect(updated.status).toBe('FAILED');
-      expect(updated.failureReason).toBe('WHATSAPP_TEMPLATE_NOT_APPROVED');
-      expect(updated.failedAt).toBeInstanceOf(Date);
-    });
-
-    it('should fail WhatsApp notification when template is REJECTED', async () => {
-      const notification = makeNotification({ channel: 'WHATSAPP', recipient: '+5511888888888' });
-      const template = makeTemplate({
-        channel: 'WHATSAPP',
-        subject: null,
-        bodyHtml: null,
-        whatsappApprovalStatus: 'REJECTED',
-      });
-
-      vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
-      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
-
-      await useCase.execute({ notificationId: 'notif-1' });
-
-      expect(whatsAppProvider.send).not.toHaveBeenCalled();
-      const updated = vi.mocked(notificationRepo.update).mock.calls[0][0];
-      expect(updated.status).toBe('FAILED');
-      expect(updated.failureReason).toBe('WHATSAPP_TEMPLATE_NOT_APPROVED');
-    });
-
-    it('should not check WhatsApp approval for EMAIL channel', async () => {
-      const notification = makeNotification({ channel: 'EMAIL' });
-      const template = makeTemplate({
-        channel: 'EMAIL',
-        whatsappApprovalStatus: 'PENDING', // Should be ignored for EMAIL
-      });
-
-      vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
-      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
-      vi.mocked(emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
-
-      await useCase.execute({ notificationId: 'notif-1' });
-
-      expect(emailProvider.send).toHaveBeenCalled();
-      const updated = vi.mocked(notificationRepo.update).mock.calls[0][0];
-      expect(updated.status).toBe('SENT');
-    });
-
-    it('should not check WhatsApp approval for SMS channel', async () => {
-      const notification = makeNotification({ channel: 'SMS', recipient: '+5511999999999' });
-      const template = makeTemplate({
-        channel: 'SMS',
-        subject: null,
-        bodyHtml: null,
-        whatsappApprovalStatus: 'REJECTED', // Should be ignored for SMS
-      });
-
-      vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
-      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
-      vi.mocked(smsProvider.send).mockResolvedValue({ messageId: 'msg-1' });
-
-      await useCase.execute({ notificationId: 'notif-1' });
-
-      expect(smsProvider.send).toHaveBeenCalled();
-      const updated = vi.mocked(notificationRepo.update).mock.calls[0][0];
-      expect(updated.status).toBe('SENT');
-    });
   });
 
   // GAP-001: Consent opt-out
@@ -772,22 +644,6 @@ describe('SendNotificationUseCase', () => {
       expect(updated.status).toBe('SENT');
     });
 
-    it('should not apply cap to WhatsApp channel', async () => {
-      const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-        makeNotification({ channel: 'WHATSAPP', recipient: '+61400000000' }),
-      );
-      vi.mocked(sut.getTenantSettings).mockResolvedValue({});
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
-        makeTemplate({ channel: 'WHATSAPP', subject: null, bodyHtml: null }),
-      );
-      vi.mocked(sut.whatsAppProvider.send).mockResolvedValue({ messageId: 'msg-1' });
-
-      await sut.useCase.execute({ notificationId: 'notif-1' });
-
-      expect(sut.notificationRepo.countByTenantChannelSince).not.toHaveBeenCalled();
-      expect(sut.whatsAppProvider.send).toHaveBeenCalled();
-    });
   });
 
   // GAP-004: Variable validation
@@ -894,23 +750,5 @@ describe('SendNotificationUseCase', () => {
       expect(savedAttempt.attemptNumber).toBe(3); // retryCount + 1
     });
 
-    it('should not create attempt row when WhatsApp template is not approved (GAP-002 short-circuit)', async () => {
-      const notification = makeNotification({ channel: 'WHATSAPP', recipient: '+5511888888888' });
-      const template = makeTemplate({
-        channel: 'WHATSAPP',
-        subject: null,
-        bodyHtml: null,
-        whatsappApprovalStatus: 'PENDING',
-      });
-
-      vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
-      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
-
-      await useCase.execute({ notificationId: 'notif-1' });
-
-      // WhatsApp approval failure short-circuits before creating an attempt
-      expect(attemptRepo.save).not.toHaveBeenCalled();
-      expect(attemptRepo.update).not.toHaveBeenCalled();
-    });
   });
 });

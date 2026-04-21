@@ -7,7 +7,7 @@ import type { NotificationChannel, NotificationClass } from '@properfy/shared';
  *
  * Tokens are HMAC-SHA256 signed and contain:
  *   - recipient (email or phone)
- *   - channel (EMAIL/SMS/WHATSAPP)
+ *   - channel (EMAIL/SMS)
  *   - tenantId
  *   - notificationClass (OPERATIONAL or MARKETING — TRANSACTIONAL is never unsubscribable)
  *   - iat (issued-at, seconds since epoch)
@@ -120,7 +120,7 @@ function isValidPayloadShape(value: unknown): value is UnsubscribeTokenPayload {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
   if (typeof v.recipient !== 'string' || !v.recipient) return false;
-  if (v.channel !== 'EMAIL' && v.channel !== 'SMS' && v.channel !== 'WHATSAPP') return false;
+  if (v.channel !== 'EMAIL' && v.channel !== 'SMS') return false;
   if (typeof v.tenantId !== 'string' || !v.tenantId) return false;
   if (
     v.notificationClass !== 'OPERATIONAL' &&

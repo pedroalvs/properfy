@@ -275,7 +275,7 @@ When you (Claude Code) implement or modify code in this project:
 
 ## 15. External dependencies
 
-1. SMS: Twilio or Zenvia
+1. SMS: MobileMessage (mobilemessage.com.au)
 2. Transactional email: Resend
 3. Maps and geocoding: Mapbox
 4. Database and storage: Supabase (PostgreSQL + S3-compatible storage)

@@ -16,8 +16,6 @@ function makeTemplate(overrides: Partial<NotificationTemplateProps> = {}): Notif
     bodyText: 'Hello {{tenantName}}',
     variablesJson: ['tenantName'],
     isActive: true,
-    whatsappApprovalStatus: 'PENDING',
-    whatsappApprovalReference: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -74,35 +72,4 @@ describe('NotificationTemplateEntity', () => {
     });
   });
 
-  describe('isWhatsAppApproved()', () => {
-    it('should return true when whatsappApprovalStatus is APPROVED', () => {
-      const template = makeTemplate({ whatsappApprovalStatus: 'APPROVED' });
-      expect(template.isWhatsAppApproved()).toBe(true);
-    });
-
-    it('should return false when whatsappApprovalStatus is PENDING', () => {
-      const template = makeTemplate({ whatsappApprovalStatus: 'PENDING' });
-      expect(template.isWhatsAppApproved()).toBe(false);
-    });
-
-    it('should return false when whatsappApprovalStatus is REJECTED', () => {
-      const template = makeTemplate({ whatsappApprovalStatus: 'REJECTED' });
-      expect(template.isWhatsAppApproved()).toBe(false);
-    });
-  });
-
-  describe('whatsapp approval fields', () => {
-    it('should store whatsappApprovalReference', () => {
-      const template = makeTemplate({
-        whatsappApprovalStatus: 'APPROVED',
-        whatsappApprovalReference: 'WA-REF-123',
-      });
-      expect(template.whatsappApprovalReference).toBe('WA-REF-123');
-    });
-
-    it('should allow null whatsappApprovalReference', () => {
-      const template = makeTemplate({ whatsappApprovalReference: null });
-      expect(template.whatsappApprovalReference).toBeNull();
-    });
-  });
 });

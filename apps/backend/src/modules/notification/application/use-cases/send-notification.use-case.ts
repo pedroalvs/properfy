@@ -4,7 +4,7 @@ import type { INotificationRepository } from '../../domain/notification.reposito
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { INotificationConsentRepository } from '../../domain/notification-consent.repository';
 import type { INotificationAttemptRepository } from '../../domain/notification-attempt.repository';
-import type { IEmailProvider, ISmsProvider, IWhatsAppProvider } from '../../domain/providers';
+import type { IEmailProvider, ISmsProvider } from '../../domain/providers';
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { MetricsCollector } from '../../../../shared/infrastructure/metrics';
@@ -28,7 +28,6 @@ export interface SendNotificationDeps {
   attemptRepo: INotificationAttemptRepository;
   emailProvider: IEmailProvider;
   smsProvider: ISmsProvider;
-  whatsAppProvider: IWhatsAppProvider;
   templateRenderer: TemplateRendererService;
   logger: Logger;
   metrics: MetricsCollector;
@@ -46,7 +45,6 @@ export class SendNotificationUseCase {
   private readonly attemptRepo: INotificationAttemptRepository;
   private readonly emailProvider: IEmailProvider;
   private readonly smsProvider: ISmsProvider;
-  private readonly whatsAppProvider: IWhatsAppProvider;
   private readonly templateRenderer: TemplateRendererService;
   private readonly logger: Logger;
   private readonly metrics: MetricsCollector;
@@ -61,7 +59,6 @@ export class SendNotificationUseCase {
     this.attemptRepo = deps.attemptRepo;
     this.emailProvider = deps.emailProvider;
     this.smsProvider = deps.smsProvider;
-    this.whatsAppProvider = deps.whatsAppProvider;
     this.templateRenderer = deps.templateRenderer;
     this.logger = deps.logger;
     this.metrics = deps.metrics;
@@ -164,9 +161,7 @@ export class SendNotificationUseCase {
     const settings = await this.getTenantSettings(notification.tenantId);
     const dailyCap = notification.channel === 'EMAIL'
       ? (typeof settings.notificationDailyCapEmail === 'number' ? settings.notificationDailyCapEmail : 500)
-      : notification.channel === 'SMS'
-        ? (typeof settings.notificationDailyCapSms === 'number' ? settings.notificationDailyCapSms : 100)
-        : null; // No cap for WhatsApp by default
+      : (typeof settings.notificationDailyCapSms === 'number' ? settings.notificationDailyCapSms : 100);
 
     if (dailyCap !== null) {
       const todayStart = new Date();
@@ -184,17 +179,6 @@ export class SendNotificationUseCase {
         await this.notificationRepo.update(notification);
         return;
       }
-    }
-
-    // Template was already loaded during the consent-branch check above.
-    // GAP-002: WhatsApp template approval check
-    if (notification.channel === 'WHATSAPP' && !template.isWhatsAppApproved()) {
-      notification.status = 'FAILED';
-      notification.failedAt = new Date();
-      notification.failureReason = 'WHATSAPP_TEMPLATE_NOT_APPROVED';
-      notification.updatedAt = new Date();
-      await this.notificationRepo.update(notification);
-      return;
     }
 
     // GAP-004: Validate template variables (warn but don't fail)
@@ -261,14 +245,10 @@ export class SendNotificationUseCase {
         );
         messageId = result.messageId;
         notification.providerName = 'resend';
-      } else if (notification.channel === 'SMS') {
+      } else {
         const result = await this.smsProvider.send(notification.recipient, renderedBodyText);
         messageId = result.messageId;
-        notification.providerName = 'twilio';
-      } else {
-        const result = await this.whatsAppProvider.send(notification.recipient, renderedBodyText);
-        messageId = result.messageId;
-        notification.providerName = 'zenvia';
+        notification.providerName = 'mobile-message';
       }
 
       notification.status = 'SENT';

@@ -2,8 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export interface WebhookSignatureValidator {
   validateResend(headers: ResendWebhookHeaders, rawBody: string): boolean;
-  validateTwilio(headers: TwilioWebhookHeaders, rawBody: string, url: string): boolean;
-  validateZenvia(headers: ZenviaWebhookHeaders, rawBody: string): boolean;
+  validateMobileMessage(headers: MobileMessageWebhookHeaders, rawBody: string): boolean;
 }
 
 export interface ResendWebhookHeaders {
@@ -12,18 +11,13 @@ export interface ResendWebhookHeaders {
   'svix-signature'?: string;
 }
 
-export interface TwilioWebhookHeaders {
-  'x-twilio-signature'?: string;
-}
-
-export interface ZenviaWebhookHeaders {
-  'x-zenvia-signature'?: string;
+export interface MobileMessageWebhookHeaders {
+  'x-mobilemessage-signature'?: string;
 }
 
 interface WebhookSecrets {
   resendWebhookSecret?: string;
-  twilioAuthToken?: string;
-  zenviaWebhookSecret?: string;
+  mobileMessageWebhookSecret?: string;
 }
 
 function safeCompare(a: string, b: string): boolean {
@@ -72,41 +66,20 @@ export function createWebhookSignatureValidator(
       return false;
     },
 
-    validateTwilio(headers: TwilioWebhookHeaders, rawBody: string, url: string): boolean {
-      const authToken = secrets.twilioAuthToken;
-      if (!authToken) return true; // skip validation in dev mode
-
-      const twilioSignature = headers['x-twilio-signature'];
-      if (!twilioSignature) return false;
-
-      // Twilio signs: url + sorted form params
-      // Parse form params from rawBody (application/x-www-form-urlencoded)
-      const params = new URLSearchParams(rawBody);
-      const sortedKeys = Array.from(params.keys()).sort();
-      let dataString = url;
-      for (const key of sortedKeys) {
-        dataString += key + params.get(key);
-      }
-
-      const expectedSignature = createHmac('sha1', authToken)
-        .update(dataString)
-        .digest('base64');
-
-      return safeCompare(expectedSignature, twilioSignature);
-    },
-
-    validateZenvia(headers: ZenviaWebhookHeaders, rawBody: string): boolean {
-      const secret = secrets.zenviaWebhookSecret;
+    validateMobileMessage(headers: MobileMessageWebhookHeaders, rawBody: string): boolean {
+      const secret = secrets.mobileMessageWebhookSecret;
       if (!secret) return true; // skip validation in dev mode
 
-      const zenviaSignature = headers['x-zenvia-signature'];
-      if (!zenviaSignature) return false;
+      const incomingSignature = headers['x-mobilemessage-signature'];
+      if (!incomingSignature) return false;
 
+      // MobileMessage uses HMAC-SHA256 over the raw body with the webhook secret.
+      // Header name and algorithm confirmed with provider support — see DEC-004.
       const expectedSignature = createHmac('sha256', secret)
         .update(rawBody)
         .digest('hex');
 
-      return safeCompare(expectedSignature, zenviaSignature);
+      return safeCompare(expectedSignature, incomingSignature);
     },
   };
 }

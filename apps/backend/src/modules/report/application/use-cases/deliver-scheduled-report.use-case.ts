@@ -15,7 +15,7 @@ export interface NotificationSender {
   execute(input: {
     tenantId: string;
     recipient: string;
-    channel: 'EMAIL' | 'SMS' | 'WHATSAPP';
+    channel: 'EMAIL' | 'SMS';
     templateCode: string;
     payloadJson: Record<string, string>;
   }): Promise<{ notificationId: string }>;

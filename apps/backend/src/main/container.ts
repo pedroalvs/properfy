@@ -264,9 +264,7 @@ import { PrismaNotificationConsentRepository } from '../modules/notification/inf
 import { StubEmailProvider } from '../modules/notification/infrastructure/stub-email.provider';
 import { ResendEmailProvider } from '../modules/notification/infrastructure/resend-email.provider';
 import { StubSmsProvider } from '../modules/notification/infrastructure/stub-sms.provider';
-import { TwilioSmsProvider } from '../modules/notification/infrastructure/twilio-sms.provider';
-import { StubWhatsAppProvider } from '../modules/notification/infrastructure/stub-whatsapp.provider';
-import { ZenviaWhatsAppProvider } from '../modules/notification/infrastructure/zenvia-whatsapp.provider';
+import { MobileMessageSmsProvider } from '../modules/notification/infrastructure/mobile-message-sms.provider';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import { RetryNotificationUseCase } from '../modules/notification/application/use-cases/retry-notification.use-case';
@@ -888,14 +886,9 @@ export function createContainer(logger: Logger): AppContainer {
     ? new ResendEmailProvider(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL)
     : new StubEmailProvider();
 
-  const smsProvider = env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER
-    ? new TwilioSmsProvider(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.TWILIO_PHONE_NUMBER)
+  const smsProvider = env.MOBILE_MESSAGE_API_KEY && env.MOBILE_MESSAGE_SENDER_ID
+    ? new MobileMessageSmsProvider(env.MOBILE_MESSAGE_API_KEY, env.MOBILE_MESSAGE_SENDER_ID)
     : new StubSmsProvider();
-
-  // WhatsApp: use Zenvia when configured, otherwise stub
-  const whatsAppProvider = env.WHATSAPP_API_KEY && env.WHATSAPP_API_URL
-    ? new ZenviaWhatsAppProvider(env.WHATSAPP_API_KEY, env.WHATSAPP_API_URL)
-    : new StubWhatsAppProvider();
   const templateRenderer = new TemplateRendererService();
 
   // Notification use cases
@@ -911,7 +904,6 @@ export function createContainer(logger: Logger): AppContainer {
     attemptRepo: notificationAttemptRepo,
     emailProvider,
     smsProvider,
-    whatsAppProvider,
     templateRenderer,
     logger,
     metrics,
@@ -924,8 +916,7 @@ export function createContainer(logger: Logger): AppContainer {
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo);
   const webhookSignatureValidator = createWebhookSignatureValidator({
     resendWebhookSecret: env.RESEND_WEBHOOK_SECRET,
-    twilioAuthToken: env.TWILIO_AUTH_TOKEN,
-    zenviaWebhookSecret: env.ZENVIA_WEBHOOK_SECRET,
+    mobileMessageWebhookSecret: env.MOBILE_MESSAGE_WEBHOOK_SECRET,
   });
   const listNotificationsUseCase = new ListNotificationsUseCase(notificationRepo, authorizationService);
   const getNotificationUseCase = new GetNotificationUseCase(notificationRepo, authorizationService);

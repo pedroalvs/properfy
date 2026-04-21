@@ -12,7 +12,7 @@ import {
 } from '../../domain/notification.constants';
 import { NotificationTemplateEntity } from '../../domain/notification-template.entity';
 
-const VALID_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS', 'WHATSAPP'];
+const VALID_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS'];
 
 export interface UpsertNotificationTemplateInput {
   templateCode: string;
@@ -125,8 +125,6 @@ export class UpsertNotificationTemplateUseCase {
       variablesJson,
       isActive: input.isActive,
       notificationClass: resolvedClass,
-      whatsappApprovalStatus: 'PENDING',
-      whatsappApprovalReference: null,
       createdAt: now,
       updatedAt: now,
     });
