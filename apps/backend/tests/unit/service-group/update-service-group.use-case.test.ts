@@ -13,6 +13,14 @@ import {
 } from '../../../src/modules/service-group/domain/service-group.errors';
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
+import { futureDateStr } from '../../helpers/date-fixtures';
+
+// `FUTURE_DATE` is used both as input and as the expected repo-call date.
+// Keeping them in a single constant means we can't get them out of sync when
+// the clock moves. The previous literal `'2026-07-15'` would have started
+// failing the `priorityExpiresAt > now` guard around mid-2026.
+const FUTURE_DATE = futureDateStr(120);
+const FAR_FUTURE_DATE = futureDateStr(150);
 
 function makeGroupProps(overrides: Partial<ServiceGroupProps> = {}): ServiceGroupProps {
   return {
@@ -147,13 +155,13 @@ describe('UpdateServiceGroupUseCase', () => {
 
     const result = await useCase.execute({
       groupId: 'group-1',
-      scheduledDate: '2026-07-15',
+      scheduledDate: FUTURE_DATE,
       actor: makeActor(),
     });
 
     expect(result.id).toBe('group-1');
     expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
-      scheduledDate: new Date('2026-07-15'),
+      scheduledDate: new Date(FUTURE_DATE),
     });
   });
 
@@ -188,7 +196,7 @@ describe('UpdateServiceGroupUseCase', () => {
     await expect(
       useCase.execute({
         groupId: 'group-1',
-        scheduledDate: '2026-07-15',
+        scheduledDate: FUTURE_DATE,
         actor: makeActor(),
       }),
     ).rejects.toThrow(ServiceGroupNotDraftError);
@@ -276,15 +284,15 @@ describe('UpdateServiceGroupUseCase', () => {
 
     await useCase.execute({
       groupId: 'group-1',
-      scheduledDate: '2026-07-15',
+      scheduledDate: FUTURE_DATE,
       actor: makeActor(),
     });
 
     const updateCall = vi.mocked(serviceGroupRepo.update).mock.calls[0]!;
     const updatePayload = updateCall[1];
-    expect(updatePayload.scheduledDate).toEqual(new Date('2026-07-15'));
+    expect(updatePayload.scheduledDate).toEqual(new Date(FUTURE_DATE));
     expect(updatePayload.priorityExpiresAt).toEqual(
-      new Date(new Date('2026-07-15').getTime() - 24 * 60 * 60 * 1000),
+      new Date(new Date(FUTURE_DATE).getTime() - 24 * 60 * 60 * 1000),
     );
   });
 
@@ -335,14 +343,14 @@ describe('UpdateServiceGroupUseCase', () => {
     await useCase.execute({
       groupId: 'group-1',
       name: 'New Name',
-      scheduledDate: '2026-08-01',
+      scheduledDate: FAR_FUTURE_DATE,
       timeWindow: '10:00-14:00',
       actor: makeActor(),
     });
 
     expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
       name: 'New Name',
-      scheduledDate: new Date('2026-08-01'),
+      scheduledDate: new Date(FAR_FUTURE_DATE),
       timeWindow: '10:00-14:00',
     });
   });
@@ -450,14 +458,14 @@ describe('UpdateServiceGroupUseCase', () => {
 
       await useCaseWithTenant.execute({
         groupId: 'group-1',
-        scheduledDate: '2026-07-15',
+        scheduledDate: FUTURE_DATE,
         actor: makeActor(),
       });
 
       const updateCall = vi.mocked(serviceGroupRepo.update).mock.calls[0]!;
       const updatePayload = updateCall[1];
       expect(updatePayload.priorityExpiresAt).toEqual(
-        new Date(new Date('2026-07-15').getTime() - 48 * 60 * 60 * 1000),
+        new Date(new Date(FUTURE_DATE).getTime() - 48 * 60 * 60 * 1000),
       );
     });
 
@@ -492,7 +500,7 @@ describe('UpdateServiceGroupUseCase', () => {
 
     await useCase.execute({
       groupId: 'group-1',
-      scheduledDate: '2026-07-15',
+      scheduledDate: FUTURE_DATE,
       actor: makeActor(),
     });
 

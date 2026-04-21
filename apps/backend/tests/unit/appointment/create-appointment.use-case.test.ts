@@ -26,6 +26,7 @@ import {
   AppointmentNoPriceRuleError,
   AppointmentPastDateError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
+import { futureDateStr } from '../../helpers/date-fixtures';
 
 function makeBranch(overrides: Partial<ConstructorParameters<typeof BranchEntity>[0]> = {}): BranchEntity {
   return new BranchEntity({
@@ -114,7 +115,7 @@ const baseInput = {
   branchId: 'branch-1',
   propertyId: 'property-1',
   serviceTypeId: 'svc-type-1',
-  scheduledDate: '2026-12-01',
+  scheduledDate: futureDateStr(60),
   timeSlot: '09:00-10:00',
   contact: {
     tenantName: 'John Smith',
@@ -253,7 +254,7 @@ describe('CreateAppointmentUseCase', () => {
         country: 'AU',
       },
       serviceTypeId: 'svc-type-1',
-      scheduledDate: '2026-12-01',
+      scheduledDate: futureDateStr(60),
       timeSlot: '09:00-10:00',
       contact: { tenantName: 'Jane Doe' },
       keyRequired: false,
