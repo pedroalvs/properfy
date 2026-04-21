@@ -77,15 +77,15 @@ description: "Implementation and backlog tracking for Service Regions"
 
 **CRITICAL**: No user story correction can begin until this phase is complete.
 
-- [ ] T100 Prisma migration step 1 (expand): add `tenant_id UUID NULL` column with FK to `tenants.id` on `service_regions` table in `apps/backend/prisma/migrations/`.
-- [ ] T101 Prisma migration step 2 (backfill): populate `tenant_id` from `service_groups.tenant_id` (via `service_groups.service_region_id`), fallback to `users.tenant_id` (via `created_by_user_id`). Log any rows that remain NULL for manual assignment.
-- [ ] T102 Prisma migration step 3 (contract): ALTER `tenant_id` to NOT NULL, add `UNIQUE (tenant_id, name)` constraint, add index `(tenant_id, status)`.
-- [ ] T103 Prisma migration step 4: add GIST spatial index on `service_regions.geom` (if not already present) in `apps/backend/prisma/migrations/`.
-- [ ] T104 Update Prisma schema model `ServiceRegion` to include `tenant_id` field and `@@unique([tenant_id, name])` in `apps/backend/prisma/schema.prisma`.
-- [ ] T105 [P] Update `ServiceRegionEntity` to include `tenantId` property in `apps/backend/src/modules/service-region/domain/service-region.entity.ts`.
-- [ ] T106 [P] Update shared Zod schemas: add `tenantId` to create/list schemas in `packages/shared/src/schemas/service-region.ts`.
-- [ ] T107 Update repository port: add `tenantId` to all query signatures and filter parameters in `apps/backend/src/modules/service-region/domain/service-region.repository.ts`.
-- [ ] T108 Update Prisma repository: scope all queries by `tenant_id`, update `save`/`update` raw SQL to include `tenant_id` in `apps/backend/src/modules/service-region/infrastructure/prisma-service-region.repository.ts`.
+- [x] T100 Prisma migration step 1 (expand): add `tenant_id UUID NULL` column with FK to `tenants.id` on `service_regions` table in `apps/backend/prisma/migrations/`. *(Delivered — migration `20260407000003_add_tenant_id_to_service_regions`)*
+- [x] T101 Prisma migration step 2 (backfill): populate `tenant_id` from `service_groups.tenant_id` (via `service_groups.service_region_id`), fallback to `users.tenant_id` (via `created_by_user_id`). Log any rows that remain NULL for manual assignment. *(Delivered — same migration)*
+- [x] T102 Prisma migration step 3 (contract): ALTER `tenant_id` to NOT NULL, add `UNIQUE (tenant_id, name)` constraint, add index `(tenant_id, status)`. *(Delivered — same migration)*
+- [x] T103 Prisma migration step 4: add GIST spatial index on `service_regions.geom` (if not already present) in `apps/backend/prisma/migrations/`. *(Delivered — migration `20260407000004_backfill_service_region_geom`)*
+- [x] T104 Update Prisma schema model `ServiceRegion` to include `tenant_id` field and `@@unique([tenant_id, name])` in `apps/backend/prisma/schema.prisma`. *(Delivered — schema.prisma:1374-1395)*
+- [x] T105 [P] Update `ServiceRegionEntity` to include `tenantId` property in `apps/backend/src/modules/service-region/domain/service-region.entity.ts`. *(Delivered)*
+- [x] T106 [P] Update shared Zod schemas: add `tenantId` to create/list schemas in `packages/shared/src/schemas/service-region.ts`. *(Delivered)*
+- [x] T107 Update repository port: add `tenantId` to all query signatures and filter parameters in `apps/backend/src/modules/service-region/domain/service-region.repository.ts`. *(Delivered)*
+- [x] T108 Update Prisma repository: scope all queries by `tenant_id`, update `save`/`update` raw SQL to include `tenant_id` in `apps/backend/src/modules/service-region/infrastructure/prisma-service-region.repository.ts`. *(Delivered)*
 
 **Checkpoint**: Schema corrected, entity updated, all repository methods tenant-scoped. No functional behavior changes yet — use cases updated in next phases.
 

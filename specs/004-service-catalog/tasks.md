@@ -106,9 +106,9 @@ description: "Implementation and backlog tracking for Service Catalog (service t
 
 ### GAP-004 — PostGIS `geom` population and spatial index
 
-- [ ] T130 [GAP-004] Decide write strategy (application-level `ST_GeomFromGeoJSON` on save, or database trigger on `geojson` change).
-- [ ] T131 [GAP-004] Prisma migration adding `GIST` index on `service_regions.geom` and the trigger if chosen.
-- [ ] T132 [GAP-004] Rewrite `PrismaServiceRegionRepository.resolveRegionsForAppointments` to use `ST_Intersects(geom, ST_SetSRID(ST_MakePoint(lng, lat), 4326))` (includes boundary per dossiê) against `properties.lat`/`lng`, scoped by appointment `tenant_id`. Depends on CORRECTION-004 (`tenant_id` column).
+- [x] T130 [GAP-004] Decide write strategy: application-level `ST_GeomFromGeoJSON` on save chosen. *(Delivered — prisma-service-region.repository.ts:91,117)*
+- [x] T131 [GAP-004] Prisma migration adding `GIST` index on `service_regions.geom`. *(Delivered — migrations 20260407000004 + 20260407000006)*
+- [x] T132 [GAP-004] Rewrite `resolveRegionsForAppointments` to use `ST_Intersects(geom, ...)` scoped by `tenant_id`. *(Delivered — prisma-service-region.repository.ts:150-178)*
 - [ ] T133 [GAP-004] Backfill existing rows from `geojson`.
 - [ ] T134 [GAP-004] Benchmark resolve endpoint before/after with a 25-appointment fixture.
 - [ ] T135 [GAP-004] Coordinate with 003#GAP-003 (property PostGIS backfill) — regions and properties must both be in PostGIS for spatial joins to work.

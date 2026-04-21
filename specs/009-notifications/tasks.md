@@ -109,7 +109,7 @@ description: "Implementation and backlog tracking for Notifications"
 - [ ] T110 [GAP-001] Design doc covering legal requirements (CAN-SPAM, GDPR, LGPD) and the consent model.
 - [ ] T111 [GAP-001] New table `notification_consents` keyed by recipient + channel + tenant.
 - [ ] T112 [GAP-001] Public unsubscribe endpoint (token-authed, similar to tenant portal) with `POST /v1/notification-consents/unsubscribe`.
-- [ ] T113 [GAP-001] `SendNotificationUseCase` checks consent before dispatching; skips and records `skipped_due_to_consent`.
+- [x] T113 [GAP-001] `SendNotificationUseCase` checks consent before dispatching; skips and records `skipped_due_to_consent`. *(Delivered — send-notification.use-case.ts:143, status=SKIPPED_OPT_OUT)*
 - [ ] T114 [GAP-001] Web UI for support staff to inspect and override consent (with audit).
 - [ ] T115 [GAP-001] Email templates include unsubscribe footer link.
 
@@ -123,7 +123,7 @@ description: "Implementation and backlog tracking for Notifications"
 
 - [ ] T130 [GAP-003] Add per-tenant daily caps in `tenant.settings_json` (depends on 002#GAP-002).
 - [ ] T131 [GAP-003] Counter table (or Redis-like) tracking daily send counts per tenant and channel.
-- [ ] T132 [GAP-003] `SendNotificationUseCase` checks the budget before dispatch; on exhaustion, row moves to `FAILED` with reason `BUDGET_EXCEEDED`.
+- [x] T132 [GAP-003] `SendNotificationUseCase` checks the budget before dispatch; on exhaustion, row moves to `FAILED` with reason `BUDGET_EXCEEDED`. *(Delivered — send-notification.use-case.ts:177)*
 - [ ] T133 [GAP-003] Operational alert when a tenant hits its daily cap.
 
 ### GAP-004 — Strict variables validation on send
@@ -162,8 +162,8 @@ description: "Implementation and backlog tracking for Notifications"
 
 ### GAP-009 — Per-attempt audit trail
 
-- [ ] T190 [GAP-009] New table `notification_attempts` (notification_id, attempt_number, status, provider_error, started_at, finished_at).
-- [ ] T191 [GAP-009] `SendNotificationUseCase` inserts a row for every attempt.
+- [x] T190 [GAP-009] New table `notification_attempts` (notification_id, attempt_number, status, provider_error, started_at, finished_at). *(Delivered)*
+- [x] T191 [GAP-009] `SendNotificationUseCase` inserts a row for every attempt. *(Delivered — send-notification.use-case.ts:224-228)*
 - [ ] T192 [GAP-009] Operator detail page shows the attempt history.
 
 ### GAP-010 — SMS fallback when email missing

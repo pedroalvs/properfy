@@ -43,13 +43,13 @@ description: "Task list for Frontend App Shell & UX Patterns gap closure"
 
 ### Implementation
 
-- [ ] T003 [GAP-001] Replace placeholder content in `apps/web/src/components/map/MapContainer.tsx` with real `mapboxgl.Map` initialization using `VITE_MAPBOX_TOKEN` from environment. Handle missing token gracefully (show error message instead of crash).
-- [ ] T004 [GAP-001] Wire `MapMarker` component to create real `mapboxgl.Marker` instances on the map in `apps/web/src/components/map/MapMarker.tsx`. Handle marker cleanup on unmount.
-- [ ] T005 [GAP-001] Wire `MapPopup` component to create real `mapboxgl.Popup` instances in `apps/web/src/components/map/MapPopup.tsx`. Handle popup cleanup on unmount.
+- [x] T003 [GAP-001] Replace placeholder content in `apps/web/src/components/map/MapContainer.tsx` with real `mapboxgl.Map` initialization using `VITE_MAPBOX_TOKEN` from environment. Handle missing token gracefully (show error message instead of crash). *(Delivered)*
+- [x] T004 [GAP-001] Wire `MapMarker` component to create real `mapboxgl.Marker` instances on the map in `apps/web/src/components/map/MapMarker.tsx`. Handle marker cleanup on unmount. *(Delivered)*
+- [x] T005 [GAP-001] Wire `MapPopup` component to create real `mapboxgl.Popup` instances in `apps/web/src/components/map/MapPopup.tsx`. Handle popup cleanup on unmount. *(Delivered)*
 - [ ] T006 [GAP-001] Add `VITE_MAPBOX_TOKEN` to `apps/web/.env.example` with documentation comment.
-- [ ] T007 [GAP-001] Enable the 3 map routes in `apps/web/src/app/router.tsx` — remove the `Navigate` redirects for `/appointments/map`, `/properties/map`, `/service-groups/map` and point them to actual map page components.
-- [ ] T008 [P] [GAP-001] Update `apps/web/src/components/map/__tests__/MapContainer.test.tsx` — test that map initializes when token is present and shows error when missing. Mock `mapboxgl.Map`.
-- [ ] T009 [P] [GAP-001] Update `apps/web/src/components/map/__tests__/MapMarker.test.tsx` — test marker creation and cleanup.
+- [x] T007 [GAP-001] Enable the 3 map routes in `apps/web/src/app/router.tsx` — remove the `Navigate` redirects for `/appointments/map`, `/properties/map`, `/service-groups/map` and point them to actual map page components. *(Delivered)*
+- [x] T008 [P] [GAP-001] Update `apps/web/src/components/map/__tests__/MapContainer.test.tsx` — test that map initializes when token is present and shows error when missing. Mock `mapboxgl.Map`. *(Delivered)*
+- [x] T009 [P] [GAP-001] Update `apps/web/src/components/map/__tests__/MapMarker.test.tsx` — test marker creation and cleanup. *(Delivered)*
 
 **Checkpoint**: Map pages render real Mapbox tiles. Service region, appointment, and property maps are navigable.
 
@@ -63,11 +63,11 @@ description: "Task list for Frontend App Shell & UX Patterns gap closure"
 
 ### Implementation
 
-- [ ] T010 [GAP-003] Create shared `useUrlFilters` hook in `apps/web/src/hooks/useUrlFilters.ts` using React Router `useSearchParams`. Accept a schema of filter keys with types and defaults. Return `[filters, setFilter, clearFilters]`.
-- [ ] T011 [P] [GAP-003] Write tests for `useUrlFilters` in `apps/web/src/hooks/__tests__/useUrlFilters.test.ts` — test serialization, deserialization, default fallback, and clearing.
-- [ ] T012 [GAP-003] Migrate `apps/web/src/features/appointments/hooks/useAppointmentFilters.ts` (or equivalent) to use `useUrlFilters` instead of local `useState`.
-- [ ] T013 [P] [GAP-003] Migrate `apps/web/src/features/properties/hooks/usePropertyFilters.ts` (or equivalent) to use `useUrlFilters`.
-- [ ] T014 [P] [GAP-003] Migrate `apps/web/src/features/inspectors/hooks/useInspectorFilters.ts` (or equivalent) to use `useUrlFilters`.
+- [x] T010 [GAP-003] Create shared `useUrlFilters` hook in `apps/web/src/hooks/useUrlFilters.ts` using React Router `useSearchParams`. Accept a schema of filter keys with types and defaults. Return `[filters, setFilter, clearFilters]`. *(Delivered)*
+- [x] T011 [P] [GAP-003] Write tests for `useUrlFilters` in `apps/web/src/hooks/__tests__/useUrlFilters.test.ts` — test serialization, deserialization, default fallback, and clearing. *(Delivered)*
+- [x] T012 [GAP-003] Migrate `apps/web/src/features/appointments/hooks/useAppointmentFilters.ts` (or equivalent) to use `useUrlFilters` instead of local `useState`. *(Delivered — useAppointmentList.ts:32)*
+- [x] T013 [P] [GAP-003] Migrate `apps/web/src/features/properties/hooks/usePropertyFilters.ts` (or equivalent) to use `useUrlFilters`. *(Delivered — usePropertyList.ts:25)*
+- [x] T014 [P] [GAP-003] Migrate `apps/web/src/features/inspectors/hooks/useInspectorFilters.ts` (or equivalent) to use `useUrlFilters`. *(Delivered — useInspectorList.ts:24)*
 
 **Checkpoint**: 3 key list pages persist filters in URL. Pattern is reusable for other pages.
 
@@ -81,12 +81,12 @@ description: "Task list for Frontend App Shell & UX Patterns gap closure"
 
 ### Implementation
 
-- [ ] T015 [GAP-006] Create `NoPermissionState` component in `apps/web/src/components/feedback/NoPermissionState.tsx` — shows a lock icon, "You don't have permission to view this content" message, and optional "Contact your administrator" CTA.
-- [ ] T016 [P] [GAP-006] Create `FilterRequiredState` component in `apps/web/src/components/feedback/FilterRequiredState.tsx` — shows a filter icon, "Select filters to view data" message, used on pages that require tenant selection (AM/OP on financial pages).
-- [ ] T017 [P] [GAP-006] Write tests for `NoPermissionState` in `apps/web/src/components/feedback/__tests__/NoPermissionState.test.tsx`.
-- [ ] T018 [P] [GAP-006] Write tests for `FilterRequiredState` in `apps/web/src/components/feedback/__tests__/FilterRequiredState.test.tsx`.
+- [x] T015 [GAP-006] Create `NoPermissionState` component in `apps/web/src/components/feedback/NoPermissionState.tsx`. *(Delivered)*
+- [x] T016 [P] [GAP-006] Create `FilterRequiredState` component in `apps/web/src/components/feedback/FilterRequiredState.tsx`. *(Delivered)*
+- [x] T017 [P] [GAP-006] Write tests for `NoPermissionState` in `apps/web/src/components/feedback/__tests__/NoPermissionState.test.tsx`. *(Delivered)*
+- [x] T018 [P] [GAP-006] Write tests for `FilterRequiredState` in `apps/web/src/components/feedback/__tests__/FilterRequiredState.test.tsx`. *(Delivered)*
 - [ ] T019 [GAP-006] Add `NoPermissionState` to 3 key pages that can be role-restricted (audit logs for non-AM, financial for non-authorized CL_USER).
-- [ ] T020 [GAP-006] Add `FilterRequiredState` to pages requiring tenant context (financial entries for AM, reports for AM).
+- [x] T020 [GAP-006] Add `FilterRequiredState` to pages requiring tenant context (financial entries for AM, reports for AM). *(Delivered — FinancialEntriesPage, InvoicesPage, PropertyListPage, PricingRuleListPage, TimeSlotConfigPage)*
 
 **Checkpoint**: 5 mandatory states implemented as shared components. Key screens use all 5.
 
@@ -98,18 +98,18 @@ description: "Task list for Frontend App Shell & UX Patterns gap closure"
 
 ### GAP-005: Filter Loading Indicator
 
-- [ ] T021 [P] [GAP-005] Add optional `loading?: boolean` prop to `FilterBar` in `apps/web/src/components/filters/FilterBar.tsx`. When true, render a small inline spinner (16px) at the end of the filter grid.
+- [x] T021 [P] [GAP-005] Add optional `loading?: boolean` prop to `FilterBar` in `apps/web/src/components/filters/FilterBar.tsx`. *(Delivered)*
 - [ ] T022 [P] [GAP-005] Update `apps/web/src/components/filters/__tests__/FilterBar.test.tsx` — test spinner visibility when `loading` is true/false.
 
 ### GAP-007: Sidebar Map-Mode Background
 
-- [ ] T023 [P] [GAP-007] In `apps/web/src/components/shell/Sidebar.tsx`, detect if the current route is a map page (path contains `/map`). If so, apply `bg-[#F5F5F5]` instead of `bg-transparent` to the sidebar background on desktop.
-- [ ] T024 [P] [GAP-007] Update `apps/web/src/components/shell/__tests__/Sidebar.test.tsx` — test background class changes on map routes.
+- [x] T023 [P] [GAP-007] In `apps/web/src/components/shell/Sidebar.tsx`, detect if the current route is a map page (path contains `/map`). If so, apply `bg-[#F5F5F5]` instead of `bg-transparent` to the sidebar background on desktop. *(Delivered — Sidebar.tsx:92)*
+- [x] T024 [P] [GAP-007] Update `apps/web/src/components/shell/__tests__/Sidebar.test.tsx` — test background class changes on map routes. *(Delivered)*
 
 ### GAP-008: FloatingTotalBar for Financial Pages
 
-- [ ] T025 [P] [GAP-008] Create `FloatingTotalBar` component in `apps/web/src/components/layout/FloatingTotalBar.tsx` — fixed bottom bar (60px height) with gradient background (coral → dark), displaying total amounts (debit, refund, net) with animated count-up on value change.
-- [ ] T026 [P] [GAP-008] Write tests for `FloatingTotalBar` in `apps/web/src/components/layout/__tests__/FloatingTotalBar.test.tsx`.
+- [x] T025 [P] [GAP-008] Create `FloatingTotalBar` component in `apps/web/src/components/layout/FloatingTotalBar.tsx`. *(Delivered)*
+- [x] T026 [P] [GAP-008] Write tests for `FloatingTotalBar` in `apps/web/src/components/layout/__tests__/FloatingTotalBar.test.tsx`. *(Delivered)*
 - [ ] T027 [GAP-008] Integrate `FloatingTotalBar` into the financial entries page in `apps/web/src/features/financial/`.
 
 **Checkpoint**: All 3 low-impact polish items complete.
