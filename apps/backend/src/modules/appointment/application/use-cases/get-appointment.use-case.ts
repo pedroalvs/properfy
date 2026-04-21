@@ -162,11 +162,15 @@ export class GetAppointmentUseCase {
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'], { action: 'appointment.view', entityType: 'Appointment' });
 
-    // AM/INSP: global access (no tenant scoping) — INSP verified after.
-    // OP: tenant-scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
-    // CL_ADMIN/CL_USER: scoped by tenantId from JWT.
+    // AM/OP/INSP: platform-wide / cross-tenant access (no tenant_id filter
+    // at the repo layer). OP is cross-tenant per CLAUDE.md §6 and
+    // `specs/DECISIONS.md` DEC-003 — aligning with the `list-appointments`
+    // contract so OP get-by-id and list behaviour stay consistent. INSP
+    // is further narrowed after the lookup by `inspectorId` equality.
+    // CL_ADMIN/CL_USER: scoped by tenantId from JWT and verified again
+    // after the lookup.
     const tenantId =
-      actor.role === 'AM' || actor.role === 'INSP'
+      actor.role === 'AM' || actor.role === 'OP' || actor.role === 'INSP'
         ? null
         : actor.tenantId;
 
