@@ -26,6 +26,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Workspace packages that ship compiled output need to be built so
+      # downstream typecheck/test can resolve them via package exports.
+      - name: Build shared (required by backend/web type resolution)
+        run: pnpm --filter shared build
+
+      # Prisma client is generated on-demand from schema.prisma — without
+      # this, backend typecheck fails with "Module '@prisma/client' has
+      # no exported member 'PrismaClient'" and similar enum errors.
+      - name: Generate Prisma client
+        working-directory: apps/backend
+        run: npx prisma generate
+
       - name: Lint shared
         run: pnpm --filter shared lint
 
@@ -74,6 +86,11 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - name: Build shared
+        run: pnpm --filter shared build
+      - name: Generate Prisma client
+        working-directory: apps/backend
+        run: npx prisma generate
       - run: pnpm --filter backend test
 
   test-web:
@@ -90,6 +107,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - name: Build shared (required for @properfy/shared resolution)
+        run: pnpm --filter shared build
       - run: pnpm --filter web test
 
   build:
@@ -110,6 +129,10 @@ jobs:
 
       - name: Build shared
         run: pnpm --filter shared build
+
+      - name: Generate Prisma client
+        working-directory: apps/backend
+        run: npx prisma generate
 
       - name: Build backend
         run: pnpm --filter backend build
@@ -134,6 +157,13 @@ jobs:
 
       - name: Validate Prisma schema
         working-directory: apps/backend
+        # `prisma validate` short-circuits to a syntax-only check and does
+        # not open a connection, but it still resolves `env()` references
+        # at parse time. Provide dummy placeholders so the schema's
+        # `datasource.url` / `directUrl` env() calls don't block the check.
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
         run: npx prisma validate
 
   # Sprint 1 W-6 — real-database migration check (un-gated 2026-04-13).
