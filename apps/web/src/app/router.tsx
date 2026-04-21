@@ -250,17 +250,28 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            // Backend `appointment-contacts` list accepts AM/OP/CL_ADMIN/CL_USER
+            // (`ListAppointmentContactsUseCase.assertRoles`). Mirror that here
+            // so CL_USER doesn't get a redirect on a feature they're entitled
+            // to use.
             path: 'tenant-contacts',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
+              <AuthGuard
+                roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}
+              >
                 <TenantContactListPage />
               </AuthGuard>
             ),
           },
           {
+            // Tenant LIST is platform-wide — backend `tenant.list` rejects
+            // anything other than AM/OP. Letting CL_ADMIN through here would
+            // render the page shell, fire the API call, and only then redirect
+            // (the "brief flicker" the QA caught on 2026-04-20). Lock the
+            // route to match the backend contract.
             path: 'tenants',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <TenantListPage />
               </AuthGuard>
             ),
@@ -341,9 +352,14 @@ export const router = createBrowserRouter([
           { path: 'settings/account', element: <AccountSettingsPage /> },
           { path: 'settings/security', element: <SecuritySettingsPage /> },
           {
+            // CL_ADMIN audit read access shipped with feature 020 (closes
+            // 011#GAP-002). Backend `ListAuditLogsUseCase` already serves
+            // CL_ADMIN with tenant-scoped + PII-masked rows; the frontend
+            // was lagging behind, hiding the page entirely for CL_ADMIN.
+            // CL_USER stays out (backend returns 403).
             path: 'audit-logs',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
                 <AuditLogListPage />
               </AuthGuard>
             ),

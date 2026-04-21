@@ -30,9 +30,24 @@ export class ForceManualTenantConfirmationUseCase {
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_USER'], { action: 'appointment.force_confirmation', entityType: 'Appointment' });
     this.authorizationService.assertClUserPermission(actor, 'force_confirmation');
 
-    // 2. Find appointment (AM/OP have global access)
-    const result = await this.appointmentRepo.findById(appointmentId, null);
+    // 2. Find appointment. AM/OP are platform-wide so we look up across
+    // tenants; CL_USER must be pinned to their JWT tenantId to prevent a
+    // brute-force write against another tenant's appointment (the use-case
+    // accepts a CL_USER actor with the `force_confirmation` permission, but
+    // that permission is per-tenant — it must never imply cross-tenant
+    // reach). Hardening pass 2026-04-20.
+    const tenantScope =
+      actor.role === 'AM' || actor.role === 'OP' ? null : actor.tenantId;
+    const result = await this.appointmentRepo.findById(appointmentId, tenantScope);
     if (!result) throw new AppointmentNotFoundError();
+    if (
+      (actor.role === 'CL_USER' || actor.role === 'CL_ADMIN') &&
+      result.appointment.tenantId !== actor.tenantId
+    ) {
+      // Defense in depth: even if the repo ever loosens its tenant filter,
+      // the actor must own the row to mutate it.
+      throw new AppointmentNotFoundError();
+    }
 
     // 3. Update tenant confirmation status
     await this.appointmentRepo.update(appointmentId, result.appointment.tenantId, {

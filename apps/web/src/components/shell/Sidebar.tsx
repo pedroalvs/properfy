@@ -54,7 +54,8 @@ const NAV_ITEMS: NavItem[] = [
       { icon: 'mdi-email-outline', label: 'Notification Templates', to: '/notification-templates' },
     ],
   },
-  { icon: 'mdi-history', label: 'Audit Logs', to: '/audit-logs', roles: [UserRole.AM, UserRole.OP] },
+  // CL_ADMIN audit access shipped with feature 020 (011#GAP-002).
+  { icon: 'mdi-history', label: 'Audit Logs', to: '/audit-logs', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN] },
 ];
 
 function filterNavItems(items: NavItem[], role: string | undefined): NavItem[] {

@@ -271,4 +271,53 @@ describe('ForceManualTenantConfirmationUseCase – audit log', () => {
     });
     expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
   });
+
+  // Hardening pass 2026-04-20: CL_USER must never reach an appointment
+  // outside its JWT tenant, even with the `force_confirmation` permission.
+  describe('cross-tenant hardening for CL_USER', () => {
+    const authzService = new AuthorizationService(auditService as any);
+
+    it('pins the findById tenant scope to the actor tenant for CL_USER', async () => {
+      appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+      const uc = new ForceManualTenantConfirmationUseCase(
+        appointmentRepo as any, auditService as any, authzService,
+      );
+
+      await uc.execute({
+        appointmentId: 'appt-1',
+        tenantConfirmationStatus: 'CONFIRMED',
+        reason: 'Tenant confirmed by phone',
+        actor: makeActor('CL_USER', {
+          tenantId: 'tenant-1',
+          clUserPermissions: ['force_confirmation'],
+        }),
+      });
+
+      expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', 'tenant-1');
+    });
+
+    it('rejects when the loaded appointment belongs to a different tenant', async () => {
+      // Repo returns an appointment from another tenant (simulates a stale
+      // cache / loosened scope on the repo side). Use case must still refuse.
+      appointmentRepo.findById.mockResolvedValue(
+        makeWithRelations({ tenantId: 'tenant-other' }),
+      );
+      const uc = new ForceManualTenantConfirmationUseCase(
+        appointmentRepo as any, auditService as any, authzService,
+      );
+
+      await expect(
+        uc.execute({
+          appointmentId: 'appt-1',
+          tenantConfirmationStatus: 'CONFIRMED',
+          reason: 'Cross-tenant attempt',
+          actor: makeActor('CL_USER', {
+            tenantId: 'tenant-1',
+            clUserPermissions: ['force_confirmation'],
+          }),
+        }),
+      ).rejects.toThrow();
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
+    });
+  });
 });

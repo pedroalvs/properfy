@@ -83,8 +83,15 @@ export class BatchMarkInvoicesPaidUseCase {
       }
 
       // Per-invoice "not before generatedAt" check — skip instead of throwing so the batch
-      // semantics remain "process what can be processed"
-      if (invoice.generatedAt && paidAt.getTime() < invoice.generatedAt.getTime()) {
+      // semantics remain "process what can be processed". Mirror the 60s grace from
+      // `validatePaidAt` so client-side datetime truncation (datetime-local drops seconds)
+      // doesn't push the batch path into a false "before generatedAt" verdict for the
+      // common "mark paid now right after invoice generation" case (Bug B-7).
+      const BATCH_BEFORE_GENERATED_GRACE_MS = 60 * 1000;
+      if (
+        invoice.generatedAt &&
+        paidAt.getTime() < invoice.generatedAt.getTime() - BATCH_BEFORE_GENERATED_GRACE_MS
+      ) {
         // For this edge case, surface it as a skip with NOT_CLOSED (closest existing reason).
         // A future refinement could add a more specific INVALID_DATE reason.
         skipped.push({ id, reason: 'NOT_CLOSED' });
