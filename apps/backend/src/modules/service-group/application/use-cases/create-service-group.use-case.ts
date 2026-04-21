@@ -12,6 +12,7 @@ import { AppointmentNotFoundError } from '../../../appointment/domain/appointmen
 import { PriorityDateTooCloseError, ServiceRegionInactiveError } from '../../domain/service-group.errors';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import type { PriorityMode } from '@properfy/shared';
+import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
 export interface CreateServiceGroupInput {
   appointmentIds: string[];
@@ -59,6 +60,7 @@ export class CreateServiceGroupUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
     private readonly tenantRepo?: ITenantRepository,
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   async execute(input: CreateServiceGroupInput): Promise<CreateServiceGroupOutput> {
@@ -116,7 +118,7 @@ export class CreateServiceGroupUseCase {
       priorityExpiresAt = new Date(scheduledDate.getTime() - priorityOfferHours * 60 * 60 * 1000);
 
       // Validate scheduled date is at least priorityOfferHours from now
-      const now = new Date();
+      const now = this.clock.now();
       if (scheduledDate.getTime() - now.getTime() < priorityOfferHours * 60 * 60 * 1000) {
         throw new PriorityDateTooCloseError();
       }
@@ -142,7 +144,7 @@ export class CreateServiceGroupUseCase {
     }
 
     // 6. Create entity
-    const now = new Date();
+    const now = this.clock.now();
     const groupId = crypto.randomUUID();
 
     const group = new ServiceGroupEntity({

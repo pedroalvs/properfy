@@ -1,4 +1,4 @@
-import { todayUTCDateString, type AuthContext, type PropertyType } from '@properfy/shared';
+import { type AuthContext, type PropertyType } from '@properfy/shared';
 import type { AppointmentContactRole } from '@properfy/shared';
 import {
   ValidationError,
@@ -34,6 +34,7 @@ import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
 export interface CreateAppointmentInput {
   branchId: string;
@@ -144,6 +145,9 @@ export class CreateAppointmentUseCase {
     private readonly tenantRepo?: ITenantRepository,
     private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
     private readonly contactRepo?: IContactRepository,
+    // Clock defaults to the system clock for production. Tests that need
+    // deterministic past/today/future behaviour pass a FakeClock.
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<CreateAppointmentOutput> {
@@ -234,8 +238,10 @@ export class CreateAppointmentUseCase {
       }
     }
 
-    // 5c. Reject past dates (AM/OP bypass) — UTC comparison for server consistency
-    if (input.scheduledDate < todayUTCDateString() && actor.role !== 'AM' && actor.role !== 'OP') {
+    // 5c. Reject past dates (AM/OP bypass) — UTC comparison for server consistency.
+    // Uses the injected Clock so tests can freeze the reference date.
+    const todayStr = this.clock.now().toISOString().split('T')[0]!;
+    if (input.scheduledDate < todayStr && actor.role !== 'AM' && actor.role !== 'OP') {
       throw new AppointmentPastDateError();
     }
 
@@ -258,7 +264,7 @@ export class CreateAppointmentUseCase {
     );
 
     // 8. Create entities
-    const now = new Date();
+    const now = this.clock.now();
     const appointmentId = crypto.randomUUID();
 
     const appointment = new AppointmentEntity({

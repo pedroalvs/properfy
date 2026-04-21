@@ -21,6 +21,7 @@ import {
   PortalTokenAlreadyUsedError,
 } from '../../domain/tenant-portal.errors';
 import { NotFoundError } from '../../../../shared/domain/errors';
+import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
 export interface RescheduleRequestInput {
   tokenId: string;
@@ -55,6 +56,7 @@ export class RescheduleRequestUseCase {
     private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
     private readonly domainEventBus?: DomainEventBus,
     private readonly generatePortalTokenUseCase?: GeneratePortalTokenUseCase,
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   async execute(input: RescheduleRequestInput) {
@@ -94,7 +96,7 @@ export class RescheduleRequestUseCase {
     }
 
     // 6. Validate newDate is not in the past
-    const today = new Date();
+    const today = this.clock.now();
     today.setHours(0, 0, 0, 0);
     const newDateObj = new Date(input.newDate + 'T00:00:00Z');
     if (newDateObj.getTime() < today.getTime()) {

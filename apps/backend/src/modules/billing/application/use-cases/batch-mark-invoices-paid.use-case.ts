@@ -4,6 +4,7 @@ import { InvoicePaymentDateInvalidError } from '../../domain/billing.errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { validatePaidAt } from './mark-invoice-paid.use-case';
+import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
 export type BatchSkipReason = 'ALREADY_PAID' | 'NOT_CLOSED' | 'NOT_FOUND' | 'TENANT_SCOPE';
 
@@ -39,6 +40,7 @@ export class BatchMarkInvoicesPaidUseCase {
     private readonly invoiceRepo: IInspectorInvoiceRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   async execute(input: BatchMarkInvoicesPaidInput): Promise<BatchMarkInvoicesPaidOutput> {
@@ -51,9 +53,10 @@ export class BatchMarkInvoicesPaidUseCase {
     });
 
     // 2. Determine and validate shared paidAt (once per batch)
-    const paidAt = input.paidAt ? new Date(input.paidAt) : new Date();
+    const now = this.clock.now();
+    const paidAt = input.paidAt ? new Date(input.paidAt) : now;
     // Shared "not in future" validation — use null generatedAt so only the future check applies here
-    validatePaidAt(paidAt, null);
+    validatePaidAt(paidAt, null, now);
 
     const paymentReference = input.paymentReference ?? null;
 

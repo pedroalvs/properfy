@@ -1,4 +1,4 @@
-import { todayUTCDateString, type AuthContext, type AppointmentContactRole } from '@properfy/shared';
+import { type AuthContext, type AppointmentContactRole } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
@@ -15,6 +15,7 @@ import {
 } from '../../domain/appointment.errors';
 import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
+import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
 export interface UpdateAppointmentInput {
   appointmentId: string;
@@ -93,6 +94,7 @@ export class UpdateAppointmentUseCase {
     private readonly tenantRepo?: ITenantRepository,
     private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
     private readonly contactRepo?: IContactRepository,
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
@@ -159,7 +161,8 @@ export class UpdateAppointmentUseCase {
 
     // Reject past dates (AM/OP bypass) — UTC comparison for server consistency
     if (data.scheduledDate !== undefined) {
-      if (data.scheduledDate < todayUTCDateString() && actor.role !== 'AM' && actor.role !== 'OP') {
+      const todayStr = this.clock.now().toISOString().split('T')[0]!;
+      if (data.scheduledDate < todayStr && actor.role !== 'AM' && actor.role !== 'OP') {
         throw new AppointmentPastDateError();
       }
     }
@@ -193,7 +196,7 @@ export class UpdateAppointmentUseCase {
       }
       // Delete old junction rows, insert new with fresh snapshots
       await this.appointmentRepo.deleteContactsByAppointmentId(appointmentId);
-      const now = new Date();
+      const now = this.clock.now();
       for (const entry of data.contacts) {
         let cId: string | null = null;
         let sName: string;
@@ -262,7 +265,7 @@ export class UpdateAppointmentUseCase {
           secondaryPhone: data.contact.secondaryPhone ?? null,
         });
       } else {
-        const now = new Date();
+        const now = this.clock.now();
         const contact = new AppointmentContactEntity({
           id: crypto.randomUUID(), appointmentId, contactId: null,
           role: 'TENANT' as AppointmentContactRole, isPrimary: true,
@@ -281,7 +284,7 @@ export class UpdateAppointmentUseCase {
     if (data.restriction !== undefined) {
       await this.appointmentRepo.deleteRestrictionsByAppointmentId(appointmentId);
       if (data.restriction !== null) {
-        const now = new Date();
+        const now = this.clock.now();
         const restriction = new AppointmentRestrictionEntity({
           id: crypto.randomUUID(),
           appointmentId,

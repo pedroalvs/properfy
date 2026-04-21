@@ -8,6 +8,7 @@ import {
   PriorityDateTooCloseError,
 } from '../../domain/service-group.errors';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
 /** Fields that can only be updated when the group is in DRAFT status. */
 const DRAFT_ONLY_FIELDS = [
@@ -64,6 +65,7 @@ export class UpdateServiceGroupUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo?: ITenantRepository,
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   async execute(input: UpdateServiceGroupInput): Promise<UpdateServiceGroupOutput> {
@@ -121,7 +123,7 @@ export class UpdateServiceGroupUseCase {
         const priorityExpiresAt = new Date(scheduledDate.getTime() - priorityOfferHours * 60 * 60 * 1000);
 
         // Validate scheduled date is at least priorityOfferHours from now
-        const now = new Date();
+        const now = this.clock.now();
         if (priorityExpiresAt <= now) {
           throw new PriorityDateTooCloseError();
         }
@@ -137,7 +139,7 @@ export class UpdateServiceGroupUseCase {
       const scheduledDate = new Date(input.scheduledDate);
       const priorityExpiresAt = new Date(scheduledDate.getTime() - priorityOfferHours * 60 * 60 * 1000);
 
-      const now = new Date();
+      const now = this.clock.now();
       if (priorityExpiresAt <= now) {
         throw new PriorityDateTooCloseError();
       }

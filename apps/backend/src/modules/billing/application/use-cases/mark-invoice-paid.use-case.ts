@@ -8,6 +8,7 @@ import {
 } from '../../domain/billing.errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
 /** Grace window in milliseconds to absorb clock skew when validating "future" paidAt values (Q4 clarification). */
 const FUTURE_GRACE_MS = 60 * 60 * 1000; // 1 hour
@@ -57,6 +58,7 @@ export class MarkInvoicePaidUseCase {
     private readonly invoiceRepo: IInspectorInvoiceRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   async execute(input: MarkInvoicePaidInput): Promise<MarkInvoicePaidOutput> {
@@ -84,8 +86,9 @@ export class MarkInvoicePaidUseCase {
     }
 
     // 4. Determine paidAt and validate date constraints (FR-006)
-    const paidAt = input.paidAt ? new Date(input.paidAt) : new Date();
-    validatePaidAt(paidAt, invoice.generatedAt);
+    const now = this.clock.now();
+    const paidAt = input.paidAt ? new Date(input.paidAt) : now;
+    validatePaidAt(paidAt, invoice.generatedAt, now);
 
     const paymentReference = input.paymentReference ?? null;
     const before = {
