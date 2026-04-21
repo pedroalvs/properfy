@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserRole } from '@properfy/shared';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { FormField } from '@/components/forms/FormField';
 import { SelectInput } from '@/components/forms/SelectInput';
@@ -13,16 +13,15 @@ import { PropertyFormDrawer } from '../components/PropertyFormDrawer';
 import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import { usePropertyList } from '../hooks/usePropertyList';
 
-const CAN_CREATE_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
-
 export function PropertyListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isGlobalRole = user?.role === UserRole.AM || user?.role === UserRole.OP;
+  const { canPerform, hasRole } = usePermissions();
+  const isGlobalRole = hasRole('AM', 'OP');
   const [selectedTenantId, setSelectedTenantId] = useState('');
   const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
   const requiresTenantSelection = isGlobalRole && !selectedTenantId;
-  const canCreate = user ? CAN_CREATE_ROLES.includes(user.role) : false;
+  const canCreate = canPerform('property.create');
   const { data: tenantsResp } = usePaginatedQuery<{ id: string; name: string }>(
     ['tenants', 'property-list'],
     '/v1/tenants',

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { TenantAdminFilters } from '../components/TenantAdminFilters';
 import { TenantAdminTable } from '../components/TenantAdminTable';
 import { TenantFormDrawer } from '../components/TenantFormDrawer';
@@ -11,8 +11,7 @@ import type { TenantAdmin } from '../types';
 
 export function TenantListPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isAM = user?.role === 'AM';
+  const { canPerform } = usePermissions();
 
   const {
     data,
@@ -49,7 +48,7 @@ export function TenantListPage() {
       <ListFilterTableTemplate
         title="Agencies"
         primaryAction={
-          isAM
+          canPerform('tenant.create')
             ? { label: 'New Agency', icon: 'mdi-plus', onClick: handleCreate }
             : undefined
         }

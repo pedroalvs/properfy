@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserRole } from '@properfy/shared';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentTable } from '../components/AppointmentTable';
 import { AppointmentDetailDrawer } from '../components/AppointmentDetailDrawer';
@@ -10,13 +9,9 @@ import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { BulkEditModal } from '../components/BulkEditModal';
 import { useAppointmentList } from '../hooks/useAppointmentList';
 
-const CAN_CREATE_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
-const CAN_MAP_IMPORT_ROLES: string[] = [UserRole.AM, UserRole.OP];
-const CAN_BULK_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP];
-
 export function AppointmentListPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canPerform } = usePermissions();
   const {
     data,
     isLoading,
@@ -53,9 +48,9 @@ export function AppointmentListPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
 
-  const canCreate = user ? CAN_CREATE_ROLES.includes(user.role) : false;
-  const canMapImport = user ? CAN_MAP_IMPORT_ROLES.includes(user.role) : false;
-  const canBulkEdit = user ? CAN_BULK_EDIT_ROLES.includes(user.role) : false;
+  const canCreate = canPerform('appointment.create');
+  const canMapImport = canPerform('property.import');
+  const canBulkEdit = canPerform('appointment.cancel');
 
   return (
     <>
