@@ -176,9 +176,92 @@ async function main() {
     }
   }
 
+  await provisionDefaultTemplates();
+
   console.log('\nQA credentials ready:');
   for (const u of FIXTURES.users) {
     console.log(`  ${u.email.padEnd(28)} → ${u.role.padEnd(9)} password: ${PASSWORD}`);
+  }
+}
+
+/**
+ * Ensure the platform-default notification templates that operational
+ * flows depend on exist in staging/prod. Unlike `prisma db seed`, which
+ * is only run locally, this script is part of the Fly.io release_command,
+ * so idempotent upserts here guarantee the template catalog is never
+ * empty in a fresh environment.
+ *
+ * Currently minimal: only the TENANT_PORTAL_LINK variants, because the
+ * `GeneratePortalTokenUseCase` will otherwise enqueue notifications
+ * against a missing templateCode — fire-and-forget inside the use case
+ * swallows the failure but the tenant never receives the link. See
+ * Bug B-5 follow-up.
+ *
+ * The full template catalog (reminders, confirmations, escalations,
+ * report completion, etc.) is still owned by `prisma/seed.ts` for
+ * local demo environments.
+ */
+async function provisionDefaultTemplates(): Promise<void> {
+  const OP_EMAIL_FOOTER =
+    ' If you no longer wish to receive operational notifications, you can unsubscribe here: {{unsubscribeUrl}}';
+  const templates: Array<{
+    code: string;
+    channel: 'EMAIL' | 'SMS';
+    subject: string | null;
+    body: string;
+  }> = [
+    {
+      code: 'TENANT_PORTAL_LINK',
+      channel: 'EMAIL',
+      subject: 'Your property inspection portal',
+      body:
+        'Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on ' +
+        '{{scheduledDate}} using this secure link: {{portalToken}}.' +
+        OP_EMAIL_FOOTER,
+    },
+    {
+      code: 'TENANT_PORTAL_LINK',
+      channel: 'SMS',
+      subject: null,
+      body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{portalToken}}',
+    },
+  ];
+
+  for (const t of templates) {
+    const variables = (t.body.match(/\{\{(\w+)\}\}/g) ?? []).map((v: string) =>
+      v.replace(/\{\{|\}\}/g, ''),
+    );
+    const existing = await prisma.notificationTemplate.findFirst({
+      where: { tenant_id: null, template_code: t.code, channel: t.channel },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.notificationTemplate.update({
+        where: { id: existing.id },
+        data: {
+          subject: t.subject,
+          body_text: t.body,
+          body_html: t.channel === 'EMAIL' ? `<p>${t.body}</p>` : null,
+          variables_json: variables,
+          is_active: true,
+        },
+      });
+      console.log(`  = template refreshed: ${t.code} (${t.channel})`);
+    } else {
+      await prisma.notificationTemplate.create({
+        data: {
+          tenant_id: null,
+          template_code: t.code,
+          channel: t.channel,
+          subject: t.subject,
+          body_text: t.body,
+          body_html: t.channel === 'EMAIL' ? `<p>${t.body}</p>` : null,
+          variables_json: variables,
+          is_active: true,
+        },
+      });
+      console.log(`  + template created:   ${t.code} (${t.channel})`);
+    }
   }
 }
 

@@ -1429,6 +1429,12 @@ async function main() {
     // Feature 019: report completion / failure notifications (closes 011#GAP-010)
     { code: 'REPORT_READY', channel: 'EMAIL' as const, subject: 'Your report "{{reportType}}" is ready', body: `Hi {{userName}}, your {{reportType}} report is ready. View and download it at {{downloadLink}}. The file is available for 30 days.${OP_EMAIL_FOOTER}` },
     { code: 'REPORT_FAILED', channel: 'EMAIL' as const, subject: 'Your report "{{reportType}}" failed', body: `Hi {{userName}}, your {{reportType}} report could not be generated. Reason: {{errorMessage}}. You can retry from the reports page: {{downloadLink}}.${OP_EMAIL_FOOTER}` },
+    // Feature 007 / Bug B-5: tenant portal deep-link. Enfileirado por
+    // `GeneratePortalTokenUseCase` quando o operador gera um portal link
+    // para o appointment. Variáveis esperadas: tenantName, portalToken,
+    // scheduledDate. O frontend compõe a URL completa a partir do token.
+    { code: 'TENANT_PORTAL_LINK', channel: 'EMAIL' as const, subject: 'Your property inspection portal', body: `Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on {{scheduledDate}} using this secure link: {{portalToken}}.${OP_EMAIL_FOOTER}` },
+    { code: 'TENANT_PORTAL_LINK', channel: 'SMS' as const, subject: null, body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{portalToken}}' },
   ];
 
   for (const t of templates) {
@@ -1471,7 +1477,7 @@ async function main() {
       });
     }
   }
-  console.log('Notification templates: 10 templates synced for platform default + 2 tenants');
+  console.log(`Notification templates: ${templates.length} templates synced for platform default + 2 tenants`);
 
   // ─── REPORTS ──────────────────────────────────────────────────────────────
 
