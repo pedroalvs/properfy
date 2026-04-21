@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
-import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { FormField } from '@/components/forms/FormField';
@@ -15,7 +14,6 @@ import { usePropertyList } from '../hooks/usePropertyList';
 
 export function PropertyListPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { canPerform, hasRole } = usePermissions();
   const isGlobalRole = hasRole('AM', 'OP');
   const [selectedTenantId, setSelectedTenantId] = useState('');
