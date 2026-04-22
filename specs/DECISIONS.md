@@ -31,10 +31,10 @@ WhatsApp (Zenvia provider) is **out of scope for v1** and all future work until 
 - `apps/backend/src/modules/notification/infrastructure/zenvia-whatsapp.provider.ts` — deleted.
 - `apps/backend/src/modules/notification/infrastructure/stub-whatsapp.provider.ts` — deleted.
 - `apps/backend/src/modules/notification/infrastructure/twilio-sms.provider.ts` — replaced by `mobile-message-sms.provider.ts`.
-- `apps/backend/src/modules/notification/infrastructure/webhook-signature-validator.ts` — Twilio + Zenvia validators removed; MobileMessage Basic-Auth validator added (pending provider confirmation of webhook signature spec).
+- `apps/backend/src/modules/notification/infrastructure/webhook-signature-validator.ts` — Twilio + Zenvia validators removed. MobileMessage **has no webhook signature support** (confirmed 2026-04-22 via dashboard). The `/v1/webhooks/mobile-message` route accepts all POST requests without validation. IP allowlisting is the recommended mitigation.
 - Routes: `POST /v1/webhooks/zenvia` removed; `POST /v1/webhooks/twilio` → `POST /v1/webhooks/mobile-message`.
-- Container: wired to `MobileMessageSmsProvider`.
-- Env: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `WHATSAPP_API_KEY`, `WHATSAPP_API_URL`, `ZENVIA_WEBHOOK_SECRET` removed; `MOBILE_MESSAGE_API_KEY`, `MOBILE_MESSAGE_SENDER_ID`, `MOBILE_MESSAGE_WEBHOOK_SECRET` added.
+- Container: wired to `MobileMessageSmsProvider` (username + password Basic Auth).
+- Env: `TWILIO_*`, `WHATSAPP_*`, `ZENVIA_WEBHOOK_SECRET` removed; `MOBILE_MESSAGE_API_KEY` (username), `MOBILE_MESSAGE_PASSWORD` (password), `MOBILE_MESSAGE_SENDER_ID` added. `MOBILE_MESSAGE_WEBHOOK_SECRET` dropped (provider has no signing capability).
 - `specs/009-notifications/tasks.md` — T120, T121 marked obsolete (WhatsApp fields removed at source); T171 marked obsolete (Twilio/Zenvia removed, MobileMessage T171b added as DONE once webhook spec confirmed).
 
 ---

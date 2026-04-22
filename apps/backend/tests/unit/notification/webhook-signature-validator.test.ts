@@ -73,48 +73,14 @@ describe('WebhookSignatureValidator', () => {
   });
 
   describe('MobileMessage', () => {
-    const secret = 'mobile-message-test-secret';
-
-    function makeMobileMessageSignature(body: string): string {
-      return createHmac('sha256', secret).update(body).digest('hex');
-    }
-
-    it('accepts valid MobileMessage signature', () => {
-      const validator = createWebhookSignatureValidator({ mobileMessageWebhookSecret: secret });
-      const body = '{"message_id":"mm-1","status":"delivered"}';
-      const signature = makeMobileMessageSignature(body);
-
-      const result = validator.validateMobileMessage(
-        { 'x-mobilemessage-signature': signature },
-        body,
-      );
-      expect(result).toBe(true);
-    });
-
-    it('rejects invalid MobileMessage signature', () => {
-      const validator = createWebhookSignatureValidator({ mobileMessageWebhookSecret: secret });
-
-      const result = validator.validateMobileMessage(
-        { 'x-mobilemessage-signature': 'invalidsig' },
-        '{"message_id":"mm-1","status":"delivered"}',
-      );
-      expect(result).toBe(false);
-    });
-
-    it('rejects when signature header is missing', () => {
-      const validator = createWebhookSignatureValidator({ mobileMessageWebhookSecret: secret });
-
-      const result = validator.validateMobileMessage({}, '{"message_id":"mm-1"}');
-      expect(result).toBe(false);
-    });
-
-    it('skips validation when secret is not configured (dev mode)', () => {
+    // MobileMessage does not sign webhooks — no secret/HMAC available in dashboard.
+    // The webhook route accepts all POST requests from the provider without validation.
+    // This is documented in DEC-004 and in webhook-signature-validator.ts.
+    it('documents that MobileMessage has no webhook signature support', () => {
       const validator = createWebhookSignatureValidator({});
-      const result = validator.validateMobileMessage(
-        { 'x-mobilemessage-signature': 'anything' },
-        'body',
-      );
-      expect(result).toBe(true);
+      // validateResend is the only method — no validateMobileMessage exists
+      expect(typeof validator.validateResend).toBe('function');
+      expect((validator as Record<string, unknown>).validateMobileMessage).toBeUndefined();
     });
   });
 });

@@ -2,7 +2,6 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export interface WebhookSignatureValidator {
   validateResend(headers: ResendWebhookHeaders, rawBody: string): boolean;
-  validateMobileMessage(headers: MobileMessageWebhookHeaders, rawBody: string): boolean;
 }
 
 export interface ResendWebhookHeaders {
@@ -11,14 +10,13 @@ export interface ResendWebhookHeaders {
   'svix-signature'?: string;
 }
 
-export interface MobileMessageWebhookHeaders {
-  'x-mobilemessage-signature'?: string;
-}
-
 interface WebhookSecrets {
   resendWebhookSecret?: string;
-  mobileMessageWebhookSecret?: string;
 }
+
+// MobileMessage does not sign webhooks — the dashboard only provides URLs with
+// no secret/HMAC capability. Requests are accepted without signature validation.
+// IP allowlisting at the infrastructure level is the recommended mitigation.
 
 function safeCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
@@ -64,22 +62,6 @@ export function createWebhookSignatureValidator(
       }
 
       return false;
-    },
-
-    validateMobileMessage(headers: MobileMessageWebhookHeaders, rawBody: string): boolean {
-      const secret = secrets.mobileMessageWebhookSecret;
-      if (!secret) return true; // skip validation in dev mode
-
-      const incomingSignature = headers['x-mobilemessage-signature'];
-      if (!incomingSignature) return false;
-
-      // MobileMessage uses HMAC-SHA256 over the raw body with the webhook secret.
-      // Header name and algorithm confirmed with provider support — see DEC-004.
-      const expectedSignature = createHmac('sha256', secret)
-        .update(rawBody)
-        .digest('hex');
-
-      return safeCompare(expectedSignature, incomingSignature);
     },
   };
 }

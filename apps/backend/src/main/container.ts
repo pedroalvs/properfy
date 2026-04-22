@@ -886,8 +886,8 @@ export function createContainer(logger: Logger): AppContainer {
     ? new ResendEmailProvider(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL)
     : new StubEmailProvider();
 
-  const smsProvider = env.MOBILE_MESSAGE_API_KEY && env.MOBILE_MESSAGE_SENDER_ID
-    ? new MobileMessageSmsProvider(env.MOBILE_MESSAGE_API_KEY, env.MOBILE_MESSAGE_SENDER_ID)
+  const smsProvider = env.MOBILE_MESSAGE_API_KEY && env.MOBILE_MESSAGE_PASSWORD && env.MOBILE_MESSAGE_SENDER_ID
+    ? new MobileMessageSmsProvider(env.MOBILE_MESSAGE_API_KEY, env.MOBILE_MESSAGE_PASSWORD, env.MOBILE_MESSAGE_SENDER_ID)
     : new StubSmsProvider();
   const templateRenderer = new TemplateRendererService();
 
@@ -916,7 +916,6 @@ export function createContainer(logger: Logger): AppContainer {
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo);
   const webhookSignatureValidator = createWebhookSignatureValidator({
     resendWebhookSecret: env.RESEND_WEBHOOK_SECRET,
-    mobileMessageWebhookSecret: env.MOBILE_MESSAGE_WEBHOOK_SECRET,
   });
   const listNotificationsUseCase = new ListNotificationsUseCase(notificationRepo, authorizationService);
   const getNotificationUseCase = new GetNotificationUseCase(notificationRepo, authorizationService);

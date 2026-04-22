@@ -175,23 +175,12 @@ export async function registerNotificationRoutes(
   );
 
   // POST /v1/webhooks/mobile-message
+  // MobileMessage does not sign webhook payloads (no secret/HMAC available in dashboard).
+  // Requests are accepted without signature verification. See DEC-004.
   app.post(
     '/v1/webhooks/mobile-message',
     { schema: { response: { 200: webhookAckResponseSchema } } },
     async (request, reply) => {
-      const rawBody = typeof request.body === 'string'
-        ? request.body
-        : JSON.stringify(request.body);
-      const headers = request.headers as Record<string, string | undefined>;
-
-      const valid = container.webhookSignatureValidator.validateMobileMessage(
-        { 'x-mobilemessage-signature': headers['x-mobilemessage-signature'] },
-        rawBody,
-      );
-      if (!valid) {
-        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Invalid webhook signature' } });
-      }
-
       const body = request.body as { message_id?: string; status?: string };
       const providerMessageId = body?.message_id;
       const status = body?.status;

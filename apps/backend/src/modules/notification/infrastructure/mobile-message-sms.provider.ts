@@ -2,13 +2,15 @@ import type { ISmsProvider, SmsSendResult } from '../domain/providers';
 import { CircuitBreaker } from '../../../shared/infrastructure/circuit-breaker';
 
 export class MobileMessageSmsProvider implements ISmsProvider {
-  private readonly apiKey: string;
+  private readonly username: string;
+  private readonly password: string;
   private readonly senderId: string;
   private readonly apiUrl: string;
   private readonly circuitBreaker: CircuitBreaker;
 
-  constructor(apiKey: string, senderId: string, apiUrl = 'https://api.mobilemessage.com.au') {
-    this.apiKey = apiKey;
+  constructor(username: string, password: string, senderId: string, apiUrl = 'https://api.mobilemessage.com.au') {
+    this.username = username;
+    this.password = password;
     this.senderId = senderId;
     this.apiUrl = apiUrl;
     this.circuitBreaker = new CircuitBreaker({ name: 'mobile-message-sms', failureThreshold: 5, resetTimeoutMs: 60000 });
@@ -16,7 +18,7 @@ export class MobileMessageSmsProvider implements ISmsProvider {
 
   async send(to: string, bodyText: string): Promise<SmsSendResult> {
     return this.circuitBreaker.execute(async () => {
-      const credentials = Buffer.from(`${this.apiKey}:`).toString('base64');
+      const credentials = Buffer.from(`${this.username}:${this.password}`).toString('base64');
       const response = await fetch(`${this.apiUrl}/v1/messages`, {
         method: 'POST',
         headers: {
