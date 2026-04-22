@@ -29,11 +29,11 @@ export class MobileMessageSmsProvider implements ISmsProvider {
           messages: [
             {
               to,
-              body: bodyText,
+              message: bodyText,
+              sender: this.senderId,
               custom_ref: `properfy-${Date.now()}`,
             },
           ],
-          from: this.senderId,
         }),
       });
 
@@ -42,8 +42,8 @@ export class MobileMessageSmsProvider implements ISmsProvider {
         throw new Error(`MobileMessage API error (${response.status}): ${errorBody}`);
       }
 
-      const data = (await response.json()) as { messages?: Array<{ message_id?: string }> };
-      const messageId = data.messages?.[0]?.message_id ?? `mm-${Date.now()}`;
+      const data = (await response.json()) as { results?: Array<{ message_id?: string }> };
+      const messageId = data.results?.[0]?.message_id ?? `mm-${Date.now()}`;
       return { messageId };
     });
   }
