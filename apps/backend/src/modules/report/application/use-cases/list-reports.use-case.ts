@@ -1,5 +1,7 @@
 import type { IReportRepository, ReportFilters } from '../../domain/report.repository';
 import type { ReportEntity } from '../../domain/report.entity';
+import type { IReportStorageService } from '../../domain/report-storage.service';
+import { PRESIGNED_URL_TTL_SECONDS } from '../../domain/report.constants';
 import type { ReportType, ReportStatus } from '@properfy/shared';
 
 export interface ListReportsInput {
@@ -34,6 +36,7 @@ export interface ListReportsOutput {
     completedAt: Date | null;
     expiresAt: Date | null;
     errorMessage: string | null;
+    fileUrl: string | null;
   }>;
   meta: {
     page: number;
@@ -47,6 +50,7 @@ export class ListReportsUseCase {
   constructor(
     private readonly reportRepo: IReportRepository,
     private readonly userReader?: UserReader,
+    private readonly storageService?: IReportStorageService,
   ) {}
 
   async execute(input: ListReportsInput, auth: AuthContext): Promise<ListReportsOutput> {
@@ -84,6 +88,24 @@ export class ListReportsUseCase {
       );
     }
 
+    const fileUrls = new Map<string, string | null>();
+    if (this.storageService) {
+      await Promise.all(
+        data.map(async (r: ReportEntity) => {
+          if (r.status === 'READY' && r.fileKey) {
+            try {
+              const url = await this.storageService!.generatePresignedGetUrl(r.fileKey, PRESIGNED_URL_TTL_SECONDS);
+              fileUrls.set(r.id, url);
+            } catch {
+              fileUrls.set(r.id, null);
+            }
+          } else {
+            fileUrls.set(r.id, null);
+          }
+        }),
+      );
+    }
+
     return {
       data: data.map((r: ReportEntity) => ({
         id: r.id,
@@ -100,6 +122,7 @@ export class ListReportsUseCase {
         completedAt: r.completedAt,
         expiresAt: r.expiresAt,
         errorMessage: isOperator ? r.errorMessage : null,
+        fileUrl: fileUrls.get(r.id) ?? null,
       })),
       meta: {
         page,

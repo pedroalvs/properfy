@@ -633,6 +633,7 @@ export const reportResponseSchema = z.object({
   format: z.string(),
   status: z.string(),
   fileKey: z.string().nullable().optional(),
+  fileUrl: z.string().nullable().optional(),
   requestedByUserId: z.string().uuid().optional(),
   requestedBy: z.unknown().optional(),
   startedAt: dateStrNullable().optional(),

@@ -1,4 +1,6 @@
 import type { IReportRepository } from '../../domain/report.repository';
+import type { IReportStorageService } from '../../domain/report-storage.service';
+import { PRESIGNED_URL_TTL_SECONDS } from '../../domain/report.constants';
 import { ReportNotFoundError } from '../../domain/report.errors';
 
 export interface AuthContext {
@@ -25,12 +27,14 @@ export interface GetReportStatusOutput {
   failedAt: Date | null;
   expiresAt: Date | null;
   errorMessage: string | null;
+  fileUrl: string | null;
 }
 
 export class GetReportStatusUseCase {
   constructor(
     private readonly reportRepo: IReportRepository,
     private readonly userReader?: UserReader,
+    private readonly storageService?: IReportStorageService,
   ) {}
 
   async execute(reportId: string, auth: AuthContext): Promise<GetReportStatusOutput> {
@@ -56,6 +60,15 @@ export class GetReportStatusUseCase {
       if (user) userName = user.name;
     }
 
+    let fileUrl: string | null = null;
+    if (this.storageService && report.status === 'READY' && report.fileKey) {
+      try {
+        fileUrl = await this.storageService.generatePresignedGetUrl(report.fileKey, PRESIGNED_URL_TTL_SECONDS);
+      } catch {
+        fileUrl = null;
+      }
+    }
+
     return {
       id: report.id,
       reportType: report.reportType,
@@ -70,6 +83,7 @@ export class GetReportStatusUseCase {
       failedAt: report.failedAt,
       expiresAt: report.expiresAt,
       errorMessage: isOperator ? report.errorMessage : null,
+      fileUrl,
     };
   }
 }

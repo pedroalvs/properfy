@@ -800,9 +800,9 @@ export function createContainer(logger: Logger): AppContainer {
     ? new PgBossJobQueue()
     : new StubJobQueue();
   const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService, tenantRepo, authorizationService);
-  const getReportStatusUseCase = new GetReportStatusUseCase(reportRepo, userManagementRepo);
+  const getReportStatusUseCase = new GetReportStatusUseCase(reportRepo, userManagementRepo, reportStorageService);
   const downloadReportUseCase = new DownloadReportUseCase(reportRepo, reportStorageService);
-  const listReportsUseCase = new ListReportsUseCase(reportRepo, userManagementRepo);
+  const listReportsUseCase = new ListReportsUseCase(reportRepo, userManagementRepo, reportStorageService);
   const csvGenerator = new CsvReportGenerator();
   const pdfGenerator = new PdfReportGenerator();
   const xlsxGeneratorAdapter = new XlsxReportGeneratorAdapter(xlsxGenerator);

@@ -144,6 +144,7 @@ describe('GetReportStatusUseCase', () => {
       failedAt: null,
       expiresAt: new Date('2026-04-15T07:00:45Z'),
       errorMessage: null,
+      fileUrl: null,
     });
   });
 });
