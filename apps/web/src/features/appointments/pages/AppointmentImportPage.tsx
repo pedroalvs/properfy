@@ -115,8 +115,8 @@ export function AppointmentImportPage() {
           Back to Appointments
         </Link>
         <a
-          href="/templates/appointments-import-template.csv"
-          download="appointments-import-template.csv"
+          href="/templates/appointments-import-template.xlsx"
+          download="appointments-import-template.xlsx"
           className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-primary)] hover:underline"
         >
           <i className="mdi mdi-download" aria-hidden="true" />

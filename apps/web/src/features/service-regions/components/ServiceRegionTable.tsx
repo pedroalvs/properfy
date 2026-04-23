@@ -10,7 +10,6 @@ interface ServiceRegionTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (region: ServiceRegion) => void;
-  onEdit?: (region: ServiceRegion) => void;
   onDeactivate?: (region: ServiceRegion) => void;
   onActivate?: (region: ServiceRegion) => void;
   onDelete?: (region: ServiceRegion) => void;
@@ -23,7 +22,6 @@ export function ServiceRegionTable({
   onRetryError,
   pagination,
   onView,
-  onEdit,
   onDeactivate,
   onActivate,
   onDelete,
@@ -76,11 +74,6 @@ export function ServiceRegionTable({
               icon: 'mdi-eye-outline',
               label: 'View',
               onClick: () => onView?.(row),
-            },
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
             },
             ...(row.status === 'ACTIVE'
               ? [

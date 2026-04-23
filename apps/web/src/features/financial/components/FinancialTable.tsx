@@ -12,7 +12,6 @@ interface FinancialTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (entry: FinancialEntry) => void;
-  onEdit?: (entry: FinancialEntry) => void;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   onSelectAllPending?: () => void;
@@ -25,7 +24,6 @@ export function FinancialTable({
   onRetryError,
   pagination,
   onView,
-  onEdit,
   selectedIds,
   onToggleSelect,
   onSelectAllPending,
@@ -131,13 +129,6 @@ export function FinancialTable({
               label: 'View',
               onClick: () => onView?.(row),
             },
-            ...(onEdit
-              ? [{
-                  icon: 'mdi-pencil-outline',
-                  label: 'Edit',
-                  onClick: () => onEdit(row),
-                }]
-              : []),
           ]}
         />
       ),

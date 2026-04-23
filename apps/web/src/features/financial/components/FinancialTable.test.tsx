@@ -107,18 +107,10 @@ describe('FinancialTable', () => {
     expect(onView).toHaveBeenCalledWith(entry);
   });
 
-  it('edit action calls onEdit with correct entry', async () => {
-    const userEvt = userEvent.setup();
-    const onEdit = vi.fn();
+  it('row exposes only the View action — no Edit icon (FR-019b)', () => {
     const entry = makeEntry();
-    render(<FinancialTable data={[entry]} onEdit={onEdit} />);
-    await userEvt.click(screen.getByLabelText('Edit'));
-    expect(onEdit).toHaveBeenCalledWith(entry);
-  });
-
-  it('hides edit action when onEdit is not provided', () => {
-    const entry = makeEntry();
-    render(<FinancialTable data={[entry]} />);
+    render(<FinancialTable data={[entry]} onView={vi.fn()} />);
+    expect(screen.getByLabelText('View')).toBeInTheDocument();
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 });

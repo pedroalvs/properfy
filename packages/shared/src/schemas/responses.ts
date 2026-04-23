@@ -239,6 +239,7 @@ export const appointmentResponseSchema = z.object({
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   contact: z.unknown().nullable().optional(),
+  contacts: z.array(z.unknown()).optional(),
   restrictions: z.array(z.unknown()).optional(),
   property: z.unknown().optional(),
   serviceType: z.unknown().optional(),

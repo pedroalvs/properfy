@@ -10,7 +10,6 @@ interface PropertyTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (property: Property) => void;
-  onEdit?: (property: Property) => void;
 }
 
 export function PropertyTable({
@@ -20,7 +19,6 @@ export function PropertyTable({
   onRetryError,
   pagination,
   onView,
-  onEdit,
 }: PropertyTableProps) {
   const columns: DataTableColumn<Property>[] = [
     {
@@ -70,11 +68,6 @@ export function PropertyTable({
               icon: 'mdi-eye-outline',
               label: 'View',
               onClick: () => onView?.(row),
-            },
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
             },
           ]}
         />

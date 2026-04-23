@@ -91,12 +91,10 @@ describe('ServiceGroupTable', () => {
     expect(onView).toHaveBeenCalledWith(sg);
   });
 
-  it('edit action calls onEdit with correct service group', async () => {
-    const user = userEvent.setup();
-    const onEdit = vi.fn();
+  it('row exposes only the View action — no Edit icon (FR-019b)', () => {
     const sg = makeServiceGroup();
-    render(<ServiceGroupTable data={[sg]} onEdit={onEdit} />);
-    await user.click(screen.getByLabelText('Edit'));
-    expect(onEdit).toHaveBeenCalledWith(sg);
+    render(<ServiceGroupTable data={[sg]} onView={vi.fn()} />);
+    expect(screen.getByLabelText('View')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 });

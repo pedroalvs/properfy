@@ -160,7 +160,6 @@ export function ServiceRegionListPage() {
           onRetryError={refetch}
           pagination={pagination}
           onView={handleEdit}
-          onEdit={handleEdit}
           onDeactivate={handleDeactivateClick}
           onActivate={handleActivate}
           onDelete={handleDeleteClick}

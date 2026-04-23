@@ -56,7 +56,6 @@ export function ServiceTypeListPage() {
           onRetryError={refetch}
           pagination={pagination}
           onView={handleEdit}
-          onEdit={handleEdit}
         />
       </ListFilterTableTemplate>
       <ServiceTypeFormDrawer

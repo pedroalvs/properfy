@@ -11,8 +11,10 @@ import { InvoiceTable } from '../components/InvoiceTable';
 import { InvoiceDetailDrawer } from '../components/InvoiceDetailDrawer';
 import { GenerateInvoiceModal } from '../components/GenerateInvoiceModal';
 import { MarkInvoicePaidModal } from '../components/MarkInvoicePaidModal';
+import { ReconciliationSummary } from '../components/ReconciliationSummary';
 import { useInvoiceList } from '../hooks/useInvoiceList';
 import { useInvoiceDownload } from '../hooks/useInvoiceDownload';
+import { useReconciliationSummary } from '../hooks/useReconciliationSummary';
 import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import type { Invoice } from '../types';
 
@@ -50,6 +52,17 @@ export function InvoicesPage() {
   } = useInvoiceList();
 
   const { download } = useInvoiceDownload();
+
+  const {
+    summary: reconciliationSummary,
+    isLoading: summaryLoading,
+    multiCurrencyError,
+  } = useReconciliationSummary({
+    from: filters.periodStart,
+    to: filters.periodEnd,
+    inspectorId: filters.inspectorId || undefined,
+    enabled: !requiresTenantSelection,
+  });
   const inspectorLabelById = Object.fromEntries(
     inspectorOptions.map((option) => [option.value, option.label]),
   );
@@ -160,6 +173,11 @@ export function InvoicesPage() {
               filters={filters}
               onFiltersChange={setFilters}
               inspectorOptions={inspectorOptions}
+            />
+            <ReconciliationSummary
+              summary={reconciliationSummary}
+              isLoading={summaryLoading}
+              multiCurrencyError={multiCurrencyError}
             />
             <InvoiceTable
               data={data}

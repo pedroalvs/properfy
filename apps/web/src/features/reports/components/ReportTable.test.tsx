@@ -111,4 +111,28 @@ describe('ReportTable', () => {
     await userEvt.click(screen.getByLabelText('Reprocess'));
     expect(onRetry).toHaveBeenCalledWith(report);
   });
+
+  it('renders scheduledReportId chip with correct href when present (Spec 019)', () => {
+    const report = makeReport({ scheduledReportId: 'sched-abc-001' });
+    render(<ReportTable data={[report]} />);
+    const chip = screen.getByTestId('scheduled-report-chip');
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveAttribute('href', '/scheduled-reports/sched-abc-001');
+    expect(chip).toHaveAttribute('title', 'From scheduled report');
+  });
+
+  it('does not render scheduledReportId chip when field is absent or null', () => {
+    const report = makeReport({ scheduledReportId: null });
+    render(<ReportTable data={[report]} />);
+    expect(screen.queryByTestId('scheduled-report-chip')).not.toBeInTheDocument();
+  });
+
+  it('renders chip for scheduled row and no chip for non-scheduled row in same table', () => {
+    const scheduled = makeReport({ id: 'rpt-A', scheduledReportId: 'sched-xyz' });
+    const manual = makeReport({ id: 'rpt-B', scheduledReportId: null });
+    render(<ReportTable data={[scheduled, manual]} />);
+    const chips = screen.getAllByTestId('scheduled-report-chip');
+    expect(chips).toHaveLength(1);
+    expect(chips[0]).toHaveAttribute('href', '/scheduled-reports/sched-xyz');
+  });
 });

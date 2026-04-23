@@ -82,12 +82,10 @@ describe('PropertyTable', () => {
     expect(onView).toHaveBeenCalledWith(prop);
   });
 
-  it('edit action calls onEdit with correct property', async () => {
-    const user = userEvent.setup();
-    const onEdit = vi.fn();
+  it('row exposes only the View action — no Edit icon (FR-019b)', () => {
     const prop = makeProperty();
-    render(<PropertyTable data={[prop]} onEdit={onEdit} />);
-    await user.click(screen.getByLabelText('Edit'));
-    expect(onEdit).toHaveBeenCalledWith(prop);
+    render(<PropertyTable data={[prop]} onView={vi.fn()} />);
+    expect(screen.getByLabelText('View')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 });

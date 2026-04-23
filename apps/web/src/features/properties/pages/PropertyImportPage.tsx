@@ -108,7 +108,7 @@ export function PropertyImportPage() {
     <div>
       <PageHeader title="Import Properties" />
 
-      <div className="mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <Link
           to="/properties"
           className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-primary)] hover:underline"
@@ -116,6 +116,14 @@ export function PropertyImportPage() {
           <i className="mdi mdi-arrow-left" aria-hidden="true" />
           Back to Properties
         </Link>
+        <a
+          href="/templates/properties-import-template.csv"
+          download="properties-import-template.csv"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-primary)] hover:underline"
+        >
+          <i className="mdi mdi-download" aria-hidden="true" />
+          Download template
+        </a>
       </div>
 
       <ImportWizard steps={STEPS} currentStep={currentStep}>

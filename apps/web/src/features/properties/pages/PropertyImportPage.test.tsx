@@ -109,4 +109,12 @@ describe('PropertyImportPage', () => {
     const nextBtn = screen.getByText('Next');
     expect(nextBtn).toBeDisabled();
   });
+
+  it('has template download link pointing to csv file (FR-019c)', () => {
+    renderPage();
+
+    const downloadLink = screen.getByRole('link', { name: /download template/i });
+    expect(downloadLink).toHaveAttribute('href', '/templates/properties-import-template.csv');
+    expect(downloadLink).toHaveAttribute('download', 'properties-import-template.csv');
+  });
 });

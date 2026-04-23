@@ -105,4 +105,10 @@ describe('InvoicesPage', () => {
       expect(screen.getByText('insp-02')).toBeInTheDocument();
     });
   });
+
+  it('mounts ReconciliationSummary (T067)', () => {
+    renderPage();
+    expect(screen.getByTestId('reconciliation-summary')).toBeInTheDocument();
+    expect(screen.getByText('Total Invoiced')).toBeInTheDocument();
+  });
 });

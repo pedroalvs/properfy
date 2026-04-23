@@ -12,7 +12,6 @@ interface ServiceTypeTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (serviceType: ServiceType) => void;
-  onEdit?: (serviceType: ServiceType) => void;
 }
 
 export function ServiceTypeTable({
@@ -22,7 +21,6 @@ export function ServiceTypeTable({
   onRetryError,
   pagination,
   onView,
-  onEdit,
 }: ServiceTypeTableProps) {
   const columns: DataTableColumn<ServiceType>[] = [
     {
@@ -79,11 +77,6 @@ export function ServiceTypeTable({
               icon: 'mdi-eye-outline',
               label: 'View',
               onClick: () => onView?.(row),
-            },
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
             },
           ]}
         />

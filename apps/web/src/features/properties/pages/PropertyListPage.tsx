@@ -105,10 +105,7 @@ export function PropertyListPage() {
               onView={(prop) => {
                 navigate(`/properties/${prop.id}`);
               }}
-              onEdit={(prop) => {
-                setSelectedId(prop.id);
-                setDrawerOpen(true);
-              }}
+
             />
           </>
         )}

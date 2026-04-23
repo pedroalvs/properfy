@@ -12,7 +12,6 @@ interface UserTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (user: User) => void;
-  onEdit?: (user: User) => void;
 }
 
 export function UserTable({
@@ -22,7 +21,6 @@ export function UserTable({
   onRetryError,
   pagination,
   onView,
-  onEdit,
 }: UserTableProps) {
   const columns: DataTableColumn<User>[] = [
     {
@@ -80,11 +78,6 @@ export function UserTable({
               icon: 'mdi-eye-outline',
               label: 'View',
               onClick: () => onView?.(row),
-            },
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
             },
           ]}
         />

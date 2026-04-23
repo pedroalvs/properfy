@@ -115,10 +115,7 @@ export function UserListPage() {
                 setSelectedId(user.id);
                 setDrawerOpen(true);
               }}
-              onEdit={(user) => {
-                setSelectedId(user.id);
-                setDrawerOpen(true);
-              }}
+
             />
           </>
         )}

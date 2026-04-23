@@ -8,6 +8,7 @@ export interface Report {
   requestedBy: { id: string; name: string };
   fileKey?: string | null;
   filters?: ReportFilters | null;
+  scheduledReportId?: string | null;
   createdAt: string;
   updatedAt?: string | null;
 }

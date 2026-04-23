@@ -11,7 +11,6 @@ interface ServiceGroupTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (sg: ServiceGroup) => void;
-  onEdit?: (sg: ServiceGroup) => void;
 }
 
 export function ServiceGroupTable({
@@ -21,7 +20,6 @@ export function ServiceGroupTable({
   onRetryError,
   pagination,
   onView,
-  onEdit,
 }: ServiceGroupTableProps) {
   const columns: DataTableColumn<ServiceGroup>[] = [
     {
@@ -83,11 +81,6 @@ export function ServiceGroupTable({
               icon: 'mdi-eye-outline',
               label: 'View',
               onClick: () => onView?.(row),
-            },
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
             },
           ]}
         />

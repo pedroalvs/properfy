@@ -46,10 +46,7 @@ export function ServiceGroupListPage() {
           onRetryError={refetch}
           pagination={pagination}
           onView={(sg) => navigate(`/service-groups/${sg.id}`)}
-          onEdit={(sg) => {
-            setSelectedId(sg.id);
-            setDrawerOpen(true);
-          }}
+
         />
       </ListFilterTableTemplate>
       <ServiceGroupDetailDrawer

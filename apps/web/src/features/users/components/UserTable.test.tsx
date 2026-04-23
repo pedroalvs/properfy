@@ -97,12 +97,10 @@ describe('UserTable', () => {
     expect(onView).toHaveBeenCalledWith(user);
   });
 
-  it('edit action calls onEdit with correct user', async () => {
-    const userEvt = userEvent.setup();
-    const onEdit = vi.fn();
+  it('row exposes only the View action — no Edit icon (FR-019b)', () => {
     const user = makeUser();
-    render(<UserTable data={[user]} onEdit={onEdit} />);
-    await userEvt.click(screen.getByLabelText('Edit'));
-    expect(onEdit).toHaveBeenCalledWith(user);
+    render(<UserTable data={[user]} onView={vi.fn()} />);
+    expect(screen.getByLabelText('View')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
 });

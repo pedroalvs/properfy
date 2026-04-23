@@ -110,10 +110,11 @@ describe('AppointmentImportPage', () => {
     expect(nextBtn).toBeDisabled();
   });
 
-  it('shows csv-only upload guidance', () => {
+  it('has template download link pointing to xlsx file', () => {
     renderPage();
 
-    expect(screen.getByText(/Accepted: CSV/)).toBeInTheDocument();
-    expect(screen.queryByText(/XLSX/)).not.toBeInTheDocument();
+    const downloadLink = screen.getByRole('link', { name: /download template/i });
+    expect(downloadLink).toHaveAttribute('href', '/templates/appointments-import-template.xlsx');
+    expect(downloadLink).toHaveAttribute('download', 'appointments-import-template.xlsx');
   });
 });

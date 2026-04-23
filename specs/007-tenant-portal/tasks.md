@@ -34,7 +34,7 @@
 
 ### Integration tests (NEW)
 
-- [x] T004 [US5] Write route-level test (mock container pattern, matching existing `tenant-portal.routes.test.ts` structure) for portal dual-write in `apps/backend/tests/integration/tenant-portal/portal-contact-dual-write.test.ts`. Cases:
+- [x] T004 [US5] Write route-level test (mock container pattern, matching existing `tenant-portal.routes.test.ts` structure) for portal dual-write in `apps/backend/tests/integration/tenant-portal/portal-contact-dual-write.routes.test.ts`. Cases:
   - (a) **Snapshot updated**: mock `findById` returns appointment with contact that has `contact_id = 'c1'`. Call `updateContact` with new `primaryEmail`. Assert `updateContactSnapshot` was called with new `snapshotEmail`.
   - (b) **Registry updated**: same setup. Assert `contactRepo.update` was called with the new `primaryEmail`.
   - (c) **Email conflict → registry skipped**: mock `contactRepo.existsByEmail` to return `true` (conflict). Call update. Assert `updateContactSnapshot` was still called (snapshot updates). Assert `contactRepo.update` was NOT called. Assert audit `contact.portal_update_skipped_conflict` was emitted.
@@ -42,7 +42,7 @@
   - (e) **Token survives contact update**: call `updateContact`, then call the portal GET. Assert GET still returns 200 (token not invalidated by contact change).
   Minimum 5 cases.
 
-- [x] T005 [P] [US5] Write route-level test for snapshot immutability across appointments in `apps/backend/tests/integration/tenant-portal/portal-contact-snapshot-immutability.test.ts` — **Note**: this tests the 021 snapshot immutability invariant in the portal context, not a portal-only flow. The portal only touches appointment A's snapshot; B's snapshot is structurally untouched by design. Setup: two appointments (A and B) linked to the same registry contact. Update contact via portal for appointment A. Assert: (a) appointment A's snapshot is updated, (b) appointment B's snapshot is unchanged (frozen at link time), (c) the registry contact reflects the new value. Minimum 2 cases.
+- [x] T005 [P] [US5] Write route-level test for snapshot immutability across appointments in `apps/backend/tests/integration/tenant-portal/portal-contact-snapshot-immutability.routes.test.ts` — **Note**: this tests the 021 snapshot immutability invariant in the portal context, not a portal-only flow. The portal only touches appointment A's snapshot; B's snapshot is structurally untouched by design. Setup: two appointments (A and B) linked to the same registry contact. Update contact via portal for appointment A. Assert: (a) appointment A's snapshot is updated, (b) appointment B's snapshot is unchanged (frozen at link time), (c) the registry contact reflects the new value. Minimum 2 cases.
 
 ### Existing test suite verification
 
