@@ -276,12 +276,12 @@ export async function registerNotificationRoutes(
   app.post(
     '/v1/notifications/unsubscribe',
     async (request, reply) => {
-      const body = request.body as { token?: string } | undefined;
       const isFormSubmission = (request.headers['content-type'] ?? '').includes(
         'application/x-www-form-urlencoded',
       );
+      const bodyParsed = z.object({ token: z.string() }).safeParse(request.body);
 
-      if (!body?.token || typeof body.token !== 'string') {
+      if (!bodyParsed.success) {
         if (isFormSubmission) {
           const html = renderUnsubscribePageHtml({ state: 'invalid' });
           return reply.status(200).header('content-type', 'text/html; charset=utf-8').send(html);
@@ -290,6 +290,7 @@ export async function registerNotificationRoutes(
           error: { code: 'VALIDATION_ERROR', message: 'token is required' },
         });
       }
+      const body = bodyParsed.data;
 
       try {
         const result = await container.processUnsubscribeUseCase.execute({

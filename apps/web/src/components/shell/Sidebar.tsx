@@ -104,7 +104,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
         <span className="text-xl font-bold text-secondary">{mobile ? 'Properfy' : 'P'}</span>
       </div>
 
-      <nav className={`flex flex-1 flex-col ${mobile ? 'gap-3 overflow-y-auto px-3 py-4' : 'items-center gap-1 py-4'}`}>
+      <nav className={`flex flex-1 flex-col ${mobile ? 'gap-3 overflow-y-auto px-3 py-4' : 'items-center gap-1 overflow-y-auto py-4'}`}>
         {visibleItems.map((item) =>
           item.submenu ? (
             <SidebarSubmenu

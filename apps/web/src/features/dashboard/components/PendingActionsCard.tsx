@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PendingActionsCardProps {
   noResponseTenants: number;
@@ -34,12 +35,18 @@ const ACTIONS = [
   },
 ] as const;
 
+const FINANCIAL_ROLES = new Set(['AM', 'OP', 'CL_ADMIN']);
+
 export function PendingActionsCard({
   noResponseTenants,
   pendingOperatorCrossChecks,
   pendingFinancialEntries,
   processingReports,
 }: PendingActionsCardProps) {
+  const { user } = useAuth();
+  const visibleActions = ACTIONS.filter(
+    (a) => a.key !== 'pendingFinancialEntries' || FINANCIAL_ROLES.has(user?.role ?? ''),
+  );
   const counts: Record<string, number> = {
     noResponseTenants,
     pendingOperatorCrossChecks,
@@ -54,7 +61,7 @@ export function PendingActionsCard({
       </div>
 
       <div>
-        {ACTIONS.map((action) => (
+        {visibleActions.map((action) => (
           <Link
             key={action.key}
             to={action.href}
