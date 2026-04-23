@@ -4,7 +4,6 @@ import { GeocodingStatus } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { LoadingState } from '@/components/feedback/LoadingState';
-import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { Button } from '@/components/ui/Button';

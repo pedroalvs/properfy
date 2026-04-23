@@ -165,7 +165,7 @@ describe('PropertyDetailPage', () => {
 
   it('shows error state on failure', () => {
     renderPage('/properties/error');
-    expect(screen.getByText('Failed to load property details')).toBeInTheDocument();
+    expect(screen.getByText('Property not found')).toBeInTheDocument();
   });
 
   it('renders go back button', () => {
