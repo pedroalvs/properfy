@@ -99,7 +99,7 @@ describe('PropertyImportPage', () => {
     renderPage();
 
     expect(
-      screen.getByText(/address, suburb, city/),
+      screen.getByText(/branchName, propertyCode, type/),
     ).toBeInTheDocument();
   });
 

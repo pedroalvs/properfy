@@ -29,6 +29,10 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'user-1', role: 'CL_ADMIN', tenantId: 'tenant-1' } }),
+}));
+
 import { api } from '@/services/api';
 
 const mockPost = api.POST as ReturnType<typeof vi.fn>;

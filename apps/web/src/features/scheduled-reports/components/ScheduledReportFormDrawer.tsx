@@ -11,6 +11,8 @@ import { SelectInput, type SelectOption } from '@/components/forms/SelectInput';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { useAuth } from '@/hooks/useAuth';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import { ReportType } from '@properfy/shared';
 import { RecurrenceSelector } from './RecurrenceSelector';
 import { DeliveryModeSelector } from './DeliveryModeSelector';
@@ -36,6 +38,7 @@ const DEFAULT_DELIVERY_MODE: ScheduleDeliveryMode = 'OWNER_ONLY';
 interface FormData {
   displayName: string;
   reportType: string;
+  tenantId: string;
   recurrence: StructuredRecurrence;
   deliveryMode: ScheduleDeliveryMode;
   recipientUserIds: string;
@@ -45,11 +48,13 @@ interface FormData {
 interface FormErrors {
   displayName?: string;
   reportType?: string;
+  tenantId?: string;
 }
 
 const EMPTY_FORM: FormData = {
   displayName: '',
   reportType: '',
+  tenantId: '',
   recurrence: DEFAULT_RECURRENCE,
   deliveryMode: DEFAULT_DELIVERY_MODE,
   recipientUserIds: '',
@@ -75,6 +80,7 @@ function formFromSchedule(schedule: ScheduledReport): FormData {
   return {
     displayName: schedule.displayName ?? '',
     reportType: schedule.reportType,
+    tenantId: '',
     recurrence,
     deliveryMode: schedule.deliveryMode,
     recipientUserIds: schedule.recipientUserIds.join(', '),
@@ -82,9 +88,10 @@ function formFromSchedule(schedule: ScheduledReport): FormData {
   };
 }
 
-function validate(form: FormData): FormErrors {
+function validate(form: FormData, requireTenant: boolean): FormErrors {
   const errors: FormErrors = {};
   if (!form.reportType) errors.reportType = 'Required field';
+  if (requireTenant && !form.tenantId) errors.tenantId = 'Required field';
   return errors;
 }
 
@@ -105,9 +112,18 @@ export function ScheduledReportFormDrawer({
   onSaved,
 }: ScheduledReportFormDrawerProps) {
   const isEditMode = !!schedule;
+  const { user } = useAuth();
+  const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
   const { createScheduledReport, updateScheduledReport, isMutating } =
     useScheduledReportMutations();
   const { showSuccess, showError } = useSnackbar();
+  const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
+    ['scheduled-reports', 'tenant-options'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+    undefined,
+    { enabled: isGlobalRole && !isEditMode && open },
+  );
 
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [initialData, setInitialData] = useState<FormData>(EMPTY_FORM);
@@ -153,7 +169,7 @@ export function ScheduledReportFormDrawer({
 
     return {
       reportType: form.reportType as CreateScheduledReportPayload['reportType'],
-      filtersJson: {},
+      filtersJson: form.tenantId ? { tenantId: form.tenantId } : {},
       format: 'XLSX',
       recurrence: form.recurrence,
       deliveryMode: form.deliveryMode,
@@ -164,7 +180,7 @@ export function ScheduledReportFormDrawer({
   }, [form]);
 
   const handleSubmit = useCallback(async () => {
-    const validationErrors = validate(form);
+    const validationErrors = validate(form, isGlobalRole && !isEditMode);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -224,6 +240,19 @@ export function ScheduledReportFormDrawer({
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="flex flex-col gap-6">
                   <FormSection title="Schedule Details">
+                    {isGlobalRole && !isEditMode && (
+                      <FormField label="Agency" required error={errors.tenantId}>
+                        <SelectInput
+                          value={form.tenantId}
+                          onChange={(v) => updateField('tenantId', v)}
+                          options={tenantOptions ?? []}
+                          placeholder="Select agency"
+                          error={!!errors.tenantId}
+                          aria-label="Agency"
+                        />
+                      </FormField>
+                    )}
+
                     <FormField label="Display name">
                       <TextInput
                         value={form.displayName}
