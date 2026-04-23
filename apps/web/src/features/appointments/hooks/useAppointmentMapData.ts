@@ -50,7 +50,6 @@ export function useAppointmentMapData(): UseAppointmentMapDataReturn {
     dateFrom: filters.dateFrom || undefined,
     dateTo: filters.dateTo || undefined,
     branchId: filters.branchId || undefined,
-    hasCoordinates: true,
   };
 
   const { data: response, isLoading, isError, error, refetch } = usePaginatedQuery<AppointmentMapItem>(
