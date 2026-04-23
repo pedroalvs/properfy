@@ -85,6 +85,7 @@ describe('POST /v1/service-types', () => {
     expect(res.status).toBe(201);
     expect(res.body.data).toHaveProperty('id');
     expect(res.body.data.code).toBe('ROUTINE');
+    expect(res.body.data.updatedAt).toBeDefined();
   });
 
   it('should return 400 with invalid payload (missing code)', async () => {

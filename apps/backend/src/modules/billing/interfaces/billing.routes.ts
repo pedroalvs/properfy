@@ -24,7 +24,7 @@ import {
   paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
-import { ValidationError } from '../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { GetFinancialSummaryUseCase } from '../application/use-cases/get-financial-summary.use-case';
 import type { ListFinancialEntriesUseCase } from '../application/use-cases/list-financial-entries.use-case';
@@ -136,6 +136,10 @@ export async function registerBillingRoutes(
     '/v1/financial/entries',
     { preHandler: authenticate, schema: { querystring: listFinancialEntriesQuerySchema, response: { 200: paginatedResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
+      const actor = request.authContext!;
+      if (!['AM', 'OP', 'CL_ADMIN'].includes(actor.role)) {
+        throw new ForbiddenError('FORBIDDEN', 'Not authorized to list financial entries');
+      }
       const parsed = listFinancialEntriesQuerySchema.safeParse(request.query);
       if (!parsed.success) {
         throw new ValidationError('Invalid query parameters', parsed.error.errors);
@@ -143,7 +147,7 @@ export async function registerBillingRoutes(
       const { page, pageSize } = parsed.data;
       const result = await container.listFinancialEntriesUseCase.execute({
         ...parsed.data,
-        actor: request.authContext!,
+        actor,
       });
       return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
     },
@@ -171,13 +175,17 @@ export async function registerBillingRoutes(
     '/v1/financial/entries/:entryId/approve',
     { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
+      const actor = request.authContext!;
+      if (!['AM', 'OP'].includes(actor.role)) {
+        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can approve financial entries');
+      }
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid entry ID', params.error.errors);
       }
       const result = await container.approveFinancialEntryUseCase.execute({
         entryId: params.data.entryId,
-        actor: request.authContext!,
+        actor,
       });
       return reply.status(200).send(success(result));
     },
@@ -188,13 +196,17 @@ export async function registerBillingRoutes(
     '/v1/financial/entries/:entryId/approve',
     { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
+      const actor = request.authContext!;
+      if (!['AM', 'OP'].includes(actor.role)) {
+        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can approve financial entries');
+      }
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid entry ID', params.error.errors);
       }
       const result = await container.approveFinancialEntryUseCase.execute({
         entryId: params.data.entryId,
-        actor: request.authContext!,
+        actor,
       });
       return reply.status(200).send(success(result));
     },
@@ -227,6 +239,10 @@ export async function registerBillingRoutes(
     '/v1/financial/entries/adjust',
     { preHandler: authenticate, schema: { body: createManualAdjustmentSchema, response: { 201: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
+      const actor = request.authContext!;
+      if (!['AM', 'OP'].includes(actor.role)) {
+        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can create manual adjustments');
+      }
       const parsed = createManualAdjustmentSchema.safeParse(request.body);
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
@@ -236,7 +252,7 @@ export async function registerBillingRoutes(
         ...parsed.data,
         effectiveAt: parsed.data.effectiveAt ? new Date(parsed.data.effectiveAt) : undefined,
         idempotencyKey,
-        actor: request.authContext!,
+        actor,
       });
       return reply.status(201).send(success(result));
     },

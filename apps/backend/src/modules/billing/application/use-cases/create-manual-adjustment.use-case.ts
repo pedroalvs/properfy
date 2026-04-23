@@ -39,8 +39,11 @@ export interface CreateManualAdjustmentOutput {
   reason: string;
   effectiveAt: Date;
   initiatedByUserId: string;
+  approvedByUserId: string | null;
+  approvedAt: Date | null;
   referenceEntryId: string | null;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class CreateManualAdjustmentUseCase {
@@ -176,8 +179,11 @@ export class CreateManualAdjustmentUseCase {
       reason: input.reason,
       effectiveAt,
       initiatedByUserId: actor.userId,
+      approvedByUserId: null,
+      approvedAt: null,
       referenceEntryId: input.referenceEntryId ?? null,
       createdAt: now,
+      updatedAt: now,
     };
 
     if (input.idempotencyKey) {

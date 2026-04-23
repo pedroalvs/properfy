@@ -12,6 +12,7 @@ const mockListTenants = vi.fn();
 const mockGetTenant = vi.fn();
 const mockDeactivateTenant = vi.fn();
 const mockActivateTenant = vi.fn();
+const mockCreateBranch = vi.fn();
 
 vi.mock('../../../src/main/container', () => ({
   createContainer: () => createMockContainer({
@@ -23,6 +24,7 @@ vi.mock('../../../src/main/container', () => ({
       getTenantUseCase: { execute: mockGetTenant },
       deactivateTenantUseCase: { execute: mockDeactivateTenant },
       activateTenantUseCase: { execute: mockActivateTenant },
+      createBranchUseCase: { execute: mockCreateBranch },
     },
     user: { jwtService: { verify: mockJwtVerify } },
     property: { jwtService: { verify: mockJwtVerify } },
@@ -42,6 +44,18 @@ vi.mock('../../../src/main/container', () => ({
 }));
 
 const TENANT_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const BRANCH_ID = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+
+const branchStub = {
+  id: BRANCH_ID,
+  tenantId: TENANT_ID,
+  name: 'Main Branch',
+  addressJson: null,
+  contactEmail: null,
+  status: 'ACTIVE',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 
 const tenantStub = {
   id: TENANT_ID,
@@ -248,5 +262,23 @@ describe('POST /v1/tenants/:tenantId/activate — RBAC', () => {
     const res = await supertest(app.server)
       .post(`/v1/tenants/${TENANT_ID}/activate`).set('Authorization', 'Bearer t').send(payload);
     expect(res.status).toBe(403);
+  });
+});
+
+// ── QA-002-HIGH-001 regression: POST /v1/tenants/:tenantId/branches returns updatedAt ──
+
+describe('QA-002-HIGH-001 — POST /v1/tenants/:tenantId/branches response shape', () => {
+  it('returns 201 with updatedAt in response (Pattern A regression guard)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(makeAmContext());
+    mockCreateBranch.mockResolvedValueOnce(branchStub);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/branches`)
+      .set('Authorization', 'Bearer t')
+      .send({ name: 'Main Branch' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.id).toBe(BRANCH_ID);
+    expect(res.body.data.updatedAt).toBeDefined();
   });
 });

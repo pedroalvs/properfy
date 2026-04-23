@@ -92,10 +92,9 @@ export class ListFinancialEntriesUseCase {
           },
         });
       }
-    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
-      // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): OP is now
-      // tenant-scoped — same behavior as CL_ADMIN/CL_USER.
-      // Client roles: forced tenantId from JWT, ignore query param
+    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN') {
+      // OP is tenant-scoped per CORRECTION-001 (2026-04-13); CL_ADMIN reads
+      // own-tenant entries. CL_USER is denied at the route layer (RBAC guard).
       filters.tenantId = actor.tenantId!;
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
       if (input.type) filters.entryType = input.type as FinancialEntryFilters['entryType'];
@@ -109,6 +108,8 @@ export class ListFinancialEntriesUseCase {
       filters.entryType = 'INSPECTOR_PAYOUT';
       if (input.tenantId) filters.tenantId = input.tenantId;
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
+    } else {
+      throw new ForbiddenError('FORBIDDEN', 'Not authorized to list financial entries');
     }
 
     if (input.fromDate) filters.fromDate = input.fromDate;

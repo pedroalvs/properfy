@@ -21,6 +21,7 @@ export interface CreateServiceTypeOutput {
   requiresTenantConfirmation: boolean;
   status: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class CreateServiceTypeUseCase {
@@ -81,6 +82,7 @@ export class CreateServiceTypeUseCase {
       requiresTenantConfirmation: serviceType.requiresTenantConfirmation,
       status: serviceType.status,
       createdAt: serviceType.createdAt,
+      updatedAt: serviceType.updatedAt,
     };
   }
 }

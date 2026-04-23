@@ -28,6 +28,7 @@ export interface CreateBranchOutput {
   contactEmail: string | null;
   status: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class CreateBranchUseCase {
@@ -110,6 +111,7 @@ export class CreateBranchUseCase {
       contactEmail: branch.contactEmail,
       status: branch.status,
       createdAt: branch.createdAt,
+      updatedAt: branch.updatedAt,
     };
   }
 }

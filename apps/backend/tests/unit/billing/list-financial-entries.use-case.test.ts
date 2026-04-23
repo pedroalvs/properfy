@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ListFinancialEntriesUseCase } from '../../../src/modules/billing/application/use-cases/list-financial-entries.use-case';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 import type { IFinancialEntryRepository } from '../../../src/modules/billing/domain/financial-entry.repository';
 import { FinancialEntryEntity, type FinancialEntryProps } from '../../../src/modules/billing/domain/financial-entry.entity';
 import type { AuthContext } from '@properfy/shared';
@@ -139,19 +140,14 @@ describe('ListFinancialEntriesUseCase', () => {
     );
   });
 
-  it('should force tenantId to actor.tenantId for CL_USER', async () => {
-    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
-    vi.mocked(entryRepo.count).mockResolvedValue(0);
-
-    await useCase.execute({
-      ...defaultInput,
-      actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-2' }),
-    });
-
-    expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-2' }),
-      expect.any(Object),
-    );
+  it('should throw ForbiddenError for CL_USER (denied at use case level as belt-and-suspenders)', async () => {
+    await expect(
+      useCase.execute({
+        ...defaultInput,
+        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-2' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+    expect(entryRepo.findAllEnriched).not.toHaveBeenCalled();
   });
 
   it('should force inspectorId and entryType for INSP role', async () => {
