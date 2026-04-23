@@ -168,6 +168,16 @@ describe('Feature 018: public unsubscribe routes', () => {
 
       expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
+
+    // QA-018-LOW-001: empty body (Content-Type: application/json, no payload) must return 400 not 500
+    it('returns 400 when body is empty with Content-Type application/json', async () => {
+      const response = await supertest(app.server)
+        .post('/v1/notifications/unsubscribe')
+        .set('Content-Type', 'application/json')
+        .expect(400);
+
+      expect(response.body.error).toBeDefined();
+    });
   });
 
   describe('POST /v1/notifications/re-opt-in', () => {

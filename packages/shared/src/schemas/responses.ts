@@ -225,6 +225,7 @@ export const appointmentResponseSchema = z.object({
   doneCheckedAt: dateStrNullable().optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
+  appointmentNumber: z.number().optional(),
   // Flat enriched fields for list and detail views
   code: z.string().optional(),
   propertyAddress: z.string().optional(),

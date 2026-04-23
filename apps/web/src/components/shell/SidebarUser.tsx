@@ -5,7 +5,7 @@ export function SidebarUser() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative w-sidebar border-t border-black/5 bg-transparent py-3 text-center">
+    <div className="relative shrink-0 w-sidebar border-t border-black/5 bg-transparent py-3 text-center">
       <SidebarUserMenu open={open} onClose={() => setOpen(false)} />
       <button
         onClick={() => setOpen((v) => !v)}

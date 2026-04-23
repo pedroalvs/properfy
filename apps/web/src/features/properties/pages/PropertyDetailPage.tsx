@@ -75,8 +75,8 @@ export function PropertyDetailPage() {
       <div className="px-8 py-6">
         <EmptyState
           title="Property not found"
-          description="The property you are looking for does not exist or you do not have access."
-          action={{ label: 'Back to Properties', onClick: () => navigate(-1) }}
+          description="This property does not exist or you do not have permission to view it."
+          action={{ label: 'Back to Properties', onClick: () => navigate('/properties') }}
         />
       </div>
     );

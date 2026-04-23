@@ -23,11 +23,18 @@ function generateDays(count: number): string[] {
   return days;
 }
 
+function pastDate(daysBack: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysBack);
+  return toLocalISODate(d);
+}
+
 export function SchedulePage() {
   const [searchParams] = useSearchParams();
   const days = useMemo(() => generateDays(60), []);
   const today = days[0]!;
   const lastDay = days[days.length - 1]!;
+  const lookbackStart = useMemo(() => pastDate(7), []);
   const initialDate = useMemo(() => {
     const param = searchParams.get('date');
     if (param && days.includes(param)) return param;
@@ -35,7 +42,7 @@ export function SchedulePage() {
   }, [searchParams, days, today]);
   const [selectedDate, setSelectedDate] = useState(initialDate);
 
-  const { data, isLoading, isError, error, refetch } = useScheduleRange(today, lastDay);
+  const { data, isLoading, isError, error, refetch } = useScheduleRange(lookbackStart, lastDay);
   const dayAppointments = useScheduleDay(data?.appointments, selectedDate);
 
   const appointmentCounts = useMemo(() => {

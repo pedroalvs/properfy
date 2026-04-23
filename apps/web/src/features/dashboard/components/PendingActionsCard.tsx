@@ -35,7 +35,7 @@ const ACTIONS = [
   },
 ] as const;
 
-const FINANCIAL_ROLES = new Set(['AM', 'OP', 'CL_ADMIN']);
+const FINANCIAL_ROLES = new Set(['AM', 'OP']);
 
 export function PendingActionsCard({
   noResponseTenants,
