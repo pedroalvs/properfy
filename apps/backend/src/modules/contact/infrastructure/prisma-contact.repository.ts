@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import type { ContactType } from '@properfy/shared';
 import { ContactEntity } from '../domain/contact.entity';
 import type {
@@ -98,6 +98,9 @@ export class PrismaContactRepository implements IContactRepository {
     const activeFilter = isActive ?? true;
 
     if (hasTrgm) {
+      const typeClause = type
+        ? Prisma.sql`AND type = ${type}::"ContactType"`
+        : Prisma.sql``;
       const rows = await this.prisma.$queryRaw<Array<{
         id: string;
         tenant_id: string;
@@ -121,7 +124,7 @@ export class PrismaContactRepository implements IContactRepository {
         FROM contacts
         WHERE tenant_id = ${tenantId}
           AND is_active = ${activeFilter}
-          ${type ? this.prisma.$queryRaw`AND type = ${type}::"ContactType"` : this.prisma.$queryRaw``}
+          ${typeClause}
           AND (
             display_name % ${query}
             OR COALESCE(primary_email, '') % ${query}
