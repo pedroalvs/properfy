@@ -244,6 +244,45 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id} AND tenant_id = ${tenantId}`;
   }
 
+  async findAllByInspector(
+    inspectorId: string,
+    tenantId: string,
+    filters: ServiceRegionFilters,
+    pagination: PaginationParams,
+  ): Promise<ServiceRegionEntity[]> {
+    const assignments = await this.prisma.inspectorRegion.findMany({
+      where: { inspector_id: inspectorId },
+      select: { region_id: true },
+    });
+    const regionIds = assignments.map((a) => a.region_id);
+    if (regionIds.length === 0) return [];
+
+    const where = this.buildInspectorWhere(regionIds, tenantId, filters);
+    const rows = await this.prisma.serviceRegion.findMany({
+      where,
+      skip: (pagination.page - 1) * pagination.pageSize,
+      take: pagination.pageSize,
+      orderBy: { [toSnakeCase(pagination.sortBy ?? 'name')]: pagination.sortOrder },
+    });
+    return rows.map(mapToEntity);
+  }
+
+  async countByInspector(
+    inspectorId: string,
+    tenantId: string,
+    filters: ServiceRegionFilters,
+  ): Promise<number> {
+    const assignments = await this.prisma.inspectorRegion.findMany({
+      where: { inspector_id: inspectorId },
+      select: { region_id: true },
+    });
+    const regionIds = assignments.map((a) => a.region_id);
+    if (regionIds.length === 0) return 0;
+
+    const where = this.buildInspectorWhere(regionIds, tenantId, filters);
+    return this.prisma.serviceRegion.count({ where });
+  }
+
   async countPublishedGroupsByRegionId(regionId: string): Promise<number> {
     return this.prisma.serviceGroup.count({
       where: {
@@ -251,6 +290,22 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
         status: 'PUBLISHED',
       },
     });
+  }
+
+  private buildInspectorWhere(
+    regionIds: string[],
+    tenantId: string,
+    filters: ServiceRegionFilters,
+  ): Record<string, unknown> {
+    const where: Record<string, unknown> = {
+      id: { in: regionIds },
+      tenant_id: tenantId,
+    };
+    if (filters.status) where['status'] = filters.status;
+    if (filters.search) {
+      where['OR'] = [{ name: { contains: filters.search, mode: 'insensitive' } }];
+    }
+    return where;
   }
 
   private buildWhere(tenantId: string | null, filters: ServiceRegionFilters) {

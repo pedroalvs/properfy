@@ -53,4 +53,15 @@ export interface IServiceRegionRepository {
   getInspectorRegionIdsBatch(inspectorIds: string[]): Promise<Map<string, string[]>>;
   countPublishedGroupsByRegionId(regionId: string): Promise<number>;
   delete(id: string, tenantId: string): Promise<void>;
+  findAllByInspector(
+    inspectorId: string,
+    tenantId: string,
+    filters: ServiceRegionFilters,
+    pagination: PaginationParams,
+  ): Promise<ServiceRegionEntity[]>;
+  countByInspector(
+    inspectorId: string,
+    tenantId: string,
+    filters: ServiceRegionFilters,
+  ): Promise<number>;
 }
