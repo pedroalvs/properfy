@@ -1,5 +1,7 @@
 # Inspector Execution Module – Implementation Spec
 
+> **SUPERSEDED** by `specs/008-inspectors-execution/` — this legacy spec is preserved for historical reference only.
+
 **Version:** 1.0
 **Module path:** `apps/backend/src/modules/inspector-execution`
 **Last updated:** 2026-03-15

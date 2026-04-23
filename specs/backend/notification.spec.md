@@ -1,5 +1,7 @@
 # Notification Module — Implementation Spec
 
+> **SUPERSEDED** by `specs/009-notifications/` — this legacy spec is preserved for historical reference only.
+
 **Module:** `src/modules/notification/`
 **Version:** 1.0
 **Status:** Ready for implementation

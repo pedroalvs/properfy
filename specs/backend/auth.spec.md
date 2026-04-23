@@ -1,5 +1,7 @@
 # Auth Module – Implementation Spec
 
+> **SUPERSEDED** by `specs/001-identity-access/` — this legacy spec is preserved for historical reference only.
+
 **Version:** 1.0
 **Module path:** `apps/backend/src/modules/auth`
 **Last updated:** 2026-03-15

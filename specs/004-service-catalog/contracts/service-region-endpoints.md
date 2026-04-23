@@ -1,5 +1,7 @@
 # Service Region Endpoints
 
+> **Extraction notice (2026-04-22):** Service region implementation details have been extracted to `specs/013-service-regions/`. This contract file is preserved for reference. Implementation tracking: `specs/013-service-regions/tasks.md`.
+
 **Feature**: `004-service-catalog`
 **Status**: IMPLEMENTED
 **Source**: `apps/backend/src/modules/service-region/interfaces/service-region.routes.ts`, `packages/shared/src/schemas/service-region.ts`

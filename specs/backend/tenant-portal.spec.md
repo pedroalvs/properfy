@@ -1,5 +1,7 @@
 # Tenant Portal Module – Implementation Spec
 
+> **SUPERSEDED** by `specs/007-tenant-portal/` — this legacy spec is preserved for historical reference only.
+
 **Version:** 1.0
 **Module path:** `apps/backend/src/modules/tenant-portal`
 **Last updated:** 2026-03-15

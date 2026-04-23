@@ -1,5 +1,7 @@
 # Feature Specification: Service Catalog
 
+> **Extraction notice (2026-04-22):** Service regions have been extracted into a dedicated spec at `specs/013-service-regions/`. The `specs/004-service-catalog/contracts/service-region-endpoints.md` contract file is preserved here for reference but implementation details live in spec 013. See `specs/DECISIONS.md` DEC-027.
+
 **Feature Branch**: `004-service-catalog`
 **Created**: 2026-04-05
 **Feature Status**: IMPLEMENTED — Phase 1 shipped; Phase 2 gaps + `CORRECTION-004` (ServiceRegion per-tenant) closed in commit `017a883` (2026-04-07, Waves 1–4). `ServiceRegion.tenant_id` is now a non-nullable FK; every repository method is tenant-scoped. Editorial reconciliation 2026-04-13. See `specs/GAPS.md` for the gap status table.

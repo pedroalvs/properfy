@@ -1,5 +1,7 @@
 # Service Group & Marketplace — Implementation Spec
 
+> **SUPERSEDED** by `specs/005-service-groups-marketplace/` — this legacy spec is preserved for historical reference only.
+
 **Module:** `src/modules/service-group/`
 **Version:** 1.0
 **Status:** Ready for implementation

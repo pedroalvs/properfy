@@ -1,5 +1,7 @@
 # Appointment Module – Backend Implementation Spec
 
+> **SUPERSEDED** by `specs/004-appointments/` — this legacy spec is preserved for historical reference only.
+
 **Version:** 1.0
 **Date:** 2026-03-15
 **Module path:** `apps/backend/src/modules/appointment/`

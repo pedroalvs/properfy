@@ -1,5 +1,7 @@
 # Property Module – Implementation Spec
 
+> **SUPERSEDED** by `specs/003-properties/` — this legacy spec is preserved for historical reference only.
+
 **Version:** 1.0
 **Module path:** `apps/backend/src/modules/property`
 **Last updated:** 2026-03-15

@@ -1,5 +1,7 @@
 # Tenant Module – Implementation Spec
 
+> **SUPERSEDED** by `specs/002-tenants-branches/` — this legacy spec is preserved for historical reference only.
+
 **Version:** 1.0
 **Module path:** `apps/backend/src/modules/tenant`
 **Last updated:** 2026-03-15

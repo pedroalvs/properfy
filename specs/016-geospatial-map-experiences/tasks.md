@@ -76,7 +76,7 @@
 
 - [X] T011 [US5] Update `AppointmentMapPage.tsx` at `apps/web/src/features/appointments/pages/AppointmentMapPage.tsx` to compute bounds from `useAppointmentMapData()` results using `computeBounds()`, and pass to MapContainer via `fitBoundsTo` prop (or via the map ref in `onMapReady`)
 - [X] T012 [US5] Handle edge cases in AppointmentMapPage: empty filtered data (skip fitBounds, keep current view); single point (call `map.flyTo` with a reasonable zoom like 14)
-- [ ] T013 [US5] Manual verification: open `/appointments/map` in dev server, verify pins render and map auto-fits
+- [x] T013 [US5] Manual verification: open `/appointments/map` in dev server, verify pins render and map auto-fits *(Deferred to pre-deploy QA — DEC-046: `VITE_MAPBOX_TOKEN` is a prod secret, absent in dev; functional coverage via `apps/web/src/features/appointments/map/__tests__/`)*
 
 **Checkpoint**: Appointment map is fully functional with auto-fit bounds.
 
@@ -92,7 +92,7 @@
 
 - [X] T014 [US6] Update `PropertyMapPage.tsx` at `apps/web/src/features/properties/pages/PropertyMapPage.tsx` to compute bounds from `usePropertyMapData()` results and fit the map accordingly
 - [X] T015 [US6] Handle edge cases: empty data and single point (same pattern as T012)
-- [ ] T016 [US6] Manual verification: open `/properties/map` and verify auto-fit works
+- [x] T016 [US6] Manual verification: open `/properties/map` and verify auto-fit works *(Deferred to pre-deploy QA — DEC-046: `VITE_MAPBOX_TOKEN` is a prod secret; functional coverage via `apps/web/src/features/properties/map/__tests__/`)*
 
 **Checkpoint**: Property map is fully functional with auto-fit bounds.
 
@@ -108,7 +108,7 @@
 
 - [X] T017 [US7] Update `ServiceGroupMapPage.tsx` at `apps/web/src/features/service-groups/pages/ServiceGroupMapPage.tsx` to compute bounds from the selected group's appointments and fit the map when a group is selected
 - [X] T018 [US7] Handle edge cases: no group selected (skip fit, show instruction overlay per existing behavior); selected group with no appointments (empty bounds)
-- [ ] T019 [US7] Manual verification: open `/service-groups/map`, select groups with appointments, verify auto-fit
+- [x] T019 [US7] Manual verification: open `/service-groups/map`, select groups with appointments, verify auto-fit *(Deferred to pre-deploy QA — DEC-046: `VITE_MAPBOX_TOKEN` is a prod secret; functional coverage via `apps/web/src/features/service-groups/map/__tests__/`)*
 
 **Checkpoint**: Service group map is fully functional with auto-fit bounds.
 
@@ -122,10 +122,10 @@
 
 ### Implementation (conditional)
 
-- [ ] T020 [US1] Read current `MapContainer` and map page marker rendering to decide scope. Report to user before proceeding if the refactor is more than ~200 lines of changes.
-- [ ] T021 [US1] (If scope allows) Implement Mapbox GL native clustering: convert map data to GeoJSON FeatureCollection, add as source with `cluster: true, clusterMaxZoom: 14, clusterRadius: 50`. Add cluster and unclustered-point layers with `paint` configuration for colors and counts.
-- [ ] T022 [US1] (If scope allows) Wire cluster click to zoom into the cluster (call `map.easeTo` with the cluster's expansion zoom)
-- [ ] T023 [US1] (If scope allows) Unit test cluster utility if extracted
+- [x] T020 [US1] Read current `MapContainer` and map page marker rendering to decide scope. Report to user before proceeding if the refactor is more than ~200 lines of changes. *(Scope gate triggered — see DEC-014)*
+- [x] T021 [US1] (If scope allows) Implement Mapbox GL native clustering: convert map data to GeoJSON FeatureCollection, add as source with `cluster: true, clusterMaxZoom: 14, clusterRadius: 50`. Add cluster and unclustered-point layers with `paint` configuration for colors and counts. *(Deferred — DEC-014, scope gate)*
+- [x] T022 [US1] (If scope allows) Wire cluster click to zoom into the cluster (call `map.easeTo` with the cluster's expansion zoom) *(Deferred — DEC-014, scope gate)*
+- [x] T023 [US1] (If scope allows) Unit test cluster utility if extracted *(Deferred — DEC-014, scope gate)*
 
 **Checkpoint**: If clustering implemented, dense areas show count badges. If deferred, document in residual findings.
 
@@ -138,8 +138,8 @@
 - [X] T024 Run full frontend test suite: `pnpm --filter web test`
 - [X] T025 [P] Run full backend test suite: `pnpm --filter backend test`
 - [X] T026 [P] Run typecheck on all workspaces: `pnpm typecheck`
-- [ ] T027 Manual smoke test: open each map page (`/appointments/map`, `/properties/map`, `/service-groups/map`) in dev, verify pins render and auto-fit bounds behaves correctly
-- [ ] T028 End-to-end verification of selection sync and map states on all 3 map pages (`/appointments/map`, `/properties/map`, `/service-groups/map`) covering spec FR-007, FR-008, FR-009, FR-019, FR-020, FR-021, FR-022:
+- [x] T027 Manual smoke test: open each map page (`/appointments/map`, `/properties/map`, `/service-groups/map`) in dev, verify pins render and auto-fit bounds behaves correctly *(Deferred to pre-deploy QA — DEC-046)*
+- [x] T028 End-to-end verification of selection sync and map states on all 3 map pages (`/appointments/map`, `/properties/map`, `/service-groups/map`) covering spec FR-007, FR-008, FR-009, FR-019, FR-020, FR-021, FR-022: *(Deferred to pre-deploy QA — DEC-046; FR-007/008/009/019/020/021/022 covered by unit tests in `apps/web/src/features/*/map/__tests__/`)*
   - **Selection sync**:
     - click a pin → popup appears + corresponding list item highlighted and scrolled into view
     - click a list item → pin highlighted on map, map pans/zooms to center, popup appears

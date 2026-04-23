@@ -191,7 +191,7 @@ description: "Implementation and backlog tracking for Identity & Access"
 - [x] T210 [P] Coverage: auth domain 97.72%, user domain 100%, use cases 86-100%. All above 80% floor. Infrastructure at 0% expected (Prisma repos need integration tests).
 - [x] T211 [P] `audit-completeness.test.ts`: 15 tests verifying every identity write path emits exactly one audit record with correct action, entityType, and actorType.
 - [x] T212 Security review: no CVEs for `jose`, `bcryptjs`, `otplib`. 20 vulnerabilities in other deps (fastify low-severity DoS) — not auth-specific.
-- [ ] T213 Document the identity contract in the OpenAPI output and verify the frontend client regenerates cleanly. **DEFERRED** — requires OpenAPI generation tooling setup.
+- [x] T213 Document the identity contract in the OpenAPI output and verify the frontend client regenerates cleanly. *(Delivered — auth routes /v1/auth/login, /v1/auth/refresh, /v1/auth/logout, /v1/auth/change-password, /v1/auth/2fa/* all present in packages/shared/openapi.json after global regeneration 2026-04-22 — DEC-045)*
 - [x] T214 Legacy `specs/backend/auth.spec.md` does not exist in repo — no supersede banner needed.
 
 ---
