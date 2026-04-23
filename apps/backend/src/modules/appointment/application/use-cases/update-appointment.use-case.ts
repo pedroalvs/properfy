@@ -4,6 +4,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
+import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
@@ -231,6 +232,9 @@ export class UpdateAppointmentUseCase {
             sEmail = existing.primaryEmail;
             sPhone = existing.primaryPhone;
           } else {
+            if (!inlineEmail && !inlinePhone && (entry.inline.additionalChannels ?? []).length === 0) {
+              throw new ContactNoChannelError();
+            }
             const nc = new ContactEntity({
               id: crypto.randomUUID(), tenantId: appointment.tenantId,
               type: entry.inline.type as any, displayName: entry.inline.displayName,

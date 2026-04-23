@@ -12,6 +12,7 @@ import type { IPricingRuleRepository } from '../../../pricing-rule/domain/pricin
 import type { CreatePropertyUseCase } from '../../../property/application/use-cases/create-property.use-case';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
+import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../domain/appointment-restriction.entity';
@@ -347,6 +348,9 @@ export class CreateAppointmentUseCase {
             snapshotEmail = existing.primaryEmail;
             snapshotPhone = existing.primaryPhone;
           } else {
+            if (!inlineEmail && !inlinePhone && (entry.inline.additionalChannels ?? []).length === 0) {
+              throw new ContactNoChannelError();
+            }
             const newContact = new ContactEntity({
               id: crypto.randomUUID(),
               tenantId,
