@@ -43,7 +43,7 @@ export function useAppointmentMapData(): UseAppointmentMapDataReturn {
 
   const params: ListParams = {
     page: 1,
-    pageSize: 200,
+    pageSize: 100,
     sortBy: 'scheduledDate',
     sortOrder: 'desc',
     status: filters.status || undefined,
