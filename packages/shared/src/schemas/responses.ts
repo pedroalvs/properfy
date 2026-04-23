@@ -536,6 +536,7 @@ export const financialEntryResponseSchema = z.object({
 export const invoiceResponseSchema = z.object({
   id: z.string().uuid(),
   inspectorId: z.string().uuid(),
+  inspectorName: z.string().nullable().optional(),
   periodStart: dateStr(),
   periodEnd: dateStr(),
   periodType: z.string(),

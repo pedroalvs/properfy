@@ -26,10 +26,12 @@ function formatDayLabel(dateStr: string): { weekday: string; day: string; isToda
 export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentCounts, urgentDays }: DaySelectorStripProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLButtonElement>(null);
+  const selectedRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (todayRef.current && typeof todayRef.current.scrollIntoView === 'function') {
-      todayRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    const target = selectedRef.current ?? todayRef.current;
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
   }, []);
 
@@ -49,7 +51,7 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
         return (
           <button
             key={dateStr}
-            ref={isToday ? todayRef : undefined}
+            ref={isSelected ? selectedRef : isToday ? todayRef : undefined}
             onClick={() => onDaySelect(dateStr)}
             className={`relative flex min-h-touch min-w-[56px] flex-shrink-0 flex-col items-center justify-center rounded-lg px-2 py-1 text-xs font-semibold transition-colors ${
               isSelected

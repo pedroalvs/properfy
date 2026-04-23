@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -23,10 +24,16 @@ function generateDays(count: number): string[] {
 }
 
 export function SchedulePage() {
+  const [searchParams] = useSearchParams();
   const days = useMemo(() => generateDays(60), []);
   const today = days[0]!;
   const lastDay = days[days.length - 1]!;
-  const [selectedDate, setSelectedDate] = useState(today);
+  const initialDate = useMemo(() => {
+    const param = searchParams.get('date');
+    if (param && days.includes(param)) return param;
+    return today;
+  }, [searchParams, days, today]);
+  const [selectedDate, setSelectedDate] = useState(initialDate);
 
   const { data, isLoading, isError, error, refetch } = useScheduleRange(today, lastDay);
   const dayAppointments = useScheduleDay(data?.appointments, selectedDate);

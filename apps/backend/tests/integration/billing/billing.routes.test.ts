@@ -94,6 +94,7 @@ const fullFinancialEntry = {
 const fullInvoice = {
   id: INVOICE_ID,
   inspectorId: 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66',
+  inspectorName: 'Mike Inspector',
   periodStart: '2026-03-01',
   periodEnd: '2026-03-15',
   periodType: 'BIWEEKLY',
@@ -304,6 +305,8 @@ describe('GET /v1/invoices', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
+    // QA-017: inspectorName must be present in the serialized response
+    expect(res.body.data[0].inspectorName).toBe('Mike Inspector');
   });
 
   it('should return 401 without auth', async () => {
