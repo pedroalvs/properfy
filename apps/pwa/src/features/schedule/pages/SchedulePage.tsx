@@ -22,7 +22,7 @@ function generateDays(count: number): string[] {
 }
 
 export function SchedulePage() {
-  const days = useMemo(() => generateDays(14), []);
+  const days = useMemo(() => generateDays(60), []);
   const today = days[0]!;
   const lastDay = days[days.length - 1]!;
   const [selectedDate, setSelectedDate] = useState(today);

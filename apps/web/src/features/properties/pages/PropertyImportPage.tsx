@@ -13,15 +13,15 @@ import { usePropertyImport } from '../hooks/usePropertyImport';
 const STEPS = ['Upload', 'Preview', 'Confirm', 'Progress'];
 
 const EXPECTED_COLUMNS = [
-  'address',
+  'branchName',
+  'propertyCode',
+  'type',
+  'street',
+  'addressLine2',
   'suburb',
-  'city',
-  'state',
   'postcode',
-  'propertyType',
-  'bedrooms',
-  'bathrooms',
-  'parkingSpaces',
+  'state',
+  'country',
   'notes',
 ];
 

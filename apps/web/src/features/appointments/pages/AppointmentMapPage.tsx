@@ -9,6 +9,7 @@ import { MapPopup } from '@/components/map/MapPopup';
 import { MapFiltersPanel } from '@/components/map/MapFiltersPanel';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
 import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
+import { formatDate } from '@/lib/format-date';
 import { FilterSelect } from '@/components/filters/FilterSelect';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -130,7 +131,7 @@ export function AppointmentMapPage() {
             </div>
             <p className="mt-1 text-xs text-text-secondary">{item.address}</p>
             <p className="text-xs text-text-muted">
-              {item.scheduledDate} {item.timeSlot}
+              {formatDate(item.scheduledDate)} {item.timeSlot}
             </p>
           </button>
         ))}
@@ -177,7 +178,7 @@ export function AppointmentMapPage() {
                 <span className="text-text-muted">Address:</span> {selectedItem.address}
               </p>
               <p>
-                <span className="text-text-muted">Date:</span> {selectedItem.scheduledDate}
+                <span className="text-text-muted">Date:</span> {formatDate(selectedItem.scheduledDate)}
               </p>
               {selectedItem.inspectorName && (
                 <p>

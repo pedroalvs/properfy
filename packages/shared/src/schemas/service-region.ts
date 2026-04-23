@@ -21,6 +21,7 @@ export const createServiceRegionSchema = z.object({
   name: z.string().min(1).max(255).trim(),
   geojson: geojsonGeometrySchema,
   color: z.string().max(20).trim().optional(),
+  tenantId: z.string().uuid().optional(),
 });
 export type CreateServiceRegionInput = z.infer<typeof createServiceRegionSchema>;
 

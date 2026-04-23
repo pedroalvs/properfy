@@ -19,6 +19,7 @@ export interface ListInvoicesInput {
 export interface InvoiceOutputItem {
   id: string;
   inspectorId: string;
+  inspectorName: string | null;
   periodStart: string;
   periodEnd: string;
   periodType: string;
@@ -80,6 +81,7 @@ export class ListInvoicesUseCase {
       data: data.map((invoice) => ({
         id: invoice.id,
         inspectorId: invoice.inspectorId,
+        inspectorName: invoice.inspectorName,
         periodStart: formatDate(invoice.periodStart),
         periodEnd: formatDate(invoice.periodEnd),
         periodType: invoice.periodType,

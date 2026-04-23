@@ -14,6 +14,7 @@ function mapToEntity(row: any): InspectorInvoiceEntity {
   return new InspectorInvoiceEntity({
     id: row.id,
     inspectorId: row.inspector_id,
+    inspectorName: row.inspector?.name ?? null,
     periodStart: row.period_start,
     periodEnd: row.period_end,
     periodType: row.period_type as BillingPeriodType,
@@ -100,6 +101,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: { period_start: 'desc' },
+      include: { inspector: { select: { name: true } } },
     });
 
     return rows.map(mapToEntity);

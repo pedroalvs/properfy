@@ -10,6 +10,7 @@ export interface CreateServiceRegionInput {
   name: string;
   geojson: Record<string, unknown>;
   color?: string;
+  tenantId?: string;
   actor: AuthContext;
 }
 
@@ -34,7 +35,7 @@ export class CreateServiceRegionUseCase {
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_region.create', entityType: 'ServiceRegion' });
 
-    const tenantId = this.resolveTenantId(actor);
+    const tenantId = this.resolveTenantId(actor, input.tenantId);
 
     // Check name uniqueness within tenant
     const existing = await this.regionRepo.findByName(tenantId, name);
@@ -85,10 +86,12 @@ export class CreateServiceRegionUseCase {
     };
   }
 
-  private resolveTenantId(actor: AuthContext): string {
-    if (!actor.tenantId) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
+  private resolveTenantId(actor: AuthContext, explicitTenantId?: string): string {
+    // AM has null tenantId in JWT; fall back to explicitly supplied tenantId from request body
+    const resolved = actor.tenantId ?? explicitTenantId;
+    if (!resolved) {
+      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required for this operation');
     }
-    return actor.tenantId;
+    return resolved;
   }
 }

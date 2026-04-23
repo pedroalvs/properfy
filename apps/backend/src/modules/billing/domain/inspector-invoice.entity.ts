@@ -4,6 +4,7 @@ import type { InspectorInvoiceStatus, BillingPeriodType } from '@properfy/shared
 export interface InspectorInvoiceProps {
   id: string;
   inspectorId: string;
+  inspectorName?: string | null;
   periodStart: Date;
   periodEnd: Date;
   periodType: BillingPeriodType;
@@ -25,6 +26,7 @@ export interface InspectorInvoiceProps {
 
 export class InspectorInvoiceEntity extends BaseEntity {
   readonly inspectorId: string;
+  readonly inspectorName: string | null;
   readonly periodStart: Date;
   readonly periodEnd: Date;
   readonly periodType: BillingPeriodType;
@@ -44,6 +46,7 @@ export class InspectorInvoiceEntity extends BaseEntity {
   constructor(props: InspectorInvoiceProps) {
     super(props.id, props.createdAt, props.updatedAt);
     this.inspectorId = props.inspectorId;
+    this.inspectorName = props.inspectorName ?? null;
     this.periodStart = props.periodStart;
     this.periodEnd = props.periodEnd;
     this.periodType = props.periodType;
