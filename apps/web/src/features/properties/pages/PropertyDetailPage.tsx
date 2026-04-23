@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { Button } from '@/components/ui/Button';
 import { MapboxPreview } from '@/components/map/MapboxPreview';
@@ -72,19 +73,12 @@ export function PropertyDetailPage() {
 
   if (isError || !property) {
     return (
-      <div>
-        <PageHeader
-          title="Property"
-          secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: () => navigate(-1) },
-          ]}
+      <div className="px-8 py-6">
+        <EmptyState
+          title="Property not found"
+          description="The property you are looking for does not exist or you do not have access."
+          action={{ label: 'Back to Properties', onClick: () => navigate(-1) }}
         />
-        <div className="rounded bg-card-bg p-6 shadow-sm">
-          <ErrorState
-            message="Failed to load property details"
-            onRetry={refetch}
-          />
-        </div>
       </div>
     );
   }

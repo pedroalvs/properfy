@@ -5,6 +5,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { DaySelectorStrip } from '../components/DaySelectorStrip';
 import { AppointmentDayList } from '../components/AppointmentDayList';
+import { AppointmentCard } from '../components/AppointmentCard';
 import { ScheduleOfflineBanner } from '../components/ScheduleOfflineBanner';
 import { useScheduleRange } from '../hooks/useScheduleRange';
 import { useScheduleDay } from '../hooks/useScheduleDay';
@@ -48,6 +49,17 @@ export function SchedulePage() {
     return set;
   }, [data?.appointments]);
 
+  const isToday = selectedDate === today;
+  const dayCount = appointmentCounts[selectedDate] ?? 0;
+  const dayLabel = isToday ? 'Today' : formatScheduleDate(selectedDate);
+
+  const stuckAppointments = useMemo(() => {
+    if (!isToday) return [];
+    return (data?.appointments ?? []).filter(
+      (apt) => apt.scheduledDate < today && apt.status === 'SCHEDULED',
+    );
+  }, [data?.appointments, today, isToday]);
+
   const overdueCount = useMemo(() => {
     return dayAppointments.filter((apt) => apt.isOverdue).length;
   }, [dayAppointments]);
@@ -55,10 +67,6 @@ export function SchedulePage() {
   const riskCount = useMemo(() => {
     return dayAppointments.filter((apt) => isScheduleRisk(apt)).length;
   }, [dayAppointments]);
-
-  const isToday = selectedDate === today;
-  const dayCount = appointmentCounts[selectedDate] ?? 0;
-  const dayLabel = isToday ? 'Today' : formatScheduleDate(selectedDate);
 
   return (
     <div className="w-full" data-testid="schedule-page">
@@ -129,6 +137,22 @@ export function SchedulePage() {
               detail={error instanceof Error ? error.message : undefined}
               onRetry={refetch}
             />
+          )}
+
+          {!isLoading && !isError && stuckAppointments.length > 0 && (
+            <div className="mb-4 px-page-x">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-800">
+                  <i className="mdi mdi-clock-alert-outline text-base" />
+                  {stuckAppointments.length} incomplete {stuckAppointments.length === 1 ? 'job' : 'jobs'} from previous days
+                </p>
+                <div className="flex flex-col gap-2">
+                  {stuckAppointments.map((apt) => (
+                    <AppointmentCard key={apt.id} appointment={apt} />
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
 
           {!isLoading && !isError && (
