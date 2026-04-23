@@ -1,5 +1,4 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
@@ -37,12 +36,13 @@ export class DeactivateServiceRegionUseCase {
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_region.delete', entityType: 'ServiceRegion' });
 
-    const tenantId = this.resolveTenantId(actor);
-
-    const region = await this.regionRepo.findById(regionId, tenantId);
+    // AM has tenantId=null; load region tenant-unscoped and derive tenantId from entity
+    const region = await this.regionRepo.findById(regionId, actor.tenantId ?? null);
     if (!region) {
       throw new ServiceRegionNotFoundError();
     }
+
+    const tenantId = region.tenantId;
 
     if (!region.isActive()) {
       throw new ServiceRegionAlreadyInactiveError();
@@ -80,12 +80,5 @@ export class DeactivateServiceRegionUseCase {
       status: 'INACTIVE',
       deactivatedAt: now,
     };
-  }
-
-  private resolveTenantId(actor: AuthContext): string {
-    if (!actor.tenantId) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
-    }
-    return actor.tenantId;
   }
 }

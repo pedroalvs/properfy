@@ -3,7 +3,6 @@ import { DeactivateServiceRegionUseCase } from '../../../src/modules/service-reg
 import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   ServiceRegionNotFoundError,
@@ -116,14 +115,29 @@ describe('DeactivateServiceRegionUseCase', () => {
     ).rejects.toThrow(ServiceRegionNotFoundError);
   });
 
-  it('should reject when actor has no tenantId', async () => {
-    await expect(
-      useCase.execute({
-        regionId: 'region-1',
-        reason: 'Test',
-        actor: makeActor({ tenantId: null }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+  it('AM with null tenantId can deactivate region — derives tenantId from entity (QA-013-HIGH-001)', async () => {
+    const region = new ServiceRegionEntity({
+      id: 'region-1',
+      tenantId: 'tenant-from-db',
+      name: 'Test',
+      geojson: {},
+      color: '#3b82f6',
+      status: 'ACTIVE',
+      createdByUserId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(regionRepo.findById).mockResolvedValue(region);
+
+    const result = await useCase.execute({
+      regionId: 'region-1',
+      reason: 'Test',
+      actor: makeActor({ role: 'AM', tenantId: null }),
+    });
+
+    expect(result.status).toBe('INACTIVE');
+    expect(regionRepo.findById).toHaveBeenCalledWith('region-1', null);
+    expect(regionRepo.update).toHaveBeenCalledWith('region-1', 'tenant-from-db', { status: 'INACTIVE' });
   });
 
   it('should emit service_region.deactivated.v1 event after deactivation', async () => {
