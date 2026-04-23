@@ -60,7 +60,11 @@ export async function registerContactRoutes(
         return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
       }
 
-      const parsed = contactRegistrySchema.parse(request.body);
+      const bodyParsed = contactRegistrySchema.safeParse(request.body);
+      if (!bodyParsed.success) {
+        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Request payload is invalid', details: bodyParsed.error.errors } });
+      }
+      const parsed = bodyParsed.data;
       const tenantId = auth.role === 'AM' && parsed.tenantId ? parsed.tenantId : auth.tenantId;
 
       if (!tenantId) {
@@ -93,15 +97,57 @@ export async function registerContactRoutes(
         return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
       }
 
-      const { contactId } = contactIdParam.parse(request.params);
-      const parsed = contactRegistryUpdateSchema.parse(request.body);
-      const tenantId = auth.role === 'AM' ? (auth.tenantId ?? null) : auth.tenantId;
+      const paramsParsed = contactIdParam.safeParse(request.params);
+      if (!paramsParsed.success) {
+        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid contact ID', details: paramsParsed.error.errors } });
+      }
+      const { contactId } = paramsParsed.data;
+
+      const bodyParsed = contactRegistryUpdateSchema.safeParse(request.body);
+      if (!bodyParsed.success) {
+        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Request payload is invalid', details: bodyParsed.error.errors } });
+      }
+
+      const tenantId = auth.role === 'AM' ? null : auth.tenantId;
 
       const updated = await container.updateContactUseCase.execute({
         contactId,
         tenantId,
         actorId: auth.userId,
-        data: parsed,
+        data: bodyParsed.data,
+      });
+
+      if (!updated) {
+        return reply.status(404).send({ error: { code: 'CONTACT_NOT_FOUND', message: 'Contact not found' } });
+      }
+
+      return reply.status(200).send(success(formatContact(updated)));
+    },
+  );
+
+  // POST /v1/contacts/:contactId/deactivate — alias for PATCH {isActive:false} (QA-021-HIGH-002)
+  app.post(
+    '/v1/contacts/:contactId/deactivate',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const auth = (request as any).authContext;
+      if (!WRITE_ROLES.includes(auth.role)) {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
+      }
+
+      const paramsParsed = contactIdParam.safeParse(request.params);
+      if (!paramsParsed.success) {
+        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid contact ID', details: paramsParsed.error.errors } });
+      }
+      const { contactId } = paramsParsed.data;
+
+      const tenantId = auth.role === 'AM' ? null : auth.tenantId;
+
+      const updated = await container.updateContactUseCase.execute({
+        contactId,
+        tenantId,
+        actorId: auth.userId,
+        data: { isActive: false },
       });
 
       if (!updated) {

@@ -15,7 +15,7 @@ import {
 
 export interface UpdateContactInput {
   contactId: string;
-  tenantId: string;
+  tenantId: string | null;
   actorId: string;
   data: {
     type?: ContactType;
@@ -39,6 +39,9 @@ export class UpdateContactUseCase {
     const existing = await this.contactRepo.findById(input.contactId, input.tenantId);
     if (!existing) throw new ContactNotFoundError();
 
+    // AM passes tenantId=null; derive from loaded entity
+    const tenantId = input.tenantId ?? existing.tenantId;
+
     // Merge for validation: apply patch on top of existing
     const mergedEmail = input.data.primaryEmail !== undefined ? input.data.primaryEmail : existing.primaryEmail;
     const mergedPhone = input.data.primaryPhone !== undefined ? input.data.primaryPhone : existing.primaryPhone;
@@ -52,11 +55,11 @@ export class UpdateContactUseCase {
 
     // Uniqueness checks only when the value changed
     if (mergedEmail && mergedEmail !== existing.primaryEmail) {
-      const exists = await this.contactRepo.existsByEmail(input.tenantId, mergedEmail, input.contactId);
+      const exists = await this.contactRepo.existsByEmail(tenantId, mergedEmail, input.contactId);
       if (exists) throw new ContactEmailAlreadyExistsError();
     }
     if (mergedPhone && mergedPhone !== existing.primaryPhone) {
-      const exists = await this.contactRepo.existsByPhone(input.tenantId, mergedPhone, input.contactId);
+      const exists = await this.contactRepo.existsByPhone(tenantId, mergedPhone, input.contactId);
       if (exists) throw new ContactPhoneAlreadyExistsError();
     }
 
@@ -68,7 +71,7 @@ export class UpdateContactUseCase {
       isActive: existing.isActive,
     };
 
-    await this.contactRepo.update(input.contactId, input.tenantId, input.data);
+    await this.contactRepo.update(input.contactId, tenantId, input.data);
 
     // Determine audit action
     const wasActive = existing.isActive;
@@ -83,7 +86,7 @@ export class UpdateContactUseCase {
       actorId: input.actorId,
       entityType: 'contact',
       entityId: input.contactId,
-      tenantId: input.tenantId,
+      tenantId,
       before,
       after: {
         type: input.data.type ?? existing.type,
@@ -94,6 +97,6 @@ export class UpdateContactUseCase {
       },
     });
 
-    return this.contactRepo.findById(input.contactId, input.tenantId);
+    return this.contactRepo.findById(input.contactId, tenantId);
   }
 }
