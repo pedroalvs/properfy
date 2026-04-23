@@ -12,6 +12,7 @@ import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { buildAddressLabel, formatAddressLabel, toAddressSuggestion } from '@/lib/address';
 import { useBranchSave } from '../hooks/useBranchSave';
+import { useBranchById } from '../hooks/useBranchById';
 import type { Branch, BranchFormData, BranchFormErrors } from '../types';
 import { EMPTY_BRANCH_FORM } from '../types';
 
@@ -33,6 +34,7 @@ export function BranchFormDrawer({
   const isEditMode = !!branch;
   const { save, isSaving, validate } = useBranchSave();
   const { showSuccess, showError } = useSnackbar();
+  const { data: freshBranch } = useBranchById(tenantId, isEditMode ? (branch?.id ?? null) : null);
 
   const [form, setForm] = useState<BranchFormData>(EMPTY_BRANCH_FORM);
   const [initialData, setInitialData] = useState<BranchFormData>(EMPTY_BRANCH_FORM);
@@ -40,17 +42,18 @@ export function BranchFormDrawer({
   const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
-    if (isEditMode && branch) {
+    const source = freshBranch ?? branch;
+    if (isEditMode && source) {
       const data: BranchFormData = {
-        name: branch.name,
-        address: toAddressSuggestion(branch.addressJson),
-        contactEmail: branch.contactEmail ?? '',
+        name: source.name,
+        address: toAddressSuggestion(source.addressJson),
+        contactEmail: source.contactEmail ?? '',
       };
       setForm(data);
       setInitialData(data);
       setErrors({});
     }
-  }, [isEditMode, branch]);
+  }, [isEditMode, freshBranch, branch]);
 
   useEffect(() => {
     if (open && !isEditMode) {

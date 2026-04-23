@@ -55,7 +55,18 @@ export function useBranchSave(): UseBranchSaveReturn {
     try {
       const payload = {
         name: data.name,
-        address: data.address ?? undefined,
+        address: data.address
+          ? {
+              street: data.address.street,
+              suburb: data.address.suburb,
+              city: data.address.suburb, // AU addresses have no separate city; suburb is the locality
+              state: data.address.state,
+              postcode: data.address.postcode,
+              country: data.address.country || 'AU',
+              latitude: data.address.latitude || undefined,
+              longitude: data.address.longitude || undefined,
+            }
+          : undefined,
         contactEmail: data.contactEmail || undefined,
       };
       if (branchId) {

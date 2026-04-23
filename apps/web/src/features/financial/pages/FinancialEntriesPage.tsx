@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { FormField } from '@/components/forms/FormField';
 import { SelectInput } from '@/components/forms/SelectInput';
@@ -14,10 +15,13 @@ import { FinancialBatchActions } from '../components/FinancialBatchActions';
 import { CreateAdjustmentModal } from '../components/CreateAdjustmentModal';
 import { CreateRefundModal } from '../components/CreateRefundModal';
 import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
+import { NoPermissionState } from '@/components/feedback/NoPermissionState';
 import { useFinancialList } from '../hooks/useFinancialList';
 
 export function FinancialEntriesPage() {
   const { user } = useAuth();
+  const { hasRole } = usePermissions();
+  const canViewFinancial = hasRole('AM', 'OP');
   const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
   const [selectedTenantId, setSelectedTenantId] = useState('');
   const requiresTenantSelection = isGlobalRole && !selectedTenantId;
@@ -110,6 +114,14 @@ export function FinancialEntriesPage() {
     setRefundOpen(false);
     refetch();
   }, [refetch]);
+
+  if (user && !canViewFinancial) {
+    return (
+      <ListFilterTableTemplate title="Financial Entries">
+        <NoPermissionState message="You don't have permission to view financial entries." />
+      </ListFilterTableTemplate>
+    );
+  }
 
   return (
     <>

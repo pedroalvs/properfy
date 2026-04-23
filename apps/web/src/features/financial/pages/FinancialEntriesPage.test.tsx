@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@/config/env', () => ({
@@ -37,6 +36,25 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+// Mutable role — default null so isGlobalRole=false, page shows content directly
+// (matches original test baseline; route guard prevents unauthenticated access in production)
+let mockUserRole: string | null = null;
+let mockTenantId: string | null = null;
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: mockUserRole
+      ? { id: 'usr-1', name: 'Test Admin', email: 'admin@test.com', role: mockUserRole, tenantId: mockTenantId }
+      : null,
+    isAuthenticated: mockUserRole !== null,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    token: mockUserRole ? 'token' : null,
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 import { api } from '@/services/api';
 import { FinancialEntriesPage } from './FinancialEntriesPage';
 
@@ -64,9 +82,7 @@ function createWrapper() {
     return (
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <AuthProvider>
-            <SnackbarProvider>{children}</SnackbarProvider>
-          </AuthProvider>
+          <SnackbarProvider>{children}</SnackbarProvider>
         </MemoryRouter>
       </QueryClientProvider>
     );
@@ -74,6 +90,9 @@ function createWrapper() {
 }
 
 beforeEach(() => {
+  // Default: null user — isGlobalRole=false, page shows content directly
+  mockUserRole = null;
+  mockTenantId = null;
   mockGet.mockReset();
   mockGet.mockImplementation((path: string) => {
     if (path === '/v1/financial/entries/summary') {
@@ -135,5 +154,29 @@ describe('FinancialEntriesPage', () => {
       expect(screen.getAllByText('VIST-001').length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getByLabelText('Select all pending entries')).toBeInTheDocument();
+  });
+
+  it('shows NoPermissionState for roles without financial access (CL_USER)', () => {
+    mockUserRole = 'CL_USER';
+    mockTenantId = 'tenant-1';
+    renderPage();
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText("You don't have permission to view financial entries.")).toBeInTheDocument();
+  });
+
+  it('shows NoPermissionState for roles without financial access (CL_ADMIN)', () => {
+    mockUserRole = 'CL_ADMIN';
+    mockTenantId = 'tenant-1';
+    renderPage();
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText("You don't have permission to view financial entries.")).toBeInTheDocument();
+  });
+
+  it('allows AM to reach the page (shows tenant selection prompt for global roles)', () => {
+    mockUserRole = 'AM';
+    mockTenantId = null;
+    renderPage();
+    expect(screen.queryByText("You don't have permission to view financial entries.")).not.toBeInTheDocument();
+    expect(screen.getByText('Financial Entries')).toBeInTheDocument();
   });
 });

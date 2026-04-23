@@ -9,7 +9,7 @@ vi.mock('@/config/env', () => ({
 
 vi.mock('@/services/api', () => ({
   api: {
-    GET: vi.fn(),
+    GET: vi.fn().mockResolvedValue({ data: undefined, error: { error: { message: 'Not found' } } }),
     POST: vi.fn(),
     PATCH: vi.fn(),
     PUT: vi.fn(),

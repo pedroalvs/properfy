@@ -98,7 +98,16 @@ describe('useBranchSave', () => {
     expect(mockPost).toHaveBeenCalledWith('/v1/tenants/ten-01/branches', {
       body: {
         name: VALID_DATA.name,
-        address: VALID_DATA.address,
+        address: {
+          street: VALID_DATA.address!.street,
+          suburb: VALID_DATA.address!.suburb,
+          city: VALID_DATA.address!.suburb,
+          state: VALID_DATA.address!.state,
+          postcode: VALID_DATA.address!.postcode,
+          country: VALID_DATA.address!.country,
+          latitude: VALID_DATA.address!.latitude || undefined,
+          longitude: VALID_DATA.address!.longitude || undefined,
+        },
         contactEmail: VALID_DATA.contactEmail,
       },
     });
@@ -117,9 +126,32 @@ describe('useBranchSave', () => {
     expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/ten-01/branches/br-01', {
       body: {
         name: VALID_DATA.name,
-        address: VALID_DATA.address,
+        address: {
+          street: VALID_DATA.address!.street,
+          suburb: VALID_DATA.address!.suburb,
+          city: VALID_DATA.address!.suburb,
+          state: VALID_DATA.address!.state,
+          postcode: VALID_DATA.address!.postcode,
+          country: VALID_DATA.address!.country,
+          latitude: VALID_DATA.address!.latitude || undefined,
+          longitude: VALID_DATA.address!.longitude || undefined,
+        },
         contactEmail: VALID_DATA.contactEmail,
       },
+    });
+  });
+
+  it('save omits address when null', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useBranchSave(), { wrapper });
+    const noAddress: BranchFormData = { name: 'Filial', address: null, contactEmail: '' };
+
+    await act(async () => {
+      await result.current.save(noAddress, 'ten-01');
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/ten-01/branches', {
+      body: { name: 'Filial', address: undefined, contactEmail: undefined },
     });
   });
 

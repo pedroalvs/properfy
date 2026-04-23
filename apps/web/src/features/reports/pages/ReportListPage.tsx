@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { ReportFilters } from '../components/ReportFilters';
 import { ReportTable } from '../components/ReportTable';
@@ -11,6 +12,8 @@ import type { Report } from '../types';
 import { getReportDownloadName } from '../lib/report-display';
 
 export function ReportListPage() {
+  const navigate = useNavigate();
+
   const {
     data,
     isLoading,
@@ -130,6 +133,9 @@ export function ReportListPage() {
     <ListFilterTableTemplate
       title="Reports"
       primaryAction={{ label: 'Generate Report', icon: 'mdi-plus', onClick: () => setGenerateOpen(true) }}
+      secondaryActions={[
+        { label: 'Scheduled Reports', icon: 'mdi-calendar-clock', onClick: () => navigate('/scheduled-reports') },
+      ]}
     >
       <ReportFilters
         filters={filters}

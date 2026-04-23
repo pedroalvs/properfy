@@ -1,12 +1,17 @@
 import { useState, useCallback } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
+import { NoPermissionState } from '@/components/feedback/NoPermissionState';
 import { AuditLogFilters } from '../components/AuditLogFilters';
 import { AuditLogTable } from '../components/AuditLogTable';
 import { AuditLogDetailDrawer } from '../components/AuditLogDetailDrawer';
 import { useAuditLogList } from '../hooks/useAuditLogList';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { AuditLog } from '../types';
 
 export function AuditLogListPage() {
+  const { hasRole, role } = usePermissions();
+  const canViewAuditLogs = hasRole('AM', 'OP', 'CL_ADMIN');
+
   const {
     data,
     isLoading,
@@ -30,6 +35,14 @@ export function AuditLogListPage() {
     setDrawerOpen(false);
     setSelectedLog(null);
   }, []);
+
+  if (role && !canViewAuditLogs) {
+    return (
+      <ListFilterTableTemplate title="Audit Logs">
+        <NoPermissionState message="You don't have permission to view audit logs." />
+      </ListFilterTableTemplate>
+    );
+  }
 
   return (
     <>
