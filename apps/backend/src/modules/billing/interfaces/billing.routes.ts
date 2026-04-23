@@ -650,6 +650,54 @@ export async function registerBillingRoutes(
     },
   );
 
+  // POST /v1/invoices/:invoiceId/close — alias for approve-draft (QA-017-HIGH-001)
+  app.post(
+    '/v1/invoices/:invoiceId/close',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }) } },
+    async (request, reply) => {
+      const actor = request.authContext!;
+      if (!['AM', 'OP'].includes(actor.role)) {
+        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can close invoices');
+      }
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const result = await container.approveDraftInvoiceUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        actor,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/invoices/:invoiceId/pay — alias for mark-paid (QA-017-HIGH-001)
+  app.post(
+    '/v1/invoices/:invoiceId/pay',
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: markInvoicePaidSchema } },
+    async (request, reply) => {
+      const actor = request.authContext!;
+      if (!['AM', 'OP'].includes(actor.role)) {
+        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can mark invoices as paid');
+      }
+      const params = invoiceIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid invoice ID', params.error.errors);
+      }
+      const parsed = markInvoicePaidSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.markInvoicePaidUseCase.execute({
+        invoiceId: params.data.invoiceId,
+        paidAt: parsed.data.paidAt,
+        paymentReference: parsed.data.paymentReference,
+        actor,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
   // GET /v1/invoices/:invoiceId/download (deprecated)
   app.get(
     '/v1/invoices/:invoiceId/download',
