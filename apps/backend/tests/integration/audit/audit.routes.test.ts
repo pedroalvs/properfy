@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 const mockListAuditLogsExecute = vi.fn();
 const mockJwtVerify = vi.fn();
@@ -120,5 +121,71 @@ describe('GET /v1/audit-logs', () => {
       pagination: { page: 1, pageSize: 10, sortBy: undefined, sortOrder: 'desc' },
       actor: amContext,
     });
+  });
+});
+
+describe('GET /v1/audit-logs — includeArchived param (T136)', () => {
+  it('AM with includeArchived=true passes param through to use case', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockListAuditLogsExecute.mockResolvedValueOnce({ data: [fullAuditLog], total: 1 });
+
+    const res = await supertest(app.server)
+      .get('/v1/audit-logs?page=1&pageSize=10&includeArchived=true')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockListAuditLogsExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({ includeArchived: true }),
+        actor: amContext,
+      }),
+    );
+  });
+
+  it('OP with includeArchived=true passes param through to use case', async () => {
+    const opContext = { ...amContext, role: 'OP', tenantId: 'tenant-1' };
+    mockJwtVerify.mockResolvedValueOnce(opContext);
+    mockListAuditLogsExecute.mockResolvedValueOnce({ data: [], total: 0 });
+
+    const res = await supertest(app.server)
+      .get('/v1/audit-logs?page=1&pageSize=10&includeArchived=true')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockListAuditLogsExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({ includeArchived: true }),
+        actor: opContext,
+      }),
+    );
+  });
+
+  it('CL_ADMIN with includeArchived=true receives 403 INCLUDE_ARCHIVED_FORBIDDEN', async () => {
+    const clAdminContext = { ...amContext, role: 'CL_ADMIN', tenantId: 'tenant-1' };
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockListAuditLogsExecute.mockRejectedValueOnce(
+      new ForbiddenError('INCLUDE_ARCHIVED_FORBIDDEN', 'CL_ADMIN may not query archived logs'),
+    );
+
+    const res = await supertest(app.server)
+      .get('/v1/audit-logs?page=1&pageSize=10&includeArchived=true')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(403);
+  });
+
+  it('default (no includeArchived param) passes false to use case', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockListAuditLogsExecute.mockResolvedValueOnce({ data: [], total: 0 });
+
+    await supertest(app.server)
+      .get('/v1/audit-logs?page=1&pageSize=10')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(mockListAuditLogsExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({ includeArchived: false }),
+      }),
+    );
   });
 });

@@ -6,6 +6,7 @@ import type { IServiceRegionRepository } from '../../domain/service-region.repos
 import {
   ServiceRegionNotFoundError,
   ServiceRegionStillActiveError,
+  ServiceRegionHasPublishedGroupsError,
 } from '../../domain/service-region.errors';
 
 export interface DeleteServiceRegionInput {
@@ -34,6 +35,11 @@ export class DeleteServiceRegionUseCase {
 
     if (region.isActive()) {
       throw new ServiceRegionStillActiveError();
+    }
+
+    const publishedGroupCount = await this.regionRepo.countPublishedGroupsByRegionId(regionId);
+    if (publishedGroupCount > 0) {
+      throw new ServiceRegionHasPublishedGroupsError();
     }
 
     await this.regionRepo.delete(regionId, tenantId);

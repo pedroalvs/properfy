@@ -147,7 +147,6 @@ export class SendNotificationUseCase {
         this.logger.info(
           {
             notificationId: notification.id,
-            recipient: notification.recipient,
             channel: notification.channel,
             notificationClass: effectiveClass,
           },

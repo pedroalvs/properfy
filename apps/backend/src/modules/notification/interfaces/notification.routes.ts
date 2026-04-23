@@ -35,6 +35,19 @@ import type { DispatchRemindersUseCase } from '../application/use-cases/dispatch
 import type { DispatchEscalationsUseCase } from '../application/use-cases/dispatch-escalations.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import type { WebhookSignatureValidator } from '../infrastructure/webhook-signature-validator';
+import { timingSafeEqual } from 'node:crypto';
+
+export function isMobileMessageTokenValid(provided: string | undefined, expected: string | undefined): boolean {
+  if (!expected) return true;
+  if (!provided) return false;
+  try {
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
 
 export interface NotificationRouteContainer {
   sendNotificationUseCase: SendNotificationUseCase;
@@ -56,6 +69,7 @@ export interface NotificationRouteContainer {
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
   webhookSignatureValidator: WebhookSignatureValidator;
+  mobileMessageWebhookToken?: string;
 }
 
 const notificationIdParam = z.object({ notificationId: z.string().uuid() });
@@ -175,12 +189,17 @@ export async function registerNotificationRoutes(
   );
 
   // POST /v1/webhooks/mobile-message
-  // MobileMessage does not sign webhook payloads (no secret/HMAC available in dashboard).
-  // Requests are accepted without signature verification. See DEC-004.
+  // MobileMessage has no webhook signing support (confirmed 2026-04-22 via dashboard).
+  // Token enforcement via ?token= query param when MOBILE_MESSAGE_WEBHOOK_TOKEN is set.
   app.post(
     '/v1/webhooks/mobile-message',
     { schema: { response: { 200: webhookAckResponseSchema } } },
     async (request, reply) => {
+      const providedToken = (request.query as Record<string, string | undefined>)['token'];
+      if (!isMobileMessageTokenValid(providedToken, container.mobileMessageWebhookToken)) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Invalid or missing webhook token' } });
+      }
+
       const body = request.body as { message_id?: string; status?: string };
       const providerMessageId = body?.message_id;
       const status = body?.status;

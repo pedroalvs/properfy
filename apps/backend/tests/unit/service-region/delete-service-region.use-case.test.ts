@@ -8,6 +8,7 @@ import { AuthorizationService } from '../../../src/shared/domain/authorization.s
 import {
   ServiceRegionNotFoundError,
   ServiceRegionStillActiveError,
+  ServiceRegionHasPublishedGroupsError,
 } from '../../../src/modules/service-region/domain/service-region.errors';
 import { ServiceRegionEntity } from '../../../src/modules/service-region/domain/service-region.entity';
 
@@ -105,6 +106,27 @@ describe('DeleteServiceRegionUseCase', () => {
     await expect(
       useCase.execute({ regionId: 'region-1', actor: makeActor({ tenantId: null }) }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should reject deletion of region referenced by published service groups', async () => {
+    const region = new ServiceRegionEntity({
+      id: 'region-1',
+      tenantId: 'tenant-1',
+      name: 'Test',
+      geojson: {},
+      color: '#3b82f6',
+      status: 'INACTIVE',
+      createdByUserId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(regionRepo.findById).mockResolvedValue(region);
+    vi.mocked(regionRepo.countPublishedGroupsByRegionId).mockResolvedValue(2);
+
+    await expect(
+      useCase.execute({ regionId: 'region-1', actor: makeActor() }),
+    ).rejects.toThrow(ServiceRegionHasPublishedGroupsError);
+    expect(regionRepo.delete).not.toHaveBeenCalled();
   });
 
   it('should log audit event on deletion', async () => {

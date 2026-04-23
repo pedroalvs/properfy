@@ -262,9 +262,8 @@ export function createMockContainer(
       tenantRepo: { ...defaultTenantRepo },
       webhookSignatureValidator: {
         validateResend: vi.fn().mockReturnValue(true),
-        validateTwilio: vi.fn().mockReturnValue(true),
-        validateZenvia: vi.fn().mockReturnValue(true),
       },
+      mobileMessageWebhookToken: undefined,
     } as AppContainer['notification'],
     dashboard: {
       getDashboardStatsUseCase: { execute: vi.fn() },

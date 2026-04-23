@@ -1321,6 +1321,7 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
       webhookSignatureValidator,
+      mobileMessageWebhookToken: process.env['MOBILE_MESSAGE_WEBHOOK_TOKEN'],
     },
     dashboard: {
       getDashboardStatsUseCase,

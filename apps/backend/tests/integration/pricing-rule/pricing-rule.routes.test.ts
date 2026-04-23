@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
+import { PricingRuleDuplicateError } from '../../../src/modules/pricing-rule/domain/pricing-rule.errors';
 
 const mockCreatePricingRuleExecute = vi.fn();
 const mockListPricingRulesExecute = vi.fn();
@@ -146,5 +147,66 @@ describe('PATCH /v1/pricing-rules/:pricingRuleId', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.priceAmount).toBe(175.0);
+  });
+});
+
+describe('T141 — concurrent tenant-level rule creation uniqueness', () => {
+  it('should reject one of two simultaneous requests for the same (tenant, service_type, null branch)', async () => {
+    // Simulate the race: both requests pass auth and reach the use case at the same time.
+    // The use case (backed by the DB unique constraint @@unique([tenant_id, service_type_id, branch_id]))
+    // will allow the first and reject the second with PricingRuleDuplicateError (409).
+    mockJwtVerify.mockResolvedValue(amContext);
+
+    mockCreatePricingRuleExecute
+      .mockResolvedValueOnce(fullPricingRule)
+      .mockRejectedValueOnce(new PricingRuleDuplicateError());
+
+    const payload = {
+      tenantId: TENANT_ID,
+      serviceTypeId: SERVICE_TYPE_ID,
+      priceAmount: 150.0,
+      payoutType: 'FIXED',
+      payoutValue: 100.0,
+    };
+
+    const [resA, resB] = await Promise.all([
+      supertest(app.server)
+        .post('/v1/pricing-rules')
+        .set('Authorization', 'Bearer valid-token')
+        .send(payload),
+      supertest(app.server)
+        .post('/v1/pricing-rules')
+        .set('Authorization', 'Bearer valid-token')
+        .send(payload),
+    ]);
+
+    const statuses = [resA.status, resB.status].sort();
+
+    // One request must succeed (201) and one must be rejected (409 PRICING_RULE_DUPLICATE).
+    // If both returned 201 the DB constraint is missing — the test will fail as a signal.
+    expect(statuses).toEqual([201, 409]);
+
+    const conflictRes = resA.status === 409 ? resA : resB;
+    expect(conflictRes.body.error.code).toBe('PRICING_RULE_DUPLICATE');
+  });
+
+  it('should surface DB-level conflict as 409 when use case throws PricingRuleDuplicateError', async () => {
+    // Explicit unit-style check: ensures the route handler maps PricingRuleDuplicateError → 409.
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreatePricingRuleExecute.mockRejectedValueOnce(new PricingRuleDuplicateError());
+
+    const res = await supertest(app.server)
+      .post('/v1/pricing-rules')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        tenantId: TENANT_ID,
+        serviceTypeId: SERVICE_TYPE_ID,
+        priceAmount: 150.0,
+        payoutType: 'FIXED',
+        payoutValue: 100.0,
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('PRICING_RULE_DUPLICATE');
   });
 });
