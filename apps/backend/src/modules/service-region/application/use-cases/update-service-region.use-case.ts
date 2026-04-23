@@ -1,5 +1,4 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
@@ -38,12 +37,13 @@ export class UpdateServiceRegionUseCase {
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_region.update', entityType: 'ServiceRegion' });
 
-    const tenantId = this.resolveTenantId(actor);
-
-    const region = await this.regionRepo.findById(regionId, tenantId);
+    // AM has tenantId=null in JWT; load region unscoped and derive tenantId from entity
+    const region = await this.regionRepo.findById(regionId, actor.tenantId ?? null);
     if (!region) {
       throw new ServiceRegionNotFoundError();
     }
+
+    const tenantId = region.tenantId;
 
     // Check name uniqueness within tenant if changing name
     if (name !== undefined && name.toLowerCase() !== region.name.toLowerCase()) {
@@ -102,10 +102,4 @@ export class UpdateServiceRegionUseCase {
     };
   }
 
-  private resolveTenantId(actor: AuthContext): string {
-    if (!actor.tenantId) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
-    }
-    return actor.tenantId;
-  }
 }

@@ -68,15 +68,28 @@ describe('UpdateServiceRegionUseCase', () => {
     vi.mocked(regionRepo.findById).mockResolvedValue(region);
   });
 
-  it('should update scoped by tenant', async () => {
-    const result = await useCase.execute({
+  it('should update scoped by tenant derived from entity', async () => {
+    await useCase.execute({
       regionId: 'region-1',
       name: 'New Name',
       actor: makeActor(),
     });
 
-    expect(regionRepo.update).toHaveBeenCalledWith('region-1', 'tenant-1', { name: 'New Name' });
+    // findById is called with actor.tenantId (tenant-1), then tenantId derived from entity
     expect(regionRepo.findById).toHaveBeenCalledWith('region-1', 'tenant-1');
+    expect(regionRepo.update).toHaveBeenCalledWith('region-1', 'tenant-1', { name: 'New Name' });
+  });
+
+  it('should allow AM with null JWT tenantId by deriving tenantId from entity', async () => {
+    await useCase.execute({
+      regionId: 'region-1',
+      name: 'Updated by AM',
+      actor: makeActor({ tenantId: null }),
+    });
+
+    // findById called with null (AM loads unscoped), update uses region.tenantId
+    expect(regionRepo.findById).toHaveBeenCalledWith('region-1', null);
+    expect(regionRepo.update).toHaveBeenCalledWith('region-1', 'tenant-1', { name: 'Updated by AM' });
   });
 
   it('should check name uniqueness when changing name', async () => {
@@ -115,13 +128,15 @@ describe('UpdateServiceRegionUseCase', () => {
     ).rejects.toThrow(ServiceRegionNotFoundError);
   });
 
-  it('should reject when actor has no tenantId', async () => {
+  it('should throw NotFound when region not found for AM with null tenantId', async () => {
+    vi.mocked(regionRepo.findById).mockResolvedValue(null);
+
     await expect(
       useCase.execute({
         regionId: 'region-1',
         actor: makeActor({ tenantId: null }),
       }),
-    ).rejects.toThrow(ForbiddenError);
+    ).rejects.toThrow(ServiceRegionNotFoundError);
   });
 
   it('should reject CL_USER role', async () => {
