@@ -43,6 +43,24 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
     limits: { fileSize: 10 * 1024 * 1024 },
   });
 
+  // Override default JSON parser to tolerate empty bodies (Content-Type: application/json
+  // with no payload). Fastify's default throws FST_ERR_CTP_EMPTY_JSON_BODY in this case,
+  // which maps to 500 instead of a meaningful 400. Action endpoints (deactivate, close, pay)
+  // legitimately receive no body from some clients.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    if (!body || body === '') {
+      done(null, {});
+      return;
+    }
+    try {
+      done(null, JSON.parse(body as string));
+    } catch (err) {
+      const e = new Error(`Invalid JSON: ${(err as Error).message}`);
+      (e as any).statusCode = 400;
+      done(e, undefined);
+    }
+  });
+
   // Feature 018: URL-encoded form body parser for the public unsubscribe flow.
   // The confirmation page POSTs a form with `application/x-www-form-urlencoded`
   // from a plain HTML template. Only feature 018 uses this content type — all

@@ -47,6 +47,16 @@ export function registerErrorHandler(app: FastifyInstance): void {
         });
       }
 
+      // FastifyError with a 4xx status (e.g., FST_ERR_CTP_EMPTY_JSON_BODY)
+      if ('statusCode' in error && typeof (error as FastifyError).statusCode === 'number' && (error as FastifyError).statusCode! < 500) {
+        return reply.status((error as FastifyError).statusCode!).send({
+          error: {
+            code: (error as FastifyError).code ?? 'REQUEST_ERROR',
+            message: error.message,
+          },
+        });
+      }
+
       request.log.error({ err: error, requestId }, 'Unhandled error');
 
       return reply.status(500).send({

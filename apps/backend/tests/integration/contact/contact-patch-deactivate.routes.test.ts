@@ -179,4 +179,15 @@ describe('QA-021-HIGH-002 — POST /v1/contacts/:contactId/deactivate', () => {
       .set('Authorization', 'Bearer token')
       .expect(200);
   });
+
+  it('empty body with Content-Type: application/json returns 200 (not 500)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockUpdateContactExecute.mockResolvedValueOnce(makeContact());
+
+    await supertest(app.server)
+      .post(`/v1/contacts/${CONTACT_ID}/deactivate`)
+      .set('Authorization', 'Bearer token')
+      .set('Content-Type', 'application/json')
+      .expect(200);
+  });
 });

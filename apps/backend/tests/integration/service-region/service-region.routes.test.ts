@@ -423,6 +423,18 @@ describe('POST /v1/service-regions/:id/deactivate', () => {
     expect(res.status).toBe(400);
   });
 
+  it('empty body with Content-Type: application/json returns 400 (not 500)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/service-regions/${REGION_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .set('Content-Type', 'application/json')
+      .expect(400);
+
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
   // T167: CL_ADMIN cannot deactivate
   it('CL_ADMIN — returns 403 Forbidden', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
