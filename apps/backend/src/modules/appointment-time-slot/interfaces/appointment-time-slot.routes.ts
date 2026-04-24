@@ -10,7 +10,7 @@ import {
   successResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
-import { ValidationError } from '../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../shared/domain/errors';
 import { success } from '../../../shared/interfaces/response';
 import type { CreateAppointmentTimeSlotUseCase } from '../application/use-cases/create-appointment-time-slot.use-case';
 import type { UpdateAppointmentTimeSlotUseCase } from '../application/use-cases/update-appointment-time-slot.use-case';
@@ -96,6 +96,11 @@ export async function registerAppointmentTimeSlotRoutes(
       },
     },
     async (request, reply) => {
+      const actor = request.authContext!;
+      if (!['AM', 'OP'].includes(actor.role)) {
+        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can manage time slot configuration');
+      }
+
       const parsed = createAppointmentTimeSlotSchema.safeParse(request.body);
       if (!parsed.success)
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
@@ -120,6 +125,11 @@ export async function registerAppointmentTimeSlotRoutes(
       },
     },
     async (request, reply) => {
+      const actor = request.authContext!;
+      if (!['AM', 'OP'].includes(actor.role)) {
+        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can manage time slot configuration');
+      }
+
       const params = timeSlotIdParam.safeParse(request.params);
       if (!params.success)
         throw new ValidationError('Invalid time slot ID', params.error.errors);
@@ -148,6 +158,11 @@ export async function registerAppointmentTimeSlotRoutes(
       },
     },
     async (request, reply) => {
+      const actor = request.authContext!;
+      if (!['AM', 'OP'].includes(actor.role)) {
+        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can manage time slot configuration');
+      }
+
       const params = timeSlotIdParam.safeParse(request.params);
       if (!params.success)
         throw new ValidationError('Invalid time slot ID', params.error.errors);
