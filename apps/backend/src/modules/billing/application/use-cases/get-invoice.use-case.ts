@@ -11,6 +11,7 @@ export interface GetInvoiceInput {
 export interface GetInvoiceOutput {
   id: string;
   inspectorId: string;
+  inspectorName: string | null;
   periodStart: string;
   periodEnd: string;
   periodType: string;
@@ -59,6 +60,7 @@ export class GetInvoiceUseCase {
     return {
       id: invoice.id,
       inspectorId: invoice.inspectorId,
+      inspectorName: invoice.inspectorName,
       periodStart: invoice.periodStart.toISOString().slice(0, 10),
       periodEnd: invoice.periodEnd.toISOString().slice(0, 10),
       periodType: invoice.periodType,

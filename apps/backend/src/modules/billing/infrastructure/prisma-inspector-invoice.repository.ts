@@ -55,7 +55,10 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
   constructor(private readonly prisma: PrismaClient) {}
 
   async findById(id: string): Promise<InspectorInvoiceEntity | null> {
-    const row = await this.prisma.inspectorInvoice.findUnique({ where: { id } });
+    const row = await this.prisma.inspectorInvoice.findUnique({
+      where: { id },
+      include: { inspector: { select: { name: true } } },
+    });
     return row ? mapToEntity(row) : null;
   }
 
