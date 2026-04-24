@@ -29,7 +29,7 @@ function useContactSearchQuery(search: string, tenantId: string | undefined, ena
       const response = data as unknown as PaginatedResponse<ContactSearchResult>;
       return response.data;
     },
-    enabled: enabled && search.length >= 2 && (tenantId !== undefined ? !!tenantId : true),
+    enabled: enabled && search.length >= 2 && !!tenantId,
     staleTime: 30_000,
   });
 }
