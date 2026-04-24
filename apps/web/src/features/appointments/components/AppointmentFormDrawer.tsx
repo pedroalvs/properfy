@@ -350,7 +350,10 @@ export function AppointmentFormDrawer({
     if (shouldSaveAppointment) {
       const result = await save(form, appointmentId ?? undefined);
       if (!result.success) {
-        showError(result.error ?? 'Failed to save');
+        const errorMessage = result.error === 'APPOINTMENT_CONTACT_NOT_FOUND'
+          ? 'One or more contacts belong to a different agency and cannot be linked to this appointment.'
+          : (result.error ?? 'Failed to save');
+        showError(errorMessage);
         return;
       }
       savedAppointment = true;

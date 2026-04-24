@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SnackbarProvider } from '@/hooks/useSnackbar';
+import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 
 vi.mock('@properfy/shared', () => ({
@@ -102,10 +102,26 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
 
 import { AppointmentFormDrawer } from './AppointmentFormDrawer';
 
+function SnackbarDisplay() {
+  const { messages } = useSnackbar();
+  return (
+    <div data-testid="snackbar-display">
+      {messages.map((m) => (
+        <div key={m.id}>{m.message}</div>
+      ))}
+    </div>
+  );
+}
+
 function createWrapper() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } });
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={qc}><SnackbarProvider>{children}</SnackbarProvider></QueryClientProvider>
+    <QueryClientProvider client={qc}>
+      <SnackbarProvider>
+        {children}
+        <SnackbarDisplay />
+      </SnackbarProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -197,6 +213,29 @@ describe('AppointmentFormDrawer', () => {
     renderDrawer();
     expect(screen.getByText('Search existing contact')).toBeInTheDocument();
     expect(screen.getByText(/Or fill in the fields below/)).toBeInTheDocument();
+  });
+
+  it('shows a user-friendly error and keeps drawer open when save returns APPOINTMENT_CONTACT_NOT_FOUND', async () => {
+    // The backend ValidationError serializes the code string as the message field.
+    mockSave.mockResolvedValue({
+      success: false,
+      error: 'APPOINTMENT_CONTACT_NOT_FOUND',
+      errorCode: 'VALIDATION_ERROR',
+    });
+
+    const onSaved = vi.fn();
+    renderDrawer({ onSaved });
+
+    fireEvent.click(screen.getByText('Create Appointment'));
+
+    await waitFor(() => {
+      expect(screen.getByText(
+        'One or more contacts belong to a different agency and cannot be linked to this appointment.',
+      )).toBeInTheDocument();
+    });
+
+    // Drawer must remain open — onSaved must NOT be called
+    expect(onSaved).not.toHaveBeenCalled();
   });
 
   it('assigns inspector from the edit drawer via appointment transition', async () => {

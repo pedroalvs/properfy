@@ -117,6 +117,7 @@ function zodErrorsToFormErrors(issues: { path: (string | number)[]; message: str
 export interface SaveResult {
   success: boolean;
   error?: string;
+  errorCode?: string;
   id?: string;
 }
 
@@ -152,13 +153,19 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
       if (appointmentId) {
         const payload = toSchemaPayload(data, 'edit');
         const { error } = await api.PATCH(`/v1/appointments/${appointmentId}` as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        if (error) {
+          const apiErr = error as any;
+          return { success: false, error: apiErr?.error?.message ?? 'Request failed', errorCode: apiErr?.error?.code };
+        }
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         return { success: true, id: appointmentId };
       } else {
         const payload = toSchemaPayload(data, 'create');
         const { data: responseData, error } = await api.POST('/v1/appointments' as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        if (error) {
+          const apiErr = error as any;
+          return { success: false, error: apiErr?.error?.message ?? 'Request failed', errorCode: apiErr?.error?.code };
+        }
         const createdId = (responseData as any)?.data?.id;
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         return { success: true, id: createdId };
