@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { authStorage } from '@/lib/auth-storage';
 import { ApiError } from '@/lib/api-error';
@@ -29,6 +30,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(authStorage.getAccessToken());
   const [isLoading, setIsLoading] = useState(authStorage.hasTokens());
@@ -90,7 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authStorage.clearTokens();
     setToken(null);
     setUser(null);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   return (
     <AuthContext.Provider

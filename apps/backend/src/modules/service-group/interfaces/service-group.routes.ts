@@ -243,7 +243,7 @@ export async function registerServiceGroupRoutes(
       schema: {
         params: z.object({ groupId: z.string().uuid() }),
         body: rejectServiceGroupSchema,
-        response: { 200: successResponseSchema(serviceGroupResponseSchema) },
+        response: { 200: successResponseSchema(z.object({ id: z.string().uuid(), status: z.string() })) },
       },
     },
     async (request, reply) => {
@@ -272,7 +272,7 @@ export async function registerServiceGroupRoutes(
       schema: {
         params: z.object({ groupId: z.string().uuid() }),
         body: republishServiceGroupSchema,
-        response: { 200: successResponseSchema(serviceGroupResponseSchema) },
+        response: { 200: successResponseSchema(z.object({ id: z.string().uuid(), status: z.string() })) },
       },
     },
     async (request, reply) => {

@@ -111,7 +111,7 @@ export function TenantDetailPage() {
 
   const secondaryActions = tenant.status === 'ACTIVE'
     ? [{ label: 'Deactivate', icon: 'mdi-close-circle-outline', onClick: handleDeactivateClick }]
-    : tenant.status === 'INACTIVE'
+    : (tenant.status === 'INACTIVE' || tenant.status === 'PENDING')
       ? [{ label: 'Activate', icon: 'mdi-check-circle-outline', onClick: handleActivateClick }]
       : [];
 

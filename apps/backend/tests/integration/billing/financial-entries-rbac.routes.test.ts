@@ -54,10 +54,14 @@ const OP_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 const CL_ADMIN_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12';
 const CL_USER_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13';
 
+const INSPECTOR_ID = 'c1eebc99-9c0b-4ef8-bb6d-6bb9bd380a14';
+const INSP_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15';
+
 const amContext = { userId: AM_USER_ID, tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 const opContext = { userId: OP_USER_ID, tenantId: null, role: 'OP', branchId: null, inspectorId: null };
 const clAdminContext = { userId: CL_ADMIN_USER_ID, tenantId: TENANT_ID, role: 'CL_ADMIN', branchId: null, inspectorId: null };
 const clUserContext = { userId: CL_USER_USER_ID, tenantId: TENANT_ID, role: 'CL_USER', branchId: null, inspectorId: null };
+const inspContext = { userId: INSP_USER_ID, tenantId: TENANT_ID, role: 'INSP', branchId: null, inspectorId: INSPECTOR_ID };
 
 const paginatedEntries = {
   data: [],
@@ -151,6 +155,18 @@ describe('QA-015-HIGH-001 — GET /v1/financial/entries role enforcement', () =>
     await supertest(app.server)
       .get(`/v1/financial/entries?tenantId=${TENANT_ID}`)
       .set('Authorization', 'Bearer cl-admin-token')
+      .expect(200);
+
+    expect(mockListFinancialEntriesExecute).toHaveBeenCalledOnce();
+  });
+
+  it('INSP receives 200 — inspector can list their own payouts (QA earnings bug fix)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockListFinancialEntriesExecute.mockResolvedValueOnce(paginatedEntries);
+
+    await supertest(app.server)
+      .get('/v1/financial/entries?type=INSPECTOR_PAYOUT&status=APPROVED')
+      .set('Authorization', 'Bearer insp-token')
       .expect(200);
 
     expect(mockListFinancialEntriesExecute).toHaveBeenCalledOnce();

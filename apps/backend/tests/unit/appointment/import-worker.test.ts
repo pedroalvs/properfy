@@ -185,4 +185,64 @@ describe('AppointmentImportWorker', () => {
       }),
     );
   });
+
+  it('falls back to tenant-level slots when property has a branch with no custom slots (QA-006-HIGH-002)', async () => {
+    // Property belongs to a branch, but the branch has no custom slots.
+    // findEffective should fall back to tenant-wide defaults.
+    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(
+      makeProperty({ branchId: 'branch-1' }),
+    );
+
+    // findEffective returns tenant-wide defaults (no branch-specific slots)
+    const tenantSlot = makeSlot({ branchId: null, startTime: '14:00', endTime: '17:00' });
+    vi.mocked(timeSlotRepo.findEffective).mockResolvedValue([tenantSlot]);
+
+    // CSV uses the compositeValue from the tenant slot
+    vi.mocked(storageService.download).mockResolvedValue(
+      Buffer.from(
+        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
+        'PROP-001,2026-04-02,14:00-17:00,John Tenant\n',
+      ),
+    );
+
+    await worker.execute({ importId: 'import-1' });
+
+    expect(timeSlotRepo.findEffective).toHaveBeenCalledWith('tenant-1', 'branch-1');
+    expect(appointmentRepo.save).toHaveBeenCalledTimes(1);
+    expect(importRepo.update).toHaveBeenLastCalledWith(
+      'import-1',
+      expect.objectContaining({ status: 'COMPLETED', successCount: 1, errorCount: 0 }),
+    );
+  });
+
+  it('rejects import row when time slot is not in the branch effective catalog', async () => {
+    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(
+      makeProperty({ branchId: 'branch-1' }),
+    );
+
+    // Branch has one custom slot: 09:00-12:00
+    const branchSlot = makeSlot({ branchId: 'branch-1', startTime: '09:00', endTime: '12:00' });
+    vi.mocked(timeSlotRepo.findEffective).mockResolvedValue([branchSlot]);
+
+    // CSV tries to use 14:00-17:00 which is not in the branch catalog
+    vi.mocked(storageService.download).mockResolvedValue(
+      Buffer.from(
+        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
+        'PROP-001,2026-04-02,14:00-17:00,John Tenant\n',
+      ),
+    );
+
+    await worker.execute({ importId: 'import-1' });
+
+    expect(appointmentRepo.save).not.toHaveBeenCalled();
+    expect(importRepo.update).toHaveBeenLastCalledWith(
+      'import-1',
+      expect.objectContaining({
+        status: 'FAILED',
+        errorsJson: [
+          expect.objectContaining({ field: 'timeSlotLabel', row: 2 }),
+        ],
+      }),
+    );
+  });
 });

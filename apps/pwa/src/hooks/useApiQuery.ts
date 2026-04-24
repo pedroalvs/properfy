@@ -14,13 +14,25 @@ export interface SuccessResponse<T> {
 
 function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;
-  if (error && typeof error === 'object' && 'message' in error) {
-    return new ApiError(
-      (error as { status?: number }).status ?? 500,
-      (error as { message: string }).message,
-    );
+  if (error && typeof error === 'object') {
+    const e = error as Record<string, unknown>;
+    // Properfy error envelope: { error: { code, message } }
+    if (e['error'] && typeof e['error'] === 'object') {
+      const inner = e['error'] as Record<string, unknown>;
+      return new ApiError(
+        (e['status'] as number | undefined) ?? 500,
+        (inner['message'] as string | undefined) ?? 'An error occurred',
+        inner['code'] as string | undefined,
+      );
+    }
+    if ('message' in e) {
+      return new ApiError(
+        (e['status'] as number | undefined) ?? 500,
+        e['message'] as string,
+      );
+    }
   }
-  return new ApiError(500, 'Unknown error');
+  return new ApiError(500, 'An unexpected error occurred');
 }
 
 async function apiGet<T>(path: string, params?: Record<string, string>): Promise<T> {

@@ -1,9 +1,11 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useUserDetail } from '../hooks/useUserDetail';
+import { useUserDeactivate } from '../hooks/useUserDeactivate';
 import { UserStatusChip } from './UserStatusChip';
 import { UserDetailSections } from './UserDetailSections';
 import type { UserScope } from '../types';
@@ -14,6 +16,7 @@ interface UserDetailDrawerProps {
   onClose: () => void;
   onEdit?: (id: string) => void;
   onResetPassword?: (id: string) => void;
+  onDeactivated?: () => void;
   tenantId?: string;
   scope?: UserScope;
 }
@@ -24,10 +27,23 @@ export function UserDetailDrawer({
   onClose,
   onEdit,
   onResetPassword,
+  onDeactivated,
   tenantId,
   scope = 'tenant',
 }: UserDetailDrawerProps) {
-  const { user, isLoading } = useUserDetail(userId, tenantId, scope);
+  const { user, isLoading, refetch } = useUserDetail(userId, tenantId, scope);
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+
+  const { deactivate, isDeactivating } = useUserDeactivate(
+    userId,
+    tenantId,
+    scope,
+    () => {
+      setShowDeactivateConfirm(false);
+      refetch();
+      onDeactivated?.();
+    },
+  );
 
   const handleEdit = useCallback(() => {
     if (onEdit && userId) {
@@ -69,6 +85,16 @@ export function UserDetailDrawer({
                       <i className="mdi mdi-pencil-outline text-xl" />
                     </Button>
                   ) : null}
+                  {user.status === 'ACTIVE' ? (
+                    <Button
+                      variant="icon"
+                      onClick={() => setShowDeactivateConfirm(true)}
+                      aria-label="Deactivate User"
+                      disabled={isDeactivating}
+                    >
+                      <i className="mdi mdi-account-off-outline text-xl text-error" />
+                    </Button>
+                  ) : null}
                 </>
               }
             />
@@ -78,6 +104,17 @@ export function UserDetailDrawer({
           </>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={showDeactivateConfirm}
+        title="Deactivate User"
+        message={`Are you sure you want to deactivate "${user?.name}"? They will no longer be able to log in.`}
+        confirmLabel="Deactivate"
+        variant="danger"
+        loading={isDeactivating}
+        onConfirm={deactivate}
+        onClose={() => setShowDeactivateConfirm(false)}
+      />
     </DrawerPanel>
   );
 }

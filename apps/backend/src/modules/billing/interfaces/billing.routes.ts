@@ -137,7 +137,7 @@ export async function registerBillingRoutes(
     { preHandler: authenticate, schema: { querystring: listFinancialEntriesQuerySchema, response: { 200: paginatedResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const actor = request.authContext!;
-      if (!['AM', 'OP', 'CL_ADMIN'].includes(actor.role)) {
+      if (!['AM', 'OP', 'CL_ADMIN', 'INSP'].includes(actor.role)) {
         throw new ForbiddenError('FORBIDDEN', 'Not authorized to list financial entries');
       }
       const parsed = listFinancialEntriesQuerySchema.safeParse(request.query);
