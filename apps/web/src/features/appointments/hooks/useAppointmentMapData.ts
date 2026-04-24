@@ -5,7 +5,7 @@ export interface AppointmentMapItem {
   id: string;
   code: string;
   status: string;
-  address: string;
+  propertyAddress: string;
   latitude: number;
   longitude: number;
   scheduledDate: string;

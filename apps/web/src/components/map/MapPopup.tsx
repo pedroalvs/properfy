@@ -1,16 +1,18 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 interface MapPopupProps {
   title: string;
   children: ReactNode;
   onClose: () => void;
   actions?: { label: string; onClick: () => void }[];
+  style?: CSSProperties;
 }
 
-export function MapPopup({ title, children, onClose, actions }: MapPopupProps) {
+export function MapPopup({ title, children, onClose, actions, style }: MapPopupProps) {
   return (
     <div
-      className="absolute z-10 w-72 rounded-lg bg-card-bg shadow-xl"
+      className="absolute z-20 w-72 rounded-lg bg-card-bg shadow-xl"
+      style={style}
       data-testid="map-popup"
       role="dialog"
       aria-label={title}

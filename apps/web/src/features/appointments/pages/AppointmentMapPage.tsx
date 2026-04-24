@@ -44,6 +44,7 @@ export function AppointmentMapPage() {
   const { data, isLoading, isError, errorMessage, refetch, filters, setFilters } =
     useAppointmentMapData();
   const [selectedItem, setSelectedItem] = useState<AppointmentMapItem | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
 
   // Auto-fit map bounds to visible pins whenever data or map readiness changes (FR-004).
@@ -59,6 +60,21 @@ export function AppointmentMapPage() {
       mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
     }
   }, [data, mapInstance]);
+
+  // Keep popup screen position in sync with pin as the map pans/zooms.
+  useEffect(() => {
+    if (!mapInstance || !selectedItem) {
+      setPopupPosition(null);
+      return;
+    }
+    const update = () => {
+      const { x, y } = mapInstance.project([selectedItem.longitude, selectedItem.latitude]);
+      setPopupPosition({ x, y });
+    };
+    update();
+    mapInstance.on('move', update);
+    return () => { mapInstance.off('move', update); };
+  }, [mapInstance, selectedItem]);
 
   const handleMarkerClick = useCallback((item: AppointmentMapItem) => {
     setSelectedItem(item);
@@ -129,7 +145,7 @@ export function AppointmentMapPage() {
                 bg={APPOINTMENT_STATUS_MAP[item.status as AppointmentStatus]?.bg ?? '#E0E0E0'}
               />
             </div>
-            <p className="mt-1 text-xs text-text-secondary">{item.address}</p>
+            <p className="mt-1 text-xs text-text-secondary">{item.propertyAddress}</p>
             <p className="text-xs text-text-muted">
               {formatDate(item.scheduledDate)} {item.timeSlot}
             </p>
@@ -160,35 +176,40 @@ export function AppointmentMapPage() {
         ))}
       </MapContainer>
 
-      {selectedItem && (
-        <div className="absolute left-1/2 top-1/3 -translate-x-1/2">
-          <MapPopup
-            title={selectedItem.code}
-            onClose={() => setSelectedItem(null)}
-            actions={[
-              { label: 'View Details', onClick: () => handleViewDetail(selectedItem.id) },
-            ]}
-          >
-            <div className="space-y-1">
+      {selectedItem && popupPosition && (
+        <MapPopup
+          title={selectedItem.code}
+          onClose={() => setSelectedItem(null)}
+          actions={[
+            { label: 'View Details', onClick: () => handleViewDetail(selectedItem.id) },
+          ]}
+          style={{
+            left: popupPosition.x,
+            top: popupPosition.y,
+            transform: popupPosition.y > 220
+              ? 'translate(-50%, calc(-100% - 14px))'
+              : 'translate(-50%, 14px)',
+          }}
+        >
+          <div className="space-y-1">
+            <p>
+              <span className="text-text-muted">Status:</span>{' '}
+              {APPOINTMENT_STATUS_MAP[selectedItem.status as AppointmentStatus]?.label ?? selectedItem.status}
+            </p>
+            <p>
+              <span className="text-text-muted">Address:</span> {selectedItem.propertyAddress}
+            </p>
+            <p>
+              <span className="text-text-muted">Date:</span> {formatDate(selectedItem.scheduledDate)}
+            </p>
+            {selectedItem.inspectorName && (
               <p>
-                <span className="text-text-muted">Status:</span>{' '}
-                {APPOINTMENT_STATUS_MAP[selectedItem.status as AppointmentStatus]?.label ?? selectedItem.status}
+                <span className="text-text-muted">Inspector:</span>{' '}
+                {selectedItem.inspectorName}
               </p>
-              <p>
-                <span className="text-text-muted">Address:</span> {selectedItem.address}
-              </p>
-              <p>
-                <span className="text-text-muted">Date:</span> {formatDate(selectedItem.scheduledDate)}
-              </p>
-              {selectedItem.inspectorName && (
-                <p>
-                  <span className="text-text-muted">Inspector:</span>{' '}
-                  {selectedItem.inspectorName}
-                </p>
-              )}
-            </div>
-          </MapPopup>
-        </div>
+            )}
+          </div>
+        </MapPopup>
       )}
 
       <MapFloatingAction
