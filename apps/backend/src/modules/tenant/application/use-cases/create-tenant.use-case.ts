@@ -27,6 +27,7 @@ export interface CreateTenantOutput {
   currency: string;
   settingsJson: Record<string, unknown>;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class CreateTenantUseCase {
@@ -102,6 +103,7 @@ export class CreateTenantUseCase {
       currency: tenant.currency,
       settingsJson: tenant.settingsJson,
       createdAt: tenant.createdAt,
+      updatedAt: tenant.updatedAt,
     };
   }
 
