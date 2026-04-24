@@ -608,6 +608,7 @@ export function createContainer(logger: Logger): AppContainer {
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
     createPropertyUseCase, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo, contactRepo,
+    undefined, idempotencyService,
   );
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
@@ -1170,6 +1171,7 @@ export function createContainer(logger: Logger): AppContainer {
       appointmentRepo,
       jwtService,
       tenantRepo,
+      idempotencyService,
     },
     appointmentTimeSlot: {
       createAppointmentTimeSlotUseCase,

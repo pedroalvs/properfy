@@ -32,6 +32,7 @@ import type { DeleteAppointmentUseCase } from '../application/use-cases/delete-a
 import type { BulkEditAppointmentsUseCase } from '../application/use-cases/bulk-edit-appointments.use-case';
 import type { ReopenForRescheduleUseCase } from '../application/use-cases/reopen-for-reschedule.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
+import type { IIdempotencyService } from '../../../shared/domain/idempotency.service';
 
 const importIdParam = z.object({ importId: z.string().uuid() });
 
@@ -52,6 +53,7 @@ export interface AppointmentRouteContainer {
   appointmentRepo: { findContactById(id: string): Promise<object | null> };
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
+  idempotencyService?: IIdempotencyService;
 }
 
 const appointmentIdParam = z.object({ appointmentId: z.string().uuid() });
@@ -97,9 +99,11 @@ export async function registerAppointmentRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
       const result = await container.createAppointmentUseCase.execute({
         ...parsed.data,
         keyRequired: parsed.data.keyRequired ?? false,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(201).send(success(result));

@@ -4,6 +4,7 @@ import {
   ValidationError,
 } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
@@ -89,6 +90,7 @@ export interface CreateAppointmentInput {
   keyLocation?: string;
   notes?: string;
   customFields?: Record<string, unknown>;
+  idempotencyKey?: string;
   actor: AuthContext;
 }
 
@@ -149,10 +151,17 @@ export class CreateAppointmentUseCase {
     // Clock defaults to the system clock for production. Tests that need
     // deterministic past/today/future behaviour pass a FakeClock.
     private readonly clock: Clock = new SystemClock(),
+    private readonly idempotencyService?: IIdempotencyService,
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<CreateAppointmentOutput> {
-    const { actor } = input;
+    const { actor, idempotencyKey } = input;
+
+    // 0. Idempotency check (opt-in via header)
+    if (idempotencyKey && this.idempotencyService) {
+      const cached = await this.idempotencyService.get<CreateAppointmentOutput>(idempotencyKey, 'appointment.create');
+      if (cached) return cached;
+    }
 
     // 1. RBAC: AM/OP/CL_ADMIN/CL_USER allowed; INSP/TNT forbidden
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.create', entityType: 'Appointment' });
@@ -460,7 +469,7 @@ export class CreateAppointmentUseCase {
     });
 
     // 13. Return output
-    return {
+    const result: CreateAppointmentOutput = {
       id: appointment.id,
       tenantId: appointment.tenantId,
       branchId: appointment.branchId,
@@ -511,5 +520,12 @@ export class CreateAppointmentUseCase {
           }
         : null,
     };
+
+    // Store idempotency result for future duplicate requests
+    if (idempotencyKey && this.idempotencyService) {
+      await this.idempotencyService.set(idempotencyKey, 'appointment.create', result, 24);
+    }
+
+    return result;
   }
 }
