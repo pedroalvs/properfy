@@ -18,15 +18,22 @@ function getWindowState(scheduledDate: string, timeSlot: string): { enabled: boo
   const start = getScheduleStartDateTime(scheduledDate, timeSlot);
   const today = new Date();
 
-  const isSameDay =
-    start.getDate() === today.getDate() &&
-    start.getMonth() === today.getMonth() &&
-    start.getFullYear() === today.getFullYear();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+
+  // Past date: enable so inspector can complete overdue work
+  if (startMidnight < todayMidnight) {
+    return { enabled: true, label: 'Start Inspection', sublabel: 'Overdue — complete now' };
+  }
+
+  const isSameDay = startMidnight.getTime() === todayMidnight.getTime();
 
   if (!isSameDay) {
+    // Future date
     return { enabled: false, label: 'Start Inspection', sublabel: 'Available on inspection day' };
   }
 
+  // Same day: apply time-window logic
   const windowStart = new Date(start.getTime() - MINUTES_BEFORE * 60 * 1000);
   const windowEnd = new Date(start.getTime() + HOURS_AFTER * 60 * 60 * 1000);
 
