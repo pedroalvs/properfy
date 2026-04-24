@@ -39,6 +39,7 @@ export function PropertyMapPage() {
   const { data, isLoading, isError, errorMessage, refetch, filters, setFilters } =
     usePropertyMapData();
   const [selectedItem, setSelectedItem] = useState<PropertyMapItem | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
 
   // Auto-fit map bounds to visible pins whenever data or map readiness changes (FR-004).
@@ -55,9 +56,35 @@ export function PropertyMapPage() {
     }
   }, [data, mapInstance]);
 
+  // Keep popup screen position in sync with pin as the map pans/zooms.
+  useEffect(() => {
+    if (!mapInstance || !selectedItem) {
+      setPopupPosition(null);
+      return;
+    }
+    const update = () => {
+      const { x, y } = mapInstance.project([selectedItem.longitude, selectedItem.latitude]);
+      setPopupPosition({ x, y });
+    };
+    update();
+    mapInstance.on('move', update);
+    return () => { mapInstance.off('move', update); };
+  }, [mapInstance, selectedItem]);
+
   const handleMarkerClick = useCallback((item: PropertyMapItem) => {
     setSelectedItem(item);
   }, []);
+
+  const handleListItemClick = useCallback((item: PropertyMapItem) => {
+    setSelectedItem(item);
+    if (mapInstance) {
+      mapInstance.flyTo({
+        center: [item.longitude, item.latitude],
+        zoom: Math.max(mapInstance.getZoom(), 14),
+        duration: 700,
+      });
+    }
+  }, [mapInstance]);
 
   const handleViewDetail = useCallback(
     (id: string) => {
@@ -107,7 +134,7 @@ export function PropertyMapPage() {
             className={`w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 ${
               selectedItem?.id === item.id ? 'bg-primary/5' : ''
             }`}
-            onClick={() => handleMarkerClick(item)}
+            onClick={() => handleListItemClick(item)}
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-secondary">{item.street}</span>
@@ -146,30 +173,35 @@ export function PropertyMapPage() {
         ))}
       </MapContainer>
 
-      {selectedItem && (
-        <div className="absolute left-1/2 top-1/3 -translate-x-1/2">
-          <MapPopup
-            title={selectedItem.street}
-            onClose={() => setSelectedItem(null)}
-            actions={[
-              { label: 'View Details', onClick: () => handleViewDetail(selectedItem.id) },
-            ]}
-          >
-            <div className="space-y-1">
-              <p>
-                <span className="text-text-muted">Type:</span>{' '}
-                {PROPERTY_TYPE_MAP[selectedItem.type as PropertyType]?.label ?? selectedItem.type}
-              </p>
-              <p>
-                <span className="text-text-muted">Location:</span>{' '}
-                {selectedItem.suburb} {selectedItem.state}
-              </p>
-              <p>
-                <span className="text-text-muted">Branch:</span> {selectedItem.branchName}
-              </p>
-            </div>
-          </MapPopup>
-        </div>
+      {selectedItem && popupPosition && (
+        <MapPopup
+          title={selectedItem.street}
+          onClose={() => setSelectedItem(null)}
+          actions={[
+            { label: 'View Details', onClick: () => handleViewDetail(selectedItem.id) },
+          ]}
+          style={{
+            left: popupPosition.x,
+            top: popupPosition.y,
+            transform: popupPosition.y > 220
+              ? 'translate(-50%, calc(-100% - 14px))'
+              : 'translate(-50%, 14px)',
+          }}
+        >
+          <div className="space-y-1">
+            <p>
+              <span className="text-text-muted">Type:</span>{' '}
+              {PROPERTY_TYPE_MAP[selectedItem.type as PropertyType]?.label ?? selectedItem.type}
+            </p>
+            <p>
+              <span className="text-text-muted">Location:</span>{' '}
+              {selectedItem.suburb} {selectedItem.state}
+            </p>
+            <p>
+              <span className="text-text-muted">Branch:</span> {selectedItem.branchName}
+            </p>
+          </div>
+        </MapPopup>
       )}
 
       <MapFloatingAction
