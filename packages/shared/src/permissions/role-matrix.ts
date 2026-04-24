@@ -189,7 +189,7 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
     roles: ['AM', 'OP'],
   },
   'config.notification_templates': {
-    roles: ['AM', 'OP'],
+    roles: ['AM', 'OP', 'CL_ADMIN'],
   },
 
   // ── Reports & Audit ──────────────────────────────────────────────────

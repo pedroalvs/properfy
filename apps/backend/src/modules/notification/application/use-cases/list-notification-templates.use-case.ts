@@ -40,7 +40,7 @@ export class ListNotificationTemplatesUseCase {
     const { actor } = input;
 
     // 1. Authorization
-    this.authorizationService.assertRoles(actor, ['AM', 'CL_ADMIN'], {
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
       action: 'config.notification_templates',
       entityType: 'NotificationTemplate',
     });
@@ -48,7 +48,7 @@ export class ListNotificationTemplatesUseCase {
     // 2. Build filters
     const filters: NotificationTemplateFilters = {};
 
-    if (actor.role === 'AM') {
+    if (actor.role === 'AM' || actor.role === 'OP') {
       if (input.tenantId) {
         filters.tenantId = input.tenantId;
         filters.includeDefaults = input.includeDefaults ?? true;

@@ -52,10 +52,26 @@ describe('ListNotificationTemplatesUseCase', () => {
     useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
   });
 
-  it('should throw ForbiddenError for OP role', async () => {
-    await expect(
-      useCase.execute({ actor: makeActor({ role: 'OP' }) }),
-    ).rejects.toThrow(ForbiddenError);
+  it('should allow OP to list templates (cross-tenant)', async () => {
+    vi.mocked(templateRepo.findAll).mockResolvedValue([makeTemplateEntity()]);
+
+    const result = await useCase.execute({ actor: makeActor({ role: 'OP' }) });
+
+    expect(result.data).toHaveLength(1);
+    expect(templateRepo.findAll).toHaveBeenCalledWith({});
+  });
+
+  it('should pass tenantId filter for OP', async () => {
+    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
+
+    await useCase.execute({
+      tenantId: 'tenant-42',
+      actor: makeActor({ role: 'OP' }),
+    });
+
+    expect(templateRepo.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-42', includeDefaults: true }),
+    );
   });
 
   it('should throw ForbiddenError for INSP role', async () => {
