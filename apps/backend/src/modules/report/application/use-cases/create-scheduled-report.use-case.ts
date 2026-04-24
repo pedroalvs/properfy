@@ -47,6 +47,8 @@ export interface CreateScheduledReportInput {
   skipDeliveryWhenEmpty: boolean;
   /** @deprecated — kept for back-compat with callers that still send a single email. */
   deliveryEmail?: string;
+  /** AM only: explicit tenant scope when JWT tenantId is null. */
+  tenantId?: string;
 }
 
 export interface CreateScheduledReportOutput {
@@ -101,6 +103,7 @@ export class CreateScheduledReportUseCase {
       displayName,
       skipDeliveryWhenEmpty,
       deliveryEmail,
+      tenantId: inputTenantId,
     } = input;
     const { userId, tenantId, role } = auth;
 
@@ -148,7 +151,9 @@ export class CreateScheduledReportUseCase {
     // 4. Determine effective tenant
     let effectiveTenantId: string;
     if (role === 'AM') {
-      effectiveTenantId = (filtersJson.tenantId as string) ?? tenantId ?? '';
+      // AM has null tenantId in JWT; accept tenantId from the request body (Pattern B),
+      // falling back to filtersJson.tenantId for legacy callers.
+      effectiveTenantId = inputTenantId ?? (filtersJson.tenantId as string | undefined) ?? tenantId ?? '';
       if (!effectiveTenantId) {
         throw new ForbiddenError('FORBIDDEN', 'Scheduled reports require a tenant context');
       }

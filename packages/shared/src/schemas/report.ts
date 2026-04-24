@@ -119,6 +119,8 @@ export const createScheduledReportSchema = z
     skipDeliveryWhenEmpty: z.boolean().default(false),
     /** @deprecated — use `deliveryMode` + `recipientUserIds` instead. */
     deliveryEmail: z.string().email().optional(),
+    /** AM only: explicit tenant scope when JWT tenantId is null. */
+    tenantId: z.string().uuid().optional(),
   })
   .refine((v) => v.recurrence !== undefined || v.cronExpression !== undefined, {
     message: 'Either `recurrence` or `cronExpression` is required',
