@@ -42,9 +42,10 @@ export class CreateBranchUseCase {
   async execute(input: CreateBranchInput): Promise<CreateBranchOutput> {
     const { tenantId, name, address, contactEmail, actor } = input;
 
-    // RBAC: AM any tenant; CL_ADMIN own tenant only
+    // RBAC: AM any tenant; OP any tenant; CL_ADMIN own tenant only
     if (
       actor.role !== 'AM' &&
+      actor.role !== 'OP' &&
       (actor.role !== 'CL_ADMIN' || actor.tenantId !== tenantId)
     ) {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');

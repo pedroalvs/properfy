@@ -44,9 +44,10 @@ export class UpdateBranchUseCase {
   async execute(input: UpdateBranchInput): Promise<UpdateBranchOutput> {
     const { tenantId, branchId, data, actor } = input;
 
-    // RBAC: AM any; CL_ADMIN own tenant (name+address)
+    // RBAC: AM any; OP any; CL_ADMIN own tenant (name+address)
     if (
       actor.role !== 'AM' &&
+      actor.role !== 'OP' &&
       (actor.role !== 'CL_ADMIN' || actor.tenantId !== tenantId)
     ) {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
