@@ -15,6 +15,7 @@ interface ContactAutocompleteProps {
   onClear: () => void;
   placeholder?: string;
   disabled?: boolean;
+  tenantId?: string;
   'aria-label'?: string;
 }
 
@@ -32,13 +33,14 @@ export function ContactAutocomplete({
   onClear,
   placeholder = 'Search contacts...',
   disabled,
+  tenantId,
   'aria-label': ariaLabel = 'Search contacts',
 }: ContactAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { search, debouncedSearch, results, isSearching, setSearch, reset } =
-    useContactSearch(!disabled);
+    useContactSearch(!disabled, tenantId);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

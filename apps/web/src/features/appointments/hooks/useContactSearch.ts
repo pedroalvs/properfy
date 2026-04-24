@@ -13,12 +13,12 @@ export interface ContactSearchResult {
   isActive: boolean;
 }
 
-function useContactSearchQuery(search: string, enabled: boolean) {
+function useContactSearchQuery(search: string, tenantId: string | undefined, enabled: boolean) {
   return useQuery<ContactSearchResult[], ApiError>({
-    queryKey: ['contacts', 'search', search],
+    queryKey: ['contacts', 'search', search, tenantId],
     queryFn: async () => {
       const { data, error } = await api.GET('/v1/contacts' as any, {
-        params: { query: { search, pageSize: '10', isActive: 'true' } as any },
+        params: { query: { search, pageSize: '10', isActive: 'true', ...(tenantId ? { tenantId } : {}) } as any },
       });
       if (error) {
         throw new ApiError(
@@ -29,7 +29,7 @@ function useContactSearchQuery(search: string, enabled: boolean) {
       const response = data as unknown as PaginatedResponse<ContactSearchResult>;
       return response.data;
     },
-    enabled: enabled && search.length >= 2,
+    enabled: enabled && search.length >= 2 && (tenantId !== undefined ? !!tenantId : true),
     staleTime: 30_000,
   });
 }
@@ -43,13 +43,14 @@ export interface UseContactSearchReturn {
   reset: () => void;
 }
 
-export function useContactSearch(enabled = true): UseContactSearchReturn {
+export function useContactSearch(enabled = true, tenantId?: string): UseContactSearchReturn {
   const [search, setSearchState] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const { data: results = [], isLoading: isSearching } = useContactSearchQuery(
     debouncedSearch,
+    tenantId,
     enabled,
   );
 

@@ -169,10 +169,18 @@ export async function registerContactRoutes(
       }
 
       const query = listQuerySchema.parse(request.query);
-      const tenantId = auth.role === 'AM' && query.tenantId ? query.tenantId : auth.tenantId;
+      let resolvedTenantId: string;
+      if (auth.role === 'AM' || auth.role === 'OP') {
+        if (!query.tenantId) {
+          return reply.status(400).send({ error: { code: 'TENANT_REQUIRED', message: 'tenantId query param is required for contact search in AM/OP context' } });
+        }
+        resolvedTenantId = query.tenantId;
+      } else {
+        resolvedTenantId = auth.tenantId as string;
+      }
 
       const result = await container.listContactsUseCase.execute({
-        tenantId,
+        tenantId: resolvedTenantId,
         type: query.type,
         isActive: query.isActive,
         search: query.search,

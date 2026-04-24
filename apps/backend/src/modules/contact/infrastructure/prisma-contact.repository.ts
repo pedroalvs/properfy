@@ -285,8 +285,11 @@ export class PrismaContactRepository implements IContactRepository {
   }
 
   private buildWhere(filters: ContactFilters): Record<string, unknown> {
+    if (!filters.tenantId) {
+      throw new Error('tenantId is required for contact queries — never query without tenant scope');
+    }
     const where: Record<string, unknown> = {};
-    if (filters.tenantId) where['tenant_id'] = filters.tenantId;
+    where['tenant_id'] = filters.tenantId;
     if (filters.type) where['type'] = filters.type;
     if (filters.isActive !== undefined) where['is_active'] = filters.isActive;
     if (filters.search) {

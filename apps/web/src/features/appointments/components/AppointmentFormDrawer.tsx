@@ -579,6 +579,7 @@ export function AppointmentFormDrawer({
                                   onSelect={(c) => selectRegistryContact(contact.key, c)}
                                   onClear={() => clearRegistryContact(contact.key)}
                                   placeholder="Search by name, email or phone..."
+                                  tenantId={effectiveTenantId || user?.tenantId || undefined}
                                   aria-label={`Search contact ${idx + 1}`}
                                 />
                               </FormField>
