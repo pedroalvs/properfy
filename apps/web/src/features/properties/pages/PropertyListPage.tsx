@@ -72,6 +72,14 @@ export function PropertyListPage() {
         } : undefined}
         secondaryActions={[
           { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/properties/import') },
+          {
+            label: 'Map View',
+            icon: 'mdi-map-outline',
+            disabled: requiresTenantSelection,
+            onClick: () => navigate('/properties/map', {
+              state: effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
+            }),
+          },
         ]}
       >
         {isGlobalRole && (

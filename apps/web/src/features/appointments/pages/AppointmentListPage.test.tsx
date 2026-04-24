@@ -37,8 +37,23 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuth: vi.fn(() => ({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  })),
+}));
+
 import { api } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
 import { AppointmentListPage } from './AppointmentListPage';
+
+const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
@@ -82,6 +97,14 @@ beforeEach(() => {
     data: MOCK_APPOINTMENTS,
     pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
   } });
+  mockUseAuth.mockReturnValue({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  });
 });
 
 function renderPage() {
@@ -104,9 +127,30 @@ describe('AppointmentListPage', () => {
     expect(screen.getAllByText('New Appointment').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('does not expose a map CTA while map pages are disabled', () => {
+  it('shows Map View button for AM role', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1', name: 'Admin', email: 'am@test.com', role: 'AM', tenantId: null },
+      token: 'token',
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
     renderPage();
-    expect(screen.queryByText('Map')).not.toBeInTheDocument();
+    expect(screen.getByText('Map View')).toBeInTheDocument();
+  });
+
+  it('hides Map View button for CL_ADMIN role', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u2', name: 'Client', email: 'cl@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1' },
+      token: 'token',
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+    renderPage();
+    expect(screen.queryByText('Map View')).not.toBeInTheDocument();
   });
 
   it('renders filter bar with search and status controls', () => {

@@ -11,7 +11,7 @@ import { useAppointmentList } from '../hooks/useAppointmentList';
 
 export function AppointmentListPage() {
   const navigate = useNavigate();
-  const { canPerform } = usePermissions();
+  const { canPerform, hasRole } = usePermissions();
   const {
     data,
     isLoading,
@@ -51,15 +51,17 @@ export function AppointmentListPage() {
   const canCreate = canPerform('appointment.create');
   const canMapImport = canPerform('property.import');
   const canBulkEdit = canPerform('appointment.cancel');
+  const canViewMap = hasRole('AM', 'OP');
 
   return (
     <>
       <ListFilterTableTemplate
         title="Appointments"
         primaryAction={canCreate ? { label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } } : undefined}
-        secondaryActions={canMapImport ? [
-          { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/appointments/import') },
-        ] : []}
+        secondaryActions={[
+          ...(canMapImport ? [{ label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/appointments/import') }] : []),
+          ...(canViewMap ? [{ label: 'Map View', icon: 'mdi-map-outline', onClick: () => navigate('/appointments/map') }] : []),
+        ]}
       >
         <AppointmentFilters
           filters={filters}
