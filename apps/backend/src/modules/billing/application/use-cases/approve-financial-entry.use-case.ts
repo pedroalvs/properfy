@@ -63,7 +63,7 @@ export class ApproveFinancialEntryUseCase {
     });
 
     // 7. Return full enriched entity so the route response schema is satisfied
-    const enriched = await this.financialEntryRepo.findByIdEnriched(entryId);
+    const enriched = await this.financialEntryRepo.findByIdEnriched(entryId, entry.tenantId);
     if (!enriched) {
       throw new EntryNotFoundError();
     }

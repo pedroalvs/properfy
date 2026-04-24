@@ -120,7 +120,7 @@ describe('ApproveFinancialEntryUseCase', () => {
       'op-1',
       expect.any(Date),
     );
-    expect(financialEntryRepo.findByIdEnriched).toHaveBeenCalledWith('entry-1');
+    expect(financialEntryRepo.findByIdEnriched).toHaveBeenCalledWith('entry-1', 'tenant-1');
   });
 
   it('should allow AM to approve entries', async () => {
