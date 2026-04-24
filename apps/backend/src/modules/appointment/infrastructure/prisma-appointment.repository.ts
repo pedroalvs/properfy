@@ -264,6 +264,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       doneCheckedAt: Date | null;
       serviceGroupId: string | null;
       deletedAt: Date | null;
+      branchId: string | null;
+      serviceTypeId: string;
+      priceAmount: number;
+      payoutAmount: number;
+      pricingRuleSnapshotJson: Record<string, unknown> | null;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
@@ -291,6 +296,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.doneCheckedAt !== undefined) updateData['done_checked_at'] = data.doneCheckedAt;
     if (data.serviceGroupId !== undefined) updateData['service_group_id'] = data.serviceGroupId;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
+    if (data.branchId !== undefined) updateData['branch_id'] = data.branchId;
+    if (data.serviceTypeId !== undefined) updateData['service_type_id'] = data.serviceTypeId;
+    if (data.priceAmount !== undefined) updateData['price_amount'] = data.priceAmount;
+    if (data.payoutAmount !== undefined) updateData['payout_amount'] = data.payoutAmount;
+    if (data.pricingRuleSnapshotJson !== undefined) updateData['pricing_rule_snapshot_json'] = data.pricingRuleSnapshotJson;
 
     await this.prisma.appointment.updateMany({
       where: { id, tenant_id: tenantId },

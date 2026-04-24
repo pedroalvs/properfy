@@ -127,6 +127,11 @@ export interface IAppointmentRepository {
       doneCheckedAt: Date | null;
       serviceGroupId: string | null;
       deletedAt: Date | null;
+      branchId: string | null;
+      serviceTypeId: string;
+      priceAmount: number;
+      payoutAmount: number;
+      pricingRuleSnapshotJson: Record<string, unknown> | null;
     }>,
   ): Promise<void>;
   saveContact(contact: AppointmentContactEntity): Promise<void>;
