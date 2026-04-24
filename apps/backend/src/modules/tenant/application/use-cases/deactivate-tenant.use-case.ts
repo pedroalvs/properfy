@@ -36,7 +36,7 @@ export class DeactivateTenantUseCase {
   async execute(input: DeactivateTenantInput): Promise<DeactivateTenantOutput> {
     const { tenantId, reason, actor } = input;
 
-    this.authorizationService.assertRoles(actor, ['AM'], {
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'tenant.deactivate',
       entityType: 'Tenant',
       entityId: tenantId,

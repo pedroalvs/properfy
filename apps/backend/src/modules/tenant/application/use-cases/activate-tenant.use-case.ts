@@ -33,7 +33,7 @@ export class ActivateTenantUseCase {
   async execute(input: ActivateTenantInput): Promise<ActivateTenantOutput> {
     const { tenantId, reason, actor } = input;
 
-    this.authorizationService.assertRoles(actor, ['AM'], {
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'tenant.activate',
       entityType: 'Tenant',
       entityId: tenantId,

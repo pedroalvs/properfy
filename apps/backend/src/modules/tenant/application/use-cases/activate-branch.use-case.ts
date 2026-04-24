@@ -37,7 +37,7 @@ export class ActivateBranchUseCase {
   async execute(input: ActivateBranchInput): Promise<ActivateBranchOutput> {
     const { tenantId, branchId, actor } = input;
 
-    this.authorizationService.assertRoles(actor, ['AM'], {
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'tenant.activate',
       entityType: 'Branch',
       entityId: branchId,

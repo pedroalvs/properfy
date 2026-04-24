@@ -41,7 +41,7 @@ export class CreateTenantUseCase {
   async execute(input: CreateTenantInput): Promise<CreateTenantOutput> {
     const { name, legalName, timezone, currency, settings, actor } = input;
 
-    this.authorizationService.assertRoles(actor, ['AM'], {
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'tenant.create',
       entityType: 'Tenant',
     });
