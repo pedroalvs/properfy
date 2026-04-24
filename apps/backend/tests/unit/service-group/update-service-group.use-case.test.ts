@@ -9,6 +9,7 @@ import { AuthorizationService } from '../../../src/shared/domain/authorization.s
 import {
   ServiceGroupNotFoundError,
   ServiceGroupNotDraftError,
+  ServiceGroupInvalidStatusError,
   PriorityDateTooCloseError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
@@ -202,7 +203,7 @@ describe('UpdateServiceGroupUseCase', () => {
     ).rejects.toThrow(ServiceGroupNotDraftError);
   });
 
-  it('should throw ServiceGroupNotDraftError when updating timeWindow on an ACCEPTED group', async () => {
+  it('should throw ServiceGroupInvalidStatusError when updating any field on an ACCEPTED group', async () => {
     const groupData = makeGroupWithAppointments({ status: 'ACCEPTED' });
     vi.mocked(serviceGroupRepo.findById).mockResolvedValueOnce(groupData);
 
@@ -212,7 +213,7 @@ describe('UpdateServiceGroupUseCase', () => {
         timeWindow: '10:00-14:00',
         actor: makeActor(),
       }),
-    ).rejects.toThrow(ServiceGroupNotDraftError);
+    ).rejects.toThrow(ServiceGroupInvalidStatusError);
   });
 
   it('should throw ServiceGroupNotDraftError when updating priorityMode on a non-DRAFT group', async () => {

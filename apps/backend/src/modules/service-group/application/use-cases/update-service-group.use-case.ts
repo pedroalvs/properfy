@@ -5,6 +5,7 @@ import type { IServiceGroupRepository } from '../../domain/service-group.reposit
 import {
   ServiceGroupNotFoundError,
   ServiceGroupNotDraftError,
+  ServiceGroupInvalidStatusError,
   PriorityDateTooCloseError,
 } from '../../domain/service-group.errors';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -79,6 +80,11 @@ export class UpdateServiceGroupUseCase {
     }
 
     const { group } = result;
+
+    // Guard: ACCEPTED groups are immutable
+    if (group.status === 'ACCEPTED') {
+      throw new ServiceGroupInvalidStatusError('DRAFT, PUBLISHED, or CANCELLED', 'ACCEPTED');
+    }
 
     // Guard: draft-only fields require DRAFT status
     const hasDraftOnlyFields = DRAFT_ONLY_FIELDS.some(
