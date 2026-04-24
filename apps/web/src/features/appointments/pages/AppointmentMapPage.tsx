@@ -80,6 +80,17 @@ export function AppointmentMapPage() {
     setSelectedItem(item);
   }, []);
 
+  const handleListItemClick = useCallback((item: AppointmentMapItem) => {
+    setSelectedItem(item);
+    if (mapInstance) {
+      mapInstance.flyTo({
+        center: [item.longitude, item.latitude],
+        zoom: Math.max(mapInstance.getZoom(), 14),
+        duration: 700,
+      });
+    }
+  }, [mapInstance]);
+
   const handleViewDetail = useCallback(
     (id: string) => {
       navigate(`/appointments/${id}`);
@@ -136,7 +147,7 @@ export function AppointmentMapPage() {
             className={`w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 ${
               selectedItem?.id === item.id ? 'bg-primary/5' : ''
             }`}
-            onClick={() => handleMarkerClick(item)}
+            onClick={() => handleListItemClick(item)}
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-secondary">{item.code}</span>
