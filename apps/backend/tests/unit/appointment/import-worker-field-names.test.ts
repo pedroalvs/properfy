@@ -218,4 +218,74 @@ describe('AppointmentImportWorker — field name alignment with template headers
       expect(errors.map((e) => e.field)).not.toContain('tenantName');
     });
   });
+
+  describe('primaryContactEmail (new column name)', () => {
+    it('reads primaryContactEmail from row and passes it to the contact entity — not tenantEmail', async () => {
+      const csv =
+        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName,primaryContactEmail\n' +
+        'PROP-001,2026-04-02,09:00-12:00,John Tenant,john@example.com\n';
+      const { worker, appointmentRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+
+      await worker.execute({ importId: 'import-1' });
+
+      const saveContactCall = (appointmentRepo.saveContact as ReturnType<typeof vi.fn>).mock.calls.at(0)![0];
+      // The contact entity must carry the email from primaryContactEmail
+      expect(saveContactCall.snapshotEmail).toBe('john@example.com');
+      expect(saveContactCall.primaryEmail).toBe('john@example.com');
+      // The CSV column used is primaryContactEmail, not the old tenantEmail
+      expect(Object.keys(saveContactCall)).not.toContain('tenantEmail');
+    });
+
+    it('saves a row with no primaryContactEmail without error — the field is optional', async () => {
+      const csv =
+        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
+        'PROP-001,2026-04-02,09:00-12:00,John Tenant\n';
+      const { worker, importRepo, appointmentRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+
+      await worker.execute({ importId: 'import-1' });
+
+      const lastCall = (importRepo.update as ReturnType<typeof vi.fn>).mock.calls.at(-1)![1];
+      const errors: { field: string }[] = lastCall.errorsJson ?? [];
+      const emailErrors = errors.filter((e) => e.field === 'primaryContactEmail');
+      expect(emailErrors).toHaveLength(0);
+      // Contact was still created — snapshotEmail is null when omitted
+      const saveContactCall = (appointmentRepo.saveContact as ReturnType<typeof vi.fn>).mock.calls.at(0)![0];
+      expect(saveContactCall.snapshotEmail).toBeNull();
+    });
+  });
+
+  describe('primaryContactPhone (new column name)', () => {
+    it('reads primaryContactPhone from row and passes it to the contact entity — not tenantPhone', async () => {
+      const csv =
+        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName,primaryContactPhone\n' +
+        'PROP-001,2026-04-02,09:00-12:00,John Tenant,+61400000001\n';
+      const { worker, appointmentRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+
+      await worker.execute({ importId: 'import-1' });
+
+      const saveContactCall = (appointmentRepo.saveContact as ReturnType<typeof vi.fn>).mock.calls.at(0)![0];
+      // The contact entity must carry the phone from primaryContactPhone
+      expect(saveContactCall.snapshotPhone).toBe('+61400000001');
+      expect(saveContactCall.primaryPhone).toBe('+61400000001');
+      // The CSV column used is primaryContactPhone, not the old tenantPhone
+      expect(Object.keys(saveContactCall)).not.toContain('tenantPhone');
+    });
+
+    it('saves a row with no primaryContactPhone without error — the field is optional', async () => {
+      const csv =
+        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
+        'PROP-001,2026-04-02,09:00-12:00,John Tenant\n';
+      const { worker, importRepo, appointmentRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+
+      await worker.execute({ importId: 'import-1' });
+
+      const lastCall = (importRepo.update as ReturnType<typeof vi.fn>).mock.calls.at(-1)![1];
+      const errors: { field: string }[] = lastCall.errorsJson ?? [];
+      const phoneErrors = errors.filter((e) => e.field === 'primaryContactPhone');
+      expect(phoneErrors).toHaveLength(0);
+      // Contact was still created — snapshotPhone is null when omitted
+      const saveContactCall = (appointmentRepo.saveContact as ReturnType<typeof vi.fn>).mock.calls.at(0)![0];
+      expect(saveContactCall.snapshotPhone).toBeNull();
+    });
+  });
 });
