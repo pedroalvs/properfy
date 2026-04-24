@@ -14,10 +14,10 @@ interface ImportRow {
   propertyCode?: string;
   serviceTypeCode?: string;
   scheduledDate?: string;
-  timeSlot?: string;
-  tenantName?: string;
-  tenantEmail?: string;
-  tenantPhone?: string;
+  timeSlotLabel?: string;
+  primaryContactName?: string;
+  primaryContactEmail?: string;
+  primaryContactPhone?: string;
   notes?: string;
 }
 
@@ -162,12 +162,12 @@ export class AppointmentImportWorker {
       errors.push({ row: rowNum, field: 'scheduledDate', message: 'Scheduled date is required' });
       return false;
     }
-    if (!row.timeSlot) {
-      errors.push({ row: rowNum, field: 'timeSlot', message: 'Time slot is required' });
+    if (!row.timeSlotLabel) {
+      errors.push({ row: rowNum, field: 'timeSlotLabel', message: 'Time slot is required' });
       return false;
     }
-    if (!row.tenantName) {
-      errors.push({ row: rowNum, field: 'tenantName', message: 'Tenant name is required' });
+    if (!row.primaryContactName) {
+      errors.push({ row: rowNum, field: 'primaryContactName', message: 'Primary contact name is required' });
       return false;
     }
 
@@ -178,19 +178,19 @@ export class AppointmentImportWorker {
       return false;
     }
 
-    // Validate timeSlot against the effective catalog for the property's scope.
+    // Validate timeSlotLabel against the effective catalog for the property's scope.
     if (this.timeSlotRepo) {
       const scopedSlots = property.branchId
         ? await this.timeSlotRepo.findEffective(tenantId, property.branchId)
         : await this.timeSlotRepo.findAll({ tenantId, branchId: null });
-      const slotValid = scopedSlots.some((s) => s.compositeValue === row.timeSlot);
+      const slotValid = scopedSlots.some((s) => s.compositeValue === row.timeSlotLabel);
       if (!slotValid) {
         errors.push({
           row: rowNum,
-          field: 'timeSlot',
+          field: 'timeSlotLabel',
           message: property.branchId
-            ? `Time slot "${row.timeSlot}" is not in the configured catalog for this branch`
-            : `Time slot "${row.timeSlot}" is not in the tenant default catalog`,
+            ? `Time slot "${row.timeSlotLabel}" is not in the configured catalog for this branch`
+            : `Time slot "${row.timeSlotLabel}" is not in the tenant default catalog`,
         });
         return false;
       }
@@ -237,7 +237,7 @@ export class AppointmentImportWorker {
       inspectorId: null,
       status: 'DRAFT',
       scheduledDate: new Date(row.scheduledDate),
-      timeSlot: row.timeSlot,
+      timeSlot: row.timeSlotLabel,
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,
@@ -269,13 +269,13 @@ export class AppointmentImportWorker {
       contactId: null,
       role: 'TENANT' as const,
       isPrimary: true,
-      snapshotName: row.tenantName,
-      snapshotEmail: row.tenantEmail ?? null,
-      snapshotPhone: row.tenantPhone ?? null,
-      tenantName: row.tenantName,
-      primaryEmail: row.tenantEmail ?? null,
+      snapshotName: row.primaryContactName,
+      snapshotEmail: row.primaryContactEmail ?? null,
+      snapshotPhone: row.primaryContactPhone ?? null,
+      tenantName: row.primaryContactName,
+      primaryEmail: row.primaryContactEmail ?? null,
       secondaryEmail: null,
-      primaryPhone: row.tenantPhone ?? null,
+      primaryPhone: row.primaryContactPhone ?? null,
       secondaryPhone: null,
       createdAt: now,
       updatedAt: now,

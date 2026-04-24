@@ -93,7 +93,7 @@ describe('AppointmentImportWorker', () => {
       delete: vi.fn(),
       download: vi.fn().mockResolvedValue(
         Buffer.from(
-          'propertyCode,scheduledDate,timeSlot,tenantName\n' +
+          'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
           'PROP-001,2026-04-02,14:00-17:00,John Tenant\n',
         ),
       ),
@@ -178,7 +178,7 @@ describe('AppointmentImportWorker', () => {
         errorsJson: [
           {
             row: 2,
-            field: 'timeSlot',
+            field: 'timeSlotLabel',
             message: 'Time slot "14:00-17:00" is not in the tenant default catalog',
           },
         ],

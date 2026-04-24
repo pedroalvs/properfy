@@ -15,10 +15,10 @@ const STEPS = ['Upload', 'Preview', 'Confirm', 'Progress'];
 const EXPECTED_COLUMNS = [
   'propertyCode',
   'scheduledDate',
-  'timeSlot',
-  'tenantName',
-  'tenantEmail',
-  'tenantPhone',
+  'timeSlotLabel',
+  'primaryContactName',
+  'primaryContactEmail',
+  'primaryContactPhone',
   'serviceTypeCode',
   'notes',
 ];
@@ -50,7 +50,7 @@ function parseCSV(content: string): ParsedData {
 
     // Validate required fields against the backend import worker contract.
     const rowNumber = i;
-    for (const requiredCol of ['propertyCode', 'scheduledDate', 'timeSlot', 'tenantName']) {
+    for (const requiredCol of ['propertyCode', 'scheduledDate', 'timeSlotLabel', 'primaryContactName']) {
       if (columns.includes(requiredCol) && !row[requiredCol]) {
         errors.push({
           row: rowNumber,
