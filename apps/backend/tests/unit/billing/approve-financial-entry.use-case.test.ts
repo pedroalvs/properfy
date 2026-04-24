@@ -10,6 +10,7 @@ import { AuthorizationService } from '../../../src/shared/domain/authorization.s
 
 const financialEntryRepo = {
   findById: vi.fn(),
+  findByIdEnriched: vi.fn(),
   findByAppointmentAndType: vi.fn(),
   findByReferenceEntryIdAndType: vi.fn(),
   findAll: vi.fn(),
@@ -67,22 +68,49 @@ function makeSut() {
   return new ApproveFinancialEntryUseCase(financialEntryRepo, auditService as any, authorizationService);
 }
 
+function makeApprovedEnrichedEntry(entry: FinancialEntryEntity, approvedByUserId: string, approvedAt: Date) {
+  return {
+    entity: new FinancialEntryEntity({
+      ...entry,
+      status: 'APPROVED' as const,
+      approvedByUserId,
+      approvedAt,
+    }),
+    appointmentCode: 'INS-2026-0001',
+    relatedEntityName: 'Test Agency',
+    approvedByName: 'Test Approver',
+  };
+}
+
 describe('ApproveFinancialEntryUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    financialEntryRepo.findById.mockResolvedValue(makePendingEntry());
+    const pendingEntry = makePendingEntry();
+    financialEntryRepo.findById.mockResolvedValue(pendingEntry);
     financialEntryRepo.transitionStatus.mockResolvedValue(undefined);
+    financialEntryRepo.findByIdEnriched.mockImplementation(async () => {
+      return makeApprovedEnrichedEntry(pendingEntry, 'op-1', new Date());
+    });
   });
 
-  it('should set status to APPROVED with approvedByUserId and approvedAt', async () => {
+  it('should return full enriched entity with status APPROVED after approval', async () => {
     const sut = makeSut();
 
     const result = await sut.execute({ entryId: 'entry-1', actor: opActor });
 
     expect(result.id).toBe('entry-1');
     expect(result.status).toBe('APPROVED');
-    expect(result.approvedBy).toBe('op-1');
-    expect(result.approvedAt).toBeInstanceOf(Date);
+    expect(result.approvedByUserId).toBe('op-1');
+    expect(typeof result.approvedAt).toBe('string');
+    // Full entity fields must be present
+    expect(result.tenantId).toBe('tenant-1');
+    expect(result.entryType).toBe('INSPECTOR_PAYOUT');
+    expect(result.amount).toBe(140);
+    expect(result.currency).toBe('AUD');
+    // Enriched fields
+    expect(result.appointmentCode).toBe('INS-2026-0001');
+    expect(result.relatedEntityName).toBe('Test Agency');
+    expect(result.approvedByName).toBe('Test Approver');
 
     expect(financialEntryRepo.transitionStatus).toHaveBeenCalledWith(
       'entry-1',
@@ -92,15 +120,20 @@ describe('ApproveFinancialEntryUseCase', () => {
       'op-1',
       expect.any(Date),
     );
+    expect(financialEntryRepo.findByIdEnriched).toHaveBeenCalledWith('entry-1');
   });
 
   it('should allow AM to approve entries', async () => {
+    const pendingEntry = makePendingEntry();
+    financialEntryRepo.findByIdEnriched.mockResolvedValueOnce(
+      makeApprovedEnrichedEntry(pendingEntry, 'am-1', new Date()),
+    );
     const sut = makeSut();
 
     const result = await sut.execute({ entryId: 'entry-1', actor: amActor });
 
     expect(result.status).toBe('APPROVED');
-    expect(result.approvedBy).toBe('am-1');
+    expect(result.approvedByUserId).toBe('am-1');
   });
 
   it('should reject self-approval', async () => {

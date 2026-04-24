@@ -6,18 +6,14 @@ import {
 } from '../../domain/billing.errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { FinancialEntryOutputItem } from './list-financial-entries.use-case';
 
 export interface ApproveFinancialEntryInput {
   entryId: string;
   actor: AuthContext;
 }
 
-export interface ApproveFinancialEntryOutput {
-  id: string;
-  status: 'APPROVED';
-  approvedBy: string;
-  approvedAt: Date;
-}
+export type ApproveFinancialEntryOutput = FinancialEntryOutputItem;
 
 export class ApproveFinancialEntryUseCase {
   constructor(
@@ -66,11 +62,35 @@ export class ApproveFinancialEntryUseCase {
       after: { status: 'APPROVED', approvedBy: actor.userId, approvedAt: approvedAt.toISOString() },
     });
 
+    // 7. Return full enriched entity so the route response schema is satisfied
+    const enriched = await this.financialEntryRepo.findByIdEnriched(entryId);
+    if (!enriched) {
+      throw new EntryNotFoundError();
+    }
+
+    const { entity: approved, appointmentCode, relatedEntityName, approvedByName } = enriched;
+
     return {
-      id: entryId,
-      status: 'APPROVED',
-      approvedBy: actor.userId,
-      approvedAt,
+      id: approved.id,
+      tenantId: approved.tenantId,
+      appointmentId: approved.appointmentId,
+      inspectorId: approved.inspectorId,
+      entryType: approved.entryType,
+      amount: Number(approved.amount),
+      currency: approved.currency,
+      status: approved.status,
+      description: approved.description,
+      effectiveAt: approved.effectiveAt.toISOString(),
+      reason: approved.reason,
+      referenceEntryId: approved.referenceEntryId,
+      initiatedByUserId: approved.initiatedByUserId,
+      approvedByUserId: approved.approvedByUserId,
+      approvedAt: approved.approvedAt ? approved.approvedAt.toISOString() : null,
+      createdAt: approved.createdAt.toISOString(),
+      updatedAt: approved.updatedAt.toISOString(),
+      appointmentCode,
+      relatedEntityName,
+      approvedByName,
     };
   }
 }
