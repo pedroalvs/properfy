@@ -2,7 +2,7 @@ import type { ContactEntity } from './contact.entity';
 import type { ContactType } from '@properfy/shared';
 
 export interface ContactFilters {
-  tenantId?: string;
+  tenantId: string;
   type?: ContactType;
   isActive?: boolean;
   search?: string;
