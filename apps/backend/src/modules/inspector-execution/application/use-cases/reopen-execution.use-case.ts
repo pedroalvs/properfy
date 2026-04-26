@@ -32,8 +32,8 @@ export class ReopenExecutionUseCase {
   async execute(input: ReopenExecutionInput): Promise<ReopenExecutionOutput> {
     const { appointmentId, reason, actor } = input;
 
-    // 1. AM only
-    this.authorizationService.assertRoles(actor, ['AM'], {
+    // 1. Reopening the InspectionExecution record (not the DONE→DRAFT state transition) — AM and OP allowed
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'appointment.reopen_done',
       entityType: 'InspectionExecution',
     });

@@ -31,8 +31,8 @@ export class VoidFinancialEntryUseCase {
   async execute(input: VoidFinancialEntryInput): Promise<VoidFinancialEntryOutput> {
     const { entryId, reason, actor } = input;
 
-    // 1. Validate actor role - AM only
-    this.authorizationService.assertRoles(actor, ['AM'], { action: 'financial.void', entityType: 'FinancialEntry' });
+    // 1. Validate actor role — financial status intervention allowed for AM and OP
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'financial.void', entityType: 'FinancialEntry' });
 
     // 2. Load entry
     const entry = await this.financialEntryRepo.findById(entryId);

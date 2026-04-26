@@ -147,16 +147,22 @@ describe('VoidFinancialEntryUseCase', () => {
     ).rejects.toThrow(EntryNotApprovedError);
   });
 
-  it('should reject non-AM actor (OP forbidden)', async () => {
-    const { useCase } = sut;
+  it('should allow OP to void an APPROVED entry (financial status intervention)', async () => {
+    const { useCase, financialEntryRepo, auditService } = sut;
 
-    await expect(
-      useCase.execute({
-        entryId: 'entry-1',
-        reason: 'Test reason',
-        actor: makeActor({ role: 'OP' }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+    vi.mocked(financialEntryRepo.findById).mockResolvedValue(makeEntry({ status: 'APPROVED' }));
+    vi.mocked(financialEntryRepo.voidEntry).mockResolvedValue(undefined);
+
+    const result = await useCase.execute({
+      entryId: 'entry-1',
+      reason: 'Correction by operator',
+      actor: makeActor({ role: 'OP' }),
+    });
+
+    expect(result.status).toBe('VOIDED');
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'financial_entry.voided' }),
+    );
   });
 
   it('should reject non-AM actor (CL_ADMIN forbidden)', async () => {

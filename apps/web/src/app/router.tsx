@@ -308,7 +308,7 @@ export const router = createBrowserRouter([
           {
             path: 'service-types',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+              <AuthGuard roles={[UserRole.AM]}>
                 <ServiceTypeListPage />
               </AuthGuard>
             ),
