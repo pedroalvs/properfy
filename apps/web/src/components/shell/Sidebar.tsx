@@ -55,7 +55,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Configuration',
     roles: [UserRole.AM, UserRole.OP],
     submenu: [
-      { icon: 'mdi-clipboard-list-outline', label: 'Service Types', to: '/service-types' },
+      { icon: 'mdi-clipboard-list-outline', label: 'Service Types', to: '/service-types', roles: [UserRole.AM] },
       { icon: 'mdi-map-marker-radius-outline', label: 'Service Regions', to: '/service-regions' },
       { icon: 'mdi-clock-outline', label: 'Time Slots', to: '/time-slots' },
       { icon: 'mdi-currency-usd', label: 'Pricing Rules', to: '/pricing-rules' },
