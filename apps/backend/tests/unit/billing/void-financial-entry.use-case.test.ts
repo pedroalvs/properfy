@@ -189,6 +189,18 @@ describe('VoidFinancialEntryUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
+  it('should reject CL_USER (forbidden — not listed in assertRoles AM/OP)', async () => {
+    const { useCase } = sut;
+
+    await expect(
+      useCase.execute({
+        entryId: 'entry-1',
+        reason: 'Test reason',
+        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
   it('should throw EntryNotFoundError for non-existent entry', async () => {
     const { useCase, financialEntryRepo } = sut;
 
