@@ -13,7 +13,7 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-function renderServiceTypesRoute(role: string) {
+function renderServiceTypesRoute(_role: string) {
   return render(
     <MemoryRouter
       initialEntries={['/service-types']}
