@@ -127,14 +127,17 @@ describe('ListServiceRegionsUseCase', () => {
     );
   });
 
-  it('should reject CL_USER role', async () => {
+  it('should allow OP role', async () => {
+    vi.mocked(regionRepo.findAll).mockResolvedValue([]);
+    vi.mocked(regionRepo.count).mockResolvedValue(0);
+
     await expect(
       useCase.execute({
         filters: {},
         pagination: { page: 1, pageSize: 20, sortOrder: 'asc' },
-        actor: makeActor({ role: 'CL_USER' }),
+        actor: makeActor({ role: 'OP', tenantId: null }),
       }),
-    ).rejects.toThrow(ForbiddenError);
+    ).resolves.toBeDefined();
   });
 
   it('should allow INSP role', async () => {
@@ -148,5 +151,25 @@ describe('ListServiceRegionsUseCase', () => {
     });
 
     expect(result.data).toHaveLength(0);
+  });
+
+  it('should reject CL_ADMIN role', async () => {
+    await expect(
+      useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'asc' },
+        actor: makeActor({ role: 'CL_ADMIN' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should reject CL_USER role', async () => {
+    await expect(
+      useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'asc' },
+        actor: makeActor({ role: 'CL_USER' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
   });
 });

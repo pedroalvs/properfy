@@ -25,7 +25,7 @@ export const createServiceGroupSchema = z
     scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     timeWindow: z.string().regex(timeWindowRegex),
     name: z.string().min(1).max(255).optional(),
-    serviceRegionId: z.string().uuid().optional(),
+    serviceRegionId: z.string().uuid(),
     description: z.string().max(5000).optional(),
     priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
     exceptionType: exceptionTypeEnum.optional(),

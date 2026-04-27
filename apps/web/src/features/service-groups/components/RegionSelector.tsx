@@ -9,10 +9,12 @@ interface RegionSelectorProps {
   appointmentIds: string[];
   selectedRegionId: string;
   onRegionChange: (regionId: string) => void;
+  /** Required for AM/OP creating a group on behalf of a selected agency. */
+  tenantId?: string;
 }
 
-export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChange }: RegionSelectorProps) {
-  const { data, isLoading, isError } = useResolveRegions(appointmentIds);
+export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChange, tenantId }: RegionSelectorProps) {
+  const { data, isLoading, isError } = useResolveRegions(appointmentIds, tenantId);
 
   const options = useMemo(() => {
     if (!data?.regions) return [];

@@ -113,11 +113,42 @@ describe('GetServiceRegionUseCase', () => {
     expect(regionRepo.findById).toHaveBeenCalledWith('region-1', null);
   });
 
+  it('should allow OP role', async () => {
+    vi.mocked(regionRepo.findById).mockResolvedValue(makeRegion('tenant-1'));
+
+    await expect(
+      useCase.execute({
+        regionId: 'region-1',
+        actor: makeActor({ role: 'OP', tenantId: null }),
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('should allow INSP role', async () => {
+    vi.mocked(regionRepo.findById).mockResolvedValue(makeRegion('tenant-1'));
+
+    await expect(
+      useCase.execute({
+        regionId: 'region-1',
+        actor: makeActor({ role: 'INSP' }),
+      }),
+    ).resolves.toBeDefined();
+  });
+
   it('should reject CL_ADMIN role', async () => {
     await expect(
       useCase.execute({
         regionId: 'region-1',
         actor: makeActor({ role: 'CL_ADMIN' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should reject CL_USER role', async () => {
+    await expect(
+      useCase.execute({
+        regionId: 'region-1',
+        actor: makeActor({ role: 'CL_USER' }),
       }),
     ).rejects.toThrow(ForbiddenError);
   });

@@ -169,6 +169,7 @@ export async function registerServiceRegionRoutes(
       }
       const result = await container.resolveRegionsUseCase.execute({
         appointmentIds: parsed.data.appointmentIds,
+        tenantId: parsed.data.tenantId,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

@@ -4,7 +4,6 @@ import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilte
 import { ServiceGroupFilters } from '../components/ServiceGroupFilters';
 import { ServiceGroupTable } from '../components/ServiceGroupTable';
 import { ServiceGroupDetailDrawer } from '../components/ServiceGroupDetailDrawer';
-import { ServiceGroupFormDrawer } from '../components/ServiceGroupFormDrawer';
 import { useServiceGroupList } from '../hooks/useServiceGroupList';
 
 export function ServiceGroupListPage() {
@@ -22,8 +21,6 @@ export function ServiceGroupListPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
 
   return (
     <>
@@ -49,7 +46,6 @@ export function ServiceGroupListPage() {
           onRetryError={refetch}
           pagination={pagination}
           onView={(sg) => navigate(`/service-groups/${sg.id}`)}
-
         />
       </ListFilterTableTemplate>
       <ServiceGroupDetailDrawer
@@ -58,25 +54,6 @@ export function ServiceGroupListPage() {
         onClose={() => {
           setDrawerOpen(false);
           setSelectedId(null);
-        }}
-        onEdit={(id) => {
-          setDrawerOpen(false);
-          setSelectedId(null);
-          setEditId(id);
-          setFormOpen(true);
-        }}
-      />
-      <ServiceGroupFormDrawer
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditId(null);
-        }}
-        serviceGroupId={editId}
-        onSaved={() => {
-          setFormOpen(false);
-          setEditId(null);
-          refetch();
         }}
       />
     </>

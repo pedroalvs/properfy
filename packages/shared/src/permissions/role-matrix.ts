@@ -158,7 +158,7 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
     roles: ['AM', 'OP'],
   },
   'service_region.list': {
-    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'],
+    roles: ['AM', 'OP', 'INSP'],
   },
   'service_region.resolve': {
     roles: ['AM', 'OP'],

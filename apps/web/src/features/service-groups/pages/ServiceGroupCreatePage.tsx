@@ -85,7 +85,7 @@ export function ServiceGroupCreatePage() {
     scheduledDate,
     timeWindow: `${startTime}-${endTime}`,
     ...(groupName ? { name: groupName } : {}),
-    ...(serviceRegionId ? { serviceRegionId } : {}),
+    serviceRegionId: serviceRegionId || undefined,
     ...(description ? { description } : {}),
     priorityMode,
     ...(exceptionType ? { exceptionType, exceptionReason: exceptionReason || undefined } : {}),
@@ -321,6 +321,7 @@ export function ServiceGroupCreatePage() {
                 appointmentIds={selectedIds}
                 selectedRegionId={serviceRegionId}
                 onRegionChange={setServiceRegionId}
+                tenantId={effectiveTenantId}
               />
             </FormSection>
 

@@ -20,7 +20,7 @@ export interface CreateServiceGroupInput {
   scheduledDate: string; // YYYY-MM-DD
   timeWindow: string; // HH:mm-HH:mm
   name?: string;
-  serviceRegionId?: string;
+  serviceRegionId: string;
   description?: string;
   priorityMode: PriorityMode;
   exceptionType?: ServiceGroupExceptionType;
@@ -58,7 +58,7 @@ export class CreateServiceGroupUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
-    private readonly serviceRegionRepo?: IServiceRegionRepository,
+    private readonly serviceRegionRepo: IServiceRegionRepository,
     private readonly tenantRepo?: ITenantRepository,
     private readonly clock: Clock = new SystemClock(),
   ) {}
@@ -124,24 +124,16 @@ export class CreateServiceGroupUseCase {
       }
     }
 
-    // 5. Resolve service region if provided
-    let serviceRegionId: string | null = null;
-    let regionName: string | null = null;
-
-    if (input.serviceRegionId) {
-      if (!this.serviceRegionRepo) {
-        throw new Error('Service region repository is required when serviceRegionId is provided');
-      }
-      const region = await this.serviceRegionRepo.findById(input.serviceRegionId, tenantId!);
-      if (!region) {
-        throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
-      }
-      if (region.status !== 'ACTIVE') {
-        throw new ServiceRegionInactiveError();
-      }
-      serviceRegionId = region.id;
-      regionName = region.name;
+    // 5. Resolve service region (required)
+    const region = await this.serviceRegionRepo.findById(input.serviceRegionId, tenantId!);
+    if (!region) {
+      throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
     }
+    if (region.status !== 'ACTIVE') {
+      throw new ServiceRegionInactiveError();
+    }
+    const serviceRegionId = region.id;
+    const regionName = region.name;
 
     // 6. Create entity
     const now = this.clock.now();

@@ -27,18 +27,3 @@ export const DEFAULT_FILTERS: ServiceGroupFiltersState = {
   status: '',
 };
 
-export interface ServiceGroupFormData {
-  name: string;
-  regionName: string;
-  priorityMode: string;
-  description: string;
-}
-
-export type ServiceGroupFormErrors = Partial<Record<keyof ServiceGroupFormData, string>>;
-
-export const EMPTY_SERVICE_GROUP_FORM: ServiceGroupFormData = {
-  name: '',
-  regionName: '',
-  priorityMode: '',
-  description: '',
-};

@@ -104,6 +104,7 @@ describe('POST /v1/service-groups', () => {
     serviceTypeId: '00000000-0000-0000-0000-000000000020',
     scheduledDate: '2026-04-01',
     timeWindow: '08:00-12:00',
+    serviceRegionId: '00000000-0000-0000-0000-000000000060',
   };
 
   it('should return 201 with valid payload', async () => {

@@ -2,10 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateServiceGroupUseCase } from '../../../src/modules/service-group/application/use-cases/create-service-group.use-case';
 import type { IServiceGroupRepository } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
+import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
-import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../../src/shared/domain/errors';
 import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
@@ -13,9 +14,27 @@ import {
   GroupSizeTooLargeError,
   AppointmentInvalidStatusError,
   PriorityDateTooCloseError,
+  ServiceRegionInactiveError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
+import { ServiceRegionEntity } from '../../../src/modules/service-region/domain/service-region.entity';
+
+const REGION_ID = 'region-1';
+
+function makeRegionEntity(overrides: Partial<{ id: string; status: string }> = {}): ServiceRegionEntity {
+  return new ServiceRegionEntity({
+    id: overrides.id ?? REGION_ID,
+    tenantId: 'tenant-1',
+    name: 'Sydney CBD',
+    geojson: { type: 'Polygon', coordinates: [] },
+    color: '#3b82f6',
+    status: overrides.status ?? 'ACTIVE',
+    createdByUserId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+}
 
 function makeAppointmentEntity(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -77,12 +96,34 @@ function makeAppointmentIds(count: number): string[] {
   return Array.from({ length: count }, (_, i) => `appt-${i + 1}`);
 }
 
+function createMockRegionRepo(regionEntity?: ServiceRegionEntity | null): IServiceRegionRepository {
+  const entity = regionEntity === undefined ? makeRegionEntity() : regionEntity;
+  return {
+    findById: vi.fn().mockResolvedValue(entity),
+    findByName: vi.fn(),
+    findAll: vi.fn(),
+    count: vi.fn(),
+    save: vi.fn(),
+    update: vi.fn(),
+    findPropertyIdsInInspectorRegions: vi.fn(),
+    resolveRegionsForAppointments: vi.fn().mockResolvedValue([]),
+    findContainingPoint: vi.fn(),
+    countPublishedGroupsByRegionId: vi.fn().mockResolvedValue(0),
+    countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
+    setInspectorRegions: vi.fn(),
+    getInspectorRegionIds: vi.fn(),
+    getInspectorRegionIdsBatch: vi.fn(),
+    delete: vi.fn(),
+  };
+}
+
 // Future date far enough for PRIORITY_24H
 const farFutureDate = '2026-06-01';
 
 describe('CreateServiceGroupUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
   let appointmentRepo: IAppointmentRepository;
+  let serviceRegionRepo: IServiceRegionRepository;
   let auditService: AuditService;
   let useCase: CreateServiceGroupUseCase;
 
@@ -113,6 +154,7 @@ describe('CreateServiceGroupUseCase', () => {
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
     };
+    serviceRegionRepo = createMockRegionRepo();
     auditService = { log: vi.fn() } as unknown as AuditService;
 
     const authorizationService = new AuthorizationService(auditService);
@@ -121,6 +163,7 @@ describe('CreateServiceGroupUseCase', () => {
       appointmentRepo,
       auditService,
       authorizationService,
+      serviceRegionRepo,
     );
   });
 
@@ -138,6 +181,7 @@ describe('CreateServiceGroupUseCase', () => {
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
       priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
 
@@ -148,6 +192,7 @@ describe('CreateServiceGroupUseCase', () => {
     expect(result.serviceTypeId).toBe('svc-type-1');
     expect(result.priorityMode).toBe('STANDARD');
     expect(result.priorityExpiresAt).toBeNull();
+    expect(result.serviceRegionId).toBe(REGION_ID);
     expect(serviceGroupRepo.save).toHaveBeenCalledOnce();
     expect(serviceGroupRepo.linkAppointments).toHaveBeenCalledWith(
       appointmentIds,
@@ -158,6 +203,60 @@ describe('CreateServiceGroupUseCase', () => {
     );
   });
 
+  it('should throw NotFoundError when service region does not exist', async () => {
+    serviceRegionRepo = createMockRegionRepo(null);
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new CreateServiceGroupUseCase(
+      serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo,
+    );
+
+    const appointmentIds = makeAppointmentIds(5);
+    for (let i = 0; i < 5; i++) {
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
+      );
+    }
+
+    await expect(
+      useCase.execute({
+        appointmentIds,
+        serviceTypeId: 'svc-type-1',
+        scheduledDate: farFutureDate,
+        timeWindow: '09:00-12:00',
+        priorityMode: 'STANDARD',
+        serviceRegionId: 'nonexistent-region-id',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it('should throw ServiceRegionInactiveError when region is INACTIVE', async () => {
+    serviceRegionRepo = createMockRegionRepo(makeRegionEntity({ status: 'INACTIVE' }));
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new CreateServiceGroupUseCase(
+      serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo,
+    );
+
+    const appointmentIds = makeAppointmentIds(5);
+    for (let i = 0; i < 5; i++) {
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
+      );
+    }
+
+    await expect(
+      useCase.execute({
+        appointmentIds,
+        serviceTypeId: 'svc-type-1',
+        scheduledDate: farFutureDate,
+        timeWindow: '09:00-12:00',
+        priorityMode: 'STANDARD',
+        serviceRegionId: REGION_ID,
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(ServiceRegionInactiveError);
+  });
+
   it('should reject non-AM/OP actors', async () => {
     await expect(
       useCase.execute({
@@ -166,6 +265,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'STANDARD',
+        serviceRegionId: REGION_ID,
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -179,6 +279,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'STANDARD',
+        serviceRegionId: REGION_ID,
         actor: makeActor({ role: 'INSP', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -197,6 +298,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'STANDARD',
+        serviceRegionId: REGION_ID,
         actor: makeActor(),
       }),
     ).rejects.toThrow(AppointmentNotFoundError);
@@ -209,7 +311,6 @@ describe('CreateServiceGroupUseCase', () => {
         makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
       );
     }
-    // 5th appointment has invalid status
     vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
       makeAppointmentWithRelations({ id: 'appt-5', status: 'SCHEDULED' }),
     );
@@ -221,6 +322,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'STANDARD',
+        serviceRegionId: REGION_ID,
         actor: makeActor(),
       }),
     ).rejects.toThrow(AppointmentInvalidStatusError);
@@ -244,6 +346,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'STANDARD',
+        serviceRegionId: REGION_ID,
         actor: makeActor(),
       }),
     ).rejects.toThrow(ValidationError);
@@ -264,6 +367,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'STANDARD',
+        serviceRegionId: REGION_ID,
         actor: makeActor(),
       }),
     ).rejects.toThrow(GroupSizeTooSmallError);
@@ -277,7 +381,6 @@ describe('CreateServiceGroupUseCase', () => {
       );
     }
 
-    // Use a date that is less than 24h from now
     const tooCloseDate = new Date(Date.now() + 12 * 60 * 60 * 1000);
     const dateStr = tooCloseDate.toISOString().split('T')[0];
 
@@ -288,6 +391,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: dateStr,
         timeWindow: '09:00-12:00',
         priorityMode: 'PRIORITY_24H',
+        serviceRegionId: REGION_ID,
         actor: makeActor(),
       }),
     ).rejects.toThrow(PriorityDateTooCloseError);
@@ -307,12 +411,12 @@ describe('CreateServiceGroupUseCase', () => {
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
       priorityMode: 'PRIORITY_24H',
+      serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
 
     expect(result.priorityExpiresAt).not.toBeNull();
     expect(result.priorityMode).toBe('PRIORITY_24H');
-    // priorityExpiresAt should be scheduledDate - 24h
     const expectedExpiry = new Date(new Date(farFutureDate).getTime() - 24 * 60 * 60 * 1000);
     expect(result.priorityExpiresAt!.getTime()).toBe(expectedExpiry.getTime());
   });
@@ -331,6 +435,7 @@ describe('CreateServiceGroupUseCase', () => {
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
       priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
     });
 
@@ -349,6 +454,7 @@ describe('CreateServiceGroupUseCase', () => {
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
       priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
       exceptionType: 'ISOLATED_SERVICE',
       exceptionReason: 'This property is geographically isolated from other appointments.',
       actor: makeActor(),
@@ -373,6 +479,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'STANDARD',
+        serviceRegionId: REGION_ID,
         exceptionType: 'ISOLATED_SERVICE',
         exceptionReason: 'Isolated area.',
         actor: makeActor(),
@@ -394,6 +501,7 @@ describe('CreateServiceGroupUseCase', () => {
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
       priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
       exceptionType: 'PRIORITY_CLIENT',
       exceptionReason: 'Client requires expedited service by contract.',
       actor: makeActor(),
@@ -438,7 +546,7 @@ describe('CreateServiceGroupUseCase', () => {
       );
 
       const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), undefined, tenantRepo,
+        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), serviceRegionRepo, tenantRepo,
       );
 
       const appointmentIds = makeAppointmentIds(5);
@@ -448,7 +556,6 @@ describe('CreateServiceGroupUseCase', () => {
         );
       }
 
-      // Use a date far enough for 48h
       const scheduledDate = '2026-07-01';
       const result = await useCaseWithTenant.execute({
         appointmentIds,
@@ -456,6 +563,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'PRIORITY_24H',
+        serviceRegionId: REGION_ID,
         actor: makeActor(),
       });
 
@@ -470,7 +578,7 @@ describe('CreateServiceGroupUseCase', () => {
       );
 
       const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), undefined, tenantRepo,
+        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), serviceRegionRepo, tenantRepo,
       );
 
       const appointmentIds = makeAppointmentIds(5);
@@ -486,6 +594,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'PRIORITY_24H',
+        serviceRegionId: REGION_ID,
         actor: makeActor(),
       });
 
@@ -495,7 +604,6 @@ describe('CreateServiceGroupUseCase', () => {
     });
 
     it('should fall back to 24h when no tenant repo is provided', async () => {
-      // The default useCase (no tenantRepo) should still use 24h
       const appointmentIds = makeAppointmentIds(5);
       for (let i = 0; i < 5; i++) {
         vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
@@ -509,6 +617,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'PRIORITY_24H',
+        serviceRegionId: REGION_ID,
         actor: makeActor(),
       });
 
@@ -523,7 +632,7 @@ describe('CreateServiceGroupUseCase', () => {
       );
 
       const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), undefined, tenantRepo,
+        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), serviceRegionRepo, tenantRepo,
       );
 
       const appointmentIds = makeAppointmentIds(5);
@@ -539,6 +648,7 @@ describe('CreateServiceGroupUseCase', () => {
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
         priorityMode: 'STANDARD',
+        serviceRegionId: REGION_ID,
         actor: makeActor(),
       });
 
@@ -552,7 +662,7 @@ describe('CreateServiceGroupUseCase', () => {
       );
 
       const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), undefined, tenantRepo,
+        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), serviceRegionRepo, tenantRepo,
       );
 
       const appointmentIds = makeAppointmentIds(5);
@@ -573,6 +683,7 @@ describe('CreateServiceGroupUseCase', () => {
           scheduledDate: dateStr,
           timeWindow: '09:00-12:00',
           priorityMode: 'PRIORITY_24H',
+          serviceRegionId: REGION_ID,
           actor: makeActor(),
         }),
       ).rejects.toThrow(PriorityDateTooCloseError);
@@ -593,6 +704,7 @@ describe('CreateServiceGroupUseCase', () => {
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
       priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
       actor: makeActor({ userId: 'actor-am' }),
     });
 

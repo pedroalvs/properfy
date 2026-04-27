@@ -24,6 +24,7 @@ describe('createServiceGroupSchema', () => {
     scheduledDate: '2026-04-15',
     timeWindow: '08:00-12:00',
     priorityMode: 'STANDARD' as const,
+    serviceRegionId: validUuid,
   };
 
   it('should accept valid input', () => {
@@ -91,6 +92,20 @@ describe('createServiceGroupSchema', () => {
   it('should reject missing serviceTypeId', () => {
     const { serviceTypeId: _serviceTypeId, ...rest } = validInput;
     const result = createServiceGroupSchema.safeParse(rest);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing serviceRegionId', () => {
+    const { serviceRegionId: _serviceRegionId, ...rest } = validInput;
+    const result = createServiceGroupSchema.safeParse(rest);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid UUID for serviceRegionId', () => {
+    const result = createServiceGroupSchema.safeParse({
+      ...validInput,
+      serviceRegionId: 'not-a-uuid',
+    });
     expect(result.success).toBe(false);
   });
 });

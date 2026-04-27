@@ -15,12 +15,14 @@ export interface ResolveRegionsResult {
   unmatchedAppointmentIds: string[];
 }
 
-export function useResolveRegions(appointmentIds: string[]) {
+export function useResolveRegions(appointmentIds: string[], tenantId?: string) {
   return useQuery({
-    queryKey: ['service-regions', 'resolve', appointmentIds],
+    queryKey: ['service-regions', 'resolve', appointmentIds, tenantId],
     queryFn: async () => {
+      const body: Record<string, unknown> = { appointmentIds };
+      if (tenantId) body.tenantId = tenantId;
       const { data, error } = await api.POST('/v1/service-regions/resolve' as any, {
-        body: { appointmentIds } as any,
+        body: body as any,
       });
       if (error) throw new Error((error as any)?.error?.message ?? 'Failed to resolve regions');
       return ((data as any)?.data ?? data) as ResolveRegionsResult;

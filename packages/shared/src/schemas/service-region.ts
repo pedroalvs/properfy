@@ -44,6 +44,8 @@ export type ListServiceRegionsQueryInput = z.infer<typeof listServiceRegionsQuer
 
 export const resolveRegionsSchema = z.object({
   appointmentIds: z.array(z.string().uuid()).min(1).max(200),
+  /** Required for cross-tenant AM/OP callers whose JWT carries no tenantId. */
+  tenantId: z.string().uuid().optional(),
 });
 export type ResolveRegionsInput = z.infer<typeof resolveRegionsSchema>;
 

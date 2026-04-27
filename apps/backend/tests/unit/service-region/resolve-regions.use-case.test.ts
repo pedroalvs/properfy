@@ -71,7 +71,47 @@ describe('ResolveRegionsUseCase', () => {
     expect(result.unmatchedAppointmentIds).toEqual(['apt-3']);
   });
 
-  it('should reject when actor has no tenantId', async () => {
+  it('should resolve cross-tenant when AM has no JWT tenantId but body tenantId provided', async () => {
+    const result = await useCase.execute({
+      appointmentIds: ['apt-1'],
+      tenantId: 'tenant-from-body',
+      actor: makeActor({ tenantId: null }),
+    });
+
+    expect(regionRepo.resolveRegionsForAppointments).toHaveBeenCalledWith(
+      'tenant-from-body',
+      ['apt-1'],
+    );
+    expect(result.regions).toHaveLength(0);
+  });
+
+  it('should prefer JWT tenantId over body tenantId for AM', async () => {
+    await useCase.execute({
+      appointmentIds: ['apt-1'],
+      tenantId: 'tenant-from-body',
+      actor: makeActor({ tenantId: 'tenant-from-jwt' }),
+    });
+
+    expect(regionRepo.resolveRegionsForAppointments).toHaveBeenCalledWith(
+      'tenant-from-jwt',
+      ['apt-1'],
+    );
+  });
+
+  it('should resolve cross-tenant when OP has body tenantId', async () => {
+    await useCase.execute({
+      appointmentIds: ['apt-1'],
+      tenantId: 'tenant-from-body',
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    expect(regionRepo.resolveRegionsForAppointments).toHaveBeenCalledWith(
+      'tenant-from-body',
+      ['apt-1'],
+    );
+  });
+
+  it('should reject when AM has no JWT tenantId and no body tenantId', async () => {
     await expect(
       useCase.execute({
         appointmentIds: ['apt-1'],

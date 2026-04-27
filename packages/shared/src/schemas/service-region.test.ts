@@ -270,4 +270,20 @@ describe('resolveRegionsSchema', () => {
     const result = resolveRegionsSchema.safeParse({ appointmentIds: ['not-a-uuid'] });
     expect(result.success).toBe(false);
   });
+
+  it('accepts optional tenantId UUID for cross-tenant callers', () => {
+    const result = resolveRegionsSchema.safeParse({
+      appointmentIds: generateUuids(1),
+      tenantId: randomUUID(),
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects invalid tenantId', () => {
+    const result = resolveRegionsSchema.safeParse({
+      appointmentIds: generateUuids(1),
+      tenantId: 'not-a-uuid',
+    });
+    expect(result.success).toBe(false);
+  });
 });
