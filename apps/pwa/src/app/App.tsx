@@ -4,7 +4,6 @@ import { QueryProvider } from '@/app/QueryProvider';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { Snackbar } from '@/components/feedback/Snackbar';
 import { ErrorBoundary } from '@/app/ErrorBoundary';
-import { SwUpdatePrompt } from '@/app/SwUpdatePrompt';
 import { InstallPromptProvider } from '@/app/useInstallPrompt';
 import { router } from '@/app/router';
 import { useOfflineQueue } from '@/features/execution/hooks/useOfflineQueue';
@@ -29,7 +28,6 @@ export function App() {
             </AuthProvider>
           </InstallPromptProvider>
           <Snackbar />
-          <SwUpdatePrompt />
         </SnackbarProvider>
       </QueryProvider>
     </ErrorBoundary>
