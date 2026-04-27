@@ -137,7 +137,18 @@ function renderPage() {
 describe('ServiceGroupCreatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPost.mockResolvedValue({ data: { data: { id: '33333333-3333-4333-8333-333333333333' } } });
+    mockPost.mockImplementation((url: string) => {
+      if (url === '/v1/service-regions/resolve') {
+        return Promise.resolve({
+          data: {
+            regions: [{ regionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', regionName: 'Sydney CBD', matchedAppointmentCount: 5, inspectorCount: 2, color: '#ff0000' }],
+            totalAppointments: 5,
+            unmatchedAppointmentIds: [],
+          },
+        });
+      }
+      return Promise.resolve({ data: { data: { id: '33333333-3333-4333-8333-333333333333' } } });
+    });
   });
 
   it('renders page title', () => {
@@ -253,6 +264,12 @@ describe('ServiceGroupCreatePage', () => {
     selectMinAppointments();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.change(screen.getByLabelText('Scheduled Date'), { target: { value: '2026-04-10' } });
+
+    // Wait for the region selector to load its options then select one
+    await waitFor(() => expect(screen.getByLabelText('Target Region')).not.toBeDisabled());
+    fireEvent.click(screen.getByLabelText('Target Region'));
+    fireEvent.click(screen.getByRole('option', { name: /Sydney CBD/ }));
+
     fireEvent.click(screen.getByRole('button', { name: 'Create Group' }));
 
     await waitFor(() => {
@@ -263,6 +280,7 @@ describe('ServiceGroupCreatePage', () => {
           scheduledDate: '2026-04-10',
           timeWindow: '08:00-17:00',
           priorityMode: 'STANDARD',
+          serviceRegionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
         },
       });
     });

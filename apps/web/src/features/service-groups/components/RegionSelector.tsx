@@ -24,7 +24,7 @@ export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChang
     }));
   }, [data]);
 
-  const selectedRegion = data?.regions.find((r) => r.regionId === selectedRegionId);
+  const selectedRegion = data?.regions?.find((r) => r.regionId === selectedRegionId);
   const unmatchedCount = data?.unmatchedAppointmentIds.length ?? 0;
   const hasPartialMatch = unmatchedCount > 0 && (data?.regions.length ?? 0) > 0;
   const hasNoMatch = (data?.regions.length ?? 0) === 0 && !isLoading && appointmentIds.length > 0;

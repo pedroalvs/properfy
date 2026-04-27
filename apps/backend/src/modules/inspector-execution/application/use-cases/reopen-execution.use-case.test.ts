@@ -15,7 +15,7 @@ const AM_ACTOR = {
   inspectorId: null,
 };
 
-const OP_ACTOR = {
+const _OP_ACTOR = {
   userId: 'user-op',
   tenantId: null,
   branchId: null,
