@@ -127,14 +127,14 @@ describe('ReopenExecutionUseCase', () => {
     );
   });
 
-  it('rejects non-AM actors with ForbiddenError', async () => {
+  it('rejects non-AM non-OP actors with ForbiddenError', async () => {
     const { useCase } = buildUseCase();
 
     await expect(
       useCase.execute({
         appointmentId: 'apt-1',
         reason: 'Missing photos',
-        actor: OP_ACTOR,
+        actor: INSP_ACTOR,
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });

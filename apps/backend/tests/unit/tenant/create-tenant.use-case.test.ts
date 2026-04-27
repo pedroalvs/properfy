@@ -117,8 +117,8 @@ describe('CreateTenantUseCase', () => {
     );
   });
 
-  it('should reject non-AM roles with AUTH_FORBIDDEN', async () => {
-    for (const role of ['CL_ADMIN', 'OP', 'INSP', 'CL_USER'] as const) {
+  it('should reject non-AM non-OP roles with AUTH_FORBIDDEN', async () => {
+    for (const role of ['CL_ADMIN', 'INSP', 'CL_USER'] as const) {
       await expect(
         useCase.execute({
           name: 'Agency',

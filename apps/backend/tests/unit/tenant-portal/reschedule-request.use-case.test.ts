@@ -460,9 +460,16 @@ describe('RescheduleRequestUseCase', () => {
       settingsJson: { portalRescheduleWindowDays: 14 },
     }));
 
-    // 5 days ahead of today is always both inside the 14-day window and
-    // never in the past (was previously a literal '2026-04-20', which
-    // drifted into the past once real-world time crossed that date).
+    // The window is measured from scheduledDate, not from today. Pin scheduledDate
+    // to today so that "today + 5 days" is always within the 14-day window.
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ scheduledDate: todayDate }),
+      contact: null,
+      restrictions: [],
+    });
+
     const inWindow = new Date(Date.now() + 5 * 24 * 3600 * 1000)
       .toISOString()
       .split('T')[0]!;
