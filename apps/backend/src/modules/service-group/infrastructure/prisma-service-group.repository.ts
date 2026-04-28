@@ -31,7 +31,7 @@ function mapToEntity(row: any): ServiceGroupEntity {
     exceptionType: (row.exception_type as ServiceGroupExceptionType) ?? null,
     exceptionReason: row.exception_reason ?? null,
     assignedInspectorId: row.assigned_inspector_id,
-    serviceRegionId: row.service_region_id ?? null,
+    serviceRegionId: row.service_region_id,
     publishedAt: row.published_at,
     assignedAt: row.assigned_at,
     createdByUserId: row.created_by_user_id,
