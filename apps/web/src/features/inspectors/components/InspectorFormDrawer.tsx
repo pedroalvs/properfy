@@ -76,7 +76,13 @@ export function InspectorFormDrawer({
         status: inspector.status,
         regionIds: inspector.regionIds ?? [],
         serviceTypes: (inspector.serviceTypes ?? []).map((s) => s.serviceTypeId).join(','),
-        clientEligibility: (inspector.clientEligibility ?? []).map((c) => c.tenantId),
+        // Tolerate both legacy string-array storage and the typed entry format —
+        // older inspector records may have `client_eligibility_json: ["t-1", ...]`
+        // instead of `[{tenantId,eligible}]`. Drop empty/missing tenantIds so the
+        // form's `clientEligibility: string[]` invariant holds.
+        clientEligibility: (inspector.clientEligibility ?? [])
+          .map((c) => (typeof c === 'string' ? c : c?.tenantId))
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
         fullName: inspector.fullName ?? '',
         abn: inspector.abn ?? '',
         dateOfBirth: inspector.dateOfBirth ?? '',

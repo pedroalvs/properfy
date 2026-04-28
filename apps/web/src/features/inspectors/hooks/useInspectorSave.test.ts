@@ -147,6 +147,46 @@ describe('useInspectorSave', () => {
     expect(saveResult?.error).toBe('An inspector with this email already exists');
   });
 
+  // Regression: legacy/partially-loaded form data could send `[{eligible:true}]`
+  // entries with no tenantId, failing server-side validation. The save logic
+  // must drop falsy/blank tenantIds and omit the field entirely when nothing valid remains.
+  it('save drops clientEligibility entries with empty/missing tenantId', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+    await act(async () => {
+      // string[] with falsy values mimics the legacy/buggy form state where
+      // `inspector.clientEligibility = ["t-1", "t-2"]` (legacy) was mapped via
+      // `c.tenantId` and produced `[undefined, undefined]`.
+      await result.current.save(
+        { ...VALID_CREATE_DATA, clientEligibility: ['', '   ', undefined as unknown as string] },
+        'insp-01',
+      );
+    });
+
+    const body = mockPatch.mock.calls.at(-1)?.[1]?.body as Record<string, unknown>;
+    expect(body).toBeDefined();
+    expect(body.clientEligibility).toBeUndefined();
+  });
+
+  it('save sends clientEligibility entries with valid tenantIds', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save(
+        { ...VALID_CREATE_DATA, clientEligibility: ['ten-01', 'ten-02'] },
+        'insp-01',
+      );
+    });
+
+    const body = mockPatch.mock.calls.at(-1)?.[1]?.body as Record<string, unknown>;
+    expect(body.clientEligibility).toEqual([
+      { tenantId: 'ten-01', eligible: true },
+      { tenantId: 'ten-02', eligible: true },
+    ]);
+  });
+
   it('isSaving is true during save operation', async () => {
     let resolvePost!: (value: unknown) => void;
     mockPost.mockReturnValueOnce(new Promise((resolve) => { resolvePost = resolve; }));

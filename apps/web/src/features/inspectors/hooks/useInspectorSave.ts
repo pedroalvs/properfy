@@ -40,8 +40,11 @@ function parseServiceTypeEntries(value: string): Array<{ serviceTypeId: string; 
 }
 
 function parseClientEligibilityEntries(value: string[]): Array<{ tenantId: string; eligible: boolean }> | undefined {
-  if (value.length === 0) return undefined;
-  return value.map((id) => ({ tenantId: id, eligible: true }));
+  // Drop falsy/blank tenantIds so legacy or partially-loaded form data cannot
+  // produce `[{eligible:true}]` entries that fail server-side `tenantId.uuid` validation.
+  const validIds = value.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+  if (validIds.length === 0) return undefined;
+  return validIds.map((id) => ({ tenantId: id, eligible: true }));
 }
 
 export interface SaveResult {
