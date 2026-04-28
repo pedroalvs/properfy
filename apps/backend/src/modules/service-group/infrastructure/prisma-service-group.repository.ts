@@ -450,8 +450,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     limit: number,
     offset: number,
   ): Promise<string[]> {
+    // GROUP BY (instead of SELECT DISTINCT) so ORDER BY can reference
+    // sg.scheduled_date — Postgres rejects "SELECT DISTINCT … ORDER BY <col not
+    // in select list>" with code 42P10. The id tiebreaker keeps pagination stable.
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
-      SELECT DISTINCT sg.id
+      SELECT sg.id
       FROM service_groups sg
       JOIN appointments a ON a.service_group_id = sg.id
         AND a.deleted_at IS NULL
@@ -469,7 +472,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
         AND sg.tenant_id = ANY(${inspectorClientEligibility}::text[])
         AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
-      ORDER BY sg.scheduled_date ASC
+      GROUP BY sg.id, sg.scheduled_date
+      ORDER BY sg.scheduled_date ASC, sg.id ASC
       LIMIT ${limit}
       OFFSET ${offset}
     `;
