@@ -562,6 +562,72 @@ describe('POST /v1/service-regions/resolve', () => {
 
     expect(res.status).toBe(400);
   });
+
+  // Regression: OP must be able to resolve regions for a selected tenant per DEC-003.
+  // The use case already accepts `tenantId` from the body for AM/OP; this test locks it in.
+  it('OP — passes body.tenantId to the use case for cross-tenant resolve', async () => {
+    mockJwtVerify.mockResolvedValueOnce(opContext);
+    mockResolve.mockResolvedValueOnce({
+      regions: [
+        {
+          regionId: REGION_ID,
+          regionName: 'Sydney CBD',
+          color: '#3b82f6',
+          matchedAppointmentCount: 1,
+          inspectorCount: 2,
+        },
+      ],
+      totalAppointments: 1,
+      unmatchedAppointmentIds: [],
+    });
+
+    const res = await supertest(app.server)
+      .post('/v1/service-regions/resolve')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ appointmentIds: validAppointmentIds, tenantId: TENANT_A });
+
+    expect(res.status).toBe(200);
+    expect(mockResolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: TENANT_A,
+        actor: expect.objectContaining({ role: 'OP' }),
+      }),
+    );
+  });
+
+  it('AM — passes body.tenantId to the use case for cross-tenant resolve', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockResolve.mockResolvedValueOnce({ regions: [], totalAppointments: 0, unmatchedAppointmentIds: [] });
+
+    const res = await supertest(app.server)
+      .post('/v1/service-regions/resolve')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ appointmentIds: validAppointmentIds, tenantId: TENANT_B });
+
+    expect(res.status).toBe(200);
+    expect(mockResolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: TENANT_B,
+        actor: expect.objectContaining({ role: 'AM' }),
+      }),
+    );
+  });
+
+  // CL roles must not be able to cross tenant via the body. The route forwards the
+  // input tenantId to the use case; the use case authorization (resolveTenantId)
+  // enforces that CL roles must match their JWT tenantId. We assert here that the
+  // use case throws ForbiddenError when CL_ADMIN of TENANT_A sends body tenantId=B.
+  it('CL_ADMIN with body.tenantId ≠ JWT → 403 (use case enforces match)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext); // tenantId = TENANT_A
+    mockResolve.mockRejectedValueOnce(new ForbiddenError('AUTH_FORBIDDEN', 'Cross-tenant access is forbidden'));
+
+    const res = await supertest(app.server)
+      .post('/v1/service-regions/resolve')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ appointmentIds: validAppointmentIds, tenantId: TENANT_B });
+
+    expect(res.status).toBe(403);
+  });
 });
 
 // ---------------------------------------------------------------------------

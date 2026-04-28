@@ -33,11 +33,22 @@ vi.mock('@/lib/api-error', () => ({
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: { getAccessToken: vi.fn(() => null), hasTokens: vi.fn(() => false), setTokens: vi.fn(), clearTokens: vi.fn() },
 }));
+// Loose typing: tests override role and tenantId (including null for cross-tenant OP).
+type AuthMock = {
+  user: { id: string; name: string; email: string; role: string; tenantId: string | null };
+  token: string;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: ReturnType<typeof vi.fn>;
+  logout: ReturnType<typeof vi.fn>;
+};
+const mockUseAuth = vi.fn<[], AuthMock>(() => ({
+  user: { id: 'usr-1', name: 'Admin', email: 'admin@test.com', role: 'AM', tenantId: 't-1' },
+  token: 'mock-token', isAuthenticated: true, isLoading: false, login: vi.fn(), logout: vi.fn(),
+}));
+
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { id: 'usr-1', name: 'Admin', email: 'admin@test.com', role: 'AM', tenantId: 't-1' },
-    token: 'mock-token', isAuthenticated: true, isLoading: false, login: vi.fn(), logout: vi.fn(),
-  }),
+  useAuth: () => mockUseAuth(),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -146,6 +157,11 @@ describe('AppointmentFormDrawer', () => {
     mockValidate.mockReturnValue({});
     mockUseFormOptions.mockImplementation(() => ({ options: [], isLoading: false }));
     mockPost.mockResolvedValue({ data: { data: { id: 'apt-01', status: 'SCHEDULED' } }, error: null });
+    // Default to AM user; individual tests override (e.g., OP cross-tenant regression below).
+    mockUseAuth.mockReturnValue({
+      user: { id: 'usr-1', name: 'Admin', email: 'admin@test.com', role: 'AM', tenantId: 't-1' },
+      token: 'mock-token', isAuthenticated: true, isLoading: false, login: vi.fn(), logout: vi.fn(),
+    });
   });
 
   it('renders create mode with correct title, form sections, and cancel calls onClose', () => {
@@ -269,5 +285,44 @@ describe('AppointmentFormDrawer', () => {
         headers: { 'Idempotency-Key': expect.any(String) },
       },
     );
+  });
+
+  // Regression: cross-tenant OP (tenantId=null in JWT) selects an agency in step 1
+  // and the branches request must forward `tenantId=<selected>` so the new backend
+  // resolution path returns that tenant's branches. Pre-fix: the request body was
+  // built but the backend ignored it for OP, returning empty list.
+  it('OP cross-tenant: selecting agency forwards tenantId to /v1/branches request', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'op-1', name: 'Operator', email: 'op@test.com', role: 'OP', tenantId: null },
+      token: 'mock-token', isAuthenticated: true, isLoading: false, login: vi.fn(), logout: vi.fn(),
+    });
+
+    // Provide tenant options so the agency dropdown has something to pick.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/tenants') {
+        return { options: [{ value: 't-agency-99', label: 'Agency Beta' }], isLoading: false };
+      }
+      return { options: [], isLoading: false };
+    }) as any);
+
+    renderDrawer();
+
+    // Pick the agency
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency Beta'));
+
+    // Find the most recent /v1/branches call and assert the extraParams carry tenantId.
+    await waitFor(() => {
+      const branchesCall = mockUseFormOptions.mock.calls
+        .filter((call) => call[1] === '/v1/branches')
+        .at(-1);
+      expect(branchesCall).toBeDefined();
+      // useFormOptions signature: (queryKey, path, mapFn, extraParams, options)
+      expect((branchesCall as unknown[] | undefined)?.[3]).toMatchObject({
+        tenantId: 't-agency-99',
+        status: 'ACTIVE',
+      });
+    });
   });
 });

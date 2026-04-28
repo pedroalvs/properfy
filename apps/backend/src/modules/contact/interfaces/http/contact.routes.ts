@@ -65,10 +65,14 @@ export async function registerContactRoutes(
         return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Request payload is invalid', details: bodyParsed.error.errors } });
       }
       const parsed = bodyParsed.data;
-      const tenantId = auth.role === 'AM' && parsed.tenantId ? parsed.tenantId : auth.tenantId;
+      // AM and OP are both cross-tenant per DEC-003; either may select a target tenant
+      // via `body.tenantId`. CL roles are pinned to JWT tenantId and ignore the body field.
+      const tenantId = (auth.role === 'AM' || auth.role === 'OP') && parsed.tenantId
+        ? parsed.tenantId
+        : auth.tenantId;
 
       if (!tenantId) {
-        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'tenantId is required for AM' } });
+        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'tenantId is required for AM/OP without a selected tenant' } });
       }
 
       const contact = await container.createContactUseCase.execute({
