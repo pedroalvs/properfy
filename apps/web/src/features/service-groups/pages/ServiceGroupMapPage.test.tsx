@@ -51,7 +51,16 @@ const MOCK_GROUPS = [
     priorityMode: 'STANDARD',
     appointmentsCount: 2,
     appointments: [
-      { id: 'apt-1', code: 'VST-001', status: 'SCHEDULED', address: '123 Main St', latitude: -33.8, longitude: 151.2 },
+      {
+        id: 'apt-1',
+        code: 'VST-001',
+        status: 'SCHEDULED',
+        address: '123 Main St',
+        latitude: -33.8,
+        longitude: 151.2,
+        scheduledDate: '2026-05-01',
+        inspectorName: 'John Smith',
+      },
     ],
   },
 ];
@@ -119,13 +128,41 @@ describe('ServiceGroupMapPage', () => {
     });
   });
 
-  it('shows instruction when no group selected', () => {
-    renderPage();
-    expect(screen.getByText('Select a service group to view appointments on map')).toBeInTheDocument();
-  });
-
   it('renders status filter', () => {
     renderPage();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
+  });
+
+  // Regression: date filters must be present (parity with AppointmentMapPage).
+  it('renders From Date and To Date filters', () => {
+    renderPage();
+    expect(screen.getByLabelText('From Date')).toBeInTheDocument();
+    expect(screen.getByLabelText('To Date')).toBeInTheDocument();
+  });
+
+  it('renders Search filter', () => {
+    renderPage();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+  });
+
+  // Regression: "select first" overlay must NOT exist — all pins visible without group selection.
+  it('does not show "select a service group" instruction when no group is selected', () => {
+    renderPage();
+    expect(
+      screen.queryByText('Select a service group to view appointments on map'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows empty state in side panel when no groups returned', async () => {
+    mockGet.mockResolvedValue({
+      data: {
+        data: [],
+        pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 },
+      },
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('No service groups found')).toBeInTheDocument();
+    });
   });
 });

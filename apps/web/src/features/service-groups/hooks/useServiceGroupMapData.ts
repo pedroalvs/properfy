@@ -15,17 +15,23 @@ export interface ServiceGroupMapItem {
     address: string;
     latitude: number;
     longitude: number;
+    scheduledDate?: string;
+    inspectorName?: string | null;
   }[];
 }
 
 export interface ServiceGroupMapFilters {
   status: string;
   search: string;
+  dateFrom: string;
+  dateTo: string;
 }
 
 export const DEFAULT_SG_MAP_FILTERS: ServiceGroupMapFilters = {
   status: '',
   search: '',
+  dateFrom: '',
+  dateTo: '',
 };
 
 export interface UseServiceGroupMapDataReturn {
@@ -51,11 +57,13 @@ export function useServiceGroupMapData(): UseServiceGroupMapDataReturn {
     sortOrder: 'asc',
     status: filters.status || undefined,
     search: filters.search || undefined,
+    dateFrom: filters.dateFrom || undefined,
+    dateTo: filters.dateTo || undefined,
     includeAppointments: true,
   };
 
   const { data: response, isLoading, isError, error, refetch } = usePaginatedQuery<ServiceGroupMapItem>(
-    ['service-groups-map'],
+    ['service-groups-map', filters.status, filters.search, filters.dateFrom, filters.dateTo],
     '/v1/service-groups',
     params,
   );

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
 import type { ReactNode } from 'react';
@@ -114,5 +114,40 @@ describe('useServiceGroupMapData', () => {
     await waitFor(() => {
       expect(result.current.isError).toBe(true);
     });
+  });
+
+  // Date filter parity with AppointmentMapPage.
+  it('includes dateFrom and dateTo in default filters', () => {
+    const { result } = renderHook(() => useServiceGroupMapData(), {
+      wrapper: createWrapper(),
+    });
+    expect(result.current.filters.dateFrom).toBe('');
+    expect(result.current.filters.dateTo).toBe('');
+  });
+
+  it('updates dateFrom filter and refetches', async () => {
+    const { result } = renderHook(() => useServiceGroupMapData(), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+
+    act(() => {
+      result.current.setFilters({ ...result.current.filters, dateFrom: '2026-05-01' });
+    });
+
+    expect(result.current.filters.dateFrom).toBe('2026-05-01');
+  });
+
+  it('updates dateTo filter', async () => {
+    const { result } = renderHook(() => useServiceGroupMapData(), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+
+    act(() => {
+      result.current.setFilters({ ...result.current.filters, dateTo: '2026-05-31' });
+    });
+
+    expect(result.current.filters.dateTo).toBe('2026-05-31');
   });
 });

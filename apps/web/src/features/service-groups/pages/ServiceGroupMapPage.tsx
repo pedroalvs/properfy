@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type mapboxgl from 'mapbox-gl';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -9,6 +9,7 @@ import { MapPopup } from '@/components/map/MapPopup';
 import { MapFiltersPanel } from '@/components/map/MapFiltersPanel';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
 import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
+import { formatDate } from '@/lib/format-date';
 import { FilterSelect } from '@/components/filters/FilterSelect';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -27,12 +28,26 @@ const STATUS_OPTIONS = [
   { label: 'Cancelled', value: 'CANCELLED' },
 ];
 
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#CE93D8',
-  PUBLISHED: '#FFB74D',
-  ACCEPTED: '#81C784',
+// Appointment-level status colors for map pins (matching AppointmentMapPage).
+const APPOINTMENT_STATUS_COLORS: Record<string, string> = {
+  DRAFT: '#E1BEE7',
+  AWAITING_INSPECTOR: '#FFE0B2',
+  SCHEDULED: '#2196F3',
+  DONE: '#4CAF50',
   CANCELLED: '#EF5350',
+  REJECTED: '#FF7043',
 };
+
+interface PopupAppointment {
+  id: string;
+  code: string;
+  status: string;
+  address: string;
+  longitude: number;
+  latitude: number;
+  scheduledDate?: string;
+  inspectorName?: string | null;
+}
 
 export function ServiceGroupMapPage() {
   const navigate = useNavigate();
@@ -48,26 +63,28 @@ export function ServiceGroupMapPage() {
     setSelectedGroupId,
   } = useServiceGroupMapData();
 
-  const [popupAppointment, setPopupAppointment] = useState<{
-    id: string;
-    code: string;
-    status: string;
-    address: string;
-  } | null>(null);
+  const [popupAppointment, setPopupAppointment] = useState<PopupAppointment | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
 
-  const selectedGroup = data.find((g) => g.id === selectedGroupId) ?? null;
-  const visibleAppointments = selectedGroup?.appointments ?? [];
+  // All valid pins across all groups — enables "show all" behavior without requiring group selection.
+  const allPins = useMemo(
+    () =>
+      data.flatMap((group) =>
+        group.appointments
+          .filter(
+            (apt): apt is typeof apt & { latitude: number; longitude: number } =>
+              apt.latitude != null && apt.longitude != null,
+          )
+          .map((apt) => ({ ...apt, groupId: group.id })),
+      ),
+    [data],
+  );
 
-  // Auto-fit map bounds to the selected group's appointments (FR-004).
+  // Auto-fit map bounds to all visible pins on initial load / filter change (matching AppointmentMapPage).
   useEffect(() => {
     if (!mapInstance) return;
-    if (!selectedGroup) return;
-    const points = visibleAppointments.map((apt) => ({
-      latitude: apt.latitude,
-      longitude: apt.longitude,
-    }));
-    const bounds = computeBounds(points);
+    const bounds = computeBounds(allPins.map((p) => ({ latitude: p.latitude, longitude: p.longitude })));
     if (!bounds) return;
     if (isSinglePointBounds(bounds)) {
       const [[lng, lat]] = bounds as [[number, number], [number, number]];
@@ -75,14 +92,52 @@ export function ServiceGroupMapPage() {
     } else {
       mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
     }
-  }, [selectedGroup, visibleAppointments, mapInstance]);
+  }, [mapInstance, allPins]);
+
+  // Keep popup screen position in sync with pin as the map pans/zooms (matching AppointmentMapPage).
+  useEffect(() => {
+    if (!mapInstance || !popupAppointment) {
+      setPopupPosition(null);
+      return;
+    }
+    const update = () => {
+      const { x, y } = mapInstance.project([popupAppointment.longitude, popupAppointment.latitude]);
+      setPopupPosition({ x, y });
+    };
+    update();
+    mapInstance.on('move', update);
+    return () => { mapInstance.off('move', update); };
+  }, [mapInstance, popupAppointment]);
 
   const handleGroupClick = useCallback(
     (group: ServiceGroupMapItem) => {
-      setSelectedGroupId(group.id === selectedGroupId ? null : group.id);
+      const nextId = group.id === selectedGroupId ? null : group.id;
+      setSelectedGroupId(nextId);
       setPopupAppointment(null);
+
+      if (nextId && mapInstance) {
+        const validApts = group.appointments.filter(
+          (a): a is typeof a & { latitude: number; longitude: number } =>
+            a.latitude != null && a.longitude != null,
+        );
+        const bounds = computeBounds(
+          validApts.map((a) => ({ latitude: a.latitude, longitude: a.longitude })),
+        );
+        if (bounds) {
+          if (isSinglePointBounds(bounds)) {
+            const [[lng, lat]] = bounds as [[number, number], [number, number]];
+            mapInstance.flyTo({
+              center: [lng, lat],
+              zoom: Math.max(mapInstance.getZoom(), 13),
+              duration: 700,
+            });
+          } else {
+            mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 700 });
+          }
+        }
+      }
     },
-    [selectedGroupId, setSelectedGroupId],
+    [selectedGroupId, setSelectedGroupId, mapInstance],
   );
 
   const handleRecenter = useCallback(() => {
@@ -103,6 +158,18 @@ export function ServiceGroupMapPage() {
             value={filters.status}
             options={STATUS_OPTIONS}
             onChange={(value) => setFilters({ ...filters, status: value })}
+          />
+          <FilterInput
+            label="From Date"
+            value={filters.dateFrom}
+            onChange={(value) => setFilters({ ...filters, dateFrom: value })}
+            placeholder="YYYY-MM-DD"
+          />
+          <FilterInput
+            label="To Date"
+            value={filters.dateTo}
+            onChange={(value) => setFilters({ ...filters, dateTo: value })}
+            placeholder="YYYY-MM-DD"
           />
           <FilterInput
             label="Search"
@@ -153,52 +220,74 @@ export function ServiceGroupMapPage() {
     </div>
   );
 
-  const validPins = visibleAppointments.filter(
-    (apt): apt is typeof apt & { latitude: number; longitude: number } =>
-      apt.latitude != null && apt.longitude != null,
-  );
-
   const mapContent = (
     <div className="relative h-full">
       <MapContainer onMapReady={setMapInstance}>
-        {validPins.map((apt) => (
+        {allPins.map((apt) => (
           <MapMarker
             key={apt.id}
             longitude={apt.longitude}
             latitude={apt.latitude}
-            color={STATUS_COLORS[selectedGroup?.status ?? ''] ?? '#9E9E9E'}
+            color={APPOINTMENT_STATUS_COLORS[apt.status] ?? '#9E9E9E'}
             label={apt.code}
-            active={popupAppointment?.id === apt.id}
-            onClick={() => setPopupAppointment(apt)}
+            active={
+              selectedGroupId
+                ? apt.groupId === selectedGroupId
+                : popupAppointment?.id === apt.id
+            }
+            onClick={() =>
+              setPopupAppointment({
+                id: apt.id,
+                code: apt.code,
+                status: apt.status,
+                address: apt.address,
+                longitude: apt.longitude,
+                latitude: apt.latitude,
+                scheduledDate: apt.scheduledDate,
+                inspectorName: apt.inspectorName,
+              })
+            }
           />
         ))}
       </MapContainer>
 
-      {!selectedGroup && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50/50">
-          <p className="text-sm text-text-muted">Select a service group to view appointments on map</p>
-        </div>
-      )}
-
-      {popupAppointment && (
-        <div className="absolute left-1/2 top-1/3 -translate-x-1/2">
-          <MapPopup
-            title={popupAppointment.code}
-            onClose={() => setPopupAppointment(null)}
-            actions={[
-              { label: 'View Details', onClick: () => navigate(`/appointments/${popupAppointment.id}`) },
-            ]}
-          >
-            <div className="space-y-1">
+      {popupAppointment && popupPosition && (
+        <MapPopup
+          title={popupAppointment.code}
+          onClose={() => setPopupAppointment(null)}
+          actions={[
+            { label: 'View Details', onClick: () => navigate(`/appointments/${popupAppointment.id}`) },
+          ]}
+          style={{
+            left: popupPosition.x,
+            top: popupPosition.y,
+            transform:
+              popupPosition.y > 220
+                ? 'translate(-50%, calc(-100% - 14px))'
+                : 'translate(-50%, 14px)',
+          }}
+        >
+          <div className="space-y-1">
+            <p>
+              <span className="text-text-muted">Status:</span> {popupAppointment.status}
+            </p>
+            <p>
+              <span className="text-text-muted">Address:</span> {popupAppointment.address}
+            </p>
+            {popupAppointment.scheduledDate && (
               <p>
-                <span className="text-text-muted">Status:</span> {popupAppointment.status}
+                <span className="text-text-muted">Date:</span>{' '}
+                {formatDate(popupAppointment.scheduledDate)}
               </p>
+            )}
+            {popupAppointment.inspectorName && (
               <p>
-                <span className="text-text-muted">Address:</span> {popupAppointment.address}
+                <span className="text-text-muted">Inspector:</span>{' '}
+                {popupAppointment.inspectorName}
               </p>
-            </div>
-          </MapPopup>
-        </div>
+            )}
+          </div>
+        </MapPopup>
       )}
 
       <MapFloatingAction
