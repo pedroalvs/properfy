@@ -24,7 +24,17 @@ export interface UpdateInspectorInput {
     regions?: string[];
     regionIds?: string[];
     serviceTypes?: ServiceTypeEntry[];
+    /** @deprecated Kept for backwards-compatibility; use blockedClients. */
     clientEligibility?: ClientEligibilityEntry[];
+    blockedClients?: string[];
+    fullName?: string | null;
+    address?: Record<string, unknown> | null;
+    abn?: string | null;
+    dateOfBirth?: string | null;
+    insuranceFileKey?: string | null;
+    insuranceExpiresAt?: string | null;
+    policeCheckFileKey?: string | null;
+    policeCheckExpiresAt?: string | null;
   };
   actor: AuthContext;
 }
@@ -91,6 +101,18 @@ export class UpdateInspectorUseCase {
     if (data.paymentSettings !== undefined) updateData.paymentSettingsJson = data.paymentSettings;
     if (data.serviceTypes !== undefined) updateData.serviceTypesJson = data.serviceTypes;
     if (data.clientEligibility !== undefined) updateData.clientEligibilityJson = data.clientEligibility;
+    if (data.blockedClients !== undefined) updateData.blockedClientsJson = data.blockedClients;
+    if (data.fullName !== undefined) updateData.fullName = data.fullName;
+    if (data.address !== undefined) updateData.address = data.address;
+    if (data.abn !== undefined) updateData.abn = data.abn;
+    if (data.dateOfBirth !== undefined)
+      updateData.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+    if (data.insuranceFileKey !== undefined) updateData.insuranceFileKey = data.insuranceFileKey;
+    if (data.insuranceExpiresAt !== undefined)
+      updateData.insuranceExpiresAt = data.insuranceExpiresAt ? new Date(data.insuranceExpiresAt) : null;
+    if (data.policeCheckFileKey !== undefined) updateData.policeCheckFileKey = data.policeCheckFileKey;
+    if (data.policeCheckExpiresAt !== undefined)
+      updateData.policeCheckExpiresAt = data.policeCheckExpiresAt ? new Date(data.policeCheckExpiresAt) : null;
 
     await this.inspectorRepo.update(inspectorId, updateData);
 

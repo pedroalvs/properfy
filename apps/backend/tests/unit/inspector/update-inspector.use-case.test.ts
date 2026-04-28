@@ -108,6 +108,66 @@ describe('UpdateInspectorUseCase', () => {
     ).rejects.toThrow(InspectorNotFoundError);
   });
 
+  // Regression: PATCH must persist `blockedClients` and profile fields. Before
+  // this fix the use case silently dropped them, which made it impossible to
+  // clear an inspector's blocked-tenant list via the UI and caused the
+  // INSPECTOR_INELIGIBLE failure in the marketplace accept flow.
+  it('persists blockedClients and profile fields on update', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector({ blockedClientsJson: ['tenant-X'] }));
+
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      data: {
+        blockedClients: [],
+        fullName: 'Mike Inspector',
+        abn: '12345678901',
+        dateOfBirth: '1990-01-15',
+        insuranceFileKey: 'ins-key-1',
+        insuranceExpiresAt: '2027-01-01',
+        policeCheckFileKey: 'pc-key-1',
+        policeCheckExpiresAt: '2027-06-01',
+      },
+      actor: makeActor(),
+    });
+
+    expect(inspectorRepo.update).toHaveBeenCalledWith(
+      'inspector-1',
+      expect.objectContaining({
+        blockedClientsJson: [],
+        fullName: 'Mike Inspector',
+        abn: '12345678901',
+        insuranceFileKey: 'ins-key-1',
+        policeCheckFileKey: 'pc-key-1',
+      }),
+    );
+    // Date fields are converted to Date objects.
+    const call = vi.mocked(inspectorRepo.update).mock.calls[0]![1];
+    expect(call.dateOfBirth).toBeInstanceOf(Date);
+    expect(call.insuranceExpiresAt).toBeInstanceOf(Date);
+    expect(call.policeCheckExpiresAt).toBeInstanceOf(Date);
+  });
+
+  it('clears nullable profile fields when set to null', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ fullName: 'Old Name', abn: '999', dateOfBirth: new Date('2000-01-01') }),
+    );
+
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      data: { fullName: null, abn: null, dateOfBirth: null },
+      actor: makeActor(),
+    });
+
+    expect(inspectorRepo.update).toHaveBeenCalledWith(
+      'inspector-1',
+      expect.objectContaining({
+        fullName: null,
+        abn: null,
+        dateOfBirth: null,
+      }),
+    );
+  });
+
   it('should throw INSPECTOR_EMAIL_CONFLICT on email change', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
     vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(
