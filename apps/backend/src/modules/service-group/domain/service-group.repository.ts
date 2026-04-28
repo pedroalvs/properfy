@@ -27,6 +27,9 @@ export interface ServiceGroupWithAppointments {
     tenantId: string;
     propertyId: string;
     serviceGroupId: string | null;
+    scheduledDate: Date;
+    propertyAddress: string | null;
+    propertyCode: string | null;
   }>;
 }
 

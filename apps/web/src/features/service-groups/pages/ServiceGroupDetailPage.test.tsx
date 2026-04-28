@@ -52,6 +52,14 @@ vi.mock('@/lib/status-colors', () => ({
     STANDARD: { bg: '#eee', text: '#000', label: 'Standard' },
     PRIORITY_24H: { bg: '#ff0', text: '#000', label: '24h Priority' },
   },
+  APPOINTMENT_STATUS_MAP: {
+    DRAFT: { bg: '#E1BEE7', text: '#000', label: 'Draft' },
+    AWAITING_INSPECTOR: { bg: '#FFE0B2', text: '#000', label: 'Awaiting Inspector' },
+    SCHEDULED: { bg: '#B3E5FC', text: '#000', label: 'Scheduled' },
+    DONE: { bg: '#C8E6C9', text: '#000', label: 'Done' },
+    CANCELLED: { bg: '#FFCDD2', text: '#000', label: 'Cancelled' },
+    REJECTED: { bg: '#FFAB91', text: '#000', label: 'Rejected' },
+  },
 }));
 
 const mockRefetch = vi.fn();
@@ -75,7 +83,9 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         inspectorName: null,
         priorityMode: 'STANDARD',
         appointmentsCount: 10,
-        appointmentCodes: ['VST-001'],
+        appointments: [
+          { id: 'apt-pub-01', appointmentNumber: 2001, status: 'DRAFT', scheduledDate: '2026-03-10', propertyAddress: '10 Pub St', propertyCode: 'VST-001' },
+        ],
         description: null,
         createdAt: '2026-03-01T10:00:00Z',
         updatedAt: '2026-03-01T10:00:00Z',
@@ -95,7 +105,9 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         inspectorName: 'Carlos Silva',
         priorityMode: 'PRIORITY_24H',
         appointmentsCount: 8,
-        appointmentCodes: ['VST-005'],
+        appointments: [
+          { id: 'apt-acc-01', appointmentNumber: 3001, status: 'SCHEDULED', scheduledDate: '2026-03-15', propertyAddress: '20 Acc Ave', propertyCode: 'VST-005' },
+        ],
         description: null,
         createdAt: '2026-03-01T10:00:00Z',
         updatedAt: '2026-03-01T10:00:00Z',
@@ -115,7 +127,7 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         inspectorName: null,
         priorityMode: 'STANDARD',
         appointmentsCount: 5,
-        appointmentCodes: [],
+        appointments: [],
         description: null,
         createdAt: '2026-03-01T10:00:00Z',
         updatedAt: '2026-03-01T10:00:00Z',
@@ -135,7 +147,10 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         inspectorName: null,
         priorityMode: 'STANDARD',
         appointmentsCount: 12,
-        appointmentCodes: ['VST-001', 'VST-002'],
+        appointments: [
+          { id: 'apt-01', appointmentNumber: 1001, status: 'DRAFT', scheduledDate: '2026-03-10', propertyAddress: '123 Main St', propertyCode: 'VST-001' },
+          { id: 'apt-02', appointmentNumber: 1002, status: 'DRAFT', scheduledDate: '2026-03-11', propertyAddress: '456 Oak Ave', propertyCode: 'VST-002' },
+        ],
         description: 'Some notes',
         createdAt: '2026-03-01T10:00:00Z',
         updatedAt: '2026-03-01T10:00:00Z',

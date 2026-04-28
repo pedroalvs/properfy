@@ -32,8 +32,12 @@ export interface GetServiceGroupOutput {
   updatedAt: Date;
   appointments: Array<{
     id: string;
+    appointmentNumber: number;
     status: string;
     propertyId: string;
+    scheduledDate: Date;
+    propertyAddress: string | null;
+    propertyCode: string | null;
   }>;
 }
 
@@ -79,8 +83,12 @@ export class GetServiceGroupUseCase {
       updatedAt: group.updatedAt,
       appointments: appointments.map((a) => ({
         id: a.id,
+        appointmentNumber: a.appointmentNumber,
         status: a.status,
         propertyId: a.propertyId,
+        scheduledDate: a.scheduledDate,
+        propertyAddress: a.propertyAddress,
+        propertyCode: a.propertyCode,
       })),
     };
   }

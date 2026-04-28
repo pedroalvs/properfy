@@ -14,8 +14,17 @@ export interface ServiceGroup {
   updatedAt: string;
 }
 
+export interface ServiceGroupAppointment {
+  id: string;
+  appointmentNumber: number;
+  status: string;
+  scheduledDate: string | null;
+  propertyAddress: string | null;
+  propertyCode: string | null;
+}
+
 export interface ServiceGroupDetail extends ServiceGroup {
-  appointmentCodes: string[];
+  appointments: ServiceGroupAppointment[];
   description: string | null;
 }
 

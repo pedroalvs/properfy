@@ -63,10 +63,14 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             id: true,
             appointment_number: true,
             status: true,
+            scheduled_date: true,
             service_type_id: true,
             tenant_id: true,
             property_id: true,
             service_group_id: true,
+            property: {
+              select: { street: true, suburb: true, property_code: true },
+            },
           },
         },
       },
@@ -85,6 +89,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         tenantId: a.tenant_id,
         propertyId: a.property_id,
         serviceGroupId: a.service_group_id,
+        scheduledDate: a.scheduled_date,
+        propertyAddress: a.property ? `${a.property.street}, ${a.property.suburb}` : null,
+        propertyCode: a.property?.property_code ?? null,
       })),
     };
   }

@@ -613,45 +613,57 @@ export function AppointmentFormDrawer({
                             </div>
                           )}
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FormField label="Name" required error={errors.contacts?.[idx]?.name}>
-                              <TextInput
-                                value={contact.name}
-                                onChange={(v) => updateContact(contact.key, 'name', v)}
-                                placeholder="Full name"
-                                error={!!errors.contacts?.[idx]?.name}
-                                disabled={isLinked}
-                                aria-label={`Contact ${idx + 1} Name`}
-                              />
-                            </FormField>
-                            <FormField label="Role" required error={errors.contacts?.[idx]?.role}>
-                              <SelectInput
-                                value={contact.role}
-                                onChange={(v) => updateContact(contact.key, 'role', v)}
-                                options={CONTACT_ROLE_OPTIONS}
-                                placeholder="Select role"
-                                aria-label={`Contact ${idx + 1} Role`}
-                              />
-                            </FormField>
-                            <FormField label="Email" error={errors.contacts?.[idx]?.email}>
-                              <EmailInput
-                                value={contact.email}
-                                onChange={(v) => updateContact(contact.key, 'email', v)}
-                                error={!!errors.contacts?.[idx]?.email}
-                                disabled={isLinked}
-                                aria-label={`Contact ${idx + 1} Email`}
-                              />
-                            </FormField>
-                            <FormField label="Phone" error={errors.contacts?.[idx]?.phone}>
-                              <PhoneInput
-                                value={contact.phone}
-                                onChange={(v) => updateContact(contact.key, 'phone', v)}
-                                error={!!errors.contacts?.[idx]?.phone}
-                                disabled={isLinked}
-                                aria-label={`Contact ${idx + 1} Phone`}
-                              />
-                            </FormField>
-                          </div>
+                          {!isLinked && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <FormField label="Name" required error={errors.contacts?.[idx]?.name}>
+                                <TextInput
+                                  value={contact.name}
+                                  onChange={(v) => updateContact(contact.key, 'name', v)}
+                                  placeholder="Full name"
+                                  error={!!errors.contacts?.[idx]?.name}
+                                  aria-label={`Contact ${idx + 1} Name`}
+                                />
+                              </FormField>
+                              <FormField label="Role" required error={errors.contacts?.[idx]?.role}>
+                                <SelectInput
+                                  value={contact.role}
+                                  onChange={(v) => updateContact(contact.key, 'role', v)}
+                                  options={CONTACT_ROLE_OPTIONS}
+                                  placeholder="Select role"
+                                  aria-label={`Contact ${idx + 1} Role`}
+                                />
+                              </FormField>
+                              <FormField label="Email" error={errors.contacts?.[idx]?.email}>
+                                <EmailInput
+                                  value={contact.email}
+                                  onChange={(v) => updateContact(contact.key, 'email', v)}
+                                  error={!!errors.contacts?.[idx]?.email}
+                                  aria-label={`Contact ${idx + 1} Email`}
+                                />
+                              </FormField>
+                              <FormField label="Phone" error={errors.contacts?.[idx]?.phone}>
+                                <PhoneInput
+                                  value={contact.phone}
+                                  onChange={(v) => updateContact(contact.key, 'phone', v)}
+                                  error={!!errors.contacts?.[idx]?.phone}
+                                  aria-label={`Contact ${idx + 1} Phone`}
+                                />
+                              </FormField>
+                            </div>
+                          )}
+                          {isLinked && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <FormField label="Role" required error={errors.contacts?.[idx]?.role}>
+                                <SelectInput
+                                  value={contact.role}
+                                  onChange={(v) => updateContact(contact.key, 'role', v)}
+                                  options={CONTACT_ROLE_OPTIONS}
+                                  placeholder="Select role"
+                                  aria-label={`Contact ${idx + 1} Role`}
+                                />
+                              </FormField>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

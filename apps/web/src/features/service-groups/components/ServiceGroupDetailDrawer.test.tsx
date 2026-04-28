@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
 import { ServiceGroupDetailDrawer } from './ServiceGroupDetailDrawer';
 
@@ -57,7 +58,12 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         id: 'sg-01', name: 'Zona Sul SP', regionName: 'São Paulo - Zona Sul',
         status: 'PUBLISHED', priorityMode: 'STANDARD', inspectorName: 'Carlos Silva',
         inspectorId: 'insp-01', tenantId: 'tenant-1',
-        appointmentsCount: 3, appointmentCodes: ['VST-001', 'VST-002', 'VST-003'],
+        appointmentsCount: 3,
+        appointments: [
+          { id: 'apt-01', appointmentNumber: 1001, status: 'DRAFT', scheduledDate: '2026-03-10', propertyAddress: '123 Main St', propertyCode: 'VST-001' },
+          { id: 'apt-02', appointmentNumber: 1002, status: 'DRAFT', scheduledDate: '2026-03-11', propertyAddress: '456 Oak Ave', propertyCode: 'VST-002' },
+          { id: 'apt-03', appointmentNumber: 1003, status: 'DRAFT', scheduledDate: '2026-03-12', propertyAddress: '789 Pine Rd', propertyCode: 'VST-003' },
+        ],
         description: 'Test description',
         createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
       },
@@ -85,10 +91,12 @@ const testQueryClient = new QueryClient({
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={testQueryClient}>
-      <SnackbarProvider>
-      {children}
-      <SnackbarDisplay />
-      </SnackbarProvider>
+      <MemoryRouter>
+        <SnackbarProvider>
+        {children}
+        <SnackbarDisplay />
+        </SnackbarProvider>
+      </MemoryRouter>
     </QueryClientProvider>
   );
 }

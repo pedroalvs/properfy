@@ -25,9 +25,16 @@ export function useServiceGroupDetail(id: string | null): UseServiceGroupDetailR
       regionName: raw.regionName ?? null,
       inspectorId: raw.assignedInspectorId ?? null,
       inspectorName: raw.assignedInspectorName ?? null,
-      appointmentsCount: raw.groupSize ?? 0,
+      appointmentsCount: raw.groupSize ?? (raw.appointments ?? []).length,
       updatedAt: raw.updatedAt ?? raw.createdAt,
-      appointmentCodes: (raw.appointments ?? []).map((a: any) => a.id),
+      appointments: (raw.appointments ?? []).map((a: any) => ({
+        id: a.id,
+        appointmentNumber: a.appointmentNumber,
+        status: a.status,
+        scheduledDate: a.scheduledDate ?? null,
+        propertyAddress: a.propertyAddress ?? null,
+        propertyCode: a.propertyCode ?? null,
+      })),
       description: raw.description ?? null,
     };
   }, [response?.data]);
