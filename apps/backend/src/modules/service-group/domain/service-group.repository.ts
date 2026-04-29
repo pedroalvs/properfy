@@ -33,6 +33,23 @@ export interface ServiceGroupWithAppointments {
   }>;
 }
 
+/**
+ * Lightweight appointment shape used by the service-groups map page.
+ * Joins property coordinates and the assigned inspector's name. Carries
+ * `serviceGroupId` so the use case can group results by parent group id.
+ */
+export interface ServiceGroupMapAppointment {
+  id: string;
+  serviceGroupId: string;
+  code: string;
+  status: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  scheduledDate: Date;
+  inspectorName: string | null;
+}
+
 export interface MarketplaceOffer {
   groupId: string;
   tenantId: string;
@@ -73,6 +90,14 @@ export interface IServiceGroupRepository {
     filters: ServiceGroupFilters,
     pagination: PaginationParams,
   ): Promise<ServiceGroupListItem[]>;
+  /**
+   * Batch-fetch the appointments belonging to the given groups together with
+   * property coordinates + inspector name. Used by the map page; returns a
+   * flat list — caller groups by `serviceGroupId`.
+   */
+  findAppointmentsForMapByGroupIds(
+    groupIds: string[],
+  ): Promise<ServiceGroupMapAppointment[]>;
   count(filters: ServiceGroupFilters): Promise<number>;
   save(group: ServiceGroupEntity): Promise<void>;
   update(

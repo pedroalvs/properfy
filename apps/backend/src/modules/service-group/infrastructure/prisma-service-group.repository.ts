@@ -7,6 +7,7 @@ import type {
   ServiceGroupListItem,
   PaginationParams,
   ServiceGroupWithAppointments,
+  ServiceGroupMapAppointment,
   MarketplaceOffer,
   MarketplaceOfferDetail,
 } from '../domain/service-group.repository';
@@ -118,6 +119,50 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       group: mapToEntity(row),
       assignedInspectorName: row.assigned_inspector?.name ?? null,
     }));
+  }
+
+  async findAppointmentsForMapByGroupIds(
+    groupIds: string[],
+  ): Promise<ServiceGroupMapAppointment[]> {
+    if (groupIds.length === 0) return [];
+    const rows = await this.prisma.appointment.findMany({
+      where: {
+        service_group_id: { in: groupIds },
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        service_group_id: true,
+        status: true,
+        scheduled_date: true,
+        property: {
+          select: { property_code: true, street: true, suburb: true, lat: true, lng: true },
+        },
+        inspector: {
+          select: { name: true },
+        },
+      },
+    });
+    return rows.flatMap((row): ServiceGroupMapAppointment[] => {
+      const lat = row.property?.lat != null ? Number(row.property.lat) : null;
+      const lng = row.property?.lng != null ? Number(row.property.lng) : null;
+      // Skip appointments without coordinates — the map can't render them.
+      if (lat == null || lng == null) return [];
+      const street = row.property?.street ?? '';
+      const suburb = row.property?.suburb ?? '';
+      const address = [street, suburb].filter(Boolean).join(', ');
+      return [{
+        id: row.id,
+        serviceGroupId: row.service_group_id ?? '',
+        code: row.property?.property_code ?? '',
+        status: row.status,
+        address,
+        latitude: lat,
+        longitude: lng,
+        scheduledDate: row.scheduled_date,
+        inspectorName: row.inspector?.name ?? null,
+      }];
+    });
   }
 
   async count(filters: ServiceGroupFilters): Promise<number> {

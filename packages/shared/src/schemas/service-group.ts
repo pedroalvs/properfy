@@ -104,6 +104,11 @@ export const listServiceGroupsQuerySchema = paginationSchema.extend({
   scheduledDateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   scheduledDateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
+  // Map view requires appointments + property coordinates per group.
+  includeAppointments: z
+    .union([z.boolean(), z.literal('true'), z.literal('false')])
+    .optional()
+    .transform((v) => v === true || v === 'true'),
 });
 export type ListServiceGroupsQuery = z.infer<typeof listServiceGroupsQuerySchema>;
 

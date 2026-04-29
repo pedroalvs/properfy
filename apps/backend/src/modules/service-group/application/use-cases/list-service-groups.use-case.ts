@@ -4,6 +4,7 @@ import type {
   IServiceGroupRepository,
   ServiceGroupFilters,
   PaginationParams,
+  ServiceGroupMapAppointment,
 } from '../../domain/service-group.repository';
 
 export interface ListServiceGroupsInput {
@@ -14,9 +15,23 @@ export interface ListServiceGroupsInput {
     scheduledDateFrom?: string;
     scheduledDateTo?: string;
     priorityMode?: string;
+    /** When true, output items include `appointments[]` with property
+     *  coordinates + inspector name. Used by the map page. */
+    includeAppointments?: boolean;
   };
   pagination: PaginationParams;
   actor: AuthContext;
+}
+
+export interface ServiceGroupSummaryAppointment {
+  id: string;
+  code: string;
+  status: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  scheduledDate: string;
+  inspectorName: string | null;
 }
 
 export interface ServiceGroupSummary {
@@ -39,6 +54,8 @@ export interface ServiceGroupSummary {
   publishedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  appointmentsCount?: number;
+  appointments?: ServiceGroupSummaryAppointment[];
 }
 
 export interface ListServiceGroupsOutput {
@@ -57,7 +74,9 @@ export class ListServiceGroupsUseCase {
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.manage', entityType: 'ServiceGroup' });
 
-    const repoFilters: ServiceGroupFilters = { ...filters };
+    // includeAppointments is a use-case flag; everything else flows to the repo.
+    const { includeAppointments, ...repoLevelFilters } = filters;
+    const repoFilters: ServiceGroupFilters = { ...repoLevelFilters };
 
     // OP is scoped to their tenant
     if (actor.role === 'OP' && actor.tenantId) {
@@ -69,28 +88,59 @@ export class ListServiceGroupsUseCase {
       this.serviceGroupRepo.count(repoFilters),
     ]);
 
+    // Optionally batch-fetch appointments for the map page.
+    let appointmentsByGroup: Map<string, ServiceGroupMapAppointment[]> = new Map();
+    if (includeAppointments && data.length > 0) {
+      const groupIds = data.map(({ group }) => group.id);
+      const flat = await this.serviceGroupRepo.findAppointmentsForMapByGroupIds(groupIds);
+      appointmentsByGroup = flat.reduce((acc, appt) => {
+        const arr = acc.get(appt.serviceGroupId);
+        if (arr) arr.push(appt);
+        else acc.set(appt.serviceGroupId, [appt]);
+        return acc;
+      }, new Map<string, ServiceGroupMapAppointment[]>());
+    }
+
     return {
-      data: data.map(({ group: g, assignedInspectorName }) => ({
-        id: g.id,
-        tenantId: g.tenantId,
-        serviceTypeId: g.serviceTypeId,
-        status: g.status,
-        groupSize: g.groupSize,
-        offeredCount: g.offeredCount,
-        confirmedCount: g.confirmedCount,
-        scheduledDate: g.scheduledDate,
-        timeWindow: g.timeWindow,
-        name: g.name,
-        regionName: g.regionName,
-        description: g.description,
-        priorityMode: g.priorityMode,
-        priorityExpiresAt: g.priorityExpiresAt,
-        assignedInspectorId: g.assignedInspectorId,
-        assignedInspectorName,
-        publishedAt: g.publishedAt,
-        createdAt: g.createdAt,
-        updatedAt: g.updatedAt,
-      })),
+      data: data.map(({ group: g, assignedInspectorName }) => {
+        const appointments = appointmentsByGroup.get(g.id);
+        return {
+          id: g.id,
+          tenantId: g.tenantId,
+          serviceTypeId: g.serviceTypeId,
+          status: g.status,
+          groupSize: g.groupSize,
+          offeredCount: g.offeredCount,
+          confirmedCount: g.confirmedCount,
+          scheduledDate: g.scheduledDate,
+          timeWindow: g.timeWindow,
+          name: g.name,
+          regionName: g.regionName,
+          description: g.description,
+          priorityMode: g.priorityMode,
+          priorityExpiresAt: g.priorityExpiresAt,
+          assignedInspectorId: g.assignedInspectorId,
+          assignedInspectorName,
+          publishedAt: g.publishedAt,
+          createdAt: g.createdAt,
+          updatedAt: g.updatedAt,
+          ...(includeAppointments
+            ? {
+                appointmentsCount: appointments?.length ?? 0,
+                appointments: (appointments ?? []).map((a) => ({
+                  id: a.id,
+                  code: a.code,
+                  status: a.status,
+                  address: a.address,
+                  latitude: a.latitude,
+                  longitude: a.longitude,
+                  scheduledDate: a.scheduledDate.toISOString(),
+                  inspectorName: a.inspectorName,
+                })),
+              }
+            : {}),
+        };
+      }),
       total,
     };
   }

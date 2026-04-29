@@ -58,9 +58,12 @@ export function useServiceGroupMapData(): UseServiceGroupMapDataReturn {
     sortBy: 'name',
     sortOrder: 'asc',
     status: filters.status || undefined,
-    search: filters.search || undefined,
-    dateFrom: filters.dateFrom || undefined,
-    dateTo: filters.dateTo || undefined,
+    // Backend filter names match the shared Zod schema:
+    // listServiceGroupsQuerySchema declares scheduledDateFrom/scheduledDateTo
+    // (and includeAppointments). `search` is not a backend filter for service
+    // groups today — it's filtered client-side from the dropdown options.
+    scheduledDateFrom: filters.dateFrom || undefined,
+    scheduledDateTo: filters.dateTo || undefined,
     includeAppointments: true,
   };
 

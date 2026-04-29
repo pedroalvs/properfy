@@ -348,6 +348,7 @@ export const serviceGroupResponseSchema = z.object({
   createdByUserId: z.string().uuid().optional(),
   createdAt: dateStr(),
   updatedAt: dateStr().optional(),
+  appointmentsCount: z.number().optional(),
   appointments: z.array(z.unknown()).optional(),
   assignedInspector: z.unknown().nullable().optional(),
 });
