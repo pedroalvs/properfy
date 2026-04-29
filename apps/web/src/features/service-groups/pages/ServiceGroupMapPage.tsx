@@ -71,7 +71,9 @@ export function ServiceGroupMapPage() {
   const allPins = useMemo(
     () =>
       data.flatMap((group) =>
-        group.appointments
+        // Defensive: API may omit `appointments` when includeAppointments=false or for
+        // groups with zero rows. Treat missing array as empty.
+        (group.appointments ?? [])
           .filter(
             (apt): apt is typeof apt & { latitude: number; longitude: number } =>
               apt.latitude != null && apt.longitude != null,
@@ -116,7 +118,7 @@ export function ServiceGroupMapPage() {
       setPopupAppointment(null);
 
       if (nextId && mapInstance) {
-        const validApts = group.appointments.filter(
+        const validApts = (group.appointments ?? []).filter(
           (a): a is typeof a & { latitude: number; longitude: number } =>
             a.latitude != null && a.longitude != null,
         );

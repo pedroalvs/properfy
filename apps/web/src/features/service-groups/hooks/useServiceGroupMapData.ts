@@ -8,7 +8,9 @@ export interface ServiceGroupMapItem {
   status: string;
   priorityMode: string;
   appointmentsCount: number;
-  appointments: {
+  // Optional: API may omit when includeAppointments=false or when the group has
+  // no rows. Consumers must guard with `?? []`.
+  appointments?: {
     id: string;
     code: string;
     status: string;
