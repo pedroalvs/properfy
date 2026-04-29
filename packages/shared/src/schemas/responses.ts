@@ -175,6 +175,16 @@ export const inspectorResponseSchema = z.object({
   regionIds: z.array(z.string()).optional(),
   serviceTypesJson: z.unknown(),
   clientEligibilityJson: z.unknown(),
+  // Profile + denylist fields (Feedback Round item 1, item 6).
+  blockedClients: z.array(z.string()).optional(),
+  fullName: z.string().nullable().optional(),
+  address: z.unknown().optional(),
+  abn: z.string().nullable().optional(),
+  dateOfBirth: dateStrNullable().optional(),
+  insuranceFileKey: z.string().nullable().optional(),
+  insuranceExpiresAt: dateStrNullable().optional(),
+  policeCheckFileKey: z.string().nullable().optional(),
+  policeCheckExpiresAt: dateStrNullable().optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });

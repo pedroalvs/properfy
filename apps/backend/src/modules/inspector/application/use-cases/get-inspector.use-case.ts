@@ -24,6 +24,15 @@ export interface GetInspectorOutput {
   regionIds: string[];
   serviceTypesJson: ServiceTypeEntry[];
   clientEligibilityJson: ClientEligibilityEntry[];
+  blockedClients: string[];
+  fullName: string | null;
+  address: Record<string, unknown> | null;
+  abn: string | null;
+  dateOfBirth: Date | null;
+  insuranceFileKey: string | null;
+  insuranceExpiresAt: Date | null;
+  policeCheckFileKey: string | null;
+  policeCheckExpiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +79,15 @@ export class GetInspectorUseCase {
       regionIds,
       serviceTypesJson: inspector.serviceTypesJson,
       clientEligibilityJson: inspector.clientEligibilityJson,
+      blockedClients: inspector.blockedClientsJson,
+      fullName: inspector.fullName,
+      address: inspector.address,
+      abn: inspector.abn,
+      dateOfBirth: inspector.dateOfBirth,
+      insuranceFileKey: inspector.insuranceFileKey,
+      insuranceExpiresAt: inspector.insuranceExpiresAt,
+      policeCheckFileKey: inspector.policeCheckFileKey,
+      policeCheckExpiresAt: inspector.policeCheckExpiresAt,
       createdAt: inspector.createdAt,
       updatedAt: inspector.updatedAt,
     };
