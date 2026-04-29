@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/Button';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { formatDate } from '@/lib/format-date';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TenantStatusChip } from './TenantStatusChip';
 import { BranchFormDrawer } from './BranchFormDrawer';
+import { DeactivateBranchModal } from './DeactivateBranchModal';
 import { useBranchList } from '../hooks/useBranchList';
 import { useBranchDeactivate } from '../hooks/useBranchDeactivate';
 import type { Branch } from '../types';
@@ -55,8 +55,8 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
     setDeactivatingBranch(branch);
   }, []);
 
-  const handleConfirmDeactivate = useCallback(() => {
-    deactivate();
+  const handleConfirmDeactivate = useCallback((reason: string) => {
+    deactivate(reason);
   }, [deactivate]);
 
   const handleCancelDeactivate = useCallback(() => {
@@ -150,13 +150,9 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
         onSaved={handleSaved}
       />
 
-      <ConfirmDialog
+      <DeactivateBranchModal
         open={!!deactivatingBranch}
-        title="Deactivate Branch"
-        message={`Are you sure you want to deactivate "${deactivatingBranch?.name}"? This action cannot be easily undone.`}
-        confirmLabel="Deactivate"
-        cancelLabel="Cancel"
-        variant="danger"
+        branchName={deactivatingBranch?.name ?? ''}
         loading={isDeactivating}
         onConfirm={handleConfirmDeactivate}
         onClose={handleCancelDeactivate}

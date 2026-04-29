@@ -53,7 +53,7 @@ describe('useBranchDeactivate', () => {
     const { result } = renderHook(() => useBranchDeactivate(null, 'br-01'), { wrapper });
 
     act(() => {
-      result.current.deactivate();
+      result.current.deactivate('Test reason');
     });
 
     expect(mockPost).not.toHaveBeenCalled();
@@ -64,7 +64,7 @@ describe('useBranchDeactivate', () => {
     const { result } = renderHook(() => useBranchDeactivate('ten-01', null), { wrapper });
 
     act(() => {
-      result.current.deactivate();
+      result.current.deactivate('Test reason');
     });
 
     expect(mockPost).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ describe('useBranchDeactivate', () => {
     const { result } = renderHook(() => useBranchDeactivate('ten-01', 'br-01', onSuccess), { wrapper });
 
     await act(async () => {
-      result.current.deactivate();
+      result.current.deactivate('Test reason');
     });
 
     expect(mockPost).toHaveBeenCalled();

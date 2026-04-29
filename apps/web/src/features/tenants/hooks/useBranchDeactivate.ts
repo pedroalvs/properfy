@@ -2,7 +2,7 @@ import { useActionMutation } from '@/hooks/useApiQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 export interface UseBranchDeactivateReturn {
-  deactivate: () => void;
+  deactivate: (reason: string) => void;
   isDeactivating: boolean;
 }
 
@@ -18,10 +18,10 @@ export function useBranchDeactivate(
     [['tenant-admins', tenantId, 'branches']],
   );
 
-  const deactivate = () => {
+  const deactivate = (reason: string) => {
     if (!tenantId || !branchId) return;
     mutation.mutate(
-      {},
+      { reason },
       {
         onSuccess: () => {
           showSuccess('Branch deactivated successfully');
