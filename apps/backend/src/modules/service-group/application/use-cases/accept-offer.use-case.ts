@@ -100,26 +100,11 @@ export class AcceptOfferUseCase {
       throw new PriorityExpiredError();
     }
 
-    const now = new Date();
-    const updatedCount = await this.serviceGroupRepo.acceptOptimistic(groupId, inspectorId, now);
-    if (updatedCount === 0) {
-      throw new GroupAlreadyAcceptedError();
-    }
-
-    // Re-verify all linked appointments are still AWAITING_INSPECTOR after optimistic lock
-    const freshResult = await this.serviceGroupRepo.findById(groupId, null);
-    if (freshResult) {
-      const invalidAppointments = freshResult.appointments
-        .filter((appt) => appt.status !== 'AWAITING_INSPECTOR')
-        .map((appt) => ({ appointmentNumber: appt.appointmentNumber, status: appt.status }));
-
-      if (invalidAppointments.length > 0) {
-        throw new AppointmentsNotAwaitingInspectorError(invalidAppointments);
-      }
-    }
-
-    // Book availability slot: find matching slot and decrement capacity
-    let bookedSlotId: string | null = null;
+    // Pre-check the availability slot BEFORE the optimistic accept commits.
+    // The accept used to mutate the group first and only then check the slot,
+    // which left the group in a half-accepted state when no slot matched —
+    // user saw the error response but the group was already ACCEPTED in DB.
+    let candidateSlotId: string | null = null;
     if (this.availabilitySlotRepo) {
       const parts = group.timeWindow.split('-');
       const slotStart = parts[0] ?? '';
@@ -133,18 +118,83 @@ export class AcceptOfferUseCase {
       if (!slot) {
         throw new AvailabilitySlotNotMatchedError();
       }
-      const updatedCapacity = await this.availabilitySlotRepo.decrementCapacity(slot.id);
-      if (updatedCapacity === null) {
-        throw new AvailabilitySlotCapacityExhaustedError();
-      }
-      bookedSlotId = slot.id;
+      candidateSlotId = slot.id;
     }
 
-    const scheduledCount = await this.serviceGroupRepo.scheduleAppointments(groupId, inspectorId);
+    const now = new Date();
+    const updatedCount = await this.serviceGroupRepo.acceptOptimistic(groupId, inspectorId, now);
+    if (updatedCount === 0) {
+      throw new GroupAlreadyAcceptedError();
+    }
 
-    await this.serviceGroupRepo.update(groupId, {
-      confirmedCount: scheduledCount,
-    });
+    // Saga compensation: any failure in the post-accept steps must roll back
+    // the group (and any slot/appointment side-effects) so the system isn't
+    // left in a half-accepted state. Best-effort — compensation errors are
+    // audited but do not mask the original error.
+    let slotDecremented = false;
+    let appointmentsScheduled = false;
+    let scheduledCount = 0;
+    let bookedSlotId: string | null = null;
+
+    try {
+      // Re-verify all linked appointments are still AWAITING_INSPECTOR after optimistic lock
+      const freshResult = await this.serviceGroupRepo.findById(groupId, null);
+      if (freshResult) {
+        const invalidAppointments = freshResult.appointments
+          .filter((appt) => appt.status !== 'AWAITING_INSPECTOR')
+          .map((appt) => ({ appointmentNumber: appt.appointmentNumber, status: appt.status }));
+
+        if (invalidAppointments.length > 0) {
+          throw new AppointmentsNotAwaitingInspectorError(invalidAppointments);
+        }
+      }
+
+      if (candidateSlotId && this.availabilitySlotRepo) {
+        const updatedCapacity = await this.availabilitySlotRepo.decrementCapacity(candidateSlotId);
+        if (updatedCapacity === null) {
+          throw new AvailabilitySlotCapacityExhaustedError();
+        }
+        bookedSlotId = candidateSlotId;
+        slotDecremented = true;
+      }
+
+      scheduledCount = await this.serviceGroupRepo.scheduleAppointments(groupId, inspectorId);
+      appointmentsScheduled = true;
+
+      await this.serviceGroupRepo.update(groupId, {
+        confirmedCount: scheduledCount,
+      });
+    } catch (err) {
+      // Compensate in reverse order. Each step is independent and best-effort.
+      try {
+        if (appointmentsScheduled) {
+          await this.serviceGroupRepo.revertScheduledAppointments(groupId);
+        }
+        if (slotDecremented && candidateSlotId && this.availabilitySlotRepo) {
+          await this.availabilitySlotRepo.incrementCapacity(candidateSlotId);
+        }
+        await this.serviceGroupRepo.update(groupId, {
+          status: 'PUBLISHED',
+          assignedInspectorId: null,
+          assignedAt: null,
+          confirmedCount: 0,
+        });
+      } catch (compensationErr) {
+        this.auditService.log({
+          action: 'service_group.accept_compensation_failed',
+          actorType: 'USER',
+          actorId: actor.userId,
+          entityType: 'ServiceGroup',
+          entityId: groupId,
+          tenantId: group.tenantId,
+          metadata: {
+            originalError: err instanceof Error ? err.message : String(err),
+            compensationError: compensationErr instanceof Error ? compensationErr.message : String(compensationErr),
+          },
+        });
+      }
+      throw err;
+    }
 
     this.auditService.log({
       action: 'service_group.accepted',
