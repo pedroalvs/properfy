@@ -147,11 +147,34 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
     expect(result.appointments[1].keyRequired).toBe(false);
     expect(result.payoutEstimate).toBe(250);
 
+    // Use case now forwards inspector.blockedClientsJson (denylist) — matches
+    // AcceptOfferUseCase tenant eligibility. Default inspector has empty blocklist.
     expect(serviceGroupRepo.findPublishedOfferDetail).toHaveBeenCalledWith(
       'group-1',
       'inspector-1',
       ['svc-type-1'],
-      ['tenant-1'],
+      [],
+    );
+  });
+
+  it('forwards blockedClients denylist when inspector blocks specific tenants', async () => {
+    const detail = makeOfferDetail();
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ blockedClientsJson: ['tenant-blocked-1', 'tenant-blocked-2'] }),
+    );
+    vi.mocked(serviceGroupRepo.findPublishedOfferDetail).mockResolvedValue(detail);
+
+    await useCase.execute({
+      groupId: 'group-1',
+      inspectorId: 'inspector-1',
+      actor: makeActor(),
+    });
+
+    expect(serviceGroupRepo.findPublishedOfferDetail).toHaveBeenCalledWith(
+      'group-1',
+      'inspector-1',
+      ['svc-type-1'],
+      ['tenant-blocked-1', 'tenant-blocked-2'],
     );
   });
 

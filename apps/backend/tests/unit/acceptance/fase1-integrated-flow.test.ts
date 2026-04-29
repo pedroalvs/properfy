@@ -425,7 +425,7 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
   async findPublishedForInspector(
     inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorClientEligibility: string[],
+    inspectorBlockedClients: string[],
     pagination: ServiceGroupPaginationParams,
   ): Promise<MarketplaceOffer[]> {
     // Region filtering is now done via inspector_regions junction table
@@ -434,7 +434,9 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
     const offers = [...this.groups.values()]
       .filter((group) => group.status === 'PUBLISHED')
       .filter((group) => inspectorServiceTypes.includes(group.serviceTypeId))
-      .filter((group) => inspectorClientEligibility.includes(group.tenantId))
+      // Denylist semantics: include the group when its tenant is NOT in the
+      // blocked list (mirrors AcceptOfferUseCase via Inspector.isEligibleForTenant).
+      .filter((group) => !inspectorBlockedClients.includes(group.tenantId))
       // Region filtering skipped in in-memory simulation (handled by spatial queries in production)
       .slice(0, pagination.pageSize)
       .map((group) => {
@@ -463,12 +465,12 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
   async countPublishedForInspector(
     inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorClientEligibility: string[],
+    inspectorBlockedClients: string[],
   ): Promise<number> {
     const offers = await this.findPublishedForInspector(
       inspectorId,
       inspectorServiceTypes,
-      inspectorClientEligibility,
+      inspectorBlockedClients,
       { page: 1, pageSize: 10_000, sortOrder: 'asc' },
     );
     return offers.length;

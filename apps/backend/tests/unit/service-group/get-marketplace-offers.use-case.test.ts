@@ -188,10 +188,44 @@ describe('GetMarketplaceOffersUseCase', () => {
     expect(result.total).toBe(0);
   });
 
-  it('should pass inspector eligibility filters to repository', async () => {
+  it('passes serviceTypes and the blocked-clients denylist to the repository', async () => {
     const inspector = makeInspector({
       serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }, { serviceTypeId: 'svc-type-2', certified: false }],
-      clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }, { tenantId: 'tenant-2', eligible: true }],
+      blockedClientsJson: ['tenant-blocked-1', 'tenant-blocked-2'],
+    });
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(inspector);
+    vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([]);
+    vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(0);
+
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      pagination: defaultPagination,
+      actor: makeActor(),
+    });
+
+    // Use case now forwards inspector.blockedClientsJson (denylist) — not the
+    // legacy clientEligibilityJson allowlist — so it agrees with the AcceptOfferUseCase
+    // tenant-eligibility check.
+    expect(serviceGroupRepo.findPublishedForInspector).toHaveBeenCalledWith(
+      'inspector-1',
+      ['svc-type-1', 'svc-type-2'],
+      ['tenant-blocked-1', 'tenant-blocked-2'],
+      defaultPagination,
+    );
+    expect(serviceGroupRepo.countPublishedForInspector).toHaveBeenCalledWith(
+      'inspector-1',
+      ['svc-type-1', 'svc-type-2'],
+      ['tenant-blocked-1', 'tenant-blocked-2'],
+    );
+  });
+
+  it('passes empty denylist to repository when inspector blocks no tenants', async () => {
+    const inspector = makeInspector({
+      serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }],
+      blockedClientsJson: [],
+      // legacy clientEligibilityJson should be ignored — we deliberately set
+      // a non-empty allowlist to prove the use case no longer reads it.
+      clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
     });
     vi.mocked(inspectorRepo.findById).mockResolvedValue(inspector);
     vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([]);
@@ -205,14 +239,9 @@ describe('GetMarketplaceOffersUseCase', () => {
 
     expect(serviceGroupRepo.findPublishedForInspector).toHaveBeenCalledWith(
       'inspector-1',
-      ['svc-type-1', 'svc-type-2'],
-      ['tenant-1', 'tenant-2'],
+      ['svc-type-1'],
+      [],
       defaultPagination,
-    );
-    expect(serviceGroupRepo.countPublishedForInspector).toHaveBeenCalledWith(
-      'inspector-1',
-      ['svc-type-1', 'svc-type-2'],
-      ['tenant-1', 'tenant-2'],
     );
   });
 });

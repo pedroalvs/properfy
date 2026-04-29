@@ -52,21 +52,21 @@ export class GetMarketplaceOffersUseCase {
     }
 
     const serviceTypeIds = inspector.serviceTypesJson.map((s) => s.serviceTypeId);
-    const eligibleTenantIds = inspector.clientEligibilityJson
-      .filter((c) => c.eligible)
-      .map((c) => c.tenantId);
+    // Use the denylist model (matches AcceptOfferUseCase via Inspector.isEligibleForTenant).
+    // Empty list = eligible for every tenant.
+    const blockedTenantIds = inspector.blockedClientsJson;
 
     const [data, total] = await Promise.all([
       this.serviceGroupRepo.findPublishedForInspector(
         inspector.id,
         serviceTypeIds,
-        eligibleTenantIds,
+        blockedTenantIds,
         pagination,
       ),
       this.serviceGroupRepo.countPublishedForInspector(
         inspector.id,
         serviceTypeIds,
-        eligibleTenantIds,
+        blockedTenantIds,
       ),
     ]);
 

@@ -98,22 +98,27 @@ export interface IServiceGroupRepository {
   ): Promise<void>;
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
   acceptOptimistic(id: string, inspectorId: string, assignedAt: Date): Promise<number>;
+  /**
+   * `inspectorBlockedClients` is the list of tenant IDs the inspector is blocked
+   * from. Empty list means eligible for all tenants. Mirrors the denylist model
+   * enforced by `AcceptOfferUseCase` via `Inspector.isEligibleForTenant`.
+   */
   findPublishedForInspector(
     inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorClientEligibility: string[],
+    inspectorBlockedClients: string[],
     pagination: PaginationParams,
   ): Promise<MarketplaceOffer[]>;
   countPublishedForInspector(
     inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorClientEligibility: string[],
+    inspectorBlockedClients: string[],
   ): Promise<number>;
   findPublishedOfferDetail(
     groupId: string,
     inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorClientEligibility: string[],
+    inspectorBlockedClients: string[],
   ): Promise<MarketplaceOfferDetail | null>;
   /** Set service_group_id on appointments */
   linkAppointments(appointmentIds: string[], groupId: string): Promise<void>;

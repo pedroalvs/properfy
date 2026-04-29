@@ -154,17 +154,18 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     expect(prisma.serviceGroup.count).not.toHaveBeenCalled();
   });
 
-  it('returns early when the inspector has no eligible clients', async () => {
+  it('runs the SQL query when the inspector has an empty blocked-clients list (denylist semantics: empty = eligible for all)', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([]);
     const prisma = {
-      $queryRaw: vi.fn(),
-      serviceGroup: {
-        findMany: vi.fn(),
-        count: vi.fn(),
-      },
+      $queryRaw: queryRaw,
+      serviceGroup: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn() },
     };
 
     const repo = new PrismaServiceGroupRepository(prisma as any);
 
+    // Empty blocked list → still query the DB; do NOT early-return.
+    // (Allowlist semantics would have early-returned here — the regression
+    // protected by this test prevents accidentally re-introducing that.)
     await expect(
       repo.findPublishedForInspector('inspector-1', ['st-1'], [], {
         page: 1,
@@ -172,10 +173,35 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
         sortOrder: 'asc',
       }),
     ).resolves.toEqual([]);
+    expect(queryRaw).toHaveBeenCalled();
+
+    queryRaw.mockClear();
+    queryRaw.mockResolvedValueOnce([{ count: BigInt(0) }]);
     await expect(
       repo.countPublishedForInspector('inspector-1', ['st-1'], []),
     ).resolves.toBe(0);
-    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    expect(queryRaw).toHaveBeenCalled();
+  });
+
+  it('SQL filter excludes blocked tenants via NOT ANY clause', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([{ count: BigInt(0) }]);
+    const prisma = {
+      $queryRaw: queryRaw,
+      serviceGroup: { findMany: vi.fn() },
+    };
+
+    const repo = new PrismaServiceGroupRepository(prisma as any);
+
+    await repo.countPublishedForInspector('inspector-1', ['st-1'], ['blocked-tenant-1', 'blocked-tenant-2']);
+
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    // Tagged template strings array is the first arg; assert the SQL contains the denylist clause.
+    const sqlParts = queryRaw.mock.calls[0][0] as string[];
+    const sqlText = sqlParts.join('');
+    expect(sqlText).toMatch(/NOT \(\s*sg\.tenant_id = ANY/);
+    // The blocked array must be among the interpolated params.
+    const params = queryRaw.mock.calls[0].slice(1);
+    expect(params).toContainEqual(['blocked-tenant-1', 'blocked-tenant-2']);
   });
 
   it('passes correct pagination offset to spatial query', async () => {

@@ -224,21 +224,20 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   async findPublishedForInspector(
     inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorClientEligibility: string[],
+    inspectorBlockedClients: string[],
     pagination: PaginationParams,
   ): Promise<MarketplaceOffer[]> {
-    if (
-      inspectorServiceTypes.length === 0 ||
-      inspectorClientEligibility.length === 0
-    ) {
+    if (inspectorServiceTypes.length === 0) {
       return [];
     }
+    // NOTE: empty inspectorBlockedClients is intentionally NOT an early return —
+    // an inspector blocked from no one is eligible for all tenants (denylist semantics).
 
     const offset = (pagination.page - 1) * pagination.pageSize;
     const eligibleIds = await this.findEligibleGroupIds(
       inspectorId,
       inspectorServiceTypes,
-      inspectorClientEligibility,
+      inspectorBlockedClients,
       pagination.pageSize,
       offset,
     );
@@ -290,12 +289,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   async countPublishedForInspector(
     inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorClientEligibility: string[],
+    inspectorBlockedClients: string[],
   ): Promise<number> {
-    if (
-      inspectorServiceTypes.length === 0 ||
-      inspectorClientEligibility.length === 0
-    ) {
+    if (inspectorServiceTypes.length === 0) {
       return 0;
     }
 
@@ -316,7 +312,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       WHERE sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
         AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND sg.tenant_id = ANY(${inspectorClientEligibility}::text[])
+        AND NOT (sg.tenant_id = ANY(${inspectorBlockedClients}::text[]))
         AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
     `;
 
@@ -327,12 +323,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     groupId: string,
     inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorClientEligibility: string[],
+    inspectorBlockedClients: string[],
   ): Promise<MarketplaceOfferDetail | null> {
-    if (
-      inspectorServiceTypes.length === 0 ||
-      inspectorClientEligibility.length === 0
-    ) {
+    if (inspectorServiceTypes.length === 0) {
       return null;
     }
 
@@ -355,7 +348,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         AND sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
         AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND sg.tenant_id = ANY(${inspectorClientEligibility}::text[])
+        AND NOT (sg.tenant_id = ANY(${inspectorBlockedClients}::text[]))
         AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
     `;
 
@@ -446,7 +439,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   private async findEligibleGroupIds(
     inspectorId: string,
     inspectorServiceTypes: string[],
-    inspectorClientEligibility: string[],
+    inspectorBlockedClients: string[],
     limit: number,
     offset: number,
   ): Promise<string[]> {
@@ -470,7 +463,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       WHERE sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
         AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND sg.tenant_id = ANY(${inspectorClientEligibility}::text[])
+        AND NOT (sg.tenant_id = ANY(${inspectorBlockedClients}::text[]))
         AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
       GROUP BY sg.id, sg.scheduled_date
       ORDER BY sg.scheduled_date ASC, sg.id ASC

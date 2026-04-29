@@ -36,15 +36,15 @@ export class GetMarketplaceOfferDetailUseCase {
     }
 
     const serviceTypeIds = inspector.serviceTypesJson.map((s) => s.serviceTypeId);
-    const eligibleTenantIds = inspector.clientEligibilityJson
-      .filter((c) => c.eligible)
-      .map((c) => c.tenantId);
+    // Use the denylist model (matches AcceptOfferUseCase via Inspector.isEligibleForTenant).
+    // Empty list = eligible for every tenant.
+    const blockedTenantIds = inspector.blockedClientsJson;
 
     const detail = await this.serviceGroupRepo.findPublishedOfferDetail(
       groupId,
       inspector.id,
       serviceTypeIds,
-      eligibleTenantIds,
+      blockedTenantIds,
     );
 
     if (!detail) {
