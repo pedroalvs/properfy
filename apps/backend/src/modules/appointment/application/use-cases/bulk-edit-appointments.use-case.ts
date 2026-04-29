@@ -21,9 +21,20 @@ const ALLOWED_FIELDS = new Set([
 
 const TERMINAL_STATUSES = new Set(['DONE', 'REJECTED', 'CANCELLED']);
 
+export interface BulkEditOptions {
+  /**
+   * Property-Manager contact change policy.
+   * - `replace` (default): overwrite the existing PM junction row.
+   * - `addIfMissing`: skip appointments that already have a PM contact;
+   *   they're surfaced in `failed[]` with code `APPOINTMENT_HAS_EXISTING_CONTACT`.
+   */
+  propertyManagerContactPolicy?: 'replace' | 'addIfMissing';
+}
+
 export interface BulkEditInput {
   ids: string[];
   changes: Record<string, unknown>;
+  options?: BulkEditOptions;
   actor: AuthContext;
   requestId?: string;
 }
@@ -180,15 +191,18 @@ export class BulkEditAppointmentsUseCase {
             failed.push({ id: appointmentId, code: 'CONTACT_INACTIVE', message: `PM contact ${pmContactId} is not active` });
             continue;
           }
-          // Replace semantics: delete existing PM junction row if any, then insert new
-          // (other roles like TENANT, HOUSEKEEPER are untouched)
           const existingContacts = found.contacts ?? [];
           const existingPm = existingContacts.find((c) => c.role === 'PROPERTY_MANAGER');
-          if (existingPm) {
-            // Delete the old PM row by re-saving all non-PM contacts + the new PM
-            // Simpler: just delete the specific PM row via a targeted update
-            // Since we don't have a deleteContactById, we'll use the junction approach:
-            // Save a new PM row — the partial unique index on (appointment_id, contact_id) handles dedup
+          // `addIfMissing` policy: skip and report when the appointment already
+          // has a PM contact. Default `replace` keeps the historical behaviour
+          // (insert; partial unique index on (appointment_id, contact_id) dedups).
+          if (existingPm && input.options?.propertyManagerContactPolicy === 'addIfMissing') {
+            failed.push({
+              id: appointmentId,
+              code: 'APPOINTMENT_HAS_EXISTING_CONTACT',
+              message: 'Appointment already has a Property Manager contact; skipped per addIfMissing policy',
+            });
+            continue;
           }
           // Create new PM junction row with fresh snapshot
           const pmJunction = new AppointmentContactEntity({

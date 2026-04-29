@@ -129,12 +129,21 @@ const bulkEditChangesSchema = z.object({
   propertyManagerContactId: z.string().uuid().optional(),
 }).strict(); // .strict() rejects unknown keys → APPOINTMENT_BULK_FIELD_NOT_ALLOWED
 
+/** Per-field policies the use case applies. Currently only governs the
+ *  Property-Manager contact change: `replace` (default — overwrite the existing
+ *  PM junction row) or `addIfMissing` (skip appointments that already have a
+ *  PM contact and surface them in `failed[]`). */
+const bulkEditOptionsSchema = z.object({
+  propertyManagerContactPolicy: z.enum(['replace', 'addIfMissing']).optional(),
+}).optional();
+
 export const bulkEditAppointmentSchema = z.object({
   ids: z.array(z.string().uuid()).min(1, 'At least one appointment id is required').max(100, 'Maximum 100 appointments per bulk edit'),
   changes: bulkEditChangesSchema.refine(
     (data) => Object.values(data).some((v) => v !== undefined),
     { message: 'At least one field must be provided in changes' },
   ),
+  options: bulkEditOptionsSchema,
 });
 export type BulkEditAppointmentInput = z.infer<typeof bulkEditAppointmentSchema>;
 

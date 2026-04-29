@@ -8,6 +8,7 @@ import type { IAppointmentTimeSlotRepository } from '../../../src/modules/appoin
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
+import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { ContactEntity } from '../../../src/modules/contact/domain/contact.entity';
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
 import type { AuthContext } from '@properfy/shared';
@@ -814,6 +815,113 @@ describe('BulkEditAppointmentsUseCase', () => {
   // -------------------------------------------------------------------------
   // Empty changes (no-op update)
   // -------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
+  // PM contact policy: addIfMissing
+  // -------------------------------------------------------------------------
+
+  function makePmJunction(overrides: Partial<ConstructorParameters<typeof AppointmentContactEntity>[0]> = {}): AppointmentContactEntity {
+    return new AppointmentContactEntity({
+      id: 'apc-1',
+      appointmentId: 'appt-1',
+      contactId: 'pm-existing',
+      role: 'PROPERTY_MANAGER',
+      isPrimary: false,
+      snapshotName: 'Existing PM',
+      snapshotEmail: 'existing.pm@example.com',
+      snapshotPhone: null,
+      tenantName: 'Existing PM',
+      primaryEmail: 'existing.pm@example.com',
+      secondaryEmail: null,
+      primaryPhone: null,
+      secondaryPhone: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    });
+  }
+
+  it('(policy) addIfMissing + appointment without existing PM → creates junction', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }, []),
+    );
+    vi.mocked(contactRepo.findById).mockResolvedValue(makeContactEntity({ id: 'pm-new' }));
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { propertyManagerContactId: 'pm-new' },
+      options: { propertyManagerContactPolicy: 'addIfMissing' },
+      actor: makeActor(),
+    });
+
+    expect(result.updated).toBe(1);
+    expect(result.failed).toHaveLength(0);
+    expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: 'pm-new', role: 'PROPERTY_MANAGER' }),
+    );
+  });
+
+  it('(policy) addIfMissing + appointment WITH existing PM → reported and skipped (saveContact NOT called)', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }, [makePmJunction()]),
+    );
+    vi.mocked(contactRepo.findById).mockResolvedValue(makeContactEntity({ id: 'pm-new' }));
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { propertyManagerContactId: 'pm-new' },
+      options: { propertyManagerContactPolicy: 'addIfMissing' },
+      actor: makeActor(),
+    });
+
+    expect(result.updated).toBe(0);
+    expect(result.failed).toHaveLength(1);
+    expect(result.failed[0]).toMatchObject({
+      id: 'appt-1',
+      code: 'APPOINTMENT_HAS_EXISTING_CONTACT',
+    });
+    expect(appointmentRepo.saveContact).not.toHaveBeenCalled();
+  });
+
+  it('(policy) default replace + appointment WITH existing PM → still saves a new junction (backwards-compatible)', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }, [makePmJunction()]),
+    );
+    vi.mocked(contactRepo.findById).mockResolvedValue(makeContactEntity({ id: 'pm-new' }));
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { propertyManagerContactId: 'pm-new' },
+      // no options → default `replace`
+      actor: makeActor(),
+    });
+
+    expect(result.updated).toBe(1);
+    expect(result.failed).toHaveLength(0);
+    expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: 'pm-new', role: 'PROPERTY_MANAGER' }),
+    );
+  });
+
+  it('(policy) addIfMissing partial: appt-1 (no PM) succeeds, appt-2 (has PM) reported', async () => {
+    vi.mocked(appointmentRepo.findById)
+      .mockResolvedValueOnce(makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT' }, []))
+      .mockResolvedValueOnce(makeAppointmentWithRelations({ id: 'appt-2', status: 'DRAFT' }, [makePmJunction({ appointmentId: 'appt-2' })]));
+    vi.mocked(contactRepo.findById).mockResolvedValue(makeContactEntity({ id: 'pm-new' }));
+
+    const result = await useCase.execute({
+      ids: ['appt-1', 'appt-2'],
+      changes: { propertyManagerContactId: 'pm-new' },
+      options: { propertyManagerContactPolicy: 'addIfMissing' },
+      actor: makeActor(),
+    });
+
+    expect(result.updated).toBe(1);
+    expect(result.failed).toHaveLength(1);
+    expect(result.failed[0]).toMatchObject({ id: 'appt-2', code: 'APPOINTMENT_HAS_EXISTING_CONTACT' });
+    // saveContact called exactly once (for appt-1).
+    expect(appointmentRepo.saveContact).toHaveBeenCalledTimes(1);
+  });
 
   it('empty changes object: no fields to update — still audits with empty before/after', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(

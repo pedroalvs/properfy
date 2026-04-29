@@ -160,7 +160,7 @@ export function AppointmentListPage() {
         </div>
       )}
       <BulkEditModal
-        selectedIds={selectedIds}
+        selectedAppointments={data.filter((a) => selectedIds.includes(a.id))}
         open={bulkEditOpen}
         onClose={() => setBulkEditOpen(false)}
         onSuccess={() => {

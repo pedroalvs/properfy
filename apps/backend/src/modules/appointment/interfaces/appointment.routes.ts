@@ -422,6 +422,7 @@ export async function registerAppointmentRoutes(
       const result = await container.bulkEditAppointmentsUseCase.execute({
         ids: parsed.data.ids,
         changes: parsed.data.changes,
+        options: parsed.data.options,
         actor: auth,
         requestId: (request as any).requestId,
       });
