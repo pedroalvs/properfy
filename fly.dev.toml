@@ -1,3 +1,7 @@
+# UNUSED BY CI — kept as local reference only.
+# The CI workflows use fly.prod.toml (properfy-prod, syd) and fly.staging.toml (properfy, syd).
+# Running `fly deploy` from the repo root without --config will pick this file and deploy
+# to the wrong app/region. Use `fly deploy --config fly.prod.toml` or fly.staging.toml instead.
 app = 'properfy'
 primary_region = 'iad'
 

@@ -14,6 +14,10 @@ export default defineConfig({
     //   `node dist/provision-qa-users.js`
     // as part of the Fly.io release_command chain.
     'provision-qa-users': 'prisma/provision-qa-users.ts',
+    // One-shot prod seed: upserts platform-default notification templates.
+    // Run once after first production deploy via:
+    //   fly ssh console -a properfy-prod -C "cd /app && node apps/backend/dist/seed-platform-notification-templates.js"
+    'seed-platform-notification-templates': 'src/scripts/seed-platform-notification-templates.ts',
   },
   format: ['esm'],
   target: 'node20',

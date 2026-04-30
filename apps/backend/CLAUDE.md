@@ -413,6 +413,11 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - For schema changes, create new migrations.
 - Respect multi-tenant model (tenant_id, foreign keys, unique constraints).
 - Seed: minimal for `dev` and `staging`; none in `prod`.
+- **Production notification templates**: after the first deploy to a new prod environment, run the one-shot seed script to create platform-default templates (`tenant_id = NULL`):
+  ```bash
+  fly ssh console -a properfy-prod -C "cd /app && node apps/backend/dist/seed-platform-notification-templates.js"
+  ```
+  The script is idempotent (upserts by `template_code + channel`) and lives at `src/scripts/seed-platform-notification-templates.ts`.
 - Critical indexes: `tenant_id`, `status`, `scheduled_date`, `service_type_id`, `inspector_id`, `branch_id`
 
 ---
