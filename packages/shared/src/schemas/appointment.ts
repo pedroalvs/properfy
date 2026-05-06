@@ -115,6 +115,12 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   ungroupedOnly: z
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),
+  timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
+  contactSearch: z.string().max(200).optional(),
+  hasTenantNote: z
+    .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
+    .optional(),
+  confirmationStatus: z.nativeEnum(TenantConfirmationStatus).optional(),
 });
 export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySchema>;
 

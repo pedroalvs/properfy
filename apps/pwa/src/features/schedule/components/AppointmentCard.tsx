@@ -80,6 +80,12 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment }: Ap
       <div className="px-4 py-3">
         {/* Service type + flow */}
         <div className="flex items-center gap-2">
+          <span
+            className="shrink-0 rounded bg-secondary/10 px-1.5 py-0.5 text-[11px] font-bold text-secondary"
+            data-testid="appointment-code"
+          >
+            {appointment.appointmentCode}
+          </span>
           <span className="text-sm font-bold text-text-primary">{appointment.serviceTypeName}</span>
           <span
             className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"

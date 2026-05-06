@@ -13,6 +13,7 @@ vi.mock('react-router-dom', async () => {
 
 const baseAppointment: InspectorAppointment = {
   id: 'apt-1',
+  appointmentCode: 'INS-0042',
   propertyAddress: '123 Collins St',
   suburb: 'Melbourne',
   scheduledDate: '2026-03-18',
@@ -43,6 +44,11 @@ describe('AppointmentCard', () => {
     renderWithProviders(<AppointmentCard appointment={baseAppointment} />);
     expect(screen.getByText('123 Collins St, Melbourne')).toBeInTheDocument();
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
+  });
+
+  it('displays the appointment code', () => {
+    renderWithProviders(<AppointmentCard appointment={baseAppointment} />);
+    expect(screen.getByTestId('appointment-code')).toHaveTextContent('INS-0042');
   });
 
   it('shows time window', () => {

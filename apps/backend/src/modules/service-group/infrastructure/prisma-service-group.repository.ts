@@ -592,6 +592,39 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         dateFilter['lte'] = new Date(filters.scheduledDateTo);
       where['scheduled_date'] = dateFilter;
     }
+    if (filters.search) {
+      where['OR'] = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+    if (filters.branchId) {
+      where['appointments'] = {
+        some: { branch_id: filters.branchId, deleted_at: null },
+      };
+    }
+    if (filters.contactSearch) {
+      const contactOrConditions: Record<string, unknown>[] = [
+        { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { snapshot_phone: { contains: filters.contactSearch } },
+        { tenant_name: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { primary_email: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { primary_phone: { contains: filters.contactSearch } },
+      ];
+      // If branchId already set appointments.some, merge with AND
+      if (filters.branchId) {
+        const existingAnd = Array.isArray(where['AND']) ? (where['AND'] as Record<string, unknown>[]) : [];
+        where['AND'] = [
+          ...existingAnd,
+          { appointments: { some: { contacts: { some: { OR: contactOrConditions } }, deleted_at: null } } },
+        ];
+      } else {
+        where['appointments'] = {
+          some: { contacts: { some: { OR: contactOrConditions } }, deleted_at: null },
+        };
+      }
+    }
     return where;
   }
 

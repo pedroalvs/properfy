@@ -31,6 +31,7 @@ export interface GetAppointmentOutput {
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
+  tenantNote: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
   createdByUserId: string;
@@ -39,6 +40,8 @@ export interface GetAppointmentOutput {
   createdAt: Date;
   updatedAt: Date;
   // Enriched flat fields
+  /** Formatted appointment code (e.g. "INS-0042"). */
+  appointmentCode: string;
   code: string;
   propertyAddress: string;
   contactName: string;
@@ -82,6 +85,9 @@ export interface GetAppointmentOutput {
 
 function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
   const { appointment, contact, restrictions } = found;
+  const prefix = found.tenantAppointmentCodePrefix ?? 'INS';
+  const padded = String(appointment.appointmentNumber).padStart(4, '0');
+  const appointmentCode = `${prefix}-${padded}`;
   return {
     id: appointment.id,
     appointmentNumber: appointment.appointmentNumber,
@@ -101,6 +107,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     payoutAmount: appointment.payoutAmount,
     pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,
     notes: appointment.notes,
+    tenantNote: appointment.tenantNote,
     customFieldsJson: appointment.customFieldsJson,
     reason: appointment.reason,
     createdByUserId: appointment.createdByUserId,
@@ -109,6 +116,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
     // Enriched fields from joins
+    appointmentCode,
     code: found.propertyCode ?? '',
     propertyAddress: found.propertyAddress ?? '',
     contactName: contact?.effectiveName ?? '',

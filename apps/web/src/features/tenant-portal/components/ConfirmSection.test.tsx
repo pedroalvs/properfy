@@ -21,6 +21,18 @@ vi.mock('../hooks/usePortalData', () => ({
   }),
 }));
 
+vi.mock('@/components/forms/Textarea', () => ({
+  Textarea: ({ value, onChange, disabled, 'aria-label': ariaLabel, maxLength }: any) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(e: any) => onChange(e.target.value)}
+      disabled={disabled}
+      maxLength={maxLength}
+    />
+  ),
+}));
+
 import { ConfirmSection } from './ConfirmSection';
 
 const BASE_APPOINTMENT: PortalAppointment = {
@@ -96,7 +108,20 @@ describe('ConfirmSection', () => {
     expect(screen.getByText(/read-only/)).toBeInTheDocument();
   });
 
-  it('calls mutateAsync on confirm click', async () => {
+  it('renders the additional notes textarea', () => {
+    render(
+      <ConfirmSection
+        appointment={BASE_APPOINTMENT}
+        token="tok-1"
+        isReadOnly={false}
+      />,
+    );
+
+    expect(screen.getByLabelText('Additional notes')).toBeInTheDocument();
+    expect(screen.getByText('0/2000 characters')).toBeInTheDocument();
+  });
+
+  it('calls mutateAsync on confirm click without tenantNote when empty', async () => {
     mockMutateAsync.mockResolvedValue({});
 
     render(
@@ -111,6 +136,29 @@ describe('ConfirmSection', () => {
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({});
+    });
+  });
+
+  it('calls mutateAsync with tenantNote when provided', async () => {
+    mockMutateAsync.mockResolvedValue({});
+
+    render(
+      <ConfirmSection
+        appointment={BASE_APPOINTMENT}
+        token="tok-1"
+        isReadOnly={false}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Additional notes'), {
+      target: { value: 'Please ring the bell' },
+    });
+    fireEvent.click(screen.getByText('Confirm Attendance'));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        tenantNote: 'Please ring the bell',
+      });
     });
   });
 

@@ -30,6 +30,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     keyRequired: false,
     notes: null,
     isOverdue: false,
+    hasTenantNote: false,
     createdAt: '2026-03-10T10:00:00Z',
     updatedAt: '2026-03-10T10:00:00Z',
     ...overrides,
@@ -109,6 +110,33 @@ describe('AppointmentTable', () => {
   it('shows error state', () => {
     render(<AppointmentTable data={[]} error="Network error" />);
     expect(screen.getByText('Network error')).toBeInTheDocument();
+  });
+
+  it('shows tenant note icon for REJECTED appointment with hasTenantNote', () => {
+    const apt = makeAppointment({
+      status: AppointmentStatus.REJECTED,
+      hasTenantNote: true,
+    });
+    render(<AppointmentTable data={[apt]} />);
+    expect(screen.getByLabelText('Tenant left a note')).toBeInTheDocument();
+  });
+
+  it('does not show tenant note icon for non-REJECTED appointment with hasTenantNote', () => {
+    const apt = makeAppointment({
+      status: AppointmentStatus.SCHEDULED,
+      hasTenantNote: true,
+    });
+    render(<AppointmentTable data={[apt]} />);
+    expect(screen.queryByLabelText('Tenant left a note')).not.toBeInTheDocument();
+  });
+
+  it('does not show tenant note icon for REJECTED appointment without hasTenantNote', () => {
+    const apt = makeAppointment({
+      status: AppointmentStatus.REJECTED,
+      hasTenantNote: false,
+    });
+    render(<AppointmentTable data={[apt]} />);
+    expect(screen.queryByLabelText('Tenant left a note')).not.toBeInTheDocument();
   });
 
   it('view action calls onView with correct appointment', async () => {

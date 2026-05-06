@@ -28,6 +28,7 @@ export interface Appointment {
   doneCheckedByUserId?: string | null;
   doneCheckedAt?: string | null;
   isOverdue: boolean;
+  hasTenantNote: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +60,7 @@ export interface AppointmentDetail extends Appointment {
   meetingLocation: string | null;
   keyLocation: string | null;
   cancellationReason: string | null;
+  tenantNote: string | null;
   contacts?: AppointmentContactEntry[];
   restrictions?: Array<{
     id: string;

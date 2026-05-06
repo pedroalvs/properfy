@@ -74,7 +74,7 @@ export function ExecutionPage() {
     );
   }
   const topBarSubtitle = appointment
-    ? `${appointment.propertyAddress} · ${getTimeWindowParts(appointment.timeSlot).startTime}`
+    ? `${appointment.appointmentCode} · ${appointment.propertyAddress} · ${getTimeWindowParts(appointment.timeSlot).startTime}`
     : undefined;
 
   const handleStart = async (location: CapturedLocation) => {

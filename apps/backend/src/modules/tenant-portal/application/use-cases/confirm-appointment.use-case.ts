@@ -23,6 +23,7 @@ export interface ConfirmAppointmentInput {
     unavailableHoursJson: string[] | null;
     notes: string | null;
   };
+  tenantNote?: string;
   ipAddress: string | null;
   userAgent: string | null;
 }
@@ -76,9 +77,10 @@ export class ConfirmAppointmentUseCase {
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
     };
 
-    // 6. Update appointment confirmation status
+    // 6. Update appointment confirmation status (and tenant note if provided)
     await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
       tenantConfirmationStatus: 'CONFIRMED',
+      ...(input.tenantNote !== undefined ? { tenantNote: input.tenantNote } : {}),
     });
 
     // 7. Confirm resets stale tenant-portal restrictions from previous unavailability/reschedule cycles.

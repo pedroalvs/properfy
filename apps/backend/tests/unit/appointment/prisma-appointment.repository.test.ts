@@ -37,4 +37,126 @@ describe('PrismaAppointmentRepository date filters', () => {
       }),
     );
   });
+
+  it('filters by exact timeSlot match', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { timeSlot: '09:00-10:00' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          time_slot: '09:00-10:00',
+        }),
+      }),
+    );
+  });
+
+  it('filters by contactSearch across snapshot fields', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { contactSearch: 'john' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          contacts: {
+            some: {
+              OR: [
+                { snapshot_name: { contains: 'john', mode: 'insensitive' } },
+                { snapshot_email: { contains: 'john', mode: 'insensitive' } },
+                { snapshot_phone: { contains: 'john' } },
+                { tenant_name: { contains: 'john', mode: 'insensitive' } },
+                { primary_email: { contains: 'john', mode: 'insensitive' } },
+                { primary_phone: { contains: 'john' } },
+              ],
+            },
+          },
+        }),
+      }),
+    );
+  });
+
+  it('filters by hasTenantNote=true (non-null and non-empty)', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { hasTenantNote: true },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const call = findMany.mock.calls[0][0];
+    expect(call.where.AND).toEqual(
+      expect.arrayContaining([
+        { tenant_note: { not: null } },
+        { NOT: { tenant_note: '' } },
+      ]),
+    );
+  });
+
+  it('filters by hasTenantNote=false (null or empty)', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { hasTenantNote: false },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const call = findMany.mock.calls[0][0];
+    expect(call.where.AND).toEqual(
+      expect.arrayContaining([
+        { OR: [{ tenant_note: null }, { tenant_note: '' }] },
+      ]),
+    );
+  });
+
+  it('filters by confirmationStatus', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { confirmationStatus: 'CONFIRMED' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenant_confirmation_status: 'CONFIRMED',
+        }),
+      }),
+    );
+  });
+
+  it('does not add timeSlot filter when not provided', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      {},
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const call = findMany.mock.calls[0][0];
+    expect(call.where).not.toHaveProperty('time_slot');
+  });
+
+  it('count uses same filters as findAll', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.count({ timeSlot: '10:00-11:00', confirmationStatus: 'PENDING' });
+
+    expect(count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          time_slot: '10:00-11:00',
+          tenant_confirmation_status: 'PENDING',
+        }),
+      }),
+    );
+  });
 });

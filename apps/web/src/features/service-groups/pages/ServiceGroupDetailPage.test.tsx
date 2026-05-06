@@ -43,10 +43,10 @@ vi.mock('@/lib/format-date', () => ({
 
 vi.mock('@/lib/status-colors', () => ({
   SERVICE_GROUP_STATUS_MAP: {
-    DRAFT: { bg: '#E1BEE7', text: '#000', label: 'Draft' },
-    PUBLISHED: { bg: '#FFE0B2', text: '#000', label: 'Published' },
+    DRAFT: { bg: '#E1BEE7', text: '#000', label: 'Awaiting Host' },
+    PUBLISHED: { bg: '#FFE0B2', text: '#000', label: 'Awaiting Inspector' },
     ACCEPTED: { bg: '#C8E6C9', text: '#000', label: 'Accepted' },
-    CANCELLED: { bg: '#FFCDD2', text: '#000', label: 'Cancelled' },
+    CANCELLED: { bg: '#FFCDD2', text: '#000', label: 'Canceled' },
   },
   PRIORITY_MODE_MAP: {
     STANDARD: { bg: '#eee', text: '#000', label: 'Standard' },
@@ -232,7 +232,7 @@ describe('ServiceGroupDetailPage', () => {
   it('renders status chip', () => {
     renderPage();
     // Status chip appears in header and detail sections
-    expect(screen.getAllByText('Draft').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Awaiting Host').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows Publish button for DRAFT status', () => {

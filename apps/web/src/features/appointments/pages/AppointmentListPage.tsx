@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentTable } from '../components/AppointmentTable';
-import { AppointmentDetailDrawer } from '../components/AppointmentDetailDrawer';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { BulkEditModal } from '../components/BulkEditModal';
 import { useAppointmentList } from '../hooks/useAppointmentList';
@@ -68,8 +67,6 @@ export function AppointmentListPage() {
     ];
   }, [isGlobalRole, branchApiOptions, data]);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -78,7 +75,7 @@ export function AppointmentListPage() {
   const canCreate = canPerform('appointment.create');
   const canMapImport = canPerform('property.import');
   const canBulkEdit = canPerform('appointment.cancel');
-  const canViewMap = hasRole('AM', 'OP');
+  const canViewMap = true;
 
   return (
     <>
@@ -87,7 +84,7 @@ export function AppointmentListPage() {
         primaryAction={canCreate ? { label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } } : undefined}
         secondaryActions={[
           ...(canMapImport ? [{ label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/appointments/import') }] : []),
-          ...(canViewMap ? [{ label: 'Map View', icon: 'mdi-map-outline', onClick: () => navigate('/appointments/map') }] : []),
+          ...(canViewMap ? [{ label: 'Map View', icon: 'mdi-map-outline', onClick: () => navigate('/appointments') }] : []),
         ]}
       >
         <AppointmentFilters
@@ -103,27 +100,12 @@ export function AppointmentListPage() {
           onRetryError={refetch}
           pagination={pagination}
           onView={(apt) => {
-            setSelectedId(apt.id);
-            setDrawerOpen(true);
+            window.open(`/appointments/${apt.id}`, '_blank');
           }}
           selectedIds={canBulkEdit ? selectedIds : undefined}
           onSelectionChange={canBulkEdit ? setSelectedIds : undefined}
         />
       </ListFilterTableTemplate>
-      <AppointmentDetailDrawer
-        appointmentId={selectedId}
-        open={drawerOpen}
-        onClose={() => {
-          setDrawerOpen(false);
-          setSelectedId(null);
-        }}
-        onEdit={(id) => {
-          setDrawerOpen(false);
-          setSelectedId(null);
-          setEditId(id);
-          setFormOpen(true);
-        }}
-      />
       <AppointmentFormDrawer
         open={formOpen}
         onClose={() => {

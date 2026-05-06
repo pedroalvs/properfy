@@ -41,6 +41,10 @@ function makeAppointmentListItem(overrides: Partial<ConstructorParameters<typeof
     contact: null,
     propertyCode: 'PROP-001',
     propertyAddress: '123 Test St, Suburb NSW 2000',
+    propertyLatitude: null,
+    propertyLongitude: null,
+    tenantName: 'Test Agency',
+    tenantAppointmentCodePrefix: null,
     branchName: 'Main Branch',
     serviceTypeName: 'Routine Inspection',
     inspectorName: null,
@@ -72,15 +76,23 @@ describe('ListAppointmentsUseCase', () => {
     appointmentRepo = {
       findById: vi.fn(),
       findAll: vi.fn(),
+      findVisibleForInspector: vi.fn(),
+      isAppointmentVisibleForInspector: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
       saveContact: vi.fn(),
       updateContact: vi.fn(),
+      updateContactSnapshot: vi.fn(),
+      deleteContactsByAppointmentId: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
       findScheduledOnDate: vi.fn(),
+      findAllContacts: vi.fn(),
+      countContacts: vi.fn(),
+      findContactById: vi.fn(),
       findDuplicateForImport: vi.fn(),
+      findUnconfirmedForDate: vi.fn(),
     };
     const authorizationService = new AuthorizationService({ log: vi.fn() } as any);
     useCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
@@ -306,6 +318,158 @@ describe('ListAppointmentsUseCase', () => {
 
       expect(appointmentRepo.findAll).toHaveBeenCalledWith(
         expect.objectContaining({ tenantId: 'tenant-own' }),
+        defaultPagination,
+      );
+    });
+  });
+
+  describe('search by appointment code', () => {
+    it('passes searchAppointmentNumber when search looks like a code', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { search: 'INS-0042' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'INS-0042', searchAppointmentNumber: 42 }),
+        defaultPagination,
+      );
+    });
+
+    it('does not pass searchAppointmentNumber when search is plain text', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { search: 'some address' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'some address', searchAppointmentNumber: undefined }),
+        defaultPagination,
+      );
+    });
+
+    it('includes appointmentCode in list output', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem({ appointmentNumber: 42 }),
+      ]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.appointmentCode).toBe('INS-0042');
+    });
+
+    it('uses custom tenant prefix for appointmentCode', async () => {
+      const item = makeAppointmentListItem({ appointmentNumber: 1 });
+      item.tenantAppointmentCodePrefix = 'APT';
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([item]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.appointmentCode).toBe('APT-0001');
+    });
+  });
+
+  describe('timeSlot filter', () => {
+    it('passes timeSlot filter to repository', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { timeSlot: '09:00-10:00' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ timeSlot: '09:00-10:00' }),
+        defaultPagination,
+      );
+    });
+  });
+
+  describe('contactSearch filter', () => {
+    it('passes contactSearch filter to repository', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { contactSearch: 'john' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ contactSearch: 'john' }),
+        defaultPagination,
+      );
+    });
+  });
+
+  describe('hasTenantNote filter', () => {
+    it('passes hasTenantNote=true filter to repository', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { hasTenantNote: true },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ hasTenantNote: true }),
+        defaultPagination,
+      );
+    });
+
+    it('passes hasTenantNote=false filter to repository', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { hasTenantNote: false },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ hasTenantNote: false }),
+        defaultPagination,
+      );
+    });
+  });
+
+  describe('confirmationStatus filter', () => {
+    it('passes confirmationStatus filter to repository', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { confirmationStatus: 'CONFIRMED' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ confirmationStatus: 'CONFIRMED' }),
         defaultPagination,
       );
     });

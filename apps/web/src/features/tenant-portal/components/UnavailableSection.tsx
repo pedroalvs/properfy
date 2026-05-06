@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TenantConfirmationStatus } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useReportUnavailability } from '../hooks/usePortalData';
 import type { PortalAppointment } from '../types';
@@ -19,6 +20,7 @@ export function UnavailableSection({
   const { showSuccess, showError } = useSnackbar();
   const unavailableMutation = useReportUnavailability(token);
   const [reported, setReported] = useState(false);
+  const [tenantNote, setTenantNote] = useState('');
 
   const isAlreadyUnavailable =
     appointment.tenantConfirmationStatus === TenantConfirmationStatus.UNAVAILABLE;
@@ -41,7 +43,9 @@ export function UnavailableSection({
 
   const handleReport = async () => {
     try {
-      const result = await unavailableMutation.mutateAsync({});
+      const result = await unavailableMutation.mutateAsync({
+        ...(tenantNote.trim() ? { tenantNote: tenantNote.trim() } : {}),
+      });
       setReported(true);
       showSuccess(
         (result as { urgentMode?: boolean } | undefined)?.urgentMode
@@ -65,6 +69,27 @@ export function UnavailableSection({
           ? "The deadline has passed, but if you've had an emergency or urgent change, please report your unavailability below so our team is notified."
           : "If you won't be available for this inspection, let us know."}
       </p>
+
+      <div className="mb-4">
+        <label
+          htmlFor="unavailable-tenant-note"
+          className="mb-1 block text-sm font-medium text-text-secondary"
+        >
+          Additional notes
+        </label>
+        <Textarea
+          id="unavailable-tenant-note"
+          value={tenantNote}
+          onChange={setTenantNote}
+          placeholder="Any additional information for the operator (optional)"
+          rows={3}
+          maxLength={2000}
+          aria-label="Additional notes"
+        />
+        <p className="mt-1 text-xs text-text-muted">
+          {tenantNote.length}/2000 characters
+        </p>
+      </div>
 
       <Button
         variant="outlined"

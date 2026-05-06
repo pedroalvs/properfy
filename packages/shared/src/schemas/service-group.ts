@@ -9,18 +9,18 @@ const exceptionTypeEnum = z.enum(['LOW_DENSITY_REGION', 'ISOLATED_SERVICE', 'PRI
  * Schema for creating a service group.
  *
  * Size limits:
- *   - Standard (no exception): min 5, max 25
- *   - LOW_DENSITY_REGION: min 1, max 25
+ *   - Standard (no exception): min 5, max 30
+ *   - LOW_DENSITY_REGION: min 1, max 30
  *   - ISOLATED_SERVICE: min 1, max 3
  *   - PRIORITY_CLIENT: min 1, max 8
  *
- * The shared schema enforces the hard boundary (min 1, max 25).
+ * The shared schema enforces the hard boundary (min 1, max 30).
  * Business-rule limits per exception type are enforced by the domain validator.
  * See: projeto-consolidado/service-group-exceptions.md
  */
 export const createServiceGroupSchema = z
   .object({
-    appointmentIds: z.array(z.string().uuid()).min(1).max(25),
+    appointmentIds: z.array(z.string().uuid()).min(1).max(30),
     serviceTypeId: z.string().uuid(),
     scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     timeWindow: z.string().regex(timeWindowRegex),
@@ -109,6 +109,9 @@ export const listServiceGroupsQuerySchema = paginationSchema.extend({
     .union([z.boolean(), z.literal('true'), z.literal('false')])
     .optional()
     .transform((v) => v === true || v === 'true'),
+  search: z.string().max(200).optional(),
+  branchId: z.string().uuid().optional(),
+  contactSearch: z.string().max(200).optional(),
 });
 export type ListServiceGroupsQuery = z.infer<typeof listServiceGroupsQuerySchema>;
 

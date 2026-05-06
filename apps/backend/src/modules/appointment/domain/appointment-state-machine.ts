@@ -19,7 +19,7 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'DRAFT',
     to: 'REJECTED',
-    allowedActors: ['AM', 'OP'],
+    allowedActors: ['AM', 'OP', 'SYS'],
     requiresReason: true,
     requiresDoneCheckedBy: false,
   },
@@ -47,7 +47,7 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'AWAITING_INSPECTOR',
     to: 'REJECTED',
-    allowedActors: ['AM', 'OP'],
+    allowedActors: ['AM', 'OP', 'SYS'],
     requiresReason: true,
     requiresDoneCheckedBy: false,
   },

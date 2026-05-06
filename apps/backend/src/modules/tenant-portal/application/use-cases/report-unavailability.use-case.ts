@@ -25,6 +25,7 @@ export interface ReportUnavailabilityInput {
     unavailableHoursJson: string[] | null;
     notes: string | null;
   };
+  tenantNote?: string;
   ipAddress: string | null;
   userAgent: string | null;
 }
@@ -82,9 +83,10 @@ export class ReportUnavailabilityUseCase {
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
     };
 
-    // 5. Update appointment confirmation status
+    // 5. Update appointment confirmation status (and tenant note if provided)
     await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
       tenantConfirmationStatus: 'UNAVAILABLE',
+      ...(input.tenantNote !== undefined ? { tenantNote: input.tenantNote } : {}),
     });
 
     // 5b. Mark token as used (replay detection)

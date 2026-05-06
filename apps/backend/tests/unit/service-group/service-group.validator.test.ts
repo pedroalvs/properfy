@@ -34,8 +34,8 @@ describe('ServiceGroupValidator', () => {
       ).not.toThrow();
     });
 
-    it('accepts 25 valid appointments (maximum)', () => {
-      const appointments = makeAppointments(25);
+    it('accepts 30 valid appointments (maximum)', () => {
+      const appointments = makeAppointments(30);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1'),
       ).not.toThrow();
@@ -63,8 +63,8 @@ describe('ServiceGroupValidator', () => {
       ).toThrow(GroupSizeTooSmallError);
     });
 
-    it('rejects more than 25 appointments', () => {
-      const appointments = makeAppointments(26);
+    it('rejects more than 30 appointments', () => {
+      const appointments = makeAppointments(31);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1'),
       ).toThrow(GroupSizeTooLargeError);
@@ -82,13 +82,13 @@ describe('ServiceGroupValidator', () => {
     });
 
     it('includes actual size in error for too large', () => {
-      const appointments = makeAppointments(30);
+      const appointments = makeAppointments(35);
       try {
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(GroupSizeTooLargeError);
-        expect((err as GroupSizeTooLargeError).message).toContain('30');
+        expect((err as GroupSizeTooLargeError).message).toContain('35');
       }
     });
   });
@@ -170,15 +170,15 @@ describe('ServiceGroupValidator', () => {
       ).not.toThrow();
     });
 
-    it('LOW_DENSITY_REGION: accepts 25 appointments', () => {
-      const appointments = makeAppointments(25);
+    it('LOW_DENSITY_REGION: accepts 30 appointments', () => {
+      const appointments = makeAppointments(30);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'LOW_DENSITY_REGION'),
       ).not.toThrow();
     });
 
-    it('LOW_DENSITY_REGION: rejects 26 appointments', () => {
-      const appointments = makeAppointments(26);
+    it('LOW_DENSITY_REGION: rejects 31 appointments', () => {
+      const appointments = makeAppointments(31);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'LOW_DENSITY_REGION'),
       ).toThrow(GroupSizeTooLargeError);

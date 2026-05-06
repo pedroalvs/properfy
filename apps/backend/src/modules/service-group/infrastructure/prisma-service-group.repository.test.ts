@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaServiceGroupRepository } from './prisma-service-group.repository';
 
 describe('PrismaServiceGroupRepository marketplace filters', () => {
@@ -248,5 +248,146 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     expect(sqlText).toContain('sr.tenant_id = a.tenant_id');
     // Ensure no top-level tenant filter on service_regions (cross-tenant for inspectors)
     expect(sqlText).not.toMatch(/sr\.tenant_id\s*=\s*\$/);
+  });
+});
+
+describe('PrismaServiceGroupRepository list filters', () => {
+  const findMany = vi.fn();
+  const countFn = vi.fn();
+
+  const prisma = {
+    serviceGroup: {
+      findMany,
+      count: countFn,
+    },
+  } as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findMany.mockResolvedValue([]);
+    countFn.mockResolvedValue(0);
+  });
+
+  it('filters by search on name and description', async () => {
+    const repo = new PrismaServiceGroupRepository(prisma);
+
+    await repo.findAll(
+      { search: 'bondi' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { name: { contains: 'bondi', mode: 'insensitive' } },
+            { description: { contains: 'bondi', mode: 'insensitive' } },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it('filters by branchId via linked appointments', async () => {
+    const repo = new PrismaServiceGroupRepository(prisma);
+
+    await repo.findAll(
+      { branchId: 'branch-abc' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          appointments: {
+            some: { branch_id: 'branch-abc', deleted_at: null },
+          },
+        }),
+      }),
+    );
+  });
+
+  it('filters by contactSearch on linked appointment contacts', async () => {
+    const repo = new PrismaServiceGroupRepository(prisma);
+
+    await repo.findAll(
+      { contactSearch: 'smith' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          appointments: {
+            some: {
+              contacts: {
+                some: {
+                  OR: [
+                    { snapshot_name: { contains: 'smith', mode: 'insensitive' } },
+                    { snapshot_email: { contains: 'smith', mode: 'insensitive' } },
+                    { snapshot_phone: { contains: 'smith' } },
+                    { tenant_name: { contains: 'smith', mode: 'insensitive' } },
+                    { primary_email: { contains: 'smith', mode: 'insensitive' } },
+                    { primary_phone: { contains: 'smith' } },
+                  ],
+                },
+              },
+              deleted_at: null,
+            },
+          },
+        }),
+      }),
+    );
+  });
+
+  it('combines branchId and contactSearch using AND', async () => {
+    const repo = new PrismaServiceGroupRepository(prisma);
+
+    await repo.findAll(
+      { branchId: 'branch-abc', contactSearch: 'john' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const call = findMany.mock.calls[0][0];
+    // branchId uses appointments.some directly
+    expect(call.where.appointments).toEqual({
+      some: { branch_id: 'branch-abc', deleted_at: null },
+    });
+    // contactSearch uses AND to avoid overwriting appointments filter
+    expect(call.where.AND).toEqual(
+      expect.arrayContaining([
+        {
+          appointments: {
+            some: {
+              contacts: {
+                some: {
+                  OR: expect.arrayContaining([
+                    { snapshot_name: { contains: 'john', mode: 'insensitive' } },
+                  ]),
+                },
+              },
+              deleted_at: null,
+            },
+          },
+        },
+      ]),
+    );
+  });
+
+  it('count uses same search filter as findAll', async () => {
+    const repo = new PrismaServiceGroupRepository(prisma);
+
+    await repo.count({ search: 'test group' });
+
+    expect(countFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { name: { contains: 'test group', mode: 'insensitive' } },
+            { description: { contains: 'test group', mode: 'insensitive' } },
+          ],
+        }),
+      }),
+    );
   });
 });

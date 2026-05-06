@@ -140,7 +140,7 @@ describe('AppointmentListPage', () => {
     expect(screen.getByText('Map View')).toBeInTheDocument();
   });
 
-  it('hides Map View button for CL_ADMIN role', () => {
+  it('shows Map View button for CL_ADMIN role', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 'u2', name: 'Client', email: 'cl@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1' },
       token: 'token',
@@ -150,7 +150,7 @@ describe('AppointmentListPage', () => {
       logout: vi.fn(),
     });
     renderPage();
-    expect(screen.queryByText('Map View')).not.toBeInTheDocument();
+    expect(screen.getByText('Map View')).toBeInTheDocument();
   });
 
   it('renders filter bar with search and status controls', () => {

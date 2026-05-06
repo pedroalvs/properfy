@@ -16,6 +16,17 @@ vi.mock('../hooks/usePortalData', () => ({
   }),
 }));
 
+vi.mock('@/components/forms/Textarea', () => ({
+  Textarea: ({ value, onChange, 'aria-label': ariaLabel, maxLength }: any) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(e: any) => onChange(e.target.value)}
+      maxLength={maxLength}
+    />
+  ),
+}));
+
 const baseAppointment = {
   id: '1',
   code: 'APT-001',
@@ -66,7 +77,19 @@ describe('UnavailableSection', () => {
     expect(screen.getByRole('button', { name: 'Urgent Report: Unavailable' })).toBeEnabled();
   });
 
-  it('calls mutation on button click', async () => {
+  it('renders the additional notes textarea', () => {
+    render(
+      <UnavailableSection
+        appointment={baseAppointment as any}
+        token="test-token"
+        isReadOnly={false}
+      />,
+    );
+
+    expect(screen.getByLabelText('Additional notes')).toBeInTheDocument();
+  });
+
+  it('calls mutation on button click without tenantNote when empty', async () => {
     mutateAsyncMock.mockResolvedValueOnce({});
     const user = userEvent.setup();
 
@@ -80,6 +103,27 @@ describe('UnavailableSection', () => {
 
     await user.click(screen.getByRole('button'));
 
-    expect(mutateAsyncMock).toHaveBeenCalled();
+    expect(mutateAsyncMock).toHaveBeenCalledWith({});
+  });
+
+  it('includes tenantNote in mutation when provided', async () => {
+    mutateAsyncMock.mockResolvedValueOnce({});
+    const user = userEvent.setup();
+
+    render(
+      <UnavailableSection
+        appointment={baseAppointment as any}
+        token="test-token"
+        isReadOnly={false}
+      />,
+    );
+
+    const textarea = screen.getByLabelText('Additional notes');
+    await user.type(textarea, 'Emergency came up');
+    await user.click(screen.getByRole('button'));
+
+    expect(mutateAsyncMock).toHaveBeenCalledWith({
+      tenantNote: 'Emergency came up',
+    });
   });
 });

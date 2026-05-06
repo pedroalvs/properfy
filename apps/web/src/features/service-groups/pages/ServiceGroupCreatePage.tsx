@@ -26,10 +26,10 @@ import { GroupSummaryCard } from '../components/GroupSummaryCard';
 import { useEligibleAppointments } from '../hooks/useEligibleAppointments';
 
 const MIN_APPOINTMENTS = 5;
-const MAX_APPOINTMENTS = 25;
+const MAX_APPOINTMENTS = 30;
 
 const EXCEPTION_TYPE_OPTIONS = [
-  { value: ServiceGroupExceptionType.LOW_DENSITY_REGION, label: 'Low Density Region (max 25)' },
+  { value: ServiceGroupExceptionType.LOW_DENSITY_REGION, label: 'Low Density Region (max 30)' },
   { value: ServiceGroupExceptionType.ISOLATED_SERVICE,   label: 'Isolated Service (max 3)' },
   { value: ServiceGroupExceptionType.PRIORITY_CLIENT,    label: 'Priority Client (max 8)' },
 ];

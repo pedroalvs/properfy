@@ -6,6 +6,7 @@ import type { InspectorAppointment } from '../../types';
 function makeApt(overrides: Partial<InspectorAppointment> = {}): InspectorAppointment {
   return {
     id: 'apt-1',
+    appointmentCode: 'INS-0001',
     propertyAddress: '123 Test St',
     suburb: 'TestSuburb',
     scheduledDate: '2026-03-18',

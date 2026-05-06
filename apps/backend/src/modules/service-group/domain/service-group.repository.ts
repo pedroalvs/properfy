@@ -7,6 +7,12 @@ export interface ServiceGroupFilters {
   scheduledDateFrom?: string;
   scheduledDateTo?: string;
   priorityMode?: string;
+  /** Text search on group name and description. */
+  search?: string;
+  /** Filter by branch ID of linked appointments. */
+  branchId?: string;
+  /** Search in linked appointments' contact snapshots (name, email, phone). */
+  contactSearch?: string;
 }
 
 export interface PaginationParams {

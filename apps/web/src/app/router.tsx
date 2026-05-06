@@ -105,6 +105,14 @@ export const router = createBrowserRouter([
             path: 'appointments',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <AppointmentMapPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'appointments/list',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
                 <AppointmentListPage />
               </AuthGuard>
             ),
@@ -127,11 +135,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'appointments/map',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <AppointmentMapPage />
-              </AuthGuard>
-            ),
+            element: <Navigate to="/appointments" replace />,
           },
           {
             path: 'appointments/:id',

@@ -55,4 +55,42 @@ describe('AppointmentCodeFormatter', () => {
   it('handles appointment number 1000', () => {
     expect(formatter.format(1000, makeTenant())).toBe('INS-1000');
   });
+
+  describe('parse()', () => {
+    it('parses "INS-0042" and returns 42', () => {
+      expect(AppointmentCodeFormatter.parse('INS-0042')).toBe(42);
+    });
+
+    it('parses "ABC-0001" and returns 1', () => {
+      expect(AppointmentCodeFormatter.parse('ABC-0001')).toBe(1);
+    });
+
+    it('parses "INS-12345" and returns 12345', () => {
+      expect(AppointmentCodeFormatter.parse('INS-12345')).toBe(12345);
+    });
+
+    it('returns null for "invalid"', () => {
+      expect(AppointmentCodeFormatter.parse('invalid')).toBeNull();
+    });
+
+    it('returns null for empty string', () => {
+      expect(AppointmentCodeFormatter.parse('')).toBeNull();
+    });
+
+    it('returns null for "INS-" (prefix with no number)', () => {
+      expect(AppointmentCodeFormatter.parse('INS-')).toBeNull();
+    });
+
+    it('returns null for "-0042" (no prefix)', () => {
+      expect(AppointmentCodeFormatter.parse('-0042')).toBeNull();
+    });
+
+    it('returns 0 for "INS-0000"', () => {
+      expect(AppointmentCodeFormatter.parse('INS-0000')).toBe(0);
+    });
+
+    it('handles lowercase prefix', () => {
+      expect(AppointmentCodeFormatter.parse('ins-0042')).toBe(42);
+    });
+  });
 });

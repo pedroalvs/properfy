@@ -5,7 +5,7 @@ import { SelectionCounter } from './SelectionCounter';
 describe('SelectionCounter', () => {
   it('shows count with default min/max', () => {
     render(<SelectionCounter count={10} />);
-    expect(screen.getByText('10 selected (min 5, max 25)')).toBeInTheDocument();
+    expect(screen.getByText('10 selected (min 5, max 30)')).toBeInTheDocument();
   });
 
   it('shows custom min and max', () => {

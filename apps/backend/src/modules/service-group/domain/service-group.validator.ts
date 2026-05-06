@@ -18,18 +18,18 @@ export interface AppointmentForValidation {
 
 /**
  * Size limits that apply when a service group exception type is declared.
- * Without an exception: min=5, max=25.
+ * Without an exception: min=5, max=30.
  *
  * See: projeto-consolidado/service-group-exceptions.md for the full rationale
  * and migration path to automatic (Scenario 1) exceptions.
  */
 const EXCEPTION_LIMITS: Record<ServiceGroupExceptionType, { min: number; max: number }> = {
-  LOW_DENSITY_REGION: { min: 1, max: 25 },
+  LOW_DENSITY_REGION: { min: 1, max: 30 },
   ISOLATED_SERVICE:   { min: 1, max: 3  },
   PRIORITY_CLIENT:    { min: 1, max: 8  },
 };
 
-const DEFAULT_LIMITS = { min: 5, max: 25 };
+const DEFAULT_LIMITS = { min: 5, max: 30 };
 
 export class ServiceGroupValidator {
   static validate(

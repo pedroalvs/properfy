@@ -6,6 +6,7 @@ import type {
   PaginationParams,
   AppointmentListItem,
 } from '../../domain/appointment.repository';
+import { AppointmentCodeFormatter } from '../../domain/appointment-code.formatter';
 
 export interface ListAppointmentsInput {
   filters: {
@@ -22,6 +23,10 @@ export interface ListAppointmentsInput {
     showCancelled?: boolean;
     overdueOnly?: boolean;
     ungroupedOnly?: boolean;
+    timeSlot?: string;
+    contactSearch?: string;
+    hasTenantNote?: boolean;
+    confirmationStatus?: string;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -52,6 +57,8 @@ export interface ListAppointmentsOutput {
     createdAt: Date;
     updatedAt: Date;
     // Enriched fields
+    /** Formatted appointment code (e.g. "INS-0042"). */
+    appointmentCode: string;
     code: string;
     propertyAddress: string;
     contactName: string;
@@ -62,6 +69,7 @@ export interface ListAppointmentsOutput {
     branchName: string;
     serviceTypeName: string;
     isOverdue: boolean;
+    hasTenantNote: boolean;
     latitude: number | null;
     longitude: number | null;
   }>;
@@ -97,6 +105,13 @@ export class ListAppointmentsUseCase {
         ? filters.tenantId
         : actor.tenantId ?? undefined;
 
+    // When the search term looks like an appointment code (e.g. "INS-0042"),
+    // extract the appointment number so the repository can add an OR condition
+    // on appointment_number in addition to the regular text search.
+    const searchAppointmentNumber = filters.search
+      ? AppointmentCodeFormatter.parse(filters.search) ?? undefined
+      : undefined;
+
     const repoFilters: AppointmentFilters = {
       tenantId,
       status: filters.status,
@@ -105,12 +120,17 @@ export class ListAppointmentsUseCase {
       inspectorId: filters.inspectorId,
       propertyId: filters.propertyId,
       search: filters.search,
+      searchAppointmentNumber,
       fromDate: filters.fromDate,
       toDate: filters.toDate,
       tenantConfirmationStatus: filters.tenantConfirmationStatus,
       showCancelled: filters.showCancelled,
       overdueOnly: filters.overdueOnly,
       ungroupedOnly: filters.ungroupedOnly,
+      timeSlot: filters.timeSlot,
+      contactSearch: filters.contactSearch,
+      hasTenantNote: filters.hasTenantNote,
+      confirmationStatus: filters.confirmationStatus,
     };
 
     const [data, total] = await Promise.all([
@@ -119,7 +139,11 @@ export class ListAppointmentsUseCase {
     ]);
 
     return {
-      data: data.map((item: AppointmentListItem) => ({
+      data: data.map((item: AppointmentListItem) => {
+        const prefix = item.tenantAppointmentCodePrefix ?? 'INS';
+        const padded = String(item.appointment.appointmentNumber).padStart(4, '0');
+        const appointmentCode = `${prefix}-${padded}`;
+        return {
         id: item.appointment.id,
         appointmentNumber: item.appointment.appointmentNumber,
         tenantId: item.appointment.tenantId,
@@ -142,6 +166,7 @@ export class ListAppointmentsUseCase {
         doneCheckedAt: item.appointment.doneCheckedAt,
         createdAt: item.appointment.createdAt,
         updatedAt: item.appointment.updatedAt,
+        appointmentCode,
         code: item.propertyCode,
         propertyAddress: item.propertyAddress,
         contactName: item.contact?.tenantName ?? '',
@@ -152,9 +177,11 @@ export class ListAppointmentsUseCase {
         branchName: item.branchName,
         serviceTypeName: item.serviceTypeName,
         isOverdue: isAppointmentOverdue(item.appointment.status, item.appointment.scheduledDate),
+        hasTenantNote: !!item.appointment.tenantNote,
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
-      })),
+      };
+      }),
       total,
       page: pagination.page,
       pageSize: pagination.pageSize,

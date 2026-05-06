@@ -118,13 +118,14 @@ describe('AppointmentMapPage', () => {
     expect(screen.getByTestId('map-screen-layout')).toBeInTheDocument();
   });
 
-  it('renders appointment count in side panel', () => {
+  it('renders filter panel with mode selector', () => {
     renderPage();
-    expect(screen.getByText('Appointments')).toBeInTheDocument();
+    expect(screen.getByTestId('map-filter-panel')).toBeInTheDocument();
+    expect(screen.getByLabelText('Mode')).toBeInTheDocument();
   });
 
-  it('renders status filter', () => {
+  it('renders status multi-select in filter panel', () => {
     renderPage();
-    expect(screen.getByLabelText('Status')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
   });
 });

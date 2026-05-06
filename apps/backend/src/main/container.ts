@@ -359,6 +359,8 @@ import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
+import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
+import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
 // Appointment time slot module
@@ -410,6 +412,7 @@ export interface AppContainer {
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
   expirePriorityWorker: ExpirePriorityWorker;
   auditRetentionWorker: AuditRetentionWorker;
+  rejectUnconfirmedWorker: RejectUnconfirmedWorker;
 }
 
 export function createContainer(logger: Logger): AppContainer {
@@ -1068,6 +1071,12 @@ export function createContainer(logger: Logger): AppContainer {
     env.AUDIT_RETENTION_BATCH_SIZE,
   );
 
+  // Reject unconfirmed appointments cleanup worker
+  const rejectUnconfirmedAppointmentsUseCase = new RejectUnconfirmedAppointmentsUseCase(
+    appointmentRepo, serviceGroupRepo, auditService, logger,
+  );
+  const rejectUnconfirmedWorker = new RejectUnconfirmedWorker(rejectUnconfirmedAppointmentsUseCase);
+
   // Feature 020 US5: operator control use cases
   const upsertRetentionCategoryUseCase = new UpsertRetentionCategoryUseCase(
     auditRetentionCategoryRepo,
@@ -1420,5 +1429,6 @@ export function createContainer(logger: Logger): AppContainer {
     notifyStuckInspectionsWorker,
     expirePriorityWorker,
     auditRetentionWorker,
+    rejectUnconfirmedWorker,
   };
 }

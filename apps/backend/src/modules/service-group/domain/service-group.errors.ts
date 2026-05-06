@@ -20,7 +20,7 @@ export class GroupSizeTooSmallError extends DomainError {
 
 export class GroupSizeTooLargeError extends DomainError {
   constructor(size: number) {
-    super('GROUP_SIZE_TOO_LARGE', `Group must have at most 25 appointments, got ${size}`, 422);
+    super('GROUP_SIZE_TOO_LARGE', `Group must have at most 30 appointments, got ${size}`, 422);
   }
 }
 

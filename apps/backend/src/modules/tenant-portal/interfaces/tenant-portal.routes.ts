@@ -117,6 +117,7 @@ export async function registerTenantPortalRoutes(
               notes: parsed.data.restrictions.notes ?? null,
             }
           : undefined,
+        tenantNote: parsed.data.tenantNote,
         ipAddress,
         userAgent,
       });
@@ -158,6 +159,7 @@ export async function registerTenantPortalRoutes(
               notes: parsed.data.restrictions.notes ?? null,
             }
           : undefined,
+        tenantNote: parsed.data.tenantNote,
         ipAddress,
         userAgent,
       });
@@ -226,6 +228,7 @@ export async function registerTenantPortalRoutes(
               notes: parsed.data.restrictions.notes ?? null,
             }
           : undefined,
+        tenantNote: parsed.data.tenantNote,
         ipAddress,
         userAgent,
       });

@@ -69,6 +69,8 @@ export interface JobDetails {
 
 export interface AppointmentDetailOutput {
   id: string;
+  /** Formatted appointment code (e.g. "INS-0042"). */
+  appointmentCode: string;
   status: string;
   scheduledDate: string;
   timeSlot: string;
@@ -206,8 +208,13 @@ export class GetAppointmentDetailUseCase {
     // Build jobDetails payload
     const jobDetails = await this.buildJobDetails(appointment, contacts);
 
+    const codePrefix = result.tenantAppointmentCodePrefix ?? 'INS';
+    const codePadded = String(appointment.appointmentNumber).padStart(4, '0');
+    const appointmentCode = `${codePrefix}-${codePadded}`;
+
     return {
       id: appointment.id,
+      appointmentCode,
       status: appointment.status,
       scheduledDate,
       timeSlot: appointment.timeSlot,

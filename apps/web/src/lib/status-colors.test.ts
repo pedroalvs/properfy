@@ -122,10 +122,10 @@ describe('SERVICE_GROUP_STATUS_MAP', () => {
   });
 
   it('returns correct labels', () => {
-    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.DRAFT].label).toBe('Draft');
-    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.PUBLISHED].label).toBe('Published');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.DRAFT].label).toBe('Awaiting Host');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.PUBLISHED].label).toBe('Awaiting Inspector');
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.ACCEPTED].label).toBe('Accepted');
-    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.CANCELLED].label).toBe('Cancelled');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.CANCELLED].label).toBe('Canceled');
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.REJECTED].label).toBe('Rejected');
   });
 });

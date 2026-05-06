@@ -36,6 +36,7 @@ export interface RescheduleRequestInput {
     unavailableHoursJson: string[] | null;
     notes: string | null;
   };
+  tenantNote?: string;
   ipAddress: string | null;
   userAgent: string | null;
 }
@@ -139,6 +140,13 @@ export class RescheduleRequestUseCase {
         inspectorId: null,
       },
     });
+
+    // Persist tenant note if provided
+    if (input.tenantNote !== undefined) {
+      await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
+        tenantNote: input.tenantNote,
+      });
+    }
 
     // Mark token as used (replay detection)
     await this.tokenRepo.markUsed(input.tokenId);

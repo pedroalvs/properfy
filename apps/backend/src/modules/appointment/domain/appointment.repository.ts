@@ -11,12 +11,22 @@ export interface AppointmentFilters {
   inspectorId?: string;
   propertyId?: string;
   search?: string;
+  /** When set, adds an OR condition for appointment_number = N to the search clause. */
+  searchAppointmentNumber?: number;
   fromDate?: string;
   toDate?: string;
   tenantConfirmationStatus?: string;
   showCancelled?: boolean;
   overdueOnly?: boolean;
   ungroupedOnly?: boolean;
+  /** Exact match on the appointment's time_slot field (e.g. "09:00-10:00"). */
+  timeSlot?: string;
+  /** Search in appointment_contacts snapshot fields (name, email, phone). */
+  contactSearch?: string;
+  /** When true, only appointments with non-empty tenant_note; when false, only those without. */
+  hasTenantNote?: boolean;
+  /** Filter by tenant_confirmation_status enum value. */
+  confirmationStatus?: string;
 }
 
 export interface PaginationParams {
@@ -42,6 +52,8 @@ export interface AppointmentWithRelations {
   branchName?: string;
   serviceTypeName?: string;
   inspectorName?: string | null;
+  /** Tenant's appointment code prefix (e.g. "INS"), used to format appointment codes. */
+  tenantAppointmentCodePrefix?: string | null;
 }
 
 export interface AppointmentListItem {
@@ -52,6 +64,8 @@ export interface AppointmentListItem {
   propertyLatitude: number | null;
   propertyLongitude: number | null;
   tenantName: string;
+  /** Tenant's appointment code prefix (e.g. "INS"), used to format appointment codes. */
+  tenantAppointmentCodePrefix: string | null;
   branchName: string;
   serviceTypeName: string;
   inspectorName: string | null;
@@ -118,6 +132,7 @@ export interface IAppointmentRepository {
       keyLocation: string | null;
       tenantConfirmationStatus: string;
       notes: string | null;
+      tenantNote: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
       cancellationReasonCode: CancellationReasonCode | null;
@@ -170,4 +185,14 @@ export interface IAppointmentRepository {
     tenantId: string,
     sinceDate: Date,
   ): Promise<AppointmentEntity | null>;
+
+  /**
+   * Find active appointments scheduled on the given date that have not been confirmed by the tenant.
+   * Returns appointments where:
+   *  - scheduledDate falls on the given date
+   *  - tenantConfirmationStatus != 'CONFIRMED'
+   *  - status NOT IN ('DONE', 'CANCELLED', 'REJECTED')
+   *  - deletedAt IS NULL
+   */
+  findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]>;
 }

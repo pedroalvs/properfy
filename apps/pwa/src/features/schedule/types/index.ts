@@ -2,6 +2,7 @@ import type { AppointmentStatus, TenantConfirmationStatus, ServiceTypeFlowType }
 
 export interface InspectorAppointment {
   id: string;
+  appointmentCode: string;
   propertyAddress: string;
   suburb: string;
   scheduledDate: string;
@@ -62,6 +63,7 @@ export interface JobDetails {
 export interface InspectorAppointmentDetailResponse {
   data: {
     id: string;
+    appointmentCode: string;
     status: AppointmentStatus;
     scheduledDate: string;
     timeSlot: string;
