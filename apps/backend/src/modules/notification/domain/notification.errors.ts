@@ -55,3 +55,13 @@ export class ConsentTenantScopeError extends ForbiddenError {
     super('TENANT_SCOPE_VIOLATION', 'Operator cannot modify consent records belonging to another tenant');
   }
 }
+
+/**
+ * Thrown when a caller attempts to dispatch a MARKETING-class notification.
+ * Marketing dispatch is not enabled — no opt-in endpoint exists.
+ */
+export class MarketingDispatchDisabledError extends DomainError {
+  constructor() {
+    super('MARKETING_DISPATCH_DISABLED', 'Marketing notifications cannot be dispatched — feature not enabled', 422);
+  }
+}

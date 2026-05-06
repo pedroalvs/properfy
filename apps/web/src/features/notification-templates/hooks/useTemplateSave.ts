@@ -13,11 +13,15 @@ export interface UseTemplateSaveReturn {
   save: (code: string, channel: NotificationChannel, data: TemplateFormData) => Promise<SaveResult>;
   isSaving: boolean;
   validationErrors: TemplateFormErrors;
-  validate: (data: TemplateFormData, requiredVariables: string[]) => TemplateFormErrors;
+  validate: (data: TemplateFormData, requiredVariables: string[], allowedVariables?: readonly string[]) => TemplateFormErrors;
 }
 
 const VARIABLE_PATTERN = /\{\{(\w+)\}\}/g;
-const HTML_PATTERN = /[<>]/;
+const HTML_TAG_PATTERN = /<[^>]+>/g;
+
+function stripHtml(html: string): string {
+  return html.replace(HTML_TAG_PATTERN, '').replace(/&nbsp;/g, ' ').trim();
+}
 
 function extractVariables(text: string): string[] {
   const matches: string[] = [];
@@ -31,7 +35,11 @@ function extractVariables(text: string): string[] {
   return matches;
 }
 
-function validateTemplate(data: TemplateFormData, requiredVariables: string[]): TemplateFormErrors {
+function validateTemplate(
+  data: TemplateFormData,
+  requiredVariables: string[],
+  allowedVariables?: readonly string[],
+): TemplateFormErrors {
   const errors: TemplateFormErrors = {};
 
   if (!data.subject.trim() && !data.body.trim()) {
@@ -40,17 +48,14 @@ function validateTemplate(data: TemplateFormData, requiredVariables: string[]): 
     return errors;
   }
 
-  if (HTML_PATTERN.test(data.subject)) {
-    errors.subject = 'HTML characters (< >) are not allowed';
+  if (/<[^>]+>/.test(data.subject)) {
+    errors.subject = 'HTML is not allowed in the subject line';
   }
 
-  if (HTML_PATTERN.test(data.body)) {
-    errors.body = 'HTML characters (< >) are not allowed';
-  }
-
-  const allText = `${data.subject} ${data.body}`;
+  const allText = `${data.subject} ${stripHtml(data.body)}`;
   const usedVariables = extractVariables(allText);
-  const allowedSet = new Set<string>(ALLOWED_VARIABLES);
+  // H7: Use per-template allowed list when available; fall back to global list
+  const allowedSet = new Set<string>(allowedVariables ?? ALLOWED_VARIABLES);
   const disallowed = usedVariables.filter((v) => !allowedSet.has(v));
 
   if (disallowed.length > 0) {
@@ -84,8 +89,8 @@ export function useTemplateSave(): UseTemplateSaveReturn {
   const [validationErrors, setValidationErrors] = useState<TemplateFormErrors>({});
   const queryClient = useQueryClient();
 
-  const validate = useCallback((data: TemplateFormData, requiredVariables: string[]): TemplateFormErrors => {
-    return validateTemplate(data, requiredVariables);
+  const validate = useCallback((data: TemplateFormData, requiredVariables: string[], allowedVariables?: readonly string[]): TemplateFormErrors => {
+    return validateTemplate(data, requiredVariables, allowedVariables);
   }, []);
 
   const save = useCallback(async (
@@ -95,12 +100,16 @@ export function useTemplateSave(): UseTemplateSaveReturn {
   ): Promise<SaveResult> => {
     setIsSaving(true);
     try {
+      const isHtml = /<[^>]+>/.test(data.body);
+      const bodyPayload = isHtml
+        ? { bodyHtml: data.body, bodyText: stripHtml(data.body) || data.body }
+        : { bodyText: data.body };
       const { error } = await api.PUT(
         `/v1/notification-templates/${code}/${channel}` as any,
         {
           body: {
             subject: data.subject || undefined,
-            bodyText: data.body,
+            ...bodyPayload,
             isActive: data.active,
           } as any,
         },

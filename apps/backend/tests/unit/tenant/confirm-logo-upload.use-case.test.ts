@@ -5,8 +5,16 @@ import type { IBrandingStorageService } from '../../../src/modules/tenant/domain
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
-import { TenantNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
+import {
+  TenantNotFoundError,
+  LogoStorageKeyInvalidError,
+  LogoUploadObjectNotFoundError,
+} from '../../../src/modules/tenant/domain/tenant.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+
+const TENANT_UUID = '00000000-0000-0000-0000-000000000001';
+const STORAGE_KEY = `tenants/${TENANT_UUID}/branding/logo.png`;
+const LOGO_PUBLIC_URL = `https://storage.example.com/tenant-branding/${STORAGE_KEY}`;
 
 function makeTenant(
   overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
@@ -54,34 +62,30 @@ describe('ConfirmLogoUploadUseCase', () => {
     };
     brandingStorage = {
       createSignedUploadUrl: vi.fn(),
-      getPublicUrl: vi.fn().mockReturnValue(
-        'https://storage.example.com/tenant-branding/tenants/tenant-1/branding/logo.png',
-      ),
+      getPublicUrl: vi.fn().mockReturnValue(LOGO_PUBLIC_URL),
+      headObject: vi.fn().mockResolvedValue({ exists: true, sizeBytes: 2048 }),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new ConfirmLogoUploadUseCase(tenantRepo, brandingStorage, auditService);
   });
 
-  it('should update settings with logoUrl and audit the change', async () => {
+  it('should update settings with logoUrl, logoStorageKey and audit the change', async () => {
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      storageKey: 'tenants/tenant-1/branding/logo.png',
+      storageKey: STORAGE_KEY,
       actor: makeActor(),
     });
 
-    expect(result.logoUrl).toBe(
-      'https://storage.example.com/tenant-branding/tenants/tenant-1/branding/logo.png',
-    );
+    expect(result.logoUrl).toBe(LOGO_PUBLIC_URL);
 
-    // Verify tenant repo was updated with merged settings
     expect(tenantRepo.update).toHaveBeenCalledWith('tenant-1', {
       settingsJson: {
         primaryColor: '#ff0000',
-        logoUrl: 'https://storage.example.com/tenant-branding/tenants/tenant-1/branding/logo.png',
+        logoUrl: LOGO_PUBLIC_URL,
+        logoStorageKey: STORAGE_KEY,
       },
     });
 
-    // Verify audit was logged
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'tenant.logo_updated',
@@ -91,17 +95,59 @@ describe('ConfirmLogoUploadUseCase', () => {
         entityId: 'tenant-1',
         tenantId: 'tenant-1',
         before: { logoUrl: null },
-        after: {
-          logoUrl: 'https://storage.example.com/tenant-branding/tenants/tenant-1/branding/logo.png',
-        },
+        after: { logoUrl: LOGO_PUBLIC_URL, logoStorageKey: STORAGE_KEY },
       }),
     );
+  });
+
+  it('should verify object exists via headObject before confirming', async () => {
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      storageKey: STORAGE_KEY,
+      actor: makeActor(),
+    });
+
+    expect(brandingStorage.headObject).toHaveBeenCalledWith(STORAGE_KEY);
+  });
+
+  it('should throw LogoUploadObjectNotFoundError when object not in storage', async () => {
+    vi.mocked(brandingStorage.headObject).mockResolvedValue({ exists: false });
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        storageKey: STORAGE_KEY,
+        actor: makeActor(),
+      }),
+    ).rejects.toBeInstanceOf(LogoUploadObjectNotFoundError);
+
+    expect(tenantRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('should throw LogoStorageKeyInvalidError for non-UUID key', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        storageKey: 'tenants/tenant-1/branding/logo.png',
+        actor: makeActor(),
+      }),
+    ).rejects.toBeInstanceOf(LogoStorageKeyInvalidError);
+  });
+
+  it('should throw LogoStorageKeyInvalidError for unsupported extension', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        storageKey: `tenants/${TENANT_UUID}/branding/logo.gif`,
+        actor: makeActor(),
+      }),
+    ).rejects.toBeInstanceOf(LogoStorageKeyInvalidError);
   });
 
   it('should allow AM to confirm for any tenant', async () => {
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      storageKey: 'tenants/tenant-1/branding/logo.png',
+      storageKey: STORAGE_KEY,
       actor: makeActor({ role: 'AM', tenantId: null }),
     });
 
@@ -111,7 +157,7 @@ describe('ConfirmLogoUploadUseCase', () => {
   it('should allow CL_ADMIN to confirm for own tenant', async () => {
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      storageKey: 'tenants/tenant-1/branding/logo.png',
+      storageKey: STORAGE_KEY,
       actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
     });
 
@@ -122,7 +168,7 @@ describe('ConfirmLogoUploadUseCase', () => {
     await expect(
       useCase.execute({
         tenantId: 'tenant-1',
-        storageKey: 'tenants/tenant-1/branding/logo.png',
+        storageKey: STORAGE_KEY,
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-other' }),
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
@@ -132,7 +178,7 @@ describe('ConfirmLogoUploadUseCase', () => {
     await expect(
       useCase.execute({
         tenantId: 'tenant-1',
-        storageKey: 'tenants/tenant-1/branding/logo.png',
+        storageKey: STORAGE_KEY,
         actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
@@ -143,8 +189,8 @@ describe('ConfirmLogoUploadUseCase', () => {
 
     await expect(
       useCase.execute({
-        tenantId: 'nonexistent',
-        storageKey: 'tenants/nonexistent/branding/logo.png',
+        tenantId: 'tenant-nonexistent',
+        storageKey: STORAGE_KEY,
         actor: makeActor(),
       }),
     ).rejects.toBeInstanceOf(TenantNotFoundError);
@@ -163,7 +209,7 @@ describe('ConfirmLogoUploadUseCase', () => {
 
     await useCase.execute({
       tenantId: 'tenant-1',
-      storageKey: 'tenants/tenant-1/branding/logo.png',
+      storageKey: STORAGE_KEY,
       actor: makeActor(),
     });
 
@@ -173,31 +219,31 @@ describe('ConfirmLogoUploadUseCase', () => {
         notificationFromName: 'Test',
         nested: { deep: true },
         logoUrl: expect.any(String),
+        logoStorageKey: STORAGE_KEY,
       }),
     });
   });
 
-  it('should overwrite existing logoUrl', async () => {
+  it('should overwrite existing logoUrl and logoStorageKey', async () => {
+    const oldKey = `tenants/${TENANT_UUID}/branding/logo.jpg`;
     vi.mocked(tenantRepo.findById).mockResolvedValue(
       makeTenant({
-        settingsJson: { logoUrl: 'https://old-url.com/logo.png' },
+        settingsJson: { logoUrl: 'https://old-url.com/logo.png', logoStorageKey: oldKey },
       }),
     );
 
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      storageKey: 'tenants/tenant-1/branding/logo.png',
+      storageKey: STORAGE_KEY,
       actor: makeActor(),
     });
 
-    expect(result.logoUrl).toBe(
-      'https://storage.example.com/tenant-branding/tenants/tenant-1/branding/logo.png',
-    );
+    expect(result.logoUrl).toBe(LOGO_PUBLIC_URL);
 
-    // Audit should capture previous URL
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         before: { logoUrl: 'https://old-url.com/logo.png' },
+        after: { logoUrl: LOGO_PUBLIC_URL, logoStorageKey: STORAGE_KEY },
       }),
     );
   });

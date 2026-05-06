@@ -53,7 +53,7 @@ export class RescheduleRequestUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
     private readonly reopenForRescheduleUseCase: ReopenForRescheduleUseCase,
-    private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
+    private readonly onNotificationHandler?: { execute(input: { appointmentId: string; tenantId?: string | null; action: string }): Promise<unknown> },
     private readonly domainEventBus?: DomainEventBus,
     private readonly generatePortalTokenUseCase?: GeneratePortalTokenUseCase,
     private readonly clock: Clock = new SystemClock(),
@@ -200,7 +200,7 @@ export class RescheduleRequestUseCase {
     // 12. Side effect: notification on reschedule
     if (this.onNotificationHandler) {
       try {
-        await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, action: 'RESCHEDULE' });
+        await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, tenantId: appointment.tenantId, action: 'RESCHEDULE' });
       } catch {
         // fire-and-forget — notification failure must not affect the reschedule
       }

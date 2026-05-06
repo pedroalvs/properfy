@@ -23,6 +23,7 @@ import { AppointmentTimelineTab } from '../components/AppointmentTimelineTab';
 import { AppointmentNotificationsTab } from '../components/AppointmentNotificationsTab';
 import { AppointmentFinancialTab } from '../components/AppointmentFinancialTab';
 import { AppointmentTransitionActions } from '../components/AppointmentTransitionActions';
+import { AppointmentEvidenceTab } from '../components/AppointmentEvidenceTab';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AssignInspectorModal } from '../components/AssignInspectorModal';
 
@@ -34,6 +35,7 @@ const BASE_TABS = [
 const NOTIFICATIONS_TAB = { id: 'notifications', label: 'Notifications' };
 const TIMELINE_TAB = { id: 'timeline', label: 'Timeline' };
 const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
+const EVIDENCE_TAB = { id: 'evidence', label: 'Evidence' };
 const CAN_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 
 function isPrivilegedRole(role: string): boolean {
@@ -63,6 +65,7 @@ export function AppointmentDetailPage() {
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
     ...(isPrivileged ? [TIMELINE_TAB] : []),
     ...(isPrivileged ? [FINANCIAL_TAB] : []),
+    ...(isPrivileged && appointment?.status === 'DONE' ? [EVIDENCE_TAB] : []),
   ];
 
   const rawTransitions =
@@ -261,6 +264,9 @@ export function AppointmentDetailPage() {
           )}
           {activeTab === 'financial' && isPrivileged && (
             <AppointmentFinancialTab appointmentId={appointment.id} />
+          )}
+          {activeTab === 'evidence' && isPrivileged && (
+            <AppointmentEvidenceTab appointmentId={appointment.id} />
           )}
         </div>
 

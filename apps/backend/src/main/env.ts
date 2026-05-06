@@ -57,6 +57,10 @@ const envSchema = z.object({
   // Feature 018: public base URL used to build unsubscribe links (e.g., https://api.properfy.com)
   PUBLIC_BASE_URL: z.string().default('http://localhost:3000'),
 
+  // Tenant portal SPA base URL used to build confirmationLink / rescheduleLink in templates
+  // (e.g., https://app.properfy.com). Distinct from PUBLIC_BASE_URL which points to the API host.
+  TENANT_PORTAL_BASE_URL: z.string().default('http://localhost:5173'),
+
   // Optional direct DB URL (migrations)
   DIRECT_URL: z.string().optional(),
 });
@@ -114,6 +118,31 @@ export function validateEnv(source: Record<string, string | undefined> = process
 
     if (!result.data.MAPBOX_ACCESS_TOKEN) {
       strictIssues.push('  - MAPBOX_ACCESS_TOKEN: Required in staging/production');
+    }
+
+    for (const [key, value] of [
+      ['TENANT_PORTAL_BASE_URL', result.data.TENANT_PORTAL_BASE_URL],
+      ['PUBLIC_BASE_URL', result.data.PUBLIC_BASE_URL],
+    ] as [string, string][]) {
+      let parsed: URL;
+      try {
+        parsed = new URL(value);
+      } catch {
+        strictIssues.push(`  - ${key}: Must be a valid URL in staging/production`);
+        continue;
+      }
+      if (parsed.protocol !== 'https:') {
+        strictIssues.push(`  - ${key}: Must use HTTPS in staging/production (got ${parsed.protocol})`);
+      }
+      const isLocalhost = parsed.hostname === 'localhost'
+        || parsed.hostname === '127.0.0.1'
+        || /^::1$/.test(parsed.hostname)
+        || /^10\.\d+\.\d+\.\d+$/.test(parsed.hostname)
+        || /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(parsed.hostname)
+        || /^192\.168\.\d+\.\d+$/.test(parsed.hostname);
+      if (isLocalhost) {
+        strictIssues.push(`  - ${key}: Must not point to localhost or private network in staging/production`);
+      }
     }
 
     if (strictIssues.length > 0) {

@@ -28,4 +28,45 @@ describe('ProfileCard', () => {
     expect(screen.getByText('Last Login')).toBeInTheDocument();
     expect(screen.getByText(/managed by your operations team/i)).toBeInTheDocument();
   });
+
+  it('renders <img> avatar when photoUrl is provided', () => {
+    renderWithProviders(
+      <ProfileCard
+        name="Inspector Jane"
+        email="jane@test.com"
+        role="INSP"
+        photoUrl="https://example.com/avatar.jpg"
+      />,
+    );
+    const img = screen.getByRole('img', { name: 'Inspector Jane' });
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('src', 'https://example.com/avatar.jpg');
+  });
+
+  it('renders initials fallback when photoUrl is null', () => {
+    renderWithProviders(
+      <ProfileCard name="Jane Smith" email="j@test.com" role="INSP" photoUrl={null} />,
+    );
+    expect(screen.queryByRole('img', { name: 'Jane Smith' })).not.toBeInTheDocument();
+    expect(screen.getByText('J')).toBeInTheDocument();
+  });
+
+  it('renders avatarUploader slot when provided', () => {
+    renderWithProviders(
+      <ProfileCard
+        name="Inspector Jane"
+        email="jane@test.com"
+        role="INSP"
+        avatarUploader={<button>Upload</button>}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+  });
+
+  it('does not render avatarUploader slot when not provided', () => {
+    renderWithProviders(
+      <ProfileCard name="Jane" email="j@test.com" role="INSP" />,
+    );
+    expect(screen.queryByRole('button', { name: 'Upload' })).not.toBeInTheDocument();
+  });
 });

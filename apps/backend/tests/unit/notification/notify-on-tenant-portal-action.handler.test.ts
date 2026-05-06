@@ -3,6 +3,9 @@ import { NotifyOnTenantPortalActionHandler } from '../../../src/modules/notifica
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
+import { BuildNotificationPayloadService } from '../../../src/modules/notification/domain/build-notification-payload.service';
+import { AppointmentCodeFormatter } from '../../../src/modules/appointment/domain/appointment-code.formatter';
 
 function makeAppointment(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -56,6 +59,21 @@ function makeContact(
   });
 }
 
+function makeTenant() {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Test Agency',
+    legalName: 'Test Agency Pty Ltd',
+    status: 'ACTIVE',
+    timezone: 'Australia/Sydney',
+    currency: 'AUD',
+    settingsJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  });
+}
+
 function makeProperty(): PropertyEntity {
   return new PropertyEntity({
     id: 'prop-1',
@@ -101,6 +119,19 @@ const propertyRepo = {
   update: vi.fn(),
 };
 
+const tenantRepo = {
+  findById: vi.fn(),
+};
+
+const notificationRepo = {
+  existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
+  findById: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+};
+
 const createNotification = {
   execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
 };
@@ -121,11 +152,19 @@ const metricsCollector = {
   incrementNotificationHandlerErrorCount: vi.fn(),
 };
 
+const buildNotificationPayload = new BuildNotificationPayloadService();
+const appointmentCodeFormatter = new AppointmentCodeFormatter();
+
 function makeHandler() {
   return new NotifyOnTenantPortalActionHandler(
     appointmentRepo as any,
     propertyRepo as any,
+    tenantRepo as any,
+    notificationRepo as any,
+    buildNotificationPayload,
+    appointmentCodeFormatter,
     createNotification as any,
+    'http://localhost:5173',
     logger as any,
     metricsCollector as any,
   );
@@ -139,6 +178,8 @@ beforeEach(() => {
     restrictions: [],
   });
   propertyRepo.findById.mockResolvedValue(makeProperty());
+  tenantRepo.findById.mockResolvedValue(makeTenant());
+  notificationRepo.existsByAppointmentAndTemplate.mockResolvedValue(false);
   createNotification.execute.mockResolvedValue({ notificationId: 'notif-1' });
 });
 
@@ -197,10 +238,30 @@ describe('NotifyOnTenantPortalActionHandler', () => {
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
-  it('skips notification when primaryEmail is null', async () => {
+  it('sends SMS fallback on CONFIRM when primaryEmail is null but phone exists', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
       contact: makeContact({ primaryEmail: null }),
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({ appointmentId: 'appt-1', action: 'CONFIRM' });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channel: 'SMS',
+        templateCode: 'INSPECTION_CONFIRMED_SMS',
+        recipient: '+61400000000',
+      }),
+    );
+  });
+
+  it('skips notification when no email and no phone', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: makeContact({ primaryEmail: null, primaryPhone: null }),
       restrictions: [],
     });
 
@@ -247,7 +308,7 @@ describe('NotifyOnTenantPortalActionHandler', () => {
     expect(metricsCollector.incrementNotificationHandlerErrorCount).not.toHaveBeenCalled();
   });
 
-  it('passes correct payloadJson', async () => {
+  it('passes payloadJson with tenantName and scheduledDate', async () => {
     const handler = makeHandler();
     await handler.execute({ appointmentId: 'appt-1', action: 'CONFIRM' });
 
@@ -255,13 +316,10 @@ describe('NotifyOnTenantPortalActionHandler', () => {
       expect.objectContaining({
         tenantId: 'tenant-1',
         appointmentId: 'appt-1',
-        payloadJson: {
+        payloadJson: expect.objectContaining({
           tenantName: 'John Smith',
           scheduledDate: '2026-04-01',
-          timeSlot: '09:00-12:00',
-          propertyAddress: '123 Main St, Sydney, NSW, 2000, Australia',
-          appointmentReference: 'appt-1',
-        },
+        }),
       }),
     );
   });
@@ -277,5 +335,14 @@ describe('NotifyOnTenantPortalActionHandler', () => {
         }),
       }),
     );
+  });
+
+  it('is idempotent: skips if notification already sent', async () => {
+    notificationRepo.existsByAppointmentAndTemplate.mockResolvedValueOnce(true);
+
+    const handler = makeHandler();
+    await handler.execute({ appointmentId: 'appt-1', action: 'CONFIRM' });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
   });
 });

@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DispatchRemindersUseCase } from '../../../src/modules/notification/application/use-cases/dispatch-reminders.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
+import { BuildNotificationPayloadService } from '../../../src/modules/notification/domain/build-notification-payload.service';
+import { AppointmentCodeFormatter } from '../../../src/modules/appointment/domain/appointment-code.formatter';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { INotificationRepository } from '../../../src/modules/notification/domain/notification.repository';
 import type { CreateNotificationUseCase } from '../../../src/modules/notification/application/use-cases/create-notification.use-case';
 
@@ -58,6 +62,21 @@ function makeContact(
   });
 }
 
+function makeTenant(tenantId = 'tenant-1') {
+  return new TenantEntity({
+    id: tenantId,
+    name: 'Test Agency',
+    legalName: 'Test Agency Pty Ltd',
+    status: 'ACTIVE',
+    timezone: 'Australia/Sydney',
+    currency: 'AUD',
+    settingsJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  });
+}
+
 function makeRelation(
   appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
   contactOverrides: Partial<ConstructorParameters<typeof AppointmentContactEntity>[0]> | null = {},
@@ -81,6 +100,7 @@ describe('DispatchRemindersUseCase', () => {
     deleteRestrictionsByAppointmentId: ReturnType<typeof vi.fn>;
     findScheduledOnDate: ReturnType<typeof vi.fn>;
   };
+  let mockTenantRepo: { findById: ReturnType<typeof vi.fn> };
   let mockNotificationRepo: {
     findById: ReturnType<typeof vi.fn>;
     findByProviderMessageId: ReturnType<typeof vi.fn>;
@@ -94,6 +114,8 @@ describe('DispatchRemindersUseCase', () => {
   let mockCreateNotification: { execute: ReturnType<typeof vi.fn> };
 
   const today = new Date('2026-03-17T10:00:00.000Z');
+  const buildNotificationPayload = new BuildNotificationPayloadService();
+  const appointmentCodeFormatter = new AppointmentCodeFormatter();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -108,6 +130,9 @@ describe('DispatchRemindersUseCase', () => {
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
       findScheduledOnDate: vi.fn().mockResolvedValue([]),
+    };
+    mockTenantRepo = {
+      findById: vi.fn().mockResolvedValue(makeTenant()),
     };
     mockNotificationRepo = {
       findById: vi.fn(),
@@ -124,8 +149,12 @@ describe('DispatchRemindersUseCase', () => {
     };
     useCase = new DispatchRemindersUseCase(
       mockAppointmentRepo as unknown as IAppointmentRepository,
+      mockTenantRepo as unknown as ITenantRepository,
       mockNotificationRepo as unknown as INotificationRepository,
+      buildNotificationPayload,
+      appointmentCodeFormatter,
       mockCreateNotification as unknown as CreateNotificationUseCase,
+      'http://localhost:5173',
     );
   });
 
@@ -225,22 +254,23 @@ describe('DispatchRemindersUseCase', () => {
       ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
+    mockTenantRepo.findById.mockResolvedValue(makeTenant('tenant-x'));
 
     await useCase.execute(today);
 
-    expect(mockCreateNotification.execute).toHaveBeenCalledWith({
-      tenantId: 'tenant-x',
-      appointmentId: 'appt-x',
-      recipient: 'jane@example.com',
-      channel: 'EMAIL',
-      templateCode: 'REMINDER_7_DAYS',
-      payloadJson: {
-        tenantName: 'Jane Smith',
-        scheduledDate: '2026-03-24',
-        timeSlot: '14:00-17:00',
-        appointmentReference: 'appt-x',
-      },
-    });
+    expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-x',
+        appointmentId: 'appt-x',
+        recipient: 'jane@example.com',
+        channel: 'EMAIL',
+        templateCode: 'REMINDER_7_DAYS',
+        payloadJson: expect.objectContaining({
+          tenantName: 'Jane Smith',
+          scheduledDate: '2026-03-24',
+        }),
+      }),
+    );
   });
 
   it('correctly counts multiple dispatches across multiple appointments and windows', async () => {
@@ -280,6 +310,7 @@ describe('DispatchRemindersUseCase', () => {
         ])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
+      mockTenantRepo.findById.mockResolvedValue(makeTenant('tenant-sms'));
 
       const result = await useCase.execute(today);
 

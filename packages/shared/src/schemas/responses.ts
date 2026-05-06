@@ -64,6 +64,8 @@ export const meResponseSchema = z.object({
   status: z.string(),
   lastLoginAt: dateStrNullable(),
   createdAt: dateStr(),
+  inspectorId: z.string().uuid().nullable().optional(),
+  inspectorPhotoUrl: z.string().nullable().optional(),
 });
 
 // ─── Tenant ────────────────────────────────────────────────────────────────
@@ -185,6 +187,9 @@ export const inspectorResponseSchema = z.object({
   insuranceExpiresAt: dateStrNullable().optional(),
   policeCheckFileKey: z.string().nullable().optional(),
   policeCheckExpiresAt: dateStrNullable().optional(),
+  photoStorageKey: z.string().nullable().optional(),
+  insuranceMetaJson: z.unknown().optional(),
+  policeCheckMetaJson: z.unknown().optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });

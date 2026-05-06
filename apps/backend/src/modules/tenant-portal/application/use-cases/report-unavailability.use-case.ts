@@ -36,7 +36,7 @@ export class ReportUnavailabilityUseCase {
     private readonly activityRepo: ITenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
-    private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
+    private readonly onNotificationHandler?: { execute(input: { appointmentId: string; tenantId?: string | null; action: string }): Promise<unknown> },
     private readonly executionRepo?: IInspectionExecutionRepository,
     private readonly domainEventBus?: DomainEventBus,
     private readonly tokenRepo?: ITenantPortalTokenRepository,
@@ -143,7 +143,7 @@ export class ReportUnavailabilityUseCase {
     // 9. Side effect: notify operator of unavailability
     if (this.onNotificationHandler) {
       try {
-        await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, action: 'UNAVAILABLE' });
+        await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, tenantId: appointment.tenantId, action: 'UNAVAILABLE' });
       } catch {
         // fire-and-forget — notification failure must not affect the action
       }

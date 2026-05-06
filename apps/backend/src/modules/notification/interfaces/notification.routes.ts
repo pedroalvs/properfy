@@ -11,6 +11,7 @@ import {
   paginatedResponseSchema,
   listConsentsQuerySchema,
   overrideConsentSchema,
+  AU_E164_REGEX,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -28,6 +29,7 @@ import type { HandleProviderWebhookUseCase } from '../application/use-cases/hand
 import type { ListNotificationsUseCase } from '../application/use-cases/list-notifications.use-case';
 import type { GetNotificationUseCase } from '../application/use-cases/get-notification.use-case';
 import type { UpsertNotificationTemplateUseCase } from '../application/use-cases/upsert-notification-template.use-case';
+import type { SendTestNotificationUseCase } from '../application/use-cases/send-test-notification.use-case';
 import type { ListNotificationTemplatesUseCase } from '../application/use-cases/list-notification-templates.use-case';
 import type { CreateNotificationUseCase } from '../application/use-cases/create-notification.use-case';
 import type { PollRetryableNotificationsUseCase } from '../application/use-cases/poll-retryable-notifications.use-case';
@@ -56,6 +58,7 @@ export interface NotificationRouteContainer {
   listNotificationsUseCase: ListNotificationsUseCase;
   getNotificationUseCase: GetNotificationUseCase;
   upsertNotificationTemplateUseCase: UpsertNotificationTemplateUseCase;
+  sendTestNotificationUseCase: SendTestNotificationUseCase;
   listNotificationTemplatesUseCase: ListNotificationTemplatesUseCase;
   createNotificationUseCase: CreateNotificationUseCase;
   pollRetryableNotificationsUseCase: PollRetryableNotificationsUseCase;
@@ -71,6 +74,17 @@ export interface NotificationRouteContainer {
   webhookSignatureValidator: WebhookSignatureValidator;
   mobileMessageWebhookToken?: string;
 }
+
+const SMS_PER_MINUTE_LIMIT = 3;
+const SMS_PER_DAY_LIMIT = 20;
+
+interface SmsRateLimitEntry {
+  minute: string;
+  minuteCount: number;
+  day: string;
+  dayCount: number;
+}
+const smsRateLimitCounts = new Map<string, SmsRateLimitEntry>();
 
 const notificationIdParam = z.object({ notificationId: z.string().uuid() });
 const templateParam = z.object({ templateCode: z.string(), channel: z.string() });
@@ -417,6 +431,66 @@ export async function registerNotificationRoutes(
       const result = await container.overrideConsentUseCase.execute({
         consentId: params.data.consentId,
         reason: body.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/notification-templates/:templateCode/:channel/test-send
+  const testSendParam = z.object({
+    templateCode: z.string().min(1).max(100).regex(/^[A-Z0-9_]+$/),
+    channel: z.enum(['EMAIL', 'SMS']),
+  });
+  app.post(
+    '/v1/notification-templates/:templateCode/:channel/test-send',
+    { preHandler: authenticate, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const params = testSendParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid template parameters', params.error.errors);
+      }
+      const isSms = params.data.channel === 'SMS';
+
+      if (isSms) {
+        const actor = request.authContext!;
+        const key = actor.userId ?? request.ip;
+        const now = new Date();
+        const minuteKey = now.toISOString().slice(0, 16);
+        const dayKey = now.toISOString().slice(0, 10);
+        const entry = smsRateLimitCounts.get(key);
+        const sameMinute = entry?.minute === minuteKey;
+        const sameDay = entry?.day === dayKey;
+        const minuteCount = sameMinute ? entry!.minuteCount : 0;
+        const dayCount = sameDay ? entry!.dayCount : 0;
+        if (minuteCount >= SMS_PER_MINUTE_LIMIT) {
+          return reply.status(429).send({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many SMS test requests. Try again in a minute.' } });
+        }
+        if (dayCount >= SMS_PER_DAY_LIMIT) {
+          return reply.status(429).send({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Daily SMS test limit reached.' } });
+        }
+        smsRateLimitCounts.set(key, {
+          minute: minuteKey,
+          minuteCount: minuteCount + 1,
+          day: dayKey,
+          dayCount: dayCount + 1,
+        });
+      }
+
+      const bodySchema = isSms
+        ? z.object({ recipientPhone: z.string().regex(AU_E164_REGEX, 'Phone must be in E.164 AU format (e.g. +61412345678)') })
+        : z.object({ recipientEmail: z.string().email() });
+      const body = bodySchema.safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError('Request payload is invalid', body.error.errors);
+      }
+      const recipient = isSms
+        ? (body.data as { recipientPhone: string }).recipientPhone
+        : (body.data as { recipientEmail: string }).recipientEmail;
+      const result = await container.sendTestNotificationUseCase.execute({
+        templateCode: params.data.templateCode,
+        channel: params.data.channel,
+        recipient,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

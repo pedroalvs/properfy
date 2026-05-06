@@ -20,7 +20,7 @@ const STORAGE_BUCKET = 'inspection-assets';
 
 export interface RequestAssetUploadInput {
   appointmentId: string;
-  kind: 'PHOTO' | 'DOCUMENT' | 'SIGNATURE';
+  kind: 'PHOTO';
   mimeType: string;
   fileName: string;
   actor: AuthContext;
@@ -91,6 +91,7 @@ export class RequestAssetUploadUseCase {
       STORAGE_BUCKET,
       storageKey,
       UPLOAD_TTL_SECONDS,
+      mimeType,
     );
 
     // 7. Create PENDING asset record
@@ -108,6 +109,7 @@ export class RequestAssetUploadUseCase {
       status: 'PENDING',
       uploadedBy: actor.userId,
       uploadExpiresAt: expiresAt,
+      originalFilename: fileName,
       createdAt: now,
     });
 

@@ -969,6 +969,7 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
     expect(onTransitionHandler.execute).toHaveBeenCalledOnce();
     expect(onTransitionHandler.execute).toHaveBeenCalledWith({
       appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
       previousStatus: 'AWAITING_INSPECTOR',
       targetStatus: 'SCHEDULED',
     });
@@ -989,6 +990,7 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
     expect(onTransitionHandler.execute).toHaveBeenCalledOnce();
     expect(onTransitionHandler.execute).toHaveBeenCalledWith({
       appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
       previousStatus: 'SCHEDULED',
       targetStatus: 'CANCELLED',
     });

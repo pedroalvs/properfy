@@ -31,7 +31,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     serviceTypeId: 'stype-1',
     inspectorId: 'inspector-1',
     status: 'SCHEDULED',
-    scheduledDate: new Date('2026-04-15'),
+    scheduledDate: SCHEDULED_DATE,
     timeSlot: 'MORNING',
     keyRequired: false,
     meetingLocation: null,
@@ -85,11 +85,23 @@ function makeTenant(overrides: Partial<ConstructorParameters<typeof TenantEntity
   });
 }
 
-// Use a date 14 days in the future so the fixture never drifts into the past
-// once real-world time crosses the hard-coded value (bug pattern we hit on
-// 2026-04-20 — every literal `newDate: '2026-04-XX'` that became "today" or
-// earlier started tripping `PortalDateInPastError`).
+// Anchor scheduledDate 14 days ago so FUTURE_DATE (+14 from today = +28 from scheduledDate)
+// always stays within the default 30-day reschedule window regardless of when the test runs.
+// Pattern: scheduledDate = today-14d, FUTURE_DATE = today+14d → diff = 28d ≤ 30d ✓
+const SCHEDULED_DATE = new Date(Date.now() - 14 * 24 * 3600 * 1000);
+SCHEDULED_DATE.setHours(0, 0, 0, 0);
+
 const FUTURE_DATE = new Date(Date.now() + 14 * 24 * 3600 * 1000)
+  .toISOString()
+  .split('T')[0]!;
+
+// Date 20 days after scheduledDate (always future; always exceeds a 14-day custom window)
+const BEYOND_14_DAYS = new Date(SCHEDULED_DATE.getTime() + 20 * 24 * 3600 * 1000)
+  .toISOString()
+  .split('T')[0]!;
+
+// Date 25 days after scheduledDate (always within the default 30-day window)
+const WITHIN_30_DAYS = new Date(SCHEDULED_DATE.getTime() + 25 * 24 * 3600 * 1000)
   .toISOString()
   .split('T')[0]!;
 
@@ -116,6 +128,7 @@ describe('RescheduleRequestUseCase', () => {
     findByTokenHash: ReturnType<typeof vi.fn>;
     findActiveByAppointmentId: ReturnType<typeof vi.fn>;
     save: ReturnType<typeof vi.fn>;
+    revokeAndSave: ReturnType<typeof vi.fn>;
     updateStatus: ReturnType<typeof vi.fn>;
     updateLastAccessedAt: ReturnType<typeof vi.fn>;
     revokeAllForAppointment: ReturnType<typeof vi.fn>;
@@ -163,6 +176,7 @@ describe('RescheduleRequestUseCase', () => {
       findByTokenHash: vi.fn(),
       findActiveByAppointmentId: vi.fn(),
       save: vi.fn(),
+      revokeAndSave: vi.fn().mockResolvedValue(undefined),
       updateStatus: vi.fn(),
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
@@ -439,9 +453,9 @@ describe('RescheduleRequestUseCase', () => {
   it('should use default 30-day window when tenant has no portalRescheduleWindowDays setting', async () => {
     tenantRepo.findById.mockResolvedValue(makeTenant({ settingsJson: {} }));
 
-    // 30 days from scheduled date (2026-04-15) is within window
-    const result = await useCase.execute(makeInput({ newDate: '2026-05-14' }));
-    expect(result.scheduledDate).toBe('2026-05-14');
+    // WITHIN_30_DAYS is 25 days after scheduledDate — always within 30-day window
+    const result = await useCase.execute(makeInput({ newDate: WITHIN_30_DAYS }));
+    expect(result.scheduledDate).toBe(WITHIN_30_DAYS);
   });
 
   it('should reject dates beyond custom reschedule window from tenant settings', async () => {
@@ -449,9 +463,9 @@ describe('RescheduleRequestUseCase', () => {
       settingsJson: { portalRescheduleWindowDays: 14 },
     }));
 
-    // 20 days from scheduled date (2026-04-15) exceeds 14-day window
+    // BEYOND_14_DAYS is 20 days after scheduledDate — always exceeds 14-day window
     await expect(
-      useCase.execute(makeInput({ newDate: '2026-05-05' })),
+      useCase.execute(makeInput({ newDate: BEYOND_14_DAYS })),
     ).rejects.toThrow(PortalRescheduleWindowExceededError);
   });
 
@@ -480,9 +494,9 @@ describe('RescheduleRequestUseCase', () => {
   it('should use 30-day default when tenant not found', async () => {
     tenantRepo.findById.mockResolvedValue(null);
 
-    // 30 days is within default window
-    const result = await useCase.execute(makeInput({ newDate: '2026-05-14' }));
-    expect(result.scheduledDate).toBe('2026-05-14');
+    // WITHIN_30_DAYS is 25 days after scheduledDate — always within 30-day default window
+    const result = await useCase.execute(makeInput({ newDate: WITHIN_30_DAYS }));
+    expect(result.scheduledDate).toBe(WITHIN_30_DAYS);
   });
 });
 
@@ -498,6 +512,7 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
       findByTokenHash: vi.fn(),
       findActiveByAppointmentId: vi.fn(),
       save: vi.fn(),
+      revokeAndSave: vi.fn().mockResolvedValue(undefined),
       updateStatus: vi.fn(),
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
@@ -589,6 +604,7 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
     expect(onNotificationHandler.execute).toHaveBeenCalledOnce();
     expect(onNotificationHandler.execute).toHaveBeenCalledWith({
       appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
       action: 'RESCHEDULE',
     });
   });

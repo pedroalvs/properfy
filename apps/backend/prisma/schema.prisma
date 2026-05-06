@@ -411,8 +411,11 @@ model Inspector {
   date_of_birth           DateTime?       @db.Date
   insurance_file_key      String?
   insurance_expires_at    DateTime?       @db.Date
+  insurance_meta_json     Json?
   police_check_file_key   String?
   police_check_expires_at DateTime?       @db.Date
+  police_check_meta_json  Json?
+  photo_storage_key       String?
   created_at              DateTime        @default(now())
   updated_at              DateTime        @updatedAt
   deleted_at              DateTime?
@@ -1004,6 +1007,7 @@ model InspectionAsset {
   status                  InspectionAssetStatus @default(PENDING)
   uploaded_by             String
   upload_expires_at       DateTime?
+  original_filename       String?               @db.VarChar(255)
   created_at              DateTime              @default(now())
 
   appointment Appointment         @relation(fields: [appointment_id], references: [id])

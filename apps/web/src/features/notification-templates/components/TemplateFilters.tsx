@@ -7,7 +7,6 @@ const CHANNEL_OPTIONS: FilterSelectOption[] = [
   { label: 'All', value: '' },
   { label: 'Email', value: 'EMAIL' },
   { label: 'SMS', value: 'SMS' },
-  { label: 'WhatsApp', value: 'WHATSAPP' },
 ];
 
 const INCLUDE_DEFAULTS_OPTIONS: FilterSelectOption[] = [

@@ -30,6 +30,8 @@ import type { SaveExecutionProgressUseCase } from '../application/use-cases/save
 import type { ReopenExecutionUseCase } from '../application/use-cases/reopen-execution.use-case';
 import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
 import type { DraftInspectorInvoiceUseCase } from '../../billing/application/use-cases/draft-inspector-invoice.use-case';
+import type { ListAppointmentAssetsUseCase } from '../application/use-cases/list-appointment-assets.use-case';
+import type { GetAppointmentAssetDownloadUrlUseCase } from '../application/use-cases/get-appointment-asset-download-url.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import { draftInvoiceSchema } from '@properfy/shared';
 
@@ -44,6 +46,8 @@ export interface InspectorExecutionRouteContainer {
   confirmAssetUploadUseCase: ConfirmAssetUploadUseCase;
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
   draftInspectorInvoiceUseCase: DraftInspectorInvoiceUseCase;
+  listAppointmentAssetsUseCase: ListAppointmentAssetsUseCase;
+  getAppointmentAssetDownloadUrlUseCase: GetAppointmentAssetDownloadUrlUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -255,6 +259,70 @@ export async function registerInspectorExecutionRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // GET /v1/appointments/:appointmentId/assets — AM/OP only (evidence view)
+  app.get(
+    '/v1/appointments/:appointmentId/assets',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: appointmentIdParam,
+        response: {
+          200: z.object({
+            data: z.array(
+              z.object({
+                id: z.string().uuid(),
+                storageKey: z.string(),
+                mimeType: z.string(),
+                sizeBytes: z.number().nullable(),
+                kind: z.string(),
+                status: z.string(),
+                originalFilename: z.string().nullable(),
+                createdAt: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid appointment ID', params.error.errors);
+      const result = await container.listAppointmentAssetsUseCase.execute(
+        params.data.appointmentId,
+        request.authContext!,
+      );
+      return reply.status(200).send({ data: result });
+    },
+  );
+
+  // GET /v1/appointments/:appointmentId/assets/:assetId/download — AM/OP only
+  app.get(
+    '/v1/appointments/:appointmentId/assets/:assetId/download',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: assetIdParam,
+        response: {
+          200: z.object({
+            downloadUrl: z.string().url(),
+            fileName: z.string().nullable(),
+            mimeType: z.string(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = assetIdParam.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid params', params.error.errors);
+      const result = await container.getAppointmentAssetDownloadUrlUseCase.execute(
+        params.data.appointmentId,
+        params.data.assetId,
+        request.authContext!,
+      );
+      return reply.status(200).send(result);
     },
   );
 

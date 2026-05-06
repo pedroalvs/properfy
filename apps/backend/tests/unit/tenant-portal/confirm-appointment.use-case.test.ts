@@ -300,6 +300,7 @@ describe('ConfirmAppointmentUseCase – onNotificationHandler', () => {
     expect(onNotificationHandler.execute).toHaveBeenCalledOnce();
     expect(onNotificationHandler.execute).toHaveBeenCalledWith({
       appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
       action: 'CONFIRM',
     });
   });

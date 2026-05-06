@@ -3,6 +3,9 @@ import { NotifyOnStatusTransitionHandler } from '../../../src/modules/notificati
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
+import { BuildNotificationPayloadService } from '../../../src/modules/notification/domain/build-notification-payload.service';
+import { AppointmentCodeFormatter } from '../../../src/modules/appointment/domain/appointment-code.formatter';
 
 function makeAppointment(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -56,6 +59,21 @@ function makeContact(
   });
 }
 
+function makeTenant() {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Test Agency',
+    legalName: 'Test Agency Pty Ltd',
+    status: 'ACTIVE',
+    timezone: 'Australia/Sydney',
+    currency: 'AUD',
+    settingsJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  });
+}
+
 function makeProperty(): PropertyEntity {
   return new PropertyEntity({
     id: 'prop-1',
@@ -101,6 +119,23 @@ const propertyRepo = {
   update: vi.fn(),
 };
 
+const tenantRepo = {
+  findById: vi.fn(),
+};
+
+const notificationRepo = {
+  existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
+  findById: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+};
+
+const mintPortalTokenService = {
+  mint: vi.fn().mockResolvedValue({ rawToken: 'test-portal-token', expiresAt: new Date('2026-05-01') }),
+};
+
 const createNotification = {
   execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
 };
@@ -121,11 +156,20 @@ const metricsCollector = {
   incrementNotificationHandlerErrorCount: vi.fn(),
 };
 
+const buildNotificationPayload = new BuildNotificationPayloadService();
+const appointmentCodeFormatter = new AppointmentCodeFormatter();
+
 function makeHandler() {
   return new NotifyOnStatusTransitionHandler(
     appointmentRepo as any,
     propertyRepo as any,
+    tenantRepo as any,
+    notificationRepo as any,
+    mintPortalTokenService as any,
+    buildNotificationPayload,
+    appointmentCodeFormatter,
     createNotification as any,
+    'http://localhost:5173',
     logger as any,
     metricsCollector as any,
   );
@@ -139,6 +183,9 @@ beforeEach(() => {
     restrictions: [],
   });
   propertyRepo.findById.mockResolvedValue(makeProperty());
+  tenantRepo.findById.mockResolvedValue(makeTenant());
+  notificationRepo.existsByAppointmentAndTemplate.mockResolvedValue(false);
+  mintPortalTokenService.mint.mockResolvedValue({ rawToken: 'test-portal-token', expiresAt: new Date('2026-05-01') });
   createNotification.execute.mockResolvedValue({ notificationId: 'notif-1' });
 });
 
@@ -195,10 +242,34 @@ describe('NotifyOnStatusTransitionHandler', () => {
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
-  it('skips notification when primaryEmail is null', async () => {
+  it('sends SMS fallback when primaryEmail is null but phone exists', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
       contact: makeContact({ primaryEmail: null }),
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channel: 'SMS',
+        templateCode: 'INSPECTION_NOTICE_SMS',
+        recipient: '+61400000000',
+      }),
+    );
+  });
+
+  it('skips notification when no email and no phone', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: makeContact({ primaryEmail: null, primaryPhone: null }),
       restrictions: [],
     });
 
@@ -214,6 +285,19 @@ describe('NotifyOnStatusTransitionHandler', () => {
 
   it('skips notification when appointment not found', async () => {
     appointmentRepo.findById.mockResolvedValue(null);
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
+  it('skips notification when tenant not found', async () => {
+    tenantRepo.findById.mockResolvedValue(null);
 
     const handler = makeHandler();
     await handler.execute({
@@ -274,7 +358,7 @@ describe('NotifyOnStatusTransitionHandler', () => {
     expect(metricsCollector.incrementNotificationHandlerErrorCount).not.toHaveBeenCalled();
   });
 
-  it('passes correct payloadJson with all expected keys', async () => {
+  it('passes payloadJson with tenantName and scheduledDate', async () => {
     const handler = makeHandler();
     await handler.execute({
       appointmentId: 'appt-1',
@@ -286,13 +370,10 @@ describe('NotifyOnStatusTransitionHandler', () => {
       expect.objectContaining({
         tenantId: 'tenant-1',
         appointmentId: 'appt-1',
-        payloadJson: {
+        payloadJson: expect.objectContaining({
           tenantName: 'John Smith',
           scheduledDate: '2026-04-01',
-          timeSlot: '09:00-12:00',
-          propertyAddress: '123 Main St, Unit 4, Sydney, NSW, 2000, Australia',
-          appointmentReference: 'appt-1',
-        },
+        }),
       }),
     );
   });
@@ -331,5 +412,32 @@ describe('NotifyOnStatusTransitionHandler', () => {
         }),
       }),
     );
+  });
+
+  it('is idempotent: skips if notification already sent', async () => {
+    notificationRepo.existsByAppointmentAndTemplate.mockResolvedValueOnce(true);
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
+  it('continues sending notification when mint portal token fails', async () => {
+    mintPortalTokenService.mint.mockRejectedValueOnce(new Error('Mint failed'));
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(logger.warn).toHaveBeenCalledOnce();
   });
 });

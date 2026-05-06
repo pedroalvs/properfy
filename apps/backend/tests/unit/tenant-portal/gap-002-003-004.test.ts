@@ -135,6 +135,7 @@ function makeTokenRepo() {
     findByTokenHash: vi.fn(),
     findActiveByAppointmentId: vi.fn(),
     save: vi.fn(),
+    revokeAndSave: vi.fn().mockResolvedValue(undefined),
     updateStatus: vi.fn(),
     updateLastAccessedAt: vi.fn(),
     markUsed: vi.fn().mockResolvedValue(undefined),

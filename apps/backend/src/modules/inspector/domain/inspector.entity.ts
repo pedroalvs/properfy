@@ -26,8 +26,11 @@ export interface InspectorProps {
   dateOfBirth: Date | null;
   insuranceFileKey: string | null;
   insuranceExpiresAt: Date | null;
+  insuranceMetaJson: Record<string, unknown> | null;
   policeCheckFileKey: string | null;
   policeCheckExpiresAt: Date | null;
+  policeCheckMetaJson: Record<string, unknown> | null;
+  photoStorageKey: string | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -50,8 +53,11 @@ export class InspectorEntity extends BaseEntity {
   readonly dateOfBirth: Date | null;
   readonly insuranceFileKey: string | null;
   readonly insuranceExpiresAt: Date | null;
+  readonly insuranceMetaJson: Record<string, unknown> | null;
   readonly policeCheckFileKey: string | null;
   readonly policeCheckExpiresAt: Date | null;
+  readonly policeCheckMetaJson: Record<string, unknown> | null;
+  readonly photoStorageKey: string | null;
   readonly deletedAt: Date | null;
 
   constructor(props: InspectorProps) {
@@ -71,8 +77,11 @@ export class InspectorEntity extends BaseEntity {
     this.dateOfBirth = props.dateOfBirth;
     this.insuranceFileKey = props.insuranceFileKey;
     this.insuranceExpiresAt = props.insuranceExpiresAt;
+    this.insuranceMetaJson = props.insuranceMetaJson;
     this.policeCheckFileKey = props.policeCheckFileKey;
     this.policeCheckExpiresAt = props.policeCheckExpiresAt;
+    this.policeCheckMetaJson = props.policeCheckMetaJson;
+    this.photoStorageKey = props.photoStorageKey;
     this.deletedAt = props.deletedAt;
   }
 

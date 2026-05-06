@@ -1,4 +1,4 @@
-import { NotFoundError, ConflictError, DomainError } from '../../../shared/domain/errors';
+import { NotFoundError, ConflictError, DomainError, ValidationError } from '../../../shared/domain/errors';
 
 export class InspectorNotFoundError extends NotFoundError {
   constructor() {
@@ -52,5 +52,29 @@ export class AvailabilitySlotCapacityExhaustedError extends ConflictError {
 export class AvailabilitySlotNotMatchedError extends DomainError {
   constructor() {
     super('AVAILABILITY_SLOT_NOT_MATCHED', 'No matching availability slot found for the inspector on the scheduled date and time', 422);
+  }
+}
+
+export class InspectorPhotoInvalidKeyError extends ValidationError {
+  constructor() {
+    super('Invalid inspector photo storage key format');
+  }
+}
+
+export class InspectorPhotoObjectNotFoundError extends ValidationError {
+  constructor() {
+    super('Inspector photo object not found in storage — upload may have failed or key is incorrect');
+  }
+}
+
+export class InspectorDocumentInvalidKeyError extends ValidationError {
+  constructor() {
+    super('Invalid inspector document storage key format');
+  }
+}
+
+export class InspectorDocumentObjectNotFoundError extends ValidationError {
+  constructor() {
+    super('Inspector document object not found in storage — upload may have failed or key is incorrect');
   }
 }

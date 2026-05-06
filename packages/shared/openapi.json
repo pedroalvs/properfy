@@ -272,6 +272,15 @@
                           "format": "date-time"
                         }
                       ]
+                    },
+                    "inspectorId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "inspectorPhotoUrl": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
@@ -7192,6 +7201,71 @@
                         },
                         "serviceTypesJson": {},
                         "clientEligibilityJson": {},
+                        "blockedClients": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "fullName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "address": {},
+                        "abn": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dateOfBirth": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "insuranceFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "policeCheckFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "policeCheckExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "photoStorageKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceMetaJson": {},
+                        "policeCheckMetaJson": {},
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7368,6 +7442,71 @@
                           },
                           "serviceTypesJson": {},
                           "clientEligibilityJson": {},
+                          "blockedClients": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "fullName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "address": {},
+                          "abn": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "dateOfBirth": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "insuranceFileKey": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "insuranceExpiresAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "policeCheckFileKey": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "policeCheckExpiresAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "photoStorageKey": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "insuranceMetaJson": {},
+                          "policeCheckMetaJson": {},
                           "createdAt": {
                             "anyOf": [
                               {
@@ -7490,6 +7629,71 @@
                         },
                         "serviceTypesJson": {},
                         "clientEligibilityJson": {},
+                        "blockedClients": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "fullName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "address": {},
+                        "abn": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dateOfBirth": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "insuranceFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "policeCheckFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "policeCheckExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "photoStorageKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceMetaJson": {},
+                        "policeCheckMetaJson": {},
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7747,6 +7951,71 @@
                         },
                         "serviceTypesJson": {},
                         "clientEligibilityJson": {},
+                        "blockedClients": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "fullName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "address": {},
+                        "abn": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dateOfBirth": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "insuranceFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "policeCheckFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "policeCheckExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "photoStorageKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceMetaJson": {},
+                        "policeCheckMetaJson": {},
                         "createdAt": {
                           "anyOf": [
                             {
@@ -8904,6 +9173,317 @@
         }
       }
     },
+    "/v1/inspectors/me": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "nullable": true
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "nullable": true
+                  },
+                  "paymentSettings": {
+                    "type": "object",
+                    "properties": {
+                      "bankName": {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "accountNumber": {
+                        "type": "string",
+                        "maxLength": 50
+                      },
+                      "bsb": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "abn": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "paymentMethod": {
+                        "type": "string",
+                        "enum": [
+                          "BANK_TRANSFER",
+                          "PAYPAL",
+                          "PIX",
+                          "OTHER"
+                        ]
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/photo/presign": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mimeType": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "mimeType"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/photo/confirm": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "storageKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "storageKey"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/documents/presign": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "INSURANCE",
+                      "POLICE_CHECK"
+                    ]
+                  },
+                  "mimeType": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                },
+                "required": [
+                  "kind",
+                  "mimeType",
+                  "fileName"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/documents/confirm": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "INSURANCE",
+                      "POLICE_CHECK"
+                    ]
+                  },
+                  "storageKey": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                },
+                "required": [
+                  "kind",
+                  "storageKey",
+                  "fileName"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/documents/{kind}/download": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INSURANCE",
+                "POLICE_CHECK"
+              ]
+            },
+            "in": "path",
+            "name": "kind",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "downloadUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "fileName": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "downloadUrl",
+                    "fileName"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/appointments": {
       "post": {
         "requestBody": {
@@ -9385,6 +9965,9 @@
                             }
                           ]
                         },
+                        "appointmentNumber": {
+                          "type": "number"
+                        },
                         "code": {
                           "type": "string"
                         },
@@ -9428,6 +10011,10 @@
                         },
                         "contact": {
                           "nullable": true
+                        },
+                        "contacts": {
+                          "type": "array",
+                          "items": {}
                         },
                         "restrictions": {
                           "type": "array",
@@ -9785,6 +10372,9 @@
                               }
                             ]
                           },
+                          "appointmentNumber": {
+                            "type": "number"
+                          },
                           "code": {
                             "type": "string"
                           },
@@ -9828,6 +10418,10 @@
                           },
                           "contact": {
                             "nullable": true
+                          },
+                          "contacts": {
+                            "type": "array",
+                            "items": {}
                           },
                           "restrictions": {
                             "type": "array",
@@ -10052,6 +10646,9 @@
                             }
                           ]
                         },
+                        "appointmentNumber": {
+                          "type": "number"
+                        },
                         "code": {
                           "type": "string"
                         },
@@ -10095,6 +10692,10 @@
                         },
                         "contact": {
                           "nullable": true
+                        },
+                        "contacts": {
+                          "type": "array",
+                          "items": {}
                         },
                         "restrictions": {
                           "type": "array",
@@ -10551,6 +11152,9 @@
                             }
                           ]
                         },
+                        "appointmentNumber": {
+                          "type": "number"
+                        },
                         "code": {
                           "type": "string"
                         },
@@ -10594,6 +11198,10 @@
                         },
                         "contact": {
                           "nullable": true
+                        },
+                        "contacts": {
+                          "type": "array",
+                          "items": {}
                         },
                         "restrictions": {
                           "type": "array",
@@ -11413,7 +12021,8 @@
                   "appointmentIds",
                   "serviceTypeId",
                   "scheduledDate",
-                  "timeWindow"
+                  "timeWindow",
+                  "serviceRegionId"
                 ],
                 "additionalProperties": false
               }
@@ -11556,6 +12165,9 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "appointmentsCount": {
+                          "type": "number"
                         },
                         "appointments": {
                           "type": "array",
@@ -11700,6 +12312,30 @@
             "in": "query",
             "name": "priorityMode",
             "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "includeAppointments",
+            "required": false
           }
         ],
         "responses": {
@@ -11839,6 +12475,9 @@
                                 "format": "date-time"
                               }
                             ]
+                          },
+                          "appointmentsCount": {
+                            "type": "number"
                           },
                           "appointments": {
                             "type": "array",
@@ -12052,6 +12691,9 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "appointmentsCount": {
+                          "type": "number"
                         },
                         "appointments": {
                           "type": "array",
@@ -12294,6 +12936,9 @@
                             }
                           ]
                         },
+                        "appointmentsCount": {
+                          "type": "number"
+                        },
                         "appointments": {
                           "type": "array",
                           "items": {}
@@ -12480,6 +13125,9 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "appointmentsCount": {
+                          "type": "number"
                         },
                         "appointments": {
                           "type": "array",
@@ -12688,6 +13336,9 @@
                             }
                           ]
                         },
+                        "appointmentsCount": {
+                          "type": "number"
+                        },
                         "appointments": {
                           "type": "array",
                           "items": {}
@@ -12775,150 +13426,13 @@
                           "type": "string",
                           "format": "uuid"
                         },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "serviceTypeId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
                         "status": {
                           "type": "string"
-                        },
-                        "groupSize": {
-                          "type": "number"
-                        },
-                        "offeredCount": {
-                          "type": "number"
-                        },
-                        "confirmedCount": {
-                          "type": "number"
-                        },
-                        "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timeWindow": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "regionName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "description": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedInspectorId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "serviceRegionId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdByUserId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "appointments": {
-                          "type": "array",
-                          "items": {}
-                        },
-                        "assignedInspector": {
-                          "nullable": true
                         }
                       },
                       "required": [
                         "id",
-                        "tenantId",
-                        "serviceTypeId",
-                        "status",
-                        "groupSize",
-                        "offeredCount",
-                        "confirmedCount",
-                        "scheduledDate",
-                        "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
-                        "assignedInspectorId",
-                        "publishedAt",
-                        "createdAt"
+                        "status"
                       ],
                       "additionalProperties": false
                     }
@@ -12983,150 +13497,13 @@
                           "type": "string",
                           "format": "uuid"
                         },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "serviceTypeId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
                         "status": {
                           "type": "string"
-                        },
-                        "groupSize": {
-                          "type": "number"
-                        },
-                        "offeredCount": {
-                          "type": "number"
-                        },
-                        "confirmedCount": {
-                          "type": "number"
-                        },
-                        "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timeWindow": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "regionName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "description": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedInspectorId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "serviceRegionId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdByUserId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "appointments": {
-                          "type": "array",
-                          "items": {}
-                        },
-                        "assignedInspector": {
-                          "nullable": true
                         }
                       },
                       "required": [
                         "id",
-                        "tenantId",
-                        "serviceTypeId",
-                        "status",
-                        "groupSize",
-                        "offeredCount",
-                        "confirmedCount",
-                        "scheduledDate",
-                        "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
-                        "assignedInspectorId",
-                        "publishedAt",
-                        "createdAt"
+                        "status"
                       ],
                       "additionalProperties": false
                     }
@@ -13187,150 +13564,13 @@
                           "type": "string",
                           "format": "uuid"
                         },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "serviceTypeId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
                         "status": {
                           "type": "string"
-                        },
-                        "groupSize": {
-                          "type": "number"
-                        },
-                        "offeredCount": {
-                          "type": "number"
-                        },
-                        "confirmedCount": {
-                          "type": "number"
-                        },
-                        "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timeWindow": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "regionName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "description": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedInspectorId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "serviceRegionId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdByUserId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "appointments": {
-                          "type": "array",
-                          "items": {}
-                        },
-                        "assignedInspector": {
-                          "nullable": true
                         }
                       },
                       "required": [
                         "id",
-                        "tenantId",
-                        "serviceTypeId",
-                        "status",
-                        "groupSize",
-                        "offeredCount",
-                        "confirmedCount",
-                        "scheduledDate",
-                        "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
-                        "assignedInspectorId",
-                        "publishedAt",
-                        "createdAt"
+                        "status"
                       ],
                       "additionalProperties": false
                     }
@@ -15755,9 +15995,7 @@
                   "kind": {
                     "type": "string",
                     "enum": [
-                      "PHOTO",
-                      "DOCUMENT",
-                      "SIGNATURE"
+                      "PHOTO"
                     ]
                   },
                   "mimeType": {
@@ -16139,6 +16377,140 @@
                   "required": [
                     "data",
                     "pagination"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/{appointmentId}/assets": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "storageKey": {
+                            "type": "string"
+                          },
+                          "mimeType": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "originalFilename": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "storageKey",
+                          "mimeType",
+                          "sizeBytes",
+                          "kind",
+                          "status",
+                          "originalFilename",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/{appointmentId}/assets/{assetId}/download": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "assetId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "downloadUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "fileName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "mimeType": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "downloadUrl",
+                    "fileName",
+                    "mimeType"
                   ],
                   "additionalProperties": false
                 }
@@ -17566,6 +17938,10 @@
                             "type": "string",
                             "format": "uuid"
                           },
+                          "inspectorName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "periodStart": {
                             "anyOf": [
                               {
@@ -17777,6 +18153,10 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "periodStart": {
                           "anyOf": [
                             {
@@ -17938,6 +18318,10 @@
                         "inspectorId": {
                           "type": "string",
                           "format": "uuid"
+                        },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "periodStart": {
                           "anyOf": [
@@ -18818,6 +19202,10 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "periodStart": {
                           "anyOf": [
                             {
@@ -19267,6 +19655,10 @@
                             "type": "string",
                             "format": "uuid"
                           },
+                          "inspectorName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "periodStart": {
                             "anyOf": [
                               {
@@ -19478,6 +19870,10 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "periodStart": {
                           "anyOf": [
                             {
@@ -19640,6 +20036,10 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "periodStart": {
                           "anyOf": [
                             {
@@ -19766,6 +20166,66 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/close": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/pay": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paidAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "paymentReference": {
+                    "type": "string",
+                    "maxLength": 255
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }
@@ -20090,6 +20550,10 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "fileUrl": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "requestedByUserId": {
                             "type": "string",
                             "format": "uuid"
@@ -20267,6 +20731,10 @@
                           "type": "string"
                         },
                         "fileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "fileUrl": {
                           "type": "string",
                           "nullable": true
                         },
@@ -20580,6 +21048,10 @@
                   "deliveryEmail": {
                     "type": "string",
                     "format": "email"
+                  },
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
                   }
                 },
                 "required": [
@@ -21965,6 +22437,33 @@
         }
       }
     },
+    "/v1/notification-templates/{templateCode}/{channel}/test-send": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "templateCode",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "channel",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/v1/notification-templates/{templateCode}/{channel}": {
       "put": {
         "requestBody": {
@@ -22838,6 +23337,25 @@
         }
       },
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "contactId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/contacts/{contactId}/deactivate": {
+      "post": {
         "parameters": [
           {
             "schema": {

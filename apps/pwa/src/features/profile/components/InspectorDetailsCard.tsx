@@ -6,9 +6,11 @@ interface InspectorDetail {
   abn: string | null;
   dateOfBirth: string | null;
   insuranceFileKey: string | null;
-  insuranceExpiry: string | null;
+  insuranceExpiresAt: string | null;
   policeCheckFileKey: string | null;
-  policeCheckExpiry: string | null;
+  policeCheckExpiresAt: string | null;
+  insuranceMetaJson: { fileName?: string | null } | null;
+  policeCheckMetaJson: { fileName?: string | null } | null;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -52,8 +54,8 @@ function ExpiryBadge({ expiry }: { expiry: string | null }) {
 
 export function InspectorDetailsCard() {
   const { data, isLoading, isError } = useDetailQuery<InspectorDetail>(
-    ['inspector', 'profile'],
-    '/v1/inspector/profile',
+    ['inspector', 'me'],
+    '/v1/inspectors/me',
     {
       staleTime: 5 * 60 * 1000,
       gcTime: 24 * 60 * 60 * 1000,
@@ -108,7 +110,7 @@ export function InspectorDetailsCard() {
               <span className="text-sm text-text-primary">Insurance</span>
             </div>
             <div className="flex items-center gap-2">
-              {inspector.insuranceFileKey ? (
+              {inspector.insuranceFileKey || inspector.insuranceMetaJson ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
                   <i className="mdi mdi-check text-xs" aria-hidden="true" />
                   On file
@@ -116,7 +118,7 @@ export function InspectorDetailsCard() {
               ) : (
                 <span className="text-xs text-text-muted">Not uploaded</span>
               )}
-              <ExpiryBadge expiry={inspector.insuranceExpiry} />
+              <ExpiryBadge expiry={inspector.insuranceExpiresAt} />
             </div>
           </div>
 
@@ -127,7 +129,7 @@ export function InspectorDetailsCard() {
               <span className="text-sm text-text-primary">Police Check</span>
             </div>
             <div className="flex items-center gap-2">
-              {inspector.policeCheckFileKey ? (
+              {inspector.policeCheckFileKey || inspector.policeCheckMetaJson ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
                   <i className="mdi mdi-check text-xs" aria-hidden="true" />
                   On file
@@ -135,7 +137,7 @@ export function InspectorDetailsCard() {
               ) : (
                 <span className="text-xs text-text-muted">Not uploaded</span>
               )}
-              <ExpiryBadge expiry={inspector.policeCheckExpiry} />
+              <ExpiryBadge expiry={inspector.policeCheckExpiresAt} />
             </div>
           </div>
         </div>

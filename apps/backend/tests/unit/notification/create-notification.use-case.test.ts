@@ -23,8 +23,6 @@ function makeTemplate(overrides: Partial<NotificationTemplateProps> = {}): Notif
     variablesJson: [],
     isActive: true,
     notificationClass: 'OPERATIONAL',
-    whatsappApprovalStatus: 'APPROVED',
-    whatsappApprovalReference: null,
     createdAt: now,
     updatedAt: now,
     ...overrides,

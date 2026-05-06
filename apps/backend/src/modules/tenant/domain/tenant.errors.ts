@@ -1,4 +1,4 @@
-import { NotFoundError, ConflictError } from '../../../shared/domain/errors';
+import { NotFoundError, ConflictError, ValidationError } from '../../../shared/domain/errors';
 
 export class TenantNotFoundError extends NotFoundError {
   constructor() {
@@ -75,5 +75,17 @@ export class BranchHasOpenAppointmentsError extends ConflictError {
 export class BranchAlreadyActiveError extends ConflictError {
   constructor() {
     super('BRANCH_ALREADY_ACTIVE', 'Branch is already active');
+  }
+}
+
+export class LogoStorageKeyInvalidError extends ValidationError {
+  constructor() {
+    super('Invalid logo storage key format');
+  }
+}
+
+export class LogoUploadObjectNotFoundError extends ValidationError {
+  constructor() {
+    super('Logo object not found in storage — upload may have failed or key is incorrect');
   }
 }

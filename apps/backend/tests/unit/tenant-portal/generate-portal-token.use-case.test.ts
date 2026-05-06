@@ -8,7 +8,7 @@ import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-p
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
-import type { TokenService } from '../../../src/modules/tenant-portal/domain/token.service';
+import type { MintPortalTokenService } from '../../../src/modules/tenant-portal/domain/mint-portal-token.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
@@ -92,11 +92,15 @@ function makeInput(overrides: Partial<GeneratePortalTokenInput> = {}): GenerateP
   };
 }
 
+const RAW_TOKEN = 'raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab';
+const EXPIRES_AT = new Date('2026-04-14T08:00:00Z');
+
 describe('GeneratePortalTokenUseCase', () => {
   let tokenRepo: {
     findByTokenHash: ReturnType<typeof vi.fn>;
     findActiveByAppointmentId: ReturnType<typeof vi.fn>;
     save: ReturnType<typeof vi.fn>;
+    revokeAndSave: ReturnType<typeof vi.fn>;
     updateStatus: ReturnType<typeof vi.fn>;
     updateLastAccessedAt: ReturnType<typeof vi.fn>;
     markUsed: ReturnType<typeof vi.fn>;
@@ -122,11 +126,7 @@ describe('GeneratePortalTokenUseCase', () => {
     save: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
-  let tokenService: {
-    generateRawToken: ReturnType<typeof vi.fn>;
-    hashToken: ReturnType<typeof vi.fn>;
-    computeExpiresAt: ReturnType<typeof vi.fn>;
-  };
+  let mintPortalTokenService: { mint: ReturnType<typeof vi.fn> };
   let auditService: { log: ReturnType<typeof vi.fn> };
   let useCase: GeneratePortalTokenUseCase;
 
@@ -135,6 +135,7 @@ describe('GeneratePortalTokenUseCase', () => {
       findByTokenHash: vi.fn(),
       findActiveByAppointmentId: vi.fn(),
       save: vi.fn().mockResolvedValue(undefined),
+      revokeAndSave: vi.fn().mockResolvedValue(undefined),
       updateStatus: vi.fn(),
       updateLastAccessedAt: vi.fn(),
       markUsed: vi.fn().mockResolvedValue(undefined),
@@ -165,10 +166,8 @@ describe('GeneratePortalTokenUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
-    tokenService = {
-      generateRawToken: vi.fn().mockReturnValue('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab'),
-      hashToken: vi.fn().mockReturnValue('hashed-token-sha256'),
-      computeExpiresAt: vi.fn().mockReturnValue(new Date('2026-04-14T08:00:00Z')),
+    mintPortalTokenService = {
+      mint: vi.fn().mockResolvedValue({ rawToken: RAW_TOKEN, expiresAt: EXPIRES_AT }),
     };
     auditService = { log: vi.fn() };
 
@@ -176,7 +175,7 @@ describe('GeneratePortalTokenUseCase', () => {
       tokenRepo as unknown as ITenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       tenantRepo as unknown as ITenantRepository,
-      tokenService as unknown as TokenService,
+      mintPortalTokenService as unknown as MintPortalTokenService,
       auditService as unknown as PersistentAuditService,
     );
   });
@@ -184,50 +183,35 @@ describe('GeneratePortalTokenUseCase', () => {
   it('should generate token successfully for AM actor', async () => {
     const result = await useCase.execute(makeInput({ actor: makeAMContext() }));
 
-    expect(result.token).toBe('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab');
-    expect(result.expiresAt).toEqual(new Date('2026-04-14T08:00:00Z'));
-
-    // AM passes null tenantId for query
+    expect(result.token).toBe(RAW_TOKEN);
+    expect(result.expiresAt).toEqual(EXPIRES_AT);
     expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
   });
 
   it('should generate token successfully for OP actor', async () => {
     const result = await useCase.execute(makeInput({ actor: makeOPContext() }));
 
-    expect(result.token).toBe('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab');
-    expect(result.expiresAt).toEqual(new Date('2026-04-14T08:00:00Z'));
-
-    // OP passes their tenantId for query
+    expect(result.token).toBe(RAW_TOKEN);
+    expect(result.expiresAt).toEqual(EXPIRES_AT);
     expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', 'tenant-1');
   });
 
-  it('should revoke existing tokens before creating new one', async () => {
+  it('should call mintPortalTokenService.mint with the loaded appointment and tenant', async () => {
+    const appointment = makeAppointment();
+    const tenant = makeTenant();
+    appointmentRepo.findById.mockResolvedValueOnce({ appointment, contact: null, restrictions: [] });
+    tenantRepo.findById.mockResolvedValueOnce(tenant);
+
     await useCase.execute(makeInput());
 
-    expect(tokenRepo.revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
-
-    // revokeAll should be called before save
-    const revokeOrder = tokenRepo.revokeAllForAppointment.mock.invocationCallOrder[0];
-    const saveOrder = tokenRepo.save.mock.invocationCallOrder[0];
-    expect(revokeOrder).toBeLessThan(saveOrder);
+    expect(mintPortalTokenService.mint).toHaveBeenCalledWith(appointment, tenant);
   });
 
-  it('should return raw token (not hash)', async () => {
+  it('should return the raw token from mintPortalTokenService.mint', async () => {
     const result = await useCase.execute(makeInput());
 
-    expect(result.token).toBe('raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab');
-    expect(result.token).not.toBe('hashed-token-sha256');
-  });
-
-  it('should save token entity with hashed token', async () => {
-    await useCase.execute(makeInput());
-
-    expect(tokenRepo.save).toHaveBeenCalledTimes(1);
-    const savedToken = tokenRepo.save.mock.calls[0][0];
-    expect(savedToken.tokenHash).toBe('hashed-token-sha256');
-    expect(savedToken.appointmentId).toBe('appt-1');
-    expect(savedToken.status).toBe('ACTIVE');
-    expect(savedToken.lastAccessedAt).toBeNull();
+    expect(result.token).toBe(RAW_TOKEN);
+    expect(result.expiresAt).toEqual(EXPIRES_AT);
   });
 
   it('should throw ForbiddenError for CL_ADMIN role', async () => {
@@ -268,66 +252,14 @@ describe('GeneratePortalTokenUseCase', () => {
     appointmentRepo.findById.mockResolvedValue(null);
 
     await expect(useCase.execute(makeInput())).rejects.toThrow(NotFoundError);
+    expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
   });
 
   it('should throw NotFoundError when tenant not found', async () => {
     tenantRepo.findById.mockResolvedValue(null);
 
     await expect(useCase.execute(makeInput())).rejects.toThrow(NotFoundError);
-  });
-
-  it('should use tenant timezone for computing expiry', async () => {
-    tenantRepo.findById.mockResolvedValue(makeTenant({ timezone: 'America/Sao_Paulo' }));
-
-    await useCase.execute(makeInput());
-
-    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'America/Sao_Paulo', 19, 1);
-  });
-
-  it('should use default cutoff settings when settingsJson is null-ish', async () => {
-    tenantRepo.findById.mockResolvedValue(makeTenant({ settingsJson: null as unknown as Record<string, unknown> }));
-
-    await useCase.execute(makeInput());
-
-    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 19, 1);
-  });
-
-  it('should use custom portalCutoffHour from tenant settings', async () => {
-    tenantRepo.findById.mockResolvedValue(makeTenant({
-      settingsJson: { portalCutoffHour: 17 },
-    }));
-
-    await useCase.execute(makeInput());
-
-    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 17, 1);
-  });
-
-  it('should use custom portalCutoffDaysBefore from tenant settings', async () => {
-    tenantRepo.findById.mockResolvedValue(makeTenant({
-      settingsJson: { portalCutoffDaysBefore: 2 },
-    }));
-
-    await useCase.execute(makeInput());
-
-    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 19, 2);
-  });
-
-  it('should use both custom cutoff settings together', async () => {
-    tenantRepo.findById.mockResolvedValue(makeTenant({
-      settingsJson: { portalCutoffHour: 15, portalCutoffDaysBefore: 3 },
-    }));
-
-    await useCase.execute(makeInput());
-
-    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 15, 3);
-  });
-
-  it('should default to 19:00 cutoff 1 day before when settings are empty', async () => {
-    tenantRepo.findById.mockResolvedValue(makeTenant({ settingsJson: {} }));
-
-    await useCase.execute(makeInput());
-
-    expect(tokenService.computeExpiresAt).toHaveBeenCalledWith('2026-04-15', 'Australia/Sydney', 19, 1);
+    expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
   });
 
   it('should call audit service with USER actor type and actor details', async () => {
@@ -371,14 +303,14 @@ describe('GeneratePortalTokenUseCase', () => {
       tokenRepo as unknown as ITenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       tenantRepo as unknown as ITenantRepository,
-      tokenService as unknown as TokenService,
+      mintPortalTokenService as unknown as MintPortalTokenService,
       auditService as unknown as PersistentAuditService,
       failingNotificationUseCase as any,
     );
 
     const result = await uc.execute(makeInput({ actor: makeAMContext() }));
 
-    expect(tokenRepo.save).toHaveBeenCalled();
+    expect(mintPortalTokenService.mint).toHaveBeenCalled();
     expect(failingNotificationUseCase.execute).toHaveBeenCalledTimes(1);
     expect(result.token).toBeTruthy();
     expect(result.expiresAt).toBeInstanceOf(Date);

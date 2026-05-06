@@ -14,6 +14,7 @@ function mapToEntity(row: any): InspectionAssetEntity {
     status: row.status,
     uploadedBy: row.uploaded_by,
     uploadExpiresAt: row.upload_expires_at,
+    originalFilename: row.original_filename ?? null,
     createdAt: row.created_at,
   });
 }
@@ -45,6 +46,17 @@ export class PrismaInspectionAssetRepository implements IInspectionAssetReposito
     return rows.map(mapToEntity);
   }
 
+  async findUploadedByAppointmentId(appointmentId: string): Promise<InspectionAssetEntity[]> {
+    const rows = await this.prisma.inspectionAsset.findMany({
+      where: {
+        appointment_id: appointmentId,
+        status: 'UPLOADED',
+      },
+      orderBy: { created_at: 'asc' },
+    });
+    return rows.map(mapToEntity);
+  }
+
   async save(asset: InspectionAssetEntity): Promise<void> {
     await this.prisma.inspectionAsset.create({
       data: {
@@ -58,6 +70,7 @@ export class PrismaInspectionAssetRepository implements IInspectionAssetReposito
         status: asset.status,
         uploaded_by: asset.uploadedBy,
         upload_expires_at: asset.uploadExpiresAt,
+        original_filename: asset.originalFilename,
       },
     });
   }
@@ -85,5 +98,15 @@ export class PrismaInspectionAssetRepository implements IInspectionAssetReposito
       data: { status: 'UPLOAD_FAILED' },
     });
     return result.count;
+  }
+
+  async findExpiredPending(now: Date): Promise<InspectionAssetEntity[]> {
+    const rows = await this.prisma.inspectionAsset.findMany({
+      where: {
+        status: 'PENDING',
+        upload_expires_at: { lt: now },
+      },
+    });
+    return rows.map(mapToEntity);
   }
 }

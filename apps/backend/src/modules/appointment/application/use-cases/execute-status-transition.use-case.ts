@@ -53,7 +53,7 @@ interface OnDoneHandler {
 }
 
 interface OnTransitionHandler {
-  execute(input: { appointmentId: string; previousStatus: string; targetStatus: string }): Promise<unknown>;
+  execute(input: { appointmentId: string; tenantId?: string | null; previousStatus: string; targetStatus: string }): Promise<unknown>;
 }
 
 export class ExecuteStatusTransitionUseCase {
@@ -381,6 +381,7 @@ export class ExecuteStatusTransitionUseCase {
       try {
         await this.onTransitionHandler.execute({
           appointmentId,
+          tenantId: appointment.tenantId,
           previousStatus: appointment.status,
           targetStatus,
         });

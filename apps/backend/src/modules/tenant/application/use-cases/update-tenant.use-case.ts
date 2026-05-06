@@ -1,5 +1,6 @@
+import { z } from 'zod';
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ITenantRepository } from '../../domain/tenant.repository';
 import {
@@ -15,13 +16,23 @@ import { TENANT_EVENTS } from '../../../../shared/application/events/domain-even
  * All other settings keys (billing, feature flags, permissions, inspector config) are AM-only.
  */
 const CL_ADMIN_SETTINGS_ALLOW_LIST = new Set([
-  'logoUrl',
   'primaryColor',
   'notificationFromName',
   'notificationFromEmail',
   'smsFromName',
   'emailTemplates',
+  'contactPhone',
+  'appointmentCodePrefix',
 ]);
+
+// These keys must only be set via the dedicated logo upload flow (presign → PUT → confirm).
+const IMMUTABLE_SETTINGS_KEYS = ['logoUrl', 'logoStorageKey'] as const;
+
+// H8: Zod schema for CL_ADMIN-writable settings fields that require validation.
+const clAdminSettingsSchema = z.object({
+  appointmentCodePrefix: z.string().regex(/^[A-Z0-9]{2,5}$/, 'Must be 2-5 uppercase letters/digits').optional(),
+  contactPhone: z.string().min(8).max(20).optional(),
+}).passthrough();
 
 function filterClAdminSettings(
   settings: Record<string, unknown>,
@@ -78,14 +89,31 @@ export class UpdateTenantUseCase {
       actor.tenantId === tenantId
     ) {
       // Strip top-level fields and filter settings keys
-      data = {
-        name: data.name,
-        settings: data.settings
-          ? filterClAdminSettings(data.settings)
-          : undefined,
-      };
+      const filteredSettings = data.settings ? filterClAdminSettings(data.settings) : undefined;
+      if (filteredSettings) {
+        const parsed = clAdminSettingsSchema.safeParse(filteredSettings);
+        if (!parsed.success) {
+          const fields = parsed.error.issues.map((i) => ({
+            field: `settings.${i.path.join('.')}`,
+            message: i.message,
+          }));
+          throw new ValidationError('Invalid settings value', fields);
+        }
+      }
+      data = { name: data.name, settings: filteredSettings };
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+    }
+
+    // Block logo keys for all roles — must use the dedicated upload flow
+    if (data.settings) {
+      for (const key of IMMUTABLE_SETTINGS_KEYS) {
+        if (key in data.settings) {
+          throw new ValidationError(
+            `settings.${key} cannot be set via this endpoint. Use the logo upload flow.`,
+          );
+        }
+      }
     }
 
     const tenant = await this.tenantRepo.findById(tenantId);

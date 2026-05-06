@@ -122,3 +122,17 @@ export const listAvailabilitySlotsQuerySchema = paginationSchema.extend({
   status: z.enum(['AVAILABLE', 'BOOKED', 'CANCELLED']).optional(),
 });
 export type ListAvailabilitySlotsQueryInput = z.infer<typeof listAvailabilitySlotsQuerySchema>;
+
+// --- Inspector self-update (INSP role, PATCH /v1/inspectors/me) ---
+
+export const inspectorSelfUpdateSchema = z.object({
+  phone: z.string().max(20).nullable().optional(),
+  fullName: z.string().max(300).nullable().optional(),
+  paymentSettings: paymentSettingsSchema.optional(),
+});
+export type InspectorSelfUpdateInput = z.infer<typeof inspectorSelfUpdateSchema>;
+
+// --- Inspector document kind enum ---
+
+export const inspectorDocumentKindEnum = z.enum(['INSURANCE', 'POLICE_CHECK']);
+export type InspectorDocumentKind = z.infer<typeof inspectorDocumentKindEnum>;

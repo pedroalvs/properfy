@@ -50,10 +50,10 @@ const MOCK_TEMPLATE: NotificationTemplate = {
   code: 'INSPECTION_NOTICE',
   channel: 'EMAIL',
   subject: 'Inspection at {{propertyAddress}}',
-  body: 'Hello {{tenantName}}, your inspection is on {{scheduledDate}}.',
+  body: 'Hello {{tenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.',
   active: true,
   notificationClass: 'OPERATIONAL',
-  requiredVariables: ['tenantName', 'scheduledDate'],
+  requiredVariables: ['tenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };
@@ -126,7 +126,7 @@ describe('TemplateFormDrawer', () => {
     renderDrawer();
     expect(screen.getByLabelText('Subject')).toHaveValue('Inspection at {{propertyAddress}}');
     expect(screen.getByLabelText('Body')).toHaveValue(
-      'Hello {{tenantName}}, your inspection is on {{scheduledDate}}.',
+      'Hello {{tenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.',
     );
   });
 
@@ -139,7 +139,7 @@ describe('TemplateFormDrawer', () => {
   it('shows required variables in info bar', () => {
     renderDrawer();
     expect(screen.getByText('Required Variables')).toBeInTheDocument();
-    expect(screen.getByText('{{tenantName}}, {{scheduledDate}}')).toBeInTheDocument();
+    expect(screen.getByText('{{tenantName}}, {{propertyAddress}}, {{scheduledDate}}, {{timeSlot}}')).toBeInTheDocument();
   });
 
   it('validates on save and shows errors for disallowed variables', async () => {

@@ -10,11 +10,12 @@ const OP_EMAIL_FOOTER =
   ' If you no longer wish to receive operational notifications, you can unsubscribe here: {{unsubscribeUrl}}';
 
 const PLATFORM_TEMPLATES = [
+  // ── EMAIL templates ────────────────────────────────────────────────────────
   {
     code: 'INSPECTION_NOTICE',
     channel: 'EMAIL' as const,
     subject: 'Upcoming Property Inspection',
-    body: `Dear {{tenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} between {{timeSlot}}.${OP_EMAIL_FOOTER}`,
+    body: `Dear {{tenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} between {{timeSlot}}. Confirm or reschedule: {{confirmationLink}}.${OP_EMAIL_FOOTER}`,
   },
   {
     code: 'REMINDER_7_DAYS',
@@ -41,12 +42,6 @@ const PLATFORM_TEMPLATES = [
     body: `The tenant {{tenantName}} at {{propertyAddress}} has not responded to the inspection notice for {{scheduledDate}}. Please follow up.${OP_EMAIL_FOOTER}`,
   },
   {
-    code: 'TENANT_SMS_ALERT',
-    channel: 'SMS' as const,
-    subject: null,
-    body: 'Properfy: Inspection at {{propertyAddress}} on {{scheduledDate}}. Confirm at {{portalUrl}}',
-  },
-  {
     code: 'INSPECTION_CONFIRMED',
     channel: 'EMAIL' as const,
     subject: 'Inspection Confirmed',
@@ -68,7 +63,7 @@ const PLATFORM_TEMPLATES = [
     code: 'INSPECTION_UNAVAILABILITY_REPORTED',
     channel: 'EMAIL' as const,
     subject: 'Tenant Reported Unavailability',
-    body: 'The tenant {{tenantName}} reported that the inspection at {{propertyAddress}} on {{scheduledDate}} is unavailable. Review appointment {{appointmentReference}} for follow-up.',
+    body: 'The tenant {{tenantName}} reported that the inspection at {{propertyAddress}} on {{scheduledDate}} is unavailable. Review appointment {{appointmentCode}} for follow-up.',
   },
   {
     code: 'REPORT_READY',
@@ -82,17 +77,73 @@ const PLATFORM_TEMPLATES = [
     subject: 'Your report "{{reportType}}" failed',
     body: `Hi {{userName}}, your {{reportType}} report could not be generated. Reason: {{errorMessage}}. You can retry from the reports page: {{downloadLink}}.${OP_EMAIL_FOOTER}`,
   },
+  // ── SMS templates ─────────────────────────────────────────────────────────
+  {
+    code: 'INSPECTION_NOTICE_SMS',
+    channel: 'SMS' as const,
+    subject: null,
+    body: 'Properfy: Hi {{tenantName}}, inspection scheduled for {{scheduledDate}}. Confirm: {{confirmationLink}}',
+  },
+  {
+    code: 'REMINDER_7_DAYS_SMS',
+    channel: 'SMS' as const,
+    subject: null,
+    body: 'Properfy: Hi {{tenantName}}, your inspection at {{propertyAddress}} is in 7 days on {{scheduledDate}}.',
+  },
+  {
+    code: 'REMINDER_5_DAYS_SMS',
+    channel: 'SMS' as const,
+    subject: null,
+    body: 'Properfy: Hi {{tenantName}}, your inspection at {{propertyAddress}} is in 5 days on {{scheduledDate}}.',
+  },
+  {
+    code: 'REMINDER_3_DAYS_SMS',
+    channel: 'SMS' as const,
+    subject: null,
+    body: 'Properfy: Hi {{tenantName}}, your inspection at {{propertyAddress}} is in 3 days on {{scheduledDate}}.',
+  },
+  {
+    code: 'TENANT_SMS_ALERT',
+    channel: 'SMS' as const,
+    subject: null,
+    body: 'Properfy: Inspection at {{propertyAddress}} on {{scheduledDate}}. Confirm at {{confirmationLink}}',
+  },
+  {
+    code: 'INSPECTION_CONFIRMED_SMS',
+    channel: 'SMS' as const,
+    subject: null,
+    body: 'Properfy: Hi {{tenantName}}, your inspection on {{scheduledDate}} has been confirmed.',
+  },
+  {
+    code: 'INSPECTION_RESCHEDULED_SMS',
+    channel: 'SMS' as const,
+    subject: null,
+    body: 'Properfy: Hi {{tenantName}}, your inspection on {{scheduledDate}} has been rescheduled. New details will follow.',
+  },
+  {
+    code: 'INSPECTION_CANCELLED_SMS',
+    channel: 'SMS' as const,
+    subject: null,
+    body: 'Properfy: Hi {{tenantName}}, the inspection on {{scheduledDate}} has been cancelled.',
+  },
+  {
+    code: 'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
+    channel: 'SMS' as const,
+    subject: null,
+    body: 'Properfy: Hi {{tenantName}}, we received your unavailability report for {{scheduledDate}}. We will be in touch.',
+  },
+  // ── Portal link (operator-triggered, not mandatory) ──────────────────────
   {
     code: 'TENANT_PORTAL_LINK',
     channel: 'EMAIL' as const,
     subject: 'Your property inspection portal',
-    body: `Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on {{scheduledDate}} using this secure link: {{portalToken}}.${OP_EMAIL_FOOTER}`,
+    body: `Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on {{scheduledDate}} using this secure link: {{confirmationLink}}.${OP_EMAIL_FOOTER}`,
   },
   {
     code: 'TENANT_PORTAL_LINK',
     channel: 'SMS' as const,
     subject: null,
-    body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{portalToken}}',
+    body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{confirmationLink}}',
   },
 ];
 

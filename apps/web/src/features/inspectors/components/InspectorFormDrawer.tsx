@@ -18,6 +18,8 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { useInspectorDetail } from '../hooks/useInspectorDetail';
 import { useInspectorSave } from '../hooks/useInspectorSave';
+import { useInspectorDocumentUpload } from '../hooks/useInspectorDocumentUpload';
+import { DocumentUploadField } from './DocumentUploadField';
 import { INSPECTOR_STATUS_OPTIONS } from '../constants/form-options';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 import { EMPTY_INSPECTOR_FORM } from '../types';
@@ -60,6 +62,7 @@ export function InspectorFormDrawer({
     isEditMode ? inspectorId : null,
   );
   const { save, isSaving, validate } = useInspectorSave();
+  const { upload, isUploading: isDocUploading, uploadError: docUploadError } = useInspectorDocumentUpload();
   const { showSuccess, showError } = useSnackbar();
 
   const [form, setForm] = useState<InspectorFormData>(EMPTY_INSPECTOR_FORM);
@@ -295,14 +298,26 @@ export function InspectorFormDrawer({
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Insurance" columns={2}>
-                    <FormField label="Insurance File Key" error={errors.insuranceFileKey}>
-                      <TextInput
-                        value={form.insuranceFileKey}
-                        onChange={(v) => updateField('insuranceFileKey', v)}
-                        aria-label="Insurance File Key"
+                  <FormSection title="Insurance">
+                    {isEditMode && inspectorId ? (
+                      <DocumentUploadField
+                        label="Insurance Certificate"
+                        currentFileName={inspector?.insuranceMetaJson
+                          ? ((inspector.insuranceMetaJson as { fileName?: string | null }).fileName ?? form.insuranceFileKey) || undefined
+                          : form.insuranceFileKey || undefined}
+                        isUploading={isDocUploading}
+                        error={docUploadError}
+                        onFile={(file) => upload(inspectorId, 'INSURANCE', file)}
                       />
-                    </FormField>
+                    ) : (
+                      <FormField label="Insurance File Key" error={errors.insuranceFileKey}>
+                        <TextInput
+                          value={form.insuranceFileKey}
+                          onChange={(v) => updateField('insuranceFileKey', v)}
+                          aria-label="Insurance File Key"
+                        />
+                      </FormField>
+                    )}
                     <FormField label="Insurance Expiry" error={errors.insuranceExpiresAt}>
                       <DateInput
                         value={form.insuranceExpiresAt}
@@ -312,14 +327,26 @@ export function InspectorFormDrawer({
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Police Check" columns={2}>
-                    <FormField label="Police Check File Key" error={errors.policeCheckFileKey}>
-                      <TextInput
-                        value={form.policeCheckFileKey}
-                        onChange={(v) => updateField('policeCheckFileKey', v)}
-                        aria-label="Police Check File Key"
+                  <FormSection title="Police Check">
+                    {isEditMode && inspectorId ? (
+                      <DocumentUploadField
+                        label="Police Check Document"
+                        currentFileName={inspector?.policeCheckMetaJson
+                          ? ((inspector.policeCheckMetaJson as { fileName?: string | null }).fileName ?? form.policeCheckFileKey) || undefined
+                          : form.policeCheckFileKey || undefined}
+                        isUploading={isDocUploading}
+                        error={docUploadError}
+                        onFile={(file) => upload(inspectorId, 'POLICE_CHECK', file)}
                       />
-                    </FormField>
+                    ) : (
+                      <FormField label="Police Check File Key" error={errors.policeCheckFileKey}>
+                        <TextInput
+                          value={form.policeCheckFileKey}
+                          onChange={(v) => updateField('policeCheckFileKey', v)}
+                          aria-label="Police Check File Key"
+                        />
+                      </FormField>
+                    )}
                     <FormField label="Police Check Expiry" error={errors.policeCheckExpiresAt}>
                       <DateInput
                         value={form.policeCheckExpiresAt}

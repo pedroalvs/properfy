@@ -9,11 +9,18 @@ interface AssetThumbnailProps {
 export function AssetThumbnail({ asset, onRetry, onDelete }: AssetThumbnailProps) {
   return (
     <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg" data-testid={`asset-${asset.localId}`}>
-      <img
-        src={asset.blobUrl}
-        alt={asset.filename}
-        className="h-full w-full object-cover"
-      />
+      {asset.contentType.startsWith('image/') ? (
+        <img
+          src={asset.blobUrl}
+          alt={asset.filename}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-slate-100">
+          <i className="mdi mdi-file-document text-2xl text-text-secondary" aria-hidden="true" />
+          <span className="px-1 text-center text-[10px] leading-tight text-text-muted line-clamp-2">{asset.filename}</span>
+        </div>
+      )}
 
       {asset.status === 'uploading' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40">

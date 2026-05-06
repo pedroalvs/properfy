@@ -276,6 +276,9 @@ export interface paths {
                             status: string;
                             lastLoginAt: (string) | null;
                             createdAt: string;
+                            /** Format: uuid */
+                            inspectorId?: string | null;
+                            inspectorPhotoUrl?: string | null;
                         };
                     };
                 };
@@ -3249,6 +3252,18 @@ export interface paths {
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
                                 clientEligibilityJson?: unknown;
+                                blockedClients?: string[];
+                                fullName?: string | null;
+                                address?: unknown;
+                                abn?: string | null;
+                                dateOfBirth?: (string) | null;
+                                insuranceFileKey?: string | null;
+                                insuranceExpiresAt?: (string) | null;
+                                policeCheckFileKey?: string | null;
+                                policeCheckExpiresAt?: (string) | null;
+                                photoStorageKey?: string | null;
+                                insuranceMetaJson?: unknown;
+                                policeCheckMetaJson?: unknown;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -3343,6 +3358,18 @@ export interface paths {
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
                                 clientEligibilityJson?: unknown;
+                                blockedClients?: string[];
+                                fullName?: string | null;
+                                address?: unknown;
+                                abn?: string | null;
+                                dateOfBirth?: (string) | null;
+                                insuranceFileKey?: string | null;
+                                insuranceExpiresAt?: (string) | null;
+                                policeCheckFileKey?: string | null;
+                                policeCheckExpiresAt?: (string) | null;
+                                photoStorageKey?: string | null;
+                                insuranceMetaJson?: unknown;
+                                policeCheckMetaJson?: unknown;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3393,6 +3420,18 @@ export interface paths {
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
                                 clientEligibilityJson?: unknown;
+                                blockedClients?: string[];
+                                fullName?: string | null;
+                                address?: unknown;
+                                abn?: string | null;
+                                dateOfBirth?: (string) | null;
+                                insuranceFileKey?: string | null;
+                                insuranceExpiresAt?: (string) | null;
+                                policeCheckFileKey?: string | null;
+                                policeCheckExpiresAt?: (string) | null;
+                                photoStorageKey?: string | null;
+                                insuranceMetaJson?: unknown;
+                                policeCheckMetaJson?: unknown;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3483,6 +3522,18 @@ export interface paths {
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
                                 clientEligibilityJson?: unknown;
+                                blockedClients?: string[];
+                                fullName?: string | null;
+                                address?: unknown;
+                                abn?: string | null;
+                                dateOfBirth?: (string) | null;
+                                insuranceFileKey?: string | null;
+                                insuranceExpiresAt?: (string) | null;
+                                policeCheckFileKey?: string | null;
+                                policeCheckExpiresAt?: (string) | null;
+                                photoStorageKey?: string | null;
+                                insuranceMetaJson?: unknown;
+                                policeCheckMetaJson?: unknown;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3966,6 +4017,285 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspectors/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        phone?: string | null;
+                        fullName?: string | null;
+                        paymentSettings?: {
+                            bankName?: string;
+                            accountNumber?: string;
+                            bsb?: string;
+                            abn?: string;
+                            /** @enum {string} */
+                            paymentMethod?: "BANK_TRANSFER" | "PAYPAL" | "PIX" | "OTHER";
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/inspectors/{inspectorId}/photo/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        mimeType: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/{inspectorId}/photo/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        storageKey: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/{inspectorId}/documents/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        kind: "INSURANCE" | "POLICE_CHECK";
+                        mimeType: string;
+                        fileName: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/{inspectorId}/documents/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        kind: "INSURANCE" | "POLICE_CHECK";
+                        storageKey: string;
+                        fileName: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/{inspectorId}/documents/{kind}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                    kind: "INSURANCE" | "POLICE_CHECK";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uri */
+                            downloadUrl: string;
+                            fileName: string | null;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments": {
         parameters: {
             query?: never;
@@ -4044,6 +4374,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                appointmentNumber?: number;
                                 code?: string;
                                 propertyAddress?: string;
                                 contactName?: string;
@@ -4056,6 +4387,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 contact?: unknown;
+                                contacts?: unknown[];
                                 restrictions?: unknown[];
                                 property?: unknown;
                                 serviceType?: unknown;
@@ -4209,6 +4541,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                appointmentNumber?: number;
                                 code?: string;
                                 propertyAddress?: string;
                                 contactName?: string;
@@ -4221,6 +4554,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 contact?: unknown;
+                                contacts?: unknown[];
                                 restrictions?: unknown[];
                                 property?: unknown;
                                 serviceType?: unknown;
@@ -4300,6 +4634,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                appointmentNumber?: number;
                                 code?: string;
                                 propertyAddress?: string;
                                 contactName?: string;
@@ -4312,6 +4647,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 contact?: unknown;
+                                contacts?: unknown[];
                                 restrictions?: unknown[];
                                 property?: unknown;
                                 serviceType?: unknown;
@@ -4464,6 +4800,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                appointmentNumber?: number;
                                 code?: string;
                                 propertyAddress?: string;
                                 contactName?: string;
@@ -4476,6 +4813,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 contact?: unknown;
+                                contacts?: unknown[];
                                 restrictions?: unknown[];
                                 property?: unknown;
                                 serviceType?: unknown;
@@ -4905,6 +5243,7 @@ export interface paths {
                     scheduledDateFrom?: string;
                     scheduledDateTo?: string;
                     priorityMode?: "STANDARD" | "PRIORITY_24H";
+                    includeAppointments?: boolean | "true" | "false";
                 };
                 header?: never;
                 path?: never;
@@ -4947,6 +5286,7 @@ export interface paths {
                                 createdByUserId?: string;
                                 createdAt: string;
                                 updatedAt?: string;
+                                appointmentsCount?: number;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             }[];
@@ -4979,7 +5319,7 @@ export interface paths {
                         timeWindow: string;
                         name?: string;
                         /** Format: uuid */
-                        serviceRegionId?: string;
+                        serviceRegionId: string;
                         description?: string;
                         /**
                          * @default STANDARD
@@ -5028,6 +5368,7 @@ export interface paths {
                                 createdByUserId?: string;
                                 createdAt: string;
                                 updatedAt?: string;
+                                appointmentsCount?: number;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -5095,6 +5436,7 @@ export interface paths {
                                 createdByUserId?: string;
                                 createdAt: string;
                                 updatedAt?: string;
+                                appointmentsCount?: number;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -5170,6 +5512,7 @@ export interface paths {
                                 createdByUserId?: string;
                                 createdAt: string;
                                 updatedAt?: string;
+                                appointmentsCount?: number;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -5235,6 +5578,7 @@ export interface paths {
                                 createdByUserId?: string;
                                 createdAt: string;
                                 updatedAt?: string;
+                                appointmentsCount?: number;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -5311,6 +5655,7 @@ export interface paths {
                                 createdByUserId?: string;
                                 createdAt: string;
                                 updatedAt?: string;
+                                appointmentsCount?: number;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
                             };
@@ -5361,33 +5706,7 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                serviceTypeId: string;
                                 status: string;
-                                groupSize: number;
-                                offeredCount: number;
-                                confirmedCount: number;
-                                scheduledDate: string;
-                                timeWindow: string;
-                                name?: string | null;
-                                regionName?: string | null;
-                                description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
-                                /** Format: uuid */
-                                assignedInspectorId: string | null;
-                                /** Format: uuid */
-                                serviceRegionId?: string | null;
-                                publishedAt: (string) | null;
-                                assignedAt?: (string) | null;
-                                /** Format: uuid */
-                                createdByUserId?: string;
-                                createdAt: string;
-                                updatedAt?: string;
-                                appointments?: unknown[];
-                                assignedInspector?: unknown;
                             };
                         };
                     };
@@ -5436,33 +5755,7 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                serviceTypeId: string;
                                 status: string;
-                                groupSize: number;
-                                offeredCount: number;
-                                confirmedCount: number;
-                                scheduledDate: string;
-                                timeWindow: string;
-                                name?: string | null;
-                                regionName?: string | null;
-                                description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
-                                /** Format: uuid */
-                                assignedInspectorId: string | null;
-                                /** Format: uuid */
-                                serviceRegionId?: string | null;
-                                publishedAt: (string) | null;
-                                assignedAt?: (string) | null;
-                                /** Format: uuid */
-                                createdByUserId?: string;
-                                createdAt: string;
-                                updatedAt?: string;
-                                appointments?: unknown[];
-                                assignedInspector?: unknown;
                             };
                         };
                     };
@@ -5511,33 +5804,7 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                serviceTypeId: string;
                                 status: string;
-                                groupSize: number;
-                                offeredCount: number;
-                                confirmedCount: number;
-                                scheduledDate: string;
-                                timeWindow: string;
-                                name?: string | null;
-                                regionName?: string | null;
-                                description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
-                                /** Format: uuid */
-                                assignedInspectorId: string | null;
-                                /** Format: uuid */
-                                serviceRegionId?: string | null;
-                                publishedAt: (string) | null;
-                                assignedAt?: (string) | null;
-                                /** Format: uuid */
-                                createdByUserId?: string;
-                                createdAt: string;
-                                updatedAt?: string;
-                                appointments?: unknown[];
-                                assignedInspector?: unknown;
                             };
                         };
                     };
@@ -7047,7 +7314,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        kind: "PHOTO" | "DOCUMENT" | "SIGNATURE";
+                        kind: "PHOTO";
                         mimeType: string;
                         fileName: string;
                     };
@@ -7191,6 +7458,98 @@ export interface paths {
                                 total: number;
                                 totalPages: number;
                             };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/{appointmentId}/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                storageKey: string;
+                                mimeType: string;
+                                sizeBytes: number | null;
+                                kind: string;
+                                status: string;
+                                originalFilename: string | null;
+                                createdAt: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/{appointmentId}/assets/{assetId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                    assetId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uri */
+                            downloadUrl: string;
+                            fileName: string | null;
+                            mimeType: string;
                         };
                     };
                 };
@@ -7786,6 +8145,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 periodStart: string;
                                 periodEnd: string;
                                 periodType: string;
@@ -7864,6 +8224,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 periodStart: string;
                                 periodEnd: string;
                                 periodType: string;
@@ -7923,6 +8284,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 periodStart: string;
                                 periodEnd: string;
                                 periodType: string;
@@ -8387,6 +8749,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 periodStart: string;
                                 periodEnd: string;
                                 periodType: string;
@@ -8594,6 +8957,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 periodStart: string;
                                 periodEnd: string;
                                 periodType: string;
@@ -8672,6 +9036,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 periodStart: string;
                                 periodEnd: string;
                                 periodType: string;
@@ -8731,6 +9096,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 inspectorId: string;
+                                inspectorName?: string | null;
                                 periodStart: string;
                                 periodEnd: string;
                                 periodType: string;
@@ -8756,6 +9122,84 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invoices/{invoiceId}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invoiceId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invoices/{invoiceId}/pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invoiceId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        paidAt?: string;
+                        paymentReference?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -8845,6 +9289,7 @@ export interface paths {
                                 format: string;
                                 status: string;
                                 fileKey?: string | null;
+                                fileUrl?: string | null;
                                 /** Format: uuid */
                                 requestedByUserId?: string;
                                 requestedBy?: unknown;
@@ -8969,6 +9414,7 @@ export interface paths {
                                 format: string;
                                 status: string;
                                 fileKey?: string | null;
+                                fileUrl?: string | null;
                                 /** Format: uuid */
                                 requestedByUserId?: string;
                                 requestedBy?: unknown;
@@ -9153,6 +9599,8 @@ export interface paths {
                         skipDeliveryWhenEmpty?: boolean;
                         /** Format: email */
                         deliveryEmail?: string;
+                        /** Format: uuid */
+                        tenantId?: string;
                     };
                 };
             };
@@ -9893,6 +10341,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notification-templates/{templateCode}/{channel}/test-send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    templateCode: string;
+                    channel: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notification-templates/{templateCode}/{channel}": {
         parameters: {
             query?: never;
@@ -10556,6 +11040,41 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/contacts/{contactId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    contactId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }

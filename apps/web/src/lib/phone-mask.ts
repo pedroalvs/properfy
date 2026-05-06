@@ -1,3 +1,5 @@
+import { AU_E164_REGEX } from '@properfy/shared';
+
 /**
  * Australian phone mask utility.
  *
@@ -62,4 +64,28 @@ export function applyPhoneMask(raw: string): string {
 /** Max digits allowed (AU numbers are 10 local or 11 with +61) */
 export function maxPhoneDigits(raw: string): number {
   return raw.startsWith('+') ? 11 : 10;
+}
+
+/**
+ * Converts a masked or raw AU phone number to canonical E.164 (+61...).
+ * Returns null if the input cannot be converted to a valid AU E.164 number.
+ */
+export function toE164Au(masked: string): string | null {
+  if (!masked) return null;
+
+  const startsWithPlus = masked.startsWith('+');
+  const digits = masked.replace(DIGITS_ONLY, '');
+
+  let e164: string;
+  if (startsWithPlus) {
+    // Already international — reconstruct as +<digits>
+    e164 = `+${digits}`;
+  } else if (digits.startsWith('0') && digits.length === 10) {
+    // Local AU: drop leading 0, prepend +61
+    e164 = `+61${digits.slice(1)}`;
+  } else {
+    return null;
+  }
+
+  return AU_E164_REGEX.test(e164) ? e164 : null;
 }

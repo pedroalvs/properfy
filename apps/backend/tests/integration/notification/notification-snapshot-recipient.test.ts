@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotifyOnStatusTransitionHandler } from '../../../src/modules/notification/application/handlers/notify-on-status-transition.handler';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
+import { BuildNotificationPayloadService } from '../../../src/modules/notification/domain/build-notification-payload.service';
+import { AppointmentCodeFormatter } from '../../../src/modules/appointment/domain/appointment-code.formatter';
 
 /**
  * T047 — Notification recipient resolution from snapshot fields.
@@ -49,6 +52,21 @@ function makeAppointment(id = 'appt-1') {
   });
 }
 
+function makeTenant() {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Test Agency',
+    legalName: 'Test Agency Pty Ltd',
+    status: 'ACTIVE',
+    timezone: 'Australia/Sydney',
+    currency: 'AUD',
+    settingsJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  });
+}
+
 function makeContact(overrides: Partial<ConstructorParameters<typeof AppointmentContactEntity>[0]> = {}) {
   return new AppointmentContactEntity({
     id: 'junction-1',
@@ -70,14 +88,29 @@ function makeContact(overrides: Partial<ConstructorParameters<typeof Appointment
   });
 }
 
+const buildNotificationPayload = new BuildNotificationPayloadService();
+const appointmentCodeFormatter = new AppointmentCodeFormatter();
+
 describe('Notification recipient resolution from snapshot fields (T047)', () => {
   let appointmentRepo: any;
   let propertyRepo: any;
+  let tenantRepo: any;
+  let notificationRepo: any;
+  let mintPortalTokenService: any;
   let createNotification: any;
 
   beforeEach(() => {
     propertyRepo = {
-      findById: vi.fn().mockResolvedValue({ fullAddress: '1 Test St, Sydney NSW 2000' }),
+      findById: vi.fn().mockResolvedValue(null),
+    };
+    tenantRepo = {
+      findById: vi.fn().mockResolvedValue(makeTenant()),
+    };
+    notificationRepo = {
+      existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
+    };
+    mintPortalTokenService = {
+      mint: vi.fn().mockResolvedValue({ rawToken: 'portal-token-abc', expiresAt: new Date('2026-07-31T09:00:00Z') }),
     };
     createNotification = { execute: vi.fn().mockResolvedValue(undefined) };
   });
@@ -99,7 +132,13 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
     const handler = new NotifyOnStatusTransitionHandler(
       appointmentRepo,
       propertyRepo,
+      tenantRepo,
+      notificationRepo,
+      mintPortalTokenService,
+      buildNotificationPayload,
+      appointmentCodeFormatter,
       createNotification,
+      'http://localhost:5173',
     );
 
     await handler.execute({
@@ -141,7 +180,13 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
     const handler = new NotifyOnStatusTransitionHandler(
       appointmentRepo,
       propertyRepo,
+      tenantRepo,
+      notificationRepo,
+      mintPortalTokenService,
+      buildNotificationPayload,
+      appointmentCodeFormatter,
       createNotification,
+      'http://localhost:5173',
     );
 
     await handler.execute({
@@ -175,7 +220,13 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
     const handler = new NotifyOnStatusTransitionHandler(
       appointmentRepo,
       propertyRepo,
+      tenantRepo,
+      notificationRepo,
+      mintPortalTokenService,
+      buildNotificationPayload,
+      appointmentCodeFormatter,
       createNotification,
+      'http://localhost:5173',
     );
 
     await handler.execute({
@@ -207,7 +258,13 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
     const handler = new NotifyOnStatusTransitionHandler(
       appointmentRepo,
       propertyRepo,
+      tenantRepo,
+      notificationRepo,
+      mintPortalTokenService,
+      buildNotificationPayload,
+      appointmentCodeFormatter,
       createNotification,
+      'http://localhost:5173',
     );
 
     await handler.execute({

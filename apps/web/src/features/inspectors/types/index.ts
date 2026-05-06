@@ -28,6 +28,8 @@ export interface InspectorDetail extends Inspector {
   policeCheckFileKey?: string | null;
   policeCheckExpiresAt?: string | null;
   blockedClients?: string[];
+  insuranceMetaJson?: { fileName?: string | null; uploadedAt?: string | null } | null;
+  policeCheckMetaJson?: { fileName?: string | null; uploadedAt?: string | null } | null;
 }
 
 export interface InspectorFormData {
