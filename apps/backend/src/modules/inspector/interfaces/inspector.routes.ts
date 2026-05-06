@@ -33,7 +33,6 @@ import type { UpdateInspectorSelfProfileUseCase } from '../application/use-cases
 import type { GenerateInspectorDocumentUploadUrlUseCase } from '../application/use-cases/generate-inspector-document-upload-url.use-case';
 import type { ConfirmInspectorDocumentUploadUseCase } from '../application/use-cases/confirm-inspector-document-upload.use-case';
 import type { GetInspectorDocumentDownloadUrlUseCase } from '../application/use-cases/get-inspector-document-download-url.use-case';
-import { DOCUMENT_KINDS } from '../application/use-cases/generate-inspector-document-upload-url.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface InspectorRouteContainer {

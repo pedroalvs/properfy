@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
+import { AppointmentStatus } from '@properfy/shared';
 import { TenantConfirmationBadge } from './TenantConfirmationBadge';
 import { FLOW_TYPE_MAP } from '@/lib/status-colors';
 import type { InspectorAppointment } from '../types';

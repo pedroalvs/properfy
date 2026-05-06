@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { GeoLocationCapture } from './GeoLocationCapture';
 import { useGeolocation } from '../hooks/useGeolocation';
-import type { CapturedLocation, ChecklistResponse, AssetUploadState } from '../types';
+import type { CapturedLocation } from '../types';
 
 interface FinishingPanelProps {
   checklistCount: number;

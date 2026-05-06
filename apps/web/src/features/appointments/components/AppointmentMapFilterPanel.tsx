@@ -4,7 +4,6 @@ import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { FilterBoolean } from '@/components/filters/FilterBoolean';
 import { APPOINTMENT_STATUS_MAP, SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
-import type { AppointmentStatus, ServiceGroupStatus } from '@properfy/shared';
 
 export type FilterMode = 'appointments' | 'groups';
 

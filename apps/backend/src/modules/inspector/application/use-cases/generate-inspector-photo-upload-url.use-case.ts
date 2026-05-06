@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';

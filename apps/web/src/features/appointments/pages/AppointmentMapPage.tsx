@@ -18,7 +18,7 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { AppointmentStatus, ServiceGroupStatus } from '@properfy/shared';
-import { useAppointmentMapData, type AppointmentMapItem } from '../hooks/useAppointmentMapData';
+import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import {
   AppointmentMapFilterPanel,

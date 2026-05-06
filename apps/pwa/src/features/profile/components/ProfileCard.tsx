@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 
 interface ProfileCardProps {
   name: string;

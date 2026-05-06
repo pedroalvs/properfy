@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '@/hooks/useApiQuery';
-import { ApiError } from '@/lib/api-error';
+import type { ApiError } from '@/lib/api-error';
 import { getOrCreateIdempotencyKey } from '@/lib/idempotency';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { enqueueAction } from '../lib/indexeddb';

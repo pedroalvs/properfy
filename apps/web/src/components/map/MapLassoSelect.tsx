@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import type mapboxgl from 'mapbox-gl';
@@ -37,14 +37,14 @@ export function MapLassoSelect({
   points,
   active,
   onSelectionChange,
-  onDeactivate,
+  onDeactivate: _onDeactivate,
 }: MapLassoSelectProps) {
   const drawRef = useRef<MapboxDraw | null>(null);
 
   useEffect(() => {
     if (!map || !active) {
       if (drawRef.current && map) {
-        try { map.removeControl(drawRef.current); } catch {}
+        try { map.removeControl(drawRef.current); } catch { /* mapbox may throw if control already removed */ }
         drawRef.current = null;
       }
       return;
@@ -82,7 +82,7 @@ export function MapLassoSelect({
       map.off('draw.create', handleCreate);
       map.off('draw.update', handleUpdate);
       if (drawRef.current) {
-        try { map.removeControl(drawRef.current); } catch {}
+        try { map.removeControl(drawRef.current); } catch { /* mapbox may throw if control already removed */ }
         drawRef.current = null;
       }
     };

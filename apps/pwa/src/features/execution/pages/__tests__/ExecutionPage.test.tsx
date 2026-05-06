@@ -10,7 +10,7 @@ vi.mock('@/config/env', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  const actual = await vi.importActual('react-router-dom') as Record<string, unknown>;
   return {
     ...actual,
     useBlocker: () => ({ state: 'unblocked', reset: vi.fn(), proceed: vi.fn() }),

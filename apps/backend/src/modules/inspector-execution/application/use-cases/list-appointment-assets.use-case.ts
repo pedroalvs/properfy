@@ -1,5 +1,4 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectionAssetRepository } from '../../domain/inspection-asset.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
