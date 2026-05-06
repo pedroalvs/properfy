@@ -96,7 +96,15 @@ export const statusTransitionSchema = z.object({
 export type StatusTransitionInput = z.infer<typeof statusTransitionSchema>;
 
 export const listAppointmentsQuerySchema = paginationSchema.extend({
-  status: z.nativeEnum(AppointmentStatus).optional(),
+  status: z.preprocess(
+    (v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'string') return v.split(',').map((s) => s.trim()).filter(Boolean);
+      return [v];
+    },
+    z.array(z.nativeEnum(AppointmentStatus)).min(1).optional(),
+  ),
   serviceTypeId: z.string().uuid().optional(),
   branchId: z.string().uuid().optional(),
   inspectorId: z.string().uuid().optional(),

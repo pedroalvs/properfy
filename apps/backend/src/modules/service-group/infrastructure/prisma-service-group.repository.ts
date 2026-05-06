@@ -580,7 +580,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   private buildWhere(filters: ServiceGroupFilters) {
     const where: Record<string, unknown> = {};
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
-    if (filters.status) where['status'] = filters.status;
+    if (filters.status && filters.status.length > 0) where['status'] = { in: filters.status };
     if (filters.serviceTypeId)
       where['service_type_id'] = filters.serviceTypeId;
     if (filters.priorityMode) where['priority_mode'] = filters.priorityMode;

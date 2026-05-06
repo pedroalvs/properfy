@@ -451,8 +451,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       todayUtc.setUTCHours(0, 0, 0, 0);
       where['scheduled_date'] = { lt: todayUtc };
     } else {
-      if (filters.status) {
-        where['status'] = filters.status;
+      if (filters.status && filters.status.length > 0) {
+        where['status'] = { in: filters.status };
       } else if (!filters.showCancelled) {
         where['status'] = { notIn: ['CANCELLED', 'REJECTED'] };
       }
@@ -633,7 +633,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const { inspectorId, fromDate, toDate, today } = params;
 
     const items = await this.findAll(
-      { inspectorId, status: 'SCHEDULED', fromDate, toDate },
+      { inspectorId, status: ['SCHEDULED'], fromDate, toDate },
       { page: 1, pageSize: 1000, sortBy: 'time_slot', sortOrder: 'asc' },
     );
 

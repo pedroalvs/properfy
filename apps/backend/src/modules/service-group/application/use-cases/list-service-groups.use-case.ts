@@ -10,7 +10,7 @@ import type {
 export interface ListServiceGroupsInput {
   filters: {
     tenantId?: string;
-    status?: string;
+    status?: string[];
     serviceTypeId?: string;
     scheduledDateFrom?: string;
     scheduledDateTo?: string;

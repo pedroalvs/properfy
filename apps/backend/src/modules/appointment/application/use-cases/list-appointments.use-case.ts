@@ -11,7 +11,7 @@ import { AppointmentCodeFormatter } from '../../domain/appointment-code.formatte
 export interface ListAppointmentsInput {
   filters: {
     tenantId?: string;
-    status?: string;
+    status?: string[];
     serviceTypeId?: string;
     branchId?: string;
     inspectorId?: string;

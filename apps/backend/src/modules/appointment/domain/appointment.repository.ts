@@ -5,7 +5,7 @@ import type { AppointmentRestrictionEntity } from './appointment-restriction.ent
 
 export interface AppointmentFilters {
   tenantId?: string;
-  status?: string;
+  status?: string[];
   serviceTypeId?: string;
   branchId?: string;
   inspectorId?: string;

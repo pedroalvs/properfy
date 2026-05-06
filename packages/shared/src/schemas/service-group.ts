@@ -99,7 +99,15 @@ export type AcceptOfferInput = z.infer<typeof acceptOfferSchema>;
 
 export const listServiceGroupsQuerySchema = paginationSchema.extend({
   tenantId: z.string().uuid().optional(),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ACCEPTED', 'CANCELLED', 'REJECTED']).optional(),
+  status: z.preprocess(
+    (v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'string') return v.split(',').map((s) => s.trim()).filter(Boolean);
+      return [v];
+    },
+    z.array(z.enum(['DRAFT', 'PUBLISHED', 'ACCEPTED', 'CANCELLED', 'REJECTED'])).min(1).optional(),
+  ),
   serviceTypeId: z.string().uuid().optional(),
   scheduledDateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   scheduledDateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

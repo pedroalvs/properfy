@@ -2,7 +2,7 @@ import type { ServiceGroupEntity } from './service-group.entity';
 
 export interface ServiceGroupFilters {
   tenantId?: string;
-  status?: string;
+  status?: string[];
   serviceTypeId?: string;
   scheduledDateFrom?: string;
   scheduledDateTo?: string;

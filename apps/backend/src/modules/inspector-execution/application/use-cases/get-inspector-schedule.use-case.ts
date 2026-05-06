@@ -107,7 +107,7 @@ export class GetInspectorScheduleUseCase {
       const overdueAppointments = await this.appointmentRepo.findAll(
         {
           inspectorId: actor.inspectorId,
-          status: 'SCHEDULED',
+          status: ['SCHEDULED'],
           toDate: yesterdayStr,
         },
         { page: 1, pageSize: 1000, sortBy: 'scheduled_date', sortOrder: 'asc' },
