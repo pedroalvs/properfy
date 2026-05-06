@@ -23,10 +23,11 @@ describe('RejectionReasonCode', () => {
     expect(RejectionReasonCode.SAFETY_CONCERN).toBe('SAFETY_CONCERN');
     expect(RejectionReasonCode.INSUFFICIENT_INFO).toBe('INSUFFICIENT_INFO');
     expect(RejectionReasonCode.SERVICE_NOT_AVAILABLE).toBe('SERVICE_NOT_AVAILABLE');
+    expect(RejectionReasonCode.TENANT_NO_RESPONSE).toBe('TENANT_NO_RESPONSE');
     expect(RejectionReasonCode.OTHER).toBe('OTHER');
   });
 
-  it('has exactly 6 codes', () => {
-    expect(Object.keys(RejectionReasonCode)).toHaveLength(6);
+  it('has exactly 7 codes', () => {
+    expect(Object.keys(RejectionReasonCode)).toHaveLength(7);
   });
 });

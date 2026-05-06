@@ -57,10 +57,10 @@ describe('createServiceGroupSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject more than 25 appointments', () => {
+  it('should reject more than 30 appointments', () => {
     const result = createServiceGroupSchema.safeParse({
       ...validInput,
-      appointmentIds: generateUuids(26),
+      appointmentIds: generateUuids(31),
     });
     expect(result.success).toBe(false);
   });
