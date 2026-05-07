@@ -26,6 +26,7 @@ const STATUS_OPTIONS = [
   { label: 'Published', value: 'PUBLISHED' },
   { label: 'Accepted', value: 'ACCEPTED' },
   { label: 'Cancelled', value: 'CANCELLED' },
+  { label: 'Rejected', value: 'REJECTED' },
 ];
 
 // Appointment-level status colors for map pins (matching AppointmentMapPage).

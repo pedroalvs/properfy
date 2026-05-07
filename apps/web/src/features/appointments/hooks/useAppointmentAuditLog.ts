@@ -33,8 +33,6 @@ export function useAppointmentAuditLog(appointmentId: string | null): UseAppoint
       entityType: 'Appointment',
       entityId: appointmentId ?? '',
       pageSize: 100,
-      sortBy: 'createdAt',
-      sortOrder: 'desc',
     },
     { enabled: !!appointmentId },
   );

@@ -50,14 +50,32 @@ const GROUP_STATUS_COLORS: Record<string, string> = {
   REJECTED: '#FF7043',
 };
 
+interface ServiceGroupMapAppointment {
+  id: string;
+  latitude: number;
+  longitude: number;
+}
+
 interface ServiceGroupMapItem {
   id: string;
-  name: string;
+  name: string | null;
   status: string;
-  appointmentsCount: number;
+  groupSize: number;
   scheduledDate: string;
-  latitude: number | null;
-  longitude: number | null;
+  appointments: ServiceGroupMapAppointment[];
+}
+
+type ServiceGroupMapPin = ServiceGroupMapItem & { latitude: number; longitude: number };
+
+function computeGroupCentroid(
+  appointments: ServiceGroupMapAppointment[],
+): { latitude: number; longitude: number } | null {
+  const valid = appointments.filter((a) => a.latitude != null && a.longitude != null);
+  if (valid.length === 0) return null;
+  return {
+    latitude: valid.reduce((s, a) => s + a.latitude, 0) / valid.length,
+    longitude: valid.reduce((s, a) => s + a.longitude, 0) / valid.length,
+  };
 }
 
 export function AppointmentMapPage() {
@@ -72,7 +90,7 @@ export function AppointmentMapPage() {
   const [appointmentFilters, setAppointmentFilters] = useState<AppointmentModeFilters>(DEFAULT_APPOINTMENT_FILTERS);
   const [groupFilters, setGroupFilters] = useState<GroupModeFilters>(DEFAULT_GROUP_FILTERS);
   const [selectedItem, setSelectedItem] = useState<AppointmentMapItem | null>(null);
-  const [selectedGroupItem, setSelectedGroupItem] = useState<ServiceGroupMapItem | null>(null);
+  const [selectedGroupItem, setSelectedGroupItem] = useState<ServiceGroupMapPin | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
   const [lassoActive, setLassoActive] = useState(false);
@@ -83,14 +101,12 @@ export function AppointmentMapPage() {
   const appointmentParams: ListParams = useMemo(() => ({
     page: 1,
     pageSize: 200,
-    sortBy: 'scheduledDate',
-    sortOrder: 'desc',
     ...(appointmentFilters.statuses.length > 0 ? { status: appointmentFilters.statuses.join(',') } : {}),
     ...(appointmentFilters.search ? { search: appointmentFilters.search } : {}),
     ...(appointmentFilters.serviceTypeId ? { serviceTypeId: appointmentFilters.serviceTypeId } : {}),
     ...(appointmentFilters.branchId ? { branchId: appointmentFilters.branchId } : {}),
-    ...(appointmentFilters.dateFrom ? { dateFrom: appointmentFilters.dateFrom } : {}),
-    ...(appointmentFilters.dateTo ? { dateTo: appointmentFilters.dateTo } : {}),
+    ...(appointmentFilters.dateFrom ? { fromDate: appointmentFilters.dateFrom } : {}),
+    ...(appointmentFilters.dateTo ? { toDate: appointmentFilters.dateTo } : {}),
     ...(appointmentFilters.timeSlot ? { timeSlot: appointmentFilters.timeSlot } : {}),
     ...(appointmentFilters.contactSearch ? { contactSearch: appointmentFilters.contactSearch } : {}),
     ...(appointmentFilters.confirmationStatus ? { confirmationStatus: appointmentFilters.confirmationStatus } : {}),
@@ -119,8 +135,6 @@ export function AppointmentMapPage() {
   const groupParams: ListParams = useMemo(() => ({
     page: 1,
     pageSize: 200,
-    sortBy: 'scheduledDate',
-    sortOrder: 'desc',
     includeAppointments: 'true',
     ...(groupFilters.statuses.length > 0 ? { status: groupFilters.statuses.join(',') } : {}),
     ...(groupFilters.search ? { search: groupFilters.search } : {}),
@@ -182,9 +196,10 @@ export function AppointmentMapPage() {
     if (!mapInstance) return;
     const points = mode === 'appointments'
       ? appointmentData.map((item) => ({ latitude: item.latitude, longitude: item.longitude }))
-      : groupData
-          .filter((g) => g.latitude != null && g.longitude != null)
-          .map((g) => ({ latitude: g.latitude!, longitude: g.longitude! }));
+      : groupData.flatMap((g) => {
+          const c = computeGroupCentroid(g.appointments);
+          return c ? [c] : [];
+        });
     const bounds = computeBounds(points);
     if (!bounds) return;
     if (isSinglePointBounds(bounds)) {
@@ -226,7 +241,7 @@ export function AppointmentMapPage() {
     setSelectedGroupItem(null);
   }, []);
 
-  const handleGroupMarkerClick = useCallback((item: ServiceGroupMapItem) => {
+  const handleGroupMarkerClick = useCallback((item: ServiceGroupMapPin) => {
     setSelectedGroupItem(item);
     setSelectedItem(null);
   }, []);
@@ -244,11 +259,13 @@ export function AppointmentMapPage() {
   }, [mapInstance]);
 
   const handleGroupListItemClick = useCallback((item: ServiceGroupMapItem) => {
-    setSelectedGroupItem(item);
+    const centroid = computeGroupCentroid(item.appointments);
+    const pin: ServiceGroupMapPin | null = centroid ? { ...item, ...centroid } : null;
+    setSelectedGroupItem(pin);
     setSelectedItem(null);
-    if (mapInstance && item.latitude != null && item.longitude != null) {
+    if (mapInstance && centroid) {
       mapInstance.flyTo({
-        center: [item.longitude, item.latitude],
+        center: [centroid.longitude, centroid.latitude],
         zoom: Math.max(mapInstance.getZoom(), 14),
         duration: 700,
       });
@@ -386,14 +403,14 @@ export function AppointmentMapPage() {
                 onClick={() => handleGroupListItemClick(item)}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-secondary">{item.name}</span>
+                  <span className="text-sm font-semibold text-secondary">{item.name ?? '—'}</span>
                   <StatusChip
                     label={SERVICE_GROUP_STATUS_MAP[item.status as ServiceGroupStatus]?.label ?? item.status}
                     bg={SERVICE_GROUP_STATUS_MAP[item.status as ServiceGroupStatus]?.bg ?? '#E0E0E0'}
                   />
                 </div>
                 <p className="mt-1 text-xs text-text-secondary">
-                  {item.appointmentsCount} appointments
+                  {item.appointments.length} appointments
                 </p>
                 <p className="text-xs text-text-muted">{formatDate(item.scheduledDate)}</p>
               </button>
@@ -410,9 +427,16 @@ export function AppointmentMapPage() {
       item.latitude != null && item.longitude != null,
   );
 
-  const validGroupPins = groupData.filter(
-    (item): item is ServiceGroupMapItem & { latitude: number; longitude: number } =>
-      item.latitude != null && item.longitude != null,
+  const validGroupPins = useMemo(
+    (): ServiceGroupMapPin[] =>
+      groupData
+        .map((item) => {
+          const centroid = computeGroupCentroid(item.appointments);
+          if (!centroid) return null;
+          return { ...item, ...centroid };
+        })
+        .filter((item): item is ServiceGroupMapPin => item !== null),
+    [groupData],
   );
 
   const lassoPoints: LassoPoint[] = useMemo(
@@ -447,7 +471,7 @@ export function AppointmentMapPage() {
               longitude={item.longitude}
               latitude={item.latitude}
               color={GROUP_STATUS_COLORS[item.status] ?? '#9E9E9E'}
-              label={item.name}
+              label={item.name ?? ''}
               active={selectedGroupItem?.id === item.id}
               onClick={() => handleGroupMarkerClick(item)}
             />
@@ -500,7 +524,7 @@ export function AppointmentMapPage() {
 
       {mode === 'groups' && selectedGroupItem && popupPosition && (
         <MapPopup
-          title={selectedGroupItem.name}
+          title={selectedGroupItem.name ?? '—'}
           onClose={() => setSelectedGroupItem(null)}
           actions={[
             { label: 'View Details', onClick: () => handleViewGroupDetail(selectedGroupItem.id) },
@@ -520,7 +544,7 @@ export function AppointmentMapPage() {
             </p>
             <p>
               <span className="text-text-muted">Appointments:</span>{' '}
-              {selectedGroupItem.appointmentsCount}
+              {selectedGroupItem.appointments.length}
             </p>
             <p>
               <span className="text-text-muted">Date:</span>{' '}
