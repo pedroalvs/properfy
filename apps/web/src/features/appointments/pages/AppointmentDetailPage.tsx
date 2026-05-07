@@ -26,6 +26,11 @@ import { AppointmentTransitionActions } from '../components/AppointmentTransitio
 import { AppointmentEvidenceTab } from '../components/AppointmentEvidenceTab';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AssignInspectorModal } from '../components/AssignInspectorModal';
+import { ForceConfirmDialog } from '../components/ForceConfirmDialog';
+import { AppointmentPortalActivityTab } from '../components/AppointmentPortalActivityTab';
+import { AppointmentContactsListTab } from '../components/AppointmentContactsListTab';
+import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
+import { useForceConfirmation } from '../hooks/useForceConfirmation';
 
 const BASE_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -36,6 +41,8 @@ const NOTIFICATIONS_TAB = { id: 'notifications', label: 'Notifications' };
 const TIMELINE_TAB = { id: 'timeline', label: 'Timeline' };
 const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
 const EVIDENCE_TAB = { id: 'evidence', label: 'Evidence' };
+const PORTAL_ACTIVITY_TAB = { id: 'portal-activity', label: 'Portal Activity' };
+const CONTACTS_LIST_TAB = { id: 'contacts-list', label: 'Contacts' };
 const CAN_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 
 function isPrivilegedRole(role: string): boolean {
@@ -53,6 +60,10 @@ export function AppointmentDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [confirmCrossCheckOpen, setConfirmCrossCheckOpen] = useState(false);
   const [assignInspectorOpen, setAssignInspectorOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [forceConfirmOpen, setForceConfirmOpen] = useState(false);
+  const { remove, isDeleting } = useDeleteAppointment(id ?? null, () => navigate('/appointments'));
+  const { forceConfirm } = useForceConfirmation(id ?? null, refetch);
 
   const isPrivileged = user ? isPrivilegedRole(user.role) : false;
   const canEdit = user ? CAN_EDIT_ROLES.includes(user.role) : false;
@@ -62,6 +73,8 @@ export function AppointmentDetailPage() {
   const [portalLinkCopied, setPortalLinkCopied] = useState(false);
   const tabs = [
     ...BASE_TABS,
+    ...(isPrivileged ? [CONTACTS_LIST_TAB] : []),
+    ...(isPrivileged ? [PORTAL_ACTIVITY_TAB] : []),
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
     ...(isPrivileged ? [TIMELINE_TAB] : []),
     ...(isPrivileged ? [FINANCIAL_TAB] : []),
@@ -92,6 +105,13 @@ export function AppointmentDetailPage() {
     appointment.status !== 'CANCELLED' &&
     appointment.status !== 'REJECTED' &&
     (!!appointment.contactEmail || !!appointment.contactPhone);
+  const canDelete = !!appointment && user?.role === 'AM' && appointment.status === 'DRAFT';
+  const canForceConfirm = !!appointment &&
+    isPrivileged &&
+    appointment.tenantConfirmationStatus !== 'CONFIRMED' &&
+    appointment.status !== 'DONE' &&
+    appointment.status !== 'CANCELLED' &&
+    appointment.status !== 'REJECTED';
 
   const handleEdit = useCallback(() => {
     if (!canEditAppointment) {
@@ -114,8 +134,7 @@ export function AppointmentDetailPage() {
         showError(err?.error?.message ?? 'Failed to generate portal link');
         return;
       }
-      const token = (data as { token?: string; data?: { token?: string } })?.token
-        ?? (data as { data?: { token?: string } })?.data?.token;
+      const token = (data as { data: { token: string } })?.data?.token;
       if (!token) {
         showError('Portal link generated but token was not returned');
         return;
@@ -234,6 +253,15 @@ export function AppointmentDetailPage() {
               Confirm Done
             </Button>
           )}
+          {canForceConfirm && (
+            <Button
+              variant="outlined"
+              onClick={() => setForceConfirmOpen(true)}
+            >
+              <i className="mdi mdi-account-check text-base" aria-hidden="true" />
+              Force Confirm
+            </Button>
+          )}
           {canEditAppointment && (
             <button
               onClick={handleEdit}
@@ -241,6 +269,15 @@ export function AppointmentDetailPage() {
               aria-label="Edit appointment"
             >
               <i className="mdi mdi-pencil-outline text-xl" aria-hidden="true" />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => setDeleteOpen(true)}
+              className="rounded p-2 text-error hover:bg-error/5"
+              aria-label="Delete appointment"
+            >
+              <i className="mdi mdi-delete-outline text-xl" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -267,6 +304,12 @@ export function AppointmentDetailPage() {
           )}
           {activeTab === 'evidence' && isPrivileged && (
             <AppointmentEvidenceTab appointmentId={appointment.id} />
+          )}
+          {activeTab === 'portal-activity' && isPrivileged && (
+            <AppointmentPortalActivityTab appointmentId={appointment.id} />
+          )}
+          {activeTab === 'contacts-list' && isPrivileged && (
+            <AppointmentContactsListTab tenantId={appointment.tenantId} />
           )}
         </div>
 
@@ -313,6 +356,27 @@ export function AppointmentDetailPage() {
         confirmLabel="Confirm Done"
         variant="warning"
         loading={isCrossChecking}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={() => {
+          remove();
+          setDeleteOpen(false);
+        }}
+        title="Delete Appointment"
+        message="This will permanently delete this draft appointment. This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        loading={isDeleting}
+      />
+      <ForceConfirmDialog
+        open={forceConfirmOpen}
+        onClose={() => setForceConfirmOpen(false)}
+        onConfirm={(reason) => {
+          forceConfirm(reason);
+          setForceConfirmOpen(false);
+        }}
       />
       <Dialog
         open={!!portalLinkUrl}

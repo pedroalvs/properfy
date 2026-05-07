@@ -12,7 +12,9 @@ import {
   portalTokenResponseSchema,
   portalActivitiesResponseSchema,
   paginationSchema,
+  successResponseSchema,
 } from '@properfy/shared';
+import { success } from '../../../shared/interfaces/response';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { createPortalTokenMiddleware } from './portal-token-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -241,7 +243,7 @@ export async function registerTenantPortalRoutes(
   // POST /v1/appointments/:appointmentId/portal-token
   app.post(
     '/v1/appointments/:appointmentId/portal-token',
-    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 201: portalTokenResponseSchema } } },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 201: successResponseSchema(portalTokenResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
@@ -252,7 +254,7 @@ export async function registerTenantPortalRoutes(
         appointmentId: params.data.appointmentId,
         actor: request.authContext!,
       });
-      return reply.status(201).send(result);
+      return reply.status(201).send(success(result));
     },
   );
 

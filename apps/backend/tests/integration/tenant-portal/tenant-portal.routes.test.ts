@@ -257,7 +257,7 @@ describe('POST /v1/appointments/:appointmentId/portal-token', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(201);
-    expect(res.body).toEqual(mockResult);
+    expect(res.body).toEqual({ data: mockResult });
     expect(mockGeneratePortalTokenExecute).toHaveBeenCalledWith({
       appointmentId: APPOINTMENT_ID,
       actor: amContext,
