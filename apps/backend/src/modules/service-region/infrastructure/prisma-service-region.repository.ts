@@ -14,7 +14,7 @@ function toSnakeCase(s: string): string {
 
 interface RegionRow {
   id: string;
-  tenant_id: string;
+  tenant_id: string | null;
   name: string;
   geojson: unknown;
   color: string;
@@ -48,13 +48,16 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     return row ? mapToEntity(row) : null;
   }
 
-  async findByName(tenantId: string, name: string): Promise<ServiceRegionEntity | null> {
-    const row = await this.prisma.serviceRegion.findFirst({
-      where: {
-        tenant_id: tenantId,
-        name: { equals: name, mode: 'insensitive' },
-      },
-    });
+  async findByName(tenantId: string | null, name: string): Promise<ServiceRegionEntity | null> {
+    const where: Record<string, unknown> = {
+      name: { equals: name, mode: 'insensitive' },
+    };
+    if (tenantId) {
+      where['tenant_id'] = tenantId;
+    } else {
+      where['tenant_id'] = null;
+    }
+    const row = await this.prisma.serviceRegion.findFirst({ where });
     return row ? mapToEntity(row) : null;
   }
 
@@ -101,7 +104,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
 
   async update(
     id: string,
-    tenantId: string,
+    tenantId: string | null,
     data: Partial<{
       name: string;
       geojson: Record<string, unknown>;
@@ -127,7 +130,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
       if (data.color !== undefined) updateData['color'] = data.color;
       if (data.status !== undefined) updateData['status'] = data.status;
       await this.prisma.serviceRegion.updateMany({
-        where: { id, tenant_id: tenantId },
+        where: { id, tenant_id: tenantId === null ? { equals: null } : tenantId },
         data: updateData,
       });
     }
@@ -239,9 +242,13 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     return map;
   }
 
-  async delete(id: string, tenantId: string): Promise<void> {
+  async delete(id: string, tenantId: string | null): Promise<void> {
     await this.prisma.inspectorRegion.deleteMany({ where: { region_id: id } });
-    await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id} AND tenant_id = ${tenantId}`;
+    if (tenantId) {
+      await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id} AND tenant_id = ${tenantId}`;
+    } else {
+      await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id} AND tenant_id IS NULL`;
+    }
   }
 
   async findAllByInspector(

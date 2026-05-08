@@ -26,6 +26,18 @@ export function AppointmentInfoCard({ appointment, deadline, onDeadlineExpire }:
           <AppointmentStatusChip status={appointment.status} />
         </InfoRow>
 
+        {appointment.property && (
+          <InfoRow label="Property Address">
+            {`${appointment.property.street}, ${appointment.property.suburb} ${appointment.property.state} ${appointment.property.postcode}`}
+          </InfoRow>
+        )}
+
+        {appointment.serviceType?.name && (
+          <InfoRow label="Service Type">
+            {appointment.serviceType.name}
+          </InfoRow>
+        )}
+
         <InfoRow label="Scheduled Date">
           {formatDate(appointment.scheduledDate)}
         </InfoRow>

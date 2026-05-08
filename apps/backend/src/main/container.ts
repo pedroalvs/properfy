@@ -750,6 +750,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditLogRepo,
     userManagementRepo,
     piiFieldMappingRepo,
+    tenantRepo,
   );
 
   // Feature 020: data subject erasure workflow (AM-only, LGPD compliance)

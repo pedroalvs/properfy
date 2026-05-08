@@ -1378,7 +1378,7 @@ enum RegionStatus {
 
 model ServiceRegion {
   id                 String                                  @id @default(uuid())
-  tenant_id          String
+  tenant_id          String?
   name               String                                  @db.VarChar(255)
   geom               Unsupported("GEOMETRY(Polygon, 4326)")?
   geojson            Json                                    @default("{}")
@@ -1388,7 +1388,7 @@ model ServiceRegion {
   created_at         DateTime                                @default(now())
   updated_at         DateTime                                @updatedAt
 
-  tenant            Tenant            @relation(fields: [tenant_id], references: [id])
+  tenant            Tenant?           @relation(fields: [tenant_id], references: [id])
   created_by        User?             @relation("ServiceRegionCreatedBy", fields: [created_by_user_id], references: [id])
   inspector_regions InspectorRegion[]
   service_groups    ServiceGroup[]

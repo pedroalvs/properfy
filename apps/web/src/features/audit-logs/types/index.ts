@@ -1,8 +1,10 @@
 export interface AuditLog {
   id: string;
   tenantId: string | null;
+  tenantName: string | null;
   actorType: string;
   actorId: string | null;
+  actorName: string | null;
   entityType: string;
   entityId: string | null;
   action: string;

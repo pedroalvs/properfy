@@ -113,7 +113,7 @@ export function PortalPage() {
     !isReadOnly &&
     !hasResponse &&
     appointment.tenantConfirmationStatus !== TenantConfirmationStatus.UNAVAILABLE;
-  const showReschedule = !isTerminal && !isReadOnly && !hasResponse;
+  const showReschedule = !isTerminal && !isReadOnly && !hasResponse && data.rescheduleAllowed !== false;
   const showUnavailable =
     !isTerminal &&
     appointment.tenantConfirmationStatus !== TenantConfirmationStatus.UNAVAILABLE &&

@@ -21,9 +21,9 @@ function getWindowState(scheduledDate: string, timeSlot: string): { enabled: boo
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
 
-  // Past date: enable so inspector can complete overdue work
+  // Past date: inspection window has passed, backend rejects past-date starts
   if (startMidnight < todayMidnight) {
-    return { enabled: true, label: 'Start Inspection', sublabel: 'Overdue — complete now' };
+    return { enabled: false, label: 'Start Inspection', sublabel: 'Inspection window has passed' };
   }
 
   const isSameDay = startMidnight.getTime() === todayMidnight.getTime();

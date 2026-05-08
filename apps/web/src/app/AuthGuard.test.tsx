@@ -7,6 +7,9 @@ const mockUseAuth = vi.fn();
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
 }));
+vi.mock('@/hooks/useSnackbar', () => ({
+  useSnackbar: () => ({ showInfo: vi.fn(), showError: vi.fn(), showSuccess: vi.fn() }),
+}));
 
 function renderWithRouter(roles: string[], currentPath = '/protected') {
   return render(

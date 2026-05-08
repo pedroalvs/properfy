@@ -100,7 +100,7 @@ export function AppointmentMapPage() {
   // Appointment data — fetched when mode is 'appointments'
   const appointmentParams: ListParams = useMemo(() => ({
     page: 1,
-    pageSize: 200,
+    pageSize: 100,
     ...(appointmentFilters.statuses.length > 0 ? { status: appointmentFilters.statuses.join(',') } : {}),
     ...(appointmentFilters.search ? { search: appointmentFilters.search } : {}),
     ...(appointmentFilters.serviceTypeId ? { serviceTypeId: appointmentFilters.serviceTypeId } : {}),
@@ -134,7 +134,7 @@ export function AppointmentMapPage() {
   // Group data — fetched when mode is 'groups'
   const groupParams: ListParams = useMemo(() => ({
     page: 1,
-    pageSize: 200,
+    pageSize: 100,
     includeAppointments: 'true',
     ...(groupFilters.statuses.length > 0 ? { status: groupFilters.statuses.join(',') } : {}),
     ...(groupFilters.search ? { search: groupFilters.search } : {}),

@@ -15,7 +15,7 @@ import type { ScheduledReport } from '../types';
  *  - ScheduleRunHistoryDrawer (run history per schedule)
  */
 export function ScheduledReportListPage() {
-  const { hasRole } = usePermissions();
+  const { hasRole, canPerform } = usePermissions();
   const { data, isLoading, isError, error, refetch } = useScheduledReportList();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -59,21 +59,25 @@ export function ScheduledReportListPage() {
     );
   }
 
+  const canCreateSchedule = hasRole('AM', 'OP', 'CL_ADMIN') || canPerform('report.export');
+
   return (
     <>
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-secondary">Report Schedules</h1>
-          <button
-            onClick={() => {
-              setEditSchedule(null);
-              setFormOpen(true);
-            }}
-            className="inline-flex items-center gap-1 rounded bg-[#F37A76] px-4 py-2 text-sm font-semibold text-white hover:bg-[#F37A76]/90"
-          >
-            <i className="mdi mdi-plus text-base" aria-hidden="true" />
-            New Schedule
-          </button>
+          {canCreateSchedule && (
+            <button
+              onClick={() => {
+                setEditSchedule(null);
+                setFormOpen(true);
+              }}
+              className="inline-flex items-center gap-1 rounded bg-[#F37A76] px-4 py-2 text-sm font-semibold text-white hover:bg-[#F37A76]/90"
+            >
+              <i className="mdi mdi-plus text-base" aria-hidden="true" />
+              New Schedule
+            </button>
+          )}
         </div>
         <p className="mb-6 text-sm text-text-secondary">
           Recurring reports automatically generated and delivered to system users who have access.

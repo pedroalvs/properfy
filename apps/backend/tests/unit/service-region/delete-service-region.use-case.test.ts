@@ -102,10 +102,23 @@ describe('DeleteServiceRegionUseCase', () => {
     ).rejects.toThrow(ServiceRegionNotFoundError);
   });
 
-  it('should reject when actor has no tenantId', async () => {
-    await expect(
-      useCase.execute({ regionId: 'region-1', actor: makeActor({ tenantId: null }) }),
-    ).rejects.toThrow(ForbiddenError);
+  it('should allow AM with null tenantId to delete global region', async () => {
+    const region = new ServiceRegionEntity({
+      id: 'region-1',
+      tenantId: null,
+      name: 'Global Region',
+      geojson: {},
+      color: '#3b82f6',
+      status: 'INACTIVE',
+      createdByUserId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(regionRepo.findById).mockResolvedValue(region);
+
+    await useCase.execute({ regionId: 'region-1', actor: makeActor({ tenantId: null }) });
+
+    expect(regionRepo.delete).toHaveBeenCalledWith('region-1', null);
   });
 
   it('should reject deletion of region referenced by published service groups', async () => {

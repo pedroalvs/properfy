@@ -123,6 +123,7 @@ export class GetPortalDataUseCase {
           }
         : null,
       existingResponse,
+      rescheduleAllowed: serviceType?.flowType === 'ROUTINE',
     };
   }
 

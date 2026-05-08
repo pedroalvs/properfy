@@ -63,6 +63,7 @@ export interface PortalData {
   existingResponse?: PortalExistingResponse;
   agencyPhone?: string;
   deadline?: string;
+  rescheduleAllowed?: boolean;
 }
 
 export interface ConfirmInput {

@@ -47,7 +47,7 @@ export function FinancialTable({
                   disabled={!isPending}
                   onChange={() => onToggleSelect(row.id)}
                   className="accent-primary"
-                  aria-label={isPending ? `Select ${row.appointmentCode}` : undefined}
+                  aria-label={isPending ? `Select ${row.appointmentCode ?? row.description ?? 'entry'}` : undefined}
                 />
               );
             },

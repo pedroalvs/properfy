@@ -61,7 +61,10 @@ export function useFinancialEntrySave(): UseFinancialEntrySaveReturn {
         const { error } = await api.PATCH(`/v1/financial/entries/${entryId}` as any, { body: payload as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        const { error } = await api.POST('/v1/financial/entries/adjust' as any, { body: payload as any });
+        const { error } = await api.POST('/v1/financial/entries/adjust' as any, {
+          body: payload as any,
+          headers: { 'Idempotency-Key': crypto.randomUUID() },
+        });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
 
