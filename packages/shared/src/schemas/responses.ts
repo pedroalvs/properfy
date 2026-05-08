@@ -405,6 +405,7 @@ export const marketplaceOfferAcceptResponseSchema = z.object({
 export const auditLogResponseSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid().nullable(),
+  tenantName: z.string().nullable().optional(),
   actorType: z.string(),
   actorId: z.string().nullable(),
   actorName: z.string().nullable(),

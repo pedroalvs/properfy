@@ -114,16 +114,29 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
   ): Promise<void> {
     if (data.geojson) {
       const geojsonStr = JSON.stringify(data.geojson);
-      await this.prisma.$executeRaw`
-        UPDATE service_regions SET
-          name = COALESCE(${data.name ?? null}, name),
-          geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
-          geojson = ${geojsonStr}::jsonb,
-          color = COALESCE(${data.color ?? null}, color),
-          status = COALESCE(${data.status ?? null}::"RegionStatus", status),
-          updated_at = NOW()
-        WHERE id = ${id} AND tenant_id = ${tenantId}
-      `;
+      if (tenantId === null) {
+        await this.prisma.$executeRaw`
+          UPDATE service_regions SET
+            name = COALESCE(${data.name ?? null}, name),
+            geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
+            geojson = ${geojsonStr}::jsonb,
+            color = COALESCE(${data.color ?? null}, color),
+            status = COALESCE(${data.status ?? null}::"RegionStatus", status),
+            updated_at = NOW()
+          WHERE id = ${id} AND tenant_id IS NULL
+        `;
+      } else {
+        await this.prisma.$executeRaw`
+          UPDATE service_regions SET
+            name = COALESCE(${data.name ?? null}, name),
+            geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
+            geojson = ${geojsonStr}::jsonb,
+            color = COALESCE(${data.color ?? null}, color),
+            status = COALESCE(${data.status ?? null}::"RegionStatus", status),
+            updated_at = NOW()
+          WHERE id = ${id} AND tenant_id = ${tenantId}
+        `;
+      }
     } else {
       const updateData: Record<string, unknown> = {};
       if (data.name !== undefined) updateData['name'] = data.name;
