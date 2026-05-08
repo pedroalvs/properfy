@@ -122,7 +122,7 @@ export function ScheduledReportFormDrawer({
     '/v1/tenants',
     (item) => ({ value: item.id, label: item.name }),
     undefined,
-    { enabled: isGlobalRole && !isEditMode && open },
+    { enabled: isGlobalRole && !isEditMode },
   );
 
   const [form, setForm] = useState<FormData>(EMPTY_FORM);

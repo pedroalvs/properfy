@@ -74,7 +74,7 @@ export function ExecutionPage() {
     );
   }
   const topBarSubtitle = appointment
-    ? `${appointment.appointmentCode ?? ''} · ${appointment.propertyAddress} · ${getTimeWindowParts(appointment.timeSlot).startTime}`
+    ? [appointment.appointmentCode, appointment.propertyAddress, appointment.timeSlot ? getTimeWindowParts(appointment.timeSlot).startTime : null].filter(Boolean).join(' · ')
     : undefined;
 
   const handleStart = async (location: CapturedLocation) => {

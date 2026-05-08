@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import type { FinancialEntryFormData, FinancialEntryFormErrors } from '../types';
@@ -37,6 +37,8 @@ export interface UseFinancialEntrySaveReturn {
 
 export function useFinancialEntrySave(): UseFinancialEntrySaveReturn {
   const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
+  const idempotencyKeyRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
 
   const validate = useCallback((data: FinancialEntryFormData, mode: 'create' | 'edit'): FinancialEntryFormErrors => {
@@ -45,7 +47,14 @@ export function useFinancialEntrySave(): UseFinancialEntrySaveReturn {
   }, []);
 
   const save = useCallback(async (data: FinancialEntryFormData, entryId?: string): Promise<SaveResult> => {
+    if (savingRef.current) return { success: false, error: 'Save already in progress' };
+    savingRef.current = true;
     setIsSaving(true);
+
+    if (!entryId && !idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = crypto.randomUUID();
+    }
+
     try {
       const payload = {
         entryType: data.entryType || undefined,
@@ -63,17 +72,19 @@ export function useFinancialEntrySave(): UseFinancialEntrySaveReturn {
       } else {
         const { error } = await api.POST('/v1/financial/entries/adjust' as any, {
           body: payload as any,
-          headers: { 'Idempotency-Key': crypto.randomUUID() },
+          headers: { 'Idempotency-Key': idempotencyKeyRef.current! },
         });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
 
+      idempotencyKeyRef.current = null;
       await queryClient.invalidateQueries({ queryKey: ['financial-entries'] });
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save';
       return { success: false, error: message };
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   }, [queryClient]);

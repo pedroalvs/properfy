@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type mapboxgl from 'mapbox-gl';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -76,6 +76,10 @@ function computeGroupCentroid(
     latitude: valid.reduce((s, a) => s + a.latitude, 0) / valid.length,
     longitude: valid.reduce((s, a) => s + a.longitude, 0) / valid.length,
   };
+}
+
+function MapMarkerGroup({ children }: { children: ReactNode }) {
+  return <>{children}</>;
 }
 
 export function AppointmentMapPage() {
@@ -452,30 +456,32 @@ export function AppointmentMapPage() {
   const mapContent = (
     <div className="relative h-full">
       <MapContainer onMapReady={setMapInstance}>
-        {mode === 'appointments' &&
-          validAppointmentPins.map((item) => (
-            <MapMarker
-              key={item.id}
-              longitude={item.longitude}
-              latitude={item.latitude}
-              color={STATUS_COLORS[item.status] ?? '#9E9E9E'}
-              label={item.code}
-              active={selectedItem?.id === item.id}
-              onClick={() => handleMarkerClick(item)}
-            />
-          ))}
-        {mode === 'groups' &&
-          validGroupPins.map((item) => (
-            <MapMarker
-              key={item.id}
-              longitude={item.longitude}
-              latitude={item.latitude}
-              color={GROUP_STATUS_COLORS[item.status] ?? '#9E9E9E'}
-              label={item.name ?? ''}
-              active={selectedGroupItem?.id === item.id}
-              onClick={() => handleGroupMarkerClick(item)}
-            />
-          ))}
+        <MapMarkerGroup key={mode}>
+          {mode === 'appointments' &&
+            validAppointmentPins.map((item) => (
+              <MapMarker
+                key={item.id}
+                longitude={item.longitude}
+                latitude={item.latitude}
+                color={STATUS_COLORS[item.status] ?? '#9E9E9E'}
+                label={item.code}
+                active={selectedItem?.id === item.id}
+                onClick={() => handleMarkerClick(item)}
+              />
+            ))}
+          {mode === 'groups' &&
+            validGroupPins.map((item) => (
+              <MapMarker
+                key={item.id}
+                longitude={item.longitude}
+                latitude={item.latitude}
+                color={GROUP_STATUS_COLORS[item.status] ?? '#9E9E9E'}
+                label={item.name ?? ''}
+                active={selectedGroupItem?.id === item.id}
+                onClick={() => handleGroupMarkerClick(item)}
+              />
+            ))}
+        </MapMarkerGroup>
       </MapContainer>
 
       <MapLassoSelect

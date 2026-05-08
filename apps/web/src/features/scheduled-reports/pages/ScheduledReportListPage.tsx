@@ -15,7 +15,7 @@ import type { ScheduledReport } from '../types';
  *  - ScheduleRunHistoryDrawer (run history per schedule)
  */
 export function ScheduledReportListPage() {
-  const { hasRole, canPerform } = usePermissions();
+  const { hasRole } = usePermissions();
   const { data, isLoading, isError, error, refetch } = useScheduledReportList();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -59,7 +59,7 @@ export function ScheduledReportListPage() {
     );
   }
 
-  const canCreateSchedule = hasRole('AM', 'OP', 'CL_ADMIN') || canPerform('report.export');
+  const canCreateSchedule = hasRole('AM', 'OP', 'CL_ADMIN');
 
   return (
     <>
