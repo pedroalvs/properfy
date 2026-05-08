@@ -1,14 +1,15 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthGuard } from './AuthGuard';
 
 const mockUseAuth = vi.fn();
+const mockShowInfo = vi.fn();
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
 }));
 vi.mock('@/hooks/useSnackbar', () => ({
-  useSnackbar: () => ({ showInfo: vi.fn(), showError: vi.fn(), showSuccess: vi.fn() }),
+  useSnackbar: () => ({ showInfo: mockShowInfo, showError: vi.fn(), showSuccess: vi.fn() }),
 }));
 
 function renderWithRouter(roles: string[], currentPath = '/protected') {
@@ -33,6 +34,10 @@ function renderWithRouter(roles: string[], currentPath = '/protected') {
 }
 
 describe('AuthGuard', () => {
+  beforeEach(() => {
+    mockShowInfo.mockClear();
+  });
+
   it('renders children when user role is allowed', () => {
     mockUseAuth.mockReturnValue({
       user: { id: '1', name: 'Admin', email: 'a@b.com', role: 'AM', tenantId: null },
@@ -51,6 +56,7 @@ describe('AuthGuard', () => {
 
     renderWithRouter(['AM', 'OP']);
     expect(screen.getByText('Dashboard Redirect')).toBeInTheDocument();
+    expect(mockShowInfo).toHaveBeenCalledWith('You do not have permission to access this page');
   });
 
   it('redirects when user is null', () => {
@@ -58,6 +64,7 @@ describe('AuthGuard', () => {
 
     renderWithRouter(['AM']);
     expect(screen.getByText('Dashboard Redirect')).toBeInTheDocument();
+    expect(mockShowInfo).toHaveBeenCalledWith('You do not have permission to access this page');
   });
 
   it('renders loading state while loading', () => {

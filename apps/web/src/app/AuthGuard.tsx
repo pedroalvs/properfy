@@ -1,9 +1,9 @@
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import type { UserRole } from '@properfy/shared';
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect } from 'react';
 
 interface AuthGuardProps {
   roles: UserRole[];
@@ -14,26 +14,26 @@ export function AuthGuard({ roles, children }: AuthGuardProps) {
   const { user, isLoading } = useAuth();
   const { showInfo } = useSnackbar();
   const location = useLocation();
-  const navigate = useNavigate();
-  const toastShown = useRef<string | null>(null);
 
   const isDenied = !isLoading && (!user || !roles.includes(user.role as UserRole));
 
-  useEffect(() => {
+  // useLayoutEffect fires synchronously before paint and before Navigate's
+  // own useEffect, guaranteeing the toast is queued before the redirect.
+  useLayoutEffect(() => {
     if (!isDenied) return;
-    if (toastShown.current !== location.pathname) {
-      toastShown.current = location.pathname;
-      showInfo('You do not have permission to access this page');
-    }
-    navigate('/dashboard', { replace: true });
-  }, [isDenied, location.pathname, showInfo, navigate]);
+    showInfo('You do not have permission to access this page');
+  }, [isDenied, location.pathname, showInfo]);
 
-  if (isLoading || isDenied) {
+  if (isLoading) {
     return (
       <div className="p-6">
         <LoadingState rows={3} />
       </div>
     );
+  }
+
+  if (isDenied) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;

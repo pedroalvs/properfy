@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -29,8 +29,9 @@ interface FinancialEntryFormDrawerProps {
 export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: FinancialEntryFormDrawerProps) {
   const isEditMode = !!entryId;
   const { entry, isLoading: isLoadingDetail } = useFinancialEntryDetail(isEditMode ? entryId : null);
-  const { save, isSaving, validate } = useFinancialEntrySave();
+  const { save, isSaving, validate, resetIdempotencyKey } = useFinancialEntrySave();
   const { showSuccess, showError } = useSnackbar();
+  const submittingRef = useRef(false);
 
   const [form, setForm] = useState<FinancialEntryFormData>(EMPTY_FINANCIAL_ENTRY_FORM);
   const [initialData, setInitialData] = useState<FinancialEntryFormData>(EMPTY_FINANCIAL_ENTRY_FORM);
@@ -59,8 +60,10 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
       setForm(EMPTY_FINANCIAL_ENTRY_FORM);
       setInitialData(EMPTY_FINANCIAL_ENTRY_FORM);
       setErrors({});
+      resetIdempotencyKey();
+      submittingRef.current = false;
     }
-  }, [open, isEditMode]);
+  }, [open, isEditMode, resetIdempotencyKey]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
@@ -73,15 +76,21 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    const mode = isEditMode ? 'edit' : 'create';
-    const validationErrors = validate(form, mode);
-    if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
-    const result = await save(form, entryId ?? undefined);
-    if (result.success) {
-      showSuccess(isEditMode ? 'Entry updated successfully' : 'Entry created successfully');
-      onSaved();
-    } else {
-      showError(result.error ?? 'Failed to save');
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      const mode = isEditMode ? 'edit' : 'create';
+      const validationErrors = validate(form, mode);
+      if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
+      const result = await save(form, entryId ?? undefined);
+      if (result.success) {
+        showSuccess(isEditMode ? 'Entry updated successfully' : 'Entry created successfully');
+        onSaved();
+      } else {
+        showError(result.error ?? 'Failed to save');
+      }
+    } finally {
+      submittingRef.current = false;
     }
   }, [isEditMode, form, validate, save, entryId, showSuccess, showError, onSaved]);
 

@@ -352,7 +352,7 @@ export const router = createBrowserRouter([
           {
             path: 'scheduled-reports',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
                 <ScheduledReportListPage />
               </AuthGuard>
             ),
