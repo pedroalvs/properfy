@@ -3,9 +3,25 @@ import type { ContactType } from '@properfy/shared';
 
 export interface ContactFilters {
   tenantId: string;
-  type?: ContactType;
+  /**
+   * Multi-select filter (023 §FR-204). Backwards-compatible: a single value is
+   * still accepted (the use case wraps it into an array) but the repository
+   * now matches against `IN`.
+   */
+  type?: ContactType[];
   isActive?: boolean;
   search?: string;
+  /**
+   * Branch filter (023 §FR-204). Returns only contacts that have at least one
+   * appointment_contact whose `appointment.property.branch_id` is in the set.
+   */
+  branchIds?: string[];
+  /**
+   * "Primary" filter (023 §FR-205). When true, returns only contacts with
+   * `primaryInPropertyCount > 0` (i.e. primary on at least one non-CANCELLED
+   * / non-REJECTED appointment).
+   */
+  primary?: boolean;
 }
 
 export interface ContactPagination {
@@ -74,6 +90,13 @@ export interface IContactRepository {
    * the list endpoint to avoid an N+1.
    */
   countDistinctPropertiesByContactIds(contactIds: string[]): Promise<Map<string, number>>;
+  /**
+   * Returns a Map<contactId, primaryInPropertyCount> — distinct property_ids
+   * where `is_primary = true` AND the appointment is not CANCELLED/REJECTED
+   * (023 §FR-202 / NFR-201). Mirrors the batched pattern of
+   * `countDistinctPropertiesByContactIds`.
+   */
+  countPrimaryDistinctPropertiesByContactIds(contactIds: string[]): Promise<Map<string, number>>;
   /**
    * Returns the distinct properties this contact has appeared in, with
    * appointment counts and the "is primary in any active appointment" flag.

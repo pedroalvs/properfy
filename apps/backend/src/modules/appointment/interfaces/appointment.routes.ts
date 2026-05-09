@@ -11,6 +11,8 @@ import {
   forceManualConfirmationResponseSchema,
   appointmentContactResponseSchema,
   appointmentContactDetailResponseSchema,
+  bulkResendReminderRequestSchema,
+  bulkResendReminderResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
 } from '@properfy/shared';
@@ -30,6 +32,7 @@ import type { GetImportStatusUseCase } from '../application/use-cases/get-import
 import type { ListAppointmentContactsUseCase } from '../application/use-cases/list-appointment-contacts.use-case';
 import type { DeleteAppointmentUseCase } from '../application/use-cases/delete-appointment.use-case';
 import type { BulkEditAppointmentsUseCase } from '../application/use-cases/bulk-edit-appointments.use-case';
+import type { BulkResendReminderUseCase } from '../application/use-cases/bulk-resend-reminder.use-case';
 import type { ReopenForRescheduleUseCase } from '../application/use-cases/reopen-for-reschedule.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import type { IIdempotencyService } from '../../../shared/domain/idempotency.service';
@@ -50,6 +53,7 @@ export interface AppointmentRouteContainer {
   listAppointmentContactsUseCase: ListAppointmentContactsUseCase;
   deleteAppointmentUseCase: DeleteAppointmentUseCase;
   bulkEditAppointmentsUseCase: BulkEditAppointmentsUseCase;
+  bulkResendReminderUseCase: BulkResendReminderUseCase;
   appointmentRepo: { findContactById(id: string): Promise<object | null> };
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
@@ -292,6 +296,35 @@ export async function registerAppointmentRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/bulk-resend-reminder — 200 (023 §FR-241..245)
+  // AM/OP only. Per-item idempotency keyed by `(appointmentId, dayInActorTz)`.
+  // Per-item statuses: SENT | NO_PRIMARY_CONTACT | IDEMPOTENT_REPLAY | ERROR.
+  app.post(
+    '/v1/appointments/bulk-resend-reminder',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: bulkResendReminderRequestSchema,
+        response: { 200: bulkResendReminderResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const parsed = bulkResendReminderRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.bulkResendReminderUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        actor: auth,
+      });
+      return reply.status(200).send(result);
     },
   );
 

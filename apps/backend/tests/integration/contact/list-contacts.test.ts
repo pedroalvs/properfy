@@ -54,8 +54,14 @@ function makeContact(label: string, type = 'TENANT', isActive = true) {
   };
 }
 
-function makeListItem(label: string, type = 'TENANT', isActive = true, propertyCount = 0) {
-  return { contact: makeContact(label, type, isActive), propertyCount };
+function makeListItem(
+  label: string,
+  type = 'TENANT',
+  isActive = true,
+  propertyCount = 0,
+  primaryInPropertyCount = 0,
+) {
+  return { contact: makeContact(label, type, isActive), propertyCount, primaryInPropertyCount };
 }
 
 let app: FastifyInstance;

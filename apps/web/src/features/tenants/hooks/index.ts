@@ -1,7 +1,3 @@
-export { useTenantContactList } from './useTenantContactList';
-export type { UseTenantContactListReturn } from './useTenantContactList';
-export { useTenantContactDetail } from './useTenantContactDetail';
-export type { UseTenantContactDetailReturn } from './useTenantContactDetail';
 export { useTenantAdminList } from './useTenantAdminList';
 export type { UseTenantAdminListReturn } from './useTenantAdminList';
 export { useTenantAdminDetail } from './useTenantAdminDetail';

@@ -217,6 +217,9 @@ export function ContactFormDrawer({
                       />
                     </FormField>
                   </FormSection>
+                  <p className="-mt-3 text-xs text-text-secondary">
+                    Provide at least one of email or phone.
+                  </p>
 
                   <FormSection title="Additional channels">
                     {errors.additionalChannels ? (

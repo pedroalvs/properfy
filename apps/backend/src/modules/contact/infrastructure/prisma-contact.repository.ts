@@ -315,6 +315,33 @@ export class PrismaContactRepository implements IContactRepository {
     return map;
   }
 
+  async countPrimaryDistinctPropertiesByContactIds(
+    contactIds: string[],
+  ): Promise<Map<string, number>> {
+    if (contactIds.length === 0) return new Map();
+
+    // 023 §FR-202: count distinct properties on which each contact is the
+    // primary recipient across non-CANCELLED/REJECTED appointments. The
+    // BUG-001 source-scan unit guard rejects `::uuid` casts in the three
+    // 022-era methods, so this new method also uses `::text[]`.
+    const rows = await this.prisma.$queryRaw<Array<{ contact_id: string; property_count: number }>>`
+      SELECT
+        ac.contact_id,
+        count(DISTINCT a.property_id) FILTER (
+          WHERE ac.is_primary = true AND a.status NOT IN ('CANCELLED', 'REJECTED')
+        )::int AS property_count
+      FROM appointment_contacts ac
+      JOIN appointments a ON a.id = ac.appointment_id
+      WHERE ac.contact_id = ANY(${contactIds}::text[])
+      GROUP BY ac.contact_id
+    `;
+
+    const map = new Map<string, number>();
+    for (const id of contactIds) map.set(id, 0);
+    for (const row of rows) map.set(row.contact_id, row.property_count);
+    return map;
+  }
+
   async findPropertiesByContactId(
     contactId: string,
     pagination: ContactPagination,
@@ -378,7 +405,11 @@ export class PrismaContactRepository implements IContactRepository {
     }
     const where: Record<string, unknown> = {};
     where['tenant_id'] = filters.tenantId;
-    if (filters.type) where['type'] = filters.type;
+    // 023 §FR-204: `type` is now a multiselect (array). For backwards-compat
+    // a single value is accepted (use case wraps it before calling).
+    if (filters.type && filters.type.length > 0) {
+      where['type'] = filters.type.length === 1 ? filters.type[0] : { in: filters.type };
+    }
     if (filters.isActive !== undefined) where['is_active'] = filters.isActive;
     if (filters.search) {
       where['OR'] = [
@@ -386,6 +417,44 @@ export class PrismaContactRepository implements IContactRepository {
         { primary_email: { contains: filters.search, mode: 'insensitive' } },
         { primary_phone: { contains: filters.search } },
       ];
+    }
+
+    // Each `appointment_contacts.some` clause emits an EXISTS subquery in the
+    // generated SQL. AND-combining several of them keeps each filter
+    // independently scoped (a contact can satisfy both "appears in branch X"
+    // AND "is primary in some active appointment" without the conditions
+    // requiring the SAME junction row).
+    const relationFilters: Array<Record<string, unknown>> = [];
+
+    // 023 §FR-204: branch filter — contact has at least one appointment
+    // touching one of the requested branches (joined via property.branch_id).
+    if (filters.branchIds && filters.branchIds.length > 0) {
+      relationFilters.push({
+        appointment_contacts: {
+          some: {
+            appointment: {
+              property: { branch_id: { in: filters.branchIds } },
+            },
+          },
+        },
+      });
+    }
+
+    // 023 §FR-205: "primary" filter — contact is primary in at least one
+    // non-CANCELLED/REJECTED appointment (matches `primaryInPropertyCount > 0`).
+    if (filters.primary === true) {
+      relationFilters.push({
+        appointment_contacts: {
+          some: {
+            is_primary: true,
+            appointment: { status: { notIn: ['CANCELLED', 'REJECTED'] } },
+          },
+        },
+      });
+    }
+
+    if (relationFilters.length > 0) {
+      where['AND'] = relationFilters;
     }
     return where;
   }

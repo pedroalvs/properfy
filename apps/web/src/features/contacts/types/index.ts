@@ -25,7 +25,12 @@ export interface Contact {
 /** Detail view (alias for Contact today; kept distinct in case more fields land). */
 export type ContactDetail = Contact;
 
-/** List-row variant with the aggregated `propertyCount`. */
+/**
+ * List-row variant with the aggregated `propertyCount` (total properties this
+ * contact has appeared in) and `primaryInPropertyCount` (distinct properties
+ * where this contact is the primary recipient on a non-CANCELLED/REJECTED
+ * appointment — drives the "Primary in N" column per 023 §FR-202).
+ */
 export interface ContactListItem {
   id: string;
   tenantId: string;
@@ -36,6 +41,7 @@ export interface ContactListItem {
   primaryPhone: string | null;
   isActive: boolean;
   propertyCount: number;
+  primaryInPropertyCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,16 +68,28 @@ export interface ContactPropertyAggregate {
   isPrimaryInActiveAppointment: boolean;
 }
 
+/**
+ * Filter state for the Contacts list (023 §FR-204/205).
+ *
+ * - `type` is now a multiselect (array). The empty array means "all".
+ * - `branchIds` filters contacts by the branches their appointments touch.
+ * - `primary`: '' means no filter, 'YES' means `primaryInPropertyCount > 0`,
+ *   'NO' means `primaryInPropertyCount === 0`.
+ */
 export interface ContactFiltersState {
   search: string;
-  type: string;
+  type: string[];
+  branchIds: string[];
   isActive: string;
+  primary: '' | 'YES' | 'NO';
 }
 
 export const DEFAULT_FILTERS: ContactFiltersState = {
   search: '',
-  type: '',
+  type: [],
+  branchIds: [],
   isActive: 'true',
+  primary: '',
 };
 
 export interface ContactFormChannelInput {

@@ -45,7 +45,6 @@ const ServiceGroupDetailPage = Loadable(lazyRetry(() => import('@/features/servi
 const UserListPage = Loadable(lazyRetry(() => import('@/features/users/pages/UserListPage').then(m => ({ default: m.UserListPage }))));
 const FinancialEntriesPage = Loadable(lazyRetry(() => import('@/features/financial/pages/FinancialEntriesPage').then(m => ({ default: m.FinancialEntriesPage }))));
 const InvoicesPage = Loadable(lazyRetry(() => import('@/features/financial/pages/InvoicesPage').then(m => ({ default: m.InvoicesPage }))));
-const TenantContactListPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantContactListPage').then(m => ({ default: m.TenantContactListPage }))));
 const TenantListPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantListPage').then(m => ({ default: m.TenantListPage }))));
 const TenantDetailPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantDetailPage').then(m => ({ default: m.TenantDetailPage }))));
 const ReportListPage = Loadable(lazyRetry(() => import('@/features/reports/pages/ReportListPage').then(m => ({ default: m.ReportListPage }))));
@@ -273,20 +272,6 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <InspectorListPage />
-              </AuthGuard>
-            ),
-          },
-          {
-            // Backend `appointment-contacts` list accepts AM/OP/CL_ADMIN/CL_USER
-            // (`ListAppointmentContactsUseCase.assertRoles`). Mirror that here
-            // so CL_USER doesn't get a redirect on a feature they're entitled
-            // to use.
-            path: 'tenant-contacts',
-            element: (
-              <AuthGuard
-                roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}
-              >
-                <TenantContactListPage />
               </AuthGuard>
             ),
           },

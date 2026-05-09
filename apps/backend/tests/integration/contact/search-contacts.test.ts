@@ -60,7 +60,7 @@ function makeContact(_label: string, name: string, email: string | null = null, 
 }
 
 function makeListItem(label: string, name: string, email: string | null = null, phone: string | null = null) {
-  return { contact: makeContact(label, name, email, phone), propertyCount: 0 };
+  return { contact: makeContact(label, name, email, phone), propertyCount: 0, primaryInPropertyCount: 0 };
 }
 
 let app: FastifyInstance;

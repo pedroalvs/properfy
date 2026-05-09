@@ -107,6 +107,9 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   'appointment.cross_check': {
     roles: ['AM', 'OP'],
   },
+  'appointment.bulk_resend_reminder': {
+    roles: ['AM', 'OP'],
+  },
   'appointment.reschedule': {
     roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
     condition: 'cl_user_flag',

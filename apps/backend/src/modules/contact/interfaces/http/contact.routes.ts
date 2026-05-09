@@ -34,9 +34,18 @@ export interface ContactRouteContainer {
 
 const contactIdParam = z.object({ contactId: z.string().uuid() });
 
+/**
+ * 023 §FR-204/205 — `type` accepts a single value or an array (multiselect).
+ * `branchIds` is an array of branch UUIDs; `primary` toggles the
+ * "primary in some active appointment" filter. Fastify-zod parses query
+ * arrays as either `?type=X&type=Y` or `?type[]=X&type[]=Y` — both shapes
+ * arrive as `string[]` after validation.
+ */
 const listQuerySchema = z.object({
   search: z.string().optional(),
-  type: z.nativeEnum(ContactType).optional(),
+  type: z.union([z.nativeEnum(ContactType), z.array(z.nativeEnum(ContactType))]).optional(),
+  branchIds: z.array(z.string().uuid()).optional(),
+  primary: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   isActive: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   tenantId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -260,6 +269,8 @@ export async function registerContactRoutes(
       const result = await container.listContactsUseCase.execute({
         tenantId: resolvedTenantId,
         type: query.type,
+        branchIds: query.branchIds,
+        primary: query.primary,
         isActive: query.isActive,
         search: query.search,
         page: query.page,
@@ -270,7 +281,7 @@ export async function registerContactRoutes(
 
       return reply.status(200).send(
         paginated(
-          result.data.map((item) => formatListItem(item.contact, item.propertyCount)),
+          result.data.map((item) => formatListItem(item.contact, item.propertyCount, item.primaryInPropertyCount)),
           result.total,
           result.page,
           result.pageSize,
@@ -387,7 +398,11 @@ function formatContact(contact: ContactEntity): ContactResponse {
   };
 }
 
-function formatListItem(contact: ContactEntity, propertyCount: number): ContactListItem {
+function formatListItem(
+  contact: ContactEntity,
+  propertyCount: number,
+  primaryInPropertyCount: number,
+): ContactListItem {
   return {
     id: contact.id,
     tenantId: contact.tenantId,
@@ -398,6 +413,7 @@ function formatListItem(contact: ContactEntity, propertyCount: number): ContactL
     primaryPhone: contact.primaryPhone,
     isActive: contact.isActive,
     propertyCount,
+    primaryInPropertyCount,
     createdAt: contact.createdAt.toISOString(),
     updatedAt: contact.updatedAt.toISOString(),
   };

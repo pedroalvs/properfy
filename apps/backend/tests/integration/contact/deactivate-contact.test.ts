@@ -126,7 +126,7 @@ describe('Deactivate contact — T029', () => {
   it('list: deactivated contact visible with isActive=false filter', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockListContactsExecute.mockResolvedValue({
-      data: [{ contact: makeContact({ isActive: false }), propertyCount: 0 }],
+      data: [{ contact: makeContact({ isActive: false }), propertyCount: 0, primaryInPropertyCount: 0 }],
       total: 1,
       page: 1,
       pageSize: 20,

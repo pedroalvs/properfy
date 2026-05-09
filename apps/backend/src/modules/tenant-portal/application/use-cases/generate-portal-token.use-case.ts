@@ -63,9 +63,35 @@ export class GeneratePortalTokenUseCase {
       },
     });
 
+    // 023 §FR-221 — primary-only dispatch. Without an `isPrimary === true`
+    // contact, the portal link has no canonical recipient. We still mint the
+    // token (the AM/OP request is auditable as a privileged action), but skip
+    // the notification dispatch and return `dispatched: false` so the bulk
+    // re-send use case can surface NO_PRIMARY_CONTACT to the operator.
+    if (!result.contact || result.contact.isPrimary !== true) {
+      this.auditService.log({
+        action: 'tenant_portal.dispatch_skipped',
+        actorType: 'USER',
+        actorId: input.actor.userId,
+        entityType: 'appointment',
+        entityId: appointment.id,
+        tenantId: appointment.tenantId,
+        metadata: {
+          appointmentId: input.appointmentId,
+          reason: 'NO_PRIMARY_CONTACT',
+        },
+      });
+      return {
+        token: rawToken,
+        expiresAt,
+        dispatched: false as const,
+        reason: 'NO_PRIMARY_CONTACT' as const,
+      };
+    }
+
     // Send portal link notification — fire-and-forget. The token is already persisted;
     // a notification failure must not turn the endpoint into a 500.
-    if (this.createNotificationUseCase && result.contact) {
+    if (this.createNotificationUseCase) {
       const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0] ?? '';
       const payloadJson = {
         confirmationLink: rawToken,
@@ -110,6 +136,7 @@ export class GeneratePortalTokenUseCase {
     return {
       token: rawToken,
       expiresAt,
+      dispatched: true as const,
     };
   }
 }

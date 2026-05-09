@@ -130,7 +130,12 @@ export const contactResponseSchema = z.object({
 });
 export type ContactResponse = z.infer<typeof contactResponseSchema>;
 
-/** List-row variant: lighter fields + `propertyCount` aggregation. */
+/**
+ * List-row variant: lighter fields + `propertyCount` aggregation +
+ * `primaryInPropertyCount` (number of distinct properties on which this
+ * contact is the primary recipient across non-CANCELLED/REJECTED appointments;
+ * powers the "Primary in N" column in the Contacts list — 023 §FR-202).
+ */
 export const contactListItemSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
@@ -141,6 +146,7 @@ export const contactListItemSchema = z.object({
   primaryPhone: z.string().nullable(),
   isActive: z.boolean(),
   propertyCount: z.number().int().nonnegative(),
+  primaryInPropertyCount: z.number().int().nonnegative(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

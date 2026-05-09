@@ -283,16 +283,19 @@ describe('contactListItemSchema', () => {
     primaryPhone: null,
     isActive: true,
     propertyCount: 3,
+    primaryInPropertyCount: 1,
     createdAt: '2026-05-09T10:00:00.000Z',
     updatedAt: '2026-05-09T10:00:00.000Z',
   };
 
-  it('accepts a list-row payload with propertyCount', () => {
+  it('accepts a list-row payload with propertyCount + primaryInPropertyCount', () => {
     expect(contactListItemSchema.safeParse(baseListItem).success).toBe(true);
   });
 
-  it('accepts propertyCount = 0', () => {
-    expect(contactListItemSchema.safeParse({ ...baseListItem, propertyCount: 0 }).success).toBe(true);
+  it('accepts propertyCount = 0 and primaryInPropertyCount = 0', () => {
+    expect(
+      contactListItemSchema.safeParse({ ...baseListItem, propertyCount: 0, primaryInPropertyCount: 0 }).success,
+    ).toBe(true);
   });
 
   it('rejects negative propertyCount', () => {
@@ -303,6 +306,16 @@ describe('contactListItemSchema', () => {
   it('rejects non-integer propertyCount', () => {
     const result = contactListItemSchema.safeParse({ ...baseListItem, propertyCount: 1.5 });
     expect(result.success).toBe(false);
+  });
+
+  it('rejects negative primaryInPropertyCount (must be >= 0)', () => {
+    const result = contactListItemSchema.safeParse({ ...baseListItem, primaryInPropertyCount: -1 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing primaryInPropertyCount field', () => {
+    const { primaryInPropertyCount: _omit, ...rest } = baseListItem;
+    expect(contactListItemSchema.safeParse(rest).success).toBe(false);
   });
 });
 

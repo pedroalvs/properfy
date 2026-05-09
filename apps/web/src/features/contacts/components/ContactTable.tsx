@@ -56,9 +56,22 @@ export function ContactTable({
     {
       key: 'propertyCount',
       label: 'Properties',
-      width: '120px',
+      width: '110px',
       sortable: true,
       render: (row) => <span aria-label="Linked properties">{row.propertyCount}</span>,
+    },
+    {
+      key: 'primaryInPropertyCount',
+      label: 'Primary in',
+      width: '120px',
+      sortable: true,
+      render: (row) => (
+        <span aria-label={`Primary in ${row.primaryInPropertyCount} ${row.primaryInPropertyCount === 1 ? 'property' : 'properties'}`}>
+          {row.primaryInPropertyCount === 0
+            ? '—'
+            : `${row.primaryInPropertyCount} ${row.primaryInPropertyCount === 1 ? 'property' : 'properties'}`}
+        </span>
+      ),
     },
     {
       key: 'isActive',
@@ -69,15 +82,11 @@ export function ContactTable({
     {
       key: 'actions',
       label: '',
-      width: '100px',
+      width: '140px',
+      // 023 §FR-203 — "Open detail" must navigate in a new tab so the operator
+      // keeps the list as a workbench. Memory feedback_new_tab_detail.md.
       render: (row) => {
-        const actions = [
-          {
-            icon: 'mdi-eye-outline',
-            label: 'View',
-            onClick: () => onView?.(row),
-          },
-        ];
+        const actions = [];
         if (canMutate && onEdit) {
           actions.push({
             icon: 'mdi-pencil-outline',
@@ -99,7 +108,24 @@ export function ContactTable({
             onClick: () => onReactivate(row),
           });
         }
-        return <RowActions actions={actions} />;
+        return (
+          <div className="flex items-center gap-1">
+            <a
+              href={`/contacts/${row.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open detail"
+              onClick={(e) => {
+                e.stopPropagation();
+                onView?.(row);
+              }}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgba(0,0,0,0.54)] hover:bg-black/5"
+            >
+              <i className="mdi mdi-open-in-new text-lg" aria-hidden="true" />
+            </a>
+            {actions.length > 0 ? <RowActions actions={actions} /> : null}
+          </div>
+        );
       },
     },
   ];

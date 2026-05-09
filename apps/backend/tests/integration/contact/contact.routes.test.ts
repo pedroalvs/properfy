@@ -237,7 +237,7 @@ describe('GET /v1/contacts', () => {
   it('should list contacts with pagination and propertyCount per item', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockListContactsExecute.mockResolvedValue({
-      data: [{ contact: fullContact, propertyCount: 3 }],
+      data: [{ contact: fullContact, propertyCount: 3, primaryInPropertyCount: 1 }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -256,7 +256,7 @@ describe('GET /v1/contacts', () => {
   it('should allow CL_USER read access', async () => {
     mockJwtVerify.mockResolvedValue(clUserContext);
     mockListContactsExecute.mockResolvedValue({
-      data: [{ contact: fullContact, propertyCount: 0 }],
+      data: [{ contact: fullContact, propertyCount: 0, primaryInPropertyCount: 0 }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -300,7 +300,7 @@ describe('GET /v1/contacts', () => {
   it('should search by query', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockListContactsExecute.mockResolvedValue({
-      data: [{ contact: fullContact, propertyCount: 1 }],
+      data: [{ contact: fullContact, propertyCount: 1, primaryInPropertyCount: 0 }],
       total: 1,
       page: 1,
       pageSize: 20,

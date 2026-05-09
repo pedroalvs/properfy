@@ -5014,6 +5014,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/appointments/bulk-resend-reminder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            results: {
+                                /** Format: uuid */
+                                appointmentId: string;
+                                /** @enum {string} */
+                                status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "ERROR";
+                                error?: {
+                                    code: string;
+                                    message: string;
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments/import": {
         parameters: {
             query?: never;
@@ -10970,7 +11022,9 @@ export interface paths {
             parameters: {
                 query?: {
                     search?: string;
-                    type?: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                    type?: ("TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER") | ("TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER")[];
+                    branchIds?: string[];
+                    primary?: "true" | "false";
                     isActive?: "true" | "false";
                     tenantId?: string;
                     page?: number;
@@ -11004,6 +11058,7 @@ export interface paths {
                                 primaryPhone: string | null;
                                 isActive: boolean;
                                 propertyCount: number;
+                                primaryInPropertyCount: number;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */

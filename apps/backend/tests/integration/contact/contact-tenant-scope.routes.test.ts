@@ -76,7 +76,7 @@ describe('GET /v1/contacts — tenant scope enforcement (QA-006-CRITICAL-001)', 
     it('returns 200 scoped to specified tenantId when AM provides tenantId query param', async () => {
       mockJwtVerify.mockResolvedValue(amContext);
       mockListContactsExecute.mockResolvedValue({
-        data: [{ contact: makeContact(TENANT_A), propertyCount: 0 }],
+        data: [{ contact: makeContact(TENANT_A), propertyCount: 0, primaryInPropertyCount: 0 }],
         total: 1,
         page: 1,
         pageSize: 20,
@@ -121,7 +121,7 @@ describe('GET /v1/contacts — tenant scope enforcement (QA-006-CRITICAL-001)', 
     it('returns 200 scoped to the tenant chosen by OP via tenantId query param (cross-tenant)', async () => {
       mockJwtVerify.mockResolvedValue(opContext);
       mockListContactsExecute.mockResolvedValue({
-        data: [{ contact: makeContact(TENANT_B), propertyCount: 0 }],
+        data: [{ contact: makeContact(TENANT_B), propertyCount: 0, primaryInPropertyCount: 0 }],
         total: 1,
         page: 1,
         pageSize: 20,
@@ -142,7 +142,7 @@ describe('GET /v1/contacts — tenant scope enforcement (QA-006-CRITICAL-001)', 
     it('returns 200 scoped to JWT tenantId regardless of tenantId query param', async () => {
       mockJwtVerify.mockResolvedValue(clAdminContext);
       mockListContactsExecute.mockResolvedValue({
-        data: [{ contact: makeContact(TENANT_A), propertyCount: 0 }],
+        data: [{ contact: makeContact(TENANT_A), propertyCount: 0, primaryInPropertyCount: 0 }],
         total: 1,
         page: 1,
         pageSize: 20,
@@ -162,7 +162,7 @@ describe('GET /v1/contacts — tenant scope enforcement (QA-006-CRITICAL-001)', 
     it('returns 200 scoped to JWT tenantId with no query param', async () => {
       mockJwtVerify.mockResolvedValue(clAdminContext);
       mockListContactsExecute.mockResolvedValue({
-        data: [{ contact: makeContact(TENANT_A), propertyCount: 0 }],
+        data: [{ contact: makeContact(TENANT_A), propertyCount: 0, primaryInPropertyCount: 0 }],
         total: 1,
         page: 1,
         pageSize: 20,
@@ -183,7 +183,7 @@ describe('GET /v1/contacts — tenant scope enforcement (QA-006-CRITICAL-001)', 
     it('returns 200 scoped to JWT tenantId', async () => {
       mockJwtVerify.mockResolvedValue(clUserContext);
       mockListContactsExecute.mockResolvedValue({
-        data: [{ contact: makeContact(TENANT_A), propertyCount: 0 }],
+        data: [{ contact: makeContact(TENANT_A), propertyCount: 0, primaryInPropertyCount: 0 }],
         total: 1,
         page: 1,
         pageSize: 20,

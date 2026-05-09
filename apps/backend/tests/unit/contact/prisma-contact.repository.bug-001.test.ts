@@ -80,4 +80,10 @@ describe('BUG-001 guard — contact aggregations must use ::text casts', () => {
     expect(body).toMatch(/contact_id = \$\{contactId\}::text\b/);
     expect(body).not.toMatch(/::uuid/);
   });
+
+  it('countPrimaryDistinctPropertiesByContactIds binds contactIds as ::text[] (023 §FR-202)', () => {
+    const body = withoutComments(extractMethod('countPrimaryDistinctPropertiesByContactIds'));
+    expect(body).toContain('::text[]');
+    expect(body).not.toMatch(/::uuid/);
+  });
 });

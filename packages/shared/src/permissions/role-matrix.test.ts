@@ -69,3 +69,13 @@ describe('audit.view', () => {
     expect(can(role, 'audit.view')).toBe(false);
   });
 });
+
+describe('appointment.bulk_resend_reminder (023 §FR-241)', () => {
+  it.each<UserRole>(['AM', 'OP'])('allows %s', (role) => {
+    expect(can(role, 'appointment.bulk_resend_reminder')).toBe(true);
+  });
+
+  it.each<UserRole>(['CL_ADMIN', 'CL_USER', 'INSP'])('denies %s', (role) => {
+    expect(can(role, 'appointment.bulk_resend_reminder')).toBe(false);
+  });
+});

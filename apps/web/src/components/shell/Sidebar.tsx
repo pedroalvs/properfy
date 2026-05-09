@@ -26,11 +26,11 @@ const NAV_ITEMS: NavItem[] = [
   { icon: 'mdi-view-dashboard-outline', label: 'Dashboard', to: '/dashboard' },
   { icon: 'mdi-calendar-month', label: 'Appointments', to: '/appointments' },
   { icon: 'mdi-home-city-outline', label: 'Properties', to: '/properties' },
-  // Contacts registry (spec 022): the new /contacts page lists every contact in
-  // the tenant. The legacy /tenant-contacts page is the per-appointment tenant
-  // confirmation view (kept under "Tenant Confirmations").
+  // Unified contacts registry (specs 022 + 023). The legacy /tenant-contacts
+  // confirmation board was retired in 023; per-appointment confirmation
+  // status now lives inline on /appointments and on each contact's Relations
+  // tab at /contacts/:id.
   { icon: 'mdi-account-multiple-outline', label: 'Contacts', to: '/contacts', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
-  { icon: 'mdi-account-check-outline', label: 'Tenant Confirmations', to: '/tenant-contacts', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
   {
     icon: 'mdi-account-group-outline',
     label: 'Users',

@@ -11,13 +11,12 @@ import { useContactDeactivate } from '../hooks/useContactDeactivate';
 import { ContactTypeChip } from '../components/ContactTypeChip';
 import { ContactStatusBadge } from '../components/ContactStatusBadge';
 import { ContactDetailSections } from '../components/ContactDetailSections';
-import { ContactPropertiesTab } from '../components/ContactPropertiesTab';
-import { ContactAppointmentsTab } from '../components/ContactAppointmentsTab';
+import { RelationsTab } from '../components/RelationsTab';
 import { ContactTimelineTab } from '../components/ContactTimelineTab';
 import { ContactFormDrawer } from '../components/ContactFormDrawer';
 import { DeactivateContactModal } from '../components/DeactivateContactModal';
 
-type TabId = 'overview' | 'properties' | 'appointments' | 'timeline';
+type TabId = 'overview' | 'relations' | 'timeline';
 
 export function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,10 +29,12 @@ export function ContactDetailPage() {
   const canDeactivate = canPerform('contact.deactivate');
   const canViewAudit = canPerform('audit.view');
 
+  // 023 §FR-211/213 — Relations tab merges the previous Properties +
+  // Appointments tabs into a single property-grouped view fed by a single
+  // combined fetch.
   const allTabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'properties', label: 'Properties' },
-    { id: 'appointments', label: 'Appointments' },
+    { id: 'relations', label: 'Relations' },
     ...(canViewAudit ? [{ id: 'timeline', label: 'Timeline' }] : []),
   ];
 
@@ -128,11 +129,8 @@ export function ContactDetailPage() {
         />
         <div className="p-6">
           {activeTab === 'overview' && <ContactDetailSections contact={contact} />}
-          {activeTab === 'properties' && (
-            <ContactPropertiesTab contactId={id} enabled={activeTab === 'properties'} />
-          )}
-          {activeTab === 'appointments' && (
-            <ContactAppointmentsTab contactId={id} enabled={activeTab === 'appointments'} />
+          {activeTab === 'relations' && (
+            <RelationsTab contactId={id} enabled={activeTab === 'relations'} />
           )}
           {activeTab === 'timeline' && canViewAudit && (
             <ContactTimelineTab contactId={id} enabled={activeTab === 'timeline'} />

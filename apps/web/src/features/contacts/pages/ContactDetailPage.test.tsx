@@ -112,8 +112,8 @@ function renderPage(role = 'CL_ADMIN') {
   return render(<Wrapper><ContactDetailPage /></Wrapper>);
 }
 
-describe('ContactDetailPage — lazy fetch on tab activation (NFR-103/104)', () => {
-  it('initial render does NOT fire the includeAppointments query', async () => {
+describe('ContactDetailPage — lazy fetch on tab activation (NFR-204)', () => {
+  it('initial render does NOT fire any sub-resource query', async () => {
     renderPage();
     await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
     const calls = mockGet.mock.calls.map(([p]) => String(p));
@@ -122,23 +122,15 @@ describe('ContactDetailPage — lazy fetch on tab activation (NFR-103/104)', () 
     expect(calls.some((p) => p.startsWith('/v1/audit-logs'))).toBe(false);
   });
 
-  it('activating Properties tab fires the includeProperties query', async () => {
+  it('activating Relations tab fires the combined includeProperties + includeAppointments query', async () => {
     renderPage();
     await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
-    fireEvent.click(screen.getByRole('tab', { name: /Properties/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Relations/i }));
     await waitFor(() => {
       const calls = mockGet.mock.calls.map(([p]) => String(p));
-      expect(calls.some((p) => p.includes('includeProperties=true'))).toBe(true);
-    });
-  });
-
-  it('activating Appointments tab fires the includeAppointments query', async () => {
-    renderPage();
-    await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
-    fireEvent.click(screen.getByRole('tab', { name: /Appointments/i }));
-    await waitFor(() => {
-      const calls = mockGet.mock.calls.map(([p]) => String(p));
-      expect(calls.some((p) => p.includes('includeAppointments=true'))).toBe(true);
+      expect(
+        calls.some((p) => p.includes('includeProperties=true') && p.includes('includeAppointments=true')),
+      ).toBe(true);
     });
   });
 

@@ -355,6 +355,7 @@ import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bu
 import { ListAppointmentContactsUseCase } from '../modules/appointment/application/use-cases/list-appointment-contacts.use-case';
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
 import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
+import { BulkResendReminderUseCase } from '../modules/appointment/application/use-cases/bulk-resend-reminder.use-case';
 import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
@@ -683,6 +684,7 @@ export function createContainer(logger: Logger): AppContainer {
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase);
   const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
+  const bulkResendReminderUseCase = new BulkResendReminderUseCase(generatePortalTokenUseCase, idempotencyService);
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
@@ -1232,6 +1234,7 @@ export function createContainer(logger: Logger): AppContainer {
       listAppointmentContactsUseCase,
       deleteAppointmentUseCase,
       bulkEditAppointmentsUseCase,
+      bulkResendReminderUseCase,
       appointmentRepo,
       jwtService,
       tenantRepo,

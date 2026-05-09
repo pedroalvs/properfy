@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
+import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
@@ -18,6 +19,7 @@ import type { ContactListItem } from '../types';
 
 export function ContactListPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { canPerform, hasRole } = usePermissions();
   const { showSuccess, showError } = useSnackbar();
   // Constitution v1.3.0 (op_role_rollback): AM and OP are both cross-tenant
@@ -126,7 +128,11 @@ export function ContactListPage() {
           <FilterRequiredState message="Select an agency to view contacts." />
         ) : (
           <>
-            <ContactFilters filters={filters} onFiltersChange={setFilters} />
+            <ContactFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              tenantId={effectiveTenantId ?? user?.tenantId ?? null}
+            />
             <ContactTable
               data={data}
               loading={isLoading}
