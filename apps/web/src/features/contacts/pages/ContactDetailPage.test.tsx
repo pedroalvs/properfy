@@ -1,0 +1,168 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+
+vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
+
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/api-error', () => ({
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  },
+}));
+
+vi.mock('@/lib/auth-storage', () => ({
+  authStorage: {
+    getAccessToken: vi.fn(() => null),
+    hasTokens: vi.fn(() => false),
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+  },
+}));
+
+import type * as UseAuthModule from '@/hooks/useAuth';
+type UseAuthExports = typeof UseAuthModule;
+const mockUseAuth = vi.fn();
+vi.mock('@/hooks/useAuth', async (importOriginal) => {
+  const actual = await importOriginal<UseAuthExports>();
+  return { ...actual, useAuth: () => mockUseAuth() };
+});
+
+import { SnackbarProvider } from '@/hooks/useSnackbar';
+import { api } from '@/services/api';
+import { ContactDetailPage } from './ContactDetailPage';
+
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
+
+const TENANT_A = 'aaaaaaaa-0000-4000-8000-000000000001';
+const CONTACT_ID = 'cccccccc-0000-4000-8000-000000000099';
+
+const baseContact = {
+  id: CONTACT_ID,
+  tenantId: TENANT_A,
+  type: 'PROPERTY_MANAGER',
+  displayName: 'Jane Smith',
+  company: null,
+  primaryEmail: 'jane@example.com',
+  primaryPhone: null,
+  additionalChannels: [],
+  notes: null,
+  isActive: true,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-02T00:00:00.000Z',
+};
+
+function setUser(role: string, tenantId: string | null) {
+  mockUseAuth.mockReturnValue({
+    user: { id: 'u1', name: 'Test', email: 't@t.com', role, tenantId, branchId: null },
+    token: 'tok',
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  });
+}
+
+function createWrapper(initialPath: string) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <SnackbarProvider>
+          <MemoryRouter initialEntries={[initialPath]}>
+            <Routes>
+              <Route path="/contacts/:id" element={children} />
+            </Routes>
+          </MemoryRouter>
+        </SnackbarProvider>
+      </QueryClientProvider>
+    );
+  };
+}
+
+beforeEach(() => {
+  mockGet.mockReset();
+  mockGet.mockImplementation(async (path: string) => {
+    if (typeof path === 'string' && path.startsWith('/v1/contacts/')) {
+      return { data: { data: baseContact } };
+    }
+    return { data: { data: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 0 } } };
+  });
+  mockUseAuth.mockReset();
+});
+
+function renderPage(role = 'CL_ADMIN') {
+  setUser(role, TENANT_A);
+  const Wrapper = createWrapper(`/contacts/${CONTACT_ID}`);
+  return render(<Wrapper><ContactDetailPage /></Wrapper>);
+}
+
+describe('ContactDetailPage — lazy fetch on tab activation (NFR-103/104)', () => {
+  it('initial render does NOT fire the includeAppointments query', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
+    const calls = mockGet.mock.calls.map(([p]) => String(p));
+    expect(calls.some((p) => p.includes('includeAppointments=true'))).toBe(false);
+    expect(calls.some((p) => p.includes('includeProperties=true'))).toBe(false);
+    expect(calls.some((p) => p.startsWith('/v1/audit-logs'))).toBe(false);
+  });
+
+  it('activating Properties tab fires the includeProperties query', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('tab', { name: /Properties/i }));
+    await waitFor(() => {
+      const calls = mockGet.mock.calls.map(([p]) => String(p));
+      expect(calls.some((p) => p.includes('includeProperties=true'))).toBe(true);
+    });
+  });
+
+  it('activating Appointments tab fires the includeAppointments query', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('tab', { name: /Appointments/i }));
+    await waitFor(() => {
+      const calls = mockGet.mock.calls.map(([p]) => String(p));
+      expect(calls.some((p) => p.includes('includeAppointments=true'))).toBe(true);
+    });
+  });
+
+  it('activating Timeline tab fires the audit-logs query', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('tab', { name: /Timeline/i }));
+    await waitFor(() => {
+      const calls = mockGet.mock.calls.map(([p]) => String(p));
+      expect(calls.some((p) => p.startsWith('/v1/audit-logs'))).toBe(true);
+    });
+  });
+});
+
+describe('ContactDetailPage — Timeline tab visibility (audit.view RBAC)', () => {
+  it('hides the Timeline tab from CL_USER', () => {
+    renderPage('CL_USER');
+    expect(screen.queryByRole('tab', { name: /Timeline/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the Timeline tab to CL_ADMIN', async () => {
+    renderPage('CL_ADMIN');
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /Timeline/i })).toBeInTheDocument();
+    });
+  });
+});

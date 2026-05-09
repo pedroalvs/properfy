@@ -36,6 +36,8 @@ const PropertyListPage = Loadable(lazyRetry(() => import('@/features/properties/
 const PropertyCreatePage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyCreatePage').then(m => ({ default: m.PropertyCreatePage }))));
 const PropertyDetailPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyDetailPage').then(m => ({ default: m.PropertyDetailPage }))));
 const PropertyImportPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyImportPage').then(m => ({ default: m.PropertyImportPage }))));
+const ContactListPage = Loadable(lazyRetry(() => import('@/features/contacts/pages/ContactListPage').then(m => ({ default: m.ContactListPage }))));
+const ContactDetailPage = Loadable(lazyRetry(() => import('@/features/contacts/pages/ContactDetailPage').then(m => ({ default: m.ContactDetailPage }))));
 const InspectorListPage = Loadable(lazyRetry(() => import('@/features/inspectors/pages/InspectorListPage').then(m => ({ default: m.InspectorListPage }))));
 const ServiceGroupListPage = Loadable(lazyRetry(() => import('@/features/service-groups/pages/ServiceGroupListPage').then(m => ({ default: m.ServiceGroupListPage }))));
 const ServiceGroupCreatePage = Loadable(lazyRetry(() => import('@/features/service-groups/pages/ServiceGroupCreatePage').then(m => ({ default: m.ServiceGroupCreatePage }))));
@@ -182,6 +184,22 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
                 <PropertyDetailPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'contacts',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <ContactListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'contacts/:id',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <ContactDetailPage />
               </AuthGuard>
             ),
           },

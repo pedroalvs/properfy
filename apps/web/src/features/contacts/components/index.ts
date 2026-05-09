@@ -1,0 +1,11 @@
+export { ContactTypeChip } from './ContactTypeChip';
+export { ContactStatusBadge } from './ContactStatusBadge';
+export { ContactFilters } from './ContactFilters';
+export { ContactTable } from './ContactTable';
+export { ContactDetailSections } from './ContactDetailSections';
+export { ContactPropertiesTab } from './ContactPropertiesTab';
+export { ContactAppointmentsTab } from './ContactAppointmentsTab';
+export { ContactTimelineTab } from './ContactTimelineTab';
+export { DeactivateContactModal } from './DeactivateContactModal';
+export { ContactDetailDrawer } from './ContactDetailDrawer';
+export { ContactFormDrawer } from './ContactFormDrawer';

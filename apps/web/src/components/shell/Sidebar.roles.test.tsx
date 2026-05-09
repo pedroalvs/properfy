@@ -73,3 +73,21 @@ describe('Sidebar role-based visibility — Service Types', () => {
     expect(screen.getByText('Notification Templates')).toBeInTheDocument();
   });
 });
+
+describe('Sidebar IA — Contacts registry vs Tenant Confirmations (spec 022)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('shows both "Contacts" and "Tenant Confirmations" to %s', (role) => {
+    renderSidebar(role);
+    expect(screen.getByText('Contacts')).toBeInTheDocument();
+    expect(screen.getByText('Tenant Confirmations')).toBeInTheDocument();
+  });
+
+  it('hides Contacts and Tenant Confirmations from INSP', () => {
+    renderSidebar('INSP');
+    expect(screen.queryByText('Contacts')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tenant Confirmations')).not.toBeInTheDocument();
+  });
+});
