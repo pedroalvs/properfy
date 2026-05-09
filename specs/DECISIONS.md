@@ -669,3 +669,16 @@ WhatsApp (Zenvia provider) is **out of scope for v1** and all future work until 
 - **Sidebar** (`apps/web/src/components/shell/Sidebar.tsx`): **updated** — Contacts is now a top-level nav item gated to all four roles. It was previously buried under the admin "Users" submenu scoped to AM/OP, which hid a feature CL roles had full access to.
 
 **Rationale**: the read API was already reachable by CL users via tenant-scoped listing; hiding the entry point in the sidebar created the exact "route accepts / sidebar hides" ambiguity flagged during the final hardening pass. Exposing the nav item resolves the mismatch without changing any permission model.
+## DEC-041 — Customer-confirmed Admin / Operator / Inspector flow and portal actions
+
+**Date**: 2026-05-09
+
+**Decision**:
+1. `Admin` explicitly owns client registration, inspector registration, user registration, service-type registration, client pricing tables, inspector earnings, and the matrix of which service types an inspector may execute for each client.
+2. `Operator` explicitly owns creating new services, grouping services, offering jobs/groups to inspectors, and communicating with tenants.
+3. Tenant portal first-class responses are: accept, reject/decline, reschedule, and request keys/access when applicable.
+4. The inspector product explicitly includes: accepting offers, moving work into schedule, rejecting with reason where allowed, and invoice generation/visibility for the relevant period.
+5. The day-before operational rule is refined as follows: if an appointment is not confirmed by `7:00 PM` on the day before the visit, it becomes `REJECTED`, receives a `no response` marker, and leaves its service group; rejected non-response appointments must not collapse a group that still retains valid appointments.
+
+**Rationale**: customer-provided operational flow diagram confirmed the role boundaries and clarified that the group only collapses when no valid appointments remain, not whenever any appointment is rejected for non-response.
+

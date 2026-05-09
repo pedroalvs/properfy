@@ -12,6 +12,14 @@
 >
 > **Reading guide.** Every user story declares `Priority`, `Status`, `Source`. Status: `IMPLEMENTED` | `APPROVED` | `GAP`. Source: `code` | `dossier` | `inferred`.
 
+## Approved Product Overrides - 2026-05-09
+
+1. `Appointments` is now a **map-first** module; the map is the primary landing surface and the historical list becomes a secondary view reachable by visible UI control.
+2. `appointment.id` remains the internal UUID technical identifier, but the operational user-facing identifier is `appointmentCode` (the existing formatted sequential code derived from `appointmentNumber`).
+3. User-facing search, labels, map references, detail references, and operational triage flows must prioritize `appointmentCode` instead of exposing raw UUIDs.
+4. Opening appointment detail from the primary appointments experience must use a **new browser tab or dedicated page flow**, not only an inline drawer.
+5. For the day-before cutoff rule, the important appointments are the ones pending tenant confirmation for the next day: if they are still unconfirmed by `7:00 PM` on the previous day, they become `REJECTED`, receive a `no response` operational marker, and leave any service group. Valid groups with remaining confirmed/eligible appointments continue.
+
 ## User Scenarios & Testing
 
 ### User Story 1 — Create an appointment with structured contact, restriction, and pricing snapshot

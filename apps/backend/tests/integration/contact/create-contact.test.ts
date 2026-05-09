@@ -186,22 +186,21 @@ describe('POST /v1/contacts — create-contact', () => {
     expect(res.status).toBe(201);
   });
 
-  // Constitution v1.2.0 + correction.op_tenant_scope.contact_routes:
-  // OP is tenant-scoped. The route MUST ignore `body.tenantId` for OP and
-  // resolve from `auth.tenantId`. The DEC-003 cross-tenant OP behavior is
-  // explicitly reclassified as a bug.
-  it('FR-105a regression: OP cannot escape its tenant via body.tenantId override', async () => {
-    mockJwtVerify.mockResolvedValue(opContext); // tenantId = TENANT_A
-    mockCreateContactExecute.mockResolvedValue(makeContact({ tenantId: TENANT_A }));
+  // Constitution v1.3.0 (op_role_rollback): AM and OP are both cross-tenant
+  // operational roles. OP tokens may carry `tenant_id = null` and resolve
+  // the target tenant from `body.tenantId` exactly like AM.
+  it('OP cross-tenant create: body.tenantId selects the target tenant', async () => {
+    mockJwtVerify.mockResolvedValue(opCrossTenantContext);
+    mockCreateContactExecute.mockResolvedValue(makeContact({ tenantId: TENANT_B }));
 
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ tenantId: TENANT_B, type: 'TENANT', displayName: 'Op Smuggler', primaryEmail: 'op-smuggle@example.com' });
+      .send({ tenantId: TENANT_B, type: 'TENANT', displayName: 'Op Cross-Tenant', primaryEmail: 'op-cross@example.com' });
 
     expect(res.status).toBe(201);
     expect(mockCreateContactExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_A }),
+      expect.objectContaining({ tenantId: TENANT_B }),
     );
   });
 

@@ -187,10 +187,24 @@ When `includeProperties: true`, paginate via `findPropertiesByContactId` + `coun
 
 Three concerns combined:
 
-**4a. OP tenant-scope correction (Constitution v1.2.0).**
-- Currently the routes accept `body.tenantId` for OP and use it to scope. Per `.specify/memory/correction-op-tenant-scope.md`, this is a bug.
-- Fix: change the `tenantId` resolution at lines 70 and 115/148/177-184 so OP behaves like CL_ADMIN (uses `auth.tenantId`, ignores any override). Only AM still resolves from body/query `tenantId`.
-- This is a **behavior change** to the 021-shipped routes. Documented in spec FR-105a. **No runtime audit event is emitted** — the correction is documented in the PR description with the reference label `correction.op_tenant_scope.contact_routes`. Regression coverage is enforced via Supertest (T-401).
+**4a. OP scope rollback (Constitution v1.3.0 — REV 4).**
+- Constitution v1.3.0 (2026-05-09) reverts the v1.2.0 OP tenant-scope correction. OP is again cross-tenant, like AM (see Constitution §RBAC — Tenant scope rule). The correction track at `.specify/memory/correction-op-tenant-scope.md` is CLOSED-REJECTED.
+- For 022 this means: the contact routes MUST accept `tenantId` from body/query for both AM and OP (the cross-tenant operational team). The prior REV 3 plan to harden OP scope (FR-105a) is **REMOVED**.
+- Concrete changes vs the implementation that QA cycle 1/2 reproduced:
+  - `apps/backend/src/modules/contact/interfaces/http/contact.routes.ts:109` — POST `tenantId` resolution: revert OP back to the AM branch (was: `auth.role === 'AM'`; now: `auth.role === 'AM' || auth.role === 'OP'`).
+  - `apps/backend/src/modules/contact/interfaces/http/contact.routes.ts:241` — GET `tenantId` resolution: same widening to AM+OP.
+  - `apps/backend/src/modules/contact/interfaces/http/contact.routes.ts:248-249` — keep `query.tenantId` requirement for AM and OP (both cross-tenant); CL roles continue to use `auth.tenantId`.
+  - `apps/backend/tests/integration/contact/contact-tenant-scope.routes.test.ts:23,107,127` — REMOVE the "OP role (Constitution v1.2.0...)" test block. Replace with a "OP cross-tenant access (Constitution v1.3.0)" block that asserts: an OP token with `tenantId=null` passing `body.tenantId = X` successfully creates/lists/reads contacts for tenant X.
+  - `apps/backend/tests/integration/contact/contact.routes.test.ts:181` — REMOVE the "FR-105a regression: OP cannot escape JWT tenant" test.
+  - `apps/backend/tests/integration/contact/create-contact.test.ts:189-193` — REMOVE the analogous FR-105a regression block.
+  - `apps/web/src/features/contacts/pages/ContactListPage.tsx:25,112` — widen the `isAmRole` gate to `isCrossTenantRole = hasRole('AM', 'OP')`. The Agency selector and `FilterRequiredState` apply to both. The `useContactList` hook receives the selected `tenantId` for both roles.
+- **PR reference label**: `constitution.v1_3.op_role_rollback` (replaces the prior `correction.op_tenant_scope.contact_routes` label). No runtime audit event — this is documented in the PR description and in `.specify/memory/constitution.md` Amendment Log.
+- **Risk note (security tradeoff)**: cross-tenant OP carries a data-isolation risk; mitigation is via audit logs at the use-case level (constitution §Audit) and use-case-level `actor.role` checks. Route-level scope hardening is intentionally NOT done for OP. Future hardening must go through the standard amendment workflow, not by re-opening the closed correction track.
+
+**4a-bis. BUG-001 fix — Postgres `text` columns vs `::uuid` casts.**
+- During QA cycle 1/2, `apps/backend/src/modules/contact/infrastructure/prisma-contact.repository.ts` lines 304/343/366 produced `500 INTERNAL_ERROR` on the staging Supabase Postgres because the raw-SQL aggregations cast `contact_id` and `appointment_id` to `::uuid`/`::uuid[]` while those columns are `text` in the deployed schema. The Testcontainers integration tests (153/153 green) did not catch this because the local Postgres image was strict-typed differently.
+- Fix: in `prisma-contact.repository.ts`, replace `::uuid` → `::text` and `::uuid[]` → `::text[]` in the three aggregation queries (`countDistinctPropertiesByContactIds`, `findPropertiesByContactId`, `countPropertiesByContactId`).
+- Test gap closure: add a Testcontainers integration test that runs both aggregations against a real Postgres seeded to mirror the Supabase staging types (column types matching the live schema). If the local image cannot be aligned, mark the strict-typing assertion explicitly so future regressions are not silently masked.
 
 **4b. Add Fastify route schemas + regenerate OpenAPI.**
 Currently `contact.routes.ts` only does `safeParse` for runtime validation; it does NOT pass the Zod schemas to Fastify's `schema:` option, so OpenAPI generation produces empty `query`/`response` types in `packages/shared/src/api-types.ts` (verified at line 10941). Mirror the property routes pattern:
@@ -294,7 +308,7 @@ Add lazy imports + route definitions for `/contacts` and `/contacts/:id`. Both p
 
 Mirror the Properties feature structure. Key components:
 
-- **`ContactListPage.tsx`** — Agency selector + `FilterRequiredState` (until tenant chosen) shown **only for AM** per FR-105 / Constitution v1.2.0. OP/CL_ADMIN/CL_USER use the JWT tenant directly and the table loads immediately. Table with row click → drawer + row actions Edit/Deactivate (visible only when `canPerform` says so).
+- **`ContactListPage.tsx`** — Agency selector + `FilterRequiredState` (until tenant chosen) shown for **AM and OP** (the cross-tenant operational team per Constitution v1.3.0). The role gate uses an `isCrossTenantRole = hasRole('AM', 'OP')` check. CL_ADMIN/CL_USER use the JWT tenant directly and the table loads immediately. Table with row click → drawer + row actions Edit/Deactivate (visible only when `canPerform` says so).
 - **`ContactTable.tsx`** — `DataTable` columns: name, type chip, primaryEmail, primaryPhone, properties count, status badge.
 - **`ContactFilters.tsx`** — search input (debounced), type select, active select.
 - **`ContactDetailDrawer.tsx`** — Drawer mirroring `PropertyDetailDrawer`, with "Open full detail" navigating to `/contacts/:id`.
@@ -324,7 +338,7 @@ The role matrix in `packages/shared/src/permissions/role-matrix.ts` does not cur
 2. **backend domain & infra** — add new repository methods + raw SQL aggregations; extend `findAppointmentsByContactId` projection.
 3. **backend application** — extend list use case (`propertyCount` hydration); rewrite get use case signature with `GetContactOptions` and parameterized pagination.
 4. **backend routes** —
-   4a. Apply OP tenant-scope correction (Constitution v1.2.0).
+   4a. Apply OP scope rollback (Constitution v1.3.0 — REV 4) and BUG-001 fix (`::uuid` → `::text` casts).
    4b. Register Fastify `schema:` for all `/v1/contacts*` routes.
    4c. Thread `includeProperties` + per-sub-resource pagination params.
 5. **OpenAPI regen** — `pnpm generate:api` and commit `packages/shared/src/api-types.ts` (no manual edits).
@@ -346,14 +360,14 @@ The role matrix in `packages/shared/src/permissions/role-matrix.ts` does not cur
 - **Repo integration (Testcontainers)**:
   - `countDistinctPropertiesByContactIds` returns 0 for unlinked contacts, correct counts otherwise; benchmark with 500 contacts × 10 appointments avg → assert wall-clock under NFR-101 budget.
   - `findPropertiesByContactId` aggregates `is_primary_in_active_appointment` correctly across multiple appointments at the same property (mix of CANCELLED/REJECTED filtered out); benchmark per NFR-102.
-- **Routes (Supertest)**: all four roles for list; **AM cross-tenant via `tenantId` query**; **OP tenant-scoped (passes `tenantId` body/query → ignored, scoped to own JWT tenant)** — explicit regression test for FR-105a; CL_USER allowed list, denied write; CL_ADMIN denied cross-tenant; all routes assert `request.routeOptions.schema` is bound (smoke test the OpenAPI surface).
+- **Routes (Supertest)**: all four roles for list; **AM and OP cross-tenant via `tenantId` body/query** — both can target any tenant per Constitution v1.3.0; CL_USER allowed list, denied write; CL_ADMIN denied cross-tenant; all routes assert `request.routeOptions.schema` is bound (smoke test the OpenAPI surface). **REV 4 swap**: the prior FR-105a regression tests are removed and replaced by OP cross-tenant assertions (an OP token with `tenant_id = null` passing `body.tenantId = X` successfully writes/reads contacts for tenant X).
 
 ### Frontend
 
 - **Component tests** (Vitest + RTL) for each new component with mocked hooks.
 - **Hook tests** for the new hooks using `usePaginatedQuery`/`useDetailQuery`/`useCreateMutation`/`useUpdateMutation` mocks.
 - **Page integration test** for `ContactListPage`: render, search, open drawer, click "Open full detail", lands on detail.
-- **OP-scope test**: render `ContactListPage` with role=OP; assert that the Agency selector is NOT rendered (FR-105) and that the list query is fired immediately scoped to JWT tenant (no `requiresTenantSelection` path).
+- **OP cross-tenant test**: render `ContactListPage` with role=OP; assert that the Agency selector IS rendered (FR-105 / Constitution v1.3.0) — OP behaves like AM; the list query fires only after the OP picks a tenant. (REV 4 swap: the REV 3 "OP no selector" assertion is replaced.)
 - **Lazy-fetch tests** (NFR-103/104): render `ContactDetailPage`, assert that `/v1/contacts/:id?includeAppointments=true` is NOT called until the Appointments tab is activated; same for Properties and Timeline.
 - **Sidebar test**: existing `Sidebar.roles.test.tsx` is updated to assert the renamed label and the new Contacts entry.
 
@@ -374,7 +388,8 @@ The role matrix in `packages/shared/src/permissions/role-matrix.ts` does not cur
 | Sidebar IA change ("Contacts" → "Tenant Confirmations") could surprise users. | URL kept the same; only the label changes. The new entry sits adjacent. Document in PR description. |
 | `findAppointmentsByContactId` change is shape-breaking for any current consumer. | Currently only the contact module consumes it (this is internal to `contact/`). Adding fields is safe; verify no `select`-restricted callers. |
 | CL_USER has list access but no write — risk of confused UI if buttons appear. | All write CTAs gated by `canPerform('contact.create' | 'update' | 'deactivate')` — added in this round. |
-| **OP scope correction is a behavior change** to 021. May surprise OP users who relied on cross-tenant access in /v1/contacts. | Constitution v1.2.0 explicitly classifies the prior behavior as a bug. The correction is small, isolated to contact routes, and improves multi-tenant safety. Documented in spec FR-105a, plan §4a, and the PR description (with the reference label `correction.op_tenant_scope.contact_routes`). Regression locked by Supertest (T-401). |
+| **OP role rollback is a Constitution-level change.** REV 3 plan tried to harden OP scope (FR-105a); REV 4 reverts after QA cycle 1/2 surfaced operational cost (BUG-002). | Constitution v1.3.0 (2026-05-09) is the active rule: AM and OP are both cross-tenant. Documented in plan §4a, spec FR-105, Constitution Amendment Log, and the PR description (reference label `constitution.v1_3.op_role_rollback`). Cross-tenant OP carries a data-isolation risk; mitigation is via audit logs at the use-case level (constitution §Audit) — route-level scope hardening for OP is intentionally NOT in scope. Future hardening must go through a fresh amendment, not by re-opening the closed correction track. |
+| **BUG-001 was missed by Testcontainers tests** (153/153 green locally; 500 in staging Supabase). The local image's strict-typing accepts `::uuid` casts on `text` columns; staging does not. | Fix the casts (`::uuid` → `::text`, `::uuid[]` → `::text[]`) and add an integration test that uses a Postgres image aligned with the deployed schema's column types. If aligning the image is not feasible, add an explicit type-assertion test that fails fast on a strict-typing regression so we never confuse "tests pass" with "deploys clean". |
 | Widening `audit.view` to CL_ADMIN could surprise role-matrix consumers. | The change reflects shipped backend behavior — the matrix was the outdated artifact, not the backend. Update `role-matrix.test.ts` to lock the new contract. No other consumers gate UI on `audit.view` today (verified via grep). |
 | OpenAPI regen could collide with unrelated drift in `api-types.ts`. | Run `pnpm generate:api` from a clean develop pull; commit only the `contacts`-related surface changes. If unrelated drift appears, surface it as a separate PR rather than bundling. |
 

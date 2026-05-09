@@ -101,17 +101,17 @@ function renderPage() {
   return render(<Wrapper><ContactListPage /></Wrapper>);
 }
 
-describe('ContactListPage — Agency selector visibility (FR-105 + Constitution v1.2.0)', () => {
-  it('renders the Agency selector for AM only', async () => {
+describe('ContactListPage — Agency selector visibility (Constitution v1.3.0 — op_role_rollback)', () => {
+  it('renders the Agency selector for AM', async () => {
     setUser('AM', null);
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Agency')).toBeInTheDocument());
   });
 
-  it('does NOT render the Agency selector for OP', () => {
-    setUser('OP', TENANT_A);
+  it('renders the Agency selector for OP (cross-tenant operational role)', async () => {
+    setUser('OP', null);
     renderPage();
-    expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('Agency')).toBeInTheDocument());
   });
 
   it('does NOT render the Agency selector for CL_ADMIN', () => {
@@ -126,8 +126,16 @@ describe('ContactListPage — Agency selector visibility (FR-105 + Constitution 
     expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
   });
 
-  it('OP fires the contact list query immediately (no tenant-required gate)', async () => {
-    setUser('OP', TENANT_A);
+  it('OP without a selected tenant sees the FilterRequiredState (no table)', async () => {
+    setUser('OP', null);
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText(/Select an agency to view contacts/i)).toBeInTheDocument(),
+    );
+  });
+
+  it('CL_ADMIN loads the list immediately from the JWT tenant (no agency gate)', async () => {
+    setUser('CL_ADMIN', TENANT_A);
     renderPage();
     await waitFor(() => {
       const contactListCall = mockGet.mock.calls.find(([path]) => String(path) === '/v1/contacts');

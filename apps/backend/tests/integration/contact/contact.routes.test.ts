@@ -159,41 +159,21 @@ describe('POST /v1/contacts', () => {
     expect(res.status).toBe(400);
   });
 
-  it('should create as OP scoped to own tenant', async () => {
-    mockJwtVerify.mockResolvedValue(opContext);
+  it('OP cross-tenant create: body.tenantId selects the target tenant (Constitution v1.3.0)', async () => {
+    // Constitution v1.3.0: AM and OP are both cross-tenant operational roles.
+    // OP tokens can carry tenant_id=null and pick the target via body.tenantId.
+    const opCrossTenant = { userId: 'op-1', tenantId: null, role: 'OP', branchId: null, inspectorId: null };
+    mockJwtVerify.mockResolvedValue(opCrossTenant);
     mockCreateContactExecute.mockResolvedValue(fullContact);
 
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer test-token')
       .send({
+        tenantId: TENANT_ID,
         type: 'BROKER',
-        displayName: 'Op Contact',
+        displayName: 'Op Cross-Tenant',
         primaryEmail: 'op@test.com',
-      });
-
-    expect(res.status).toBe(201);
-    expect(mockCreateContactExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_ID }),
-    );
-  });
-
-  it('FR-105a regression: OP cannot escape its tenant via body.tenantId override', async () => {
-    mockJwtVerify.mockResolvedValue(opContext);
-    mockCreateContactExecute.mockResolvedValue(fullContact);
-
-    const FOREIGN_TENANT = 'ffffffff-0000-4000-8000-000000000abc';
-
-    const res = await supertest(app.server)
-      .post('/v1/contacts')
-      .set('Authorization', 'Bearer test-token')
-      .send({
-        // Even though OP explicitly tries to create against another tenant,
-        // the route MUST scope to the JWT tenantId (TENANT_ID).
-        tenantId: FOREIGN_TENANT,
-        type: 'BROKER',
-        displayName: 'Op Smuggler',
-        primaryEmail: 'smuggle@test.com',
       });
 
     expect(res.status).toBe(201);

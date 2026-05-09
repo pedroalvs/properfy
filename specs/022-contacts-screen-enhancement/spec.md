@@ -27,7 +27,7 @@ An operator (AM, OP, CL_ADMIN, CL_USER) opens the new `/contacts` page. They see
 
 1. **Given** an authorized actor, **When** they open `/contacts`, **Then** the registry table renders with columns including a "Properties" count chip per row.
 2. **Given** a CL_USER, **When** they open `/contacts`, **Then** they see the table read-only — no "New Contact" button, no row actions for edit/deactivate.
-3. **Given** an AM, **When** they open `/contacts`, **Then** an Agency selector is shown and contacts only load after a tenant is selected. **Given** an OP, CL_ADMIN, or CL_USER, **When** they open `/contacts`, **Then** no Agency selector is shown and contacts for their JWT tenant load immediately (per FR-105 / Constitution v1.2.0).
+3. **Given** an AM or OP (cross-tenant operational team per Constitution v1.3.0), **When** they open `/contacts`, **Then** an Agency selector is shown and contacts only load after a tenant is selected. **Given** a CL_ADMIN or CL_USER (tenant-pinned), **When** they open `/contacts`, **Then** no Agency selector is shown and contacts for their JWT tenant load immediately.
 4. **Given** the search input, **When** the operator types a partial name/email/phone, **Then** the list filters via the existing `?search=` parameter.
 
 ---
@@ -98,7 +98,7 @@ AM/OP/CL_ADMIN open the Timeline tab on a contact's detail page. They see a vert
 - **Contact with zero appointments**: `propertyCount = 0`. Properties tab shows an empty state ("This contact has no linked properties yet."). Appointments tab shows empty state.
 - **Pagination on Properties tab**: cap at 20 per page initially. If a contact aggregates >20 distinct properties, paginate via the same `?page&pageSize` pattern.
 - **Inactive contact in detail**: shows an "Inactive" badge prominently. Edit is allowed (registry edit, including reactivation). Deactivate action is replaced by Reactivate.
-- **AM without tenant selection on `/contacts`**: page shows a `FilterRequiredState` matching Properties' pattern. OP, CL_ADMIN, and CL_USER never see this state — their tenant is always resolved from the JWT.
+- **AM or OP without tenant selection on `/contacts`**: page shows a `FilterRequiredState` matching Properties' pattern. CL_ADMIN and CL_USER never see this state — their tenant is always resolved from the JWT.
 - **Snapshot-vs-registry caveat surface**: the form drawer renders a small inline note explaining that registry edits do NOT update existing appointment snapshots. This avoids the "I edited the email but the inspector still got the old one" support ticket.
 - **Reactivation and uniqueness**: reactivating a contact whose primary_email or primary_phone is now in use by another active contact returns `CONTACT_EMAIL_ALREADY_EXISTS` / `CONTACT_PHONE_ALREADY_EXISTS`. The UI surfaces the error and offers to clear the conflicting field before retrying.
 - **Sidebar IA change**: the legacy `/tenant-contacts` route is renamed in the sidebar to "Tenant Confirmations" (label only — URL kept for backwards compat). The new `/contacts` registry sits above it. Old bookmarks still work.
@@ -113,8 +113,7 @@ AM/OP/CL_ADMIN open the Timeline tab on a contact's detail page. They see a vert
 - **FR-102**: List MUST display columns: name, type chip, primary email, primary phone, property count chip, active badge, row actions.
 - **FR-103**: List MUST integrate `?search=` (name/email/phone), `?type=` and `?isActive=` filters from the existing `GET /v1/contacts` contract.
 - **FR-104**: List MUST sort and paginate via the existing API contract (`page`, `pageSize`, `sortBy`, `sortOrder`).
-- **FR-105**: For **AM only**, the page MUST require an Agency selector before loading data. **OP is tenant-scoped per Constitution v1.2.0** (`.specify/memory/correction-op-tenant-scope.md`) — OP sees only their own tenant's contacts, no selector. CL_ADMIN/CL_USER are pinned to JWT tenant. This **diverges intentionally from `PropertyListPage`** (which still treats OP as global — that page is part of the open correction track). For 022 we deliver the constitution-compliant behavior; the Properties page correction is out of scope.
-- **FR-105a**: System MUST update `apps/backend/src/modules/contact/interfaces/http/contact.routes.ts` so the `GET/POST/PATCH /v1/contacts*` endpoints treat OP like CL_ADMIN: ignore any `tenantId` from body or query, and use `auth.tenantId` from the JWT for tenant scoping. The currently-shipped behavior (OP cross-tenant via `tenantId` body/query) was based on the superseded `DECISIONS.md` DEC-003 — Constitution v1.2.0 (2026-04-06) is the source of truth and explicitly calls this a bug. **Documentation contract**: this is a code-level correction; it MUST be documented in the PR description with a `correction.op_tenant_scope.contact_routes` reference label. **No runtime audit event is emitted.** Regression coverage is enforced by Supertest cases (see `plan.md` §Tests / `tasks.md` T-401).
+- **FR-105**: For **AM and OP (the cross-tenant operational team per Constitution v1.3.0)**, the page MUST render an Agency selector and load contacts only after a tenant is selected — same affordance for both roles, mirroring `PropertyListPage`. CL_ADMIN/CL_USER are pinned to the JWT tenant and load immediately without a selector. The previously planned FR-105a (OP tenant-scope hardening on `/v1/contacts*` routes) has been **REMOVED** — see Constitution v1.3.0 amendment log; the correction track at `.specify/memory/correction-op-tenant-scope.md` is CLOSED-REJECTED.
 
 #### Frontend — Detail (Drawer + Page)
 
@@ -141,7 +140,7 @@ AM/OP/CL_ADMIN open the Timeline tab on a contact's detail page. They see a vert
 - **FR-130**: System MUST extend `GET /v1/contacts` to include `propertyCount: number` per item in the response, computed as `count(DISTINCT a.property_id)` joined via `appointment_contacts ac → appointments a` for the contact, using a single batch aggregation query (no N+1). p95 < 300 ms with 500 contacts per tenant.
 - **FR-131**: System MUST extend `GET /v1/contacts/:id?includeAppointments=true` to: (a) include `isPrimary: boolean`, `propertyId: string`, and `propertyCode: string` in each item; (b) accept full pagination (`appointmentsPage`, `appointmentsPageSize`, `appointmentsSortOrder`, default `appointmentsPage=1`, `appointmentsPageSize=20`, max 100); (c) return `appointments` as `{ data: [...], pagination: { page, pageSize, total } }`. The current hardcoded `page=1, pageSize=20` in `GetContactUseCase` MUST be replaced with parameter-driven pagination.
 - **FR-132**: System MUST extend `GET /v1/contacts/:id?includeProperties=true` (new optional parameter) to return a paginated, distinct-by-property aggregation: `{ data: ContactPropertyAggregate[], pagination: { page, pageSize, total } }`. Pagination params: `propertiesPage`, `propertiesPageSize` (default `propertiesPage=1`, `propertiesPageSize=20`, max 100). No separate route — kept on the same endpoint to mirror `?includeAppointments=true`.
-- **FR-133**: All extensions MUST preserve current authorization rules and tenant scoping (subject to FR-105a OP correction). No new endpoints introduced.
+- **FR-133**: All extensions MUST preserve current authorization rules and tenant scoping. AM and OP both pass `tenantId` in body/query (cross-tenant); CL_ADMIN/CL_USER use JWT `tenantId` (pinned). No new endpoints introduced.
 - **FR-134**: All `/v1/contacts*` routes MUST register Fastify `schema: { querystring, body, params, response }` using shared Zod schemas. After implementation, the OpenAPI doc MUST be regenerated via `pnpm generate:api` so `packages/shared/src/api-types.ts` reflects the new types — currently `/v1/contacts` shows empty parameter and response definitions, breaking the contract-first principle (Constitution IV).
 
 #### Sidebar / IA
@@ -192,11 +191,11 @@ No new database entities. Reuses:
 | GAP-002 | Search by linked property | L | Backend trigram search currently covers name/email/phone. Searching by property code/address requires a JOIN. Phase 2 — open a follow-up if operators ask for it. |
 | GAP-003 | Bulk contact actions (deactivate, export) | L | 021 already flags GAP-001. Out of scope. |
 | GAP-004 | Contact merge | L | 021 GAP-002. Out of scope. |
-| GAP-005 | AM cross-tenant search UX | M | AM must pick a tenant before listing per FR-105 (Constitution v1.2.0). OP/CL_ADMIN/CL_USER are tenant-scoped from the JWT and never need a selector. A future "global search across tenants" affordance for AM is out of scope here. |
+| GAP-005 | AM/OP cross-tenant search UX | M | AM and OP must pick a tenant before listing per FR-105 (Constitution v1.3.0). CL_ADMIN/CL_USER are tenant-pinned and never need a selector. A future "global search across all tenants" affordance for AM/OP is out of scope here. |
 
 ## Cross-References
 
 - **021-contacts**: backend domain, schemas, audit. This spec depends on 021 being already merged.
 - **020-audit-retention-pii-redaction**: timeline rendering inherits the role-based masking (CL_ADMIN sees `[MASKED]`, OP sees partial mask, AM sees raw).
 - **006-appointments**: Properties tab derives data from `appointment_contacts.is_primary` + `appointments.property_id` + `appointments.status`.
-- **DECISIONS.md DEC-003**: superseded by Constitution v1.2.0 — `AM` is the only role with `tenant_id = null` and global access; `OP` MUST be tenant-scoped. See `.specify/memory/correction-op-tenant-scope.md` for the cross-feature correction track. 022 delivers the constitution-compliant behavior in `/v1/contacts*` (FR-105a).
+- **Constitution v1.3.0 (2026-05-09)**: AM and OP are the cross-tenant operational team; both can pass `tenantId` in `/v1/contacts*` requests. The differentiation between AM and OP is **catalog management capability** (AM-only — out of scope for 022). The prior v1.2.0 OP tenant-scope correction is CLOSED-REJECTED; specs/code that previously cited DEC-003 or `correction-op-tenant-scope.md` should drop the reference.

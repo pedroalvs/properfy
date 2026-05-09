@@ -17,6 +17,17 @@
 >
 > **Reading guide.** Every user story declares `Priority`, `Status`, `Source`. Status: `IMPLEMENTED` | `APPROVED` | `GAP`. Source: `code` | `dossier` | `inferred`.
 
+## Approved Product Overrides - 2026-05-09
+
+1. The inspector journey explicitly includes:
+   - accepting offers,
+   - moving accepted work into the operational schedule,
+   - marking jobs `DONE`,
+   - marking jobs `REJECTED` with reason where the flow allows it,
+   - generating or following the inspector invoice flow for the applicable period.
+2. Inspector offer visibility and assignment must respect the configured matrix of which service types the inspector may execute for each client.
+3. The day-before operational cleanup remains relevant to the inspector product because unconfirmed jobs may disappear from the workable set after the `7:00 PM` cutoff on the previous day.
+
 ## User Scenarios & Testing
 
 ### User Story 1 — Onboard an inspector (operator)

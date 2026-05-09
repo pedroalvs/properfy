@@ -29,7 +29,16 @@
 
 ## 4. Backend interfaces
 
-- [ ] **T-401 [backend]** **OP tenant-scope correction (Constitution v1.2.0)** — Update `contact.routes.ts` so all five routes (POST, PATCH, POST :id/deactivate, GET list, GET :id) treat OP exactly like CL_ADMIN: ignore any `tenantId` from body or query and always use `auth.tenantId`. Only AM resolves tenant from input. **No runtime audit event** — document the correction in the PR description with the reference label `correction.op_tenant_scope.contact_routes`. Add Supertest regression: OP passes `body.tenantId = X` while logged in for tenant Y → operation acts on Y, not X.
+- [ ] **T-401 [backend]** **OP scope rollback (Constitution v1.3.0 — REV 4)** — Revert the OP-scope hardening shipped after REV 3. In `contact.routes.ts`, treat OP exactly like AM for tenant resolution: both roles read `tenantId` from body/query (cross-tenant). Specific edits:
+  - line 109 (POST): widen the resolution branch from `auth.role === 'AM'` to `auth.role === 'AM' || auth.role === 'OP'`.
+  - line 241 (GET): same widening.
+  - lines 248-249 (GET): keep `query.tenantId` requirement for AM and OP; CL roles continue using `auth.tenantId`.
+  - PATCH and POST :id/deactivate: confirm OP is treated like AM (cross-tenant) — apply the same widening if any leftover REV 3 hardening exists.
+  Then in the existing tests:
+  - `apps/backend/tests/integration/contact/contact-tenant-scope.routes.test.ts` lines 23, 107, 127: REMOVE the "OP role (Constitution v1.2.0...)" tenant-pinned assertion block. ADD a new "OP cross-tenant access (Constitution v1.3.0)" block: OP token with `tenant_id = null` passing `body.tenantId = X` (or `query.tenantId = X`) succeeds and acts on tenant X.
+  - `apps/backend/tests/integration/contact/contact.routes.test.ts` line 181: REMOVE the "FR-105a regression: OP cannot escape JWT tenant" test.
+  - `apps/backend/tests/integration/contact/create-contact.test.ts` lines 189-193: REMOVE the analogous FR-105a regression block.
+  PR reference label: **`constitution.v1_3.op_role_rollback`** (replaces the REV 3 `correction.op_tenant_scope.contact_routes` label). No runtime audit event.
 - [ ] **T-402 [backend]** Add Fastify `schema:` to all five `/v1/contacts*` routes (mirror property routes pattern): `querystring` / `body` / `params` / `response: { 200/201: ... }`. Use `paginatedResponseSchema(contactListItemSchema)` for list and `successResponseSchema(contactResponseSchema)` for detail/create/update/deactivate. Use the canonical name `contactResponseSchema` per T-101.
 - [ ] **T-403 [backend]** Update `contact.routes.ts`: `formatListItem` accepts `propertyCount`; controller threads the map. Parse `includeProperties`, `appointmentsPage/Size`, `propertiesPage/Size` from `GET /v1/contacts/:id` query (Zod validation: min 1, max 100).
 - [ ] **T-404 [backend][test]** Supertest cases for: `GET /v1/contacts` returns `propertyCount` per item; `GET /v1/contacts/:id?includeProperties=true&propertiesPageSize=5` returns paginated `properties.data` + `properties.pagination`; same for appointments; OP scope correction (T-401); page-size cap returns 400.
@@ -62,7 +71,11 @@
 
 - [ ] **T-701 [web]** `ContactFormDrawer.tsx` — Create + Edit modes; dynamic additional channels list; surface API error codes; show registry-vs-snapshot note in edit mode. Test create + edit + error mapping.
 - [ ] **T-702 [web]** `ContactDetailDrawer.tsx` — Drawer wrapping `ContactDetailSections` + Edit/Deactivate row actions + "Open full detail" button. Test.
-- [ ] **T-703 [web]** `ContactListPage.tsx` — Agency selector visible **only for AM** (per FR-105 + Constitution v1.2.0); OP/CL_ADMIN/CL_USER all use the JWT tenant directly with no selector. Filters + table + drawer + form. Test that AM sees the selector and OP does NOT.
+- [ ] **T-703 [web]** `ContactListPage.tsx` — widen the role gate to `isCrossTenantRole = hasRole('AM', 'OP')` (Constitution v1.3.0). Specific edits:
+  - line 25: replace `isAmRole = hasRole('AM')` with `isCrossTenantRole = hasRole('AM', 'OP')`.
+  - line 112 (and any conditional referencing `isAmRole`): rename to `isCrossTenantRole` so the Agency selector + `FilterRequiredState` apply to AM AND OP.
+  - `useContactList`: ensure the hook accepts the selected `tenantId` for both roles (no AM-only short-circuit).
+  Filters + table + drawer + form unchanged. Test: render with role=AM and role=OP — both see the selector and the `FilterRequiredState` until a tenant is picked. CL_ADMIN/CL_USER still load immediately from JWT.
 - [ ] **T-704 [web]** `ContactDetailPage.tsx` — Tabs shell + Overview/Properties/Appointments/Timeline. Each non-Overview tab uses lazy fetch via `enabled` flag tied to active-tab state (NFR-103/104). Test rendering of each tab, CL_USER-hidden Timeline (gated by `audit.view`), and lazy fetch (no API call until tab activated).
 
 ## 8. Frontend wiring
@@ -74,10 +87,20 @@
 ## 9. End-to-end QA
 
 - [ ] **T-901 [test]** Write a Playwright happy-path scenario covering CL_ADMIN: list → drawer → page → properties tab → timeline tab → edit → deactivate → reactivate.
-- [ ] **T-902 [manual]** Execute the QA matrix from `plan.md` locally via Docker for AM, OP, CL_ADMIN, CL_USER. **Special check for OP**: confirm no Agency selector appears and only own-tenant contacts are returned (FR-105 + FR-105a regression).
+- [ ] **T-902 [manual]** Execute the QA matrix from `plan.md` locally via Docker for AM, OP, CL_ADMIN, CL_USER. **Special check for OP (REV 4)**: confirm the Agency selector IS rendered, that selecting a tenant loads its contacts, and that an OP token with `tenant_id = null` can read/write contacts in any tenant via `body.tenantId` / `query.tenantId` — exactly like AM (Constitution v1.3.0).
 - [ ] **T-903 [perf]** Produce EXPLAIN ANALYZE output for both aggregations (`countDistinctPropertiesByContactIds` and `findPropertiesByContactId`) on a seeded Testcontainers DB with 500 contacts × 10 appointments avg. Capture wall-clock numbers and pin to PR description (NFR-101/102 verification gate).
 
 ## 10. Pre-PR
 
 - [ ] **T-1001** `pnpm lint && pnpm typecheck && pnpm test && pnpm build` — all green.
-- [ ] **T-1002** Open PR to `develop` with the QA matrix in the description.
+- [ ] **T-1002** Open PR to `develop` with the QA matrix in the description and the reference label `constitution.v1_3.op_role_rollback` for the OP scope rollback (REV 4).
+
+## 11. Post-QA round 1/2 fixes (REV 4 only)
+
+- [ ] **T-1100 [backend]** **BUG-001 fix — `::uuid` casts on `text` columns.** In `apps/backend/src/modules/contact/infrastructure/prisma-contact.repository.ts`:
+  - line 304 area (`countDistinctPropertiesByContactIds`): replace `${contactIds}::uuid[]` with `${contactIds}::text[]` (or remove the cast entirely if Prisma's `Prisma.sql` already binds `string[]` correctly — verify with `EXPLAIN` after the change).
+  - line 343 area (`findPropertiesByContactId`): replace any `::uuid` cast on `contact_id` / `appointment_id` / `property_id` with `::text` to match the deployed `text` column types.
+  - line 366 area (`countPropertiesByContactId`): same.
+  Verify with `\\d+ contacts` and `\\d+ appointment_contacts` against staging Supabase that the column types are `text`; if any are actually `uuid`, keep the cast for those specific columns only.
+- [ ] **T-1101 [backend][test]** Add an integration test for both aggregations (`countDistinctPropertiesByContactIds` and `findPropertiesByContactId`) running against a Postgres image whose column types match the deployed schema. If the local Testcontainers image cannot be aligned, add an explicit type-assertion test (`pg_typeof(contact_id) = 'text'`) that fails fast on a strict-typing regression — so a future drift cannot silently pass 153/153 again.
+- [ ] **T-1102 [manual]** After implementing T-1100/T-1101, manually re-run the failing QA scenarios from cycle 1/2: `GET /v1/contacts` (no longer 500), `GET /v1/contacts/:id?includeProperties=true` (no longer 500). Capture before/after curl output and pin to PR.

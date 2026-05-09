@@ -297,11 +297,15 @@ export class PrismaContactRepository implements IContactRepository {
   ): Promise<Map<string, number>> {
     if (contactIds.length === 0) return new Map();
 
+    // BUG-001 (REV 4): the deployed schema stores `id` as Postgres `text`
+    // (Prisma `String` without `@db.Uuid`), so casting the bound array to
+    // `::uuid[]` raises an `invalid input syntax for type uuid` error against
+    // staging Supabase. Cast to `::text[]` to match the column type.
     const rows = await this.prisma.$queryRaw<Array<{ contact_id: string; property_count: number }>>`
       SELECT ac.contact_id, count(DISTINCT a.property_id)::int AS property_count
       FROM appointment_contacts ac
       JOIN appointments a ON a.id = ac.appointment_id
-      WHERE ac.contact_id = ANY(${contactIds}::uuid[])
+      WHERE ac.contact_id = ANY(${contactIds}::text[])
       GROUP BY ac.contact_id
     `;
 
@@ -340,7 +344,7 @@ export class PrismaContactRepository implements IContactRepository {
       FROM appointment_contacts ac
       JOIN appointments a ON a.id = ac.appointment_id
       JOIN properties p ON p.id = a.property_id
-      WHERE ac.contact_id = ${contactId}::uuid
+      WHERE ac.contact_id = ${contactId}::text
       GROUP BY p.id, p.property_code, p.street, p.suburb, p.postcode, p.state
       ORDER BY MAX(a.scheduled_date) DESC NULLS LAST
       LIMIT ${limit} OFFSET ${offset}
@@ -363,7 +367,7 @@ export class PrismaContactRepository implements IContactRepository {
       SELECT count(DISTINCT a.property_id)::int AS property_count
       FROM appointment_contacts ac
       JOIN appointments a ON a.id = ac.appointment_id
-      WHERE ac.contact_id = ${contactId}::uuid
+      WHERE ac.contact_id = ${contactId}::text
     `;
     return rows[0]?.property_count ?? 0;
   }

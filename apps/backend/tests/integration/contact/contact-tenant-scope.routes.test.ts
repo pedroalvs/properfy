@@ -20,9 +20,10 @@ const TENANT_A = 'aaaaaaaa-0000-0000-0000-000000000001';
 const TENANT_B = 'bbbbbbbb-0000-0000-0000-000000000002';
 
 const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
-// Per Constitution v1.2.0 + correction.op_tenant_scope.contact_routes,
-// OP carries a non-null tenantId in the JWT and is tenant-scoped.
-const opContext = { userId: 'op-1', tenantId: TENANT_A, role: 'OP', branchId: null, inspectorId: null };
+// Per Constitution v1.3.0 (op_role_rollback), OP is a cross-tenant
+// operational role. OP tokens may carry `tenant_id = null` and resolve
+// the target tenant from `query.tenantId` / `body.tenantId`.
+const opContext = { userId: 'op-1', tenantId: null, role: 'OP', branchId: null, inspectorId: null };
 const clAdminContext = { userId: 'cl-admin-1', tenantId: TENANT_A, role: 'CL_ADMIN', branchId: null, inspectorId: null };
 const clUserContext = { userId: 'cl-user-1', tenantId: TENANT_A, role: 'CL_USER', branchId: null, inspectorId: null };
 
@@ -104,44 +105,35 @@ describe('GET /v1/contacts — tenant scope enforcement (QA-006-CRITICAL-001)', 
     });
   });
 
-  describe('OP role (Constitution v1.2.0 — correction.op_tenant_scope.contact_routes)', () => {
-    it('returns 200 scoped to JWT tenantId without any query param', async () => {
+  describe('OP cross-tenant access (Constitution v1.3.0 — op_role_rollback)', () => {
+    it('returns 400 TENANT_REQUIRED when OP provides no tenantId query param', async () => {
       mockJwtVerify.mockResolvedValue(opContext);
-      mockListContactsExecute.mockResolvedValue({
-        data: [{ contact: makeContact(TENANT_A), propertyCount: 0 }],
-        total: 1,
-        page: 1,
-        pageSize: 20,
-      });
 
       const res = await supertest(app.server)
         .get('/v1/contacts')
         .set('Authorization', 'Bearer test-token');
 
-      expect(res.status).toBe(200);
-      expect(mockListContactsExecute).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: TENANT_A }),
-      );
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('TENANT_REQUIRED');
+      expect(mockListContactsExecute).not.toHaveBeenCalled();
     });
 
-    it('FR-105a regression: OP cannot escape its tenant via tenantId query override', async () => {
+    it('returns 200 scoped to the tenant chosen by OP via tenantId query param (cross-tenant)', async () => {
       mockJwtVerify.mockResolvedValue(opContext);
       mockListContactsExecute.mockResolvedValue({
-        data: [{ contact: makeContact(TENANT_A), propertyCount: 0 }],
+        data: [{ contact: makeContact(TENANT_B), propertyCount: 0 }],
         total: 1,
         page: 1,
         pageSize: 20,
       });
 
-      // Even when the OP request explicitly asks for TENANT_B, the route
-      // MUST scope to the JWT tenantId (TENANT_A).
       const res = await supertest(app.server)
         .get(`/v1/contacts?tenantId=${TENANT_B}`)
         .set('Authorization', 'Bearer test-token');
 
       expect(res.status).toBe(200);
       expect(mockListContactsExecute).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: TENANT_A }),
+        expect.objectContaining({ tenantId: TENANT_B }),
       );
     });
   });

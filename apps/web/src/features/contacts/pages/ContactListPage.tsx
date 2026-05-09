@@ -20,12 +20,12 @@ export function ContactListPage() {
   const navigate = useNavigate();
   const { canPerform, hasRole } = usePermissions();
   const { showSuccess, showError } = useSnackbar();
-  // Per FR-105 + Constitution v1.2.0: only AM picks an agency. OP/CL_* use the
-  // JWT tenant directly (correction.op_tenant_scope.contact_routes).
-  const isAmRole = hasRole('AM');
+  // Constitution v1.3.0 (op_role_rollback): AM and OP are both cross-tenant
+  // operational roles. Both pick an agency; CL_* use the JWT tenant directly.
+  const isCrossTenantRole = hasRole('AM', 'OP');
   const [selectedTenantId, setSelectedTenantId] = useState('');
-  const effectiveTenantId = isAmRole ? selectedTenantId : undefined;
-  const requiresTenantSelection = isAmRole && !selectedTenantId;
+  const effectiveTenantId = isCrossTenantRole ? selectedTenantId : undefined;
+  const requiresTenantSelection = isCrossTenantRole && !selectedTenantId;
   const canCreate = canPerform('contact.create');
   const canEdit = canPerform('contact.update');
   const canDeactivate = canPerform('contact.deactivate');
@@ -35,7 +35,7 @@ export function ContactListPage() {
     ['tenants', 'contact-list'],
     '/v1/tenants',
     { page: 1, pageSize: 100, sortBy: 'name', sortOrder: 'asc' },
-    { enabled: isAmRole },
+    { enabled: isCrossTenantRole },
   );
 
   const {
@@ -109,7 +109,7 @@ export function ContactListPage() {
           disabled: requiresTenantSelection,
         } : undefined}
       >
-        {isAmRole && (
+        {isCrossTenantRole && (
           <div className="px-0 pb-2">
             <FormField label="Agency">
               <SelectInput

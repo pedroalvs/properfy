@@ -19,14 +19,14 @@ Tenant isolation is enforced at every layer and can never be bypassed:
 
 - Every business entity carries `tenant_id`.
 - JWT tokens include `tenant_id` and `role` claims; auth middleware populates request-scoped context.
-- **`AM` is the only role with `tenant_id = null` in the JWT.** `OP`, `CL_ADMIN`, `CL_USER`, and `INSP` (when acting as a user) all carry a `tenant_id`. OP operates within its tenant, not globally.
+- **`AM` and `OP` are the cross-tenant roles** — both MAY carry `tenant_id = null` in the JWT and may act on any tenant's data when an explicit `tenantId` is supplied in the request (body or query). `CL_ADMIN`, `CL_USER`, and `INSP` (when acting as a user) all carry a non-null `tenant_id` and are pinned to that tenant.
 - Repositories accept and apply tenant scope automatically — never query without it.
 - Authorization lives in the application layer (RBAC/ABAC), not in routes or repositories.
 - Critical operations (status transitions, financial entries, permission changes) produce audit records.
 - Critical commands (acceptance, execution, notifications, financial entries) are idempotent via `Idempotency-Key`.
-- Audit events for tenant-scoped actors (OP, CL_ADMIN, CL_USER) must always carry the actor's `tenant_id`.
+- Audit events for tenant-scoped actors (CL_ADMIN, CL_USER) must always carry the actor's `tenant_id`. Cross-tenant actions by AM and OP must record the resolved `tenantId` of the affected entity in the audit row.
 
-Any code that queries business data without tenant scope is a bug, regardless of context. **Any code that grants OP cross-tenant access is a bug** — see the correction track at `.specify/memory/correction-op-tenant-scope.md`.
+Any code that queries business data without tenant scope is a bug, regardless of context. The `tenantId` that scopes a query is resolved from `auth.tenantId` for tenant-pinned roles (CL_ADMIN, CL_USER) and from request input (validated `tenantId` body/query field) for cross-tenant roles (AM, OP). Cross-tenant access is the documented behavior — not a bug. The previously open correction track at `.specify/memory/correction-op-tenant-scope.md` is **CLOSED-REJECTED** as of v1.3.0; do not cite it.
 
 **Service Region tenant scope rule**: `ServiceRegion` is a **per-tenant** entity. Every region belongs to exactly one tenant. Region names may repeat across different tenants; uniqueness applies only within the same tenant. Region-based eligibility (marketplace matching, inspector assignment) must always be resolved inside tenant scope. Inspectors are global/multi-tenant, but region ownership remains tenant-scoped. **Any code that treats ServiceRegion as global is a bug** — see the correction track at `.specify/memory/correction-service-region-scope.md`.
 
@@ -126,24 +126,38 @@ An action without an audit record is a bug, regardless of business outcome.
 
 **Tenant scope rule** (NON-NEGOTIABLE):
 
-- `AM` (Admin Master) — the **only** role with `tenant_id = null`. May act globally across all tenants.
-- `OP` (Operator) — **MUST have `tenant_id` set**. Operates as a strong operational admin **within a single tenant**. Cannot list, create, edit, or transition data from other tenants. Think "admin operacional local".
-- `CL_ADMIN` (Client Admin) — tenant-scoped. Manages the agency's own team and settings.
-- `CL_USER` (Client User) — tenant-scoped. Permissions configurable per feature via tenant settings (APPROVED RULE — not yet fully implemented, see `001#GAP-003`).
-- `INSP` (Inspector) — cross-tenant contractor. Auth via User with INSP role; scoped to their own assignments, not to a single tenant. Inspector entity carries `client_eligibility_json` listing which tenants they serve.
+Sources of truth: `escopo-v2.md` §1 ("Equipe operacional (admin/master admin)") and `regras-negocio-respostas-cliente.md` §"Acoes criticas com permissao elevada" ("Executadas diretamente apenas por AM ou OP"). Both treat AM and OP as the cross-tenant **operational team**, distinct from the per-tenant client roles.
 
-> **CORRECTION (2026-04-06)**: The codebase currently treats OP as tenant-free (`tenant_id = null`, cross-tenant access). This is a **divergence from the approved dossier**. A cross-feature correction is tracked in `.specify/memory/correction-op-tenant-scope.md`. All specs and code that grant OP cross-tenant access must be corrected.
+| Role | `tenant_id` in JWT | Cross-tenant access | Catalog management capability |
+|------|--------------------|---------------------|--------------------------------|
+| `AM` (Admin Master) | nullable (null = global) | YES — passes `tenantId` in body/query to target a tenant | **YES** — full catalog: service types, pricing tables, inspector profiles, tenant/client registration, user registration, inspector earnings |
+| `OP` (Operator) | nullable (null = operational team, not pinned to a single tenant) | YES — same Agency-selector affordance as AM | **NO** — catalog management is AM-only. OP works in the operational flow only |
+| `CL_ADMIN` (Client Admin) | required (non-null) | NO — pinned to JWT tenant | NO |
+| `CL_USER` (Client User) | required (non-null) | NO — pinned to JWT tenant | NO. Per-feature configurable via tenant settings (APPROVED RULE; partially implemented — see `001#GAP-003`) |
+| `INSP` (Inspector) | required (inspector profile) | NO at tenant level — scoped to assignments. Inspector entity carries `client_eligibility_json` listing which tenants they serve | NO |
+| `TNT` (Tenant/Inquilino — runtime only) | n/a (token auth) | NO | NO |
+
+**Operational flow vs. catalog management** — the AM/OP distinction:
+
+- **OP scope** (the "operational flow" — both cross-tenant): create appointments, group services into service groups, offer jobs to inspectors, communicate with tenants/inquilinos, request keys, reject/reschedule/accept appointments, manage contacts. These actions are cross-tenant: AM and OP both pass an explicit `tenantId` to operate on the target agency's data.
+- **AM-only scope** (the "catalog"): register service types, manage pricing tables per client, register inspectors, register tenants/clients, register internal users, configure inspector earnings. The catalog is platform-wide configuration that only AM may touch.
+
+**Sensitive elevated actions** (AM or OP — both cross-tenant; see also CLAUDE.md §6 and `regras-negocio-respostas-cliente.md`):
+
+- Reopen `DONE` appointment (AM only — see §Appointment State Machine)
+- Manual financial status changes and refunds
+- Force manual confirmation without tenant response
+- Mark `SCHEDULED → REJECTED`
+- Cancel `SCHEDULED` near the date
+- Disable client/branch/inspector with open appointments
+- Change pricing or split on operational client
+- Force manual group/inspector assignment
+
+> **AMENDMENT (2026-05-09)**: v1.3.0 reverts the v1.2.0 OP tenant-scope correction. The track at `.specify/memory/correction-op-tenant-scope.md` is **CLOSED-REJECTED**. OP is documented as cross-tenant, matching the shipped JWT model and the canonical sources (`escopo-v2.md`, `regras-negocio-respostas-cliente.md`, conversational decision 2026-05-09). The differentiation between AM and OP is no longer tenant scope — it is **catalog management capability**: AM owns the catalog, OP works in the operational flow. The security tradeoff (cross-tenant OP credentials carry data-isolation risk) is mitigated via audit logs (see §Audit) and use-case-level `actor.role` checks. Specs/code that previously cited the correction must drop the reference or mark it `[SUPERSEDED 2026-05-09]`.
 
 **CL user management**: CL_ADMIN can create/manage internal users **only if the agency explicitly enables this capability** in tenant settings. The matrix CL_ADMIN → CL_ADMIN creation is not approved by default — it depends on tenant-level enablement.
 
-**Elevated actions** (AM or OP — OP scoped to own tenant):
-
-- Reopen DONE appointment
-- Manual financial status changes and refunds
-- Force manual confirmation without tenant response
-- Mark SCHEDULED → REJECTED
-- Disable client/branch/inspector with open appointments
-- Change pricing or split on operational client
+> Elevated-actions list moved into the Tenant scope rule table above (v1.3.0); see "Sensitive elevated actions". Both AM and OP can perform them, both cross-tenant.
 
 **Password policy** (APPROVED RULE):
 
@@ -213,9 +227,10 @@ All specs, plans, and task breakdowns generated through the spec-kit workflow mu
 
 Runtime guidance for Claude Code lives in `CLAUDE.md` (root and per-workspace). Domain deep-dives live in `projeto-consolidado/`. This constitution is the authoritative summary.
 
-**Version**: 1.2.0 | **Ratified**: 2026-04-05 | **Last Amended**: 2026-04-06
+**Version**: 1.3.0 | **Ratified**: 2026-04-05 | **Last Amended**: 2026-05-09
 
 ### Amendment Log
 
-- **v1.2.0 (2026-04-06)**: RBAC section rewritten — OP is now explicitly documented as tenant-scoped per the approved dossier. Password policy expanded with "no forced expiration". CL_ADMIN user management conditioned to tenant enablement. Multi-tenant safety section updated. Cross-feature correction track created.
+- **v1.3.0 (2026-05-09)**: RBAC and Multi-Tenant Safety sections revised. v1.2.0's OP tenant-scope correction is **REVERTED**: OP is documented as cross-tenant (nullable `tenant_id`), matching the shipped JWT model and the canonical sources (`escopo-v2.md` §1; `regras-negocio-respostas-cliente.md` §"Acoes criticas com permissao elevada"). The differentiation between AM and OP is now stated explicitly as **catalog management capability** — AM owns the catalog (service types, pricing, inspectors, tenants, users, earnings); OP works in the operational flow (appointments, service groups, marketplace, contacts, communications). The correction track at `.specify/memory/correction-op-tenant-scope.md` is moved to **CLOSED-REJECTED**. Driver: feature 022 QA cycle 1/2 surfaced operational cost (BUG-002 — OP seed `tenant_id=null` collided with FR-105a hardening); user decision recorded in memory at `project_op_role_constitution_v13.md`.
+- **v1.2.0 (2026-04-06)**: RBAC section rewritten — OP was documented as tenant-scoped per the approved dossier. Password policy expanded with "no forced expiration". CL_ADMIN user management conditioned to tenant enablement. Multi-tenant safety section updated. Cross-feature correction track created. **[SUPERSEDED by v1.3.0]**
 - **v1.1.0 (2026-04-05)**: Added Knowledge Classification, state machine sovereignty, financial cross-check hard precondition, audit mandatory list, OpenAPI as source of truth.
