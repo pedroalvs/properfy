@@ -249,7 +249,11 @@ describe('POST /v1/tenant-portal/:token/unavailable', () => {
 describe('POST /v1/appointments/:appointmentId/portal-token', () => {
   it('should return 201 with generated token', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const mockResult = { token: 'raw-token', expiresAt: '2026-04-01T00:00:00Z' };
+    const mockResult = {
+      token: 'raw-token',
+      expiresAt: '2026-04-01T00:00:00Z',
+      dispatched: true,
+    };
     mockGeneratePortalTokenExecute.mockResolvedValueOnce(mockResult);
 
     const res = await supertest(app.server)
@@ -257,11 +261,39 @@ describe('POST /v1/appointments/:appointmentId/portal-token', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(201);
-    expect(res.body).toEqual({ data: mockResult });
+    expect(res.body.data.token).toBe('raw-token');
+    expect(res.body.data.expiresAt).toBe('2026-04-01T00:00:00Z');
+    expect(res.body.data.dispatched).toBe(true);
     expect(mockGeneratePortalTokenExecute).toHaveBeenCalledWith({
       appointmentId: APPOINTMENT_ID,
       actor: amContext,
     });
+  });
+
+  // BUG-023-001 (cycle 1 QA finding): without `dispatched`/`reason` declared
+  // in `portalTokenResponseSchema`, Fastify's whitelist serialiser stripped
+  // them from the response, leaving consumers unable to distinguish a
+  // dispatched portal-token from one that minted but skipped because the
+  // appointment had no primary contact. This test pins the wire shape so
+  // the gap cannot reappear.
+  it('preserves dispatched=false + reason=NO_PRIMARY_CONTACT in the response (BUG-023-001 regression)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGeneratePortalTokenExecute.mockResolvedValueOnce({
+      token: 'raw-token',
+      expiresAt: '2026-04-01T00:00:00Z',
+      dispatched: false,
+      reason: 'NO_PRIMARY_CONTACT',
+    });
+
+    const res = await supertest(app.server)
+      .post(`/v1/appointments/${APPOINTMENT_ID}/portal-token`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.token).toBe('raw-token');
+    expect(res.body.data.expiresAt).toBe('2026-04-01T00:00:00Z');
+    expect(res.body.data.dispatched).toBe(false);
+    expect(res.body.data.reason).toBe('NO_PRIMARY_CONTACT');
   });
 
   it('should return 401 without auth token', async () => {

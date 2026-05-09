@@ -6917,6 +6917,9 @@ export interface paths {
                             data: {
                                 token: string;
                                 expiresAt: string;
+                                dispatched?: boolean;
+                                /** @enum {string} */
+                                reason?: "NO_PRIMARY_CONTACT";
                             };
                         };
                     };
