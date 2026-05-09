@@ -125,7 +125,7 @@ A signed-in user updates their own password. The new password must satisfy the s
 - **Status**: IMPLEMENTED
 - **Source**: code
 
-AM creates internal (platform-wide) or tenant users; OP creates users within their own tenant only; CL_ADMIN creates users within their own tenant **only if the agency explicitly enables user management in tenant settings** (APPROVED RULE per dossiê — see `002#GAP-002` for the settings schema). The creator specifies name, email, role, optional branch, and an initial password meeting the policy.
+AM creates internal (platform-wide) or tenant users; OP may create tenant users in cross-tenant operational context but may never create internal users; CL_ADMIN creates users within their own tenant **only if the agency explicitly enables user management in tenant settings** (APPROVED RULE per dossiê — see `002#GAP-002` for the settings schema). The creator specifies name, email, role, optional branch, and an initial password meeting the policy.
 
 **Independent Test**: As AM, create one user of each supported role; as CL_ADMIN, create a CL_USER and confirm an attempt to create an AM is rejected.
 
@@ -165,7 +165,7 @@ Admins and tenant admins browse a paginated, filterable list of users; update na
 - **Status**: IMPLEMENTED
 - **Source**: code
 
-An AM or OP (within their own tenant) resets another user's password when the user is locked out, has forgotten credentials, or needs a forced rotation. The new password follows the standard policy.
+An AM or OP resets another user's password when the user is locked out, has forgotten credentials, or needs a forced rotation. The new password follows the standard policy.
 
 **Independent Test**: As AM, call `POST /v1/tenants/:tenantId/users/:userId/reset-password` with a valid new password, confirm the target user can now sign in with the new credentials and that sessions are revoked.
 
@@ -199,7 +199,7 @@ Every protected endpoint receives an `AuthContext` carrying `userId`, `tenantId`
 ### Edge Cases
 
 - Clock skew between client and server beyond ±30 s breaks TOTP — users see `TotpInvalid`.
-- A deactivated tenant retains user rows but client-role and OP tokens for that tenant stop working; AM can still access for cleanup.
+- A deactivated tenant retains user rows but client-role tokens for that tenant stop working; AM and OP remain platform actors, though OP still cannot bypass AM-only governance restrictions.
 - A user deactivated while holding an active session cannot refresh, but the access token remains valid until its 15-minute TTL expires (accepted risk).
 - Key rotation: tokens signed with the previous `kid` are honored during the 30-day grace window; afterward they are rejected even if not expired by `exp`.
 - Email is stored lowercase and uniquely; collisions across tenants are not allowed (global unique).
@@ -223,8 +223,8 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-009**: System MUST enforce password policy of at least 8 characters with uppercase, lowercase, digit, and special character, and reject entries on the common-password blacklist.
 - **FR-010**: System MUST support server-side session revocation (self, admin, or cascade on deactivate) and list-own-sessions with IP, user agent, timestamps, and `current` flag.
 - **FR-011**: System MUST extract `AuthContext` in a Fastify preHandler middleware for every protected route and reject tokens issued to users whose tenant is inactive or deleted (client roles only).
-- **FR-012**: System MUST apply RBAC rules in use cases — AM may create any role for any tenant; OP may create users within their own tenant only; CL_ADMIN may create/manage users of their own tenant (client roles only: CL_ADMIN, CL_USER) **only if the agency explicitly enables user management** in tenant settings (see `002#GAP-002` for the settings schema); INSP is managed through the Inspector module, not through the user CRUD endpoints.
-- **FR-013**: System MUST scope every user query by `tenant_id` except for AM listings. OP queries are scoped to their own tenant.
+- **FR-012**: System MUST apply RBAC rules in use cases — AM may create any role for any tenant; OP may create tenant users in cross-tenant operational context but may never create internal users; CL_ADMIN may create/manage users of their own tenant (client roles only: CL_ADMIN, CL_USER) **only if the agency explicitly enables user management** in tenant settings (see `002#GAP-002` for the settings schema); INSP is managed through the Inspector module, not through the user CRUD endpoints.
+- **FR-013**: System MUST scope user queries according to the canonical RBAC model: AM is platform-wide; OP is platform-wide for allowed operational flows; CL_ADMIN and CL_USER are tenant-scoped; INSP user accounts are limited to their own identity context.
 - **FR-014**: System MUST audit login successes, failures, lockouts, logouts, session revocations, password changes, admin resets, and user CRUD operations.
 - **FR-015**: System MUST support JWT signing key rotation with `kid` header lookup and a 30-day grace window for the previous key.
 - **FR-016**: System MUST revoke all sessions belonging to a user when they are deactivated or when their password is reset.
@@ -241,7 +241,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 ### Key Entities
 
-- **User** — Represents a human actor. Attributes: `id`, `tenant_id` (nullable for AM only; mandatory for OP), `branch_id` (nullable), `role` (enum), `name`, `email` (unique, lowercase), `phone`, `status` (`ACTIVE|INACTIVE|LOCKED`), `password_hash`, `totp_secret` (encrypted, nullable), `totp_enabled`, `failed_login_count`, `locked_until`, `last_login_at`, `created_at`, `updated_at`, `deleted_at`.
+- **User** — Represents a human actor. Attributes: `id`, `tenant_id` (nullable for platform roles `AM` and `OP`; non-null for `CL_ADMIN`, `CL_USER`, and `INSP`-as-user), `branch_id` (nullable), `role` (enum), `name`, `email` (unique, lowercase), `phone`, `status` (`ACTIVE|INACTIVE|LOCKED`), `password_hash`, `totp_secret` (encrypted, nullable), `totp_enabled`, `failed_login_count`, `locked_until`, `last_login_at`, `created_at`, `updated_at`, `deleted_at`.
 - **Session** — Represents an active refresh-token grant. Attributes: `id`, `user_id`, `refresh_token_hash` (SHA-256), `ip_address`, `user_agent`, `expires_at`, `revoked_at`, `created_at`.
 - **AuthContext** (request-scoped, not persisted) — `userId`, `tenantId`, `role`, `branchId`, `inspectorId`, derived from JWT on every request.
 - **JwtPayload** (shared contract) — `sub`, `tenant_id`, `role`, `branch_id`, `inspector_id`, `kid`, `iat`, `exp`.
@@ -278,7 +278,7 @@ Full field list, types, indexes, and invariants are in [`data-model.md`](./data-
 | ID | Title | Impact | Context |
 |---|---|---|---|
 | GAP-001 | Self-service forgot password | ~~Users depend on admins to reset passwords.~~ **IMPLEMENTED** (Wave 2, backend). Web UI deferred to T107. | `RequestPasswordResetUseCase` + `ConsumePasswordResetUseCase`. Routes: `POST /v1/auth/forgot-password`, `POST /v1/auth/reset-password`. Email via 009-notifications (`PASSWORD_RESET` template). |
-| GAP-002 | Admin manual unlock | ~~Locked users wait 15 min even when an admin is available.~~ **IMPLEMENTED** (Wave 1). | `UnlockUserUseCase` + `POST /v1/tenants/:tenantId/users/:userId/unlock`. AM/OP (own tenant). |
+| GAP-002 | Admin manual unlock | ~~Locked users wait 15 min even when an admin is available.~~ **IMPLEMENTED** (Wave 1). | `UnlockUserUseCase` + `POST /v1/tenants/:tenantId/users/:userId/unlock`. AM/OP in allowed scope. |
 | GAP-003 | CL_USER fine-grained permissions | ~~Client admins cannot restrict what their team members see/do.~~ **IMPLEMENTED** (Wave 3). | `AuthorizationService` centralized. 7 flags: `create_appointments`, `cancel_appointments`, `reject_appointments`, `reschedule_appointments`, `force_confirmation`, `create_properties`, `export_reports`. Tenant-level via `settingsJson.clUserPermissions`. Loaded into `AuthContext` at middleware time. |
 | GAP-004 | TOTP opt-in for non-AM roles | ~~OP, CL_ADMIN, CL_USER cannot enable 2FA.~~ **IMPLEMENTED** (Wave 4). | `UserEntity.requiresTotpCode()` now checks `totpEnabled` for any role. AM still forced on first login. 11 new tests. |
 | GAP-005 | Device/session trust signals | ~~IP and user agent not used for anomaly detection.~~ **IMPLEMENTED** (Wave 6). | `SessionTrustService` evaluates country + device fingerprint against 30-day history. Step-up TOTP on new country + new device. `StubGeoIpService` (swappable). `auth.login_anomaly` audit. Session stores `country_code` + `device_fingerprint`. |

@@ -29,15 +29,29 @@ function buildAdditionalChannels(channels: ContactFormData['additionalChannels']
     }));
 }
 
-function toCreatePayload(data: ContactFormData, tenantId?: string | null) {
+/**
+ * Exported for the cross-form contract test (T-2-907) — asserts the inline
+ * appointment-create payload has a structurally equivalent registry sub-shape.
+ *
+ * Shape pinning:
+ *   - `primaryEmail` / `primaryPhone` are always emitted as `string | null`
+ *     (mirrors the inline appointment-form payload, both accepted by the
+ *     registry Zod schema).
+ *   - `company` / `additionalChannels` / `notes` are omitted entirely when
+ *     empty so dedicated and inline payloads agree on key presence.
+ */
+export function toCreatePayload(data: ContactFormData, tenantId?: string | null) {
+  const channels = buildAdditionalChannels(data.additionalChannels);
+  const company = trimToOptionalString(data.company);
+  const notes = trimToOptionalString(data.notes);
   return {
     type: data.type || undefined,
     displayName: trimToOptionalString(data.displayName),
-    company: trimToOptionalString(data.company),
-    primaryEmail: trimToOptionalString(data.primaryEmail),
-    primaryPhone: trimToOptionalString(data.primaryPhone),
-    additionalChannels: buildAdditionalChannels(data.additionalChannels),
-    notes: trimToOptionalString(data.notes),
+    ...(company !== undefined ? { company } : {}),
+    primaryEmail: trimToNullableString(data.primaryEmail),
+    primaryPhone: trimToNullableString(data.primaryPhone),
+    ...(channels.length > 0 ? { additionalChannels: channels } : {}),
+    ...(notes !== undefined ? { notes } : {}),
     ...(tenantId ? { tenantId } : {}),
   };
 }

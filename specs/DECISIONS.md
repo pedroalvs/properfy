@@ -682,3 +682,36 @@ WhatsApp (Zenvia provider) is **out of scope for v1** and all future work until 
 
 **Rationale**: customer-provided operational flow diagram confirmed the role boundaries and clarified that the group only collapses when no valid appointments remain, not whenever any appointment is rejected for non-response.
 
+---
+
+## DEC-042 — Canonical RBAC boundary for AM, OP, client roles, inspector, portal, and system actors
+
+**Date**: 2026-05-09
+
+**Decision**:
+1. `AM` is platform-wide and owns governance plus master configuration:
+   - tenant lifecycle
+   - client records
+   - master service-type catalog
+   - client pricing tables
+   - inspector earnings rules
+   - internal user management
+2. `OP` is platform-wide for operational flows only:
+   - create services/appointments
+   - group appointments on the map
+   - offer jobs/groups to inspectors
+   - communicate tenants
+   - operate marketplace/execution follow-up
+3. `OP` does not inherit `AM` governance powers:
+   - no tenant lifecycle management
+   - no master pricing governance
+   - no master service-type governance unless a future explicit decision says otherwise
+4. `CL_ADMIN` and `CL_USER` are tenant-scoped.
+5. `CL_ADMIN` may manage tenant users only when tenant settings explicitly enable that capability.
+6. `CL_USER` write/transition actions are controlled only by canonical permission flags; absence of a flag means deny.
+7. `INSP` is limited to own offers, own schedule, execution, rejection-with-reason, own profile, and invoice-related surfaces promised by product.
+8. `TNT` is limited to a single tokenized appointment flow: accept, reject/decline, reschedule, request keys/access, and submit tenant note.
+9. `SYS` is limited to jobs and automated transitions; it does not gain manual back-office powers.
+10. User-facing appointment identity and routine search use `appointmentCode`, not raw UUID.
+
+**Rationale**: the product clarification closed the recurring ambiguity where OP's cross-tenant scope was being misread as broad admin governance. This decision separates operational breadth from governance ownership and gives implementation teams a single RBAC boundary to follow.

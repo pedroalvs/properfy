@@ -12,25 +12,54 @@
 >
 > `Status` values: `IMPLEMENTED` (enforced in code), `APPROVED` (binding rule, may not be fully enforced), `DIVERGENCE` (code contradicts an approved rule), `GAP` (not yet approved or implemented).
 
-> **Cross-feature integration.** When writing or reviewing any feature spec, **reference this spec** for authorization rules instead of redefining permissions locally. Use the format: "Authorization per `015#role-matrix` — AM, OP (own tenant)." If a feature needs a new permission not listed here, propose an amendment to this spec.
+> **Cross-feature integration.** When writing or reviewing any feature spec, **reference this spec** for authorization rules instead of redefining permissions locally. Use the format: "Authorization per `015#role-matrix` — AM, OP (cross-tenant operational scope)." If a feature needs a new permission not listed here, propose an amendment to this spec.
+
+## Approved Product Overrides - 2026-05-09
+
+1. `AM` owns governance and master configuration:
+   - tenant lifecycle
+   - client records
+   - service-type catalog
+   - client pricing tables
+   - inspector earnings rules
+   - internal user management
+2. `OP` is cross-tenant for operational flows only:
+   - create services/appointments
+   - group appointments on the map
+   - offer groups/jobs to inspectors
+   - communicate tenants
+   - operate inspector marketplace and execution follow-up
+3. `OP` does **not** inherit `AM` governance powers by convenience:
+   - no tenant lifecycle management
+   - no master pricing governance
+   - no master service-type governance unless an explicit future decision says otherwise
+4. `CL_ADMIN` and `CL_USER` remain tenant-scoped.
+5. `INSP` is limited to own offers, schedule, execution, rejection-with-reason, and invoice-related surfaces promised by product.
+6. Runtime actor `TNT` is limited to the appointment token flow:
+   - accept
+   - reject/decline
+   - reschedule
+   - request keys/access
+   - submit free-text tenant note
+7. User-facing appointment references and routine search MUST use `appointmentCode`, not raw UUIDs.
 
 ## User Scenarios & Testing
 
 ### User Story 1 — System enforces role-based scope on every protected action (Priority: P1)
 
-- **Status**: IMPLEMENTED (with DIVERGENCE — OP treated as global in code)
+- **Status**: IMPLEMENTED
 - **Source**: code + dossier
 
-Every action in the platform is scoped by the actor's role. AM operates globally across all tenants. OP operates within a single tenant (their own). CL_ADMIN and CL_USER operate within their own tenant. INSP operates within their own inspector identity and assignments. No role can see or modify data outside its scope.
+Every action in the platform is scoped by the actor's role. AM operates globally across all tenants. OP operates globally for operational flows only, but does not gain AM-only governance actions. CL_ADMIN and CL_USER operate within their own tenant. INSP operates within their own inspector identity and assignments. TNT is limited to a single tokenized appointment journey. No actor may see or modify data beyond the scope granted by this matrix.
 
 **Why this priority**: Scope enforcement is the foundation of multi-tenant safety. Without it, data leaks between tenants.
 
-**Independent Test**: As OP of tenant A, attempt to list appointments for tenant B — expect empty or forbidden. As CL_ADMIN of tenant A, attempt to create a user in tenant B — expect forbidden. As INSP, attempt to view an appointment they are not assigned to — expect not found.
+**Independent Test**: As OP, list appointments for two tenants and confirm operational visibility where intended, then attempt an AM-only governance action and confirm forbidden. As CL_ADMIN of tenant A, attempt to create a user in tenant B — expect forbidden. As INSP, attempt to view an appointment they are not assigned to — expect not found.
 
 **Acceptance Scenarios**:
 
 1. **Given** an AM actor, **When** they perform any action, **Then** they may target any tenant by specifying `tenantId`. No scope restriction applies.
-2. **Given** an OP actor, **When** they perform any action, **Then** they may target any tenant by specifying `?tenantId=` (OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003); when omitted, list endpoints return cross-tenant rows. Privilege-escalation guards (e.g., OP cannot create AM/OP users) still apply. Superseded phrasing: "the system scopes all queries and writes to the OP's own `tenantId` (from JWT). Cross-tenant access is forbidden. (`DIVERGENCE`: code currently treats OP with `tenant_id = null`, granting cross-tenant access.)".
+2. **Given** an OP actor, **When** they perform an operational action, **Then** they may target any tenant by specifying `?tenantId=` (OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003); when omitted, list endpoints return cross-tenant operational rows. Privilege-escalation and governance guards still apply: OP may not create internal users, mutate tenants, or execute AM-only configuration.
 3. **Given** a CL_ADMIN or CL_USER actor, **When** they perform any action, **Then** the system scopes all queries and writes to their `tenantId` (from JWT). Attempting to access another tenant's data returns not found or forbidden.
 4. **Given** an INSP actor, **When** they access appointments, **Then** only appointments where `inspectorId` matches the actor's `inspectorId` are visible. Unassigned appointments are not found.
 5. **Given** any actor with a `tenantId` set, **When** their tenant is inactive or deleted, **Then** all requests are rejected at the middleware level with `TenantInactive`.
@@ -66,12 +95,18 @@ Each action in the platform has a defined set of roles that may perform it. The 
 | Deactivate user | Yes | Yes | No | No | No | |
 | Reset user password | Yes | Yes | No | No | No | |
 | **Tenant Management** | | | | | | |
-| Create/update tenant | Yes | Yes | No | No | No | |
-| Deactivate tenant | Yes | Yes | No | No | No | |
+| Create/update tenant | Yes | No | No | No | No | AM-only governance |
+| Deactivate tenant | Yes | No | No | No | No | AM-only governance |
 | **Property Management** | | | | | | |
 | Create/update property | Yes | Yes | Yes | Flag | No | CL_USER: via permission flag |
 | List/read properties | Yes | Yes | Yes | Yes | No | Scoped |
 | Import properties | Yes | Yes | No | No | No | |
+| **Master Configuration** | | | | | | |
+| Manage client records | Yes | No | No | No | No | AM-only governance |
+| Manage service-type catalog | Yes | No | No | No | No | AM-only governance |
+| Manage client pricing tables | Yes | No | No | No | No | AM-only governance |
+| Manage inspector earnings rules | Yes | No | No | No | No | AM-only governance |
+| Manage inspector eligibility matrix | Yes | Yes | No | No | No | OP may operate the matrix needed to offer work correctly |
 | **Appointment Lifecycle** | | | | | | |
 | Create appointment | Yes | Yes | Yes | Flag | No | CL_USER: via `create_appointments` permission |
 | Cancel appointment | Yes | Yes | Yes | Flag | No | CL_USER: via `cancel_appointments` permission; reason required |
@@ -81,6 +116,7 @@ Each action in the platform has a defined set of roles that may perform it. The 
 | Reopen DONE (DONE -> DRAFT) | Yes | No | No | No | No | AM-only; reason required |
 | Force manual confirmation | Yes | Yes | No | Flag | No | CL_USER: via `force_confirmation` permission |
 | Perform cross-check | Yes | Yes | No | No | No | Cannot self-approve (actor != inspector) |
+| Communicate tenant / dispatch portal flow | Yes | Yes | No | No | No | Operational owner is OP |
 | **Inspector Management** | | | | | | |
 | Create/update inspector | Yes | Yes | No | No | No | Inspectors are cross-tenant entities |
 | Deactivate inspector | Yes | Yes | No | No | No | Requires no open appointments |
@@ -91,8 +127,10 @@ Each action in the platform has a defined set of roles that may perform it. The 
 | Publish service group | Yes | Yes | No | No | No | |
 | View marketplace offers | No | No | No | No | Yes | INSP-only |
 | Accept marketplace offer | No | No | No | No | Yes | INSP-only; eligibility checks apply |
+| Reject assigned work with reason | No | Yes | No | No | Yes | INSP action; OP may perform operational override where documented |
+| Generate/view invoice flow | No | No | No | No | Yes | Inspector-facing invoice surface only |
 | **Service Regions** | | | | | | |
-| Create/update/delete region | Yes | Yes | No | No | No | Scoped to own tenant for OP |
+| Create/update/delete region | Yes | Yes | No | No | No | OP may operate cross-tenant region flows where the product exposes them |
 | List regions | Yes | Yes | Yes | Yes | Asgn | INSP: assigned regions only |
 | Resolve regions | Yes | Yes | No | No | No | |
 | **Financial Operations** | | | | | | |
@@ -102,9 +140,9 @@ Each action in the platform has a defined set of roles that may perform it. The 
 | Create refund | Yes | Yes | No | No | No | Idempotent |
 | **Configuration** | | | | | | |
 | Manage time slots | Yes | Yes | Yes | No | No | CL_ADMIN: own tenant |
-| Manage service types | Yes | Yes | No | No | No | |
-| Manage pricing rules | Yes | Yes | No | No | No | |
-| Manage notification templates | Yes | Yes | No | No | No | |
+| Manage service types | Yes | No | No | No | No | Master catalog, not day-to-day operations |
+| Manage pricing rules | Yes | No | No | No | No | Master pricing governance |
+| Manage notification templates | Yes | No | No | No | No | Master template governance |
 | **Reports & Audit** | | | | | | |
 | View reports | Yes | Yes | No | No | No | |
 | Export reports | Yes | Yes | No | No | No | |
@@ -226,7 +264,7 @@ Two runtime-only actors exist that are not persisted as user roles: TNT (tenant 
 
 #### Role Scope Model
 
-- **FR-001** (`SUPERSEDED by specs/DECISIONS.md DEC-003, 2026-04-19`): AM and OP both have `tenant_id = null` (platform-wide roles per CLAUDE.md §6). CL_ADMIN, CL_USER, and INSP-as-user MUST have a non-null `tenant_id`. OP list endpoints honour an optional `?tenantId=` query param to narrow the view; OP get/mutation endpoints are cross-tenant by default. Superseded phrasing: "AM MUST be the only role with `tenant_id = null`. … OP queries MUST be scoped to their own tenant".
+- **FR-001** (`SUPERSEDED by specs/DECISIONS.md DEC-003, 2026-04-19`): AM and OP both have `tenant_id = null` (platform-wide roles per CLAUDE.md §6). CL_ADMIN, CL_USER, and INSP-as-user MUST have a non-null `tenant_id`. OP list endpoints honour an optional `?tenantId=` query param to narrow the operational view; OP get/mutation endpoints are cross-tenant only where the action is operationally allowed by the canonical role matrix.
 - **FR-002**: CL_ADMIN and CL_USER MUST only see and modify data belonging to their own tenant. Cross-tenant access MUST return not-found or forbidden.
 - **FR-003**: INSP MUST only access resources they are personally assigned to (appointments via `inspectorId`, regions via `InspectorRegion`, own profile). Unassigned resources MUST not be visible.
 - **FR-004**: TNT actors MUST only access the specific appointment linked to their authentication token. No other platform data is accessible.
@@ -250,12 +288,14 @@ Two runtime-only actors exist that are not persisted as user roles: TNT (tenant 
 
 - **FR-014** (`APPROVED, NOT YET IMPLEMENTED`): CL_ADMIN user management (create, update, deactivate users) MUST be gated by a tenant setting (`enable_user_management`). If the setting is absent or false, CL_ADMIN MUST be rejected from user management actions.
 - **FR-015**: CL_ADMIN MUST never create non-client roles (AM, OP, INSP) regardless of tenant settings.
+- **FR-015b** (`APPROVED`): CL_ADMIN MUST not gain AM-only governance surfaces such as tenant lifecycle, master pricing governance, or master service-type catalog management.
 
 #### Anti-Escalation & Self-Approval
 
 - **FR-016**: The system MUST prevent vertical privilege escalation: CL_ADMIN cannot create AM/OP/INSP; OP cannot create AM; CL_USER cannot create any user.
 - **FR-017**: The system MUST prevent self-approval: the inspector who marks DONE cannot perform the cross-check; the operator who initiates a financial entry cannot approve it.
 - **FR-018**: The system MUST prevent horizontal scope escalation: no role (except AM) can access or modify data in a tenant other than their own.
+- **FR-018b** (`APPROVED`): OP cross-tenant reach does not override the role matrix. If an action is governance-owned by AM, OP must still be rejected even though OP is platform-wide.
 
 #### Audit
 
