@@ -6,6 +6,7 @@ import type {
   ContactFilters,
   ContactPagination,
   ContactAppointmentSummary,
+  ContactPropertyAggregate,
 } from '../domain/contact.repository';
 
 function toSnakeCase(str: string): string {
@@ -264,6 +265,10 @@ export class PrismaContactRepository implements IContactRepository {
             appointment_number: true,
             status: true,
             scheduled_date: true,
+            property_id: true,
+            property: {
+              select: { property_code: true },
+            },
           },
         },
       },
@@ -275,6 +280,9 @@ export class PrismaContactRepository implements IContactRepository {
       status: row.appointment.status,
       scheduledDate: row.appointment.scheduled_date,
       role: row.role,
+      isPrimary: row.is_primary,
+      propertyId: row.appointment.property_id,
+      propertyCode: row.appointment.property.property_code,
     }));
   }
 
@@ -282,6 +290,82 @@ export class PrismaContactRepository implements IContactRepository {
     return this.prisma.appointmentContact.count({
       where: { contact_id: contactId },
     });
+  }
+
+  async countDistinctPropertiesByContactIds(
+    contactIds: string[],
+  ): Promise<Map<string, number>> {
+    if (contactIds.length === 0) return new Map();
+
+    const rows = await this.prisma.$queryRaw<Array<{ contact_id: string; property_count: number }>>`
+      SELECT ac.contact_id, count(DISTINCT a.property_id)::int AS property_count
+      FROM appointment_contacts ac
+      JOIN appointments a ON a.id = ac.appointment_id
+      WHERE ac.contact_id = ANY(${contactIds}::uuid[])
+      GROUP BY ac.contact_id
+    `;
+
+    const map = new Map<string, number>();
+    for (const id of contactIds) map.set(id, 0);
+    for (const row of rows) map.set(row.contact_id, row.property_count);
+    return map;
+  }
+
+  async findPropertiesByContactId(
+    contactId: string,
+    pagination: ContactPagination,
+  ): Promise<ContactPropertyAggregate[]> {
+    const limit = pagination.pageSize;
+    const offset = (pagination.page - 1) * pagination.pageSize;
+
+    const rows = await this.prisma.$queryRaw<Array<{
+      property_id: string;
+      property_code: string;
+      street: string;
+      suburb: string;
+      postcode: string;
+      state: string;
+      appointment_count: number;
+      is_primary_in_active_appointment: boolean;
+    }>>`
+      SELECT
+        p.id AS property_id,
+        p.property_code,
+        p.street,
+        p.suburb,
+        p.postcode,
+        p.state,
+        count(*)::int AS appointment_count,
+        bool_or(ac.is_primary AND a.status NOT IN ('CANCELLED', 'REJECTED')) AS is_primary_in_active_appointment
+      FROM appointment_contacts ac
+      JOIN appointments a ON a.id = ac.appointment_id
+      JOIN properties p ON p.id = a.property_id
+      WHERE ac.contact_id = ${contactId}::uuid
+      GROUP BY p.id, p.property_code, p.street, p.suburb, p.postcode, p.state
+      ORDER BY MAX(a.scheduled_date) DESC NULLS LAST
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    return rows.map((r) => ({
+      propertyId: r.property_id,
+      propertyCode: r.property_code,
+      street: r.street,
+      suburb: r.suburb,
+      postcode: r.postcode,
+      state: r.state,
+      appointmentCount: r.appointment_count,
+      isPrimaryInActiveAppointment: r.is_primary_in_active_appointment,
+    }));
+  }
+
+  async countPropertiesByContactId(contactId: string): Promise<number> {
+    const rows = await this.prisma.$queryRaw<Array<{ property_count: number }>>`
+      SELECT count(DISTINCT a.property_id)::int AS property_count
+      FROM appointment_contacts ac
+      JOIN appointments a ON a.id = ac.appointment_id
+      WHERE ac.contact_id = ${contactId}::uuid
+    `;
+    return rows[0]?.property_count ?? 0;
   }
 
   private buildWhere(filters: ContactFilters): Record<string, unknown> {

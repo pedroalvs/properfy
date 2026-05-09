@@ -35,9 +35,16 @@ const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: nul
 const clAdminA = { userId: 'cl-admin-a', tenantId: TENANT_A, role: 'CL_ADMIN', branchId: null, inspectorId: null };
 const clAdminB = { userId: 'cl-admin-b', tenantId: TENANT_B, role: 'CL_ADMIN', branchId: null, inspectorId: null };
 
-function makeContact(id: string, name: string, email: string | null = null, phone: string | null = null) {
+let _idSeq = 0;
+function uuid(): string {
+  _idSeq += 1;
+  const hex = _idSeq.toString(16).padStart(4, '0');
+  return `cccccccc-0000-4000-8000-00000000${hex}`;
+}
+
+function makeContact(_label: string, name: string, email: string | null = null, phone: string | null = null) {
   return {
-    id,
+    id: uuid(),
     tenantId: TENANT_A,
     type: 'TENANT',
     displayName: name,
@@ -52,6 +59,10 @@ function makeContact(id: string, name: string, email: string | null = null, phon
   };
 }
 
+function makeListItem(label: string, name: string, email: string | null = null, phone: string | null = null) {
+  return { contact: makeContact(label, name, email, phone), propertyCount: 0 };
+}
+
 let app: FastifyInstance;
 
 beforeAll(async () => {
@@ -62,12 +73,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => { await app.close(); });
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockJwtVerify.mockReset();
+  mockListContactsExecute.mockReset();
+});
 
 describe('GET /v1/contacts?search= — search-contacts (T030)', () => {
   it('search by partial name returns matching contacts', async () => {
     mockJwtVerify.mockResolvedValue(clAdminA);
-    const smith = makeContact('s1', 'John Smith', 'john@smith.com');
+    const smith = makeListItem('s1', 'John Smith', 'john@smith.com');
     mockListContactsExecute.mockResolvedValue({ data: [smith], total: 1, page: 1, pageSize: 20 });
 
     const res = await supertest(app.server)
@@ -83,7 +98,7 @@ describe('GET /v1/contacts?search= — search-contacts (T030)', () => {
 
   it('search by email fragment returns matching contacts', async () => {
     mockJwtVerify.mockResolvedValue(clAdminA);
-    const contact = makeContact('e1', 'Jane Email', 'jane@domain.com');
+    const contact = makeListItem('e1', 'Jane Email', 'jane@domain.com');
     mockListContactsExecute.mockResolvedValue({ data: [contact], total: 1, page: 1, pageSize: 20 });
 
     const res = await supertest(app.server)
@@ -98,7 +113,7 @@ describe('GET /v1/contacts?search= — search-contacts (T030)', () => {
 
   it('search by phone fragment returns matching contacts', async () => {
     mockJwtVerify.mockResolvedValue(clAdminA);
-    const contact = makeContact('p1', 'Phone Guy', null, '+61412345678');
+    const contact = makeListItem('p1', 'Phone Guy', null, '+61412345678');
     mockListContactsExecute.mockResolvedValue({ data: [contact], total: 1, page: 1, pageSize: 20 });
 
     const res = await supertest(app.server)
@@ -156,7 +171,7 @@ describe('GET /v1/contacts?search= — search-contacts (T030)', () => {
 
   it('AM cross-tenant: AM can search within a specified tenant via tenantId query param', async () => {
     mockJwtVerify.mockResolvedValue(amContext);
-    const contact = makeContact('xb1', 'Tenant B Contact', 'xb@b.com');
+    const contact = makeListItem('xb1', 'Tenant B Contact', 'xb@b.com');
     mockListContactsExecute.mockResolvedValue({ data: [contact], total: 1, page: 1, pageSize: 20 });
 
     const res = await supertest(app.server)

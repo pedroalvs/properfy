@@ -4310,7 +4310,7 @@ export interface paths {
                     pageSize?: number;
                     sortBy?: string;
                     sortOrder?: "asc" | "desc";
-                    status?: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                    status?: ("DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED")[];
                     serviceTypeId?: string;
                     branchId?: string;
                     inspectorId?: string;
@@ -4323,6 +4323,10 @@ export interface paths {
                     showCancelled?: boolean;
                     overdueOnly?: boolean;
                     ungroupedOnly?: boolean;
+                    timeSlot?: string;
+                    contactSearch?: string;
+                    hasTenantNote?: boolean;
+                    confirmationStatus?: "PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE";
                 };
                 header?: never;
                 path?: never;
@@ -4363,6 +4367,8 @@ export interface paths {
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
+                                tenantNote?: string | null;
+                                hasTenantNote?: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4530,6 +4536,8 @@ export interface paths {
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
+                                tenantNote?: string | null;
+                                hasTenantNote?: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4623,6 +4631,8 @@ export interface paths {
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
+                                tenantNote?: string | null;
+                                hasTenantNote?: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4789,6 +4799,8 @@ export interface paths {
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
+                                tenantNote?: string | null;
+                                hasTenantNote?: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4854,7 +4866,7 @@ export interface paths {
                         /** @enum {string} */
                         cancellationReasonCode?: "CLIENT_REQUEST" | "TENANT_UNAVAILABLE" | "SCHEDULING_CONFLICT" | "INSPECTOR_UNAVAILABLE" | "DUPLICATE" | "OTHER";
                         /** @enum {string} */
-                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "OTHER";
+                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "OTHER";
                         /** Format: uuid */
                         doneCheckedByUserId?: string;
                         /** Format: uuid */
@@ -5238,12 +5250,15 @@ export interface paths {
                     sortBy?: string;
                     sortOrder?: "asc" | "desc";
                     tenantId?: string;
-                    status?: "DRAFT" | "PUBLISHED" | "ACCEPTED" | "CANCELLED" | "REJECTED";
+                    status?: ("DRAFT" | "PUBLISHED" | "ACCEPTED" | "CANCELLED" | "REJECTED")[];
                     serviceTypeId?: string;
                     scheduledDateFrom?: string;
                     scheduledDateTo?: string;
                     priorityMode?: "STANDARD" | "PRIORITY_24H";
                     includeAppointments?: boolean | "true" | "false";
+                    search?: string;
+                    branchId?: string;
+                    contactSearch?: string;
                 };
                 header?: never;
                 path?: never;
@@ -6030,6 +6045,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string | null;
+                                tenantName?: string | null;
                                 actorType: string;
                                 actorId: string | null;
                                 actorName: string | null;
@@ -6627,6 +6643,7 @@ export interface paths {
                             }[] | null;
                             notes?: string | null;
                         };
+                        tenantNote?: string;
                     };
                 };
             };
@@ -6685,6 +6702,7 @@ export interface paths {
                             }[] | null;
                             notes?: string | null;
                         };
+                        tenantNote?: string;
                     };
                 };
             };
@@ -6791,6 +6809,7 @@ export interface paths {
                             }[] | null;
                             notes?: string | null;
                         };
+                        tenantNote?: string;
                     };
                 };
             };
@@ -6843,8 +6862,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            token: string;
-                            expiresAt: string;
+                            data: {
+                                token: string;
+                                expiresAt: string;
+                            };
                         };
                     };
                 };
@@ -10947,7 +10968,16 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    search?: string;
+                    type?: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                    isActive?: "true" | "false";
+                    tenantId?: string;
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: "displayName" | "createdAt" | "type";
+                    sortOrder?: "asc" | "desc";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -10959,7 +10989,34 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                /** @enum {string} */
+                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                displayName: string;
+                                company: string | null;
+                                primaryEmail: string | null;
+                                primaryPhone: string | null;
+                                isActive: boolean;
+                                propertyCount: number;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -10971,14 +11028,63 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        tenantId?: string;
+                        /** @enum {string} */
+                        type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                        displayName: string;
+                        company?: string | null;
+                        /** Format: email */
+                        primaryEmail?: string | null;
+                        primaryPhone?: string | null;
+                        /** @default [] */
+                        additionalChannels?: {
+                            /** @enum {string} */
+                            channel: "EMAIL" | "PHONE";
+                            value: string;
+                            label?: string;
+                        }[];
+                        notes?: string | null;
+                    };
+                };
+            };
             responses: {
                 /** @description Default Response */
-                200: {
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                /** @enum {string} */
+                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                displayName: string;
+                                company: string | null;
+                                primaryEmail: string | null;
+                                primaryPhone: string | null;
+                                additionalChannels: {
+                                    /** @enum {string} */
+                                    channel: "EMAIL" | "PHONE";
+                                    value: string;
+                                    label?: string;
+                                }[];
+                                notes: string | null;
+                                isActive: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -10997,7 +11103,14 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    includeAppointments?: "true" | "false";
+                    includeProperties?: "true" | "false";
+                    appointmentsPage?: number;
+                    appointmentsPageSize?: number;
+                    propertiesPage?: number;
+                    propertiesPageSize?: number;
+                };
                 header?: never;
                 path: {
                     contactId: string;
@@ -11011,7 +11124,75 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                /** @enum {string} */
+                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                displayName: string;
+                                company: string | null;
+                                primaryEmail: string | null;
+                                primaryPhone: string | null;
+                                additionalChannels: {
+                                    /** @enum {string} */
+                                    channel: "EMAIL" | "PHONE";
+                                    value: string;
+                                    label?: string;
+                                }[];
+                                notes: string | null;
+                                isActive: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                                appointments?: {
+                                    data: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        appointmentNumber: number;
+                                        status: string;
+                                        /** Format: date-time */
+                                        scheduledDate: string;
+                                        /** @enum {string} */
+                                        role: "TENANT" | "TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                        isPrimary: boolean;
+                                        /** Format: uuid */
+                                        propertyId: string;
+                                        propertyCode: string;
+                                    }[];
+                                    pagination: {
+                                        page: number;
+                                        pageSize: number;
+                                        total: number;
+                                        totalPages: number;
+                                    };
+                                };
+                                properties?: {
+                                    data: {
+                                        /** Format: uuid */
+                                        propertyId: string;
+                                        propertyCode: string;
+                                        street: string;
+                                        suburb: string;
+                                        postcode: string;
+                                        state: string;
+                                        appointmentCount: number;
+                                        isPrimaryInActiveAppointment: boolean;
+                                    }[];
+                                    pagination: {
+                                        page: number;
+                                        pageSize: number;
+                                        total: number;
+                                        totalPages: number;
+                                    };
+                                };
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -11029,14 +11210,61 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        type?: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                        displayName?: string;
+                        company?: string | null;
+                        /** Format: email */
+                        primaryEmail?: string | null;
+                        primaryPhone?: string | null;
+                        additionalChannels?: {
+                            /** @enum {string} */
+                            channel: "EMAIL" | "PHONE";
+                            value: string;
+                            label?: string;
+                        }[];
+                        notes?: string | null;
+                        isActive?: boolean;
+                    };
+                };
+            };
             responses: {
                 /** @description Default Response */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                /** @enum {string} */
+                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                displayName: string;
+                                company: string | null;
+                                primaryEmail: string | null;
+                                primaryPhone: string | null;
+                                additionalChannels: {
+                                    /** @enum {string} */
+                                    channel: "EMAIL" | "PHONE";
+                                    value: string;
+                                    label?: string;
+                                }[];
+                                notes: string | null;
+                                isActive: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -11067,7 +11295,34 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                /** @enum {string} */
+                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                displayName: string;
+                                company: string | null;
+                                primaryEmail: string | null;
+                                primaryPhone: string | null;
+                                additionalChannels: {
+                                    /** @enum {string} */
+                                    channel: "EMAIL" | "PHONE";
+                                    value: string;
+                                    label?: string;
+                                }[];
+                                notes: string | null;
+                                isActive: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                        };
+                    };
                 };
             };
         };

@@ -13,13 +13,22 @@ export interface ListContactsInput {
   sortOrder: 'asc' | 'desc';
 }
 
+export interface ListContactsItem {
+  contact: ContactEntity;
+  propertyCount: number;
+}
+
 export interface ListContactsResult {
-  data: ContactEntity[];
+  data: ListContactsItem[];
   total: number;
   page: number;
   pageSize: number;
 }
 
+/**
+ * Lists contacts in a tenant and hydrates the `propertyCount` aggregate per
+ * row in a single batched query (avoids N+1).
+ */
 export class ListContactsUseCase {
   constructor(private readonly contactRepo: IContactRepository) {}
 
@@ -37,10 +46,20 @@ export class ListContactsUseCase {
       sortOrder: input.sortOrder,
     };
 
-    const [data, total] = await Promise.all([
+    const [contacts, total] = await Promise.all([
       this.contactRepo.findAll(filters, pagination),
       this.contactRepo.count(filters),
     ]);
+
+    const ids = contacts.map((c) => c.id);
+    const counts = ids.length > 0
+      ? await this.contactRepo.countDistinctPropertiesByContactIds(ids)
+      : new Map<string, number>();
+
+    const data: ListContactsItem[] = contacts.map((contact) => ({
+      contact,
+      propertyCount: counts.get(contact.id) ?? 0,
+    }));
 
     return { data, total, page: input.page, pageSize: input.pageSize };
   }

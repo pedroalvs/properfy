@@ -34,7 +34,7 @@ function makeContact(overrides: Record<string, unknown> = {}) {
   return {
     id: CONTACT_ID,
     tenantId: TENANT_A,
-    type: 'OWNER',
+    type: 'PROPERTY_MANAGER',
     displayName: 'Jane Smith',
     company: null,
     primaryEmail: 'jane@example.com',
@@ -58,7 +58,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => { await app.close(); });
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Fastify-zod schema validation runs before the auth preHandler, so a request
+  // that fails body/params validation never consumes its queued JWT mock value.
+  // mockClear keeps that queue alive and pollutes subsequent tests — reset it.
+  mockJwtVerify.mockReset();
+  mockUpdateContactExecute.mockReset();
+});
 
 // ---------------------------------------------------------------------------
 // QA-021-HIGH-001 — PATCH invalid body returns 400 not 500

@@ -63,7 +63,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => { await app.close(); });
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockJwtVerify.mockReset();
+  mockUpdateContactExecute.mockReset();
+  mockListContactsExecute.mockReset();
+});
 
 describe('Deactivate contact — T029', () => {
   it('success: PATCH isActive=false deactivates an active contact', async () => {
@@ -121,7 +126,7 @@ describe('Deactivate contact — T029', () => {
   it('list: deactivated contact visible with isActive=false filter', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockListContactsExecute.mockResolvedValue({
-      data: [makeContact()],
+      data: [{ contact: makeContact({ isActive: false }), propertyCount: 0 }],
       total: 1,
       page: 1,
       pageSize: 20,

@@ -108,6 +108,70 @@ export const appointmentContactsArraySchema = z
 export type AppointmentContactLinkInput = z.infer<typeof contactIdLink> | z.infer<typeof inlineLink>;
 export type AppointmentContactsArrayInput = z.infer<typeof appointmentContactsArraySchema>;
 
+// --- Contact response schemas (canonical detail/payload + list row + sub-resource items) ---
+
+/**
+ * Canonical contact detail/payload shape used by every single-contact route
+ * (GET :id, POST, PATCH, POST :id/deactivate). Mirrors `propertyResponseSchema`.
+ */
+export const contactResponseSchema = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid(),
+  type: z.nativeEnum(ContactType),
+  displayName: z.string(),
+  company: z.string().nullable(),
+  primaryEmail: z.string().nullable(),
+  primaryPhone: z.string().nullable(),
+  additionalChannels: z.array(additionalChannelSchema),
+  notes: z.string().nullable(),
+  isActive: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type ContactResponse = z.infer<typeof contactResponseSchema>;
+
+/** List-row variant: lighter fields + `propertyCount` aggregation. */
+export const contactListItemSchema = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid(),
+  type: z.nativeEnum(ContactType),
+  displayName: z.string(),
+  company: z.string().nullable(),
+  primaryEmail: z.string().nullable(),
+  primaryPhone: z.string().nullable(),
+  isActive: z.boolean(),
+  propertyCount: z.number().int().nonnegative(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type ContactListItem = z.infer<typeof contactListItemSchema>;
+
+/** Appointment item under GET /v1/contacts/:id?includeAppointments=true. */
+export const contactAppointmentItemSchema = z.object({
+  appointmentId: z.string().uuid(),
+  appointmentNumber: z.number().int(),
+  status: z.string(),
+  scheduledDate: z.string().datetime(),
+  role: z.nativeEnum(AppointmentContactRole),
+  isPrimary: z.boolean(),
+  propertyId: z.string().uuid(),
+  propertyCode: z.string(),
+});
+export type ContactAppointmentItem = z.infer<typeof contactAppointmentItemSchema>;
+
+/** Property aggregate row under GET /v1/contacts/:id?includeProperties=true. */
+export const contactPropertyAggregateSchema = z.object({
+  propertyId: z.string().uuid(),
+  propertyCode: z.string(),
+  street: z.string(),
+  suburb: z.string(),
+  postcode: z.string(),
+  state: z.string(),
+  appointmentCount: z.number().int(),
+  isPrimaryInActiveAppointment: z.boolean(),
+});
+export type ContactPropertyAggregateResponse = z.infer<typeof contactPropertyAggregateSchema>;
+
 // --- Legacy schema (kept for backward compat during expand phase) ---
 
 /** @deprecated Use contactRegistrySchema instead. Kept for existing consumers during the expand phase. */

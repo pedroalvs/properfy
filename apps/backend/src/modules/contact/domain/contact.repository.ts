@@ -21,6 +21,20 @@ export interface ContactAppointmentSummary {
   status: string;
   scheduledDate: Date;
   role: string;
+  isPrimary: boolean;
+  propertyId: string;
+  propertyCode: string;
+}
+
+export interface ContactPropertyAggregate {
+  propertyId: string;
+  propertyCode: string;
+  street: string;
+  suburb: string;
+  postcode: string;
+  state: string;
+  appointmentCount: number;
+  isPrimaryInActiveAppointment: boolean;
 }
 
 export interface IContactRepository {
@@ -54,4 +68,16 @@ export interface IContactRepository {
   ): Promise<ContactEntity | null>;
   findAppointmentsByContactId(contactId: string, pagination: ContactPagination): Promise<ContactAppointmentSummary[]>;
   countAppointmentsByContactId(contactId: string): Promise<number>;
+  /**
+   * Returns a Map<contactId, propertyCount> for the given contact ids — counts
+   * distinct property_ids across appointment_contacts → appointments. Used by
+   * the list endpoint to avoid an N+1.
+   */
+  countDistinctPropertiesByContactIds(contactIds: string[]): Promise<Map<string, number>>;
+  /**
+   * Returns the distinct properties this contact has appeared in, with
+   * appointment counts and the "is primary in any active appointment" flag.
+   */
+  findPropertiesByContactId(contactId: string, pagination: ContactPagination): Promise<ContactPropertyAggregate[]>;
+  countPropertiesByContactId(contactId: string): Promise<number>;
 }

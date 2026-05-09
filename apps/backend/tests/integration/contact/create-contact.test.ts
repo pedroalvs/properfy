@@ -62,7 +62,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => { await app.close(); });
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockJwtVerify.mockReset();
+  mockCreateContactExecute.mockReset();
+});
 
 describe('POST /v1/contacts — create-contact', () => {
   it('happy path: CL_ADMIN creates a contact with email', async () => {
@@ -182,32 +186,23 @@ describe('POST /v1/contacts — create-contact', () => {
     expect(res.status).toBe(201);
   });
 
-  // DEC-003: cross-tenant OP can target a tenant via body.tenantId.
-  it('cross-tenant OP creates a contact for a selected tenant via body.tenantId', async () => {
-    mockJwtVerify.mockResolvedValue(opCrossTenantContext);
-    mockCreateContactExecute.mockResolvedValue(makeContact({ tenantId: TENANT_B }));
+  // Constitution v1.2.0 + correction.op_tenant_scope.contact_routes:
+  // OP is tenant-scoped. The route MUST ignore `body.tenantId` for OP and
+  // resolve from `auth.tenantId`. The DEC-003 cross-tenant OP behavior is
+  // explicitly reclassified as a bug.
+  it('FR-105a regression: OP cannot escape its tenant via body.tenantId override', async () => {
+    mockJwtVerify.mockResolvedValue(opContext); // tenantId = TENANT_A
+    mockCreateContactExecute.mockResolvedValue(makeContact({ tenantId: TENANT_A }));
 
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ tenantId: TENANT_B, type: 'TENANT', displayName: 'Op Cross Create', primaryEmail: 'op-cross@example.com' });
+      .send({ tenantId: TENANT_B, type: 'TENANT', displayName: 'Op Smuggler', primaryEmail: 'op-smuggle@example.com' });
 
     expect(res.status).toBe(201);
     expect(mockCreateContactExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_B }),
+      expect.objectContaining({ tenantId: TENANT_A }),
     );
-  });
-
-  it('cross-tenant OP without body.tenantId returns 400', async () => {
-    mockJwtVerify.mockResolvedValue(opCrossTenantContext);
-
-    const res = await supertest(app.server)
-      .post('/v1/contacts')
-      .set('Authorization', 'Bearer token')
-      .send({ type: 'TENANT', displayName: 'No Tenant', primaryEmail: 'no-tenant@example.com' });
-
-    expect(res.status).toBe(400);
-    expect(mockCreateContactExecute).not.toHaveBeenCalled();
   });
 
   // Defense in depth: CL_ADMIN must not be able to cross tenant via body.tenantId.

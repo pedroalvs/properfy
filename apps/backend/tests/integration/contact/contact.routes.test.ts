@@ -57,7 +57,17 @@ beforeAll(async () => {
 
 afterAll(async () => { await app.close(); });
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Reset queues for per-file spies so a Fastify-zod-validation-failure path
+  // doesn't carry a queued JWT mock value into a later test (Fastify validates
+  // body/params/query before the auth preHandler runs).
+  mockJwtVerify.mockReset();
+  mockCreateContactExecute.mockReset();
+  mockUpdateContactExecute.mockReset();
+  mockGetContactExecute.mockReset();
+  mockListContactsExecute.mockReset();
+});
 
 describe('POST /v1/contacts', () => {
   it('should create a contact as CL_ADMIN', async () => {
@@ -167,6 +177,30 @@ describe('POST /v1/contacts', () => {
       expect.objectContaining({ tenantId: TENANT_ID }),
     );
   });
+
+  it('FR-105a regression: OP cannot escape its tenant via body.tenantId override', async () => {
+    mockJwtVerify.mockResolvedValue(opContext);
+    mockCreateContactExecute.mockResolvedValue(fullContact);
+
+    const FOREIGN_TENANT = 'ffffffff-0000-4000-8000-000000000abc';
+
+    const res = await supertest(app.server)
+      .post('/v1/contacts')
+      .set('Authorization', 'Bearer test-token')
+      .send({
+        // Even though OP explicitly tries to create against another tenant,
+        // the route MUST scope to the JWT tenantId (TENANT_ID).
+        tenantId: FOREIGN_TENANT,
+        type: 'BROKER',
+        displayName: 'Op Smuggler',
+        primaryEmail: 'smuggle@test.com',
+      });
+
+    expect(res.status).toBe(201);
+    expect(mockCreateContactExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT_ID }),
+    );
+  });
 });
 
 describe('PATCH /v1/contacts/:contactId', () => {
@@ -220,10 +254,10 @@ describe('PATCH /v1/contacts/:contactId', () => {
 });
 
 describe('GET /v1/contacts', () => {
-  it('should list contacts with pagination', async () => {
+  it('should list contacts with pagination and propertyCount per item', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockListContactsExecute.mockResolvedValue({
-      data: [fullContact],
+      data: [{ contact: fullContact, propertyCount: 3 }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -235,13 +269,14 @@ describe('GET /v1/contacts', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].propertyCount).toBe(3);
     expect(res.body.pagination.total).toBe(1);
   });
 
   it('should allow CL_USER read access', async () => {
     mockJwtVerify.mockResolvedValue(clUserContext);
     mockListContactsExecute.mockResolvedValue({
-      data: [fullContact],
+      data: [{ contact: fullContact, propertyCount: 0 }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -284,7 +319,12 @@ describe('GET /v1/contacts', () => {
 
   it('should search by query', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
-    mockListContactsExecute.mockResolvedValue({ data: [fullContact], total: 1, page: 1, pageSize: 20 });
+    mockListContactsExecute.mockResolvedValue({
+      data: [{ contact: fullContact, propertyCount: 1 }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
 
     const res = await supertest(app.server)
       .get('/v1/contacts?search=smith')
@@ -298,6 +338,9 @@ describe('GET /v1/contacts', () => {
 });
 
 describe('GET /v1/contacts/:contactId', () => {
+  const APPT_ID = 'aaaaaaaa-1111-4000-8000-000000000010';
+  const PROPERTY_ID = 'bbbbbbbb-1111-4000-8000-000000000020';
+
   it('should return contact detail', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockGetContactExecute.mockResolvedValue({ contact: fullContact });
@@ -310,19 +353,24 @@ describe('GET /v1/contacts/:contactId', () => {
     expect(res.body.data.displayName).toBe('John Smith');
   });
 
-  it('should include appointments when requested', async () => {
+  it('should include appointments with pagination + per-item isPrimary/propertyId/propertyCode when requested', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockGetContactExecute.mockResolvedValue({
       contact: fullContact,
       appointments: {
         data: [{
-          appointmentId: 'a1',
+          appointmentId: APPT_ID,
           appointmentNumber: 1001,
           status: 'SCHEDULED',
-          scheduledDate: new Date(),
+          scheduledDate: new Date('2026-06-01T10:00:00.000Z'),
           role: 'PROPERTY_MANAGER',
+          isPrimary: true,
+          propertyId: PROPERTY_ID,
+          propertyCode: 'P-001',
         }],
         total: 1,
+        page: 1,
+        pageSize: 20,
       },
     });
 
@@ -331,7 +379,58 @@ describe('GET /v1/contacts/:contactId', () => {
       .set('Authorization', 'Bearer test-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.data.appointments.total).toBe(1);
+    expect(res.body.data.appointments.pagination.total).toBe(1);
+    expect(res.body.data.appointments.pagination.page).toBe(1);
+    expect(res.body.data.appointments.data[0].isPrimary).toBe(true);
+    expect(res.body.data.appointments.data[0].propertyCode).toBe('P-001');
+  });
+
+  it('should include properties paginated when includeProperties=true', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+    mockGetContactExecute.mockResolvedValue({
+      contact: fullContact,
+      properties: {
+        data: [{
+          propertyId: PROPERTY_ID,
+          propertyCode: 'P-001',
+          street: '1 Example St',
+          suburb: 'Bondi',
+          postcode: '2026',
+          state: 'NSW',
+          appointmentCount: 4,
+          isPrimaryInActiveAppointment: true,
+        }],
+        total: 1,
+        page: 1,
+        pageSize: 5,
+      },
+    });
+
+    const res = await supertest(app.server)
+      .get(`/v1/contacts/${CONTACT_ID}?includeProperties=true&propertiesPageSize=5`)
+      .set('Authorization', 'Bearer test-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.properties.pagination.pageSize).toBe(5);
+    expect(res.body.data.properties.data[0].propertyCode).toBe('P-001');
+    expect(mockGetContactExecute).toHaveBeenCalledWith(
+      CONTACT_ID,
+      TENANT_ID,
+      expect.objectContaining({
+        includeProperties: true,
+        propertiesPagination: expect.objectContaining({ pageSize: 5 }),
+      }),
+    );
+  });
+
+  it('should return 400 when propertiesPageSize exceeds the max(100) cap', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+    const res = await supertest(app.server)
+      .get(`/v1/contacts/${CONTACT_ID}?includeProperties=true&propertiesPageSize=500`)
+      .set('Authorization', 'Bearer test-token');
+
+    expect(res.status).toBe(400);
+    expect(mockGetContactExecute).not.toHaveBeenCalled();
   });
 
   it('should return 404 for cross-tenant read as CL_ADMIN', async () => {
