@@ -5,7 +5,7 @@ import { FilterSelect, type FilterSelectOption } from '@/components/filters/Filt
 import { FilterMultiSelect, type FilterMultiSelectOption } from '@/components/filters/FilterMultiSelect';
 import { CONTACT_TYPE_MAP } from '@/lib/status-colors';
 import { useBranchList } from '@/features/tenants';
-import type { ContactFiltersState } from '../types';
+import { DEFAULT_FILTERS, type ContactFiltersState } from '../types';
 
 const TYPE_OPTIONS: FilterMultiSelectOption[] = Object.entries(CONTACT_TYPE_MAP).map(
   ([value, config]) => ({ label: config.label, value }),
@@ -50,8 +50,21 @@ export function ContactFilters({ filters, onFiltersChange, tenantId }: ContactFi
     [branches],
   );
 
+  // 024 polish — a filter is "active" iff it diverges from DEFAULT_FILTERS.
+  // The Agency selector is a SCOPE control, not a filter, so it lives on
+  // the page (ContactListPage) and is intentionally NOT cleared here.
+  const hasActiveFilters =
+    filters.search !== DEFAULT_FILTERS.search
+    || filters.type.length > 0
+    || filters.branchIds.length > 0
+    || filters.isActive !== DEFAULT_FILTERS.isActive
+    || filters.primary !== DEFAULT_FILTERS.primary;
+
   return (
-    <FilterBar>
+    <FilterBar
+      onClearAll={() => onFiltersChange(DEFAULT_FILTERS)}
+      hasActiveFilters={hasActiveFilters}
+    >
       <FilterInput
         label="Search"
         placeholder="Name, email, phone..."

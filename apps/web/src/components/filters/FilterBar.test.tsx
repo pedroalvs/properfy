@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { FilterBar } from './FilterBar';
 
 describe('FilterBar', () => {
@@ -31,5 +32,41 @@ describe('FilterBar', () => {
   it('applies custom className', () => {
     render(<FilterBar className="custom-class">content</FilterBar>);
     expect(screen.getByRole('search').className).toContain('custom-class');
+  });
+
+  describe('Clear filters affordance', () => {
+    it('does not render the clear-all button when onClearAll is omitted', () => {
+      render(<FilterBar hasActiveFilters>content</FilterBar>);
+      expect(screen.queryByLabelText('Clear filters')).not.toBeInTheDocument();
+    });
+
+    it('does not render the clear-all button when hasActiveFilters is false', () => {
+      render(<FilterBar onClearAll={() => {}} hasActiveFilters={false}>content</FilterBar>);
+      expect(screen.queryByLabelText('Clear filters')).not.toBeInTheDocument();
+    });
+
+    it('renders the clear-all button when both onClearAll and hasActiveFilters are set', () => {
+      render(<FilterBar onClearAll={() => {}} hasActiveFilters>content</FilterBar>);
+      expect(screen.getByLabelText('Clear filters')).toBeInTheDocument();
+    });
+
+    it('invokes onClearAll on click', async () => {
+      const user = userEvent.setup();
+      const onClearAll = vi.fn();
+      render(<FilterBar onClearAll={onClearAll} hasActiveFilters>content</FilterBar>);
+
+      await user.click(screen.getByLabelText('Clear filters'));
+      expect(onClearAll).toHaveBeenCalledOnce();
+    });
+
+    it('honours a custom clearAllLabel', () => {
+      render(
+        <FilterBar onClearAll={() => {}} hasActiveFilters clearAllLabel="Reset filters">
+          content
+        </FilterBar>,
+      );
+      expect(screen.getByLabelText('Reset filters')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Clear filters')).not.toBeInTheDocument();
+    });
   });
 });
