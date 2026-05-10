@@ -100,9 +100,13 @@ describe('POST /v1/contacts — create-contact', () => {
     );
   });
 
-  it('happy path: OP creates a contact scoped to own tenant', async () => {
+  it('happy path: OP creates a standalone contact when no tenantId is sent (024 §FR-301)', async () => {
+    // 024: AM/OP are cross-tenant operational roles. Omitting `body.tenantId`
+    // creates a standalone contact (`tenantId = null`) instead of falling back
+    // to the operator's home tenant. The operator's JWT tenant is preserved
+    // separately on the audit row via `actorTenantId`.
     mockJwtVerify.mockResolvedValue(opContext);
-    mockCreateContactExecute.mockResolvedValue(makeContact());
+    mockCreateContactExecute.mockResolvedValue(makeContact({ tenantId: null }));
 
     const res = await supertest(app.server)
       .post('/v1/contacts')
@@ -111,7 +115,7 @@ describe('POST /v1/contacts — create-contact', () => {
 
     expect(res.status).toBe(201);
     expect(mockCreateContactExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_A }),
+      expect.objectContaining({ tenantId: null, actorTenantId: TENANT_A }),
     );
   });
 

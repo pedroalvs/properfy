@@ -140,7 +140,11 @@ describe('GET /v1/contacts — list-contacts (T031)', () => {
     expect(res.body.data[0].isActive).toBe(false);
   });
 
-  it('tenant scoping: CL_ADMIN lists only own tenant contacts', async () => {
+  it('tenant scoping: CL_ADMIN actor.tenantId is forwarded to the use case (024 §FR-303)', async () => {
+    // 024: scope resolution moved into the use case (`resolveScope`). Route
+    // layer forwards the JWT-derived `actor` and the optional query
+    // `tenantId` (null here). The use case applies the operational-junction
+    // visibility predicate downstream.
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockListContactsExecute.mockResolvedValue({
       data: [makeListItem('c1')],
@@ -152,7 +156,10 @@ describe('GET /v1/contacts — list-contacts (T031)', () => {
     await supertest(app.server).get('/v1/contacts').set('Authorization', 'Bearer token');
 
     expect(mockListContactsExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_A }),
+      expect.objectContaining({
+        actor: { role: 'CL_ADMIN', tenantId: TENANT_A },
+        tenantId: null,
+      }),
     );
   });
 

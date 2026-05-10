@@ -152,7 +152,13 @@ describe('GET /v1/contacts?search= — search-contacts (T030)', () => {
     expect(res.body.data).toHaveLength(0);
   });
 
-  it('tenant isolation: CL_ADMIN sees only own tenant contacts (search scoped to tenantId)', async () => {
+  it('tenant isolation: CL_ADMIN actor.tenantId is forwarded for search scope (024 §FR-303)', async () => {
+    // 024: scope decision is in `resolveScope` inside the use case. The
+    // route forwards the JWT-derived `actor.tenantId`; the use case maps
+    // CL roles to a tenant_pinned scope which the repository translates
+    // into the operational-junction visibility predicate. The previous
+    // route-level `tenantId = JWT` overwrite is gone — security is
+    // preserved at the use-case layer.
     mockJwtVerify.mockResolvedValue(clAdminA);
     mockListContactsExecute.mockResolvedValue({ data: [], total: 0, page: 1, pageSize: 20 });
 
@@ -160,12 +166,10 @@ describe('GET /v1/contacts?search= — search-contacts (T030)', () => {
       .get('/v1/contacts?search=smith')
       .set('Authorization', 'Bearer token');
 
-    // Must be scoped to TENANT_A, not TENANT_B
     expect(mockListContactsExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_A }),
-    );
-    expect(mockListContactsExecute).not.toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_B }),
+      expect.objectContaining({
+        actor: { role: 'CL_ADMIN', tenantId: TENANT_A },
+      }),
     );
   });
 
