@@ -2,11 +2,12 @@ import { useMemo } from 'react';
 import { FilterBar } from '@/components/filters/FilterBar';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
+import { FilterMultiSelect, type FilterMultiSelectOption } from '@/components/filters/FilterMultiSelect';
 import { CONTACT_TYPE_MAP } from '@/lib/status-colors';
 import { useBranchList } from '@/features/tenants';
 import type { ContactFiltersState } from '../types';
 
-const TYPE_OPTIONS: FilterSelectOption[] = Object.entries(CONTACT_TYPE_MAP).map(
+const TYPE_OPTIONS: FilterMultiSelectOption[] = Object.entries(CONTACT_TYPE_MAP).map(
   ([value, config]) => ({ label: config.label, value }),
 );
 
@@ -37,13 +38,14 @@ interface ContactFiltersProps {
  * Filters for the Contacts list (023 §FR-204/205).
  *
  * Renders: search · type multiselect · branch multiselect · status select
- * · primary select. Multiselects use native `<select multiple>` to avoid
- * pulling a new dependency; selection is mirrored into `filters.type` and
- * `filters.branchIds` arrays.
+ * · primary select. Multiselects use the shared `FilterMultiSelect`
+ * dropdown so the bar visually aligns with /appointments and stays on
+ * the legacy outlined+dense single-line height (replaces the native
+ * `<select multiple>` h-24 boxes that broke the visual rhythm).
  */
 export function ContactFilters({ filters, onFiltersChange, tenantId }: ContactFiltersProps) {
   const { data: branches } = useBranchList(tenantId);
-  const branchOptions = useMemo(
+  const branchOptions = useMemo<FilterMultiSelectOption[]>(
     () => branches.map((b) => ({ value: b.id, label: b.name })),
     [branches],
   );
@@ -56,41 +58,19 @@ export function ContactFilters({ filters, onFiltersChange, tenantId }: ContactFi
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-text-secondary">Type (Ctrl+click for multi)</label>
-        <select
-          multiple
-          aria-label="Type"
-          className="h-24 rounded border border-default bg-surface px-2 py-1 text-sm"
-          value={filters.type}
-          onChange={(e) => {
-            const next = Array.from(e.target.selectedOptions, (o) => o.value);
-            onFiltersChange({ ...filters, type: next });
-          }}
-        >
-          {TYPE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-text-secondary">Branches (Ctrl+click for multi)</label>
-        <select
-          multiple
-          aria-label="Branches"
-          className="h-24 rounded border border-default bg-surface px-2 py-1 text-sm disabled:opacity-50"
-          disabled={!tenantId}
-          value={filters.branchIds}
-          onChange={(e) => {
-            const next = Array.from(e.target.selectedOptions, (o) => o.value);
-            onFiltersChange({ ...filters, branchIds: next });
-          }}
-        >
-          {branchOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
+      <FilterMultiSelect
+        label="Type"
+        value={filters.type}
+        onChange={(type) => onFiltersChange({ ...filters, type })}
+        options={TYPE_OPTIONS}
+      />
+      <FilterMultiSelect
+        label="Branches"
+        value={filters.branchIds}
+        onChange={(branchIds) => onFiltersChange({ ...filters, branchIds })}
+        options={branchOptions}
+        disabled={!tenantId}
+      />
       <FilterSelect
         label="Status"
         value={filters.isActive}
