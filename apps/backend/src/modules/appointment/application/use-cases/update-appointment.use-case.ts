@@ -205,8 +205,19 @@ export class UpdateAppointmentUseCase {
         let sPhone: string | null;
 
         if (entry.contactId) {
-          const reg = await this.contactRepo.findById(entry.contactId, appointment.tenantId);
+          // 024 §FR-301/303 (BUG-024-001 fix) — same cross-tenant pattern as
+          // create-appointment: AM/OP look up by id only (registry tenant
+          // may differ or be null), CL roles also pass the operational-
+          // junction visibility check via existsLinkedToTenant. The 404
+          // collapse preserves FR-022 leakage avoidance.
+          const isCrossTenantActor = actor.role === 'AM' || actor.role === 'OP';
+          const lookupTenantId = isCrossTenantActor ? null : appointment.tenantId;
+          const reg = await this.contactRepo.findById(entry.contactId, lookupTenantId);
           if (!reg) throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+          if (!isCrossTenantActor) {
+            const visible = await this.contactRepo.existsLinkedToTenant(entry.contactId, appointment.tenantId);
+            if (!visible) throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+          }
           if (!reg.isActive) throw new ValidationError('APPOINTMENT_CONTACT_INACTIVE', `Contact ${entry.contactId} is not active`);
           cId = reg.id;
           sName = reg.displayName;

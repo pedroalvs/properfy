@@ -325,10 +325,27 @@ export class CreateAppointmentUseCase {
         let snapshotPhone: string | null;
 
         if (entry.contactId) {
-          // Link to existing registry contact
-          const registryContact = await this.contactRepo.findById(entry.contactId, tenantId);
+          // Link to existing registry contact.
+          //
+          // 024 §FR-301/303 (BUG-024-001 fix) — Contact is now a cross-tenant
+          // entity. AM/OP must be able to link a standalone contact
+          // (`tenant_id = null`) or a contact registered under a different
+          // tenant. CL roles remain pinned: they may only link contacts they
+          // can already see (i.e., reachable via `appointment_contacts` in
+          // their own tenant — same operational-junction predicate used by
+          // GET /v1/contacts/:id). The 404 collapse preserves FR-022 so we
+          // never leak existence of out-of-tenant rows.
+          const isCrossTenantActor = actor.role === 'AM' || actor.role === 'OP';
+          const lookupTenantId = isCrossTenantActor ? null : tenantId;
+          const registryContact = await this.contactRepo.findById(entry.contactId, lookupTenantId);
           if (!registryContact) {
-            throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found in tenant`);
+            throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+          }
+          if (!isCrossTenantActor) {
+            const visible = await this.contactRepo.existsLinkedToTenant(entry.contactId, tenantId);
+            if (!visible) {
+              throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+            }
           }
           if (!registryContact.isActive) {
             throw new ValidationError('APPOINTMENT_CONTACT_INACTIVE', `Contact ${entry.contactId} is not active`);
