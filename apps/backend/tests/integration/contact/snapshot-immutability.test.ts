@@ -94,10 +94,13 @@ describe('Snapshot immutability — T045', () => {
       data: { primaryEmail: 'updated@example.com' },
     });
 
-    // Verify the update was persisted to the registry
+    // Verify the update was persisted to the registry. Review fix —
+    // Issue 1: the use case calls `repo.update` UNSCOPED (`tenantId =
+    // null`) so a CL_ADMIN editing a standalone or cross-tenant contact
+    // actually mutates the row. Visibility was already gated upstream.
     expect(contactRepo.update).toHaveBeenCalledWith(
       CONTACT_ID,
-      TENANT_ID,
+      null,
       expect.objectContaining({ primaryEmail: 'updated@example.com' }),
     );
 

@@ -53,14 +53,23 @@ export class UpdateContactUseCase {
   ) {}
 
   async execute(input: UpdateContactInput) {
-    const existing = await this.contactRepo.findById(input.contactId, input.tenantId);
+    // 024 §FR-303 (review fix — Issue 1, mirrors BUG-024-002) — registry
+    // lookup is always global; per-tenant visibility for CL roles is
+    // gated below via `existsLinkedToTenant`. Passing the actor tenant
+    // here would mask standalone contacts (`tenant_id = null`) and
+    // operationally-visible cross-tenant rows.
+    const existing = await this.contactRepo.findById(input.contactId, null);
     if (!existing) throw new ContactNotFoundError();
 
-    // 024 §FR-303 — CL roles only update contacts they can see (operational
-    // junction in their tenant). The route handler passes
-    // `visibilityTenantId` for CL_ADMIN/CL_USER; AM/OP omit it.
+    // CL roles only update contacts they can see. The route handler
+    // passes `visibilityTenantId` for CL_ADMIN/CL_USER; AM/OP omit it.
+    // Fast path: registry already pinned to actor's tenant
+    // (`existing.tenantId === visibilityTenantId`) skips the junction
+    // lookup. Otherwise the operational-junction predicate decides.
     if (input.visibilityTenantId) {
-      const visible = await this.contactRepo.existsLinkedToTenant(input.contactId, input.visibilityTenantId);
+      const ownsContact = existing.tenantId === input.visibilityTenantId;
+      const visible = ownsContact
+        || await this.contactRepo.existsLinkedToTenant(input.contactId, input.visibilityTenantId);
       if (!visible) throw new ContactNotFoundError();
     }
 
@@ -99,7 +108,12 @@ export class UpdateContactUseCase {
       isActive: existing.isActive,
     };
 
-    await this.contactRepo.update(input.contactId, input.tenantId, input.data);
+    // 024 §FR-303 (review fix — Issue 1) — visibility was already gated
+    // above for CL roles via ownsContact/existsLinkedToTenant. The mutation
+    // itself runs unscoped (tenantId=null) so a standalone or cross-tenant
+    // contact is actually written; passing the JWT tenant here would let
+    // a `WHERE tenant_id = $2` filter clip the row out of the UPDATE.
+    await this.contactRepo.update(input.contactId, null, input.data);
 
     // Determine audit action
     const wasActive = existing.isActive;
@@ -126,6 +140,7 @@ export class UpdateContactUseCase {
       },
     });
 
-    return this.contactRepo.findById(input.contactId, input.tenantId);
+    // Re-fetch unscoped — same reason as the update call above.
+    return this.contactRepo.findById(input.contactId, null);
   }
 }

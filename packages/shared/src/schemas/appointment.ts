@@ -194,6 +194,14 @@ export type BulkResendReminderResult = z.infer<typeof bulkResendReminderResultSc
 
 export const bulkResendReminderRequestSchema = z.object({
   appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  /**
+   * 023 §FR-243 — IANA timezone of the operator's browser, used to compute
+   * the per-day idempotency key (`dayInActorTz`). When omitted the server
+   * falls back to its own TZ — leaving operators across regions exposed
+   * to off-by-one bucket boundaries. Frontend sends the value of
+   * `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+   */
+  actorTimezone: z.string().optional(),
 });
 export type BulkResendReminderRequest = z.infer<typeof bulkResendReminderRequestSchema>;
 

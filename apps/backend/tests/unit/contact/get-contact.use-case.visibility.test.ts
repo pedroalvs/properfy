@@ -73,8 +73,24 @@ describe('GetContactUseCase — CL visibility check (024 §FR-303)', () => {
     expect(repo.existsLinkedToTenant).toHaveBeenCalledWith(CONTACT_ID, TENANT_Z);
   });
 
-  it('returns the contact for CL_ADMIN(Y) on a contact reachable through tenant Y junction', async () => {
+  it('returns the contact for CL_ADMIN(Y) on a Y-OWNED contact via the ownsContact fast path (no junction call)', async () => {
+    // Review fix — Issue 1: `ownsContact` (registry tenantId === actor
+    // tenantId) short-circuits the junction lookup. Use case must NOT
+    // call `existsLinkedToTenant` in this case.
     (repo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(makeContact(TENANT_Y));
+
+    const result = await useCase.execute(CONTACT_ID, TENANT_Y, {
+      actor: { role: 'CL_ADMIN', tenantId: TENANT_Y },
+    });
+
+    expect(result.contact.id).toBe(CONTACT_ID);
+    expect(repo.existsLinkedToTenant).not.toHaveBeenCalled();
+  });
+
+  it('returns the contact for CL_ADMIN(Y) on a CROSS-tenant contact reachable via the operational junction', async () => {
+    // Registry row lives in TENANT_Z (not Y); ownsContact false → falls
+    // through to existsLinkedToTenant which the seed says is true.
+    (repo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(makeContact(TENANT_Z));
     (repo.existsLinkedToTenant as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     const result = await useCase.execute(CONTACT_ID, TENANT_Y, {
@@ -83,6 +99,8 @@ describe('GetContactUseCase — CL visibility check (024 §FR-303)', () => {
 
     expect(result.contact.id).toBe(CONTACT_ID);
     expect(repo.existsLinkedToTenant).toHaveBeenCalledWith(CONTACT_ID, TENANT_Y);
+    // Findlookup is always global now (Issue 1 fix).
+    expect(repo.findById).toHaveBeenCalledWith(CONTACT_ID, null);
   });
 
   it('skips the visibility check for AM (global scope)', async () => {

@@ -11664,6 +11664,9 @@
                     },
                     "minItems": 1,
                     "maxItems": 100
+                  },
+                  "actorTimezone": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -11683,51 +11686,60 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "results": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "appointmentId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": [
-                              "SENT",
-                              "NO_PRIMARY_CONTACT",
-                              "IDEMPOTENT_REPLAY",
-                              "ERROR"
-                            ]
-                          },
-                          "error": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
                             "type": "object",
                             "properties": {
-                              "code": {
-                                "type": "string"
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
                               },
-                              "message": {
-                                "type": "string"
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "SENT",
+                                  "NO_PRIMARY_CONTACT",
+                                  "IDEMPOTENT_REPLAY",
+                                  "ERROR"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
-                              "code",
-                              "message"
+                              "appointmentId",
+                              "status"
                             ],
                             "additionalProperties": false
                           }
-                        },
-                        "required": [
-                          "appointmentId",
-                          "status"
-                        ],
-                        "additionalProperties": false
-                      }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "results"
+                    "data"
                   ],
                   "additionalProperties": false
                 }

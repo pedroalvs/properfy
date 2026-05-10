@@ -308,7 +308,12 @@ export async function registerAppointmentRoutes(
       preHandler: authenticate,
       schema: {
         body: bulkResendReminderRequestSchema,
-        response: { 200: bulkResendReminderResponseSchema },
+        // Review fix — Issue 2: wrap in `successResponseSchema` so the
+        // response carries the canonical `{ data: { results: [...] } }`
+        // envelope matching every other route. The frontend
+        // `useCreateMutation` reads `response.data.results`; pre-fix the
+        // bare `{ results }` made it `undefined` and threw downstream.
+        response: { 200: successResponseSchema(bulkResendReminderResponseSchema) },
       },
     },
     async (request, reply) => {
@@ -323,8 +328,9 @@ export async function registerAppointmentRoutes(
       const result = await container.bulkResendReminderUseCase.execute({
         appointmentIds: parsed.data.appointmentIds,
         actor: auth,
+        actorTimezone: parsed.data.actorTimezone,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(success(result));
     },
   );
 

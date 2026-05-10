@@ -36,12 +36,23 @@ interface ContactFormDrawerProps {
  * Maps a backend error code to a field-level form error so the drawer can
  * surface the conflict inline (mirrors the property/user form pattern).
  */
-function mapErrorCodeToField(code: string | undefined): { field: keyof ContactFormErrors; message: string } | null {
+/**
+ * Exported for direct testing — maps backend error codes to inline form
+ * field errors. Kept in this module (not a `lib/` helper) so the wording
+ * lives next to the form that surfaces it; covered by
+ * `ContactFormDrawer.error-mapping.test.tsx`.
+ */
+export function mapErrorCodeToField(code: string | undefined): { field: keyof ContactFormErrors; message: string } | null {
   switch (code) {
-    case 'CONTACT_EMAIL_EXISTS':
-      return { field: 'primaryEmail', message: 'A contact with this email already exists' };
-    case 'CONTACT_PHONE_EXISTS':
-      return { field: 'primaryPhone', message: 'A contact with this phone already exists' };
+    // Review fix — Issue 4: backend emits `*_ALREADY_EXISTS` after 024
+    // §FR-310 (renamed when the constraint became global). The previous
+    // codes (`CONTACT_EMAIL_EXISTS` / `CONTACT_PHONE_EXISTS`) never
+    // matched, so the inline form error fell through to the generic
+    // snackbar. Wording also updated to reflect global uniqueness.
+    case 'CONTACT_EMAIL_ALREADY_EXISTS':
+      return { field: 'primaryEmail', message: 'Email already exists globally' };
+    case 'CONTACT_PHONE_ALREADY_EXISTS':
+      return { field: 'primaryPhone', message: 'Phone already exists globally' };
     default:
       return null;
   }

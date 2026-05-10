@@ -151,6 +151,7 @@ export function createMockContainer(
       listAppointmentContactsUseCase: { execute: vi.fn() },
       deleteAppointmentUseCase: { execute: vi.fn() },
       bulkEditAppointmentsUseCase: { execute: vi.fn() },
+      bulkResendReminderUseCase: { execute: vi.fn() },
       reopenForRescheduleUseCase: { execute: vi.fn() },
       appointmentRepo: { findContactById: vi.fn() },
       jwtService: { ...defaultJwt },

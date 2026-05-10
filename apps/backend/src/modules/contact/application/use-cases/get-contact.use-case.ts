@@ -71,17 +71,26 @@ export class GetContactUseCase {
     tenantId: string | null,
     options: GetContactOptions = {},
   ): Promise<GetContactResult> {
-    const contact = await this.contactRepo.findById(contactId, tenantId);
+    // 024 §FR-303 (review fix — Issue 1, mirrors BUG-024-002) — Contact is
+    // a cross-tenant entity; the registry lookup MUST always be global
+    // (no `tenant_id` WHERE filter). Otherwise a CL_ADMIN(B) requesting a
+    // contact whose registry row is standalone (`tenant_id = null`) or
+    // lives in another tenant — even when operationally visible to B via
+    // `appointment_contacts` — gets a null findById and the visibility
+    // gate is unreachable. Same shape as the appointment use cases.
+    const contact = await this.contactRepo.findById(contactId, null);
     if (!contact) throw new ContactNotFoundError();
 
-    // 024 §FR-303 — CL roles only see contacts reachable through their
-    // tenant's operational junction. The check is post-fetch so the same
-    // 404 error covers both "no row" and "row exists but not visible to
+    // CL roles only see contacts reachable through their tenant's
+    // operational junction. The check is post-fetch so the same 404
+    // error covers both "no row" and "row exists but not visible to
     // you" — preserves 021 FR-022 leakage avoidance.
     if (options.actor) {
       const scope = resolveScope(options.actor, tenantId);
       if (scope.kind === 'tenant_pinned') {
-        const visible = await this.contactRepo.existsLinkedToTenant(contactId, scope.tenantId);
+        const ownsContact = contact.tenantId === scope.tenantId;
+        const visible = ownsContact
+          || await this.contactRepo.existsLinkedToTenant(contactId, scope.tenantId);
         if (!visible) throw new ContactNotFoundError();
       }
     }

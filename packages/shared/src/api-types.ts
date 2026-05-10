@@ -5034,6 +5034,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         appointmentIds: string[];
+                        actorTimezone?: string;
                     };
                 };
             };
@@ -5045,16 +5046,18 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            results: {
-                                /** Format: uuid */
-                                appointmentId: string;
-                                /** @enum {string} */
-                                status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "ERROR";
-                                error?: {
-                                    code: string;
-                                    message: string;
-                                };
-                            }[];
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "ERROR";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                            };
                         };
                     };
                 };
