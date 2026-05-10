@@ -1,5 +1,5 @@
 import { type AuthContext, type AppointmentContactRole } from '@properfy/shared';
-import { ValidationError } from '../../../../shared/domain/errors';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
@@ -205,18 +205,19 @@ export class UpdateAppointmentUseCase {
         let sPhone: string | null;
 
         if (entry.contactId) {
-          // 024 §FR-301/303 (BUG-024-001 fix) — same cross-tenant pattern as
-          // create-appointment: AM/OP look up by id only (registry tenant
-          // may differ or be null), CL roles also pass the operational-
-          // junction visibility check via existsLinkedToTenant. The 404
-          // collapse preserves FR-022 leakage avoidance.
+          // 024 §FR-301/303 (BUG-024-001 → BUG-024-002 fix) — paridade com
+          // create-appointment. Lookup global; visibility para CL roles via
+          // owns-or-junction. NotFoundError 404 colapsa "não existe" e "não
+          // visível" (FR-022 + OBS-024-003). Ver create-appointment.use-case
+          // para o racional completo.
           const isCrossTenantActor = actor.role === 'AM' || actor.role === 'OP';
-          const lookupTenantId = isCrossTenantActor ? null : appointment.tenantId;
-          const reg = await this.contactRepo.findById(entry.contactId, lookupTenantId);
-          if (!reg) throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+          const reg = await this.contactRepo.findById(entry.contactId, null);
+          if (!reg) throw new NotFoundError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
           if (!isCrossTenantActor) {
-            const visible = await this.contactRepo.existsLinkedToTenant(entry.contactId, appointment.tenantId);
-            if (!visible) throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+            const ownsContact = reg.tenantId === appointment.tenantId;
+            const visible = ownsContact
+              || await this.contactRepo.existsLinkedToTenant(entry.contactId, appointment.tenantId);
+            if (!visible) throw new NotFoundError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
           }
           if (!reg.isActive) throw new ValidationError('APPOINTMENT_CONTACT_INACTIVE', `Contact ${entry.contactId} is not active`);
           cId = reg.id;

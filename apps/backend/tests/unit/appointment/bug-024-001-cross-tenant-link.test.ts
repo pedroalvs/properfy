@@ -1,25 +1,21 @@
 /**
- * BUG-024-001 — Anti-regression for the cross-tenant contact-link path.
+ * BUG-024-001 / BUG-024-002 — Orchestration-only unit guard.
  *
- * Background: with 024 §FR-301/303, Contact is a cross-tenant entity. A
- * standalone contact (`tenant_id = null`) and a contact registered under
- * tenant A may both be linked to an appointment in tenant B, provided the
- * actor has the right scope (AM/OP global, CL roles via the operational
- * junction). Cycle 1 of 024 QA caught a regression in
- * `CreateAppointmentUseCase` and `UpdateAppointmentUseCase`: both
- * tightened the registry lookup with `findById(contactId, tenantId)`,
- * which is the appointment tenant — so:
+ * SCOPE: this file proves that the use case CALLS `contactRepo.findById`
+ * with the correct arguments and threads the visibility check, then maps
+ * results to the right response/error shape. It does NOT prove the SQL
+ * contract — the mocks here return values regardless of arguments, which
+ * is precisely how the cycle-2 BUG-024-001 fix passed but production
+ * still failed (real Prisma's `WHERE tenant_id = $2` filtered the row
+ * out). That false-confidence cost an extra QA cycle (cycle 3/2).
  *
- *   - Standalone contact (tenant_id = null) → no row matched → 400
- *   - Contact in TenantA used in TenantB appointment → no row matched → 400
+ * The SQL-contract proof lives in
+ *   `tests/integration/db/contact-appointment-link.integration.test.ts`
+ * which exercises the real `PrismaContactRepository` against a
+ * Testcontainers Postgres instance. **Any future change to the
+ * cross-tenant lookup pattern MUST also update that integration test.**
  *
- * Both blocked the central 024 use case (AM/OP linking cross-tenant via
- * the contacts UI). The fix: AM/OP look up by id only (no tenant filter);
- * CL roles still pass the operational-junction visibility predicate via
- * `existsLinkedToTenant`. The 404 collapse preserves FR-022 (don't leak
- * out-of-tenant rows).
- *
- * This file pins all four behaviours the spec dictates.
+ * Captured as memory: feedback_mock_masks_real_bug.md.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -36,7 +32,7 @@ import type { CreatePropertyUseCase } from '../../../src/modules/property/applic
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
-import { ValidationError } from '../../../src/shared/domain/errors';
+import { NotFoundError } from '../../../src/shared/domain/errors';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
@@ -258,7 +254,7 @@ describe('BUG-024-001 — CreateAppointmentUseCase cross-tenant contact link', (
         contacts: [{ contactId: STANDALONE_CONTACT_ID, role: 'TENANT', isPrimary: true }] as any,
         actor: makeActor('CL_ADMIN', TENANT_B),
       }),
-    ).rejects.toThrow(ValidationError);
+    ).rejects.toThrow(NotFoundError);
 
     expect(repos.contactRepo.existsLinkedToTenant).toHaveBeenCalledWith(STANDALONE_CONTACT_ID, TENANT_B);
     expect(repos.appointmentRepo.saveContact).not.toHaveBeenCalled();
@@ -277,7 +273,11 @@ describe('BUG-024-001 — CreateAppointmentUseCase cross-tenant contact link', (
       actor: makeActor('CL_ADMIN', TENANT_B),
     });
 
-    expect(repos.contactRepo.findById).toHaveBeenCalledWith(TENANT_A_CONTACT_ID, TENANT_B);
+    // 024 §FR-303 (BUG-024-002 cycle 3) — lookup is global; CL visibility
+    // resolves via the `ownsContact` shortcut (registry tenantId === actor
+    // tenantId) OR the operational-junction predicate. The contact in this
+    // test lives in TenantA, so the shortcut misses and the junction fires.
+    expect(repos.contactRepo.findById).toHaveBeenCalledWith(TENANT_A_CONTACT_ID, null);
     expect(repos.contactRepo.existsLinkedToTenant).toHaveBeenCalledWith(TENANT_A_CONTACT_ID, TENANT_B);
     expect(result.id).toBeDefined();
     expect(repos.appointmentRepo.saveContact).toHaveBeenCalled();
@@ -379,7 +379,7 @@ describe('BUG-024-001 — UpdateAppointmentUseCase cross-tenant contact link (pa
         },
         actor: makeActor('CL_ADMIN', TENANT_B),
       }),
-    ).rejects.toThrow(ValidationError);
+    ).rejects.toThrow(NotFoundError);
 
     expect(repos.contactRepo.existsLinkedToTenant).toHaveBeenCalledWith(STANDALONE_CONTACT_ID, TENANT_B);
     expect(repos.appointmentRepo.saveContact).not.toHaveBeenCalled();

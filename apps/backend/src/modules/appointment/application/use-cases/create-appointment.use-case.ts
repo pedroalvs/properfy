@@ -1,6 +1,7 @@
 import { type AuthContext, type PropertyType } from '@properfy/shared';
 import type { AppointmentContactRole } from '@properfy/shared';
 import {
+  NotFoundError,
   ValidationError,
 } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -327,24 +328,37 @@ export class CreateAppointmentUseCase {
         if (entry.contactId) {
           // Link to existing registry contact.
           //
-          // 024 §FR-301/303 (BUG-024-001 fix) — Contact is now a cross-tenant
-          // entity. AM/OP must be able to link a standalone contact
-          // (`tenant_id = null`) or a contact registered under a different
-          // tenant. CL roles remain pinned: they may only link contacts they
-          // can already see (i.e., reachable via `appointment_contacts` in
-          // their own tenant — same operational-junction predicate used by
-          // GET /v1/contacts/:id). The 404 collapse preserves FR-022 so we
-          // never leak existence of out-of-tenant rows.
+          // 024 §FR-301/303 (BUG-024-001 → BUG-024-002 fix) — Contact is a
+          // cross-tenant entity. The registry lookup MUST always be global
+          // (no `tenant_id` WHERE filter), otherwise CL_ADMIN(B) trying to
+          // link a contact whose registry row lives in tenant A — even if
+          // operationally visible to B via `appointment_contacts` — gets a
+          // null findById and the visibility gate is unreachable. Cycle 2
+          // attempted `lookupTenantId = isCrossTenantActor ? null : tenantId`
+          // and the unit test passed because mocks ignore arguments;
+          // production Prisma's `WHERE tenant_id = $2` filtered out the row.
+          //
+          // Visibility for CL roles is enforced separately:
+          //   1. fast path: `registryContact.tenantId === tenantId` (legacy
+          //      pin — the contact is registry-owned by the actor's tenant);
+          //   2. fallback: operational-junction predicate
+          //      (`existsLinkedToTenant`) — a contact with `tenant_id = null`
+          //      or a different tenant is reachable iff already linked to an
+          //      appointment in the actor's tenant.
+          //
+          // Both "not in registry" and "not visible to CL" surface as the
+          // same NotFoundError → 404 (FR-022 leakage avoidance, OBS-024-003).
           const isCrossTenantActor = actor.role === 'AM' || actor.role === 'OP';
-          const lookupTenantId = isCrossTenantActor ? null : tenantId;
-          const registryContact = await this.contactRepo.findById(entry.contactId, lookupTenantId);
+          const registryContact = await this.contactRepo.findById(entry.contactId, null);
           if (!registryContact) {
-            throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+            throw new NotFoundError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
           }
           if (!isCrossTenantActor) {
-            const visible = await this.contactRepo.existsLinkedToTenant(entry.contactId, tenantId);
+            const ownsContact = registryContact.tenantId === tenantId;
+            const visible = ownsContact
+              || await this.contactRepo.existsLinkedToTenant(entry.contactId, tenantId);
             if (!visible) {
-              throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+              throw new NotFoundError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
             }
           }
           if (!registryContact.isActive) {
