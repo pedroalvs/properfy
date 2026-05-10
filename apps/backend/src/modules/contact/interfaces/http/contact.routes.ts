@@ -114,17 +114,14 @@ export async function registerContactRoutes(
         return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Request payload is invalid', details: bodyParsed.error.errors } });
       }
       const parsed = bodyParsed.data;
-      // Constitution v1.3.0 (op_role_rollback): AM and OP are both
-      // cross-tenant operational roles. Both resolve the target tenant from
-      // body.tenantId. CL_ADMIN/CL_USER stay pinned to JWT tenantId.
+      // 024 §FR-301/308: AM/OP may pin to a tenant via `body.tenantId`,
+      // omit it (defaults to standalone), or send `null` explicitly. CL roles
+      // always resolve to the JWT tenant — `body.tenantId` is ignored for
+      // them so a CL user cannot create across tenants by spoofing the body.
       const isCrossTenant = auth.role === 'AM' || auth.role === 'OP';
-      const tenantId = isCrossTenant && parsed.tenantId
-        ? parsed.tenantId
-        : auth.tenantId;
-
-      if (!tenantId) {
-        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'tenantId is required for AM/OP without a selected tenant' } });
-      }
+      const tenantId: string | null = isCrossTenant
+        ? (parsed.tenantId ?? null)
+        : (auth.tenantId as string);
 
       const contact = await container.createContactUseCase.execute({
         tenantId,
@@ -136,6 +133,7 @@ export async function registerContactRoutes(
         additionalChannels: parsed.additionalChannels,
         notes: parsed.notes,
         actorId: auth.userId,
+        actorTenantId: auth.tenantId ?? null,
       });
 
       return reply.status(201).send(success(formatContact(contact)));
@@ -170,16 +168,19 @@ export async function registerContactRoutes(
         return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Request payload is invalid', details: bodyParsed.error.errors } });
       }
 
-      // Constitution v1.3.0: AM and OP are both cross-tenant operational
-      // roles. Update use case resolves the tenant from the contact entity
-      // when called with `null`, so cross-tenant roles pass `null` here.
+      // 024 §FR-303: AM/OP remain cross-tenant — pass null and let the use
+      // case resolve the row's own tenant. CL roles get a `visibilityTenantId`
+      // so the use case runs the operational-junction check before patching.
       const isCrossTenant = auth.role === 'AM' || auth.role === 'OP';
-      const tenantId = isCrossTenant ? null : auth.tenantId;
+      const tenantId = isCrossTenant ? null : (auth.tenantId as string);
+      const visibilityTenantId = isCrossTenant ? null : (auth.tenantId as string);
 
       const updated = await container.updateContactUseCase.execute({
         contactId,
         tenantId,
+        visibilityTenantId,
         actorId: auth.userId,
+        actorTenantId: auth.tenantId ?? null,
         data: bodyParsed.data,
       });
 
@@ -213,14 +214,19 @@ export async function registerContactRoutes(
       }
       const { contactId } = paramsParsed.data;
 
-      // Constitution v1.3.0: AM and OP are both cross-tenant.
+      // 024 §FR-303: same shape as the PATCH handler — CL roles get a
+      // visibility tenant so the use case enforces operational reachability
+      // before flipping `isActive`.
       const isCrossTenant = auth.role === 'AM' || auth.role === 'OP';
-      const tenantId = isCrossTenant ? null : auth.tenantId;
+      const tenantId = isCrossTenant ? null : (auth.tenantId as string);
+      const visibilityTenantId = isCrossTenant ? null : (auth.tenantId as string);
 
       const updated = await container.updateContactUseCase.execute({
         contactId,
         tenantId,
+        visibilityTenantId,
         actorId: auth.userId,
+        actorTenantId: auth.tenantId ?? null,
         data: { isActive: false },
       });
 
@@ -253,21 +259,13 @@ export async function registerContactRoutes(
       // with `.parse()` would re-validate the transformed values against the
       // pre-transform schema and reject them — use `request.query` directly.
       const query = request.query as z.infer<typeof listQuerySchema>;
-      // Constitution v1.3.0 (op_role_rollback): AM and OP are both
-      // cross-tenant operational roles and resolve the target tenant from
-      // `query.tenantId`. CL_ADMIN/CL_USER stay pinned to JWT tenantId.
-      let resolvedTenantId: string;
-      if (auth.role === 'AM' || auth.role === 'OP') {
-        if (!query.tenantId) {
-          return reply.status(400).send({ error: { code: 'TENANT_REQUIRED', message: 'tenantId query param is required for contact search in AM/OP context' } });
-        }
-        resolvedTenantId = query.tenantId;
-      } else {
-        resolvedTenantId = auth.tenantId as string;
-      }
-
+      // 024 §FR-303: scope resolution moved into the use case
+      // (`resolveScope`). AM/OP get a global view by default and may pin via
+      // `query.tenantId`; CL_*roles stay pinned to JWT tenant via the
+      // operational-junction predicate (the route doesn't decide visibility).
       const result = await container.listContactsUseCase.execute({
-        tenantId: resolvedTenantId,
+        actor: { role: auth.role, tenantId: auth.tenantId ?? null },
+        tenantId: query.tenantId ?? null,
         type: query.type,
         branchIds: query.branchIds,
         primary: query.primary,
@@ -310,11 +308,15 @@ export async function registerContactRoutes(
       const { contactId } = request.params as z.infer<typeof contactIdParam>;
       // Fastify-zod has already validated/transformed the query (see GET list).
       const query = request.query as z.infer<typeof detailQuerySchema>;
-      // Constitution v1.3.0: AM and OP are both cross-tenant.
+      // 024 §FR-303: AM/OP fetch by id directly (no tenant filter on the row).
+      // CL roles fetch the row, then the use case enforces the operational-
+      // junction visibility check via the `actor` option below.
       const isCrossTenant = auth.role === 'AM' || auth.role === 'OP';
-      const tenantId = isCrossTenant ? null : auth.tenantId;
+      const tenantId = isCrossTenant ? null : (auth.tenantId as string);
 
-      const options: GetContactOptions = {};
+      const options: GetContactOptions = {
+        actor: { role: auth.role, tenantId: auth.tenantId ?? null },
+      };
       if (query.includeAppointments) {
         options.includeAppointments = true;
         if (query.appointmentsPage || query.appointmentsPageSize) {

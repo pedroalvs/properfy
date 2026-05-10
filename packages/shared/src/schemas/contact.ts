@@ -16,7 +16,11 @@ export type AdditionalChannel = z.infer<typeof additionalChannelSchema>;
 
 export const contactRegistrySchema = z
   .object({
-    tenantId: z.string().uuid().optional(), // AM only — OP/CL resolved from JWT
+    // 024 §FR-308: AM/OP may post `tenantId` explicitly to pin the new
+    // contact to a tenant, omit it (auto-null = standalone), or send `null`
+    // explicitly. CL_ADMIN/CL_USER ignore the body field — the use case
+    // resolves their tenant from JWT (preserves 021 behaviour).
+    tenantId: z.string().uuid().nullable().optional(),
     type: z.nativeEnum(ContactType),
     displayName: z.string().min(1).max(200),
     company: z.string().min(1).max(200).optional().nullable(),
@@ -113,10 +117,14 @@ export type AppointmentContactsArrayInput = z.infer<typeof appointmentContactsAr
 /**
  * Canonical contact detail/payload shape used by every single-contact route
  * (GET :id, POST, PATCH, POST :id/deactivate). Mirrors `propertyResponseSchema`.
+ *
+ * 024 §FR-301 — `tenantId` is nullable: standalone contacts (created by
+ * AM/OP without an appointment context) carry `tenantId = null` until
+ * linked via `appointment_contacts`.
  */
 export const contactResponseSchema = z.object({
   id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   type: z.nativeEnum(ContactType),
   displayName: z.string(),
   company: z.string().nullable(),
@@ -135,10 +143,12 @@ export type ContactResponse = z.infer<typeof contactResponseSchema>;
  * `primaryInPropertyCount` (number of distinct properties on which this
  * contact is the primary recipient across non-CANCELLED/REJECTED appointments;
  * powers the "Primary in N" column in the Contacts list — 023 §FR-202).
+ *
+ * 024 §FR-301 — `tenantId` is nullable for parity with `contactResponseSchema`.
  */
 export const contactListItemSchema = z.object({
   id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   type: z.nativeEnum(ContactType),
   displayName: z.string(),
   company: z.string().nullable(),

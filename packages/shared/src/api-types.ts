@@ -11052,7 +11052,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** @enum {string} */
                                 type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
@@ -11090,7 +11090,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** Format: uuid */
-                        tenantId?: string;
+                        tenantId?: string | null;
                         /** @enum {string} */
                         type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                         displayName: string;
@@ -11121,7 +11121,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** @enum {string} */
                                 type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
@@ -11188,7 +11188,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** @enum {string} */
                                 type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
@@ -11301,7 +11301,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** @enum {string} */
                                 type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
@@ -11359,7 +11359,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** @enum {string} */
                                 type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;

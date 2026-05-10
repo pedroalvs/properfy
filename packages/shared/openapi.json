@@ -23539,7 +23539,8 @@
                 "properties": {
                   "tenantId": {
                     "type": "string",
-                    "format": "uuid"
+                    "format": "uuid",
+                    "nullable": true
                   },
                   "type": {
                     "type": "string",
@@ -23637,7 +23638,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "type": {
                           "type": "string",
@@ -23891,7 +23893,8 @@
                           },
                           "tenantId": {
                             "type": "string",
-                            "format": "uuid"
+                            "format": "uuid",
+                            "nullable": true
                           },
                           "type": {
                             "type": "string",
@@ -24104,7 +24107,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "type": {
                           "type": "string",
@@ -24294,7 +24298,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "type": {
                           "type": "string",
@@ -24590,7 +24595,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "type": {
                           "type": "string",

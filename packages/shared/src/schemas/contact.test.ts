@@ -265,6 +265,16 @@ describe('contactResponseSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('024 §FR-301 — accepts tenantId=null (standalone contact)', () => {
+    const result = contactResponseSchema.safeParse({ ...validResponse, tenantId: null });
+    expect(result.success).toBe(true);
+  });
+
+  it('024 §FR-301 — rejects non-uuid tenantId (when not null)', () => {
+    const result = contactResponseSchema.safeParse({ ...validResponse, tenantId: 'not-a-uuid' });
+    expect(result.success).toBe(false);
+  });
+
   it('rejects missing isActive flag', () => {
     const { isActive: _omit, ...rest } = validResponse;
     const result = contactResponseSchema.safeParse(rest);
@@ -296,6 +306,11 @@ describe('contactListItemSchema', () => {
     expect(
       contactListItemSchema.safeParse({ ...baseListItem, propertyCount: 0, primaryInPropertyCount: 0 }).success,
     ).toBe(true);
+  });
+
+  it('024 §FR-301 — accepts tenantId=null on a list-row (standalone)', () => {
+    const result = contactListItemSchema.safeParse({ ...baseListItem, tenantId: null });
+    expect(result.success).toBe(true);
   });
 
   it('rejects negative propertyCount', () => {
