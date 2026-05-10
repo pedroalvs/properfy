@@ -71,8 +71,10 @@ describe('POST /v1/inspectors/:inspectorId/photo/presign', () => {
       .send({ mimeType: 'image/jpeg' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('uploadUrl');
-    expect(res.body).toHaveProperty('storageKey');
+    // UX-baseline cleanup: response is now wrapped in `{ data: {...} }`.
+    expect(res.body).toHaveProperty('data');
+    expect(res.body.data).toHaveProperty('uploadUrl');
+    expect(res.body.data).toHaveProperty('storageKey');
   });
 
   it('returns 200 with uploadUrl for OP', async () => {

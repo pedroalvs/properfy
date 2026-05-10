@@ -90,9 +90,10 @@ describe('GET /v1/inspector/schedule', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.date).toBe('2026-03-16');
-    expect(res.body.appointments).toHaveLength(1);
-    expect(res.body.appointments[0].scheduledDate).toBe('2026-03-16');
+    // UX-baseline cleanup: response wrapped in `{ data: { date, appointments } }`.
+    expect(res.body.data.date).toBe('2026-03-16');
+    expect(res.body.data.appointments).toHaveLength(1);
+    expect(res.body.data.appointments[0].scheduledDate).toBe('2026-03-16');
   });
 
   it('should return 401 without auth token', async () => {

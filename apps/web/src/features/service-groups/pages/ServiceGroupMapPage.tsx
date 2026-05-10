@@ -16,8 +16,9 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { SERVICE_GROUP_STATUS_MAP, PRIORITY_MODE_MAP } from '@/lib/status-colors';
-import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
+import type { ServiceGroupStatus, PriorityMode, AppointmentStatus } from '@properfy/shared';
 import { useServiceGroupMapData, type ServiceGroupMapItem } from '../hooks/useServiceGroupMapData';
 
 const STATUS_OPTIONS = [
@@ -271,8 +272,12 @@ export function ServiceGroupMapPage() {
           }}
         >
           <div className="space-y-1">
-            <p>
-              <span className="text-text-muted">Status:</span> {popupAppointment.status}
+            <p className="flex items-center gap-2">
+              <span className="text-text-muted">Status:</span>{' '}
+              {/* UX-baseline cleanup: render via the canonical
+                  AppointmentStatusChip so the popup matches the colour
+                  language used in the appointments list / detail. */}
+              <AppointmentStatusChip status={popupAppointment.status as AppointmentStatus} />
             </p>
             <p>
               <span className="text-text-muted">Address:</span> {popupAppointment.address}

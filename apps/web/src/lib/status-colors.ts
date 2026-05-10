@@ -170,3 +170,17 @@ export const SLOT_STATUS_MAP: Record<AvailabilitySlotStatus, StatusStyle> = {
   [AvailabilitySlotStatus.BOOKED]:    { bg: 'var(--color-slot-booked)',    text: 'var(--color-text-primary)', label: 'Booked' },
   [AvailabilitySlotStatus.CANCELLED]: { bg: 'var(--color-slot-cancelled)', text: 'var(--color-text-primary)', label: 'Cancelled' },
 };
+
+/**
+ * Notification dispatch status (per-row in the appointment notifications
+ * tab). Backend stores free-form string, but the application emits a
+ * known set: PENDING → in flight, SENT → handed off to provider,
+ * DELIVERED → provider acked, FAILED → provider rejected. Reuses existing
+ * status-color tokens to stay aligned with the rest of the design system.
+ */
+export const NOTIFICATION_STATUS_MAP: Record<string, StatusStyle> = {
+  PENDING:   { bg: 'var(--color-status-draft)',     text: 'var(--color-text-primary)', label: 'Pending' },
+  SENT:      { bg: 'var(--color-status-scheduled)', text: 'var(--color-text-primary)', label: 'Sent' },
+  DELIVERED: { bg: 'var(--color-status-done)',      text: 'var(--color-text-primary)', label: 'Delivered' },
+  FAILED:    { bg: 'var(--color-status-rejected)',  text: 'var(--color-text-primary)', label: 'Failed' },
+};

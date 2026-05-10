@@ -17,7 +17,9 @@ export function useInspectorDocumentDownload() {
         showError('Failed to get download URL');
         return;
       }
-      const url = (data as { downloadUrl?: string }).downloadUrl;
+      // UX-baseline cleanup: backend now wraps the response in
+      // `{ data: { downloadUrl, fileName } }`.
+      const url = (data as { data?: { downloadUrl?: string } }).data?.downloadUrl;
       if (url) window.open(url, '_blank');
     } catch {
       showError('Failed to download document');

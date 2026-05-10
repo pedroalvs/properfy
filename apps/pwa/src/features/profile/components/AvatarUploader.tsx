@@ -31,7 +31,9 @@ export function AvatarUploader({ inspectorId, onUploaded }: AvatarUploaderProps)
         { params: { path: { inspectorId } }, body: { mimeType: file.type } } as never,
       );
       if (presignErr || !presignData) throw new Error('Failed to get upload URL');
-      const { uploadUrl, storageKey } = presignData as { uploadUrl: string; storageKey: string };
+      // UX-baseline cleanup: backend now wraps the response in
+      // `{ data: { uploadUrl, storageKey, expiresAt } }`.
+      const { uploadUrl, storageKey } = (presignData as { data: { uploadUrl: string; storageKey: string } }).data;
 
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',

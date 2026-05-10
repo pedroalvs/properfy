@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { SERVICE_TYPE_STATUS_MAP } from '@/lib/status-colors';
 import type { PricingRule } from '../types';
 
@@ -85,16 +86,13 @@ export function PricingRuleTable({
       width: '100px',
       sortable: true,
       render: (row) => {
+        // UX-baseline cleanup: render via the shared `StatusChip`. Pricing
+        // rules share the ACTIVE/INACTIVE alphabet with ServiceType, so
+        // SERVICE_TYPE_STATUS_MAP is reused. Unknown enums fall back to a
+        // neutral chip rather than the bare text.
         const style = SERVICE_TYPE_STATUS_MAP[row.status as keyof typeof SERVICE_TYPE_STATUS_MAP];
-        if (!style) return <>{row.status}</>;
-        return (
-          <span
-            className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
-            style={{ backgroundColor: style.bg, color: style.text }}
-          >
-            {style.label}
-          </span>
-        );
+        if (!style) return <StatusChip label={row.status} bg="var(--color-status-draft)" />;
+        return <StatusChip label={style.label} bg={style.bg} text={style.text} />;
       },
     },
     {

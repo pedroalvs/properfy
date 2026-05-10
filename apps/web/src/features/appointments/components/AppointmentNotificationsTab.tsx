@@ -1,4 +1,6 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
+import { StatusChip } from '@/components/ui/StatusChip';
+import { NOTIFICATION_STATUS_MAP } from '@/lib/status-colors';
 import { formatDateTime } from '@/lib/format-date';
 import { useAppointmentNotifications, type AppointmentNotification } from '../hooks/useAppointmentNotifications';
 
@@ -11,13 +13,6 @@ function formatDateTimeOrDash(iso: string | null): string {
   return formatDateTime(iso);
 }
 
-const NOTIFICATION_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  SENT: { bg: '#C8E6C9', text: 'rgba(0,0,0,0.87)' },
-  PENDING: { bg: '#FFE0B2', text: 'rgba(0,0,0,0.87)' },
-  FAILED: { bg: '#FFCDD2', text: 'rgba(0,0,0,0.87)' },
-  DELIVERED: { bg: '#B3E5FC', text: 'rgba(0,0,0,0.87)' },
-};
-
 const columns: DataTableColumn<AppointmentNotification>[] = [
   { key: 'templateCode', label: 'Template', width: '180px' },
   { key: 'channel', label: 'Channel', width: '100px' },
@@ -27,15 +22,12 @@ const columns: DataTableColumn<AppointmentNotification>[] = [
     label: 'Status',
     width: '120px',
     render: (row) => {
-      const colors = NOTIFICATION_STATUS_COLORS[row.status] ?? { bg: '#E0E0E0', text: 'rgba(0,0,0,0.87)' };
-      return (
-        <span
-          className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
-          style={{ backgroundColor: colors.bg, color: colors.text }}
-        >
-          {row.status}
-        </span>
-      );
+      // UX-baseline cleanup: render via the shared `StatusChip` driven by
+      // `NOTIFICATION_STATUS_MAP` (status-colors.ts). Pre-fix used a
+      // local hex map, divergent from the rest of the design system.
+      const style = NOTIFICATION_STATUS_MAP[row.status];
+      if (!style) return <StatusChip label={row.status} bg="var(--color-status-draft)" />;
+      return <StatusChip label={style.label} bg={style.bg} text={style.text} />;
     },
   },
   {
