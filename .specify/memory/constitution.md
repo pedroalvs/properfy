@@ -28,6 +28,8 @@ Tenant isolation is enforced at every layer and can never be bypassed:
 
 Any code that queries business data without tenant scope is a bug, regardless of context. The `tenantId` that scopes a query is resolved from `auth.tenantId` for tenant-pinned roles (CL_ADMIN, CL_USER) and from request input (validated `tenantId` body/query field) for cross-tenant roles (AM, OP). Cross-tenant access is the documented behavior — not a bug. The previously open correction track at `.specify/memory/correction-op-tenant-scope.md` is **CLOSED-REJECTED** as of v1.3.0; do not cite it.
 
+Cross-tenant entities (Inspector, Contact) carry per-tenant visibility via operational junctions — see §RBAC "Cross-tenant entities — visibility on a per-tenant basis".
+
 **Service Region tenant scope rule**: `ServiceRegion` is a **per-tenant** entity. Every region belongs to exactly one tenant. Region names may repeat across different tenants; uniqueness applies only within the same tenant. Region-based eligibility (marketplace matching, inspector assignment) must always be resolved inside tenant scope. Inspectors are global/multi-tenant, but region ownership remains tenant-scoped. **Any code that treats ServiceRegion as global is a bug** — see the correction track at `.specify/memory/correction-service-region-scope.md`.
 
 > **CORRECTION (2026-04-06)**: The codebase currently treats `ServiceRegion` as a global entity (no `tenant_id` column). This is a **divergence from the approved dossier**.
@@ -155,6 +157,8 @@ Sources of truth: `escopo-v2.md` §1 ("Equipe operacional (admin/master admin)")
 
 > **AMENDMENT (2026-05-09)**: v1.3.0 reverts the v1.2.0 OP tenant-scope correction. The track at `.specify/memory/correction-op-tenant-scope.md` is **CLOSED-REJECTED**. OP is documented as cross-tenant, matching the shipped JWT model and the canonical sources (`escopo-v2.md`, `regras-negocio-respostas-cliente.md`, conversational decision 2026-05-09). The differentiation between AM and OP is no longer tenant scope — it is **catalog management capability**: AM owns the catalog, OP works in the operational flow. The security tradeoff (cross-tenant OP credentials carry data-isolation risk) is mitigated via audit logs (see §Audit) and use-case-level `actor.role` checks. Specs/code that previously cited the correction must drop the reference or mark it `[SUPERSEDED 2026-05-09]`.
 
+**Cross-tenant entities — visibility on a per-tenant basis** (v1.4.0): when a global entity (Inspector, Contact) is reachable from a tenant via an operational junction (`inspectors.client_eligibility_json`, `appointment_contacts → appointments`), it is visible to that tenant's CL_ADMIN/CL_USER. AM and OP see all rows regardless of junction. Standalone (junction-less) rows are visible only to AM and OP until linked. Visibility is enforced at the application layer (use case + repository scope filter); the physical row is single and shared across tenants — no duplication.
+
 **CL user management**: CL_ADMIN can create/manage internal users **only if the agency explicitly enables this capability** in tenant settings. The matrix CL_ADMIN → CL_ADMIN creation is not approved by default — it depends on tenant-level enablement.
 
 > Elevated-actions list moved into the Tenant scope rule table above (v1.3.0); see "Sensitive elevated actions". Both AM and OP can perform them, both cross-tenant.
@@ -227,10 +231,11 @@ All specs, plans, and task breakdowns generated through the spec-kit workflow mu
 
 Runtime guidance for Claude Code lives in `CLAUDE.md` (root and per-workspace). Domain deep-dives live in `projeto-consolidado/`. This constitution is the authoritative summary.
 
-**Version**: 1.3.0 | **Ratified**: 2026-04-05 | **Last Amended**: 2026-05-09
+**Version**: 1.4.0 | **Ratified**: 2026-04-05 | **Last Amended**: 2026-05-09
 
 ### Amendment Log
 
+- **v1.4.0 (2026-05-09)**: §RBAC clarified to formalize per-tenant visibility on cross-tenant entities (Inspector + Contact). The new "Cross-tenant entities — visibility on a per-tenant basis" rule documents the model that `inspectors.client_eligibility_json` already follows and that feature 024 extends to `Contact` via the `appointment_contacts → appointments` operational junction. `Contact.tenant_id` becomes nullable to allow standalone (junction-less) rows visible only to AM/OP until linked. Email/phone uniqueness becomes global (cross-tenant). Driver: feature 024 cross-tenant Contact model; user decisions in `memory/project_contacts_cross_tenant_model.md`. Dossier housekeeping (`regras-negocio-respostas-cliente.md` §4 line 510 cardinality 1:1) flagged for follow-up; not blocking. Additive amendment — v1.3.0 OP cross-tenant rule remains in force.
 - **v1.3.0 (2026-05-09)**: RBAC and Multi-Tenant Safety sections revised. v1.2.0's OP tenant-scope correction is **REVERTED**: OP is documented as cross-tenant (nullable `tenant_id`), matching the shipped JWT model and the canonical sources (`escopo-v2.md` §1; `regras-negocio-respostas-cliente.md` §"Acoes criticas com permissao elevada"). The differentiation between AM and OP is now stated explicitly as **catalog management capability** — AM owns the catalog (service types, pricing, inspectors, tenants, users, earnings); OP works in the operational flow (appointments, service groups, marketplace, contacts, communications). The correction track at `.specify/memory/correction-op-tenant-scope.md` is moved to **CLOSED-REJECTED**. Driver: feature 022 QA cycle 1/2 surfaced operational cost (BUG-002 — OP seed `tenant_id=null` collided with FR-105a hardening); user decision recorded in memory at `project_op_role_constitution_v13.md`.
 - **v1.2.0 (2026-04-06)**: RBAC section rewritten — OP was documented as tenant-scoped per the approved dossier. Password policy expanded with "no forced expiration". CL_ADMIN user management conditioned to tenant enablement. Multi-tenant safety section updated. Cross-feature correction track created. **[SUPERSEDED by v1.3.0]**
 - **v1.1.0 (2026-04-05)**: Added Knowledge Classification, state machine sovereignty, financial cross-check hard precondition, audit mandatory list, OpenAPI as source of truth.
