@@ -78,6 +78,26 @@ function computeGroupCentroid(
   };
 }
 
+/**
+ * Issue #2 (UX smoke) — pure helper for the "Show grouped" filter so the
+ * toggle behaviour is testable in isolation. The toggle is a SWITCH:
+ *   - `showGrouped = true`  → return ONLY appointments with a
+ *     `serviceGroupId` (i.e. members of a service group).
+ *   - `showGrouped = false` → return ONLY the individual (non-grouped)
+ *     appointments.
+ * Exported so `AppointmentMapPage.test.tsx` can pin the logic without
+ * needing to mock the full map render.
+ */
+export function filterAppointmentsByGrouping<T extends { serviceGroupId?: string | null }>(
+  items: T[],
+  showGrouped: boolean,
+): T[] {
+  if (showGrouped) {
+    return items.filter((item) => Boolean(item.serviceGroupId));
+  }
+  return items.filter((item) => !item.serviceGroupId);
+}
+
 export function AppointmentMapPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -125,11 +145,13 @@ export function AppointmentMapPage() {
     { enabled: mode === 'appointments' },
   );
 
-  const appointmentData = useMemo(() => {
-    const items = appointmentResponse?.data ?? [];
-    if (appointmentFilters.showGrouped) return items;
-    return items.filter((item) => !(item as any).serviceGroupId);
-  }, [appointmentResponse, appointmentFilters.showGrouped]);
+  const appointmentData = useMemo(
+    () => filterAppointmentsByGrouping(
+      (appointmentResponse?.data ?? []) as Array<AppointmentMapItem & { serviceGroupId?: string | null }>,
+      appointmentFilters.showGrouped,
+    ),
+    [appointmentResponse, appointmentFilters.showGrouped],
+  );
 
   // Group data — fetched when mode is 'groups'
   const groupParams: ListParams = useMemo(() => ({
@@ -242,15 +264,36 @@ export function AppointmentMapPage() {
     setSelectedGroupItem(null);
   }, [mode]);
 
+  // Issue #3 (UX smoke): marker click on the map MUST focus the map on
+  // the clicked pin — same affordance as the sidebar list-item handler
+  // below. Pre-fix, the marker handler only updated selection state, so
+  // a click on a far-away pin felt like a no-op (or worse, the popup
+  // appeared off-screen and the user perceived a zoom-out). `flyTo`
+  // with `Math.max(getZoom(), 14)` focuses without ever reducing zoom
+  // — if the user is already zoomed in past 14, we keep their zoom.
   const handleMarkerClick = useCallback((item: AppointmentMapItem) => {
     setSelectedItem(item);
     setSelectedGroupItem(null);
-  }, []);
+    if (mapInstance && item.longitude != null && item.latitude != null) {
+      mapInstance.flyTo({
+        center: [item.longitude, item.latitude],
+        zoom: Math.max(mapInstance.getZoom(), 14),
+        duration: 700,
+      });
+    }
+  }, [mapInstance]);
 
   const handleGroupMarkerClick = useCallback((item: ServiceGroupMapPin) => {
     setSelectedGroupItem(item);
     setSelectedItem(null);
-  }, []);
+    if (mapInstance && item.longitude != null && item.latitude != null) {
+      mapInstance.flyTo({
+        center: [item.longitude, item.latitude],
+        zoom: Math.max(mapInstance.getZoom(), 14),
+        duration: 700,
+      });
+    }
+  }, [mapInstance]);
 
   const handleListItemClick = useCallback((item: AppointmentMapItem) => {
     setSelectedItem(item);

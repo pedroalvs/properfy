@@ -19,7 +19,15 @@ export function MapScreenLayout({
       data-testid="map-screen-layout"
     >
       <div
-        className={`overflow-y-auto border-b border-gray-200 bg-card-bg transition-all duration-300 md:flex-shrink-0 md:border-b-0 md:border-r ${
+        // Issue #4 (UX smoke — responsive): on mobile the layout stacks
+        // (side panel above, map below). Without an explicit height cap
+        // the panel takes its natural height — which, when the filter
+        // panel is expanded and the result list is long, easily swallows
+        // the whole viewport and squishes the map to its 320px min. Cap
+        // the panel at 40vh on mobile so the map always has ≥60vh, while
+        // letting `overflow-y-auto` scroll the panel internally. Desktop
+        // keeps the original fixed-width sidebar via `md:max-h-full`.
+        className={`overflow-y-auto border-b border-gray-200 bg-card-bg transition-all duration-300 max-h-[40vh] md:max-h-full md:flex-shrink-0 md:border-b-0 md:border-r ${
           sidePanelOpen ? 'opacity-100' : 'max-h-0 overflow-hidden opacity-0 md:w-0'
         }`}
         style={

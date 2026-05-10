@@ -125,11 +125,18 @@ export function AppointmentMapFilterPanel({
 
       <div
         id="map-filter-panel-content"
+        // Issue #1 (UX smoke): bump the open max-height so tall filter
+        // stacks (mode + 9 fields on AM/OP) are not clipped; the parent
+        // side-panel container handles the actual scrolling. `max-h-0`
+        // when collapsed still drives the slide animation.
         className={`overflow-hidden transition-all duration-200 ${
-          collapsed ? 'max-h-0' : 'max-h-[800px]'
+          collapsed ? 'max-h-0' : 'max-h-[2000px]'
         }`}
       >
-        <div className="space-y-3 px-4 pb-4">
+        {/* `pt-3` gives the first field's floating label (rendered at
+            `-top-2.5` via filter-styles.ts) the vertical room it needs
+            so it does not get clipped by the parent's overflow-hidden. */}
+        <div className="space-y-3 px-4 pt-3 pb-4">
           {/* Mode selector */}
           <FilterSelect
             label="Mode"
