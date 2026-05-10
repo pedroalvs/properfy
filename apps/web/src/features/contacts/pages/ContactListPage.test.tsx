@@ -126,12 +126,31 @@ describe('ContactListPage — Agency selector visibility (Constitution v1.3.0 �
     expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
   });
 
-  it('OP without a selected tenant sees the FilterRequiredState (no table)', async () => {
+  it('OP without a selected tenant lists all contacts cross-tenant (024 §FR-303 — no gate)', async () => {
+    // Pre-fix this rendered the FilterRequiredState gate. Under 024
+    // Contact is intrinsically cross-tenant: AM/OP open /contacts and
+    // see every contact immediately; the Agency selector is a filter,
+    // not a gate. The API call goes out without `tenantId`.
     setUser('OP', null);
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText(/Select an agency to view contacts/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => {
+      const contactListCall = mockGet.mock.calls.find(([path]) => String(path) === '/v1/contacts');
+      expect(contactListCall).toBeDefined();
+    });
+    // No FilterRequiredState; selector remains as an optional filter.
+    expect(screen.queryByText(/Select an agency to view contacts/i)).not.toBeInTheDocument();
+    const contactListCall = mockGet.mock.calls.find(([path]) => String(path) === '/v1/contacts');
+    const params = contactListCall?.[1]?.params?.query ?? {};
+    expect(params.tenantId).toBeUndefined();
+  });
+
+  it('AM without a selected tenant lists all contacts cross-tenant (no gate)', async () => {
+    setUser('AM', null);
+    renderPage();
+    await waitFor(() => {
+      expect(mockGet.mock.calls.find(([path]) => String(path) === '/v1/contacts')).toBeDefined();
+    });
+    expect(screen.queryByText(/Select an agency to view contacts/i)).not.toBeInTheDocument();
   });
 
   it('CL_ADMIN loads the list immediately from the JWT tenant (no agency gate)', async () => {

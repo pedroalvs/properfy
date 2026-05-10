@@ -7,7 +7,6 @@ import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { FormField } from '@/components/forms/FormField';
 import { SelectInput } from '@/components/forms/SelectInput';
-import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import { ContactFilters } from '../components/ContactFilters';
 import { ContactTable } from '../components/ContactTable';
 import { ContactDetailDrawer } from '../components/ContactDetailDrawer';
@@ -19,10 +18,11 @@ import type { ContactListItem } from '../types';
 
 /**
  * 024 §FR-308 — sentinel value for the Agency selector that targets the
- * "Standalone (no tenant)" path. Selecting it lets AM/OP browse the
- * platform-wide contacts list and creates contacts with `tenantId = null`.
- * Distinct from the empty string (which still means "no agency picked yet"
- * and triggers the FilterRequiredState gate).
+ * "Standalone (no tenant)" path. Selecting it makes the CREATE form
+ * post `tenantId = null`. Distinct from the empty string, which means
+ * "no agency filter" — the LIST shows every contact cross-tenant by
+ * default for AM/OP, since Contact is intrinsically cross-tenant per
+ * 024 §FR-303 (the selector is a filter, not a gate).
  */
 const STANDALONE_SENTINEL = '__standalone__';
 
@@ -36,16 +36,19 @@ export function ContactListPage() {
   const isCrossTenantRole = hasRole('AM', 'OP');
   const [selectedTenantId, setSelectedTenantId] = useState('');
   const isStandaloneSelected = selectedTenantId === STANDALONE_SENTINEL;
-  // Effective tenant for LIST: `undefined` for cross-tenant browse
-  // (Standalone sentinel) or "no agency picked yet"; specific tenant id
-  // when a real agency is selected.
+  // 024 §FR-303 — Contact is cross-tenant. AM/OP open /contacts and see
+  // every contact across the platform by default; the Agency selector is
+  // a cosmetic filter, not a gate. Empty `selectedTenantId` → `undefined`
+  // (no `tenantId` query param sent → backend returns cross-tenant).
+  // Specific tenant id → backend pins to that agency. Standalone sentinel
+  // → also `undefined` for the LIST (cross-tenant view); the sentinel
+  // only steers the CREATE override below.
   const effectiveTenantId = isCrossTenantRole && !isStandaloneSelected ? selectedTenantId : undefined;
   // Override for the CREATE form: `null` for the Standalone path so the
   // backend persists `tenantId = null`; specific tenant id when pinned.
   const formTenantOverride: string | null | undefined = isCrossTenantRole
     ? (isStandaloneSelected ? null : (selectedTenantId || undefined))
     : undefined;
-  const requiresTenantSelection = isCrossTenantRole && !selectedTenantId;
   const canCreate = canPerform('contact.create');
   const canEdit = canPerform('contact.update');
   const canDeactivate = canPerform('contact.deactivate');
@@ -131,7 +134,6 @@ export function ContactListPage() {
           label: 'New Contact',
           icon: 'mdi-plus',
           onClick: () => setFormOpen(true),
-          disabled: requiresTenantSelection,
         } : undefined}
       >
         {isCrossTenantRole && (
@@ -141,35 +143,29 @@ export function ContactListPage() {
                 value={selectedTenantId}
                 onChange={setSelectedTenantId}
                 options={tenantOptions}
-                placeholder="Select agency to view contacts"
+                placeholder="Filter by agency (optional)"
                 aria-label="Agency"
               />
             </FormField>
           </div>
         )}
-        {requiresTenantSelection ? (
-          <FilterRequiredState message="Select an agency to view contacts." />
-        ) : (
-          <>
-            <ContactFilters
-              filters={filters}
-              onFiltersChange={setFilters}
-              tenantId={effectiveTenantId ?? user?.tenantId ?? null}
-            />
-            <ContactTable
-              data={data}
-              loading={isLoading}
-              error={isError ? (errorMessage ?? 'Failed to load contacts') : undefined}
-              onRetryError={refetch}
-              pagination={pagination}
-              canMutate={canMutate}
-              onView={handleView}
-              onEdit={canEdit ? handleEdit : undefined}
-              onDeactivate={canDeactivate ? handleDeactivate : undefined}
-              onReactivate={canDeactivate ? handleReactivate : undefined}
-            />
-          </>
-        )}
+        <ContactFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          tenantId={effectiveTenantId ?? user?.tenantId ?? null}
+        />
+        <ContactTable
+          data={data}
+          loading={isLoading}
+          error={isError ? (errorMessage ?? 'Failed to load contacts') : undefined}
+          onRetryError={refetch}
+          pagination={pagination}
+          canMutate={canMutate}
+          onView={handleView}
+          onEdit={canEdit ? handleEdit : undefined}
+          onDeactivate={canDeactivate ? handleDeactivate : undefined}
+          onReactivate={canDeactivate ? handleReactivate : undefined}
+        />
       </ListFilterTableTemplate>
       <ContactDetailDrawer
         contactId={selectedId}
