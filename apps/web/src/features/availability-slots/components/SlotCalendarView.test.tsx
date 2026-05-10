@@ -157,7 +157,11 @@ describe('SlotCalendarView', () => {
         onWeekChange={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText('Inspector filter')).toBeInTheDocument();
-    expect(screen.getByText('All Inspectors')).toBeInTheDocument();
+    // UX-baseline cleanup: the bespoke `<select aria-label="Inspector filter">`
+    // was replaced by the shared `<FilterSelect label="Inspector" />`. The
+    // trigger now exposes `aria-label="Inspector"`. The placeholder
+    // ("All Inspectors") only renders inside the dropdown body when the
+    // popover is open, so we only assert on the trigger here.
+    expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
   });
 });
