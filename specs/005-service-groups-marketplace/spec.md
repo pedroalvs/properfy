@@ -12,6 +12,17 @@
 >
 > **Reading guide.** Every user story declares `Priority`, `Status`, `Source`. Status: `IMPLEMENTED` | `APPROVED` | `GAP`. Source: `code` | `dossier` | `inferred`.
 
+## Approved Product Overrides - 2026-05-09
+
+1. The approved hard cap for service groups is now **30 appointments**, superseding older 25-cap references unless an explicit smaller sub-limit is reintroduced by a later decision.
+2. The operator role in this flow explicitly covers:
+   - creating new services,
+   - grouping services,
+   - offering jobs/groups to inspectors,
+   - communicating with tenants.
+3. Group offer and assignment flows must respect the admin-configured matrix of which **service types each inspector may execute for each client**.
+4. Non-confirmed appointments rejected by the `7:00 PM` day-before cutoff leave the service group; they do **not** collapse a group that still retains valid appointments.
+
 ## User Scenarios & Testing
 
 ### User Story 1 — Create a service group from pending appointments

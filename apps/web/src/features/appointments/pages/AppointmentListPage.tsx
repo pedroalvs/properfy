@@ -4,11 +4,13 @@ import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilte
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { useSnackbar } from '@/hooks/useSnackbar';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentTable } from '../components/AppointmentTable';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { BulkEditModal } from '../components/BulkEditModal';
 import { useAppointmentList } from '../hooks/useAppointmentList';
+import { useBulkResendReminder } from '../hooks/useBulkResendReminder';
 
 export function AppointmentListPage() {
   const navigate = useNavigate();
@@ -75,7 +77,36 @@ export function AppointmentListPage() {
   const canCreate = canPerform('appointment.create');
   const canMapImport = canPerform('property.import');
   const canBulkEdit = canPerform('appointment.cancel');
+  const canBulkResend = canPerform('appointment.bulk_resend_reminder');
   const canViewMap = true;
+
+  const { showSuccess, showError } = useSnackbar();
+  const bulkResend = useBulkResendReminder();
+  const handleBulkResend = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      // Review fix — Issue 3: forward the operator's IANA timezone so the
+      // backend's per-day idempotency key buckets correctly across regions.
+      // Without it the server falls back to its own TZ and an operator at
+      // UTC+10 vs the server's UTC+0 can flip into a different "day" mid-
+      // afternoon, breaking the IDEMPOTENT_REPLAY guarantee.
+      const actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const response = await bulkResend.mutateAsync({
+        appointmentIds: selectedIds,
+        actorTimezone,
+      });
+      const sent = response.data.results.filter((r) => r.status === 'SENT').length;
+      const noPrimary = response.data.results.filter((r) => r.status === 'NO_PRIMARY_CONTACT').length;
+      const replays = response.data.results.filter((r) => r.status === 'IDEMPOTENT_REPLAY').length;
+      const errors = response.data.results.filter((r) => r.status === 'ERROR').length;
+      showSuccess(
+        `${sent} sent · ${noPrimary} no primary · ${replays} already sent today · ${errors} errors`,
+      );
+      setSelectedIds([]);
+    } catch (e) {
+      showError(e instanceof Error ? e.message : 'Failed to re-send reminders');
+    }
+  };
 
   return (
     <>
@@ -131,6 +162,16 @@ export function AppointmentListPage() {
             >
               Clear selection
             </button>
+            {canBulkResend ? (
+              <button
+                onClick={handleBulkResend}
+                disabled={bulkResend.isPending}
+                className="inline-flex h-9 items-center gap-2 rounded border border-real-estate px-4 text-sm font-semibold text-real-estate hover:bg-real-estate/10 disabled:opacity-60"
+              >
+                <i className="mdi mdi-email-send-outline text-base" />
+                Re-send reminder ({selectedIds.length})
+              </button>
+            ) : null}
             <button
               onClick={() => setBulkEditOpen(true)}
               className="inline-flex h-9 items-center gap-2 rounded bg-real-estate px-4 text-sm font-semibold text-white hover:brightness-95 active:brightness-90"

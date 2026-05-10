@@ -16,7 +16,11 @@ export type AdditionalChannel = z.infer<typeof additionalChannelSchema>;
 
 export const contactRegistrySchema = z
   .object({
-    tenantId: z.string().uuid().optional(), // AM only — OP/CL resolved from JWT
+    // 024 §FR-308: AM/OP may post `tenantId` explicitly to pin the new
+    // contact to a tenant, omit it (auto-null = standalone), or send `null`
+    // explicitly. CL_ADMIN/CL_USER ignore the body field — the use case
+    // resolves their tenant from JWT (preserves 021 behaviour).
+    tenantId: z.string().uuid().nullable().optional(),
     type: z.nativeEnum(ContactType),
     displayName: z.string().min(1).max(200),
     company: z.string().min(1).max(200).optional().nullable(),
@@ -107,6 +111,82 @@ export const appointmentContactsArraySchema = z
 
 export type AppointmentContactLinkInput = z.infer<typeof contactIdLink> | z.infer<typeof inlineLink>;
 export type AppointmentContactsArrayInput = z.infer<typeof appointmentContactsArraySchema>;
+
+// --- Contact response schemas (canonical detail/payload + list row + sub-resource items) ---
+
+/**
+ * Canonical contact detail/payload shape used by every single-contact route
+ * (GET :id, POST, PATCH, POST :id/deactivate). Mirrors `propertyResponseSchema`.
+ *
+ * 024 §FR-301 — `tenantId` is nullable: standalone contacts (created by
+ * AM/OP without an appointment context) carry `tenantId = null` until
+ * linked via `appointment_contacts`.
+ */
+export const contactResponseSchema = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
+  type: z.nativeEnum(ContactType),
+  displayName: z.string(),
+  company: z.string().nullable(),
+  primaryEmail: z.string().nullable(),
+  primaryPhone: z.string().nullable(),
+  additionalChannels: z.array(additionalChannelSchema),
+  notes: z.string().nullable(),
+  isActive: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type ContactResponse = z.infer<typeof contactResponseSchema>;
+
+/**
+ * List-row variant: lighter fields + `propertyCount` aggregation +
+ * `primaryInPropertyCount` (number of distinct properties on which this
+ * contact is the primary recipient across non-CANCELLED/REJECTED appointments;
+ * powers the "Primary in N" column in the Contacts list — 023 §FR-202).
+ *
+ * 024 §FR-301 — `tenantId` is nullable for parity with `contactResponseSchema`.
+ */
+export const contactListItemSchema = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
+  type: z.nativeEnum(ContactType),
+  displayName: z.string(),
+  company: z.string().nullable(),
+  primaryEmail: z.string().nullable(),
+  primaryPhone: z.string().nullable(),
+  isActive: z.boolean(),
+  propertyCount: z.number().int().nonnegative(),
+  primaryInPropertyCount: z.number().int().nonnegative(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type ContactListItem = z.infer<typeof contactListItemSchema>;
+
+/** Appointment item under GET /v1/contacts/:id?includeAppointments=true. */
+export const contactAppointmentItemSchema = z.object({
+  appointmentId: z.string().uuid(),
+  appointmentNumber: z.number().int(),
+  status: z.string(),
+  scheduledDate: z.string().datetime(),
+  role: z.nativeEnum(AppointmentContactRole),
+  isPrimary: z.boolean(),
+  propertyId: z.string().uuid(),
+  propertyCode: z.string(),
+});
+export type ContactAppointmentItem = z.infer<typeof contactAppointmentItemSchema>;
+
+/** Property aggregate row under GET /v1/contacts/:id?includeProperties=true. */
+export const contactPropertyAggregateSchema = z.object({
+  propertyId: z.string().uuid(),
+  propertyCode: z.string(),
+  street: z.string(),
+  suburb: z.string(),
+  postcode: z.string(),
+  state: z.string(),
+  appointmentCount: z.number().int(),
+  isPrimaryInActiveAppointment: z.boolean(),
+});
+export type ContactPropertyAggregateResponse = z.infer<typeof contactPropertyAggregateSchema>;
 
 // --- Legacy schema (kept for backward compat during expand phase) ---
 

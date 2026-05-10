@@ -166,3 +166,47 @@ export const forceManualConfirmationSchema = z.object({
   reason: z.string().min(1).max(1000),
 });
 export type ForceManualConfirmationInput = z.infer<typeof forceManualConfirmationSchema>;
+
+// ─── Bulk re-send tenant-portal reminder (023 §FR-241..245) ──────────────
+
+/**
+ * Status enum for each per-appointment item in the bulk re-send response.
+ * - SENT: portal token generated and notification dispatched.
+ * - NO_PRIMARY_CONTACT: appointment has no primary contact; nothing dispatched.
+ * - IDEMPOTENT_REPLAY: a prior request for the same `(appointmentId, dayInActorTz)`
+ *   already produced a result; cached result returned, no new dispatch.
+ * - ERROR: per-item failure surfaced without aborting the batch.
+ */
+export const bulkResendReminderResultStatusSchema = z.enum([
+  'SENT',
+  'NO_PRIMARY_CONTACT',
+  'IDEMPOTENT_REPLAY',
+  'ERROR',
+]);
+export type BulkResendReminderResultStatus = z.infer<typeof bulkResendReminderResultStatusSchema>;
+
+export const bulkResendReminderResultSchema = z.object({
+  appointmentId: z.string().uuid(),
+  status: bulkResendReminderResultStatusSchema,
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+});
+export type BulkResendReminderResult = z.infer<typeof bulkResendReminderResultSchema>;
+
+export const bulkResendReminderRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  /**
+   * 023 §FR-243 — IANA timezone of the operator's browser, used to compute
+   * the per-day idempotency key (`dayInActorTz`). When omitted the server
+   * falls back to its own TZ — leaving operators across regions exposed
+   * to off-by-one bucket boundaries. Frontend sends the value of
+   * `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+   */
+  actorTimezone: z.string().optional(),
+});
+export type BulkResendReminderRequest = z.infer<typeof bulkResendReminderRequestSchema>;
+
+export const bulkResendReminderResponseSchema = z.object({
+  results: z.array(bulkResendReminderResultSchema),
+});
+export type BulkResendReminderResponse = z.infer<typeof bulkResendReminderResponseSchema>;
+

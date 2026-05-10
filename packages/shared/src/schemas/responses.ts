@@ -448,9 +448,21 @@ export const portalDataResponseSchema = z.object({
   }).optional(),
 });
 
+/**
+ * Response shape of `POST /v1/appointments/:appointmentId/portal-token`.
+ *
+ * 023 §FR-221 / BUG-023-001 — when the appointment has no primary contact,
+ * the use case still mints the token (auditable as a privileged action) but
+ * skips the notification dispatch and returns `dispatched: false` plus
+ * `reason: 'NO_PRIMARY_CONTACT'`. Without these fields in the schema,
+ * Fastify's whitelist serialiser silently strips them and API consumers
+ * cannot distinguish SUCCESS from a primary-less skip.
+ */
 export const portalTokenResponseSchema = z.object({
   token: z.string(),
   expiresAt: dateStr(),
+  dispatched: z.boolean().optional(),
+  reason: z.literal('NO_PRIMARY_CONTACT').optional(),
 });
 
 export const portalActivityItemSchema = z.object({

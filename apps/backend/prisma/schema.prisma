@@ -562,7 +562,11 @@ model ServiceGroup {
 
 model Contact {
   id                       String            @id @default(uuid())
-  tenant_id                String
+  // 024 §FR-301 — `tenant_id` is nullable. Contact is a cross-tenant entity;
+  // visibility for CL_ADMIN/CL_USER is derived via the operational junction
+  // (`appointment_contacts → appointments.tenant_id`). Standalone contacts
+  // (created by AM/OP without an appointment context) carry `tenant_id = null`.
+  tenant_id                String?
   type                     ContactType
   display_name             String            @db.VarChar(200)
   company                  String?           @db.VarChar(200)
@@ -574,12 +578,16 @@ model Contact {
   created_at               DateTime          @default(now())
   updated_at               DateTime          @updatedAt
 
-  tenant               Tenant               @relation(fields: [tenant_id], references: [id])
+  tenant               Tenant?              @relation(fields: [tenant_id], references: [id])
   appointment_contacts AppointmentContact[]
 
-  // Partial unique indexes managed in migration SQL (WHERE is_active = true):
-  // - contacts_tenant_email_active_unique
-  // - contacts_tenant_phone_active_unique
+  // Global partial unique indexes managed in 024 migration SQL (WHERE is_active = true):
+  // - contacts_email_active_unique
+  // - contacts_phone_active_unique
+  // The composite (tenant_id, *) indexes below remain as hints for the AM/OP
+  // explicit-tenant filter path; the new EXISTS-via-appointment_contacts
+  // visibility predicate uses different indexes (covered by the FK indexes
+  // on appointment_contacts.contact_id and appointments.tenant_id).
   @@index([tenant_id, type])
   @@index([tenant_id, is_active])
   @@index([tenant_id, display_name])

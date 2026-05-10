@@ -8,7 +8,12 @@ export interface AdditionalChannel {
 
 export interface ContactProps {
   id: string;
-  tenantId: string;
+  /**
+   * 024 §FR-301 — nullable. Standalone contacts (created by AM/OP without
+   * an appointment context) carry `tenantId = null` until linked via
+   * `appointment_contacts`.
+   */
+  tenantId: string | null;
   type: ContactType;
   displayName: string;
   company: string | null;
@@ -23,7 +28,7 @@ export interface ContactProps {
 
 export class ContactEntity {
   readonly id: string;
-  readonly tenantId: string;
+  readonly tenantId: string | null;
   readonly type: ContactType;
   readonly displayName: string;
   readonly company: string | null;

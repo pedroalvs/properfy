@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentStatus, AppointmentContactRole, todayLocalDateString } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -37,6 +37,23 @@ const CONTACT_ROLE_OPTIONS = [
   { value: AppointmentContactRole.PROPERTY_MANAGER, label: 'Property Manager' },
   { value: AppointmentContactRole.BROKER, label: 'Broker' },
   { value: AppointmentContactRole.OTHER, label: 'Other' },
+];
+
+// 023 §FR-251 — `Contact type` differs from `Role in this appointment`.
+// Type pins the registry row's persona; role describes the participation in
+// THIS specific appointment. Keep the labels distinct in the UI to avoid
+// the "I picked Tenant in role, why am I being asked again?" confusion.
+const CONTACT_TYPE_OPTIONS = [
+  { value: ContactType.TENANT, label: 'Tenant' },
+  { value: ContactType.PROPERTY_MANAGER, label: 'Property Manager' },
+  { value: ContactType.HOUSEKEEPER, label: 'Housekeeper' },
+  { value: ContactType.BROKER, label: 'Broker' },
+  { value: ContactType.OTHER, label: 'Other' },
+];
+
+const CHANNEL_OPTIONS = [
+  { value: ContactChannelType.EMAIL, label: 'Email' },
+  { value: ContactChannelType.PHONE, label: 'Phone' },
 ];
 
 interface AppointmentFormDrawerProps {
@@ -284,7 +301,7 @@ export function AppointmentFormDrawer({
   }, []);
 
   const updateContact = useCallback(
-    (key: string, field: keyof ContactFormEntry, value: string | boolean) => {
+    <K extends keyof ContactFormEntry>(key: string, field: K, value: ContactFormEntry[K]) => {
       setForm((prev) => ({
         ...prev,
         contacts: prev.contacts.map((c) =>
@@ -614,49 +631,155 @@ export function AppointmentFormDrawer({
                           )}
 
                           {!isLinked && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              <FormField label="Name" required error={errors.contacts?.[idx]?.name}>
-                                <TextInput
-                                  value={contact.name}
-                                  onChange={(v) => updateContact(contact.key, 'name', v)}
-                                  placeholder="Full name"
-                                  error={!!errors.contacts?.[idx]?.name}
-                                  aria-label={`Contact ${idx + 1} Name`}
-                                />
-                              </FormField>
-                              <FormField label="Role" required error={errors.contacts?.[idx]?.role}>
-                                <SelectInput
-                                  value={contact.role}
-                                  onChange={(v) => updateContact(contact.key, 'role', v)}
-                                  options={CONTACT_ROLE_OPTIONS}
-                                  placeholder="Select role"
-                                  aria-label={`Contact ${idx + 1} Role`}
-                                />
-                              </FormField>
-                              <FormField label="Email" error={errors.contacts?.[idx]?.email}>
-                                <EmailInput
-                                  value={contact.email}
-                                  onChange={(v) => updateContact(contact.key, 'email', v)}
-                                  error={!!errors.contacts?.[idx]?.email}
-                                  aria-label={`Contact ${idx + 1} Email`}
-                                />
-                              </FormField>
-                              <FormField label="Phone" error={errors.contacts?.[idx]?.phone}>
-                                <PhoneInput
-                                  value={contact.phone}
-                                  onChange={(v) => updateContact(contact.key, 'phone', v)}
-                                  error={!!errors.contacts?.[idx]?.phone}
-                                  aria-label={`Contact ${idx + 1} Phone`}
-                                />
-                              </FormField>
-                            </div>
+                            <>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <FormField label="Display name" required error={errors.contacts?.[idx]?.name}>
+                                  <TextInput
+                                    value={contact.name}
+                                    onChange={(v) => updateContact(contact.key, 'name', v)}
+                                    placeholder="Full name"
+                                    error={!!errors.contacts?.[idx]?.name}
+                                    aria-label={`Contact ${idx + 1} Display name`}
+                                  />
+                                </FormField>
+                                <FormField
+                                  label="Contact type"
+                                  required
+                                  error={errors.contacts?.[idx]?.contactType}
+                                >
+                                  <SelectInput
+                                    value={contact.contactType ?? ''}
+                                    onChange={(v) => updateContact(contact.key, 'contactType', v as ContactType)}
+                                    options={CONTACT_TYPE_OPTIONS}
+                                    placeholder="Select type"
+                                    aria-label={`Contact ${idx + 1} Contact type`}
+                                  />
+                                </FormField>
+                                <FormField label="Role in this appointment" required error={errors.contacts?.[idx]?.role}>
+                                  <SelectInput
+                                    value={contact.role}
+                                    onChange={(v) => updateContact(contact.key, 'role', v as AppointmentContactRole)}
+                                    options={CONTACT_ROLE_OPTIONS}
+                                    placeholder="Select role"
+                                    aria-label={`Contact ${idx + 1} Role`}
+                                  />
+                                </FormField>
+                                <FormField label="Company" error={errors.contacts?.[idx]?.company}>
+                                  <TextInput
+                                    value={contact.company ?? ''}
+                                    onChange={(v) => updateContact(contact.key, 'company', v)}
+                                    aria-label={`Contact ${idx + 1} Company`}
+                                  />
+                                </FormField>
+                                <FormField label="Email" error={errors.contacts?.[idx]?.email}>
+                                  <EmailInput
+                                    value={contact.email}
+                                    onChange={(v) => updateContact(contact.key, 'email', v)}
+                                    error={!!errors.contacts?.[idx]?.email}
+                                    aria-label={`Contact ${idx + 1} Email`}
+                                  />
+                                </FormField>
+                                <FormField label="Phone" error={errors.contacts?.[idx]?.phone}>
+                                  <PhoneInput
+                                    value={contact.phone}
+                                    onChange={(v) => updateContact(contact.key, 'phone', v)}
+                                    error={!!errors.contacts?.[idx]?.phone}
+                                    aria-label={`Contact ${idx + 1} Phone`}
+                                  />
+                                </FormField>
+                              </div>
+                              <p className="-mt-1 text-xs text-text-secondary">
+                                Provide at least one of email or phone.
+                              </p>
+                              {/* 023 §FR-253 — additional channels repeater (collapsed by default). */}
+                              <details className="mt-2">
+                                <summary className="cursor-pointer text-sm font-medium text-text-secondary">
+                                  Additional channels
+                                </summary>
+                                <div className="mt-2 flex flex-col gap-2">
+                                  {(contact.additionalChannels ?? []).map((ch, channelIdx) => (
+                                    <div key={channelIdx} className="grid grid-cols-1 md:grid-cols-[120px_1fr_1fr_auto] gap-2 items-end">
+                                      <FormField label="Channel">
+                                        <SelectInput
+                                          value={ch.channel}
+                                          onChange={(v) => {
+                                            const next = [...(contact.additionalChannels ?? [])];
+                                            next[channelIdx] = { ...next[channelIdx]!, channel: v as ContactChannelType };
+                                            updateContact(contact.key, 'additionalChannels', next);
+                                          }}
+                                          options={CHANNEL_OPTIONS}
+                                          aria-label={`Contact ${idx + 1} channel ${channelIdx + 1} type`}
+                                        />
+                                      </FormField>
+                                      <FormField label="Value">
+                                        <TextInput
+                                          value={ch.value}
+                                          onChange={(v) => {
+                                            const next = [...(contact.additionalChannels ?? [])];
+                                            next[channelIdx] = { ...next[channelIdx]!, value: v };
+                                            updateContact(contact.key, 'additionalChannels', next);
+                                          }}
+                                          aria-label={`Contact ${idx + 1} channel ${channelIdx + 1} value`}
+                                        />
+                                      </FormField>
+                                      <FormField label="Label (optional)">
+                                        <TextInput
+                                          value={ch.label ?? ''}
+                                          onChange={(v) => {
+                                            const next = [...(contact.additionalChannels ?? [])];
+                                            next[channelIdx] = { ...next[channelIdx]!, label: v };
+                                            updateContact(contact.key, 'additionalChannels', next);
+                                          }}
+                                          aria-label={`Contact ${idx + 1} channel ${channelIdx + 1} label`}
+                                        />
+                                      </FormField>
+                                      <Button
+                                        variant="secondary"
+                                        onClick={() => {
+                                          const next = (contact.additionalChannels ?? []).filter((_, i) => i !== channelIdx);
+                                          updateContact(contact.key, 'additionalChannels', next);
+                                        }}
+                                        aria-label={`Remove channel ${channelIdx + 1}`}
+                                      >
+                                        <i className="mdi mdi-close" aria-hidden="true" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                  <Button
+                                    variant="secondary"
+                                    onClick={() =>
+                                      updateContact(contact.key, 'additionalChannels', [
+                                        ...(contact.additionalChannels ?? []),
+                                        { channel: ContactChannelType.EMAIL, value: '', label: '' },
+                                      ])
+                                    }
+                                  >
+                                    <i className="mdi mdi-plus" aria-hidden="true" /> Add channel
+                                  </Button>
+                                </div>
+                              </details>
+                              <details className="mt-2">
+                                <summary className="cursor-pointer text-sm font-medium text-text-secondary">
+                                  Notes
+                                </summary>
+                                <div className="mt-2">
+                                  <FormField label="Notes" error={errors.contacts?.[idx]?.notes}>
+                                    <TextInput
+                                      value={contact.notes ?? ''}
+                                      onChange={(v) => updateContact(contact.key, 'notes', v)}
+                                      aria-label={`Contact ${idx + 1} notes`}
+                                    />
+                                  </FormField>
+                                </div>
+                              </details>
+                            </>
                           )}
                           {isLinked && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               <FormField label="Role" required error={errors.contacts?.[idx]?.role}>
                                 <SelectInput
                                   value={contact.role}
-                                  onChange={(v) => updateContact(contact.key, 'role', v)}
+                                  onChange={(v) => updateContact(contact.key, 'role', v as AppointmentContactRole)}
                                   options={CONTACT_ROLE_OPTIONS}
                                   placeholder="Select role"
                                   aria-label={`Contact ${idx + 1} Role`}

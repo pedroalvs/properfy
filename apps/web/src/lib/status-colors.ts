@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, type InspectorInvoiceStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, type InspectorInvoiceStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -42,6 +42,14 @@ export const APPOINTMENT_STATUS_MAP: Record<AppointmentStatus, StatusStyle> = {
 export function getStatusStyle(status: AppointmentStatus): StatusStyle {
   return APPOINTMENT_STATUS_MAP[status];
 }
+
+export const CONTACT_TYPE_MAP: Record<ContactType, StatusStyle> = {
+  [ContactType.TENANT]:           { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Tenant' },
+  [ContactType.PROPERTY_MANAGER]: { bg: 'var(--color-type-commercial)',  text: 'var(--color-text-primary)', label: 'Property Manager' },
+  [ContactType.HOUSEKEEPER]:      { bg: 'var(--color-type-rural)',       text: 'var(--color-text-primary)', label: 'Housekeeper' },
+  [ContactType.BROKER]:           { bg: 'var(--color-type-industrial)',  text: 'var(--color-text-primary)', label: 'Broker' },
+  [ContactType.OTHER]:            { bg: 'var(--color-status-draft)',     text: 'var(--color-text-primary)', label: 'Other' },
+};
 
 export const PROPERTY_TYPE_MAP: Record<PropertyType, StatusStyle> = {
   [PropertyType.RESIDENTIAL]: { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Residential' },

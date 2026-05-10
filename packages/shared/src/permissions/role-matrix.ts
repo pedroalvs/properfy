@@ -107,6 +107,9 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   'appointment.cross_check': {
     roles: ['AM', 'OP'],
   },
+  'appointment.bulk_resend_reminder': {
+    roles: ['AM', 'OP'],
+  },
   'appointment.reschedule': {
     roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
     condition: 'cl_user_flag',
@@ -192,6 +195,20 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
     roles: ['AM', 'OP', 'CL_ADMIN'],
   },
 
+  // ── Contact Registry ─────────────────────────────────────────────────
+  'contact.list': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+  },
+  'contact.create': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+  'contact.update': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+  'contact.deactivate': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+
   // ── Reports & Audit ──────────────────────────────────────────────────
   'report.view': {
     roles: ['AM', 'OP'],
@@ -202,7 +219,7 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
     conditionKey: 'export_reports',
   },
   'audit.view': {
-    roles: ['AM', 'OP'],
+    roles: ['AM', 'OP', 'CL_ADMIN'],
   },
 } as const;
 

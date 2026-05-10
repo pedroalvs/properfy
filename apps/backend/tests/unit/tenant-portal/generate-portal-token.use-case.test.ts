@@ -288,7 +288,10 @@ describe('GeneratePortalTokenUseCase', () => {
     const failingNotificationUseCase = {
       execute: vi.fn().mockRejectedValue(new Error('template TENANT_PORTAL_LINK not found')),
     };
+    // 023 §FR-221: dispatch only fires when the contact is the primary
+    // recipient. Use a primary contact to exercise the notification path.
     const contact = {
+      isPrimary: true,
       effectiveName: 'Jane Doe',
       effectiveEmail: 'jane@example.com',
       effectivePhone: null,

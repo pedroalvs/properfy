@@ -14,7 +14,13 @@ import {
 } from '../../domain/contact-validation.service';
 
 export interface CreateContactInput {
-  tenantId: string;
+  /**
+   * 024 §FR-301 — nullable. AM/OP may pass `null` (or omit) to create a
+   * standalone contact (no tenant linkage until an appointment is created).
+   * For CL_ADMIN/CL_USER the route handler resolves this from the JWT
+   * before calling the use case (preserves 021 behaviour).
+   */
+  tenantId: string | null;
   type: ContactType;
   displayName: string;
   company?: string | null;
@@ -23,6 +29,12 @@ export interface CreateContactInput {
   additionalChannels?: AdditionalChannel[];
   notes?: string | null;
   actorId: string;
+  /**
+   * 024 — actor's own JWT tenant, recorded as `metadata.actor_tenant_id`
+   * on the audit row so cross-tenant AM/OP creates are still traceable
+   * back to the operator's home tenant context (AM may have null).
+   */
+  actorTenantId?: string | null;
 }
 
 export class CreateContactUseCase {
@@ -40,6 +52,9 @@ export class CreateContactUseCase {
     validateNoDuplicateChannels(email, phone, channels);
     validateNoIntraArrayDuplicates(channels);
 
+    // 024 §FR-310 — uniqueness is now global. The repo ignores the
+    // tenantId argument; we keep the parameter at this call site for
+    // compatibility but the check spans every active contact.
     if (email) {
       const exists = await this.contactRepo.existsByEmail(input.tenantId, email);
       if (exists) throw new ContactEmailAlreadyExistsError();
@@ -73,7 +88,11 @@ export class CreateContactUseCase {
       actorId: input.actorId,
       entityType: 'contact',
       entityId: contact.id,
+      // 024 — `tenantId` on the audit row is the contact's own (may be null
+      // for standalone). The actor's home tenant is preserved separately in
+      // `metadata.actor_tenant_id` for traceability.
       tenantId: input.tenantId,
+      metadata: { actor_tenant_id: input.actorTenantId ?? null },
       after: {
         type: contact.type,
         displayName: contact.displayName,

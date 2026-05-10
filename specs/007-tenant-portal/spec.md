@@ -12,6 +12,16 @@
 >
 > **Reading guide.** Every user story declares `Priority`, `Status`, `Source`. Status: `IMPLEMENTED` | `APPROVED` | `GAP`. Source: `code` | `dossier` | `inferred`.
 
+## Approved Product Overrides - 2026-05-09
+
+1. The tenant portal must treat these as first-class renter actions where applicable:
+   - accept,
+   - reject/decline,
+   - reschedule,
+   - request keys/access.
+2. The portal also carries a free-text tenant note that must persist on the appointment and surface operationally downstream.
+3. Portal-side activity around key/access requests must be observable to operations in the same way as other meaningful tenant actions.
+
 ## User Scenarios & Testing
 
 ### User Story 1 — Operator generates a portal link for an appointment

@@ -55,7 +55,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => { await app.close(); });
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockJwtVerify.mockReset();
+  mockUpdateContactExecute.mockReset();
+});
 
 describe('PATCH /v1/contacts/:contactId — update-contact', () => {
   it('happy path: CL_ADMIN updates display name', async () => {

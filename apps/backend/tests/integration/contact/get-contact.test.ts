@@ -56,7 +56,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => { await app.close(); });
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockJwtVerify.mockReset();
+  mockGetContactExecute.mockReset();
+});
 
 describe('GET /v1/contacts/:contactId — get-contact (T032)', () => {
   it('success: returns contact detail for CL_ADMIN in own tenant', async () => {
@@ -84,7 +88,7 @@ describe('GET /v1/contacts/:contactId — get-contact (T032)', () => {
     expect(res.status).toBe(404);
   });
 
-  it('success with includeAppointments=true: returns linked appointments', async () => {
+  it('success with includeAppointments=true: returns linked appointments paginated', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockGetContactExecute.mockResolvedValue({
       contact: fullContact,
@@ -95,8 +99,13 @@ describe('GET /v1/contacts/:contactId — get-contact (T032)', () => {
           status: 'SCHEDULED',
           scheduledDate: new Date('2026-06-01'),
           role: 'PROPERTY_MANAGER',
+          isPrimary: true,
+          propertyId: 'dddddddd-0000-4000-8000-000000000001',
+          propertyCode: 'P-001',
         }],
         total: 1,
+        page: 1,
+        pageSize: 20,
       },
     });
 
@@ -106,12 +115,13 @@ describe('GET /v1/contacts/:contactId — get-contact (T032)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.appointments).toBeDefined();
-    expect(res.body.data.appointments.total).toBe(1);
+    expect(res.body.data.appointments.pagination.total).toBe(1);
     expect(res.body.data.appointments.data[0].appointmentId).toBe(APPT_ID);
+    expect(res.body.data.appointments.data[0].propertyCode).toBe('P-001');
     expect(mockGetContactExecute).toHaveBeenCalledWith(
       CONTACT_ID,
       TENANT_A,
-      true,
+      expect.objectContaining({ includeAppointments: true }),
     );
   });
 

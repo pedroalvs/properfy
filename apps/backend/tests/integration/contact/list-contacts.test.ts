@@ -30,14 +30,21 @@ const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: nul
 const clAdminContext = { userId: 'cl-admin-1', tenantId: TENANT_A, role: 'CL_ADMIN', branchId: null, inspectorId: null };
 const clUserContext = { userId: 'cl-user-1', tenantId: TENANT_A, role: 'CL_USER', branchId: null, inspectorId: null };
 
-function makeContact(id: string, type = 'TENANT', isActive = true) {
+let _idSeq = 0;
+function uuid(): string {
+  _idSeq += 1;
+  const hex = _idSeq.toString(16).padStart(4, '0');
+  return `cccccccc-0000-4000-8000-00000000${hex}`;
+}
+
+function makeContact(label: string, type = 'TENANT', isActive = true) {
   return {
-    id,
+    id: uuid(),
     tenantId: TENANT_A,
     type,
-    displayName: `Contact ${id}`,
+    displayName: `Contact ${label}`,
     company: null,
-    primaryEmail: `${id}@example.com`,
+    primaryEmail: `${label}@example.com`,
     primaryPhone: null,
     additionalChannels: [],
     notes: null,
@@ -45,6 +52,16 @@ function makeContact(id: string, type = 'TENANT', isActive = true) {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
+}
+
+function makeListItem(
+  label: string,
+  type = 'TENANT',
+  isActive = true,
+  propertyCount = 0,
+  primaryInPropertyCount = 0,
+) {
+  return { contact: makeContact(label, type, isActive), propertyCount, primaryInPropertyCount };
 }
 
 let app: FastifyInstance;
@@ -57,13 +74,21 @@ beforeAll(async () => {
 });
 
 afterAll(async () => { await app.close(); });
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockJwtVerify.mockReset();
+  mockListContactsExecute.mockReset();
+});
 
 describe('GET /v1/contacts — list-contacts (T031)', () => {
-  it('returns paginated list with correct metadata', async () => {
+  it('returns paginated list with correct metadata + propertyCount', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
-    const contacts = [makeContact('c1'), makeContact('c2')];
-    mockListContactsExecute.mockResolvedValue({ data: contacts, total: 2, page: 1, pageSize: 20 });
+    mockListContactsExecute.mockResolvedValue({
+      data: [makeListItem('c1', 'TENANT', true, 2), makeListItem('c2', 'TENANT', true, 0)],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    });
 
     const res = await supertest(app.server)
       .get('/v1/contacts')
@@ -71,13 +96,19 @@ describe('GET /v1/contacts — list-contacts (T031)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].propertyCount).toBe(2);
+    expect(res.body.data[1].propertyCount).toBe(0);
     expect(res.body.pagination).toMatchObject({ total: 2, page: 1, pageSize: 20 });
   });
 
   it('filters by type=PROPERTY_MANAGER', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
-    const pm = makeContact('pm-1', 'PROPERTY_MANAGER');
-    mockListContactsExecute.mockResolvedValue({ data: [pm], total: 1, page: 1, pageSize: 20 });
+    mockListContactsExecute.mockResolvedValue({
+      data: [makeListItem('pm-1', 'PROPERTY_MANAGER', true, 1)],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
 
     const res = await supertest(app.server)
       .get('/v1/contacts?type=PROPERTY_MANAGER')
@@ -91,8 +122,12 @@ describe('GET /v1/contacts — list-contacts (T031)', () => {
 
   it('filters by isActive=false to show deactivated contacts', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
-    const inactive = makeContact('c-inactive', 'TENANT', false);
-    mockListContactsExecute.mockResolvedValue({ data: [inactive], total: 1, page: 1, pageSize: 20 });
+    mockListContactsExecute.mockResolvedValue({
+      data: [makeListItem('c-inactive', 'TENANT', false, 0)],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
 
     const res = await supertest(app.server)
       .get('/v1/contacts?isActive=false')
@@ -105,14 +140,26 @@ describe('GET /v1/contacts — list-contacts (T031)', () => {
     expect(res.body.data[0].isActive).toBe(false);
   });
 
-  it('tenant scoping: CL_ADMIN lists only own tenant contacts', async () => {
+  it('tenant scoping: CL_ADMIN actor.tenantId is forwarded to the use case (024 §FR-303)', async () => {
+    // 024: scope resolution moved into the use case (`resolveScope`). Route
+    // layer forwards the JWT-derived `actor` and the optional query
+    // `tenantId` (null here). The use case applies the operational-junction
+    // visibility predicate downstream.
     mockJwtVerify.mockResolvedValue(clAdminContext);
-    mockListContactsExecute.mockResolvedValue({ data: [makeContact('c1')], total: 1, page: 1, pageSize: 20 });
+    mockListContactsExecute.mockResolvedValue({
+      data: [makeListItem('c1')],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
 
     await supertest(app.server).get('/v1/contacts').set('Authorization', 'Bearer token');
 
     expect(mockListContactsExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_A }),
+      expect.objectContaining({
+        actor: { role: 'CL_ADMIN', tenantId: TENANT_A },
+        tenantId: null,
+      }),
     );
   });
 

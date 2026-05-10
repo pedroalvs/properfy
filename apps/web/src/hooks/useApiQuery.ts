@@ -27,21 +27,32 @@ export interface SuccessResponse<T> {
   data: T;
 }
 
+/**
+ * Query-param value supported by the list endpoints. Arrays are forwarded to
+ * openapi-fetch as-is so it emits repeated keys (`?key=A&key=B`) per the
+ * OpenAPI `style: 'form', explode: true` default — the Fastify routes that
+ * declare `z.array(...)` querystring fields parse those into arrays.
+ */
+export type ListParamValue = string | number | boolean | string[] | undefined;
+
 export interface ListParams {
   page?: number;
   pageSize?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-  [key: string]: string | number | boolean | undefined;
+  [key: string]: ListParamValue;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function toStringParams(params?: ListParams): Record<string, string> | undefined {
+function toStringParams(params?: ListParams): Record<string, string | string[]> | undefined {
   if (!params) return undefined;
-  const result: Record<string, string> = {};
+  const result: Record<string, string | string[]> = {};
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== '') {
+    if (value === undefined || value === '') continue;
+    if (Array.isArray(value)) {
+      if (value.length > 0) result[key] = value;
+    } else {
       result[key] = String(value);
     }
   }
@@ -59,7 +70,7 @@ function toApiError(error: unknown): ApiError {
   return new ApiError(500, 'Unknown error');
 }
 
-async function apiGet<T>(path: string, params?: Record<string, string>): Promise<T> {
+async function apiGet<T>(path: string, params?: Record<string, string | string[]>): Promise<T> {
   const { data, error } = await api.GET(path as any, {
     params: { query: params as any },
   });

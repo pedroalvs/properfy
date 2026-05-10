@@ -9907,6 +9907,13 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "tenantNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasTenantNote": {
+                          "type": "boolean"
+                        },
                         "customFieldsJson": {
                           "nullable": true
                         },
@@ -10104,15 +10111,19 @@
           },
           {
             "schema": {
-              "type": "string",
-              "enum": [
-                "DRAFT",
-                "AWAITING_INSPECTOR",
-                "SCHEDULED",
-                "DONE",
-                "CANCELLED",
-                "REJECTED"
-              ]
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "AWAITING_INSPECTOR",
+                  "SCHEDULED",
+                  "DONE",
+                  "CANCELLED",
+                  "REJECTED"
+                ]
+              },
+              "minItems": 1
             },
             "in": "query",
             "name": "status",
@@ -10227,6 +10238,46 @@
             "in": "query",
             "name": "ungroupedOnly",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
+            },
+            "in": "query",
+            "name": "timeSlot",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "contactSearch",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "hasTenantNote",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "UNAVAILABLE",
+                "NO_RESPONSE"
+              ]
+            },
+            "in": "query",
+            "name": "confirmationStatus",
+            "required": false
           }
         ],
         "responses": {
@@ -10313,6 +10364,13 @@
                           "notes": {
                             "type": "string",
                             "nullable": true
+                          },
+                          "tenantNote": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "hasTenantNote": {
+                            "type": "boolean"
                           },
                           "customFieldsJson": {
                             "nullable": true
@@ -10587,6 +10645,13 @@
                         "notes": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "tenantNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasTenantNote": {
+                          "type": "boolean"
                         },
                         "customFieldsJson": {
                           "nullable": true
@@ -11094,6 +11159,13 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "tenantNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasTenantNote": {
+                          "type": "boolean"
+                        },
                         "customFieldsJson": {
                           "nullable": true
                         },
@@ -11306,6 +11378,7 @@
                       "SAFETY_CONCERN",
                       "INSUFFICIENT_INFO",
                       "SERVICE_NOT_AVAILABLE",
+                      "TENANT_NO_RESPONSE",
                       "OTHER"
                     ]
                   },
@@ -11560,6 +11633,107 @@
                       "required": [
                         "id",
                         "tenantConfirmationStatus"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/bulk-resend-reminder": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "SENT",
+                                  "NO_PRIMARY_CONTACT",
+                                  "IDEMPOTENT_REPLAY",
+                                  "ERROR"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
                       ],
                       "additionalProperties": false
                     }
@@ -11968,7 +12142,7 @@
                       "format": "uuid"
                     },
                     "minItems": 1,
-                    "maxItems": 25
+                    "maxItems": 30
                   },
                   "serviceTypeId": {
                     "type": "string",
@@ -12261,14 +12435,18 @@
           },
           {
             "schema": {
-              "type": "string",
-              "enum": [
-                "DRAFT",
-                "PUBLISHED",
-                "ACCEPTED",
-                "CANCELLED",
-                "REJECTED"
-              ]
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PUBLISHED",
+                  "ACCEPTED",
+                  "CANCELLED",
+                  "REJECTED"
+                ]
+              },
+              "minItems": 1
             },
             "in": "query",
             "name": "status",
@@ -12335,6 +12513,33 @@
             },
             "in": "query",
             "name": "includeAppointments",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "branchId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "contactSearch",
             "required": false
           }
         ],
@@ -14126,6 +14331,10 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "tenantName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "actorType": {
                             "type": "string"
                           },
@@ -14602,6 +14811,10 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "tenantNote": {
+                    "type": "string",
+                    "maxLength": 2000
                   }
                 },
                 "additionalProperties": false
@@ -14708,6 +14921,10 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "tenantNote": {
+                    "type": "string",
+                    "maxLength": 2000
                   }
                 },
                 "required": [
@@ -14878,6 +15095,10 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "tenantNote": {
+                    "type": "string",
+                    "maxLength": 2000
                   }
                 },
                 "additionalProperties": false
@@ -14946,24 +15167,42 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "token": {
-                      "type": "string"
-                    },
-                    "expiresAt": {
-                      "anyOf": [
-                        {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
                           "type": "string"
                         },
-                        {
+                        "expiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "dispatched": {
+                          "type": "boolean"
+                        },
+                        "reason": {
                           "type": "string",
-                          "format": "date-time"
+                          "enum": [
+                            "NO_PRIMARY_CONTACT"
+                          ]
                         }
-                      ]
+                      },
+                      "required": [
+                        "token",
+                        "expiresAt"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "token",
-                    "expiresAt"
+                    "data"
                   ],
                   "additionalProperties": false
                 }
@@ -23304,26 +23543,559 @@
     },
     "/v1/contacts": {
       "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "TENANT",
+                      "PROPERTY_MANAGER",
+                      "HOUSEKEEPER",
+                      "BROKER",
+                      "OTHER"
+                    ]
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "company": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "primaryEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "nullable": true
+                  },
+                  "primaryPhone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30,
+                    "nullable": true
+                  },
+                  "additionalChannels": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "channel": {
+                          "type": "string",
+                          "enum": [
+                            "EMAIL",
+                            "PHONE"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 254
+                        },
+                        "label": {
+                          "type": "string",
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "channel",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 10,
+                    "default": []
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "type",
+                  "displayName"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
-            "description": "Default Response"
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "PROPERTY_MANAGER",
+                            "HOUSEKEEPER",
+                            "BROKER",
+                            "OTHER"
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "additionalChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "enum": [
+                                  "EMAIL",
+                                  "PHONE"
+                                ]
+                              },
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 254
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tenantId",
+                        "type",
+                        "displayName",
+                        "company",
+                        "primaryEmail",
+                        "primaryPhone",
+                        "additionalChannels",
+                        "notes",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       },
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "TENANT",
+                    "PROPERTY_MANAGER",
+                    "HOUSEKEEPER",
+                    "BROKER",
+                    "OTHER"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "TENANT",
+                      "PROPERTY_MANAGER",
+                      "HOUSEKEEPER",
+                      "BROKER",
+                      "OTHER"
+                    ]
+                  }
+                }
+              ]
+            },
+            "in": "query",
+            "name": "type",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "in": "query",
+            "name": "branchIds",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "primary",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "isActive",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "displayName",
+                "createdAt",
+                "type"
+              ],
+              "default": "displayName"
+            },
+            "in": "query",
+            "name": "sortBy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "in": "query",
+            "name": "sortOrder",
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tenantId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "TENANT",
+                              "PROPERTY_MANAGER",
+                              "HOUSEKEEPER",
+                              "BROKER",
+                              "OTHER"
+                            ]
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "company": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "primaryEmail": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "primaryPhone": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "propertyCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "primaryInPropertyCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tenantId",
+                          "type",
+                          "displayName",
+                          "company",
+                          "primaryEmail",
+                          "primaryPhone",
+                          "isActive",
+                          "propertyCount",
+                          "primaryInPropertyCount",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "totalPages": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "pageSize",
+                        "total",
+                        "totalPages"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
     },
     "/v1/contacts/{contactId}": {
       "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "TENANT",
+                      "PROPERTY_MANAGER",
+                      "HOUSEKEEPER",
+                      "BROKER",
+                      "OTHER"
+                    ]
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "company": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "primaryEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "nullable": true
+                  },
+                  "primaryPhone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30,
+                    "nullable": true
+                  },
+                  "additionalChannels": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "channel": {
+                          "type": "string",
+                          "enum": [
+                            "EMAIL",
+                            "PHONE"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 254
+                        },
+                        "label": {
+                          "type": "string",
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "channel",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 10
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
             "in": "path",
             "name": "contactId",
@@ -23332,7 +24104,118 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "PROPERTY_MANAGER",
+                            "HOUSEKEEPER",
+                            "BROKER",
+                            "OTHER"
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "additionalChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "enum": [
+                                  "EMAIL",
+                                  "PHONE"
+                                ]
+                              },
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 254
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tenantId",
+                        "type",
+                        "displayName",
+                        "company",
+                        "primaryEmail",
+                        "primaryPhone",
+                        "additionalChannels",
+                        "notes",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       },
@@ -23340,7 +24223,70 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "includeAppointments",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "includeProperties",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "appointmentsPage",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "appointmentsPageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "propertiesPage",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "propertiesPageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             },
             "in": "path",
             "name": "contactId",
@@ -23349,7 +24295,284 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "PROPERTY_MANAGER",
+                            "HOUSEKEEPER",
+                            "BROKER",
+                            "OTHER"
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "additionalChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "enum": [
+                                  "EMAIL",
+                                  "PHONE"
+                                ]
+                              },
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 254
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "appointments": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "appointmentId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "appointmentNumber": {
+                                    "type": "integer"
+                                  },
+                                  "status": {
+                                    "type": "string"
+                                  },
+                                  "scheduledDate": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "role": {
+                                    "type": "string",
+                                    "enum": [
+                                      "TENANT",
+                                      "TENANT_REPRESENTATIVE",
+                                      "HOUSEKEEPER",
+                                      "PROPERTY_MANAGER",
+                                      "BROKER",
+                                      "OTHER"
+                                    ]
+                                  },
+                                  "isPrimary": {
+                                    "type": "boolean"
+                                  },
+                                  "propertyId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "propertyCode": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "appointmentId",
+                                  "appointmentNumber",
+                                  "status",
+                                  "scheduledDate",
+                                  "role",
+                                  "isPrimary",
+                                  "propertyId",
+                                  "propertyCode"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "pagination": {
+                              "type": "object",
+                              "properties": {
+                                "page": {
+                                  "type": "number"
+                                },
+                                "pageSize": {
+                                  "type": "number"
+                                },
+                                "total": {
+                                  "type": "number"
+                                },
+                                "totalPages": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "page",
+                                "pageSize",
+                                "total",
+                                "totalPages"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "data",
+                            "pagination"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "properties": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "propertyId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "propertyCode": {
+                                    "type": "string"
+                                  },
+                                  "street": {
+                                    "type": "string"
+                                  },
+                                  "suburb": {
+                                    "type": "string"
+                                  },
+                                  "postcode": {
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "type": "string"
+                                  },
+                                  "appointmentCount": {
+                                    "type": "integer"
+                                  },
+                                  "isPrimaryInActiveAppointment": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "propertyId",
+                                  "propertyCode",
+                                  "street",
+                                  "suburb",
+                                  "postcode",
+                                  "state",
+                                  "appointmentCount",
+                                  "isPrimaryInActiveAppointment"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "pagination": {
+                              "type": "object",
+                              "properties": {
+                                "page": {
+                                  "type": "number"
+                                },
+                                "pageSize": {
+                                  "type": "number"
+                                },
+                                "total": {
+                                  "type": "number"
+                                },
+                                "totalPages": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "page",
+                                "pageSize",
+                                "total",
+                                "totalPages"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "data",
+                            "pagination"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tenantId",
+                        "type",
+                        "displayName",
+                        "company",
+                        "primaryEmail",
+                        "primaryPhone",
+                        "additionalChannels",
+                        "notes",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -23359,7 +24582,8 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
             "in": "path",
             "name": "contactId",
@@ -23368,7 +24592,118 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "PROPERTY_MANAGER",
+                            "HOUSEKEEPER",
+                            "BROKER",
+                            "OTHER"
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "additionalChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "enum": [
+                                  "EMAIL",
+                                  "PHONE"
+                                ]
+                              },
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 254
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tenantId",
+                        "type",
+                        "displayName",
+                        "company",
+                        "primaryEmail",
+                        "primaryPhone",
+                        "additionalChannels",
+                        "notes",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }

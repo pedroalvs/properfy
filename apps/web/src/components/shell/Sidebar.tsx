@@ -26,15 +26,11 @@ const NAV_ITEMS: NavItem[] = [
   { icon: 'mdi-view-dashboard-outline', label: 'Dashboard', to: '/dashboard' },
   { icon: 'mdi-calendar-month', label: 'Appointments', to: '/appointments' },
   { icon: 'mdi-home-city-outline', label: 'Properties', to: '/properties' },
-  // Contacts is read-accessible to every role that can list appointments
-  // (backend `ListAppointmentContactsUseCase` allows AM/OP/CL_ADMIN/CL_USER,
-  // tenant-scoped for CL roles). Keeping it out of the admin "Users"
-  // submenu — which is strictly AM/OP management tools — removes the
-  // ambiguity we inherited: the route accepted CL but the sidebar hid
-  // it. Create/update for contacts is still AM/OP/CL_ADMIN (spec 021);
-  // CL_USER creates contacts inline during appointment creation. See
-  // specs/DECISIONS.md DEC-001.
-  { icon: 'mdi-account-multiple-outline', label: 'Contacts', to: '/tenant-contacts', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
+  // Unified contacts registry (specs 022 + 023). The legacy /tenant-contacts
+  // confirmation board was retired in 023; per-appointment confirmation
+  // status now lives inline on /appointments and on each contact's Relations
+  // tab at /contacts/:id.
+  { icon: 'mdi-account-multiple-outline', label: 'Contacts', to: '/contacts', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
   {
     icon: 'mdi-account-group-outline',
     label: 'Users',

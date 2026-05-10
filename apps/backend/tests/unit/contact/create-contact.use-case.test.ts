@@ -152,4 +152,64 @@ describe('CreateContactUseCase', () => {
     expect(contactRepo.existsByEmail).toHaveBeenCalledOnce();
     expect(contactRepo.existsByPhone).not.toHaveBeenCalled();
   });
+
+  describe('024 §FR-301 — standalone contact creation', () => {
+    it('AM standalone path persists tenantId=null on the entity', async () => {
+      const sut = makeSut();
+      const result = await sut.execute(baseInput({
+        tenantId: null,
+        actorTenantId: null,
+      }));
+
+      expect(contactRepo.save).toHaveBeenCalledOnce();
+      expect(result.tenantId).toBeNull();
+      const saved = contactRepo.save.mock.calls[0]![0];
+      expect(saved.tenantId).toBeNull();
+    });
+
+    it('AM standalone path emits an audit row with tenantId=null and actor_tenant_id=null', async () => {
+      const sut = makeSut();
+      await sut.execute(baseInput({
+        tenantId: null,
+        actorTenantId: null,
+      }));
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'contact.created',
+          tenantId: null,
+          metadata: { actor_tenant_id: null },
+        }),
+      );
+    });
+
+    it('OP standalone path preserves the operator JWT tenant in audit metadata.actor_tenant_id', async () => {
+      const sut = makeSut();
+      await sut.execute(baseInput({
+        tenantId: null,
+        actorTenantId: 'cccccccc-0000-4000-8000-000000000099',
+      }));
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: null,
+          metadata: { actor_tenant_id: 'cccccccc-0000-4000-8000-000000000099' },
+        }),
+      );
+    });
+
+    it('global uniqueness check still runs for standalone contact (FR-310)', async () => {
+      // Standalone (no tenant) must still hit the global partial unique
+      // index; the use case ignores the per-tenant tag for the check.
+      contactRepo.existsByEmail.mockResolvedValueOnce(true);
+      const sut = makeSut();
+
+      await expect(
+        sut.execute(baseInput({
+          tenantId: null,
+          actorTenantId: null,
+        })),
+      ).rejects.toThrow(ContactEmailAlreadyExistsError);
+    });
+  });
 });

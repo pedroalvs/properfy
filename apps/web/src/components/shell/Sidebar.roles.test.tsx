@@ -73,3 +73,24 @@ describe('Sidebar role-based visibility — Service Types', () => {
     expect(screen.getByText('Notification Templates')).toBeInTheDocument();
   });
 });
+
+describe('Sidebar IA — unified Contacts registry (spec 023)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('shows the unified "Contacts" entry to %s', (role) => {
+    renderSidebar(role);
+    expect(screen.getByText('Contacts')).toBeInTheDocument();
+  });
+
+  it('does NOT render the legacy "Tenant Confirmations" entry (retired in 023)', () => {
+    renderSidebar('AM');
+    expect(screen.queryByText('Tenant Confirmations')).not.toBeInTheDocument();
+  });
+
+  it('hides Contacts from INSP', () => {
+    renderSidebar('INSP');
+    expect(screen.queryByText('Contacts')).not.toBeInTheDocument();
+  });
+});
