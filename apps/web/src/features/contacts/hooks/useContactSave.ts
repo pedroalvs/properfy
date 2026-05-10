@@ -52,7 +52,9 @@ export function toCreatePayload(data: ContactFormData, tenantId?: string | null)
     primaryPhone: trimToNullableString(data.primaryPhone),
     ...(channels.length > 0 ? { additionalChannels: channels } : {}),
     ...(notes !== undefined ? { notes } : {}),
-    ...(tenantId ? { tenantId } : {}),
+    // 024 §FR-308 — `null` is a valid value (Standalone path); only
+    // omit when caller passed `undefined` (= no opinion, fall back to JWT).
+    ...(tenantId !== undefined ? { tenantId } : {}),
   };
 }
 
@@ -93,7 +95,12 @@ export interface SaveResult {
 }
 
 export interface UseContactSaveReturn {
-  save: (data: ContactFormData, contactId?: string, tenantIdOverride?: string) => Promise<SaveResult>;
+  /**
+   * 024 §FR-301/308 — `tenantIdOverride` accepts `null` to create a
+   * standalone contact (posts `tenantId: null`), a tenant id to pin, or
+   * `undefined` to fall back to the actor's JWT tenant.
+   */
+  save: (data: ContactFormData, contactId?: string, tenantIdOverride?: string | null) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: ContactFormData, mode: 'create' | 'edit') => ContactFormErrors;
 }
@@ -117,7 +124,7 @@ export function useContactSave(): UseContactSaveReturn {
   const save = useCallback(async (
     data: ContactFormData,
     contactId?: string,
-    tenantIdOverride?: string,
+    tenantIdOverride?: string | null,
   ): Promise<SaveResult> => {
     setIsSaving(true);
     try {
@@ -133,7 +140,11 @@ export function useContactSave(): UseContactSaveReturn {
           };
         }
       } else {
-        const payload = toCreatePayload(data, tenantIdOverride ?? user?.tenantId);
+        // 024 §FR-308 — distinguish "AM/OP picked Standalone" (override === null,
+        // post tenantId: null) from "fall back to JWT" (override === undefined).
+        // CL roles always fall back to JWT — they can't reach the Standalone path.
+        const resolvedTenantId = tenantIdOverride !== undefined ? tenantIdOverride : (user?.tenantId ?? null);
+        const payload = toCreatePayload(data, resolvedTenantId);
         const { data: responseData, error } = await api.POST('/v1/contacts' as any, { body: payload as any });
         if (error) {
           return {

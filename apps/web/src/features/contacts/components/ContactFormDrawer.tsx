@@ -22,8 +22,13 @@ interface ContactFormDrawerProps {
   onClose: () => void;
   contactId?: string | null;
   onSaved: () => void;
-  /** Pre-fills the create call's tenantId; only used by AM via the agency selector. */
-  tenantIdOverride?: string;
+  /**
+   * Pre-fills the create call's tenantId; used by AM/OP via the agency
+   * selector. 024 §FR-301/308: pass `null` explicitly to create a
+   * standalone contact (no tenant linkage); pass a tenant id to pin to
+   * that tenant; pass `undefined` to fall back to the actor's JWT tenant.
+   */
+  tenantIdOverride?: string | null;
   onCreated?: (contactId: string) => void;
 }
 

@@ -17,6 +17,15 @@ import { useContactList } from '../hooks/useContactList';
 import { useContactDeactivate } from '../hooks/useContactDeactivate';
 import type { ContactListItem } from '../types';
 
+/**
+ * 024 §FR-308 — sentinel value for the Agency selector that targets the
+ * "Standalone (no tenant)" path. Selecting it lets AM/OP browse the
+ * platform-wide contacts list and creates contacts with `tenantId = null`.
+ * Distinct from the empty string (which still means "no agency picked yet"
+ * and triggers the FilterRequiredState gate).
+ */
+const STANDALONE_SENTINEL = '__standalone__';
+
 export function ContactListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -26,7 +35,16 @@ export function ContactListPage() {
   // operational roles. Both pick an agency; CL_* use the JWT tenant directly.
   const isCrossTenantRole = hasRole('AM', 'OP');
   const [selectedTenantId, setSelectedTenantId] = useState('');
-  const effectiveTenantId = isCrossTenantRole ? selectedTenantId : undefined;
+  const isStandaloneSelected = selectedTenantId === STANDALONE_SENTINEL;
+  // Effective tenant for LIST: `undefined` for cross-tenant browse
+  // (Standalone sentinel) or "no agency picked yet"; specific tenant id
+  // when a real agency is selected.
+  const effectiveTenantId = isCrossTenantRole && !isStandaloneSelected ? selectedTenantId : undefined;
+  // Override for the CREATE form: `null` for the Standalone path so the
+  // backend persists `tenantId = null`; specific tenant id when pinned.
+  const formTenantOverride: string | null | undefined = isCrossTenantRole
+    ? (isStandaloneSelected ? null : (selectedTenantId || undefined))
+    : undefined;
   const requiresTenantSelection = isCrossTenantRole && !selectedTenantId;
   const canCreate = canPerform('contact.create');
   const canEdit = canPerform('contact.update');
@@ -52,7 +70,12 @@ export function ContactListPage() {
   } = useContactList(effectiveTenantId);
 
   const tenantOptions = useMemo(
-    () => (tenantsResp?.data ?? []).map((tenant) => ({ value: tenant.id, label: tenant.name })),
+    () => {
+      const real = (tenantsResp?.data ?? []).map((tenant) => ({ value: tenant.id, label: tenant.name }));
+      // 024 §FR-308 — prepend the Standalone sentinel so AM/OP can target
+      // tenant-less contacts both for browsing and for creating new rows.
+      return [{ value: STANDALONE_SENTINEL, label: 'Standalone — no tenant' }, ...real];
+    },
     [tenantsResp],
   );
 
@@ -183,7 +206,7 @@ export function ContactListPage() {
           setEditId(null);
         }}
         contactId={editId}
-        tenantIdOverride={effectiveTenantId}
+        tenantIdOverride={formTenantOverride}
         onSaved={() => {
           setFormOpen(false);
           setEditId(null);

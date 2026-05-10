@@ -6,10 +6,16 @@ export interface ContactAdditionalChannel {
   label?: string;
 }
 
-/** Canonical contact registry payload — mirrors backend `contactResponseSchema`. */
+/**
+ * Canonical contact registry payload — mirrors backend `contactResponseSchema`.
+ *
+ * 024 §FR-301 — `tenantId` is nullable: standalone contacts created by AM/OP
+ * outside of an appointment context carry `tenantId = null` until linked
+ * via `appointment_contacts`.
+ */
 export interface Contact {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   type: ContactType;
   displayName: string;
   company: string | null;
@@ -33,7 +39,8 @@ export type ContactDetail = Contact;
  */
 export interface ContactListItem {
   id: string;
-  tenantId: string;
+  /** 024 §FR-301 — nullable for standalone contacts. */
+  tenantId: string | null;
   type: ContactType;
   displayName: string;
   company: string | null;

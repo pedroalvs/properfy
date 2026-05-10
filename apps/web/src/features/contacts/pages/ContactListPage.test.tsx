@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -141,5 +141,60 @@ describe('ContactListPage — Agency selector visibility (Constitution v1.3.0 �
       const contactListCall = mockGet.mock.calls.find(([path]) => String(path) === '/v1/contacts');
       expect(contactListCall).toBeDefined();
     });
+  });
+});
+
+describe('ContactListPage — Standalone sentinel option (024 §FR-308)', () => {
+  function mockTenantsResponse(tenants: Array<{ id: string; name: string }>) {
+    mockGet.mockImplementation(async (path: string) => {
+      if (path === '/v1/tenants') {
+        return {
+          data: {
+            data: tenants,
+            pagination: { page: 1, pageSize: 100, total: tenants.length, totalPages: 1 },
+          },
+        };
+      }
+      return { data: EMPTY_LIST };
+    });
+  }
+
+  async function openAgencyDropdown() {
+    const trigger = await screen.findByLabelText('Agency');
+    fireEvent.click(trigger);
+  }
+
+  it('AM Agency dropdown exposes the "Standalone — no tenant" option', async () => {
+    setUser('AM', null);
+    mockTenantsResponse([{ id: TENANT_A, name: 'Acme Realty' }]);
+
+    renderPage();
+    await openAgencyDropdown();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /Standalone — no tenant/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('OP Agency dropdown also exposes the Standalone option', async () => {
+    setUser('OP', null);
+    mockTenantsResponse([{ id: TENANT_A, name: 'Acme Realty' }]);
+
+    renderPage();
+    await openAgencyDropdown();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('option', { name: /Standalone — no tenant/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('CL_ADMIN does NOT see the Agency selector at all (Standalone option unreachable)', () => {
+    setUser('CL_ADMIN', TENANT_A);
+    renderPage();
+    expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
   });
 });
