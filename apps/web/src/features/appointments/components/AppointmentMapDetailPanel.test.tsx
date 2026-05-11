@@ -136,25 +136,20 @@ describe('AppointmentMapDetailPanel', () => {
     expect(container.querySelector('[data-testid="appointment-map-detail-panel"]')).toBeNull();
   });
 
-  it('flips above the marker when there is room (anchor.y > 260)', () => {
-    renderPanel({ anchor: { x: 400, y: 500 } });
-    const panel = screen.getByTestId('appointment-map-detail-panel');
-    expect(panel.style.transform).toContain('-100%');
-  });
-
-  it('flips below the marker when near the top of the viewport (anchor.y <= 260)', () => {
-    renderPanel({ anchor: { x: 400, y: 80 } });
-    const panel = screen.getByTestId('appointment-map-detail-panel');
-    expect(panel.style.transform).not.toContain('-100%');
-  });
-
-  // 025 round-2 minor — edge clipping. Markers projected outside the
-  // viewport (e.g. Melbourne x=-66, Sydney top y=-163) used to render
-  // the popup off-screen. The clamp keeps it visible.
-  describe('viewport-edge clamping (minor round-2 fix)', () => {
+  // 025 round-2 — edge clamping + flip direction.
+  //
+  // The popup width is 340 and height ~450. On a 1280x800 viewport the
+  // fully-safe zones are:
+  //   - flip-below: anchor.y ∈ [16, 316]   (popup occupies [y+18, y+468])
+  //   - flip-above: anchor.y ∈ [484, 784]  (popup occupies [y-468, y])
+  // For anchor in the "gap" (316, 484), `clampAnchor` picks the side
+  // with more room and clamps Y to that side's bound.
+  describe('viewport-edge clamping + flip direction', () => {
     const VW = 1280;
     const VH = 800;
-    const POPUP_HALF_W = 170; // POPUP_WIDTH / 2 (340 / 2)
+    const POPUP_HALF_W = 170;
+    const POPUP_HEIGHT = 450;
+    const POPUP_OFFSET = 18;
     const MARGIN = 16;
 
     beforeEach(() => {
@@ -162,46 +157,121 @@ describe('AppointmentMapDetailPanel', () => {
       Object.defineProperty(window, 'innerHeight', { configurable: true, value: VH });
     });
 
+    const POPUP_WIDTH_PX = POPUP_HALF_W * 2;
+    const POPUP_WIDTH_HALF = POPUP_HALF_W;
+
+    /**
+     * Resolves the effective on-screen rect from the popup's inline
+     * style. jsdom doesn't lay out elements (`getBoundingClientRect`
+     * returns all zeros), so we read `style.top/left/transform` and
+     * compute the resulting bounding box manually. This is the test
+     * the QA asked for — it pins the VISUAL OUTPUT, not just the
+     * helper's internal coordinates, so the previous "tests passed
+     * but the bug visual passes" anti-pattern can't recur.
+     */
+    function readEffectiveRect(popup: HTMLElement) {
+      const top = parseFloat(popup.style.top);
+      const left = parseFloat(popup.style.left);
+      const flipAbove = popup.style.transform.includes('-100%');
+      const effectiveTop = flipAbove ? top - POPUP_HEIGHT - POPUP_OFFSET : top + POPUP_OFFSET;
+      const effectiveLeft = left - POPUP_WIDTH_HALF;
+      return {
+        top: effectiveTop,
+        bottom: effectiveTop + POPUP_HEIGHT,
+        left: effectiveLeft,
+        right: effectiveLeft + POPUP_WIDTH_PX,
+      };
+    }
+
     it('clamps to the LEFT viewport edge when anchor.x is off-screen (negative)', () => {
-      renderPanel({ anchor: { x: -66, y: 400 } });
+      renderPanel({ anchor: { x: -66, y: 200 } });
       const panel = screen.getByTestId('appointment-map-detail-panel');
       const left = parseFloat(panel.style.left);
       expect(left).toBeGreaterThanOrEqual(POPUP_HALF_W + MARGIN);
     });
 
     it('clamps to the RIGHT viewport edge when anchor.x exceeds viewport width', () => {
-      renderPanel({ anchor: { x: VW + 100, y: 400 } });
+      renderPanel({ anchor: { x: VW + 100, y: 200 } });
       const panel = screen.getByTestId('appointment-map-detail-panel');
       const left = parseFloat(panel.style.left);
       expect(left).toBeLessThanOrEqual(VW - POPUP_HALF_W - MARGIN);
     });
 
-    it('clamps to the TOP edge when anchor.y is negative (Sydney top y=-163)', () => {
-      renderPanel({ anchor: { x: 400, y: -163 } });
+    it('flips below when anchor.y is in the top safe zone (1 ≤ y ≤ 316)', () => {
+      renderPanel({ anchor: { x: 400, y: 200 } });
       const panel = screen.getByTestId('appointment-map-detail-panel');
-      const top = parseFloat(panel.style.top);
-      // anchor.y is clamped into [MARGIN, vh - MARGIN]; the auto-flip
-      // moves the popup BELOW the anchor (since clamped y ≤ 260).
-      expect(top).toBeGreaterThanOrEqual(MARGIN);
-      // The popup flips BELOW when y <= 260 — no `-100%` translate.
       expect(panel.style.transform).not.toContain('-100%');
     });
 
-    it('clamps to the BOTTOM edge when anchor.y exceeds viewport height', () => {
+    it('flips above when anchor.y is in the bottom safe zone (484 ≤ y ≤ 784)', () => {
+      renderPanel({ anchor: { x: 400, y: 600 } });
+      const panel = screen.getByTestId('appointment-map-detail-panel');
+      expect(panel.style.transform).toContain('-100%');
+    });
+
+    it('clamps top-edge anchor (Sydney y=-163) into below-flip range', () => {
+      renderPanel({ anchor: { x: 400, y: -163 } });
+      const panel = screen.getByTestId('appointment-map-detail-panel');
+      const top = parseFloat(panel.style.top);
+      expect(top).toBeGreaterThanOrEqual(MARGIN);
+      expect(panel.style.transform).not.toContain('-100%');
+    });
+
+    it('clamps bottom-edge anchor (y > vh) into above-flip range', () => {
       renderPanel({ anchor: { x: 400, y: VH + 100 } });
       const panel = screen.getByTestId('appointment-map-detail-panel');
       const top = parseFloat(panel.style.top);
       expect(top).toBeLessThanOrEqual(VH - MARGIN);
-      // The popup flips ABOVE (since clamped y > 260) — `-100%` translate.
       expect(panel.style.transform).toContain('-100%');
     });
 
-    it('does NOT modify an anchor that already sits comfortably inside the viewport', () => {
-      // Anchor in the middle — well within the safe zone (640, 400 on 1280x800).
-      renderPanel({ anchor: { x: 640, y: 400 } });
+    it('does NOT modify an anchor that already sits comfortably in a safe zone', () => {
+      // y=200 is well inside the below-flip safe range [16, 316].
+      renderPanel({ anchor: { x: 640, y: 200 } });
       const panel = screen.getByTestId('appointment-map-detail-panel');
       expect(parseFloat(panel.style.left)).toBe(640);
-      expect(parseFloat(panel.style.top)).toBe(400);
+      expect(parseFloat(panel.style.top)).toBe(200);
+    });
+
+    // 025 round-2 re-fix — Anti mock-masks-real-bug per feedback memory.
+    // Asserts the VISUAL bounding box (post-transform) for a swath of
+    // anchor.y values, including the "gap" range (316, 484) where the
+    // previous fix's static `> 260` threshold clipped the popup.
+    it('popup VISUAL bounding box stays inside the viewport at any anchor.y', () => {
+      const samples = [-200, 0, 50, 200, 280, 320, 400, 460, 500, 600, 700, VH, VH + 200];
+      for (const y of samples) {
+        const { unmount } = renderPanel({ anchor: { x: 640, y } });
+        const panel = screen.getByTestId('appointment-map-detail-panel');
+        const rect = readEffectiveRect(panel);
+        expect(rect.top, `anchor.y=${y}: popup top must be inside viewport`).toBeGreaterThanOrEqual(MARGIN - 1);
+        expect(rect.bottom, `anchor.y=${y}: popup bottom must be inside viewport`).toBeLessThanOrEqual(VH - MARGIN + 1);
+        expect(rect.left, `anchor.y=${y}: popup left must be inside viewport`).toBeGreaterThanOrEqual(MARGIN - 1);
+        expect(rect.right, `anchor.y=${y}: popup right must be inside viewport`).toBeLessThanOrEqual(VW - MARGIN + 1);
+        unmount();
+      }
+    });
+
+    it('popup VISUAL bounding box stays inside the viewport at any anchor.x', () => {
+      const samples = [-300, -50, 0, 200, 640, 1000, VW, VW + 200];
+      for (const x of samples) {
+        const { unmount } = renderPanel({ anchor: { x, y: 200 } });
+        const panel = screen.getByTestId('appointment-map-detail-panel');
+        const rect = readEffectiveRect(panel);
+        expect(rect.left, `anchor.x=${x}: popup left must be inside viewport`).toBeGreaterThanOrEqual(MARGIN - 1);
+        expect(rect.right, `anchor.x=${x}: popup right must be inside viewport`).toBeLessThanOrEqual(VW - MARGIN + 1);
+        unmount();
+      }
+    });
+
+    it('reproduces the QA-reported regression case (anchor.y=280) and renders fully visible', () => {
+      // Pre-fix: `safeAnchor.y > 260` → flipped above → top = 280 - 444 = -164 (clipped).
+      // Post-fix: anchor.y=280 ≤ 316 fits below → flip-below at y=280 → top = 298, bottom = 748.
+      renderPanel({ anchor: { x: 640, y: 280 } });
+      const panel = screen.getByTestId('appointment-map-detail-panel');
+      expect(panel.style.transform).not.toContain('-100%');
+      const rect = readEffectiveRect(panel);
+      expect(rect.top).toBeGreaterThanOrEqual(MARGIN);
+      expect(rect.bottom).toBeLessThanOrEqual(VH - MARGIN);
     });
   });
 });

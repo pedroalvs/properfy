@@ -47,47 +47,93 @@ const SECTIONS: SectionConfig[] = [
 ];
 
 const POPUP_WIDTH = 340;
+const POPUP_HEIGHT_ESTIMATE = 450;
+const POPUP_OFFSET = 18;
 const VIEWPORT_MARGIN = 16;
 
 /**
- * 025 round-2 minor — keep the popup visible when the anchor marker sits
- * near a viewport edge (Melbourne x=-66, Sydney top y=-163).
+ * 025 round-2 minor (re-fix) — clamping returns the chosen flip direction
+ * so the popup is always entirely inside the viewport regardless of
+ * marker position.
  *
- * The popup is centered horizontally on `anchor.x` (CSS
- * `transform: translate(-50%)`), so the horizontal constraint clamps
- * `anchor.x` into `[POPUP_WIDTH/2 + MARGIN, vw - POPUP_WIDTH/2 - MARGIN]`.
- * That guarantees both popup edges stay inside the viewport regardless
- * of marker position.
+ * Previous version clamped only the anchor.y and let the component's
+ * `safeAnchor.y > 260` static threshold decide flip direction. That
+ * threshold (260) didn't account for `POPUP_HEIGHT_ESTIMATE` (~450), so
+ * any anchor in `(260, 460)` flipped above and clipped at the top of
+ * the viewport. The user's smoke caught the regression on Sydney-area
+ * pins which projected into that exact range.
  *
- * Vertically the popup auto-flips above/below at `anchor.y === 260`, so
- * we only need to keep `anchor.y` itself inside the viewport — the flip
- * picks the side with room. Clamping into `[MARGIN, vh - MARGIN]` is
- * enough; we don't try to predict the popup's expanded height because
- * the `max-height: 70vh` cap + internal scroll handle that case.
+ * The fix:
+ *  1. Choose flip direction based on which side has room for the popup
+ *     AT the anchor's clamped position — `fitsAbove`, `fitsBelow`, or
+ *     pathological (popup taller than viewport).
+ *  2. Clamp `anchor.y` into the safe range for that direction so the
+ *     popup never crosses a viewport edge after the flip transform.
+ *  3. Return `flipAbove` so the component renders the matching
+ *     `translate(...)` value instead of guessing from a static threshold.
  *
- * When the marker sits FULLY off-screen, the popup hugs the nearest
- * edge — slight visual disconnect (popup not directly under marker),
- * but the operator sees the data they clicked for instead of an empty
- * map.
+ * Pathological case (viewport shorter than popup): the popup keeps its
+ * `max-height: 70vh` cap and internal scroll, so the content stays
+ * reachable even when the viewport itself is too short for the popup.
  */
 function clampAnchor(
   anchor: { x: number; y: number },
   viewport: { width: number; height: number },
-): { x: number; y: number } {
+): { x: number; y: number; flipAbove: boolean } {
   const halfW = POPUP_WIDTH / 2;
+  const popupTotal = POPUP_HEIGHT_ESTIMATE + POPUP_OFFSET;
+
+  // Horizontal — same logic as before. Pathological viewport narrower
+  // than the popup falls back to the midline.
   const minX = halfW + VIEWPORT_MARGIN;
   const maxX = viewport.width - halfW - VIEWPORT_MARGIN;
-  // Pathological viewport narrower than the popup itself → center the
-  // popup on the viewport midline and let the user scroll horizontally.
   const clampedX = maxX >= minX
     ? Math.max(minX, Math.min(anchor.x, maxX))
     : viewport.width / 2;
 
-  const minY = VIEWPORT_MARGIN;
-  const maxY = viewport.height - VIEWPORT_MARGIN;
-  const clampedY = Math.max(minY, Math.min(anchor.y, maxY));
+  // Decide flip direction.
+  // - fitsAbove: anchor has enough headroom for the popup to render above
+  // - fitsBelow: anchor has enough footroom for the popup to render below
+  // - Both: prefer above when anchor is in the lower half (popup points
+  //   toward viewport centre rather than away from it).
+  // - Neither (pathological): pick the side with more room and clamp tight.
+  const fitsAbove = anchor.y >= popupTotal + VIEWPORT_MARGIN;
+  const fitsBelow = anchor.y <= viewport.height - popupTotal - VIEWPORT_MARGIN;
 
-  return { x: clampedX, y: clampedY };
+  let flipAbove: boolean;
+  if (fitsAbove && fitsBelow) {
+    flipAbove = anchor.y > viewport.height / 2;
+  } else if (fitsAbove) {
+    flipAbove = true;
+  } else if (fitsBelow) {
+    flipAbove = false;
+  } else {
+    flipAbove = anchor.y >= viewport.height / 2;
+  }
+
+  // Clamp Y to the safe range for the chosen flip direction. The bounds
+  // here keep the popup ENTIRELY inside [MARGIN, vh - MARGIN] after the
+  // CSS transform is applied — the previous fix only constrained the
+  // anchor point itself, not the resulting visual rect.
+  let clampedY: number;
+  if (flipAbove) {
+    // Popup occupies [Y - popupTotal, Y]. Bound Y to the range where both
+    // edges stay inside the viewport.
+    const minYAbove = popupTotal + VIEWPORT_MARGIN;
+    const maxYAbove = viewport.height - VIEWPORT_MARGIN;
+    clampedY = maxYAbove >= minYAbove
+      ? Math.max(minYAbove, Math.min(anchor.y, maxYAbove))
+      : viewport.height / 2;
+  } else {
+    // Popup occupies [Y, Y + popupTotal].
+    const minYBelow = VIEWPORT_MARGIN;
+    const maxYBelow = viewport.height - popupTotal - VIEWPORT_MARGIN;
+    clampedY = maxYBelow >= minYBelow
+      ? Math.max(minYBelow, Math.min(anchor.y, maxYBelow))
+      : viewport.height / 2;
+  }
+
+  return { x: clampedX, y: clampedY, flipAbove };
 }
 
 /**
@@ -195,18 +241,20 @@ export function AppointmentMapDetailPanel({
   };
   const safeAnchor = clampAnchor(anchor, viewport);
 
-  // Position the popup near the marker. Default: above + centered.
-  // When the marker sits near the top of the viewport, flip below so the
-  // popup never disappears off-screen.
+  // Position the popup near the marker. `clampAnchor` decides flip
+  // direction based on which side has room for the full popup at the
+  // clamped Y, then clamps Y into the safe range for that direction.
+  // The transform value mirrors `flipAbove` literally — no static
+  // threshold to drift out of sync with POPUP_HEIGHT_ESTIMATE.
   const style: React.CSSProperties = {
     position: 'absolute',
     left: safeAnchor.x,
     top: safeAnchor.y,
     width: POPUP_WIDTH,
     maxHeight: '70vh',
-    transform: safeAnchor.y > 260
-      ? 'translate(-50%, calc(-100% - 18px))'
-      : 'translate(-50%, 18px)',
+    transform: safeAnchor.flipAbove
+      ? `translate(-50%, calc(-100% - ${POPUP_OFFSET}px))`
+      : `translate(-50%, ${POPUP_OFFSET}px)`,
   };
 
   return (
