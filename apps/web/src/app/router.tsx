@@ -71,34 +71,49 @@ import { AuthGuard } from './AuthGuard';
 import { AppShell } from '@/components/shell/AppShell';
 import { UserRole } from '@properfy/shared';
 import { NotFoundPage } from './NotFoundPage';
+import { AppErrorBoundary } from '@/components/feedback/AppErrorBoundary';
 
 function PortalRedirect() {
   const { token } = useParams();
   return <Navigate to={`/tenant-portal/${token}`} replace />;
 }
 
+/**
+ * `errorElement: <AppErrorBoundary />` on every top-level route entry
+ * promotes our boundary instead of React Router's dev-only "Hey
+ * developer 👋" placeholder. React Router resolves the closest
+ * ancestor with `errorElement`, so attaching it at the layout level
+ * inside `ProtectedRoute` is enough for every protected screen; the
+ * public routes (login, portal) each take their own attachment.
+ */
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+    errorElement: <AppErrorBoundary />,
   },
   {
     path: '/forgot-password',
     element: <ForgotPasswordPage />,
+    errorElement: <AppErrorBoundary />,
   },
   {
     path: '/tenant-portal/:token',
     element: <PortalPage />,
+    errorElement: <AppErrorBoundary />,
   },
   {
     path: '/portal/:token',
     element: <PortalRedirect />,
+    errorElement: <AppErrorBoundary />,
   },
   {
     element: <ProtectedRoute />,
+    errorElement: <AppErrorBoundary />,
     children: [
       {
         element: <AppShell />,
+        errorElement: <AppErrorBoundary />,
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
@@ -384,6 +399,7 @@ export const router = createBrowserRouter([
   {
     path: '*',
     element: <NotFoundPage />,
+    errorElement: <AppErrorBoundary />,
   },
 ], {
   future: {
