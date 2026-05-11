@@ -47,6 +47,48 @@ const SECTIONS: SectionConfig[] = [
 ];
 
 const POPUP_WIDTH = 340;
+const VIEWPORT_MARGIN = 16;
+
+/**
+ * 025 round-2 minor — keep the popup visible when the anchor marker sits
+ * near a viewport edge (Melbourne x=-66, Sydney top y=-163).
+ *
+ * The popup is centered horizontally on `anchor.x` (CSS
+ * `transform: translate(-50%)`), so the horizontal constraint clamps
+ * `anchor.x` into `[POPUP_WIDTH/2 + MARGIN, vw - POPUP_WIDTH/2 - MARGIN]`.
+ * That guarantees both popup edges stay inside the viewport regardless
+ * of marker position.
+ *
+ * Vertically the popup auto-flips above/below at `anchor.y === 260`, so
+ * we only need to keep `anchor.y` itself inside the viewport — the flip
+ * picks the side with room. Clamping into `[MARGIN, vh - MARGIN]` is
+ * enough; we don't try to predict the popup's expanded height because
+ * the `max-height: 70vh` cap + internal scroll handle that case.
+ *
+ * When the marker sits FULLY off-screen, the popup hugs the nearest
+ * edge — slight visual disconnect (popup not directly under marker),
+ * but the operator sees the data they clicked for instead of an empty
+ * map.
+ */
+function clampAnchor(
+  anchor: { x: number; y: number },
+  viewport: { width: number; height: number },
+): { x: number; y: number } {
+  const halfW = POPUP_WIDTH / 2;
+  const minX = halfW + VIEWPORT_MARGIN;
+  const maxX = viewport.width - halfW - VIEWPORT_MARGIN;
+  // Pathological viewport narrower than the popup itself → center the
+  // popup on the viewport midline and let the user scroll horizontally.
+  const clampedX = maxX >= minX
+    ? Math.max(minX, Math.min(anchor.x, maxX))
+    : viewport.width / 2;
+
+  const minY = VIEWPORT_MARGIN;
+  const maxY = viewport.height - VIEWPORT_MARGIN;
+  const clampedY = Math.max(minY, Math.min(anchor.y, maxY));
+
+  return { x: clampedX, y: clampedY };
+}
 
 /**
  * 025 §FR-451..460 — Floating popup anchored to the clicked marker.
@@ -143,16 +185,26 @@ export function AppointmentMapDetailPanel({
   // hydrated `clientName` as authoritative once available.
   const clientName = detail?.clientName ?? appointment.tenantName ?? '—';
 
+  // Clamp anchor into the viewport so the popup never clips at an edge.
+  // Reads window.innerWidth/Height at render time — viewport is read on
+  // every render so the popup repositions if the user resizes; ResizeObserver
+  // would be slightly cleaner but overkill for a transient overlay.
+  const viewport = {
+    width: typeof window !== 'undefined' ? window.innerWidth : 1024,
+    height: typeof window !== 'undefined' ? window.innerHeight : 768,
+  };
+  const safeAnchor = clampAnchor(anchor, viewport);
+
   // Position the popup near the marker. Default: above + centered.
   // When the marker sits near the top of the viewport, flip below so the
   // popup never disappears off-screen.
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: anchor.x,
-    top: anchor.y,
+    left: safeAnchor.x,
+    top: safeAnchor.y,
     width: POPUP_WIDTH,
     maxHeight: '70vh',
-    transform: anchor.y > 260
+    transform: safeAnchor.y > 260
       ? 'translate(-50%, calc(-100% - 18px))'
       : 'translate(-50%, 18px)',
   };

@@ -7,7 +7,7 @@
  *  3. Clicking a DIFFERENT marker resets the collapsibles and re-fetches.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -146,5 +146,62 @@ describe('AppointmentMapDetailPanel', () => {
     renderPanel({ anchor: { x: 400, y: 80 } });
     const panel = screen.getByTestId('appointment-map-detail-panel');
     expect(panel.style.transform).not.toContain('-100%');
+  });
+
+  // 025 round-2 minor — edge clipping. Markers projected outside the
+  // viewport (e.g. Melbourne x=-66, Sydney top y=-163) used to render
+  // the popup off-screen. The clamp keeps it visible.
+  describe('viewport-edge clamping (minor round-2 fix)', () => {
+    const VW = 1280;
+    const VH = 800;
+    const POPUP_HALF_W = 170; // POPUP_WIDTH / 2 (340 / 2)
+    const MARGIN = 16;
+
+    beforeEach(() => {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: VW });
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: VH });
+    });
+
+    it('clamps to the LEFT viewport edge when anchor.x is off-screen (negative)', () => {
+      renderPanel({ anchor: { x: -66, y: 400 } });
+      const panel = screen.getByTestId('appointment-map-detail-panel');
+      const left = parseFloat(panel.style.left);
+      expect(left).toBeGreaterThanOrEqual(POPUP_HALF_W + MARGIN);
+    });
+
+    it('clamps to the RIGHT viewport edge when anchor.x exceeds viewport width', () => {
+      renderPanel({ anchor: { x: VW + 100, y: 400 } });
+      const panel = screen.getByTestId('appointment-map-detail-panel');
+      const left = parseFloat(panel.style.left);
+      expect(left).toBeLessThanOrEqual(VW - POPUP_HALF_W - MARGIN);
+    });
+
+    it('clamps to the TOP edge when anchor.y is negative (Sydney top y=-163)', () => {
+      renderPanel({ anchor: { x: 400, y: -163 } });
+      const panel = screen.getByTestId('appointment-map-detail-panel');
+      const top = parseFloat(panel.style.top);
+      // anchor.y is clamped into [MARGIN, vh - MARGIN]; the auto-flip
+      // moves the popup BELOW the anchor (since clamped y ≤ 260).
+      expect(top).toBeGreaterThanOrEqual(MARGIN);
+      // The popup flips BELOW when y <= 260 — no `-100%` translate.
+      expect(panel.style.transform).not.toContain('-100%');
+    });
+
+    it('clamps to the BOTTOM edge when anchor.y exceeds viewport height', () => {
+      renderPanel({ anchor: { x: 400, y: VH + 100 } });
+      const panel = screen.getByTestId('appointment-map-detail-panel');
+      const top = parseFloat(panel.style.top);
+      expect(top).toBeLessThanOrEqual(VH - MARGIN);
+      // The popup flips ABOVE (since clamped y > 260) — `-100%` translate.
+      expect(panel.style.transform).toContain('-100%');
+    });
+
+    it('does NOT modify an anchor that already sits comfortably inside the viewport', () => {
+      // Anchor in the middle — well within the safe zone (640, 400 on 1280x800).
+      renderPanel({ anchor: { x: 640, y: 400 } });
+      const panel = screen.getByTestId('appointment-map-detail-panel');
+      expect(parseFloat(panel.style.left)).toBe(640);
+      expect(parseFloat(panel.style.top)).toBe(400);
+    });
   });
 });
