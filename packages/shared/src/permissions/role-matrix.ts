@@ -115,6 +115,26 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
     condition: 'cl_user_flag',
     conditionKey: 'reschedule_appointments',
   },
+  // 025 §FR-411 — bulk cancel from map flow; CL_USER gated by cancel_appointments flag
+  'appointment.bulk_cancel': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    condition: 'cl_user_flag',
+    conditionKey: 'cancel_appointments',
+  },
+  // 025 §FR-421 — bulk reschedule from map flow; CL_USER gated by reschedule_appointments flag
+  'appointment.bulk_reschedule': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    condition: 'cl_user_flag',
+    conditionKey: 'reschedule_appointments',
+  },
+  // 025 §FR-431 — bulk status transition (release / reject / reopen); OP-team only
+  'appointment.bulk_status_transition': {
+    roles: ['AM', 'OP'],
+  },
+  // 025 §FR-441 — bulk inspector assignment; OP-team only
+  'appointment.bulk_assign_inspector': {
+    roles: ['AM', 'OP'],
+  },
 
   // ── Inspector Management ─────────────────────────────────────────────
   'inspector.create': {

@@ -210,3 +210,81 @@ export const bulkResendReminderResponseSchema = z.object({
 });
 export type BulkResendReminderResponse = z.infer<typeof bulkResendReminderResponseSchema>;
 
+// ─── Bulk map-flow actions (025 §FR-401..460) ────────────────────────────
+//
+// Four bulk endpoints (cancel / reschedule / status-transition / assign-inspector)
+// share the same per-item result envelope. Each item carries an OK status or
+// one of the typed failure modes — the batch never aborts on a per-item error.
+// Idempotency key prefix: `bulk_<action>:<appointmentId>:<dayInActorTz>`.
+
+export const bulkActionResultStatusSchema = z.enum([
+  'OK',
+  'INVALID_TRANSITION',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'ERROR',
+  'IDEMPOTENT_REPLAY',
+]);
+export type BulkActionResultStatus = z.infer<typeof bulkActionResultStatusSchema>;
+
+export const bulkActionResultItemSchema = z.object({
+  appointmentId: z.string().uuid(),
+  status: bulkActionResultStatusSchema,
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+});
+export type BulkActionResultItem = z.infer<typeof bulkActionResultItemSchema>;
+
+export const bulkActionResponseSchema = z.object({
+  results: z.array(bulkActionResultItemSchema),
+});
+export type BulkActionResponse = z.infer<typeof bulkActionResponseSchema>;
+
+/**
+ * 025 §FR-411 — Bulk cancel up to 100 appointments. Reason is required
+ * (cancellation always demands one per CLAUDE.md §5 state machine).
+ */
+export const bulkCancelRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  reason: z.string().min(3).max(500),
+  /** IANA timezone for per-day idempotency bucketing (see bulk_resend_reminder). */
+  actorTimezone: z.string().optional(),
+});
+export type BulkCancelRequest = z.infer<typeof bulkCancelRequestSchema>;
+
+/**
+ * 025 §FR-421 — Bulk reschedule. `newDate` accepts ISO datetime or date-only
+ * (kept consistent with `createAppointmentSchema.scheduledDate`). `newTimeSlot`
+ * is optional — when omitted each appointment keeps its existing slot.
+ */
+export const bulkRescheduleRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  newDate: z.union([z.string().datetime(), z.string().date()]),
+  newTimeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
+  actorTimezone: z.string().optional(),
+});
+export type BulkRescheduleRequest = z.infer<typeof bulkRescheduleRequestSchema>;
+
+/**
+ * 025 §FR-431 — Bulk status transition. Reason is optional at the schema
+ * level; the state machine enforces it per-transition via `isReasonRequired`
+ * (see `packages/shared/src/lib/appointment-transitions.ts`).
+ */
+export const bulkStatusTransitionRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  targetStatus: z.nativeEnum(AppointmentStatus),
+  reason: z.string().min(3).max(500).optional(),
+  actorTimezone: z.string().optional(),
+});
+export type BulkStatusTransitionRequest = z.infer<typeof bulkStatusTransitionRequestSchema>;
+
+/**
+ * 025 §FR-441 — Bulk assign / reassign inspector. Use case validates the
+ * inspector is active per tenant rules; per-item FORBIDDEN if not.
+ */
+export const bulkAssignInspectorRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  inspectorId: z.string().uuid(),
+  actorTimezone: z.string().optional(),
+});
+export type BulkAssignInspectorRequest = z.infer<typeof bulkAssignInspectorRequestSchema>;
+
