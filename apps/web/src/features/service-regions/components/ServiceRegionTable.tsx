@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { TENANT_ADMIN_STATUS_MAP } from '@/lib/status-colors';
 import type { ServiceRegion } from '../types';
 
@@ -51,16 +52,12 @@ export function ServiceRegionTable({
       width: '120px',
       sortable: true,
       render: (row) => {
+        // UX-baseline cleanup: use the shared `StatusChip`. Service-region
+        // statuses ride on `TENANT_ADMIN_STATUS_MAP` (ACTIVE / INACTIVE /
+        // PENDING). Unknown values fall back to a neutral chip.
         const style = TENANT_ADMIN_STATUS_MAP[row.status];
-        if (!style) return <>{row.status}</>;
-        return (
-          <span
-            className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
-            style={{ backgroundColor: style.bg, color: style.text }}
-          >
-            {style.label}
-          </span>
-        );
+        if (!style) return <StatusChip label={row.status} bg="var(--color-status-draft)" />;
+        return <StatusChip label={style.label} bg={style.bg} text={style.text} />;
       },
     },
     {

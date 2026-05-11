@@ -108,9 +108,14 @@ describe('InspectorDetailSections', () => {
 
   it('calls download API when insurance download button clicked', async () => {
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    // Default mock keeps every render-time `api.GET` returning the
+    // paginated empty-list shape so the component does not crash. Once
+    // the user clicks download, the next `api.GET` is overridden by the
+    // `mockResolvedValueOnce` below — UX-baseline cleanup wraps the
+    // download response in `{ data: { downloadUrl, fileName } }`.
+    mockApiGet.mockResolvedValue({ data: { data: [], pagination: { total: 0 } }, error: null });
     mockApiGet.mockResolvedValueOnce({ data: { data: [], pagination: { total: 0 } }, error: null });
     mockApiGet.mockResolvedValueOnce({ data: { data: [], pagination: { total: 0 } }, error: null });
-    mockApiGet.mockResolvedValue({ data: { downloadUrl: 'https://example.com/dl' }, error: null });
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -124,6 +129,11 @@ describe('InspectorDetailSections', () => {
     );
 
     const btn = await screen.findByRole('button', { name: /download insurance/i });
+    // Override the next call (the download fetch) with the wrapped envelope.
+    mockApiGet.mockResolvedValueOnce({
+      data: { data: { downloadUrl: 'https://example.com/dl', fileName: 'insurance.pdf' } },
+      error: null,
+    });
     fireEvent.click(btn);
 
     await waitFor(() => {

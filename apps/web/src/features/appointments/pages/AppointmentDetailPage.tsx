@@ -28,7 +28,6 @@ import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AssignInspectorModal } from '../components/AssignInspectorModal';
 import { ForceConfirmDialog } from '../components/ForceConfirmDialog';
 import { AppointmentPortalActivityTab } from '../components/AppointmentPortalActivityTab';
-import { AppointmentContactsListTab } from '../components/AppointmentContactsListTab';
 import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
 import { useForceConfirmation } from '../hooks/useForceConfirmation';
 
@@ -42,7 +41,6 @@ const TIMELINE_TAB = { id: 'timeline', label: 'Timeline' };
 const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
 const EVIDENCE_TAB = { id: 'evidence', label: 'Evidence' };
 const PORTAL_ACTIVITY_TAB = { id: 'portal-activity', label: 'Portal Activity' };
-const CONTACTS_LIST_TAB = { id: 'contacts-list', label: 'Contacts' };
 const CAN_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 
 function isPrivilegedRole(role: string): boolean {
@@ -73,7 +71,6 @@ export function AppointmentDetailPage() {
   const [portalLinkCopied, setPortalLinkCopied] = useState(false);
   const tabs = [
     ...BASE_TABS,
-    ...(isPrivileged ? [CONTACTS_LIST_TAB] : []),
     ...(isPrivileged ? [PORTAL_ACTIVITY_TAB] : []),
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
     ...(isPrivileged ? [TIMELINE_TAB] : []),
@@ -307,9 +304,6 @@ export function AppointmentDetailPage() {
           )}
           {activeTab === 'portal-activity' && isPrivileged && (
             <AppointmentPortalActivityTab appointmentId={appointment.id} />
-          )}
-          {activeTab === 'contacts-list' && isPrivileged && (
-            <AppointmentContactsListTab tenantId={appointment.tenantId} />
           )}
         </div>
 

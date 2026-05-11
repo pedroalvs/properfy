@@ -575,7 +575,9 @@ export async function registerInspectorRoutes(
         mimeType: parsed.data.mimeType,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      // UX-baseline cleanup: wrap in `success()` so the wire shape carries
+      // the canonical `{ data }` envelope every other route uses.
+      return reply.status(200).send(success(result));
     },
   );
 
@@ -599,7 +601,7 @@ export async function registerInspectorRoutes(
         storageKey: parsed.data.storageKey,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(success(result));
     },
   );
 
@@ -634,7 +636,7 @@ export async function registerInspectorRoutes(
         fileName: parsed.data.fileName,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(success(result));
     },
   );
 
@@ -669,7 +671,7 @@ export async function registerInspectorRoutes(
         fileName: parsed.data.fileName,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(success(result));
     },
   );
 
@@ -684,10 +686,16 @@ export async function registerInspectorRoutes(
           kind: z.enum(['INSURANCE', 'POLICE_CHECK']),
         }),
         response: {
-          200: z.object({
-            downloadUrl: z.string().url(),
-            fileName: z.string().nullable(),
-          }),
+          // UX-baseline cleanup: wrap in successResponseSchema so the
+          // wire envelope matches every other route. `fastify-type-
+          // provider-zod` strips fields outside the schema, so the
+          // wrapper schema must encode the inner shape exactly.
+          200: successResponseSchema(
+            z.object({
+              downloadUrl: z.string().url(),
+              fileName: z.string().nullable(),
+            }),
+          ),
         },
       },
     },
@@ -703,7 +711,7 @@ export async function registerInspectorRoutes(
         kind: params.data.kind,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(success(result));
     },
   );
 }

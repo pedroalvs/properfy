@@ -148,7 +148,6 @@ export function createMockContainer(
       forceManualConfirmationUseCase: { execute: vi.fn() },
       importAppointmentsUseCase: { execute: vi.fn() },
       getImportStatusUseCase: { execute: vi.fn() },
-      listAppointmentContactsUseCase: { execute: vi.fn() },
       deleteAppointmentUseCase: { execute: vi.fn() },
       bulkEditAppointmentsUseCase: { execute: vi.fn() },
       bulkResendReminderUseCase: { execute: vi.fn() },

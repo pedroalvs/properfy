@@ -71,30 +71,11 @@ export interface AppointmentListItem {
   inspectorName: string | null;
 }
 
-export interface ContactFilters {
-  tenantId?: string;
-  confirmationStatus?: string;
-  search?: string;
-}
-
-export interface ContactListItem {
-  id: string;
-  appointmentId: string;
-  name: string;
-  primaryEmail: string | null;
-  primaryPhone: string | null;
-  confirmationStatus: string;
-  propertyAddress: string;
-  appointmentDate: Date;
-  lastActivityAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ContactDetail extends ContactListItem {
-  alternativePhone: string | null;
-  notes: string | null;
-}
+// `ContactFilters`, `ContactListItem`, and `ContactDetail` were retired
+// alongside the /v1/appointment-contacts routes — the legacy tenant-wide
+// contacts board UI was retired in 023 and the AppointmentContactsListTab
+// in the chore/ux-baseline-cleanup pass. The contact module owns the
+// canonical Contact CRUD; this module no longer exposes a contact list.
 
 export interface VisibleForInspectorParams {
   inspectorId: string;
@@ -176,9 +157,6 @@ export interface IAppointmentRepository {
   saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void>;
   deleteRestrictionsByAppointmentId(appointmentId: string): Promise<void>;
   findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]>;
-  findAllContacts(filters: ContactFilters, pagination: PaginationParams): Promise<ContactListItem[]>;
-  countContacts(filters: ContactFilters): Promise<number>;
-  findContactById(id: string): Promise<ContactDetail | null>;
   findDuplicateForImport(
     propertyId: string,
     serviceTypeId: string,

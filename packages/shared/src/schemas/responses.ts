@@ -768,27 +768,6 @@ export const dashboardStatsResponseSchema = z.object({
   }),
 });
 
-// ─── Appointment Contact ───────────────────────────────────────────────────
-
-export const appointmentContactResponseSchema = z.object({
-  id: z.string().uuid(),
-  appointmentId: z.string().uuid(),
-  name: z.string(),
-  primaryEmail: z.string().nullable(),
-  primaryPhone: z.string().nullable(),
-  confirmationStatus: z.string(),
-  propertyAddress: z.string(),
-  appointmentDate: dateStr(),
-  lastActivityAt: dateStr().nullable(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
-});
-
-export const appointmentContactDetailResponseSchema = appointmentContactResponseSchema.extend({
-  alternativePhone: z.string().nullable(),
-  notes: z.string().nullable(),
-});
-
 // ─── Webhook ───────────────────────────────────────────────────────────────
 
 export const webhookAckResponseSchema = z.object({
@@ -814,7 +793,6 @@ export type AuditLogResponse = z.infer<typeof auditLogResponseSchema>;
 export type FinancialEntryResponse = z.infer<typeof financialEntryResponseSchema>;
 export type InvoiceResponse = z.infer<typeof invoiceResponseSchema>;
 export type NotificationResponse = z.infer<typeof notificationResponseSchema>;
-export type AppointmentContactResponse = z.infer<typeof appointmentContactResponseSchema>;
 export type NotificationTemplateResponse = z.infer<typeof notificationTemplateResponseSchema>;
 export type ReportResponse = z.infer<typeof reportResponseSchema>;
 export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;

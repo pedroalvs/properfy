@@ -9463,18 +9463,27 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "downloadUrl": {
-                      "type": "string",
-                      "format": "uri"
-                    },
-                    "fileName": {
-                      "type": "string",
-                      "nullable": true
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "downloadUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "fileName": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "downloadUrl",
+                        "fileName"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "downloadUrl",
-                    "fileName"
+                    "data"
                   ],
                   "additionalProperties": false
                 }
@@ -11774,346 +11783,6 @@
         "responses": {
           "200": {
             "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/appointment-contacts": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1
-            },
-            "in": "query",
-            "name": "page",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 10
-            },
-            "in": "query",
-            "name": "pageSize",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "sortBy",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "default": "desc"
-            },
-            "in": "query",
-            "name": "sortOrder",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "confirmationStatus",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "search",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "query",
-            "name": "tenantId",
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "appointmentId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "primaryEmail": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "primaryPhone": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "confirmationStatus": {
-                            "type": "string"
-                          },
-                          "propertyAddress": {
-                            "type": "string"
-                          },
-                          "appointmentDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "lastActivityAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
-                          "createdAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "updatedAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "appointmentId",
-                          "name",
-                          "primaryEmail",
-                          "primaryPhone",
-                          "confirmationStatus",
-                          "propertyAddress",
-                          "appointmentDate",
-                          "lastActivityAt",
-                          "createdAt",
-                          "updatedAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "pagination": {
-                      "type": "object",
-                      "properties": {
-                        "page": {
-                          "type": "number"
-                        },
-                        "pageSize": {
-                          "type": "number"
-                        },
-                        "total": {
-                          "type": "number"
-                        },
-                        "totalPages": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "page",
-                        "pageSize",
-                        "total",
-                        "totalPages"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "pagination"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/appointment-contacts/{contactId}": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "contactId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "appointmentId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "primaryEmail": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "primaryPhone": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "confirmationStatus": {
-                          "type": "string"
-                        },
-                        "propertyAddress": {
-                          "type": "string"
-                        },
-                        "appointmentDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "lastActivityAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "alternativePhone": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "appointmentId",
-                        "name",
-                        "primaryEmail",
-                        "primaryPhone",
-                        "confirmationStatus",
-                        "propertyAddress",
-                        "appointmentDate",
-                        "lastActivityAt",
-                        "createdAt",
-                        "updatedAt",
-                        "alternativePhone",
-                        "notes"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
           }
         }
       }
@@ -15378,93 +15047,102 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "date": {
-                      "anyOf": [
-                        {
-                          "type": "string"
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
                         },
-                        {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      ]
-                    },
-                    "appointments": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "status": {
-                            "type": "string"
-                          },
-                          "scheduledDate": {
-                            "anyOf": [
-                              {
+                        "appointments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
                                 "type": "string"
                               },
-                              {
+                              "scheduledDate": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              },
+                              "timeSlot": {
+                                "type": "string"
+                              },
+                              "serviceTypeId": {
                                 "type": "string",
-                                "format": "date-time"
+                                "format": "uuid"
+                              },
+                              "propertyId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "tenantConfirmationStatus": {
+                                "type": "string"
+                              },
+                              "keyRequired": {
+                                "type": "boolean"
+                              },
+                              "meetingLocation": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "executionStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_STARTED",
+                                  "IN_PROGRESS",
+                                  "FINISHED"
+                                ]
+                              },
+                              "agencyName": {
+                                "type": "string",
+                                "nullable": true
                               }
-                            ]
-                          },
-                          "timeSlot": {
-                            "type": "string"
-                          },
-                          "serviceTypeId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "propertyId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "tenantConfirmationStatus": {
-                            "type": "string"
-                          },
-                          "keyRequired": {
-                            "type": "boolean"
-                          },
-                          "meetingLocation": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "executionStatus": {
-                            "type": "string",
-                            "enum": [
-                              "NOT_STARTED",
-                              "IN_PROGRESS",
-                              "FINISHED"
-                            ]
-                          },
-                          "agencyName": {
-                            "type": "string",
-                            "nullable": true
+                            },
+                            "required": [
+                              "id",
+                              "status",
+                              "scheduledDate",
+                              "timeSlot",
+                              "serviceTypeId",
+                              "propertyId",
+                              "tenantConfirmationStatus",
+                              "keyRequired",
+                              "meetingLocation",
+                              "executionStatus"
+                            ],
+                            "additionalProperties": false
                           }
-                        },
-                        "required": [
-                          "id",
-                          "status",
-                          "scheduledDate",
-                          "timeSlot",
-                          "serviceTypeId",
-                          "propertyId",
-                          "tenantConfirmationStatus",
-                          "keyRequired",
-                          "meetingLocation",
-                          "executionStatus"
-                        ],
-                        "additionalProperties": false
-                      }
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "appointments"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "date",
-                    "appointments"
+                    "data"
                   ],
                   "additionalProperties": false
                 }

@@ -9,8 +9,6 @@ import {
   bulkEditAppointmentSchema,
   appointmentResponseSchema,
   forceManualConfirmationResponseSchema,
-  appointmentContactResponseSchema,
-  appointmentContactDetailResponseSchema,
   bulkResendReminderRequestSchema,
   bulkResendReminderResponseSchema,
   successResponseSchema,
@@ -18,7 +16,6 @@ import {
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
-import { ContactNotFoundError } from '../domain/appointment.errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { CreateAppointmentUseCase } from '../application/use-cases/create-appointment.use-case';
 import type { GetAppointmentUseCase } from '../application/use-cases/get-appointment.use-case';
@@ -29,7 +26,6 @@ import type { PerformCrossCheckUseCase } from '../application/use-cases/perform-
 import type { ForceManualTenantConfirmationUseCase } from '../application/use-cases/force-manual-confirmation.use-case';
 import type { ImportAppointmentsUseCase } from '../application/use-cases/import-appointments.use-case';
 import type { GetImportStatusUseCase } from '../application/use-cases/get-import-status.use-case';
-import type { ListAppointmentContactsUseCase } from '../application/use-cases/list-appointment-contacts.use-case';
 import type { DeleteAppointmentUseCase } from '../application/use-cases/delete-appointment.use-case';
 import type { BulkEditAppointmentsUseCase } from '../application/use-cases/bulk-edit-appointments.use-case';
 import type { BulkResendReminderUseCase } from '../application/use-cases/bulk-resend-reminder.use-case';
@@ -50,11 +46,9 @@ export interface AppointmentRouteContainer {
   reopenForRescheduleUseCase: ReopenForRescheduleUseCase;
   importAppointmentsUseCase: ImportAppointmentsUseCase;
   getImportStatusUseCase: GetImportStatusUseCase;
-  listAppointmentContactsUseCase: ListAppointmentContactsUseCase;
   deleteAppointmentUseCase: DeleteAppointmentUseCase;
   bulkEditAppointmentsUseCase: BulkEditAppointmentsUseCase;
   bulkResendReminderUseCase: BulkResendReminderUseCase;
-  appointmentRepo: { findContactById(id: string): Promise<object | null> };
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
   idempotencyService?: IIdempotencyService;
@@ -387,61 +381,6 @@ export async function registerAppointmentRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
-    },
-  );
-
-  // GET /v1/appointment-contacts — 200
-  app.get(
-    '/v1/appointment-contacts',
-    {
-      preHandler: authenticate,
-      schema: {
-        querystring: z.object({
-          page: z.coerce.number().int().min(1).default(1),
-          pageSize: z.coerce.number().int().min(1).max(100).default(10),
-          sortBy: z.string().optional(),
-          sortOrder: z.enum(['asc', 'desc']).default('desc'),
-          confirmationStatus: z.string().optional(),
-          search: z.string().optional(),
-          tenantId: z.string().uuid().optional(),
-        }),
-        response: { 200: paginatedResponseSchema(appointmentContactResponseSchema) },
-      },
-    },
-    async (request, reply) => {
-      const q = request.query as {
-        page: number; pageSize: number; sortBy?: string; sortOrder: 'asc' | 'desc';
-        confirmationStatus?: string; search?: string; tenantId?: string;
-      };
-      const result = await container.listAppointmentContactsUseCase.execute({
-        filters: {
-          tenantId: q.tenantId,
-          confirmationStatus: q.confirmationStatus,
-          search: q.search,
-        },
-        pagination: { page: q.page, pageSize: q.pageSize, sortBy: q.sortBy, sortOrder: q.sortOrder },
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(paginated(result.data, result.total, q.page, q.pageSize));
-    },
-  );
-
-  // GET /v1/appointment-contacts/:contactId — 200
-  app.get(
-    '/v1/appointment-contacts/:contactId',
-    {
-      preHandler: authenticate,
-      schema: {
-        params: z.object({ contactId: z.string().uuid() }),
-        response: { 200: successResponseSchema(appointmentContactDetailResponseSchema) },
-      },
-    },
-    async (request, reply) => {
-      const params = z.object({ contactId: z.string().uuid() }).safeParse(request.params);
-      if (!params.success) throw new ValidationError('Invalid contact ID', params.error.errors);
-      const contact = await container.appointmentRepo.findContactById(params.data.contactId);
-      if (!contact) throw new ContactNotFoundError();
-      return reply.status(200).send(success(contact));
     },
   );
 

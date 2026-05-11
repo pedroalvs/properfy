@@ -73,8 +73,10 @@ describe('POST /v1/inspectors/:inspectorId/documents/presign', () => {
       .send({ kind: 'INSURANCE', mimeType: 'application/pdf', fileName: 'insurance.pdf' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('uploadUrl');
-    expect(res.body).toHaveProperty('storageKey');
+    // UX-baseline cleanup: response wrapped in `{ data: {...} }`.
+    expect(res.body).toHaveProperty('data');
+    expect(res.body.data).toHaveProperty('uploadUrl');
+    expect(res.body.data).toHaveProperty('storageKey');
   });
 
   it('returns 200 with uploadUrl for OP (POLICE_CHECK)', async () => {
@@ -157,7 +159,9 @@ describe('GET /v1/inspectors/:inspectorId/documents/:kind/download', () => {
       .set('Authorization', 'Bearer token');
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('downloadUrl');
+    // UX-baseline cleanup: response wrapped in `{ data: {...} }`.
+    expect(res.body).toHaveProperty('data');
+    expect(res.body.data).toHaveProperty('downloadUrl');
   });
 
   it('returns 200 with downloadUrl for INSP self', async () => {

@@ -63,12 +63,13 @@ describe('AvatarUploader', () => {
 
   it('calls onUploaded after successful presign → PUT → confirm flow', async () => {
     const onUploaded = vi.fn();
+    // UX-baseline cleanup: presign response wrapped in `{ data: {...} }`.
     mockApiPost
       .mockResolvedValueOnce({
-        data: { uploadUrl: 'https://supabase.example/upload', storageKey: 'inspectors/insp-1/avatar.jpg' },
+        data: { data: { uploadUrl: 'https://supabase.example/upload', storageKey: 'inspectors/insp-1/avatar.jpg' } },
         error: null,
       })
-      .mockResolvedValueOnce({ data: {}, error: null });
+      .mockResolvedValueOnce({ data: { data: {} }, error: null });
     mockFetch.mockResolvedValueOnce({ ok: true });
 
     renderWithProviders(<AvatarUploader inspectorId={INSPECTOR_ID} onUploaded={onUploaded} />);
@@ -95,8 +96,9 @@ describe('AvatarUploader', () => {
   });
 
   it('shows error when PUT upload fails', async () => {
+    // UX-baseline cleanup: presign response wrapped in `{ data: {...} }`.
     mockApiPost.mockResolvedValueOnce({
-      data: { uploadUrl: 'https://supabase.example/upload', storageKey: 'key.jpg' },
+      data: { data: { uploadUrl: 'https://supabase.example/upload', storageKey: 'key.jpg' } },
       error: null,
     });
     mockFetch.mockResolvedValueOnce({ ok: false });

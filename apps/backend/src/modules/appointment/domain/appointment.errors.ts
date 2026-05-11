@@ -212,11 +212,8 @@ export class AppointmentNotDraftError extends DomainError {
   }
 }
 
-export class ContactNotFoundError extends NotFoundError {
-  constructor() {
-    super('CONTACT_NOT_FOUND', 'Contact not found');
-  }
-}
+// `ContactNotFoundError` here was specific to /v1/appointment-contacts/:id;
+// the canonical version is at `modules/contact/domain/contact.errors.ts`.
 
 export class AppointmentImportIdempotencyPayloadMismatchError extends ConflictError {
   constructor() {

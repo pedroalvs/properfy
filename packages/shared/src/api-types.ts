@@ -4280,9 +4280,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** Format: uri */
-                            downloadUrl: string;
-                            fileName: string | null;
+                            data: {
+                                /** Format: uri */
+                                downloadUrl: string;
+                                fileName: string | null;
+                            };
                         };
                     };
                 };
@@ -5126,126 +5128,6 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/appointment-contacts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    page?: number;
-                    pageSize?: number;
-                    sortBy?: string;
-                    sortOrder?: "asc" | "desc";
-                    confirmationStatus?: string;
-                    search?: string;
-                    tenantId?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                appointmentId: string;
-                                name: string;
-                                primaryEmail: string | null;
-                                primaryPhone: string | null;
-                                confirmationStatus: string;
-                                propertyAddress: string;
-                                appointmentDate: string;
-                                lastActivityAt: (string) | null;
-                                createdAt: string;
-                                updatedAt: string;
-                            }[];
-                            pagination: {
-                                page: number;
-                                pageSize: number;
-                                total: number;
-                                totalPages: number;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/appointment-contacts/{contactId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    contactId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                appointmentId: string;
-                                name: string;
-                                primaryEmail: string | null;
-                                primaryPhone: string | null;
-                                confirmationStatus: string;
-                                propertyAddress: string;
-                                appointmentDate: string;
-                                lastActivityAt: (string) | null;
-                                createdAt: string;
-                                updatedAt: string;
-                                alternativePhone: string | null;
-                                notes: string | null;
-                            };
-                        };
-                    };
                 };
             };
         };
@@ -7020,24 +6902,26 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            date: string;
-                            appointments: {
-                                /** Format: uuid */
-                                id: string;
-                                status: string;
-                                scheduledDate: string;
-                                timeSlot: string;
-                                /** Format: uuid */
-                                serviceTypeId: string;
-                                /** Format: uuid */
-                                propertyId: string;
-                                tenantConfirmationStatus: string;
-                                keyRequired: boolean;
-                                meetingLocation: string | null;
-                                /** @enum {string} */
-                                executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
-                                agencyName?: string | null;
-                            }[];
+                            data: {
+                                date: string;
+                                appointments: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    status: string;
+                                    scheduledDate: string;
+                                    timeSlot: string;
+                                    /** Format: uuid */
+                                    serviceTypeId: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    tenantConfirmationStatus: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    agencyName?: string | null;
+                                }[];
+                            };
                         };
                     };
                 };

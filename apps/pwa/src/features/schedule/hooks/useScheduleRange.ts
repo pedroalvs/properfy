@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '@/hooks/useApiQuery';
+import { apiGet, type SuccessResponse } from '@/hooks/useApiQuery';
 import { mapInspectorAppointmentDetail } from '../lib/adapters';
 import { toLocalISODate } from '../lib/time-slot';
 import type {
@@ -30,14 +30,20 @@ export function useScheduleRange(from: string, to: string) {
     queryKey: ['inspector', 'schedule', 'range', { from, to }],
     queryFn: async () => {
       const dates = listDates(from, to);
+      // UX-baseline cleanup: backend now wraps the response in
+      // `{ data: { date, appointments } }`. Fetch the envelope and read
+      // `.data.appointments`.
       const dayResponses = await Promise.all(
         dates.map((date) =>
-          apiGet<InspectorScheduleDayResponse>('/v1/inspector/schedule', { date }),
+          apiGet<SuccessResponse<InspectorScheduleDayResponse>>(
+            '/v1/inspector/schedule',
+            { date },
+          ),
         ),
       );
 
       const appointmentIds = dayResponses.flatMap((response) =>
-        response.appointments.map((appointment) => appointment.id),
+        response.data.appointments.map((appointment) => appointment.id),
       );
 
       const detailResponses = await Promise.all(

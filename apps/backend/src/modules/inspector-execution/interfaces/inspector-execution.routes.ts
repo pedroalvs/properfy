@@ -70,7 +70,17 @@ export async function registerInspectorExecutionRoutes(
   // GET /v1/inspector/schedule
   app.get(
     '/v1/inspector/schedule',
-    { preHandler: authenticate, schema: { querystring: inspectorScheduleQuerySchema, response: { 200: inspectorScheduleResponseSchema } } },
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: inspectorScheduleQuerySchema,
+        // UX-baseline cleanup — wrap in `successResponseSchema` so the
+        // wire shape carries the canonical `{ data }` envelope every
+        // other GET in the app uses; pre-fix the bare object would
+        // break any consumer that auto-unwraps `response.data`.
+        response: { 200: successResponseSchema(inspectorScheduleResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const parsed = inspectorScheduleQuerySchema.safeParse(request.query);
       if (!parsed.success) {
@@ -80,7 +90,7 @@ export async function registerInspectorExecutionRoutes(
         ...parsed.data,
         actor: request.authContext!,
       });
-      return reply.status(200).send(result);
+      return reply.status(200).send(success(result));
     },
   );
 

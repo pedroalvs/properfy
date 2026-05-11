@@ -1,5 +1,6 @@
 import type { RecentAppointment } from '../types';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
+import { formatDate } from '@/lib/format-date';
 
 interface RecentAppointmentsListProps {
   appointments: RecentAppointment[];
@@ -48,7 +49,10 @@ export function RecentAppointmentsList({
                 </span>
               )}
               <span className="text-xs text-text-muted ml-auto whitespace-nowrap">
-                {appointment.scheduledDate}
+                {/* UX-baseline cleanup: format ISO via the shared
+                    `formatDate` helper so the dashboard surfaces the
+                    locale-friendly date instead of the raw ISO. */}
+                {formatDate(appointment.scheduledDate)}
               </span>
             </button>
           ))}

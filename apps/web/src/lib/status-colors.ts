@@ -170,3 +170,27 @@ export const SLOT_STATUS_MAP: Record<AvailabilitySlotStatus, StatusStyle> = {
   [AvailabilitySlotStatus.BOOKED]:    { bg: 'var(--color-slot-booked)',    text: 'var(--color-text-primary)', label: 'Booked' },
   [AvailabilitySlotStatus.CANCELLED]: { bg: 'var(--color-slot-cancelled)', text: 'var(--color-text-primary)', label: 'Cancelled' },
 };
+
+/**
+ * Notification dispatch status (per-row in the appointment notifications
+ * tab). Mirrors the full `NotificationStatus` enum from
+ * `@properfy/shared/enums/notification`:
+ *   - PENDING:          queued / in flight.
+ *   - SENT:             handed off to provider.
+ *   - DELIVERED:        provider acked end-to-end.
+ *   - FAILED:           provider rejected or transport error.
+ *   - SKIPPED:          dispatch deliberately suppressed (rule, quiet hours,
+ *                       missing recipient channel).
+ *   - SKIPPED_OPT_OUT:  recipient unsubscribed from this notification class.
+ * Reuses existing status-color tokens to stay aligned with the rest of
+ * the design system; the two SKIPPED states share the "cancelled"
+ * palette so they read as terminal-non-failure at a glance.
+ */
+export const NOTIFICATION_STATUS_MAP: Record<string, StatusStyle> = {
+  PENDING:         { bg: 'var(--color-status-draft)',     text: 'var(--color-text-primary)', label: 'Pending' },
+  SENT:            { bg: 'var(--color-status-scheduled)', text: 'var(--color-text-primary)', label: 'Sent' },
+  DELIVERED:       { bg: 'var(--color-status-done)',      text: 'var(--color-text-primary)', label: 'Delivered' },
+  FAILED:          { bg: 'var(--color-status-rejected)',  text: 'var(--color-text-primary)', label: 'Failed' },
+  SKIPPED:         { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Skipped' },
+  SKIPPED_OPT_OUT: { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Skipped (opt-out)' },
+};

@@ -22,7 +22,3 @@ export { useForceConfirmation } from './useForceConfirmation';
 export type { UseForceConfirmationReturn } from './useForceConfirmation';
 export { usePortalActivities } from './usePortalActivities';
 export type { UsePortalActivitiesReturn, PortalActivity } from './usePortalActivities';
-export { useAppointmentContacts } from './useAppointmentContacts';
-export type { UseAppointmentContactsReturn, AppointmentContact } from './useAppointmentContacts';
-export { useAppointmentContactDetail } from './useAppointmentContactDetail';
-export type { UseAppointmentContactDetailReturn, AppointmentContactDetail } from './useAppointmentContactDetail';
