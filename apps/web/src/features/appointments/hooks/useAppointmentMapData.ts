@@ -12,6 +12,18 @@ export interface AppointmentMapItem {
   timeSlot: string;
   inspectorName: string | null;
   branchName: string;
+  /** Tenant (agency) display name — column 1 of the MapBulkActionModal. */
+  tenantName?: string;
+  /** Primary contact name for the appointment (may be empty when not loaded). */
+  contactName?: string;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  /** Whether the tenant portal has been confirmed; drives the confirmation icons. */
+  tenantConfirmationStatus?: string;
+  /** Optional service type label surfaced in the detail panel header. */
+  serviceTypeName?: string;
+  /** Optional service group id used to gate the "Add to group" action. */
+  serviceGroupId?: string | null;
 }
 
 export interface AppointmentMapFilters {

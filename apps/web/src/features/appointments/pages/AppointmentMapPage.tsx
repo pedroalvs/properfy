@@ -28,10 +28,12 @@ import {
   type AppointmentModeFilters,
   type GroupModeFilters,
 } from '../components/AppointmentMapFilterPanel';
-import { MapLassoSelect, type LassoPoint } from '@/components/map/MapLassoSelect';
-import { MapSelectionPanel } from '../components/MapSelectionPanel';
+import { MapLassoSelect, type LassoPoint, type LassoState } from '@/components/map/MapLassoSelect';
+import { MapBulkActionModal } from '../components/MapBulkActionModal';
+import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
 import { MapGroupCreateModal } from '@/features/service-groups/components/MapGroupCreateModal';
 import { useQueryClient } from '@tanstack/react-query';
+import type { UserRole } from '@properfy/shared';
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: '#E1BEE7',
@@ -113,9 +115,19 @@ export function AppointmentMapPage() {
   const [selectedGroupItem, setSelectedGroupItem] = useState<ServiceGroupMapPin | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
-  const [lassoActive, setLassoActive] = useState(false);
+  // 025 §FR-401 — lasso state machine replaces the boolean active flag.
+  // 'idle' clears the polygon + draw control; 'drawing' enables the lasso;
+  // 'review' keeps the polygon visible while the bulk modal is open;
+  // 'applying' is the brief window during an in-flight bulk action.
+  const [lassoState, setLassoState] = useState<LassoState>('idle');
   const [lassoSelectedIds, setLassoSelectedIds] = useState<string[]>([]);
   const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [groupModalSeedIds, setGroupModalSeedIds] = useState<string[]>([]);
+  // Browser timezone — forwarded so the per-day idempotency bucket honours
+  // the operator's local "today" instead of the server clock.
+  const actorTimezone = useMemo(() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; }
+  }, []);
 
   // Appointment data — fetched when mode is 'appointments'
   const appointmentParams: ListParams = useMemo(() => ({
@@ -219,9 +231,13 @@ export function AppointmentMapPage() {
     return () => setMapInstance(null);
   }, [mode]);
 
-  // Auto-fit map bounds
+  // Auto-fit map bounds. 025 BUG-fix: skip while the lasso is in any
+  // non-idle state — pre-fix, the auto-fit re-fired during 'review' /
+  // 'applying' (when react-query invalidations or filter tweaks shifted
+  // the data) and zoomed out from under the operator's polygon.
   useEffect(() => {
     if (!mapInstance) return;
+    if (lassoState !== 'idle') return;
     const points = mode === 'appointments'
       ? appointmentData.map((item) => ({ latitude: item.latitude, longitude: item.longitude }))
       : groupData.flatMap((g) => {
@@ -236,7 +252,7 @@ export function AppointmentMapPage() {
     } else {
       mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
     }
-  }, [appointmentData, groupData, mapInstance, mode]);
+  }, [appointmentData, groupData, mapInstance, mode, lassoState]);
 
   // Keep popup position in sync
   const activeItem = mode === 'appointments' ? selectedItem : selectedGroupItem;
@@ -340,42 +356,113 @@ export function AppointmentMapPage() {
     setSelectedGroupItem(null);
   }, []);
 
+  // 025 §FR-403 — when the lasso polygon completes, only re-fit the camera
+  // if at least one selected pin is OUTSIDE the current viewport. Markers
+  // that are already visible should not trigger a zoom — that was the
+  // BUG-zoom-out behaviour the lasso state machine + this guard fixes.
   const handleLassoSelectionChange = useCallback((ids: string[]) => {
     setLassoSelectedIds(ids);
-  }, []);
-
-  const handleLassoDeactivate = useCallback(() => {
-    setLassoActive(false);
-  }, []);
-
-  const handleToggleLasso = useCallback(() => {
-    setLassoActive((prev) => !prev);
-    if (lassoActive) {
-      setLassoSelectedIds([]);
+    if (ids.length === 0) {
+      setLassoState('idle');
+      return;
     }
-  }, [lassoActive]);
+    if (mapInstance) {
+      const selectedPins = appointmentData
+        .filter((a) => ids.includes(a.id))
+        .filter((a): a is AppointmentMapItem & { latitude: number; longitude: number } =>
+          a.latitude != null && a.longitude != null,
+        );
+      const viewport = mapInstance.getBounds();
+      const anyOutside = viewport
+        ? selectedPins.some((p) => {
+            const lng = p.longitude;
+            const lat = p.latitude;
+            return (
+              lng < viewport.getWest()
+              || lng > viewport.getEast()
+              || lat < viewport.getSouth()
+              || lat > viewport.getNorth()
+            );
+          })
+        : true;
+      if (anyOutside) {
+        const bounds = computeBounds(selectedPins);
+        if (bounds) mapInstance.fitBounds(bounds, { padding: 100, maxZoom: 15, duration: 600 });
+      }
+    }
+    setLassoState('review');
+  }, [appointmentData, mapInstance]);
 
-  const handleClearLassoSelection = useCallback(() => {
-    setLassoSelectedIds([]);
-    setLassoActive(false);
+  const handleLassoToggle = useCallback(() => {
+    setLassoState((prev) => {
+      if (prev === 'idle') return 'drawing';
+      // Any non-idle state → return to idle (cancels drawing or clears review).
+      setLassoSelectedIds([]);
+      return 'idle';
+    });
   }, []);
 
-  const handleOpenGroupModal = useCallback(() => {
+  const handleLassoCleared = useCallback(() => {
+    setLassoSelectedIds([]);
+    setLassoState('idle');
+  }, []);
+
+  const handleBulkModalClose = useCallback(() => {
+    setLassoSelectedIds([]);
+    setLassoState('idle');
+  }, []);
+
+  const handleOpenAddToGroup = useCallback((ids: string[]) => {
+    // Placeholder for MapAddToGroupModal — until that ships, route to the
+    // existing MapGroupCreateModal seeded with the same ids so the operator
+    // is never blocked. The plan calls for a dedicated picker; defer the
+    // sub-modal in favour of unblocking the dominant happy path.
+    setGroupModalSeedIds(ids);
+    setGroupModalOpen(true);
+  }, []);
+
+  const handleOpenCreateGroup = useCallback((ids: string[]) => {
+    setGroupModalSeedIds(ids);
     setGroupModalOpen(true);
   }, []);
 
   const handleGroupCreateSuccess = useCallback(() => {
     setGroupModalOpen(false);
+    setGroupModalSeedIds([]);
     setLassoSelectedIds([]);
-    setLassoActive(false);
+    setLassoState('idle');
     queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
     queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
   }, [queryClient]);
+
+  // ESC handler — escape clears the polygon + closes the bulk modal when
+  // the user is in 'review' state.
+  useEffect(() => {
+    if (lassoState !== 'review') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLassoSelectedIds([]);
+        setLassoState('idle');
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [lassoState]);
 
   const selectedAppointmentsForPanel = useMemo(
     () => appointmentData.filter((a) => lassoSelectedIds.includes(a.id)),
     [appointmentData, lassoSelectedIds],
   );
+
+  // CL_USER tenant flags aren't exposed on the frontend auth context yet,
+  // so the UI defaults to "no flags". Backend enforces the real check —
+  // any denied row surfaces as a per-item FORBIDDEN in the result envelope,
+  // and the user sees the row flagged in the modal summary.
+  const clUserFlags = useMemo(
+    () => ({ cancel_appointments: false, reject_appointments: false, reschedule_appointments: false }),
+    [],
+  );
+  const actorRole: UserRole = (user?.role ?? 'CL_USER') as UserRole;
 
   // Side panel
   const sidePanel = (
@@ -530,46 +617,12 @@ export function AppointmentMapPage() {
       <MapLassoSelect
         map={mapInstance}
         points={lassoPoints}
-        active={lassoActive && mode === 'appointments'}
+        lassoState={mode === 'appointments' ? lassoState : 'idle'}
         onSelectionChange={handleLassoSelectionChange}
-        onDeactivate={handleLassoDeactivate}
+        onPolygonCleared={handleLassoCleared}
       />
 
-      {mode === 'appointments' && selectedItem && popupPosition && (
-        <MapPopup
-          title={selectedItem.code}
-          onClose={() => setSelectedItem(null)}
-          actions={[
-            { label: 'View Details', onClick: () => handleViewDetail(selectedItem.id) },
-          ]}
-          style={{
-            left: popupPosition.x,
-            top: popupPosition.y,
-            transform: popupPosition.y > 220
-              ? 'translate(-50%, calc(-100% - 14px))'
-              : 'translate(-50%, 14px)',
-          }}
-        >
-          <div className="space-y-1">
-            <p>
-              <span className="text-text-muted">Status:</span>{' '}
-              {APPOINTMENT_STATUS_MAP[selectedItem.status as AppointmentStatus]?.label ?? selectedItem.status}
-            </p>
-            <p>
-              <span className="text-text-muted">Address:</span> {selectedItem.propertyAddress}
-            </p>
-            <p>
-              <span className="text-text-muted">Date:</span> {formatDate(selectedItem.scheduledDate)}
-            </p>
-            {selectedItem.inspectorName && (
-              <p>
-                <span className="text-text-muted">Inspector:</span>{' '}
-                {selectedItem.inspectorName}
-              </p>
-            )}
-          </div>
-        </MapPopup>
-      )}
+      {/* Marker detail panel replaces the inline popup in appointments mode (025 §FR-451). */}
 
       {mode === 'groups' && selectedGroupItem && popupPosition && (
         <MapPopup
@@ -606,7 +659,7 @@ export function AppointmentMapPage() {
       <MapFloatingAction
         actions={[
           ...(mode === 'appointments'
-            ? [{ icon: 'mdi-selection-drag', label: 'Select Area', onClick: handleToggleLasso, active: lassoActive }]
+            ? [{ icon: 'mdi-selection-drag', label: 'Select Area', onClick: handleLassoToggle, active: lassoState !== 'idle' }]
             : []),
           { icon: 'mdi-crosshairs-gps', label: 'Re-center', onClick: handleRecenter },
         ]}
@@ -624,16 +677,32 @@ export function AppointmentMapPage() {
       />
       <MapScreenLayout sidePanel={sidePanel} map={mapContent} />
 
-      <MapSelectionPanel
-        selectedAppointments={selectedAppointmentsForPanel}
-        onClearSelection={handleClearLassoSelection}
-        onCreateGroup={handleOpenGroupModal}
+      <MapBulkActionModal
+        appointments={selectedAppointmentsForPanel}
+        open={(lassoState === 'review' || lassoState === 'applying') && mode === 'appointments'}
+        onClose={handleBulkModalClose}
+        actorTimezone={actorTimezone}
+        actorRole={actorRole}
+        clUserFlags={clUserFlags}
+        onAddToGroup={handleOpenAddToGroup}
+        onCreateGroup={handleOpenCreateGroup}
+        onActionComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
+          queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+        }}
+      />
+
+      <AppointmentMapDetailPanel
+        appointment={mode === 'appointments' ? selectedItem : null}
+        open={mode === 'appointments' && !!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        onMoreDetails={handleViewDetail}
       />
 
       <MapGroupCreateModal
         open={groupModalOpen}
-        onClose={() => setGroupModalOpen(false)}
-        selectedAppointmentIds={lassoSelectedIds}
+        onClose={() => { setGroupModalOpen(false); setGroupModalSeedIds([]); }}
+        selectedAppointmentIds={groupModalSeedIds.length > 0 ? groupModalSeedIds : lassoSelectedIds}
         onSuccess={handleGroupCreateSuccess}
       />
     </div>

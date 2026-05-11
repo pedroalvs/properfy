@@ -67,6 +67,8 @@ export interface AppointmentDetail extends Appointment {
   keyLocation: string | null;
   cancellationReason: string | null;
   tenantNote: string | null;
+  /** Tenant (agency) display name — surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
+  clientName?: string;
   contacts?: AppointmentContactEntry[];
   restrictions?: Array<{
     id: string;
