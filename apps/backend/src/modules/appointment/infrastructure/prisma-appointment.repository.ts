@@ -11,12 +11,9 @@ import { AppointmentRestrictionEntity } from '../domain/appointment-restriction.
 import type {
   IAppointmentRepository,
   AppointmentFilters,
-  ContactFilters,
   PaginationParams,
   AppointmentWithRelations,
   AppointmentListItem,
-  ContactListItem,
-  ContactDetail,
   VisibleForInspectorParams,
 } from '../domain/appointment.repository';
 import { T1VisibilityService } from '../../inspector-execution/domain/t1-visibility.service';
@@ -531,103 +528,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return where;
   }
 
-  async findAllContacts(filters: ContactFilters, pagination: PaginationParams): Promise<ContactListItem[]> {
-    const where = this.buildContactWhere(filters);
-    const rows = await this.prisma.appointmentContact.findMany({
-      where,
-      include: {
-        appointment: {
-          include: {
-            property: true,
-            portal_activities: { orderBy: { created_at: 'desc' }, take: 1 },
-          },
-        },
-      },
-      skip: (pagination.page - 1) * pagination.pageSize,
-      take: pagination.pageSize,
-      orderBy: { appointment: { scheduled_date: pagination.sortOrder } },
-    });
-
-    return rows.map((row) => {
-      const appt = row.appointment;
-      const prop = appt.property;
-      const propertyAddress = [prop.street, prop.suburb, prop.state, prop.postcode]
-        .filter(Boolean)
-        .join(', ');
-      const lastActivity = appt.portal_activities[0]?.created_at ?? null;
-      return {
-        id: row.id,
-        appointmentId: appt.id,
-        name: row.tenant_name,
-        primaryEmail: row.primary_email,
-        primaryPhone: row.primary_phone,
-        confirmationStatus: appt.tenant_confirmation_status,
-        propertyAddress,
-        appointmentDate: appt.scheduled_date,
-        lastActivityAt: lastActivity,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
-    });
-  }
-
-  async countContacts(filters: ContactFilters): Promise<number> {
-    const where = this.buildContactWhere(filters);
-    return this.prisma.appointmentContact.count({ where });
-  }
-
-  async findContactById(id: string): Promise<ContactDetail | null> {
-    const row = await this.prisma.appointmentContact.findUnique({
-      where: { id },
-      include: {
-        appointment: {
-          include: {
-            property: true,
-            portal_activities: { orderBy: { created_at: 'desc' }, take: 1 },
-          },
-        },
-      },
-    });
-
-    if (!row) return null;
-
-    const appt = row.appointment;
-    const prop = appt.property;
-    const propertyAddress = [prop.street, prop.suburb, prop.state, prop.postcode]
-      .filter(Boolean)
-      .join(', ');
-    const lastActivity = appt.portal_activities[0]?.created_at ?? null;
-
-    return {
-      id: row.id,
-      appointmentId: appt.id,
-      name: row.tenant_name,
-      primaryEmail: row.primary_email,
-      primaryPhone: row.primary_phone,
-      alternativePhone: row.secondary_phone,
-      confirmationStatus: appt.tenant_confirmation_status,
-      propertyAddress,
-      appointmentDate: appt.scheduled_date,
-      lastActivityAt: lastActivity,
-      notes: appt.notes,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    };
-  }
-
-  private buildContactWhere(filters: ContactFilters) {
-    const where: Record<string, unknown> = { appointment: { deleted_at: null } };
-    if (filters.tenantId) {
-      (where['appointment'] as Record<string, unknown>)['tenant_id'] = filters.tenantId;
-    }
-    if (filters.confirmationStatus) {
-      (where['appointment'] as Record<string, unknown>)['tenant_confirmation_status'] = filters.confirmationStatus;
-    }
-    if (filters.search) {
-      where['tenant_name'] = { contains: filters.search, mode: 'insensitive' };
-    }
-    return where;
-  }
+  // `findAllContacts`, `countContacts`, `findContactById`, and the
+  // `buildContactWhere` helper were retired together with the
+  // /v1/appointment-contacts routes — the legacy tenant-wide contacts
+  // board UI was retired in 023 and the AppointmentContactsListTab in
+  // the chore/ux-baseline-cleanup pass. The contact module owns the
+  // canonical Contact CRUD; this module no longer needs a parallel
+  // contact read path.
 
   async findVisibleForInspector(params: VisibleForInspectorParams): Promise<AppointmentListItem[]> {
     const { inspectorId, fromDate, toDate, today } = params;

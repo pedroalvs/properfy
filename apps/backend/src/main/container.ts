@@ -352,7 +352,6 @@ import { ImportAppointmentsUseCase } from '../modules/appointment/application/us
 import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
 import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment/application/handlers/compensate-financial-on-done-rejected.handler';
 import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
-import { ListAppointmentContactsUseCase } from '../modules/appointment/application/use-cases/list-appointment-contacts.use-case';
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
 import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
 import { BulkResendReminderUseCase } from '../modules/appointment/application/use-cases/bulk-resend-reminder.use-case';
@@ -1040,7 +1039,6 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentImportRepo, reportStorageService, importJobQueue, idempotencyService, authorizationService,
   );
   const getImportStatusUseCase = new GetImportStatusUseCase(appointmentImportRepo, authorizationService);
-  const listAppointmentContactsUseCase = new ListAppointmentContactsUseCase(appointmentRepo, authorizationService);
 
   // Workers
   const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
@@ -1231,11 +1229,9 @@ export function createContainer(logger: Logger): AppContainer {
       reopenForRescheduleUseCase,
       importAppointmentsUseCase,
       getImportStatusUseCase,
-      listAppointmentContactsUseCase,
       deleteAppointmentUseCase,
       bulkEditAppointmentsUseCase,
       bulkResendReminderUseCase,
-      appointmentRepo,
       jwtService,
       tenantRepo,
       idempotencyService,
