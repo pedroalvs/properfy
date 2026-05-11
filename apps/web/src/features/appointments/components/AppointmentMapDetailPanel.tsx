@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, type ReactNode } from 'react';
-import { DrawerPanel } from '@/components/ui/DrawerPanel';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate } from '@/lib/format-date';
@@ -14,6 +13,8 @@ interface AppointmentMapDetailPanelProps {
   appointment: AppointmentMapItem | null;
   open: boolean;
   onClose: () => void;
+  /** Screen-pixel coordinates of the anchored marker. The popup floats next to it. */
+  anchor: { x: number; y: number } | null;
   /** "MORE DETAILS" CTA target — defaults to opening the detail page in a new tab. */
   onMoreDetails?: (id: string) => void;
 }
@@ -45,26 +46,39 @@ const SECTIONS: SectionConfig[] = [
   { key: 'financials', icon: 'mdi-cash', label: 'Financials' },
 ];
 
+const POPUP_WIDTH = 340;
+
 /**
- * 025 §FR-451..460 — Right-anchored side panel that replaces the inline
- * `MapPopup` for appointments mode. The header + CLIENT + PROPERTIES are
- * available from the marker payload (no fetch); the 8 collapsible
- * sections fire `useAppointmentDetail(id)` on first expand and reuse the
- * react-query cache thereafter (lazy fetch — matches the
- * RelationsTab/feedback_new_tab_detail pattern from 023).
+ * 025 §FR-451..460 — Floating popup anchored to the clicked marker.
+ *
+ * **NOT a side drawer.** Previous round shipped a `DrawerPanel` variant
+ * that the user rejected in smoke testing — the mockup calls for a
+ * floating card next to the marker. This component:
+ *
+ *  - Positions itself absolutely on the map overlay using
+ *    `mapInstance.project([lng, lat])` screen-pixel coords passed in as
+ *    `anchor`. Mirrors the existing `MapPopup` precedent in this codebase.
+ *  - Header + CLIENT + PROPERTIES render from the marker payload — no
+ *    fetch on open.
+ *  - 8 collapsible sections start closed. First expand triggers
+ *    `useAppointmentDetail(id)`; subsequent expands hit the
+ *    `react-query` cache. Marker-switch resets collapsed state.
+ *  - Click-outside / ESC / X close (handled by the page; this panel
+ *    just emits `onClose`).
  */
 export function AppointmentMapDetailPanel({
   appointment,
   open,
   onClose,
+  anchor,
   onMoreDetails,
 }: AppointmentMapDetailPanelProps) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
   const [shouldFetch, setShouldFetch] = useState(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
-  // Reset collapsibles + fetch flag whenever the appointment changes (clicking a
-  // different marker swaps the panel content). Without this, opening a second
-  // marker would keep the first marker's expanded sections.
+  // Reset collapsibles + fetch flag whenever the appointment changes
+  // (clicking a different marker swaps the popup content).
   useEffect(() => {
     setExpanded(new Set());
     setShouldFetch(false);
@@ -77,6 +91,34 @@ export function AppointmentMapDetailPanel({
       setShouldFetch(false);
     }
   }, [open]);
+
+  // ESC closes the popup. Click-outside is handled by a separate listener
+  // below — we only fire `onClose` for clicks that didn't hit the card.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (!cardRef.current) return;
+      if (e.target instanceof Node && cardRef.current.contains(e.target)) return;
+      // Don't intercept clicks on Mapbox markers — they need to swap the
+      // popup to their own appointment. Markers carry `data-testid="map-marker"`.
+      const targetEl = e.target as HTMLElement | null;
+      if (targetEl?.closest('[data-testid="map-marker"]')) return;
+      onClose();
+    };
+    // `mousedown` (not `click`) so the close fires before any other onClick
+    // handler can swallow the event.
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [open, onClose]);
 
   const { appointment: detail, isLoading, isError } = useAppointmentDetail(shouldFetch && appointment ? appointment.id : null);
 
@@ -95,93 +137,112 @@ export function AppointmentMapDetailPanel({
     return APPOINTMENT_STATUS_MAP[appointment.status as AppointmentStatus];
   }, [appointment]);
 
-  if (!appointment) return null;
+  if (!appointment || !open || !anchor) return null;
 
   // CLIENT comes from the marker tenantName first (no fetch), with the lazily
   // hydrated `clientName` as authoritative once available.
   const clientName = detail?.clientName ?? appointment.tenantName ?? '—';
 
+  // Position the popup near the marker. Default: above + centered.
+  // When the marker sits near the top of the viewport, flip below so the
+  // popup never disappears off-screen.
+  const style: React.CSSProperties = {
+    position: 'absolute',
+    left: anchor.x,
+    top: anchor.y,
+    width: POPUP_WIDTH,
+    maxHeight: '70vh',
+    transform: anchor.y > 260
+      ? 'translate(-50%, calc(-100% - 18px))'
+      : 'translate(-50%, 18px)',
+  };
+
   return (
-    <DrawerPanel open={open} onClose={onClose} size="narrow" ariaLabel={`Appointment ${appointment.code}`}>
-      <div className="flex h-full flex-col" data-testid="appointment-map-detail-panel">
-        {/* Header */}
-        <div className="border-b border-border-subtle px-5 py-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-text-primary">
-                {appointment.serviceTypeName ?? 'Appointment'}
-              </h2>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-text-secondary">
-                {statusMeta && <StatusChip label={statusMeta.label} bg={statusMeta.bg} />}
-                <span>{formatDate(appointment.scheduledDate)} {appointment.timeSlot}</span>
-                <AppointmentCodePill code={appointment.code} />
-              </div>
+    <div
+      ref={cardRef}
+      className="absolute z-30 flex flex-col overflow-hidden rounded-lg bg-card-bg shadow-xl"
+      style={style}
+      data-testid="appointment-map-detail-panel"
+      role="dialog"
+      aria-label={`Appointment ${appointment.code}`}
+    >
+      {/* Header */}
+      <div className="border-b border-border-subtle px-4 py-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-semibold text-text-primary">
+              {appointment.serviceTypeName ?? 'Appointment'}
+            </h2>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
+              {statusMeta && <StatusChip label={statusMeta.label} bg={statusMeta.bg} />}
+              <span>{formatDate(appointment.scheduledDate)} {appointment.timeSlot}</span>
+              <AppointmentCodePill code={appointment.code} />
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close panel"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-black/5"
-            >
-              <i className="mdi mdi-close text-xl" />
-            </button>
           </div>
-        </div>
-
-        {/* Always-expanded summary: CLIENT + PROPERTIES */}
-        <div className="space-y-4 border-b border-border-subtle px-5 py-4">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-text-muted">Client</p>
-            <p className="mt-1 text-sm text-text-primary" data-testid="map-detail-client">{clientName}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-text-muted">Properties</p>
-            <p className="mt-1 text-sm text-text-secondary">{appointment.propertyAddress}</p>
-          </div>
-        </div>
-
-        {/* Collapsible sections */}
-        <div className="flex-1 overflow-y-auto">
-          {SECTIONS.map((section) => {
-            const isExpanded = expanded.has(section.key);
-            return (
-              <div key={section.key} className="border-b border-border-subtle">
-                <button
-                  type="button"
-                  onClick={() => toggleSection(section.key)}
-                  className="flex w-full items-center justify-between px-5 py-3 text-left hover:bg-gray-50"
-                  aria-expanded={isExpanded}
-                  data-testid={`map-detail-section-${section.key}`}
-                >
-                  <span className="flex items-center gap-2 text-sm font-medium text-text-primary">
-                    <i className={`mdi ${section.icon} text-base text-text-muted`} />
-                    {section.label}
-                  </span>
-                  <i className={`mdi ${isExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down'} text-text-muted`} />
-                </button>
-                {isExpanded && (
-                  <div className="px-5 pb-4 pt-1 text-sm text-text-secondary">
-                    {renderSectionContent(section.key, { detail, marker: appointment, isLoading, isError })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer CTA — "MORE DETAILS" opens the full appointment page in a new tab */}
-        <div className="border-t border-border-subtle px-5 py-3">
           <button
             type="button"
-            onClick={() => (onMoreDetails ?? defaultMoreDetails)(appointment.id)}
-            className="w-full rounded border border-real-estate px-4 py-2 text-sm font-semibold text-real-estate hover:bg-real-estate/5"
-            data-testid="map-detail-more-details"
+            onClick={onClose}
+            aria-label="Close popup"
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-black/5"
           >
-            MORE DETAILS
+            <i className="mdi mdi-close text-lg" />
           </button>
         </div>
       </div>
-    </DrawerPanel>
+
+      {/* Always-expanded summary: CLIENT + PROPERTIES */}
+      <div className="space-y-2 border-b border-border-subtle px-4 py-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-text-muted">Client</p>
+          <p className="text-sm text-text-primary" data-testid="map-detail-client">{clientName}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-text-muted">Properties</p>
+          <p className="text-xs text-text-secondary">{appointment.propertyAddress}</p>
+        </div>
+      </div>
+
+      {/* Collapsible sections — scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        {SECTIONS.map((section) => {
+          const isExpanded = expanded.has(section.key);
+          return (
+            <div key={section.key} className="border-b border-border-subtle">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.key)}
+                className="flex w-full items-center justify-between px-4 py-2 text-left hover:bg-gray-50"
+                aria-expanded={isExpanded}
+                data-testid={`map-detail-section-${section.key}`}
+              >
+                <span className="flex items-center gap-2 text-xs font-medium text-text-primary">
+                  <i className={`mdi ${section.icon} text-sm text-text-muted`} />
+                  {section.label}
+                </span>
+                <i className={`mdi ${isExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down'} text-text-muted`} />
+              </button>
+              {isExpanded && (
+                <div className="px-4 pb-3 pt-1 text-xs text-text-secondary">
+                  {renderSectionContent(section.key, { detail, marker: appointment, isLoading, isError })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer CTA — opens the full appointment page in a new tab */}
+      <div className="border-t border-border-subtle px-4 py-2">
+        <button
+          type="button"
+          onClick={() => (onMoreDetails ?? defaultMoreDetails)(appointment.id)}
+          className="w-full rounded border border-real-estate px-3 py-1.5 text-xs font-semibold text-real-estate hover:bg-real-estate/5"
+          data-testid="map-detail-more-details"
+        >
+          MORE DETAILS
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -215,7 +276,7 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
       );
     case 'meeting':
       return (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {detail?.meetingLocation
             ? <p>{detail.meetingLocation}</p>
             : <p className="text-text-muted">No meeting location set.</p>}
@@ -235,7 +296,7 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
         );
       }
       return (
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {detail.contacts!.map((c) => (
             <li key={c.id ?? c.contactId ?? c.snapshotName}>
               <span className="text-text-muted">{c.role}:</span> {c.snapshotName}
@@ -245,17 +306,13 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
         </ul>
       );
     case 'service':
-      return (
-        <p>
-          {marker.serviceTypeName ?? detail?.serviceTypeName ?? '—'}
-        </p>
-      );
+      return <p>{marker.serviceTypeName ?? detail?.serviceTypeName ?? '—'}</p>;
     case 'restrictions':
       if (!detail || (detail.restrictions ?? []).length === 0) {
         return <p className="text-text-muted">No restrictions on file.</p>;
       }
       return (
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {detail.restrictions!.map((r) => (
             <li key={r.id}>
               {r.isHome ? 'Home occupied' : 'Property vacant'}
@@ -269,7 +326,6 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
         ? <p className="whitespace-pre-wrap">{detail.notes}</p>
         : <p className="text-text-muted">No notes.</p>;
     case 'history':
-      // Lightweight summary — full timeline lives on the detail page.
       return (
         <p>
           Created {detail?.createdAt ? formatDate(detail.createdAt) : '—'}

@@ -128,4 +128,13 @@ describe('AppointmentMapPage', () => {
     renderPage();
     expect(screen.getByText('Status')).toBeInTheDocument();
   });
+
+  // 025 round-2 regression — the map wrapper carries a cursor class that
+  // flips while a lasso is being drawn so the crosshair is consistent.
+  // Default state must NOT carry the drawing class.
+  it('map wrapper has no lasso-drawing class by default', () => {
+    renderPage();
+    const wrapper = screen.getByTestId('appointment-map-wrapper');
+    expect(wrapper.className).not.toContain('appt-map-lasso-drawing');
+  });
 });

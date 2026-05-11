@@ -45,4 +45,23 @@ describe('MapMarker', () => {
     const button = screen.getByRole('button');
     expect(button.className).toContain('ring-2');
   });
+
+  // 025 round-2 regression — Issue #3. While the lasso polygon is being
+  // drawn, marker clicks must be disabled — otherwise the click that
+  // closes the polygon lands on a marker, gets `stopPropagation`'d, and
+  // the lasso never closes ("não estou nem conseguindo fechar o laço").
+  it('disabled prop swallows onClick and surfaces a data-disabled marker', () => {
+    const handleClick = vi.fn();
+    render(<MapMarker longitude={0} latitude={0} onClick={handleClick} disabled />);
+    const marker = screen.getByTestId('map-marker');
+    expect(marker.getAttribute('data-disabled')).toBe('true');
+    fireEvent.click(screen.getByRole('button'));
+    expect(handleClick).not.toHaveBeenCalled();
+  });
+
+  it('marker label is .select-none so the cursor never flickers to `text`', () => {
+    render(<MapMarker longitude={0} latitude={0} label="VST-001" />);
+    const label = screen.getByText('VST-001');
+    expect(label.className).toContain('select-none');
+  });
 });

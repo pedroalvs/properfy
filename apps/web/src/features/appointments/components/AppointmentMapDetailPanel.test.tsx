@@ -52,6 +52,7 @@ function renderPanel(props: Partial<Parameters<typeof AppointmentMapDetailPanel>
         <AppointmentMapDetailPanel
           appointment={sampleAppointment}
           open
+          anchor={{ x: 400, y: 300 }}
           onClose={vi.fn()}
           {...props}
         />
@@ -98,6 +99,7 @@ describe('AppointmentMapDetailPanel', () => {
           <AppointmentMapDetailPanel
             appointment={other}
             open
+            anchor={{ x: 400, y: 300 }}
             onClose={vi.fn()}
           />
         </MemoryRouter>
@@ -111,5 +113,38 @@ describe('AppointmentMapDetailPanel', () => {
     renderPanel({ onMoreDetails });
     fireEvent.click(screen.getByTestId('map-detail-more-details'));
     expect(onMoreDetails).toHaveBeenCalledWith(sampleAppointment.id);
+  });
+
+  // 025 round-2 regression — Issue #2. User rejected the side-drawer
+  // variant in smoke testing. The component MUST be a floating popup
+  // anchored to the clicked marker's screen-pixel coords, not a fixed
+  // side panel.
+  it('renders as a floating popup positioned at the marker anchor coords', () => {
+    renderPanel({ anchor: { x: 412, y: 256 } });
+    const panel = screen.getByTestId('appointment-map-detail-panel');
+    // `position: absolute` instead of the DrawerPanel's `position: fixed`.
+    expect(panel.style.position).toBe('absolute');
+    expect(panel.style.left).toBe('412px');
+    expect(panel.style.top).toBe('256px');
+    // The DrawerPanel CSS had `right: 0; top: 0; h-screen` (full-height
+    // side rail). The popup must NOT carry those styles.
+    expect(panel.className).not.toContain('h-screen');
+  });
+
+  it('renders nothing when anchor is null (marker has no projected coords yet)', () => {
+    const { container } = renderPanel({ anchor: null });
+    expect(container.querySelector('[data-testid="appointment-map-detail-panel"]')).toBeNull();
+  });
+
+  it('flips above the marker when there is room (anchor.y > 260)', () => {
+    renderPanel({ anchor: { x: 400, y: 500 } });
+    const panel = screen.getByTestId('appointment-map-detail-panel');
+    expect(panel.style.transform).toContain('-100%');
+  });
+
+  it('flips below the marker when near the top of the viewport (anchor.y <= 260)', () => {
+    renderPanel({ anchor: { x: 400, y: 80 } });
+    const panel = screen.getByTestId('appointment-map-detail-panel');
+    expect(panel.style.transform).not.toContain('-100%');
   });
 });

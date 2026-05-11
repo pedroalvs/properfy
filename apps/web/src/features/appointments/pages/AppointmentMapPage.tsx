@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type mapboxgl from 'mapbox-gl';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -231,19 +231,25 @@ export function AppointmentMapPage() {
     return () => setMapInstance(null);
   }, [mode]);
 
-  // Auto-fit map bounds. 025 BUG-fix: skip while the lasso is in any
-  // non-idle state — pre-fix, the auto-fit re-fired during 'review' /
-  // 'applying' (when react-query invalidations or filter tweaks shifted
-  // the data) and zoomed out from under the operator's polygon.
+  // Auto-fit map bounds — fires ONCE per (mode, map-instance) pair after
+  // the first data load. 025 round-2 BUG-fix: the previous version fired
+  // every time `appointmentData` reference changed, so a marker click
+  // that triggered any react-query refetch (focus, invalidation, filter
+  // tweak) zoomed the map back out to fit ALL pins, undoing the per-marker
+  // `flyTo`. The Re-center floating action is the explicit way for the
+  // operator to ask for a refit; the auto behaviour stays out of the way.
+  const hasFittedRef = useRef<{ mode: FilterMode | null; map: mapboxgl.Map | null }>({ mode: null, map: null });
   useEffect(() => {
     if (!mapInstance) return;
     if (lassoState !== 'idle') return;
+    if (hasFittedRef.current.mode === mode && hasFittedRef.current.map === mapInstance) return;
     const points = mode === 'appointments'
       ? appointmentData.map((item) => ({ latitude: item.latitude, longitude: item.longitude }))
       : groupData.flatMap((g) => {
           const c = computeGroupCentroid(g.appointments);
           return c ? [c] : [];
         });
+    if (points.length === 0) return;
     const bounds = computeBounds(points);
     if (!bounds) return;
     if (isSinglePointBounds(bounds)) {
@@ -252,7 +258,14 @@ export function AppointmentMapPage() {
     } else {
       mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
     }
+    hasFittedRef.current = { mode, map: mapInstance };
   }, [appointmentData, groupData, mapInstance, mode, lassoState]);
+
+  // Reset the "has fitted" sentinel when the user switches modes so the
+  // first load of the new mode auto-fits exactly once.
+  useEffect(() => {
+    hasFittedRef.current = { mode: null, map: null };
+  }, [mode]);
 
   // Keep popup position in sync
   const activeItem = mode === 'appointments' ? selectedItem : selectedGroupItem;
@@ -354,7 +367,30 @@ export function AppointmentMapPage() {
   const handleRecenter = useCallback(() => {
     setSelectedItem(null);
     setSelectedGroupItem(null);
-  }, []);
+    // Explicit operator ask: re-fit camera to current data. Clear the
+    // "has fitted" sentinel so the auto-fit useEffect runs again next tick.
+    hasFittedRef.current = { mode: null, map: null };
+    if (mapInstance) {
+      const points = mode === 'appointments'
+        ? appointmentData.map((item) => ({ latitude: item.latitude, longitude: item.longitude }))
+        : groupData.flatMap((g) => {
+            const c = computeGroupCentroid(g.appointments);
+            return c ? [c] : [];
+          });
+      if (points.length > 0) {
+        const bounds = computeBounds(points);
+        if (bounds) {
+          if (isSinglePointBounds(bounds)) {
+            const [[lng, lat]] = bounds as [[number, number], [number, number]];
+            mapInstance.flyTo({ center: [lng, lat], zoom: 14, duration: 600 });
+          } else {
+            mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
+          }
+          hasFittedRef.current = { mode, map: mapInstance };
+        }
+      }
+    }
+  }, [mapInstance, mode, appointmentData, groupData]);
 
   // 025 §FR-403 — when the lasso polygon completes, only re-fit the camera
   // if at least one selected pin is OUTSIDE the current viewport. Markers
@@ -585,8 +621,20 @@ export function AppointmentMapPage() {
     [validAppointmentPins],
   );
 
+  // Per-mode cursor class on the map wrapper. While drawing a lasso the
+  // cursor must be `crosshair` consistently — without an explicit class
+  // the default canvas cursor (`grab`) bleeds through when the pointer
+  // hovers React-rendered overlays (markers, labels, MapFloatingAction),
+  // producing the cursor flicker the user reported.
+  const mapWrapperClass = useMemo(() => {
+    const base = 'relative h-full';
+    if (lassoState === 'drawing') return `${base} appt-map-lasso-drawing`;
+    if (lassoState === 'review' || lassoState === 'applying') return `${base} appt-map-lasso-review`;
+    return base;
+  }, [lassoState]);
+
   const mapContent = (
-    <div className="relative h-full">
+    <div className={mapWrapperClass} data-testid="appointment-map-wrapper">
       <MapContainer key={mode} onMapReady={setMapInstance}>
         {mode === 'appointments' &&
           validAppointmentPins.map((item) => (
@@ -597,6 +645,12 @@ export function AppointmentMapPage() {
               color={STATUS_COLORS[item.status] ?? '#9E9E9E'}
               label={item.code}
               active={selectedItem?.id === item.id}
+              // Disable marker interaction while the operator is sketching
+              // a lasso polygon. Without this, clicking near a marker to
+              // close the polygon would land on the marker button, swallow
+              // the click via stopPropagation, and leave the polygon
+              // unclosed — exactly the "lasso impossible to close" bug.
+              disabled={lassoState === 'drawing'}
               onClick={() => handleMarkerClick(item)}
             />
           ))}
@@ -695,6 +749,7 @@ export function AppointmentMapPage() {
       <AppointmentMapDetailPanel
         appointment={mode === 'appointments' ? selectedItem : null}
         open={mode === 'appointments' && !!selectedItem}
+        anchor={mode === 'appointments' && popupPosition ? popupPosition : null}
         onClose={() => setSelectedItem(null)}
         onMoreDetails={handleViewDetail}
       />
