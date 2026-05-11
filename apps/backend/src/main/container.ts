@@ -355,6 +355,10 @@ import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bu
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
 import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
 import { BulkResendReminderUseCase } from '../modules/appointment/application/use-cases/bulk-resend-reminder.use-case';
+import { BulkCancelAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-cancel-appointments.use-case';
+import { BulkRescheduleAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-reschedule-appointments.use-case';
+import { BulkStatusTransitionUseCase } from '../modules/appointment/application/use-cases/bulk-status-transition.use-case';
+import { BulkAssignInspectorUseCase } from '../modules/appointment/application/use-cases/bulk-assign-inspector.use-case';
 import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
@@ -684,6 +688,14 @@ export function createContainer(logger: Logger): AppContainer {
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase);
   const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
   const bulkResendReminderUseCase = new BulkResendReminderUseCase(generatePortalTokenUseCase, idempotencyService);
+
+  // 025 — bulk map-flow actions (cancel / reschedule / status-transition / assign-inspector).
+  // Each delegates to an existing single-item use case; the wrapper adds per-item idempotency
+  // and the typed result envelope. State machine sovereignty stays with the underlying use cases.
+  const bulkCancelAppointmentsUseCase = new BulkCancelAppointmentsUseCase(executeStatusTransitionUseCase, idempotencyService);
+  const bulkRescheduleAppointmentsUseCase = new BulkRescheduleAppointmentsUseCase(updateAppointmentUseCase, idempotencyService);
+  const bulkStatusTransitionUseCase = new BulkStatusTransitionUseCase(executeStatusTransitionUseCase, idempotencyService);
+  const bulkAssignInspectorUseCase = new BulkAssignInspectorUseCase(bulkEditAppointmentsUseCase, idempotencyService);
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
@@ -1232,6 +1244,10 @@ export function createContainer(logger: Logger): AppContainer {
       deleteAppointmentUseCase,
       bulkEditAppointmentsUseCase,
       bulkResendReminderUseCase,
+      bulkCancelAppointmentsUseCase,
+      bulkRescheduleAppointmentsUseCase,
+      bulkStatusTransitionUseCase,
+      bulkAssignInspectorUseCase,
       jwtService,
       tenantRepo,
       idempotencyService,

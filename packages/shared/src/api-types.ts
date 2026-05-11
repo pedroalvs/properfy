@@ -4391,6 +4391,7 @@ export interface paths {
                                 inspectorName?: string | null;
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
+                                clientName?: string;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -4560,6 +4561,7 @@ export interface paths {
                                 inspectorName?: string | null;
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
+                                clientName?: string;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -4655,6 +4657,7 @@ export interface paths {
                                 inspectorName?: string | null;
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
+                                clientName?: string;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -4823,6 +4826,7 @@ export interface paths {
                                 inspectorName?: string | null;
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
+                                clientName?: string;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -5054,6 +5058,234 @@ export interface paths {
                                     appointmentId: string;
                                     /** @enum {string} */
                                     status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "ERROR";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/bulk-cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                        reason: string;
+                        actorTimezone?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "OK" | "INVALID_TRANSITION" | "FORBIDDEN" | "NOT_FOUND" | "ERROR" | "IDEMPOTENT_REPLAY";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/bulk-reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                        newDate: string;
+                        newTimeSlot?: string;
+                        actorTimezone?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "OK" | "INVALID_TRANSITION" | "FORBIDDEN" | "NOT_FOUND" | "ERROR" | "IDEMPOTENT_REPLAY";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/bulk-status-transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                        /** @enum {string} */
+                        targetStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                        reason?: string;
+                        actorTimezone?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "OK" | "INVALID_TRANSITION" | "FORBIDDEN" | "NOT_FOUND" | "ERROR" | "IDEMPOTENT_REPLAY";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/bulk-assign-inspector": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                        /** Format: uuid */
+                        inspectorId: string;
+                        actorTimezone?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "OK" | "INVALID_TRANSITION" | "FORBIDDEN" | "NOT_FOUND" | "ERROR" | "IDEMPOTENT_REPLAY";
                                     error?: {
                                         code: string;
                                         message: string;
