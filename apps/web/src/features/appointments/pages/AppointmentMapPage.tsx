@@ -12,13 +12,11 @@ import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
 import { formatDate } from '@/lib/format-date';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { EmptyState } from '@/components/feedback/EmptyState';
-import { StatusChip } from '@/components/ui/StatusChip';
-import { APPOINTMENT_STATUS_MAP, SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
+import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import type { AppointmentStatus, ServiceGroupStatus } from '@properfy/shared';
+import type { ServiceGroupStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import {
@@ -407,31 +405,10 @@ export function AppointmentMapPage() {
     }
   }, [mapInstance]);
 
-  const handleListItemClick = useCallback((item: AppointmentMapItem) => {
-    setSelectedItem(item);
-    setSelectedGroupItem(null);
-    if (mapInstance) {
-      mapInstance.flyTo({
-        center: [item.longitude, item.latitude],
-        zoom: Math.max(mapInstance.getZoom(), 14),
-        duration: 700,
-      });
-    }
-  }, [mapInstance]);
-
-  const handleGroupListItemClick = useCallback((item: ServiceGroupMapItem) => {
-    const centroid = computeGroupCentroid(item.appointments);
-    const pin: ServiceGroupMapPin | null = centroid ? { ...item, ...centroid } : null;
-    setSelectedGroupItem(pin);
-    setSelectedItem(null);
-    if (mapInstance && centroid) {
-      mapInstance.flyTo({
-        center: [centroid.longitude, centroid.latitude],
-        zoom: Math.max(mapInstance.getZoom(), 14),
-        duration: 700,
-      });
-    }
-  }, [mapInstance]);
+  // 026 cycle 1 devolução — sidePanel is filter-only now; the
+  // appointments/groups list was removed because it duplicated the
+  // post-lasso bulk modal's content. The handlers that powered the
+  // inline-list-item clicks are gone with it.
 
   const handleViewDetail = useCallback(
     (id: string) => {
@@ -583,13 +560,21 @@ export function AppointmentMapPage() {
   const actorRole: UserRole = (user?.role ?? 'CL_USER') as UserRole;
 
   // Side panel
+  // 026 cycle 1 devolução — sidePanel is now FILTER-ONLY.
+  //  - The appointments/groups list that lived at the bottom is removed
+  //    per user smoke: the canonical post-lasso list is the bulk-action
+  //    modal; surfacing it twice was redundant and consumed the entire
+  //    panel height blocking the filter inputs.
+  //  - The filter region scrolls internally via the `flex-1 min-h-0
+  //    overflow-y-auto` wrapper around `AppointmentMapFilterPanel`, so
+  //    operators can reach every filter even when the panel is short.
+  //  - `isLoading` / `isError` / refetch surface as a banner ABOVE the
+  //    filters so the operator is never silently stuck on a stale view.
   const sidePanel = (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-testid="map-side-panel-content">
       <div className="flex items-start justify-between border-b border-gray-200 px-4 py-3">
         <div>
-          <h2 className="text-base font-bold text-secondary">
-            {mode === 'appointments' ? 'Appointments' : 'Service Groups'}
-          </h2>
+          <h2 className="text-base font-bold text-secondary">Filters</h2>
           <p className="text-xs text-text-muted">
             {mode === 'appointments'
               ? `${appointmentData.length} appointments on map`
@@ -609,81 +594,33 @@ export function AppointmentMapPage() {
         </button>
       </div>
 
-      <AppointmentMapFilterPanel
-        mode={mode}
-        onModeChange={setMode}
-        appointmentFilters={appointmentFilters}
-        onAppointmentFiltersChange={setAppointmentFilters}
-        groupFilters={groupFilters}
-        onGroupFiltersChange={setGroupFilters}
-        serviceTypeOptions={serviceTypeOptions}
-        branchOptions={branchOptions}
-        timeSlotOptions={timeSlotOptions}
-      />
+      {isError && (
+        <div className="border-b border-border-subtle px-4 py-2">
+          <ErrorState message={errorMessage ?? 'Failed to load'} onRetry={refetch} />
+        </div>
+      )}
+      {isLoading && (
+        <div className="border-b border-border-subtle px-4 py-2">
+          <LoadingState />
+        </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto">
-        {isLoading && <LoadingState />}
-        {isError && <ErrorState message={errorMessage ?? 'Failed to load'} onRetry={refetch} />}
-
-        {mode === 'appointments' && !isLoading && !isError && (
-          <>
-            {appointmentData.length === 0 && (
-              <EmptyState title="No appointments with coordinates found" />
-            )}
-            {appointmentData.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 ${
-                  selectedItem?.id === item.id ? 'bg-primary/5' : ''
-                }`}
-                onClick={() => handleListItemClick(item)}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-secondary">{item.code}</span>
-                  <StatusChip
-                    label={APPOINTMENT_STATUS_MAP[item.status as AppointmentStatus]?.label ?? item.status}
-                    bg={APPOINTMENT_STATUS_MAP[item.status as AppointmentStatus]?.bg ?? '#E0E0E0'}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-text-secondary">{item.propertyAddress}</p>
-                <p className="text-xs text-text-muted">
-                  {formatDate(item.scheduledDate)} {item.timeSlot}
-                </p>
-              </button>
-            ))}
-          </>
-        )}
-
-        {mode === 'groups' && !isLoading && !isError && (
-          <>
-            {groupData.length === 0 && (
-              <EmptyState title="No service groups found" />
-            )}
-            {groupData.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 ${
-                  selectedGroupItem?.id === item.id ? 'bg-primary/5' : ''
-                }`}
-                onClick={() => handleGroupListItemClick(item)}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-secondary">{item.name ?? '—'}</span>
-                  <StatusChip
-                    label={SERVICE_GROUP_STATUS_MAP[item.status as ServiceGroupStatus]?.label ?? item.status}
-                    bg={SERVICE_GROUP_STATUS_MAP[item.status as ServiceGroupStatus]?.bg ?? '#E0E0E0'}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-text-secondary">
-                  {item.appointments.length} appointments
-                </p>
-                <p className="text-xs text-text-muted">{formatDate(item.scheduledDate)}</p>
-              </button>
-            ))}
-          </>
-        )}
+      {/* The scrollable filter region. `min-h-0` is the documented escape
+          hatch for flex children that need to scroll inside a flex parent —
+          without it, `flex-1` reserves the natural content height and
+          overflow-y-auto never engages. */}
+      <div className="flex-1 min-h-0 overflow-y-auto" data-testid="map-side-panel-scroll">
+        <AppointmentMapFilterPanel
+          mode={mode}
+          onModeChange={setMode}
+          appointmentFilters={appointmentFilters}
+          onAppointmentFiltersChange={setAppointmentFilters}
+          groupFilters={groupFilters}
+          onGroupFiltersChange={setGroupFilters}
+          serviceTypeOptions={serviceTypeOptions}
+          branchOptions={branchOptions}
+          timeSlotOptions={timeSlotOptions}
+        />
       </div>
     </div>
   );

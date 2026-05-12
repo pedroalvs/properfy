@@ -39,21 +39,20 @@ describe('MapScreenLayout', () => {
     expect(panel).toHaveStyle({ maxWidth: '100%' });
   });
 
-  it('hides side panel when sidePanelOpen is false (026 overlay collapse)', () => {
+  it('hides side panel completely when sidePanelOpen is false (026 cycle-1 devolução)', () => {
+    // User smoke caught that the previous slide-out animation left the
+    // panel visible during/after the transition. The fix removes the
+    // panel from the DOM entirely so the map underneath is full-width
+    // and no panel chrome leaks through.
     render(
       <MapScreenLayout
-        sidePanel={<div>Panel</div>}
+        sidePanel={<div>Panel content</div>}
         map={<div>Map</div>}
         sidePanelOpen={false}
       />,
     );
-    const panel = screen.getByTestId('map-side-panel');
-    // 026 §FR-570 — collapse is OVERLAY (transform + opacity), not push.
-    // The panel is `aria-hidden` and pointer-events-none so the map
-    // underneath stays interactive.
-    expect(panel.getAttribute('aria-hidden')).toBe('true');
-    expect(panel.className).toContain('pointer-events-none');
-    expect(panel.className).toContain('-translate-x-full');
+    expect(screen.queryByTestId('map-side-panel')).toBeNull();
+    expect(screen.queryByText('Panel content')).toBeNull();
   });
 
   it('renders map area', () => {
