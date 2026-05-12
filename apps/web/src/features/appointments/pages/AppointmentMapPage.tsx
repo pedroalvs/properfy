@@ -324,11 +324,16 @@ export function AppointmentMapPage() {
       return;
     }
     const root = document.createElement('div');
+    // 025 cycle 3/2 — anchor omitted so Mapbox auto-chooses the side with
+    // room around the marker. Pre-fix `anchor: 'bottom'` forced the popup
+    // ABOVE the marker (the bottom edge of the popup anchored at the
+    // lat/lng), which clipped at the top of the viewport for markers in
+    // the upper third. Auto-anchor with a `'bottom'` preference is
+    // Mapbox's default behaviour and what every native marker UI uses.
     const popup = new mapboxgl.Popup({
       closeButton: false,
       closeOnClick: false,
       closeOnMove: false,
-      anchor: 'bottom',
       maxWidth: '380px',
       offset: 16,
       className: 'appt-map-detail-popup',

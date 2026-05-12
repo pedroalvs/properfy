@@ -83,8 +83,15 @@ export function AppointmentMapDetailPanel({
     return () => document.removeEventListener('keydown', onKey);
   }, [appointment, onClose]);
 
-  // Click outside the popup closes it. Marker clicks are ignored so the
-  // popup can swap content for the new marker instead of closing first.
+  // Click outside the popup closes it. Three exemptions:
+  //  1. Marker clicks (`[data-testid="map-marker"]`) — let the page swap
+  //     popup content for the new marker instead of closing first.
+  //  2. Map canvas pan/zoom (`.mapboxgl-canvas`) — Mapbox emits a
+  //     mousedown on the canvas to start a drag-pan; without this
+  //     exemption the operator can't pan/zoom the map without losing the
+  //     popup, and the whole point of the Mapbox-native Popup is that it
+  //     STAYS anchored through map movement (cycle 3/2 fix per QA smoke).
+  //  3. Anything inside the card itself (handled by the `contains` check).
   useEffect(() => {
     if (!appointment) return;
     const onMouseDown = (e: MouseEvent) => {
@@ -92,6 +99,7 @@ export function AppointmentMapDetailPanel({
       if (e.target instanceof Node && cardRef.current.contains(e.target)) return;
       const targetEl = e.target as HTMLElement | null;
       if (targetEl?.closest('[data-testid="map-marker"]')) return;
+      if (targetEl?.closest('.mapboxgl-canvas')) return;
       onClose();
     };
     document.addEventListener('mousedown', onMouseDown);

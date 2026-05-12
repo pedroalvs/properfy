@@ -146,4 +146,66 @@ describe('AppointmentMapDetailPanel (content)', () => {
     const { container } = renderPanel({ appointment: null });
     expect(container.querySelector('[data-testid="appointment-map-detail-panel"]')).toBeNull();
   });
+
+  // 025 cycle 3/2 — anti mock-masks-real-bug per feedback memory.
+  //
+  // The popup MUST persist through map pan/zoom interactions; Mapbox
+  // pan starts with a mousedown on the canvas. Without an explicit
+  // `.mapboxgl-canvas` exemption in our outside-click handler, ANY map
+  // pan dismisses the popup — defeating the whole point of the
+  // Mapbox-native Popup migration.
+  describe('outside-click handler (cycle 3/2 canvas exemption)', () => {
+    it('does NOT close the popup when the mousedown lands on the Mapbox canvas (pan)', () => {
+      const onClose = vi.fn();
+      renderPanel({ onClose });
+      // Fabricate a canvas-classed element that the handler will see via
+      // `closest('.mapboxgl-canvas')`. In production Mapbox renders this
+      // node inside the map container; jsdom doesn't boot Mapbox so we
+      // simulate the DOM shape.
+      const canvas = document.createElement('canvas');
+      canvas.className = 'mapboxgl-canvas';
+      document.body.appendChild(canvas);
+      try {
+        fireEvent.mouseDown(canvas);
+        expect(onClose).not.toHaveBeenCalled();
+      } finally {
+        canvas.remove();
+      }
+    });
+
+    it('DOES close the popup when the mousedown lands outside the map (e.g. side panel)', () => {
+      const onClose = vi.fn();
+      renderPanel({ onClose });
+      // A plain div outside the panel and not carrying any of the
+      // exempted classes (`map-marker`, `mapboxgl-canvas`) should trigger
+      // the close — this is the "click outside the map dismisses the
+      // popup" affordance.
+      const outside = document.createElement('div');
+      outside.setAttribute('data-testid', 'outside-map');
+      document.body.appendChild(outside);
+      try {
+        fireEvent.mouseDown(outside);
+        expect(onClose).toHaveBeenCalled();
+      } finally {
+        outside.remove();
+      }
+    });
+
+    it('does NOT close the popup when the mousedown lands on another map marker', () => {
+      // Mirror of the pre-existing carve-out: clicking a DIFFERENT marker
+      // swaps the popup content (handled by the page), it doesn't close
+      // the popup outright.
+      const onClose = vi.fn();
+      renderPanel({ onClose });
+      const marker = document.createElement('div');
+      marker.setAttribute('data-testid', 'map-marker');
+      document.body.appendChild(marker);
+      try {
+        fireEvent.mouseDown(marker);
+        expect(onClose).not.toHaveBeenCalled();
+      } finally {
+        marker.remove();
+      }
+    });
+  });
 });

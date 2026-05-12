@@ -84,4 +84,16 @@ describe('AppointmentMapPage — Mapbox Popup wiring (Issue B re-fix)', () => {
       expect(invocation).not.toMatch(/\banchor=/);
     });
   });
+
+  // 025 cycle 3/2 — Mapbox auto-anchors the popup when the option is
+  // omitted, picking the side with room around the marker. Hardcoding
+  // `anchor: 'bottom'` forced the popup ABOVE the marker (the popup's
+  // bottom edge at the lat/lng), which clipped for markers in the upper
+  // viewport. The constructor options block must NOT carry an `anchor`
+  // key — letting Mapbox pick is the canonical pattern.
+  it('Mapbox Popup constructor omits the `anchor` option (auto-detect)', () => {
+    const optionsBlock = PAGE_SOURCE.match(/new mapboxgl\.Popup\(\{[\s\S]*?\}\)/);
+    expect(optionsBlock, 'Popup constructor not found').toBeTruthy();
+    expect(optionsBlock![0]).not.toMatch(/\banchor:/);
+  });
 });
