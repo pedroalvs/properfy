@@ -30,7 +30,9 @@ import {
   type GroupModeFilters,
 } from '../components/AppointmentMapFilterPanel';
 import { MapLassoSelect, type LassoPoint, type LassoState, type MapLassoSelectHandle } from '@/components/map/MapLassoSelect';
+import { MapFilterToggleButton } from '@/components/map/MapFilterToggleButton';
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
+import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
 import { MapGroupCreateModal } from '@/features/service-groups/components/MapGroupCreateModal';
 import { useQueryClient } from '@tanstack/react-query';
@@ -124,6 +126,24 @@ export function AppointmentMapPage() {
   const [lassoSelectedIds, setLassoSelectedIds] = useState<string[]>([]);
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupModalSeedIds, setGroupModalSeedIds] = useState<string[]>([]);
+  // 026 §FR-510 — Add-to-group sub-modal seeded from the bulk modal footer.
+  const [addToGroupOpen, setAddToGroupOpen] = useState(false);
+  const [addToGroupSeedIds, setAddToGroupSeedIds] = useState<string[]>([]);
+  // 026 §FR-570 — Filter panel collapse + sessionStorage persistence.
+  // Default CLOSED on first load; the toggle button at top-left re-opens
+  // the panel. The state survives reload because the operator typically
+  // re-uses the same filter set for several lasso passes.
+  const FILTERS_STORAGE_KEY = 'appointments-map.filters.open';
+  const [filtersOpen, setFiltersOpen] = useState(() => {
+    try { return sessionStorage.getItem(FILTERS_STORAGE_KEY) === 'true'; } catch { return false; }
+  });
+  const toggleFilters = useCallback(() => {
+    setFiltersOpen((v) => {
+      const next = !v;
+      try { sessionStorage.setItem(FILTERS_STORAGE_KEY, String(next)); } catch { /* noop */ }
+      return next;
+    });
+  }, []);
   // 025 cycle 2/2 — Mapbox-native Popup root for the appointment detail
   // panel. The popup is created imperatively (setLngLat + setDOMContent +
   // addTo) so Mapbox owns the screen-position update on every render
@@ -511,13 +531,12 @@ export function AppointmentMapPage() {
     setLassoState('idle');
   }, []);
 
+  // 026 §FR-510 — Add to existing group via the dedicated sub-modal.
+  // The sub-modal calls the eligibility-check endpoint and surfaces a
+  // per-appointment ineligibility banner before committing the add.
   const handleOpenAddToGroup = useCallback((ids: string[]) => {
-    // Placeholder for MapAddToGroupModal — until that ships, route to the
-    // existing MapGroupCreateModal seeded with the same ids so the operator
-    // is never blocked. The plan calls for a dedicated picker; defer the
-    // sub-modal in favour of unblocking the dominant happy path.
-    setGroupModalSeedIds(ids);
-    setGroupModalOpen(true);
+    setAddToGroupSeedIds(ids);
+    setAddToGroupOpen(true);
   }, []);
 
   const handleOpenCreateGroup = useCallback((ids: string[]) => {
@@ -566,15 +585,28 @@ export function AppointmentMapPage() {
   // Side panel
   const sidePanel = (
     <div className="flex h-full flex-col">
-      <div className="border-b border-gray-200 px-4 py-3">
-        <h2 className="text-base font-bold text-secondary">
-          {mode === 'appointments' ? 'Appointments' : 'Service Groups'}
-        </h2>
-        <p className="text-xs text-text-muted">
-          {mode === 'appointments'
-            ? `${appointmentData.length} appointments on map`
-            : `${groupData.length} groups on map`}
-        </p>
+      <div className="flex items-start justify-between border-b border-gray-200 px-4 py-3">
+        <div>
+          <h2 className="text-base font-bold text-secondary">
+            {mode === 'appointments' ? 'Appointments' : 'Service Groups'}
+          </h2>
+          <p className="text-xs text-text-muted">
+            {mode === 'appointments'
+              ? `${appointmentData.length} appointments on map`
+              : `${groupData.length} groups on map`}
+          </p>
+        </div>
+        {/* 026 §FR-570 — Close button inside the panel header so the
+            operator can collapse without hunting for the top-left toggle. */}
+        <button
+          type="button"
+          onClick={toggleFilters}
+          aria-label="Close filters panel"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-text-secondary hover:bg-black/5"
+          data-testid="map-side-panel-close"
+        >
+          <i className="mdi mdi-close text-lg" />
+        </button>
       </div>
 
       <AppointmentMapFilterPanel
@@ -830,7 +862,17 @@ export function AppointmentMapPage() {
           { label: 'List View', icon: 'mdi-format-list-bulleted', onClick: () => navigate('/appointments/list') },
         ]}
       />
-      <MapScreenLayout sidePanel={sidePanel} map={mapContent} />
+      <div className="relative">
+        <MapScreenLayout sidePanel={sidePanel} map={mapContent} sidePanelOpen={filtersOpen} />
+        {/* 026 §FR-570 — top-left filter toggle. Sits above the map area
+            via absolute positioning; visible while the side panel is
+            either open (acts as a "Close") or closed (acts as a "Show"). */}
+        <div className="pointer-events-none absolute left-4 top-4 z-30 md:left-6 md:top-6">
+          <div className="pointer-events-auto">
+            <MapFilterToggleButton open={filtersOpen} onToggle={toggleFilters} />
+          </div>
+        </div>
+      </div>
 
       <MapBulkActionModal
         appointments={selectedAppointmentsForPanel}
@@ -841,9 +883,30 @@ export function AppointmentMapPage() {
         clUserFlags={clUserFlags}
         onAddToGroup={handleOpenAddToGroup}
         onCreateGroup={handleOpenCreateGroup}
+        // 026 §FR-560 — clicking the code pill in any row opens the
+        // detail popup for that appointment without closing the modal.
+        onOpenDetailPanel={(id) => {
+          const item = appointmentData.find((a) => a.id === id) ?? null;
+          if (item) setSelectedItem(item);
+        }}
         onActionComplete={() => {
           queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
           queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+        }}
+      />
+
+      {/* 026 §FR-510 — Add-to-group sub-modal. Seeded from the modal
+          footer button; runs eligibility-check on group pick, surfaces
+          per-item ineligibles, commits with the eligible subset only. */}
+      <MapAddToGroupSubModal
+        open={addToGroupOpen}
+        onClose={() => { setAddToGroupOpen(false); setAddToGroupSeedIds([]); }}
+        appointments={addToGroupSeedIds.map((id) => appointmentData.find((a) => a.id === id)).filter(Boolean) as AppointmentMapItem[]}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
+          queryClient.invalidateQueries({ queryKey: ['service-groups'] });
+          setLassoSelectedIds([]);
+          setLassoState('idle');
         }}
       />
 

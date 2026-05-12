@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, type ReactNode } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
+import { ViewportAwareDropdown } from '@/components/ui/ViewportAwareDropdown';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
@@ -9,21 +10,30 @@ import type { AppointmentStatus, UserRole } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import { ConfirmationChannelIcons } from './ConfirmationChannelIcons';
+import { MapBulkRescheduleForm } from './MapBulkRescheduleForm';
 import { useBulkCancelAppointments } from '../hooks/useBulkCancelAppointments';
-import { useBulkRescheduleAppointments } from '../hooks/useBulkRescheduleAppointments';
 import { useBulkStatusTransition } from '../hooks/useBulkStatusTransition';
-import { useBulkAssignInspector } from '../hooks/useBulkAssignInspector';
 import { useBulkResendReminder } from '../hooks/useBulkResendReminder';
-import { useFormOptions } from '@/hooks/useFormOptions';
 
+/**
+ * 026 §FR-530 — Bulk actions reduced to exactly 4 items (alphabetical):
+ *   Cancel · Change status · Reschedule · Send confirmation email
+ *
+ * - "Assign Inspector" REMOVED from the map flow (kept in list-page
+ *   `BulkEditModal` per 026 plan — out of scope here).
+ * - "Re-send Reminder" RELABELLED to "Send confirmation email"
+ *   (endpoint unchanged — still `/v1/appointments/bulk-resend-reminder`).
+ * - "Add to group" / "Create group" are FOOTER BUTTONS now (not dropdown
+ *   items) per 026 §FR-510 — separate top-level affordances.
+ */
 export type BulkAction =
   | 'cancel'
-  | 'reschedule'
   | 'change_status'
-  | 'assign_inspector'
-  | 'resend_reminder'
-  | 'add_to_group'
-  | 'create_group';
+  | 'reschedule'
+  | 'resend_reminder';
+
+/** 026 §FR-510 — separate footer buttons; NOT in the dropdown. */
+export type FooterAction = 'add_to_group' | 'create_group';
 
 interface MapBulkActionModalProps {
   /** All appointments enclosed by the lasso polygon. Defaults to fully UNCHECKED. */
@@ -38,8 +48,16 @@ interface MapBulkActionModalProps {
   /** Launchers for the two group sub-modals. The page owns those modals so map state stays consolidated. */
   onAddToGroup: (selectedIds: string[]) => void;
   onCreateGroup: (selectedIds: string[]) => void;
+  /** 026 §FR-560 — click an appointment code pill → open detail panel for that id. */
+  onOpenDetailPanel?: (appointmentId: string) => void;
   /** Optional callback after a bulk action finishes; useful for the page to invalidate queries / drop the polygon. */
   onActionComplete?: () => void;
+  /**
+   * 026 §FR-520 — Position. Desktop default `'top-right'` (compact,
+   * no backdrop, map stays interactive); mobile path keeps the centered
+   * Dialog with backdrop. Caller can override via prop.
+   */
+  position?: 'top-right' | 'centered';
 }
 
 interface RowResult {
@@ -48,14 +66,16 @@ interface RowResult {
   errorMessage?: string;
 }
 
+/**
+ * 026 §FR-530 — exactly 4 dropdown items, alphabetical order.
+ * "Send confirmation email" is the user-facing label for the existing
+ * `/bulk-resend-reminder` endpoint (relabel only, route unchanged).
+ */
 const BULK_ACTIONS: Array<{ key: BulkAction; label: string; allowedRoles: UserRole[]; clFlag?: keyof NonNullable<MapBulkActionModalProps['clUserFlags']> }> = [
   { key: 'cancel', label: 'Cancel appointments', allowedRoles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], clFlag: 'cancel_appointments' },
-  { key: 'reschedule', label: 'Reschedule', allowedRoles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], clFlag: 'reschedule_appointments' },
   { key: 'change_status', label: 'Change status', allowedRoles: ['AM', 'OP'] },
-  { key: 'assign_inspector', label: 'Assign / reassign inspector', allowedRoles: ['AM', 'OP'] },
-  { key: 'resend_reminder', label: 'Re-send tenant reminder', allowedRoles: ['AM', 'OP'] },
-  { key: 'add_to_group', label: 'Add to existing group', allowedRoles: ['AM', 'OP'] },
-  { key: 'create_group', label: 'Create new group', allowedRoles: ['AM', 'OP'] },
+  { key: 'reschedule', label: 'Reschedule', allowedRoles: ['AM', 'OP', 'CL_ADMIN'] },
+  { key: 'resend_reminder', label: 'Send confirmation email', allowedRoles: ['AM', 'OP'] },
 ];
 
 function isActionAllowed(
@@ -77,7 +97,9 @@ export function MapBulkActionModal({
   clUserFlags,
   onAddToGroup,
   onCreateGroup,
+  onOpenDetailPanel,
   onActionComplete,
+  position = 'top-right',
 }: MapBulkActionModalProps) {
   // Default UNCHECKED per mockup empty-state: nothing happens until the user
   // explicitly ticks at least one row. The footer state matrix matches this.
@@ -156,7 +178,12 @@ export function MapBulkActionModal({
       key: 'code',
       label: 'Code',
       width: '110px',
-      render: (row) => <AppointmentCodePill code={row.code} />,
+      render: (row) => (
+        <AppointmentCodePill
+          code={row.code}
+          {...(onOpenDetailPanel ? { onClick: () => onOpenDetailPanel(row.id) } : {})}
+        />
+      ),
     },
     {
       key: 'client',
@@ -206,14 +233,16 @@ export function MapBulkActionModal({
         />
       ),
     },
-  ], [allChecked, indeterminate, checkedIds]);
+  ], [allChecked, indeterminate, checkedIds, onOpenDetailPanel]);
 
   // ─── Step 2 — action form rendering ──────────────────────────────────────
   const cancelMutation = useBulkCancelAppointments();
-  const rescheduleMutation = useBulkRescheduleAppointments();
   const statusMutation = useBulkStatusTransition();
-  const assignMutation = useBulkAssignInspector();
   const resendMutation = useBulkResendReminder();
+  // 026 §FR-540 — reschedule now uses the bulk-reopen-for-reschedule
+  // endpoint via `MapBulkRescheduleForm` which encapsulates the
+  // same-group precheck + dropdown slot picker.
+  // 026 §FR-530 — assign_inspector REMOVED from the map flow.
 
   const handleActionComplete = (resultsFromApi: Array<{ appointmentId: string; status: string; error?: { message: string } }>) => {
     setResults(resultsFromApi.map((r) => ({
@@ -224,25 +253,41 @@ export function MapBulkActionModal({
     onActionComplete?.();
   };
 
-  const visibleActions = BULK_ACTIONS.filter((a) => {
-    // "Add to group" / "Create group" are visible only when selection spans
-    // a single tenant. Cross-tenant selections disable both with a tooltip.
-    if (a.key === 'add_to_group' || a.key === 'create_group') {
-      const tenantNames = new Set(checkedAppointments.map((c) => c.tenantName).filter(Boolean));
-      if (tenantNames.size > 1) return true; // still visible but disabled below
+  const visibleActions = BULK_ACTIONS;
+
+  // 026 §FR-540 — Reschedule is bulk-same-group only. If the selection
+  // spans groups (or contains non-grouped items), disable with a tooltip
+  // explaining the limitation. Backend ALSO returns INVALID_SCOPE.
+  const groupScopeStatus = useMemo<{ disabled: boolean; reason?: string }>(() => {
+    if (checkedAppointments.length === 0) return { disabled: false };
+    const groupIds = new Set(checkedAppointments.map((a) => a.serviceGroupId ?? null));
+    if (groupIds.size > 1 || groupIds.has(null)) {
+      return { disabled: true, reason: 'Bulk reschedule limited to appointments within the same group in this cycle' };
     }
-    return true;
-  });
+    return { disabled: false };
+  }, [checkedAppointments]);
 
   const isActionDisabled = (a: typeof BULK_ACTIONS[number]): { disabled: boolean; reason?: string } => {
     if (!isActionAllowed(a, actorRole, clUserFlags)) return { disabled: true, reason: 'Your role cannot perform this action' };
     if (checkedIds.size === 0) return { disabled: true, reason: 'Tick at least one appointment first' };
-    if (a.key === 'add_to_group' || a.key === 'create_group') {
-      const tenantNames = new Set(checkedAppointments.map((c) => c.tenantName).filter(Boolean));
-      if (tenantNames.size > 1) return { disabled: true, reason: 'Selection spans multiple agencies — pick rows from a single agency' };
+    if (a.key === 'reschedule' && groupScopeStatus.disabled) {
+      return { disabled: true, ...(groupScopeStatus.reason ? { reason: groupScopeStatus.reason } : {}) };
     }
     return { disabled: false };
   };
+
+  // 026 §FR-510 — Add-to-group / Create-group are SEPARATE footer
+  // buttons (not in the dropdown). Both AM/OP only; disabled when:
+  //   - no rows checked
+  //   - selection spans tenants (cross-tenant grouping is impossible per Regras)
+  const canAddToGroup = actorRole === 'AM' || actorRole === 'OP';
+  const groupButtonState = useMemo<{ disabled: boolean; reason?: string }>(() => {
+    if (!canAddToGroup) return { disabled: true, reason: 'Add to group is AM/OP only' };
+    if (checkedIds.size === 0) return { disabled: true, reason: 'Tick at least one appointment first' };
+    const tenantNames = new Set(checkedAppointments.map((c) => c.tenantName).filter(Boolean));
+    if (tenantNames.size > 1) return { disabled: true, reason: 'Selection spans multiple agencies — pick rows from a single agency' };
+    return { disabled: false };
+  }, [canAddToGroup, checkedIds.size, checkedAppointments]);
 
   const closeAndReset = () => {
     setActiveAction(null);
@@ -280,8 +325,13 @@ export function MapBulkActionModal({
     );
   };
 
-  return (
-    <Dialog open={open} onClose={closeAndReset} title="Bulk actions" maxWidth="880px">
+  if (!open) return null;
+
+  // 026 §FR-520 — modal body + footer are rendered as a single tree;
+  // the wrapper (top-right floating panel vs centered Dialog) changes
+  // based on `position` but the inner content stays identical.
+  const modalContent = (
+    <>
       {!activeAction && !results && (
         <>
           {appointments.length === 0 ? (
@@ -321,18 +371,11 @@ export function MapBulkActionModal({
       )}
 
       {activeAction === 'reschedule' && !results && (
-        <RescheduleForm
-          loading={rescheduleMutation.isPending}
+        <MapBulkRescheduleForm
+          checkedAppointments={checkedAppointments}
+          {...(actorTimezone ? { actorTimezone } : {})}
           onCancel={() => setActiveAction(null)}
-          onSubmit={async ({ newDate, newTimeSlot }) => {
-            const res = await rescheduleMutation.mutateAsync({
-              appointmentIds: Array.from(checkedIds),
-              newDate,
-              ...(newTimeSlot ? { newTimeSlot } : {}),
-              ...(actorTimezone ? { actorTimezone } : {}),
-            });
-            handleActionComplete(res.data.results);
-          }}
+          onComplete={handleActionComplete}
         />
       )}
 
@@ -348,21 +391,6 @@ export function MapBulkActionModal({
               appointmentIds: Array.from(checkedIds),
               targetStatus,
               ...(reason ? { reason } : {}),
-              ...(actorTimezone ? { actorTimezone } : {}),
-            });
-            handleActionComplete(res.data.results);
-          }}
-        />
-      )}
-
-      {activeAction === 'assign_inspector' && !results && (
-        <AssignInspectorForm
-          loading={assignMutation.isPending}
-          onCancel={() => setActiveAction(null)}
-          onSubmit={async (inspectorId) => {
-            const res = await assignMutation.mutateAsync({
-              appointmentIds: Array.from(checkedIds),
-              inspectorId,
               ...(actorTimezone ? { actorTimezone } : {}),
             });
             handleActionComplete(res.data.results);
@@ -406,24 +434,39 @@ export function MapBulkActionModal({
               onClick={closeAndReset}
               className="rounded border border-border-subtle px-4 py-2 text-sm text-text-secondary hover:bg-gray-50"
             >
-              Cancel
+              Close
             </button>
             {activeAction === null ? (
-              <BulkActionsDropdown
-                actions={visibleActions}
-                isDisabled={isActionDisabled}
-                onSelect={(key) => {
-                  if (key === 'add_to_group') {
-                    onAddToGroup(Array.from(checkedIds));
-                    return;
-                  }
-                  if (key === 'create_group') {
-                    onCreateGroup(Array.from(checkedIds));
-                    return;
-                  }
-                  setActiveAction(key);
-                }}
-              />
+              <>
+                <BulkActionsDropdown
+                  actions={visibleActions}
+                  isDisabled={isActionDisabled}
+                  selectedCount={checkedIds.size}
+                  onSelect={(key) => setActiveAction(key)}
+                />
+                {/* 026 §FR-510 — Add to group / Create group as SEPARATE
+                    footer buttons. Both AM/OP only. */}
+                <button
+                  type="button"
+                  disabled={groupButtonState.disabled}
+                  title={groupButtonState.reason}
+                  onClick={() => { if (!groupButtonState.disabled) onAddToGroup(Array.from(checkedIds)); }}
+                  className="rounded border border-real-estate px-4 py-2 text-sm font-semibold text-real-estate hover:bg-real-estate/5 disabled:cursor-not-allowed disabled:opacity-50"
+                  data-testid="bulk-modal-footer-add-to-group"
+                >
+                  Add to group
+                </button>
+                <button
+                  type="button"
+                  disabled={groupButtonState.disabled}
+                  title={groupButtonState.reason}
+                  onClick={() => { if (!groupButtonState.disabled) onCreateGroup(Array.from(checkedIds)); }}
+                  className="rounded bg-real-estate px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  data-testid="bulk-modal-footer-create-group"
+                >
+                  Create group{checkedIds.size > 0 ? ` (${checkedIds.size})` : ''}
+                </button>
+              </>
             ) : (
               <button
                 type="button"
@@ -448,66 +491,108 @@ export function MapBulkActionModal({
           </button>
         </div>
       )}
+    </>
+  );
+
+  // 026 §FR-520 — top-right rendering bypasses Dialog entirely so the
+  // map stays interactive behind/beside the modal. The centered path
+  // keeps the Dialog with backdrop for mobile + tablet viewports where
+  // vertical real estate is the constraint.
+  if (position === 'top-right') {
+    return (
+      <div
+        className="fixed right-4 top-4 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl"
+        style={{
+          width: 'min(480px, calc(100vw - 32px))',
+          maxHeight: 'calc(100vh - 32px)',
+          pointerEvents: 'auto',
+        }}
+        role="dialog"
+        aria-modal="false"
+        aria-label="Bulk actions"
+        data-testid="map-bulk-action-modal"
+      >
+        <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
+          <h2 className="text-sm font-semibold text-text-primary">Bulk actions</h2>
+          <button
+            type="button"
+            onClick={closeAndReset}
+            aria-label="Close bulk actions"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-text-secondary hover:bg-black/5"
+          >
+            <i className="mdi mdi-close text-lg" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3">
+          {modalContent}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={open} onClose={closeAndReset} title="Bulk actions" maxWidth="880px">
+      {modalContent}
     </Dialog>
   );
 }
 
 // ─── Bulk Actions Dropdown ───────────────────────────────────────────────
+// 026 §FR-501 — wrapped in ViewportAwareDropdown so the menu auto-flips
+// when the modal sits at the bottom-right of the viewport (the default
+// `position: 'top-right'` puts the trigger near the right edge of the
+// viewport, where a fixed `right: 0` positioned menu would clip).
 
 interface BulkActionsDropdownProps {
   actions: typeof BULK_ACTIONS;
   isDisabled: (a: typeof BULK_ACTIONS[number]) => { disabled: boolean; reason?: string };
+  selectedCount: number;
   onSelect: (key: BulkAction) => void;
 }
 
-function BulkActionsDropdown({ actions, isDisabled, onSelect }: BulkActionsDropdownProps) {
-  const [open, setOpen] = useState(false);
+function BulkActionsDropdown({ actions, isDisabled, selectedCount, onSelect }: BulkActionsDropdownProps) {
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 rounded bg-real-estate px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
-        data-testid="bulk-actions-toggle"
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        Bulk actions
-        <i className="mdi mdi-chevron-down" />
-      </button>
-      {open && (
-        <div
-          className="absolute right-0 z-10 mt-1 w-56 rounded border border-border-subtle bg-card-bg shadow-lg"
-          role="menu"
+    <ViewportAwareDropdown
+      placement="auto"
+      menuMinWidth={224}
+      trigger={
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded bg-real-estate px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+          data-testid="bulk-actions-toggle"
         >
-          {actions.map((action) => {
-            const disabled = isDisabled(action);
-            return (
-              <button
-                key={action.key}
-                type="button"
-                disabled={disabled.disabled}
-                title={disabled.reason}
-                onClick={() => {
-                  if (disabled.disabled) return;
-                  setOpen(false);
-                  onSelect(action.key);
-                }}
-                className={`block w-full px-3 py-2 text-left text-sm ${
-                  disabled.disabled
-                    ? 'cursor-not-allowed text-text-muted'
-                    : 'text-text-primary hover:bg-gray-50'
-                }`}
-                data-testid={`bulk-action-${action.key}`}
-                role="menuitem"
-              >
-                {action.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+          Bulk actions{selectedCount > 0 ? ` (${selectedCount})` : ''}
+          <i className="mdi mdi-chevron-down" />
+        </button>
+      }
+    >
+      <div role="menu" className="py-1">
+        {actions.map((action) => {
+          const disabled = isDisabled(action);
+          return (
+            <button
+              key={action.key}
+              type="button"
+              disabled={disabled.disabled}
+              title={disabled.reason}
+              onClick={() => {
+                if (disabled.disabled) return;
+                onSelect(action.key);
+              }}
+              className={`block w-full px-3 py-2 text-left text-sm ${
+                disabled.disabled
+                  ? 'cursor-not-allowed text-text-muted'
+                  : 'text-text-primary hover:bg-gray-50'
+              }`}
+              data-testid={`bulk-action-${action.key}`}
+              role="menuitem"
+            >
+              {action.label}
+            </button>
+          );
+        })}
+      </div>
+    </ViewportAwareDropdown>
   );
 }
 
@@ -554,60 +639,11 @@ function CancelForm({ loading, onCancel: _onCancel, onSubmit }: CancelFormProps)
   );
 }
 
-interface RescheduleFormProps {
-  loading: boolean;
-  onCancel: () => void;
-  onSubmit: (input: { newDate: string; newTimeSlot?: string }) => Promise<void>;
-}
-
-function RescheduleForm({ loading, onCancel: _onCancel, onSubmit }: RescheduleFormProps) {
-  const [newDate, setNewDate] = useState('');
-  const [newTimeSlot, setNewTimeSlot] = useState('');
-  const canSubmit = newDate.length === 10;
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (canSubmit) void onSubmit(newTimeSlot ? { newDate, newTimeSlot } : { newDate });
-      }}
-      className="space-y-3"
-    >
-      <label className="block text-sm font-medium text-text-primary">
-        New date
-        <input
-          type="date"
-          value={newDate}
-          onChange={(e) => setNewDate(e.target.value)}
-          required
-          className="mt-1 block w-full rounded border border-border-subtle p-2 text-sm"
-          data-testid="bulk-reschedule-date"
-        />
-      </label>
-      <label className="block text-sm font-medium text-text-primary">
-        New time slot (optional)
-        <input
-          type="text"
-          value={newTimeSlot}
-          onChange={(e) => setNewTimeSlot(e.target.value)}
-          placeholder="HH:mm-HH:mm (e.g. 09:00-10:00)"
-          pattern="^\d{2}:\d{2}-\d{2}:\d{2}$"
-          className="mt-1 block w-full rounded border border-border-subtle p-2 text-sm"
-          data-testid="bulk-reschedule-timeslot"
-        />
-      </label>
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={!canSubmit || loading}
-          className="rounded bg-real-estate px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-50"
-          data-testid="bulk-reschedule-apply"
-        >
-          {loading ? 'Rescheduling…' : 'Apply reschedule'}
-        </button>
-      </div>
-    </form>
-  );
-}
+// 026 §FR-540 — RescheduleForm extracted to its own file as
+// `MapBulkRescheduleForm`. The new form uses a dropdown slot picker
+// (NOT the previous free-text input) sourced from `useTimeSlotOptions`
+// per Regras matrix, and the same-group precheck disables submit when
+// the selection spans groups.
 
 interface ChangeStatusFormProps {
   checkedAppointments: AppointmentMapItem[];
@@ -698,53 +734,10 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
   );
 }
 
-interface AssignInspectorFormProps {
-  loading: boolean;
-  onCancel: () => void;
-  onSubmit: (inspectorId: string) => Promise<void>;
-}
-
-function AssignInspectorForm({ loading, onCancel: _onCancel, onSubmit }: AssignInspectorFormProps) {
-  const { options } = useFormOptions<{ id: string; name: string }>(
-    ['inspectors', 'bulk-assign'],
-    '/v1/inspectors',
-    (item) => ({ value: item.id, label: item.name }),
-    { status: 'ACTIVE' },
-  );
-  const [inspectorId, setInspectorId] = useState('');
-  return (
-    <form
-      onSubmit={(e) => { e.preventDefault(); if (inspectorId) void onSubmit(inspectorId); }}
-      className="space-y-3"
-    >
-      <label className="block text-sm font-medium text-text-primary">
-        Inspector
-        <select
-          value={inspectorId}
-          onChange={(e) => setInspectorId(e.target.value)}
-          required
-          className="mt-1 block w-full rounded border border-border-subtle p-2 text-sm"
-          data-testid="bulk-assign-inspector-select"
-        >
-          <option value="">Select…</option>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </label>
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={!inspectorId || loading}
-          className="rounded bg-real-estate px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-50"
-          data-testid="bulk-assign-inspector-apply"
-        >
-          {loading ? 'Assigning…' : 'Apply'}
-        </button>
-      </div>
-    </form>
-  );
-}
+// 026 §FR-530 — `AssignInspectorForm` removed from the map flow.
+// Inspector assignment is still available via the list-page BulkEditModal
+// (`apps/web/src/features/appointments/components/BulkEditModal.tsx`),
+// which is out of scope for 026.
 
 interface ResendReminderFormProps {
   loading: boolean;

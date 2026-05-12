@@ -39,7 +39,7 @@ describe('MapScreenLayout', () => {
     expect(panel).toHaveStyle({ maxWidth: '100%' });
   });
 
-  it('hides side panel when sidePanelOpen is false', () => {
+  it('hides side panel when sidePanelOpen is false (026 overlay collapse)', () => {
     render(
       <MapScreenLayout
         sidePanel={<div>Panel</div>}
@@ -48,7 +48,12 @@ describe('MapScreenLayout', () => {
       />,
     );
     const panel = screen.getByTestId('map-side-panel');
-    expect(panel).toHaveStyle({ width: '0' });
+    // 026 §FR-570 — collapse is OVERLAY (transform + opacity), not push.
+    // The panel is `aria-hidden` and pointer-events-none so the map
+    // underneath stays interactive.
+    expect(panel.getAttribute('aria-hidden')).toBe('true');
+    expect(panel.className).toContain('pointer-events-none');
+    expect(panel.className).toContain('-translate-x-full');
   });
 
   it('renders map area', () => {
