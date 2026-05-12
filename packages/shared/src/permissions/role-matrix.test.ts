@@ -121,3 +121,23 @@ describe('appointment.bulk_assign_inspector (025 §FR-441)', () => {
     expect(can(role, 'appointment.bulk_assign_inspector')).toBe(false);
   });
 });
+
+describe('appointment.add_to_group (026 §FR-510)', () => {
+  it.each<UserRole>(['AM', 'OP'])('allows %s', (role) => {
+    expect(can(role, 'appointment.add_to_group')).toBe(true);
+  });
+
+  it.each<UserRole>(['CL_ADMIN', 'CL_USER', 'INSP'])('denies %s', (role) => {
+    expect(can(role, 'appointment.add_to_group')).toBe(false);
+  });
+});
+
+describe('appointment.bulk_reopen_for_reschedule (026 §FR-540, matriz 2.2)', () => {
+  it.each<UserRole>(['AM', 'OP', 'CL_ADMIN'])('allows %s', (role) => {
+    expect(can(role, 'appointment.bulk_reopen_for_reschedule')).toBe(true);
+  });
+
+  it.each<UserRole>(['CL_USER', 'INSP'])('denies %s', (role) => {
+    expect(can(role, 'appointment.bulk_reopen_for_reschedule')).toBe(false);
+  });
+});

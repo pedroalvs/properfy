@@ -15,6 +15,7 @@ import {
   bulkRescheduleRequestSchema,
   bulkStatusTransitionRequestSchema,
   bulkAssignInspectorRequestSchema,
+  bulkReopenForRescheduleRequestSchema,
   bulkActionResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
@@ -38,6 +39,7 @@ import type { BulkCancelAppointmentsUseCase } from '../application/use-cases/bul
 import type { BulkRescheduleAppointmentsUseCase } from '../application/use-cases/bulk-reschedule-appointments.use-case';
 import type { BulkStatusTransitionUseCase } from '../application/use-cases/bulk-status-transition.use-case';
 import type { BulkAssignInspectorUseCase } from '../application/use-cases/bulk-assign-inspector.use-case';
+import type { BulkReopenForRescheduleUseCase } from '../application/use-cases/bulk-reopen-for-reschedule.use-case';
 import type { ReopenForRescheduleUseCase } from '../application/use-cases/reopen-for-reschedule.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import type { IIdempotencyService } from '../../../shared/domain/idempotency.service';
@@ -62,6 +64,7 @@ export interface AppointmentRouteContainer {
   bulkRescheduleAppointmentsUseCase: BulkRescheduleAppointmentsUseCase;
   bulkStatusTransitionUseCase: BulkStatusTransitionUseCase;
   bulkAssignInspectorUseCase: BulkAssignInspectorUseCase;
+  bulkReopenForRescheduleUseCase: BulkReopenForRescheduleUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
   idempotencyService?: IIdempotencyService;
@@ -461,6 +464,42 @@ export async function registerAppointmentRoutes(
         inspectorId: parsed.data.inspectorId,
         actor: auth,
         actorTimezone: parsed.data.actorTimezone,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/bulk-reopen-for-reschedule — 200 (026 §FR-540)
+  // Same-group only (cross-group is GAP-501 future). Per-item delegates
+  // to ReopenForRescheduleUseCase (which also revokes portal tokens since
+  // 026 §FR-543). Mixed selections → INVALID_TRANSITION for every item.
+  app.post(
+    '/v1/appointments/bulk-reopen-for-reschedule',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: bulkReopenForRescheduleRequestSchema,
+        response: { 200: successResponseSchema(bulkActionResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      // Matriz 2.2 — AM / OP / CL_ADMIN. CL_USER not allowed even with
+      // reschedule_appointments flag (single-item path remains via PATCH).
+      if (auth.role !== 'AM' && auth.role !== 'OP' && auth.role !== 'CL_ADMIN') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM, OP, or CL_ADMIN role required' } });
+      }
+      const parsed = bulkReopenForRescheduleRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.bulkReopenForRescheduleUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        newDate: parsed.data.newDate,
+        newTimeSlot: parsed.data.newTimeSlot,
+        ...(parsed.data.reason ? { reason: parsed.data.reason } : {}),
+        actor: auth,
+        ...(parsed.data.actorTimezone ? { actorTimezone: parsed.data.actorTimezone } : {}),
       });
       return reply.status(200).send(success(result));
     },

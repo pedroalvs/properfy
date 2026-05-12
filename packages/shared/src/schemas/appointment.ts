@@ -288,3 +288,29 @@ export const bulkAssignInspectorRequestSchema = z.object({
 });
 export type BulkAssignInspectorRequest = z.infer<typeof bulkAssignInspectorRequestSchema>;
 
+/**
+ * 026 §FR-540..545 — Bulk re-open for reschedule.
+ *
+ * Delegates per-item to the existing single-item `ReopenForRescheduleUseCase`
+ * (spec 006 GAP-003), which already enforces the 30-day window and emits the
+ * `appointment.rescheduled` audit. 026 extends that use case additively to
+ * revoke active portal tokens after the reschedule.
+ *
+ * `newTimeSlot` is REQUIRED here (unlike `bulkRescheduleRequestSchema` from
+ * 025) because the reschedule form uses an explicit dropdown sourced from
+ * the effective slots catalog — the operator picks one of the canonical
+ * `HH:mm-HH:mm` values per Regras matrix.
+ *
+ * `appointmentIds.max(30)` mirrors the group-capacity cap because bulk
+ * reschedule is intentionally same-group-only in this cycle (cross-group
+ * bulk is GAP-501 future work).
+ */
+export const bulkReopenForRescheduleRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+  newDate: z.union([z.string().datetime(), z.string().date()]),
+  newTimeSlot: z.string().min(1),
+  reason: z.string().min(3).max(500).optional(),
+  actorTimezone: z.string().optional(),
+});
+export type BulkReopenForRescheduleRequest = z.infer<typeof bulkReopenForRescheduleRequestSchema>;
+

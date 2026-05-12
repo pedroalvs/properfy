@@ -12227,6 +12227,132 @@
         }
       }
     },
+    "/v1/appointments/bulk-reopen-for-reschedule": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  },
+                  "newDate": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "string",
+                        "format": "date"
+                      }
+                    ]
+                  },
+                  "newTimeSlot": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "appointmentIds",
+                  "newDate",
+                  "newTimeSlot"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "INVALID_TRANSITION",
+                                  "FORBIDDEN",
+                                  "NOT_FOUND",
+                                  "ERROR",
+                                  "IDEMPOTENT_REPLAY"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/appointments/import": {
       "post": {
         "responses": {
@@ -13914,6 +14040,228 @@
                       "required": [
                         "id",
                         "status"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/appointments": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "INVALID_STATUS",
+                                  "ALREADY_GROUPED",
+                                  "INVALID_TENANT",
+                                  "INVALID_SERVICE_TYPE",
+                                  "INVALID_DATE",
+                                  "INVALID_TIME_WINDOW",
+                                  "GROUP_IN_TERMINAL_STATE",
+                                  "GROUP_CAPACITY_EXCEEDED",
+                                  "NOT_FOUND",
+                                  "ERROR"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/eligibility-check": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "eligibleAppointmentIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid"
+                          }
+                        },
+                        "ineligibleAppointmentIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "reasonCode": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "reasonCode"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "groupAccepts": {
+                          "type": "boolean"
+                        },
+                        "groupReasons": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "eligibleAppointmentIds",
+                        "ineligibleAppointmentIds",
+                        "groupAccepts",
+                        "groupReasons"
                       ],
                       "additionalProperties": false
                     }

@@ -371,3 +371,73 @@ describe('ReopenForRescheduleUseCase', () => {
     );
   });
 });
+
+// 026 §FR-543 — additive constructor dep. The previous suite preserves
+// backward compatibility (no `tokenRepo` injected → no revoke path).
+// This suite pins the new path: when the repo IS injected, the use case
+// revokes active portal tokens AFTER the reschedule and emits a
+// `tenant_portal.tokens_revoked` audit event.
+describe('ReopenForRescheduleUseCase — token revoke (026 §FR-543)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls tokenRepo.revokeAllForAppointment after a successful reschedule', async () => {
+    const tokenRepo = {
+      revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
+      // Other methods aren't called by this code path; cast through unknown.
+    } as unknown as ConstructorParameters<typeof ReopenForRescheduleUseCase>[3];
+    const authorizationService = new AuthorizationService(auditService as any);
+    const useCase = new ReopenForRescheduleUseCase(
+      appointmentRepo as any,
+      auditService as any,
+      authorizationService,
+      tokenRepo,
+    );
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('OP'),
+    });
+
+    expect((tokenRepo as any).revokeAllForAppointment).toHaveBeenCalledTimes(1);
+    expect((tokenRepo as any).revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
+    // Plus the audit event for the revoke step (separate from the reopen audit).
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'tenant_portal.tokens_revoked',
+        entityId: 'appt-1',
+        metadata: expect.objectContaining({ reason: 'operator_reschedule' }),
+      }),
+    );
+  });
+
+  it('skips the revoke path entirely when tokenRepo is not injected (backward compat)', async () => {
+    const authorizationService = new AuthorizationService(auditService as any);
+    const useCase = new ReopenForRescheduleUseCase(
+      appointmentRepo as any,
+      auditService as any,
+      authorizationService,
+      // tokenRepo omitted
+    );
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2026-04-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('OP'),
+    });
+
+    // No `tenant_portal.tokens_revoked` audit emitted.
+    const revokeCalls = (auditService.log as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([entry]) => (entry as { action: string }).action === 'tenant_portal.tokens_revoked',
+    );
+    expect(revokeCalls).toHaveLength(0);
+  });
+});

@@ -11,6 +11,9 @@ import {
   serviceGroupResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
+  addAppointmentsToGroupRequestSchema,
+  eligibilityCheckRequestSchema,
+  eligibilityCheckResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -24,6 +27,8 @@ import type { CancelServiceGroupUseCase } from '../application/use-cases/cancel-
 import type { RejectServiceGroupUseCase } from '../application/use-cases/reject-service-group.use-case';
 import type { UpdateServiceGroupUseCase } from '../application/use-cases/update-service-group.use-case';
 import type { RepublishServiceGroupUseCase } from '../application/use-cases/republish-service-group.use-case';
+import type { AddAppointmentsToGroupUseCase } from '../application/use-cases/add-appointments-to-group.use-case';
+import type { CheckAppointmentsEligibilityForGroupUseCase } from '../application/use-cases/check-appointments-eligibility-for-group.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface ServiceGroupRouteContainer {
@@ -36,6 +41,8 @@ export interface ServiceGroupRouteContainer {
   rejectServiceGroupUseCase: RejectServiceGroupUseCase;
   updateServiceGroupUseCase: UpdateServiceGroupUseCase;
   republishServiceGroupUseCase: RepublishServiceGroupUseCase;
+  addAppointmentsToGroupUseCase: AddAppointmentsToGroupUseCase;
+  checkAppointmentsEligibilityForGroupUseCase: CheckAppointmentsEligibilityForGroupUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -288,6 +295,85 @@ export async function registerServiceGroupRoutes(
         groupId: params.data.groupId,
         reason: parsed.data.reason,
         actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // 026 §FR-510 — POST /v1/service-groups/:groupId/appointments
+  // Add appointments to an existing group. Per-item mixed-result envelope;
+  // RBAC enforced at the use-case layer (AM/OP only).
+  const addToGroupResultSchema = z.object({
+    appointmentId: z.string().uuid(),
+    status: z.enum([
+      'OK', 'INVALID_STATUS', 'ALREADY_GROUPED', 'INVALID_TENANT',
+      'INVALID_SERVICE_TYPE', 'INVALID_DATE', 'INVALID_TIME_WINDOW',
+      'GROUP_IN_TERMINAL_STATE', 'GROUP_CAPACITY_EXCEEDED',
+      'NOT_FOUND', 'ERROR',
+    ]),
+    error: z.object({ code: z.string(), message: z.string() }).optional(),
+  });
+  app.post(
+    '/v1/service-groups/:groupId/appointments',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: addAppointmentsToGroupRequestSchema,
+        response: { 200: successResponseSchema(z.object({ results: z.array(addToGroupResultSchema) })) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const parsed = addAppointmentsToGroupRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.addAppointmentsToGroupUseCase.execute({
+        groupId: params.data.groupId,
+        appointmentIds: parsed.data.appointmentIds,
+        actor: auth,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // 026 §FR-510 — POST /v1/service-groups/:groupId/eligibility-check
+  // Read-only preview powering the Add-to-group sub-modal. Same RBAC as add.
+  app.post(
+    '/v1/service-groups/:groupId/eligibility-check',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: eligibilityCheckRequestSchema,
+        response: { 200: successResponseSchema(eligibilityCheckResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const parsed = eligibilityCheckRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.checkAppointmentsEligibilityForGroupUseCase.execute({
+        groupId: params.data.groupId,
+        appointmentIds: parsed.data.appointmentIds,
+        actor: auth,
       });
       return reply.status(200).send(success(result));
     },

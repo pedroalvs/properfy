@@ -11,6 +11,7 @@ import {
   bulkAssignInspectorRequestSchema,
   bulkActionResultItemSchema,
   bulkActionResponseSchema,
+  bulkReopenForRescheduleRequestSchema,
 } from './appointment';
 import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
 import { RestrictionSource } from '../enums/appointment';
@@ -624,5 +625,68 @@ describe('bulkActionResponseSchema', () => {
       ],
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('bulkReopenForRescheduleRequestSchema (026 §FR-540)', () => {
+  it('accepts a valid request with all required fields', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA, apptIdB],
+      newDate: '2027-06-01',
+      newTimeSlot: '09:00-10:00',
+    }).success).toBe(true);
+  });
+
+  it('accepts an ISO datetime newDate', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01T09:00:00.000Z',
+      newTimeSlot: '09:00-10:00',
+    }).success).toBe(true);
+  });
+
+  it('accepts optional reason and actorTimezone', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+      newTimeSlot: '09:00-10:00',
+      reason: 'Tenant requested change',
+      actorTimezone: 'Australia/Sydney',
+    }).success).toBe(true);
+  });
+
+  it('rejects when newTimeSlot is missing (dropdown is mandatory, NOT numeric input)', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+    }).success).toBe(false);
+  });
+
+  it('rejects empty newTimeSlot', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+      newTimeSlot: '',
+    }).success).toBe(false);
+  });
+
+  it('caps appointmentIds at 30 (same-group capacity invariant)', () => {
+    const ids = Array.from({ length: 31 }, (_, i) =>
+      `${(i + 1).toString(16).padStart(8, '0')}-1111-4111-8111-111111111111`,
+    );
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: ids,
+      newDate: '2027-06-01',
+      newTimeSlot: '09:00-10:00',
+    }).success).toBe(false);
+  });
+
+  it('rejects too-short reason', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+      newTimeSlot: '09:00-10:00',
+      reason: 'no',
+    }).success).toBe(false);
   });
 });

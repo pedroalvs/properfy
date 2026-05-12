@@ -5303,6 +5303,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/appointments/bulk-reopen-for-reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                        newDate: string;
+                        newTimeSlot: string;
+                        reason?: string;
+                        actorTimezone?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "OK" | "INVALID_TRANSITION" | "FORBIDDEN" | "NOT_FOUND" | "ERROR" | "IDEMPOTENT_REPLAY";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments/import": {
         parameters: {
             query?: never;
@@ -5989,6 +6047,116 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 status: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-groups/{groupId}/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "OK" | "INVALID_STATUS" | "ALREADY_GROUPED" | "INVALID_TENANT" | "INVALID_SERVICE_TYPE" | "INVALID_DATE" | "INVALID_TIME_WINDOW" | "GROUP_IN_TERMINAL_STATE" | "GROUP_CAPACITY_EXCEEDED" | "NOT_FOUND" | "ERROR";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-groups/{groupId}/eligibility-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                eligibleAppointmentIds: string[];
+                                ineligibleAppointmentIds: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    reasonCode: string;
+                                }[];
+                                groupAccepts: boolean;
+                                groupReasons: string[];
                             };
                         };
                     };

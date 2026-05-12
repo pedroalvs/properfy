@@ -125,3 +125,39 @@ export type ListServiceGroupsQuery = z.infer<typeof listServiceGroupsQuerySchema
 
 export const listMarketplaceOffersQuerySchema = paginationSchema.extend({});
 export type ListMarketplaceOffersQuery = z.infer<typeof listMarketplaceOffersQuerySchema>;
+
+// ─── Add appointments to group (026 §FR-503..520) ────────────────────────
+//
+// Reuses `ServiceGroupValidator` server-side; the same request shape feeds
+// both the add endpoint and the read-only eligibility-check preview.
+// Capacity cap of 30 matches the existing service-group invariant
+// (spec 005 line 244).
+
+export const addAppointmentsToGroupRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+});
+export type AddAppointmentsToGroupRequest = z.infer<typeof addAppointmentsToGroupRequestSchema>;
+
+export const eligibilityCheckRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+});
+export type EligibilityCheckRequest = z.infer<typeof eligibilityCheckRequestSchema>;
+
+/**
+ * The eligibility preview is a snapshot, not a commitment — the actual
+ * add call re-validates each appointment because group state may have
+ * changed between preview and add. `reasonCode` strings follow the
+ * `ServiceGroupValidator` set: INVALID_STATUS / INVALID_TENANT /
+ * INVALID_SERVICE_TYPE / INVALID_DATE / INVALID_TIME_WINDOW /
+ * ALREADY_GROUPED / GROUP_CAPACITY_EXCEEDED / GROUP_IN_TERMINAL_STATE.
+ */
+export const eligibilityCheckResponseSchema = z.object({
+  eligibleAppointmentIds: z.array(z.string().uuid()),
+  ineligibleAppointmentIds: z.array(z.object({
+    id: z.string().uuid(),
+    reasonCode: z.string(),
+  })),
+  groupAccepts: z.boolean(),
+  groupReasons: z.array(z.string()),
+});
+export type EligibilityCheckResponse = z.infer<typeof eligibilityCheckResponseSchema>;
