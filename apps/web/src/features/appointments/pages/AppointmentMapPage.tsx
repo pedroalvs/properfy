@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import type mapboxgl from 'mapbox-gl';
+import mapboxgl from 'mapbox-gl';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
@@ -28,7 +29,7 @@ import {
   type AppointmentModeFilters,
   type GroupModeFilters,
 } from '../components/AppointmentMapFilterPanel';
-import { MapLassoSelect, type LassoPoint, type LassoState } from '@/components/map/MapLassoSelect';
+import { MapLassoSelect, type LassoPoint, type LassoState, type MapLassoSelectHandle } from '@/components/map/MapLassoSelect';
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
 import { MapGroupCreateModal } from '@/features/service-groups/components/MapGroupCreateModal';
@@ -123,6 +124,18 @@ export function AppointmentMapPage() {
   const [lassoSelectedIds, setLassoSelectedIds] = useState<string[]>([]);
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupModalSeedIds, setGroupModalSeedIds] = useState<string[]>([]);
+  // 025 cycle 2/2 — Mapbox-native Popup root for the appointment detail
+  // panel. The popup is created imperatively (setLngLat + setDOMContent +
+  // addTo) so Mapbox owns the screen-position update on every render
+  // frame; we just portal the React content into the popup's DOM node.
+  // Previous approach used React state + map.on('move') updates, which
+  // produced visible decoupling for markers near viewport edges.
+  const [appointmentPopupRoot, setAppointmentPopupRoot] = useState<HTMLDivElement | null>(null);
+  const appointmentPopupRef = useRef<mapboxgl.Popup | null>(null);
+  // 025 cycle 2/2 — imperative handle to MapLassoSelect so the page-level
+  // banner UI (Finish / Cancel buttons) can drive the close gesture without
+  // duplicating the polygon-completion logic.
+  const lassoRef = useRef<MapLassoSelectHandle | null>(null);
   // Browser timezone — forwarded so the per-day idempotency bucket honours
   // the operator's local "today" instead of the server clock.
   const actorTimezone = useMemo(() => {
@@ -267,14 +280,18 @@ export function AppointmentMapPage() {
     hasFittedRef.current = { mode: null, map: null };
   }, [mode]);
 
-  // Keep popup position in sync
-  const activeItem = mode === 'appointments' ? selectedItem : selectedGroupItem;
-  const activeCoords = activeItem && 'latitude' in activeItem && activeItem.latitude != null && activeItem.longitude != null
-    ? { lat: activeItem.latitude, lng: activeItem.longitude }
+  // Keep popup position in sync. Groups mode still uses the legacy
+  // screen-pixel MapPopup; appointments mode uses the Mapbox-native
+  // Popup wired below.
+  const activeCoords = selectedGroupItem
+      && 'latitude' in selectedGroupItem
+      && selectedGroupItem.latitude != null
+      && selectedGroupItem.longitude != null
+    ? { lat: selectedGroupItem.latitude, lng: selectedGroupItem.longitude }
     : null;
 
   useEffect(() => {
-    if (!mapInstance || !activeCoords) {
+    if (!mapInstance || !activeCoords || mode !== 'groups') {
       setPopupPosition(null);
       return;
     }
@@ -285,7 +302,48 @@ export function AppointmentMapPage() {
     update();
     mapInstance.on('move', update);
     return () => { mapInstance.off('move', update); };
-  }, [mapInstance, activeCoords?.lat, activeCoords?.lng]);
+  }, [mapInstance, activeCoords?.lat, activeCoords?.lng, mode]);
+
+  // 025 cycle 2/2 — Mapbox-native Popup for the appointment detail
+  // panel. Creates the popup imperatively when an appointment is
+  // selected; Mapbox handles the per-frame screen-position update via
+  // CSS transforms so the popup tracks the marker through pan / zoom /
+  // fitBounds without any React state change. `closeButton: false`
+  // because the panel renders its own; `closeOnClick: false` because
+  // the panel owns its own click-outside logic and we don't want a
+  // single map click to dismiss the popup while the user is reading.
+  useEffect(() => {
+    if (!mapInstance || mode !== 'appointments' || !selectedItem
+        || selectedItem.latitude == null || selectedItem.longitude == null) {
+      // Cleanup any existing popup if the selection cleared.
+      if (appointmentPopupRef.current) {
+        appointmentPopupRef.current.remove();
+        appointmentPopupRef.current = null;
+        setAppointmentPopupRoot(null);
+      }
+      return;
+    }
+    const root = document.createElement('div');
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      closeOnMove: false,
+      anchor: 'bottom',
+      maxWidth: '380px',
+      offset: 16,
+      className: 'appt-map-detail-popup',
+    })
+      .setLngLat([selectedItem.longitude, selectedItem.latitude])
+      .setDOMContent(root)
+      .addTo(mapInstance);
+    appointmentPopupRef.current = popup;
+    setAppointmentPopupRoot(root);
+    return () => {
+      popup.remove();
+      appointmentPopupRef.current = null;
+      setAppointmentPopupRoot(null);
+    };
+  }, [mapInstance, mode, selectedItem?.id, selectedItem?.latitude, selectedItem?.longitude]);
 
   // Clear selection on mode change
   useEffect(() => {
@@ -669,12 +727,50 @@ export function AppointmentMapPage() {
       </MapContainer>
 
       <MapLassoSelect
+        ref={lassoRef}
         map={mapInstance}
         points={lassoPoints}
         lassoState={mode === 'appointments' ? lassoState : 'idle'}
         onSelectionChange={handleLassoSelectionChange}
         onPolygonCleared={handleLassoCleared}
       />
+
+      {/* 025 cycle 2/2 — explicit close affordance overlay. mapbox-gl-draw's
+          default close gestures (click ~5px first vertex, dblclick, Enter)
+          are undiscoverable. This top-center banner gives the operator
+          visible Finish + Cancel buttons + a guidance line for the
+          keyboard shortcuts. */}
+      {mode === 'appointments' && lassoState === 'drawing' && (
+        <div
+          className="pointer-events-none absolute left-1/2 top-4 z-40 -translate-x-1/2 transform"
+          data-testid="lasso-draw-banner"
+        >
+          <div className="pointer-events-auto flex items-center gap-3 rounded-md border border-orange-200 bg-white px-4 py-2 shadow-lg">
+            <i className="mdi mdi-selection-drag text-base text-orange-500" />
+            <span className="text-xs text-text-secondary">
+              Click to add vertices · double-click or press <kbd className="rounded border border-gray-300 bg-gray-100 px-1 text-[10px]">Enter</kbd> to finish · <kbd className="rounded border border-gray-300 bg-gray-100 px-1 text-[10px]">Esc</kbd> to cancel
+            </span>
+            <div className="ml-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => lassoRef.current?.cancelDrawing()}
+                className="rounded border border-border-subtle px-3 py-1 text-xs text-text-secondary hover:bg-gray-50"
+                data-testid="lasso-banner-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => lassoRef.current?.finishDrawing()}
+                className="rounded bg-orange-500 px-3 py-1 text-xs font-semibold text-white hover:brightness-95"
+                data-testid="lasso-banner-finish"
+              >
+                Finish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Marker detail panel replaces the inline popup in appointments mode (025 §FR-451). */}
 
@@ -746,13 +842,19 @@ export function AppointmentMapPage() {
         }}
       />
 
-      <AppointmentMapDetailPanel
-        appointment={mode === 'appointments' ? selectedItem : null}
-        open={mode === 'appointments' && !!selectedItem}
-        anchor={mode === 'appointments' && popupPosition ? popupPosition : null}
-        onClose={() => setSelectedItem(null)}
-        onMoreDetails={handleViewDetail}
-      />
+      {/* 025 cycle 2/2 — appointment detail rendered inside a Mapbox-native
+          Popup. The popup itself is created in the useEffect above and lives
+          inside the map canvas's DOM tree; we portal the React content into
+          the popup's root so Mapbox manages positioning per frame while
+          React owns the content lifecycle. */}
+      {mode === 'appointments' && selectedItem && appointmentPopupRoot && createPortal(
+        <AppointmentMapDetailPanel
+          appointment={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onMoreDetails={handleViewDetail}
+        />,
+        appointmentPopupRoot,
+      )}
 
       <MapGroupCreateModal
         open={groupModalOpen}

@@ -11,10 +11,7 @@ import { ConfirmationChannelIcons } from './ConfirmationChannelIcons';
 interface AppointmentMapDetailPanelProps {
   /** Marker that triggered the panel. Source of CLIENT / PROPERTIES (no fetch needed). */
   appointment: AppointmentMapItem | null;
-  open: boolean;
   onClose: () => void;
-  /** Screen-pixel coordinates of the anchored marker. The popup floats next to it. */
-  anchor: { x: number; y: number } | null;
   /** "MORE DETAILS" CTA target — defaults to opening the detail page in a new tab. */
   onMoreDetails?: (id: string) => void;
 }
@@ -46,119 +43,23 @@ const SECTIONS: SectionConfig[] = [
   { key: 'financials', icon: 'mdi-cash', label: 'Financials' },
 ];
 
-const POPUP_WIDTH = 340;
-const POPUP_HEIGHT_ESTIMATE = 450;
-const POPUP_OFFSET = 18;
-const VIEWPORT_MARGIN = 16;
-
 /**
- * 025 round-2 minor (re-fix) — clamping returns the chosen flip direction
- * so the popup is always entirely inside the viewport regardless of
- * marker position.
+ * 025 §FR-451..460 — Content for the floating Mapbox Popup anchored to
+ * the clicked marker.
  *
- * Previous version clamped only the anchor.y and let the component's
- * `safeAnchor.y > 260` static threshold decide flip direction. That
- * threshold (260) didn't account for `POPUP_HEIGHT_ESTIMATE` (~450), so
- * any anchor in `(260, 460)` flipped above and clipped at the top of
- * the viewport. The user's smoke caught the regression on Sydney-area
- * pins which projected into that exact range.
- *
- * The fix:
- *  1. Choose flip direction based on which side has room for the popup
- *     AT the anchor's clamped position — `fitsAbove`, `fitsBelow`, or
- *     pathological (popup taller than viewport).
- *  2. Clamp `anchor.y` into the safe range for that direction so the
- *     popup never crosses a viewport edge after the flip transform.
- *  3. Return `flipAbove` so the component renders the matching
- *     `translate(...)` value instead of guessing from a static threshold.
- *
- * Pathological case (viewport shorter than popup): the popup keeps its
- * `max-height: 70vh` cap and internal scroll, so the content stays
- * reachable even when the viewport itself is too short for the popup.
- */
-function clampAnchor(
-  anchor: { x: number; y: number },
-  viewport: { width: number; height: number },
-): { x: number; y: number; flipAbove: boolean } {
-  const halfW = POPUP_WIDTH / 2;
-  const popupTotal = POPUP_HEIGHT_ESTIMATE + POPUP_OFFSET;
-
-  // Horizontal — same logic as before. Pathological viewport narrower
-  // than the popup falls back to the midline.
-  const minX = halfW + VIEWPORT_MARGIN;
-  const maxX = viewport.width - halfW - VIEWPORT_MARGIN;
-  const clampedX = maxX >= minX
-    ? Math.max(minX, Math.min(anchor.x, maxX))
-    : viewport.width / 2;
-
-  // Decide flip direction.
-  // - fitsAbove: anchor has enough headroom for the popup to render above
-  // - fitsBelow: anchor has enough footroom for the popup to render below
-  // - Both: prefer above when anchor is in the lower half (popup points
-  //   toward viewport centre rather than away from it).
-  // - Neither (pathological): pick the side with more room and clamp tight.
-  const fitsAbove = anchor.y >= popupTotal + VIEWPORT_MARGIN;
-  const fitsBelow = anchor.y <= viewport.height - popupTotal - VIEWPORT_MARGIN;
-
-  let flipAbove: boolean;
-  if (fitsAbove && fitsBelow) {
-    flipAbove = anchor.y > viewport.height / 2;
-  } else if (fitsAbove) {
-    flipAbove = true;
-  } else if (fitsBelow) {
-    flipAbove = false;
-  } else {
-    flipAbove = anchor.y >= viewport.height / 2;
-  }
-
-  // Clamp Y to the safe range for the chosen flip direction. The bounds
-  // here keep the popup ENTIRELY inside [MARGIN, vh - MARGIN] after the
-  // CSS transform is applied — the previous fix only constrained the
-  // anchor point itself, not the resulting visual rect.
-  let clampedY: number;
-  if (flipAbove) {
-    // Popup occupies [Y - popupTotal, Y]. Bound Y to the range where both
-    // edges stay inside the viewport.
-    const minYAbove = popupTotal + VIEWPORT_MARGIN;
-    const maxYAbove = viewport.height - VIEWPORT_MARGIN;
-    clampedY = maxYAbove >= minYAbove
-      ? Math.max(minYAbove, Math.min(anchor.y, maxYAbove))
-      : viewport.height / 2;
-  } else {
-    // Popup occupies [Y, Y + popupTotal].
-    const minYBelow = VIEWPORT_MARGIN;
-    const maxYBelow = viewport.height - popupTotal - VIEWPORT_MARGIN;
-    clampedY = maxYBelow >= minYBelow
-      ? Math.max(minYBelow, Math.min(anchor.y, maxYBelow))
-      : viewport.height / 2;
-  }
-
-  return { x: clampedX, y: clampedY, flipAbove };
-}
-
-/**
- * 025 §FR-451..460 — Floating popup anchored to the clicked marker.
- *
- * **NOT a side drawer.** Previous round shipped a `DrawerPanel` variant
- * that the user rejected in smoke testing — the mockup calls for a
- * floating card next to the marker. This component:
- *
- *  - Positions itself absolutely on the map overlay using
- *    `mapInstance.project([lng, lat])` screen-pixel coords passed in as
- *    `anchor`. Mirrors the existing `MapPopup` precedent in this codebase.
- *  - Header + CLIENT + PROPERTIES render from the marker payload — no
- *    fetch on open.
- *  - 8 collapsible sections start closed. First expand triggers
- *    `useAppointmentDetail(id)`; subsequent expands hit the
- *    `react-query` cache. Marker-switch resets collapsed state.
- *  - Click-outside / ESC / X close (handled by the page; this panel
- *    just emits `onClose`).
+ * **025 cycle 2/2 redesign:** this component now renders ONLY the popup
+ * content. Positioning + viewport clamping + flip direction + per-frame
+ * follow-on-pan logic are gone — `AppointmentMapPage` mounts the
+ * content inside a native `mapboxgl.Popup` via `createPortal`, which
+ * lets Mapbox handle the CSS transforms per render frame natively. The
+ * popup always anchors at `setLngLat([lng, lat])` so it follows the
+ * marker through pan / zoom / fitBounds without any React state change
+ * — fixing the "popup not anchored to marker" smoke regression and
+ * eliminating the ~80-line clampAnchor/flipAbove drift surface.
  */
 export function AppointmentMapDetailPanel({
   appointment,
-  open,
   onClose,
-  anchor,
   onMoreDetails,
 }: AppointmentMapDetailPanelProps) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
@@ -172,41 +73,30 @@ export function AppointmentMapDetailPanel({
     setShouldFetch(false);
   }, [appointment?.id]);
 
-  // Closed → reset state so a future open starts collapsed.
+  // ESC closes the popup.
   useEffect(() => {
-    if (!open) {
-      setExpanded(new Set());
-      setShouldFetch(false);
-    }
-  }, [open]);
-
-  // ESC closes the popup. Click-outside is handled by a separate listener
-  // below — we only fire `onClose` for clicks that didn't hit the card.
-  useEffect(() => {
-    if (!open) return;
+    if (!appointment) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [appointment, onClose]);
 
+  // Click outside the popup closes it. Marker clicks are ignored so the
+  // popup can swap content for the new marker instead of closing first.
   useEffect(() => {
-    if (!open) return;
+    if (!appointment) return;
     const onMouseDown = (e: MouseEvent) => {
       if (!cardRef.current) return;
       if (e.target instanceof Node && cardRef.current.contains(e.target)) return;
-      // Don't intercept clicks on Mapbox markers — they need to swap the
-      // popup to their own appointment. Markers carry `data-testid="map-marker"`.
       const targetEl = e.target as HTMLElement | null;
       if (targetEl?.closest('[data-testid="map-marker"]')) return;
       onClose();
     };
-    // `mousedown` (not `click`) so the close fires before any other onClick
-    // handler can swallow the event.
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
-  }, [open, onClose]);
+  }, [appointment, onClose]);
 
   const { appointment: detail, isLoading, isError } = useAppointmentDetail(shouldFetch && appointment ? appointment.id : null);
 
@@ -225,43 +115,17 @@ export function AppointmentMapDetailPanel({
     return APPOINTMENT_STATUS_MAP[appointment.status as AppointmentStatus];
   }, [appointment]);
 
-  if (!appointment || !open || !anchor) return null;
+  if (!appointment) return null;
 
   // CLIENT comes from the marker tenantName first (no fetch), with the lazily
   // hydrated `clientName` as authoritative once available.
   const clientName = detail?.clientName ?? appointment.tenantName ?? '—';
 
-  // Clamp anchor into the viewport so the popup never clips at an edge.
-  // Reads window.innerWidth/Height at render time — viewport is read on
-  // every render so the popup repositions if the user resizes; ResizeObserver
-  // would be slightly cleaner but overkill for a transient overlay.
-  const viewport = {
-    width: typeof window !== 'undefined' ? window.innerWidth : 1024,
-    height: typeof window !== 'undefined' ? window.innerHeight : 768,
-  };
-  const safeAnchor = clampAnchor(anchor, viewport);
-
-  // Position the popup near the marker. `clampAnchor` decides flip
-  // direction based on which side has room for the full popup at the
-  // clamped Y, then clamps Y into the safe range for that direction.
-  // The transform value mirrors `flipAbove` literally — no static
-  // threshold to drift out of sync with POPUP_HEIGHT_ESTIMATE.
-  const style: React.CSSProperties = {
-    position: 'absolute',
-    left: safeAnchor.x,
-    top: safeAnchor.y,
-    width: POPUP_WIDTH,
-    maxHeight: '70vh',
-    transform: safeAnchor.flipAbove
-      ? `translate(-50%, calc(-100% - ${POPUP_OFFSET}px))`
-      : `translate(-50%, ${POPUP_OFFSET}px)`,
-  };
-
   return (
     <div
       ref={cardRef}
-      className="absolute z-30 flex flex-col overflow-hidden rounded-lg bg-card-bg shadow-xl"
-      style={style}
+      className="flex w-[340px] flex-col overflow-hidden rounded-lg bg-card-bg shadow-xl"
+      style={{ maxHeight: '70vh' }}
       data-testid="appointment-map-detail-panel"
       role="dialog"
       aria-label={`Appointment ${appointment.code}`}
