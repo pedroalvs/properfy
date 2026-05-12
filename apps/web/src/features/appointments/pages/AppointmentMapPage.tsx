@@ -801,14 +801,17 @@ export function AppointmentMapPage() {
       />
       <div className="relative">
         <MapScreenLayout sidePanel={sidePanel} map={mapContent} sidePanelOpen={filtersOpen} />
-        {/* 026 §FR-570 — top-left filter toggle. Sits above the map area
-            via absolute positioning; visible while the side panel is
-            either open (acts as a "Close") or closed (acts as a "Show"). */}
-        <div className="pointer-events-none absolute left-4 top-4 z-30 md:left-6 md:top-6">
-          <div className="pointer-events-auto">
-            <MapFilterToggleButton open={filtersOpen} onToggle={toggleFilters} />
+        {/* 026 cycle-1 devolução — render the top-left toggle ONLY while
+            the panel is closed. When open, the panel's own close `×`
+            button is the canonical affordance; the external toggle was
+            occluding the panel header text. */}
+        {!filtersOpen && (
+          <div className="pointer-events-none absolute left-4 top-4 z-30 md:left-6 md:top-6">
+            <div className="pointer-events-auto">
+              <MapFilterToggleButton open={filtersOpen} onToggle={toggleFilters} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <MapBulkActionModal

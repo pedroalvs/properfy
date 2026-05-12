@@ -149,6 +149,17 @@ describe('AppointmentMapPage', () => {
     expect(scroll.className).toContain('min-h-0');
   });
 
+  // 026 cycle-1 devolução — the external top-left toggle button must
+  // HIDE when the panel is open; otherwise it overlays the panel
+  // header text. The panel's own close `×` is the canonical affordance
+  // while open.
+  it('top-left toggle button is hidden while the filter panel is open', () => {
+    renderPage();
+    expect(screen.getByTestId('map-filter-toggle')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+    expect(screen.queryByTestId('map-filter-toggle')).toBeNull();
+  });
+
   it('side panel does NOT render the appointment/group list (Issue 3 removed)', () => {
     renderPage();
     fireEvent.click(screen.getByTestId('map-filter-toggle'));
