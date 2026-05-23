@@ -64,7 +64,7 @@ export function MapGroupCreateModal({
       serviceTypeId,
       scheduledDate,
       timeWindow,
-      serviceRegionId,
+      ...(serviceRegionId ? { serviceRegionId } : {}),
       priorityMode,
       ...(name ? { name } : {}),
       ...(description ? { description } : {}),
@@ -103,6 +103,21 @@ export function MapGroupCreateModal({
       open={open}
       onClose={onClose}
       title={`Create Service Group (${selectedAppointmentIds.length} appointments)`}
+      actions={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={submitting || !serviceTypeId || !scheduledDate}
+            loading={submitting}
+          >
+            Create Group
+          </Button>
+        </>
+      }
     >
       <div className="space-y-4">
         <FormField label="Name">
@@ -130,7 +145,7 @@ export function MapGroupCreateModal({
           />
         </FormField>
 
-        <FormField label="Service Region" required>
+        <FormField label="Service Region">
           <RegionSelector
             appointmentIds={selectedAppointmentIds}
             selectedRegionId={serviceRegionId}
@@ -169,20 +184,6 @@ export function MapGroupCreateModal({
             rows={2}
           />
         </FormField>
-
-        <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={submitting || !serviceTypeId || !scheduledDate || !serviceRegionId}
-            loading={submitting}
-          >
-            Create Group
-          </Button>
-        </div>
       </div>
     </Dialog>
   );

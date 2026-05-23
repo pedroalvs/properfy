@@ -54,11 +54,11 @@ export function Dialog({
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="relative z-10 rounded-[var(--radius-modal)] bg-card-bg shadow-xl outline-none"
+        className="relative z-10 flex max-h-[90vh] flex-col rounded-[var(--radius-modal)] bg-card-bg shadow-xl outline-none"
         style={{ maxWidth, width: '90vw' }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-0">
+        {/* Header — always visible */}
+        <div className="flex flex-shrink-0 items-center justify-between px-6 pt-5 pb-0">
           <h2 id={titleId} className="text-dialog-title text-text-primary">{title}</h2>
           <button
             onClick={onClose}
@@ -69,12 +69,12 @@ export function Dialog({
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 pt-4 pb-2">{children}</div>
+        {/* Body — scrollable when content overflows */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-2">{children}</div>
 
-        {/* Actions */}
+        {/* Actions — always visible */}
         {actions && (
-          <div className="flex justify-end gap-2 px-6 pb-5 pt-2">{actions}</div>
+          <div className="flex flex-shrink-0 justify-end gap-2 px-6 pb-5 pt-2">{actions}</div>
         )}
       </div>
     </div>

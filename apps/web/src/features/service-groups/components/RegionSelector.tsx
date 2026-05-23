@@ -40,7 +40,10 @@ export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChang
 
   return (
     <div className="flex flex-col gap-3">
-      <FormField label="Target Region" hint="Determines which inspectors see this group on the marketplace">
+      <FormField
+        label="Target Region"
+        hint="Optional at creation. Required to publish — you can add it later via Edit Group."
+      >
         <SelectInput
           value={selectedRegionId}
           onChange={onRegionChange}
@@ -52,9 +55,9 @@ export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChang
       </FormField>
 
       {isError && (
-        <div className="rounded border border-error/40 bg-error/5 p-3 text-sm text-error">
-          Failed to resolve regions for the selected appointments. Try again or proceed without a region.
-        </div>
+        <InfoBanner>
+          Failed to load regions. Retry or skip — you can add a region when editing the group before publishing.
+        </InfoBanner>
       )}
 
       {hasPartialMatch && selectedRegionId && (
