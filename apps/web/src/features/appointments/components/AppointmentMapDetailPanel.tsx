@@ -63,14 +63,12 @@ export function AppointmentMapDetailPanel({
   onMoreDetails,
 }: AppointmentMapDetailPanelProps) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
-  const [shouldFetch, setShouldFetch] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
-  // Reset collapsibles + fetch flag whenever the appointment changes
+  // Reset collapsibles whenever the appointment changes
   // (clicking a different marker swaps the popup content).
   useEffect(() => {
     setExpanded(new Set());
-    setShouldFetch(false);
   }, [appointment?.id]);
 
   // ESC closes the popup.
@@ -106,7 +104,11 @@ export function AppointmentMapDetailPanel({
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [appointment, onClose]);
 
-  const { appointment: detail, isLoading, isError } = useAppointmentDetail(shouldFetch && appointment ? appointment.id : null);
+  // Eager fetch on pin click: detail loads immediately so expanding any section
+  // is instant instead of waiting for a lazy trigger. useAppointmentDetail is a
+  // single-aggregator hook; React Query caches the result so multiple expands
+  // never cause additional network requests.
+  const { appointment: detail, isLoading, isError } = useAppointmentDetail(appointment?.id ?? null);
 
   const toggleSection = (key: SectionKey) => {
     setExpanded((prev) => {
@@ -114,8 +116,6 @@ export function AppointmentMapDetailPanel({
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
-    // First expand → kick off the detail fetch.
-    if (!shouldFetch) setShouldFetch(true);
   };
 
   const statusMeta = useMemo(() => {

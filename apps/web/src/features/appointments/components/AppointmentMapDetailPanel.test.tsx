@@ -1,13 +1,14 @@
 /**
- * 025 cycle 2/2 — AppointmentMapDetailPanel is now CONTENT-ONLY. The
- * positioning + edge clamping + flip direction logic that the earlier
- * rounds carried have been deleted; `AppointmentMapPage` mounts this
- * component inside a Mapbox-native Popup via `createPortal`, so Mapbox
- * handles screen-position tracking per render frame.
+ * 026 cycle 2/2 — AppointmentMapDetailPanel now eagerly fetches detail on
+ * pin click instead of lazily on first section expand (026 BUG-001).
  *
- * These tests cover the content surface only:
- *   - CLIENT + PROPERTIES from the marker payload (no fetch).
- *   - 8 collapsibles closed by default; first expand triggers lazy fetch.
+ * Invariants (as of 026 cycle 2/2):
+ *   - CLIENT + PROPERTIES from the marker payload (no fetch required for
+ *     these two fields — they render immediately from the AppointmentMapItem).
+ *   - Eager fetch on pin click: useAppointmentDetail fires with the appointment
+ *     id on mount, before any section is expanded.
+ *   - 8 collapsibles closed by default.
+ *   - Single fetch regardless of multiple expands (React Query caches).
  *   - Marker-switch resets collapsed state.
  *   - MORE DETAILS callback opens the detail page.
  *
@@ -71,12 +72,14 @@ function renderPanel(props: Partial<Parameters<typeof AppointmentMapDetailPanel>
 }
 
 describe('AppointmentMapDetailPanel (content)', () => {
-  it('renders CLIENT and PROPERTIES from the marker payload without fetching detail', () => {
+  it('renders CLIENT and PROPERTIES from the marker payload; eager fetch starts on mount', () => {
     renderPanel();
     expect(screen.getByTestId('map-detail-client').textContent).toBe('Acme Realty');
     expect(screen.getByText('123 Pitt St, Sydney NSW 2000')).toBeInTheDocument();
-    // useAppointmentDetail is invoked with null while no section is expanded.
-    expect(detailIdSpy).toHaveBeenCalledWith(null);
+    // 026 BUG-001: eager fetch — useAppointmentDetail fires immediately with
+    // the appointment id. CLIENT/PROPERTIES still come from marker data and
+    // render without waiting for the detail response.
+    expect(detailIdSpy).toHaveBeenCalledWith(sampleAppointment.id);
   });
 
   it('all collapsible sections start closed', () => {
@@ -88,11 +91,27 @@ describe('AppointmentMapDetailPanel (content)', () => {
     });
   });
 
-  it('first expand triggers useAppointmentDetail with the appointment id', () => {
+  it('eager fetch on pin click: useAppointmentDetail fires on mount without any expand', () => {
     renderPanel();
+    // No click needed — detail is fetched immediately.
+    expect(detailIdSpy).toHaveBeenCalledWith(sampleAppointment.id);
+    expect(detailIdSpy).not.toHaveBeenCalledWith(null);
+  });
+
+  it('detail fetch does not re-fire when multiple sections are expanded (single aggregator)', () => {
+    renderPanel();
+    // Capture the call count after mount.
+    const callsAfterMount = detailIdSpy.mock.calls.length;
+    // Expanding several sections should NOT add calls with null (no reset to
+    // lazy state) — each expand only triggers a re-render which re-invokes
+    // the hook with the same id, still cached by React Query.
     fireEvent.click(screen.getByTestId('map-detail-section-meeting'));
-    // The last call after the click should be with the actual id (not null).
-    expect(detailIdSpy).toHaveBeenLastCalledWith(sampleAppointment.id);
+    fireEvent.click(screen.getByTestId('map-detail-section-contacts'));
+    fireEvent.click(screen.getByTestId('map-detail-section-notes'));
+    // Every call should be with the appointment id, never with null.
+    detailIdSpy.mock.calls.slice(callsAfterMount).forEach(([id]) => {
+      expect(id).toBe(sampleAppointment.id);
+    });
   });
 
   it('switching to a different appointment resets collapsed state', () => {
