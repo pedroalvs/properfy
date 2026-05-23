@@ -93,6 +93,11 @@ export function MapAddToGroupSubModal({
     }
   }, [open]);
 
+  // Stable key for the selected appointment IDs — avoids re-firing the
+  // eligibility check every time the parent re-renders with a new array
+  // reference that carries the same IDs (e.g. on background map refetch).
+  const appointmentIdsKey = useMemo(() => appointments.map((a) => a.id).join(','), [appointments]);
+
   // Fire eligibility-check when a group is picked. Each pick triggers a
   // fresh check — the backend re-validates so a stale preview can never
   // commit a now-invalid add.
@@ -115,7 +120,7 @@ export function MapAddToGroupSubModal({
     // eligibilityMutation.mutateAsync intentionally omitted from deps;
     // the react-query mutation object changes identity each render,
     // which would cause an infinite re-fire loop.
-  }, [selectedGroupId, open, appointments]);
+  }, [selectedGroupId, open, appointmentIdsKey]);
 
   const handleAdd = async () => {
     if (eligibility.phase !== 'ready' || eligibility.eligible.length === 0) return;
