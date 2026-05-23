@@ -167,7 +167,7 @@ export class ListAppointmentsUseCase {
         createdAt: item.appointment.createdAt,
         updatedAt: item.appointment.updatedAt,
         appointmentCode,
-        code: item.propertyCode,
+        code: appointmentCode,
         propertyAddress: item.propertyAddress,
         contactName: item.contact?.tenantName ?? '',
         contactPhone: item.contact?.primaryPhone ?? null,

@@ -20,7 +20,7 @@ export interface CreateServiceGroupInput {
   scheduledDate: string; // YYYY-MM-DD
   timeWindow: string; // HH:mm-HH:mm
   name?: string;
-  serviceRegionId: string;
+  serviceRegionId?: string | null;
   description?: string;
   priorityMode: PriorityMode;
   exceptionType?: ServiceGroupExceptionType;
@@ -124,16 +124,20 @@ export class CreateServiceGroupUseCase {
       }
     }
 
-    // 5. Resolve service region (required)
-    const region = await this.serviceRegionRepo.findById(input.serviceRegionId, tenantId!);
-    if (!region) {
-      throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
+    // 5. Resolve service region — optional at create, required at publish (spec 005 FR-007).
+    let serviceRegionId: string | null = null;
+    let regionName: string | null = null;
+    if (input.serviceRegionId) {
+      const region = await this.serviceRegionRepo.findById(input.serviceRegionId, tenantId!);
+      if (!region) {
+        throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
+      }
+      if (region.status !== 'ACTIVE') {
+        throw new ServiceRegionInactiveError();
+      }
+      serviceRegionId = region.id;
+      regionName = region.name;
     }
-    if (region.status !== 'ACTIVE') {
-      throw new ServiceRegionInactiveError();
-    }
-    const serviceRegionId = region.id;
-    const regionName = region.name;
 
     // 6. Create entity
     const now = this.clock.now();

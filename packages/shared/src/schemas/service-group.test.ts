@@ -98,13 +98,21 @@ describe('createServiceGroupSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject missing serviceRegionId', () => {
+  it('should accept missing serviceRegionId — optional at creation (spec 005 FR-007)', () => {
     const { serviceRegionId: _serviceRegionId, ...rest } = validInput;
     const result = createServiceGroupSchema.safeParse(rest);
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it('should reject invalid UUID for serviceRegionId', () => {
+  it('should accept null serviceRegionId — optional at creation (spec 005 FR-007)', () => {
+    const result = createServiceGroupSchema.safeParse({
+      ...validInput,
+      serviceRegionId: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid UUID for serviceRegionId when provided', () => {
     const result = createServiceGroupSchema.safeParse({
       ...validInput,
       serviceRegionId: 'not-a-uuid',
