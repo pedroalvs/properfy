@@ -10,7 +10,6 @@ import { MapPopup } from '@/components/map/MapPopup';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
 import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
 import { formatDate } from '@/lib/format-date';
-import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -615,12 +614,6 @@ export function AppointmentMapPage() {
       {isError && (
         <div className="border-b border-border-subtle px-4 py-2">
           <ErrorState message={errorMessage ?? 'Failed to load'} onRetry={refetch} />
-        </div>
-      )}
-      {/* T-C4-6 — first load: full skeleton; background refetch with stale data: inline spinner */}
-      {isLoading && (
-        <div className="border-b border-border-subtle px-4 py-2">
-          <LoadingState />
         </div>
       )}
       {isFetching && !isLoading && (
