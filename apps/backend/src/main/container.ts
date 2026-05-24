@@ -355,6 +355,14 @@ import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bu
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
 import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
 import { BulkResendReminderUseCase } from '../modules/appointment/application/use-cases/bulk-resend-reminder.use-case';
+import { BulkCancelAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-cancel-appointments.use-case';
+import { BulkRescheduleAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-reschedule-appointments.use-case';
+import { BulkStatusTransitionUseCase } from '../modules/appointment/application/use-cases/bulk-status-transition.use-case';
+import { BulkAssignInspectorUseCase } from '../modules/appointment/application/use-cases/bulk-assign-inspector.use-case';
+import { BulkReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/bulk-reopen-for-reschedule.use-case';
+import { AddAppointmentsToGroupUseCase } from '../modules/service-group/application/use-cases/add-appointments-to-group.use-case';
+import { CheckAppointmentsEligibilityForGroupUseCase } from '../modules/service-group/application/use-cases/check-appointments-eligibility-for-group.use-case';
+import { FindAddableGroupsForAppointmentsUseCase } from '../modules/service-group/application/use-cases/find-addable-groups-for-appointments.use-case';
 import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
@@ -645,13 +653,21 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentTimeSlotRepo, auditService, authorizationService,
   );
   const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService);
-  const reopenForRescheduleUseCase = new ReopenForRescheduleUseCase(appointmentRepo, auditService, authorizationService);
 
-  // Tenant portal repositories and use cases
+  // Tenant portal repositories — created BEFORE reopenForRescheduleUseCase
+  // so 026 §FR-543 can inject the token repo (revoke active portal tokens
+  // when the appointment is rescheduled).
   const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
   const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
   const tokenService = new TokenService();
   const mintPortalTokenService = new MintPortalTokenService(tenantPortalTokenRepo, tokenService);
+
+  const reopenForRescheduleUseCase = new ReopenForRescheduleUseCase(
+    appointmentRepo,
+    auditService,
+    authorizationService,
+    tenantPortalTokenRepo,
+  );
 
   // Notification payload helpers — no constructor deps, safe to create here
   const appointmentCodeFormatter = new AppointmentCodeFormatter();
@@ -684,6 +700,23 @@ export function createContainer(logger: Logger): AppContainer {
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase);
   const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
   const bulkResendReminderUseCase = new BulkResendReminderUseCase(generatePortalTokenUseCase, idempotencyService);
+
+  // 025 — bulk map-flow actions (cancel / reschedule / status-transition / assign-inspector).
+  // Each delegates to an existing single-item use case; the wrapper adds per-item idempotency
+  // and the typed result envelope. State machine sovereignty stays with the underlying use cases.
+  const bulkCancelAppointmentsUseCase = new BulkCancelAppointmentsUseCase(executeStatusTransitionUseCase, idempotencyService);
+  const bulkRescheduleAppointmentsUseCase = new BulkRescheduleAppointmentsUseCase(updateAppointmentUseCase, idempotencyService);
+  const bulkStatusTransitionUseCase = new BulkStatusTransitionUseCase(executeStatusTransitionUseCase, idempotencyService);
+  const bulkAssignInspectorUseCase = new BulkAssignInspectorUseCase(bulkEditAppointmentsUseCase, idempotencyService);
+
+  // 026 — bulk reopen for reschedule + add-to-group flow. The reopen wrapper
+  // delegates per-item to ReopenForRescheduleUseCase (which now also revokes
+  // active portal tokens — see container ordering above).
+  const bulkReopenForRescheduleUseCase = new BulkReopenForRescheduleUseCase(
+    reopenForRescheduleUseCase,
+    appointmentRepo,
+    idempotencyService,
+  );
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
@@ -793,6 +826,24 @@ export function createContainer(logger: Logger): AppContainer {
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, tenantRepo);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
+
+  // 026 — Add appointments to existing group + read-only eligibility preview.
+  const addAppointmentsToGroupUseCase = new AddAppointmentsToGroupUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    auditService,
+    authorizationService,
+  );
+  const checkAppointmentsEligibilityForGroupUseCase = new CheckAppointmentsEligibilityForGroupUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    authorizationService,
+  );
+  const findAddableGroupsForAppointmentsUseCase = new FindAddableGroupsForAppointmentsUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    authorizationService,
+  );
 
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
@@ -1232,6 +1283,11 @@ export function createContainer(logger: Logger): AppContainer {
       deleteAppointmentUseCase,
       bulkEditAppointmentsUseCase,
       bulkResendReminderUseCase,
+      bulkCancelAppointmentsUseCase,
+      bulkRescheduleAppointmentsUseCase,
+      bulkStatusTransitionUseCase,
+      bulkAssignInspectorUseCase,
+      bulkReopenForRescheduleUseCase,
       jwtService,
       tenantRepo,
       idempotencyService,
@@ -1283,6 +1339,9 @@ export function createContainer(logger: Logger): AppContainer {
       rejectServiceGroupUseCase,
       updateServiceGroupUseCase,
       republishServiceGroupUseCase,
+      addAppointmentsToGroupUseCase,
+      checkAppointmentsEligibilityForGroupUseCase,
+      findAddableGroupsForAppointmentsUseCase,
       jwtService,
       tenantRepo,
     },

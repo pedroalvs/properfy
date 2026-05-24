@@ -12,6 +12,29 @@ export interface AppointmentMapItem {
   timeSlot: string;
   inspectorName: string | null;
   branchName: string;
+  /** Tenant ID — used for cross-tenant operations (e.g. region resolution for AM/OP). */
+  tenantId?: string;
+  /** Tenant (agency) display name — column 1 of the MapBulkActionModal. */
+  clientName?: string;
+  /** Primary contact name for the appointment (may be empty when not loaded). */
+  contactName?: string;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  /** Whether the tenant portal has been confirmed; drives the confirmation icons. */
+  tenantConfirmationStatus?: string;
+  /** Optional service type label surfaced in the detail panel header. */
+  serviceTypeName?: string;
+  /** Populated when status = REJECTED — surfaces in the detail panel red banner (T-C5-5). */
+  rejectionReasonCode?: string | null;
+  reason?: string | null;
+  /** True when the tenant left a note via the portal. */
+  hasTenantNote?: boolean;
+  /** Tenant note text — shown as tooltip on the note icon in the bulk modal. */
+  tenantNote?: string | null;
+  /** Optional service group id used to gate the "Add to group" action. */
+  serviceGroupId?: string | null;
+  /** Branch id — used to load the correct time slot catalog in the reschedule form. */
+  branchId?: string;
 }
 
 export interface AppointmentMapFilters {

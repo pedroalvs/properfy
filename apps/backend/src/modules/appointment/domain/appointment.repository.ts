@@ -52,6 +52,8 @@ export interface AppointmentWithRelations {
   branchName?: string;
   serviceTypeName?: string;
   inspectorName?: string | null;
+  /** Tenant (agency) name — the "client" surfaced in the map detail panel (025 §FR-451). */
+  tenantName?: string;
   /** Tenant's appointment code prefix (e.g. "INS"), used to format appointment codes. */
   tenantAppointmentCodePrefix?: string | null;
 }

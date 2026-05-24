@@ -252,6 +252,8 @@ export const appointmentResponseSchema = z.object({
   inspectorName: z.string().nullable().optional(),
   branchName: z.string().nullable().optional(),
   serviceTypeName: z.string().nullable().optional(),
+  /** Tenant (agency) display name surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
+  clientName: z.string().optional(),
   cancellationReason: z.string().nullable().optional(),
   // Geographic coordinates propagated from the appointment's property (for map views)
   latitude: z.number().nullable().optional(),

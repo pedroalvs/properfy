@@ -70,10 +70,20 @@ vi.mock('@/components/forms/Textarea', () => ({
 
 import { RescheduleForm } from './RescheduleForm';
 
+// Use a dynamic scheduledDate (3 days from now) so the 30-day reschedule
+// window guard never trips on CI date drift. Tests that submit
+// `Date.now() + 7 days` land 4 days after this anchor — comfortably inside
+// the window. Avoiding `vi.useFakeTimers` here keeps timer-driven Testing
+// Library queries (`findByText`, `waitFor`) on real time so React state
+// transitions resolve as expected.
+const SCHEDULED_DATE_ANCHOR = new Date(Date.now() + 3 * 24 * 3600 * 1000)
+  .toISOString()
+  .split('T')[0]!;
+
 const BASE_APPOINTMENT: PortalAppointment = {
   id: 'apt-1',
   status: AppointmentStatus.SCHEDULED,
-  scheduledDate: '2026-04-15',
+  scheduledDate: SCHEDULED_DATE_ANCHOR,
   timeSlot: '09:00-11:00',
   serviceTypeId: 'svc-1',
   tenantConfirmationStatus: TenantConfirmationStatus.PENDING,

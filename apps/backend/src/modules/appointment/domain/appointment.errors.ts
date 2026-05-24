@@ -182,6 +182,18 @@ export class AppointmentPastDateError extends DomainError {
   }
 }
 
+export class AppointmentDateInPastError extends DomainError {
+  constructor() {
+    super('APPOINTMENT_DATE_IN_PAST', 'Scheduled date cannot be in the past', 422);
+  }
+}
+
+export class AppointmentTimeInPastError extends DomainError {
+  constructor() {
+    super('APPOINTMENT_TIME_IN_PAST', 'Selected time slot has already passed for today — please choose a later slot', 422);
+  }
+}
+
 export class AppointmentTenantConfirmationRequiredError extends DomainError {
   constructor() {
     super(

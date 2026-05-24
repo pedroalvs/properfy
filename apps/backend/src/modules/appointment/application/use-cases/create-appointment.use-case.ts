@@ -31,8 +31,10 @@ import {
   AppointmentServiceTypeNotFoundError,
   AppointmentServiceTypeInactiveError,
   AppointmentNoPriceRuleError,
-  AppointmentPastDateError,
+  AppointmentDateInPastError,
+  AppointmentTimeInPastError,
 } from '../../domain/appointment.errors';
+import { validateNewSchedule } from '@properfy/shared';
 import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -92,6 +94,7 @@ export interface CreateAppointmentInput {
   notes?: string;
   customFields?: Record<string, unknown>;
   idempotencyKey?: string;
+  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -170,6 +173,16 @@ export class CreateAppointmentUseCase {
     // 1b. CL_USER must have create_appointments permission
     this.authorizationService.assertClUserPermission(actor, 'create_appointments');
 
+    // 1c. TZ-aware past-date/time validation — fail fast before expensive repo lookups.
+    // Falls back to UTC when actorTimezone absent (R7: PWA / future callers).
+    {
+      const tz = input.actorTimezone ?? 'UTC';
+      const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeSlot, tz });
+      if (!scheduleCheck.ok) {
+        throw scheduleCheck.code === 'TIME_IN_PAST' ? new AppointmentTimeInPastError() : new AppointmentDateInPastError();
+      }
+    }
+
     // 2. Resolve tenantId and validate branch. Only AM is cross-tenant.
     // OP is tenant-scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
     let tenantId: string;
@@ -247,13 +260,6 @@ export class CreateAppointmentUseCase {
           `Time slot "${input.timeSlot}" is not available for this branch`,
         );
       }
-    }
-
-    // 5c. Reject past dates (AM/OP bypass) — UTC comparison for server consistency.
-    // Uses the injected Clock so tests can freeze the reference date.
-    const todayStr = this.clock.now().toISOString().split('T')[0]!;
-    if (input.scheduledDate < todayStr && actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new AppointmentPastDateError();
     }
 
     // 6. Resolve pricing rule

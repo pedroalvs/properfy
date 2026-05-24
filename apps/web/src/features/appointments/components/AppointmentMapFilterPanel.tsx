@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { FilterSelect } from '@/components/filters/FilterSelect';
+import { FilterSegmented } from '@/components/filters/FilterSegmented';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { FilterBoolean } from '@/components/filters/FilterBoolean';
@@ -12,6 +12,8 @@ export interface AppointmentModeFilters {
   statuses: string[];
   serviceTypeId: string;
   contactSearch: string;
+  /** AM-only: filter by tenant (agency). */
+  tenantId: string;
   branchId: string;
   dateFrom: string;
   dateTo: string;
@@ -34,6 +36,7 @@ export const DEFAULT_APPOINTMENT_FILTERS: AppointmentModeFilters = {
   statuses: ['DRAFT', 'REJECTED'],
   serviceTypeId: '',
   contactSearch: '',
+  tenantId: '',
   branchId: '',
   dateFrom: '',
   dateTo: '',
@@ -80,6 +83,10 @@ interface AppointmentMapFilterPanelProps {
   serviceTypeOptions?: Array<{ label: string; value: string }>;
   branchOptions?: Array<{ label: string; value: string }>;
   timeSlotOptions?: Array<{ label: string; value: string }>;
+  /** AM-only: list of tenants for the Customers filter. */
+  tenantOptions?: Array<{ label: string; value: string }>;
+  /** Actor role — gates the Customers filter to AM only. */
+  actorRole?: string;
 }
 
 export function AppointmentMapFilterPanel({
@@ -92,9 +99,9 @@ export function AppointmentMapFilterPanel({
   serviceTypeOptions = [],
   branchOptions = [],
   timeSlotOptions = [],
+  tenantOptions = [],
+  actorRole,
 }: AppointmentMapFilterPanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
-
   const toggleStatus = (
     currentStatuses: string[],
     status: string,
@@ -105,40 +112,11 @@ export function AppointmentMapFilterPanel({
   };
 
   return (
-    <div className="border-b border-gray-200 bg-card-bg" data-testid="map-filter-panel">
-      <button
-        type="button"
-        onClick={() => setCollapsed(!collapsed)}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-bold text-secondary hover:bg-gray-50"
-        aria-expanded={!collapsed}
-        aria-controls="map-filter-panel-content"
-      >
-        <span className="flex items-center gap-2">
-          <i className="mdi mdi-filter-outline" aria-hidden="true" />
-          Filters
-        </span>
-        <i
-          className={`mdi ${collapsed ? 'mdi-chevron-down' : 'mdi-chevron-up'} text-text-muted`}
-          aria-hidden="true"
-        />
-      </button>
-
-      <div
-        id="map-filter-panel-content"
-        // Issue #1 (UX smoke): bump the open max-height so tall filter
-        // stacks (mode + 9 fields on AM/OP) are not clipped; the parent
-        // side-panel container handles the actual scrolling. `max-h-0`
-        // when collapsed still drives the slide animation.
-        className={`overflow-hidden transition-all duration-200 ${
-          collapsed ? 'max-h-0' : 'max-h-[2000px]'
-        }`}
-      >
-        {/* `pt-3` gives the first field's floating label (rendered at
-            `-top-2.5` via filter-styles.ts) the vertical room it needs
-            so it does not get clipped by the parent's overflow-hidden. */}
-        <div className="space-y-3 px-4 pt-3 pb-4">
-          {/* Mode selector */}
-          <FilterSelect
+    <div className="bg-transparent" data-testid="map-filter-panel">
+      {/* No internal collapse button — the panel header in AppointmentMapPage owns collapse/expand. */}
+      <div className="space-y-3 px-4 pt-3 pb-4">
+          {/* Mode selector (segmented pills) */}
+          <FilterSegmented
             label="Mode"
             value={mode}
             options={MODE_OPTIONS}
@@ -153,6 +131,8 @@ export function AppointmentMapFilterPanel({
               serviceTypeOptions={serviceTypeOptions}
               branchOptions={branchOptions}
               timeSlotOptions={timeSlotOptions}
+              tenantOptions={tenantOptions}
+              actorRole={actorRole}
             />
           ) : (
             <GroupModeFields
@@ -163,7 +143,6 @@ export function AppointmentMapFilterPanel({
             />
           )}
         </div>
-      </div>
     </div>
   );
 }
@@ -213,6 +192,8 @@ function AppointmentModeFields({
   serviceTypeOptions,
   branchOptions,
   timeSlotOptions,
+  tenantOptions,
+  actorRole,
 }: {
   filters: AppointmentModeFilters;
   onChange: (f: AppointmentModeFilters) => void;
@@ -220,6 +201,8 @@ function AppointmentModeFields({
   serviceTypeOptions: Array<{ label: string; value: string }>;
   branchOptions: Array<{ label: string; value: string }>;
   timeSlotOptions: Array<{ label: string; value: string }>;
+  tenantOptions: Array<{ label: string; value: string }>;
+  actorRole?: string;
 }) {
   return (
     <>
@@ -246,12 +229,15 @@ function AppointmentModeFields({
         />
       )}
 
-      <FilterInput
-        label="Contact"
-        value={filters.contactSearch}
-        onChange={(v) => onChange({ ...filters, contactSearch: v })}
-        placeholder="Name, email, phone..."
-      />
+      {/* Customers filter — AM only (cross-tenant role, needs per-tenant narrowing). */}
+      {actorRole === 'AM' && tenantOptions.length > 0 && (
+        <FilterSelect
+          label="Customers"
+          value={filters.tenantId}
+          options={[{ label: 'All', value: '' }, ...tenantOptions]}
+          onChange={(v) => onChange({ ...filters, tenantId: v })}
+        />
+      )}
 
       {branchOptions.length > 0 && (
         <FilterSelect
@@ -284,6 +270,13 @@ function AppointmentModeFields({
         value={filters.confirmationStatus}
         options={CONFIRMATION_OPTIONS}
         onChange={(v) => onChange({ ...filters, confirmationStatus: v })}
+      />
+
+      <FilterInput
+        label="Contact"
+        value={filters.contactSearch}
+        onChange={(v) => onChange({ ...filters, contactSearch: v })}
+        placeholder="Name, email, phone..."
       />
 
       <FilterBoolean

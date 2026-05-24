@@ -65,6 +65,7 @@ function buildLegacyContact(data: AppointmentFormData) {
 function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
   const contacts = buildContactsPayload(data);
   const contact = buildLegacyContact(data);
+  const actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const restriction = data.hasRestriction
     ? {
@@ -87,6 +88,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
       ...(data.meetingLocation.trim() ? { meetingLocation: data.meetingLocation.trim() } : {}),
       ...(data.keyLocation.trim() ? { keyLocation: data.keyLocation.trim() } : {}),
       ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
+      actorTimezone,
     };
   }
 
@@ -99,6 +101,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
     notes: data.notes.trim() || null,
     ...(contacts ? { contacts } : { contact }),
     ...(data.restrictionTouched ? { restriction } : {}),
+    actorTimezone,
   };
 }
 

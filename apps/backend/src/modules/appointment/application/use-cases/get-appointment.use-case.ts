@@ -34,6 +34,7 @@ export interface GetAppointmentOutput {
   tenantNote: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
+  rejectionReasonCode: string | null;
   createdByUserId: string;
   doneCheckedByUserId: string | null;
   doneCheckedAt: Date | null;
@@ -50,6 +51,8 @@ export interface GetAppointmentOutput {
   inspectorName: string | null;
   branchName: string;
   serviceTypeName: string;
+  /** Tenant (agency) display name — labelled "CLIENT" in the map detail panel (025 §FR-451). */
+  clientName: string;
   isOverdue: boolean;
   cancellationReason: string | null;
   latitude: number | null;
@@ -110,6 +113,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     tenantNote: appointment.tenantNote,
     customFieldsJson: appointment.customFieldsJson,
     reason: appointment.reason,
+    rejectionReasonCode: appointment.rejectionReasonCode ?? null,
     createdByUserId: appointment.createdByUserId,
     doneCheckedByUserId: appointment.doneCheckedByUserId,
     doneCheckedAt: appointment.doneCheckedAt,
@@ -125,6 +129,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     inspectorName: found.inspectorName ?? null,
     branchName: found.branchName ?? '',
     serviceTypeName: found.serviceTypeName ?? '',
+    clientName: found.tenantName ?? '',
     isOverdue: isAppointmentOverdue(appointment.status, appointment.scheduledDate),
     cancellationReason: appointment.reason,
     latitude: found.propertyLatitude ?? null,

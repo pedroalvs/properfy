@@ -14,6 +14,8 @@ declare module '@mapbox/mapbox-gl-draw' {
       uncombine_features?: boolean;
     };
     defaultMode?: string;
+    /** Custom paint styles per the mapbox-gl-draw "Styling Draw" doc. */
+    styles?: Array<Record<string, unknown>>;
   }
 
   class MapboxDraw implements IControl {

@@ -115,6 +115,42 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
     condition: 'cl_user_flag',
     conditionKey: 'reschedule_appointments',
   },
+  // 025 §FR-411 — bulk cancel from map flow; CL_USER gated by cancel_appointments flag
+  'appointment.bulk_cancel': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    condition: 'cl_user_flag',
+    conditionKey: 'cancel_appointments',
+  },
+  // 025 §FR-421 — bulk reschedule from map flow; CL_USER gated by reschedule_appointments flag
+  'appointment.bulk_reschedule': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    condition: 'cl_user_flag',
+    conditionKey: 'reschedule_appointments',
+  },
+  // 025 §FR-431 — bulk status transition (release / reject / reopen); OP-team only
+  'appointment.bulk_status_transition': {
+    roles: ['AM', 'OP'],
+  },
+  // 025 §FR-441 — bulk inspector assignment; OP-team only
+  'appointment.bulk_assign_inspector': {
+    roles: ['AM', 'OP'],
+  },
+  // 026 §FR-510 — add appointments to existing service group; OP-team only
+  // (mirrors `service_group.manage` because both write to the group surface
+  // and the group's lifecycle is operator-driven per Regras matrix).
+  'appointment.add_to_group': {
+    roles: ['AM', 'OP'],
+  },
+  // 026 §FR-540 — bulk reopen for reschedule; matriz 2.2 grants the
+  // reschedule write surface to CL_ADMIN in addition to the OP-team.
+  // The underlying ReopenForRescheduleUseCase enforces the 30-day window;
+  // the route layer enforces this RBAC base; CL_USER is not allowed even
+  // with the `reschedule_appointments` flag because bulk reschedule is
+  // operator coordination (single-item reschedule via the standard
+  // patch endpoint remains available to CL_USER per spec 006).
+  'appointment.bulk_reopen_for_reschedule': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
 
   // ── Inspector Management ─────────────────────────────────────────────
   'inspector.create': {

@@ -69,4 +69,32 @@ describe('TimeWindowPicker', () => {
     expect(screen.getByText('Start Time')).toBeInTheDocument();
     expect(screen.getByText('End Time')).toBeInTheDocument();
   });
+
+  // T-C6-3b — minStartTime prop
+  it('does not add min to start-time input when minStartTime is absent', () => {
+    render(
+      <TimeWindowPicker
+        startTime="09:00"
+        endTime="17:00"
+        onStartTimeChange={vi.fn()}
+        onEndTimeChange={vi.fn()}
+      />,
+    );
+    const startInput = screen.getByLabelText('Start time') as HTMLInputElement;
+    expect(startInput.min).toBe('');
+  });
+
+  it('adds min attribute to start-time input when minStartTime is provided', () => {
+    render(
+      <TimeWindowPicker
+        startTime="09:00"
+        endTime="17:00"
+        onStartTimeChange={vi.fn()}
+        onEndTimeChange={vi.fn()}
+        minStartTime="14:30"
+      />,
+    );
+    const startInput = screen.getByLabelText('Start time') as HTMLInputElement;
+    expect(startInput.min).toBe('14:30');
+  });
 });

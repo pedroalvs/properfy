@@ -4,7 +4,6 @@ import { contactSchema, appointmentContactsArraySchema } from './contact';
 import { restrictionSchema } from './restriction';
 import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
-import { todayLocalDateString } from '../utils/local-date';
 
 // Inline property for creation (matches createPropertySchema subset)
 const inlinePropertySchema = z.object({
@@ -26,10 +25,8 @@ export const createAppointmentSchema = z.object({
   propertyId: z.string().uuid().optional(),
   property: inlinePropertySchema.optional(),
   serviceTypeId: z.string().uuid(),
-  scheduledDate: z.string().date().refine(
-    (val) => val >= todayLocalDateString(),
-    { message: 'Scheduled date cannot be in the past' },
-  ),
+  // Temporal validation (past-date / past-time) is TZ-aware and performed in the use case.
+  scheduledDate: z.string().date(),
   timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format'),
   /** @deprecated Use `contacts` array instead. Kept for backward compat during transition. */
   contact: contactSchema.optional(),
@@ -41,6 +38,7 @@ export const createAppointmentSchema = z.object({
   keyLocation: z.string().max(500).optional(),
   notes: z.string().max(2000).optional(),
   customFields: z.record(z.unknown()).optional(),
+  actorTimezone: z.string().optional(),
 }).refine(
   (data) => !!data.propertyId !== !!data.property,
   { message: 'Must provide either propertyId or property (inline), but not both', path: ['propertyId'] },
@@ -55,6 +53,7 @@ export const createAppointmentSchema = z.object({
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
 export const updateAppointmentSchema = z.object({
+  // Temporal validation (past-date / past-time) is TZ-aware and performed in the use case.
   scheduledDate: z.string().date().optional(),
   timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
   keyRequired: z.boolean().optional(),
@@ -67,13 +66,8 @@ export const updateAppointmentSchema = z.object({
   contacts: appointmentContactsArraySchema.optional(),
   restriction: restrictionSchema.optional(),
   customFields: z.record(z.unknown()).nullable().optional(),
+  actorTimezone: z.string().optional(),
 }).refine(
-  (data) => {
-    if (data.scheduledDate === undefined) return true;
-    return data.scheduledDate >= todayLocalDateString();
-  },
-  { message: 'Scheduled date cannot be in the past', path: ['scheduledDate'] },
-).refine(
   (data) => {
     const hasLegacy = data.contact !== undefined;
     const hasNew = data.contacts !== undefined;
@@ -158,6 +152,7 @@ export const bulkEditAppointmentSchema = z.object({
     { message: 'At least one field must be provided in changes' },
   ),
   options: bulkEditOptionsSchema,
+  actorTimezone: z.string().optional(),
 });
 export type BulkEditAppointmentInput = z.infer<typeof bulkEditAppointmentSchema>;
 
@@ -209,4 +204,108 @@ export const bulkResendReminderResponseSchema = z.object({
   results: z.array(bulkResendReminderResultSchema),
 });
 export type BulkResendReminderResponse = z.infer<typeof bulkResendReminderResponseSchema>;
+
+// ─── Bulk map-flow actions (025 §FR-401..460) ────────────────────────────
+//
+// Four bulk endpoints (cancel / reschedule / status-transition / assign-inspector)
+// share the same per-item result envelope. Each item carries an OK status or
+// one of the typed failure modes — the batch never aborts on a per-item error.
+// Idempotency key prefix: `bulk_<action>:<appointmentId>:<dayInActorTz>`.
+
+export const bulkActionResultStatusSchema = z.enum([
+  'OK',
+  'INVALID_TRANSITION',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'ERROR',
+  'IDEMPOTENT_REPLAY',
+]);
+export type BulkActionResultStatus = z.infer<typeof bulkActionResultStatusSchema>;
+
+export const bulkActionResultItemSchema = z.object({
+  appointmentId: z.string().uuid(),
+  status: bulkActionResultStatusSchema,
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+});
+export type BulkActionResultItem = z.infer<typeof bulkActionResultItemSchema>;
+
+export const bulkActionResponseSchema = z.object({
+  results: z.array(bulkActionResultItemSchema),
+});
+export type BulkActionResponse = z.infer<typeof bulkActionResponseSchema>;
+
+/**
+ * 025 §FR-411 — Bulk cancel up to 100 appointments. Reason is required
+ * (cancellation always demands one per CLAUDE.md §5 state machine).
+ */
+export const bulkCancelRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  reason: z.string().min(3).max(500),
+  /** IANA timezone for per-day idempotency bucketing (see bulk_resend_reminder). */
+  actorTimezone: z.string().optional(),
+});
+export type BulkCancelRequest = z.infer<typeof bulkCancelRequestSchema>;
+
+/**
+ * 025 §FR-421 — Bulk reschedule. `newDate` accepts ISO datetime or date-only
+ * (kept consistent with `createAppointmentSchema.scheduledDate`). `newTimeSlot`
+ * is optional — when omitted each appointment keeps its existing slot.
+ */
+export const bulkRescheduleRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  newDate: z.union([z.string().datetime(), z.string().date()]),
+  newTimeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
+  actorTimezone: z.string().optional(),
+});
+export type BulkRescheduleRequest = z.infer<typeof bulkRescheduleRequestSchema>;
+
+/**
+ * 025 §FR-431 — Bulk status transition. Reason is optional at the schema
+ * level; the state machine enforces it per-transition via `isReasonRequired`
+ * (see `packages/shared/src/lib/appointment-transitions.ts`).
+ */
+export const bulkStatusTransitionRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  targetStatus: z.nativeEnum(AppointmentStatus),
+  reason: z.string().min(3).max(500).optional(),
+  actorTimezone: z.string().optional(),
+});
+export type BulkStatusTransitionRequest = z.infer<typeof bulkStatusTransitionRequestSchema>;
+
+/**
+ * 025 §FR-441 — Bulk assign / reassign inspector. Use case validates the
+ * inspector is active per tenant rules; per-item FORBIDDEN if not.
+ */
+export const bulkAssignInspectorRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(100),
+  inspectorId: z.string().uuid(),
+  actorTimezone: z.string().optional(),
+});
+export type BulkAssignInspectorRequest = z.infer<typeof bulkAssignInspectorRequestSchema>;
+
+/**
+ * 026 §FR-540..545 — Bulk re-open for reschedule.
+ *
+ * Delegates per-item to the existing single-item `ReopenForRescheduleUseCase`
+ * (spec 006 GAP-003), which already enforces the 30-day window and emits the
+ * `appointment.rescheduled` audit. 026 extends that use case additively to
+ * revoke active portal tokens after the reschedule.
+ *
+ * `newTimeSlot` is REQUIRED here (unlike `bulkRescheduleRequestSchema` from
+ * 025) because the reschedule form uses an explicit dropdown sourced from
+ * the effective slots catalog — the operator picks one of the canonical
+ * `HH:mm-HH:mm` values per Regras matrix.
+ *
+ * `appointmentIds.max(30)` mirrors the group-capacity cap because bulk
+ * reschedule is intentionally same-group-only in this cycle (cross-group
+ * bulk is GAP-501 future work).
+ */
+export const bulkReopenForRescheduleRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+  newDate: z.union([z.string().datetime(), z.string().date()]),
+  newTimeSlot: z.string().min(1),
+  reason: z.string().min(3).max(500).optional(),
+  actorTimezone: z.string().optional(),
+});
+export type BulkReopenForRescheduleRequest = z.infer<typeof bulkReopenForRescheduleRequestSchema>;
 

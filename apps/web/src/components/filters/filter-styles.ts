@@ -22,7 +22,7 @@ export const filterClearButton =
   'inline-flex items-center justify-center h-5 w-5 rounded-full text-text-muted hover:text-text-primary opacity-60 hover:opacity-100 transition-opacity scale-75';
 
 export const filterDropdown =
-  'absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-auto rounded bg-card-bg shadow-lg border border-black/10';
+  'absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-auto overscroll-contain rounded bg-card-bg shadow-lg border border-black/10';
 
 export const filterOption =
   'cursor-pointer px-3 py-2 text-sm text-text-primary hover:bg-primary/5 transition-colors';

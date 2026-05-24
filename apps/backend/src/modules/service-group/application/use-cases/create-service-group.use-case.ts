@@ -9,7 +9,8 @@ import type { ITenantRepository } from '../../../tenant/domain/tenant.repository
 import { ServiceGroupEntity } from '../../domain/service-group.entity';
 import { ServiceGroupValidator } from '../../domain/service-group.validator';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
-import { PriorityDateTooCloseError, ServiceRegionInactiveError } from '../../domain/service-group.errors';
+import { PriorityDateTooCloseError, ServiceRegionInactiveError, ServiceGroupDateInPastError, ServiceGroupTimeInPastError } from '../../domain/service-group.errors';
+import { validateNewSchedule } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import type { PriorityMode } from '@properfy/shared';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
@@ -20,11 +21,12 @@ export interface CreateServiceGroupInput {
   scheduledDate: string; // YYYY-MM-DD
   timeWindow: string; // HH:mm-HH:mm
   name?: string;
-  serviceRegionId: string;
+  serviceRegionId?: string | null;
   description?: string;
   priorityMode: PriorityMode;
   exceptionType?: ServiceGroupExceptionType;
   exceptionReason?: string;
+  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -68,6 +70,13 @@ export class CreateServiceGroupUseCase {
 
     // 1. RBAC
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.create', entityType: 'ServiceGroup' });
+
+    // 1b. TZ-aware past-date/time validation (R7: falls back to UTC when tz absent).
+    const tz = input.actorTimezone ?? 'UTC';
+    const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeWindow, tz });
+    if (!scheduleCheck.ok) {
+      throw scheduleCheck.code === 'TIME_IN_PAST' ? new ServiceGroupTimeInPastError() : new ServiceGroupDateInPastError();
+    }
 
     // 2. Load and validate appointments
     const appointments = [];
@@ -124,16 +133,20 @@ export class CreateServiceGroupUseCase {
       }
     }
 
-    // 5. Resolve service region (required)
-    const region = await this.serviceRegionRepo.findById(input.serviceRegionId, tenantId!);
-    if (!region) {
-      throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
+    // 5. Resolve service region — optional at create, required at publish (spec 005 FR-007).
+    let serviceRegionId: string | null = null;
+    let regionName: string | null = null;
+    if (input.serviceRegionId) {
+      const region = await this.serviceRegionRepo.findById(input.serviceRegionId, tenantId!);
+      if (!region) {
+        throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
+      }
+      if (region.status !== 'ACTIVE') {
+        throw new ServiceRegionInactiveError();
+      }
+      serviceRegionId = region.id;
+      regionName = region.name;
     }
-    if (region.status !== 'ACTIVE') {
-      throw new ServiceRegionInactiveError();
-    }
-    const serviceRegionId = region.id;
-    const regionName = region.name;
 
     // 6. Create entity
     const now = this.clock.now();
@@ -171,13 +184,24 @@ export class CreateServiceGroupUseCase {
     // 7. Link appointments to group and transition DRAFT ones to AWAITING_INSPECTOR
     await this.serviceGroupRepo.linkAppointments(input.appointmentIds, groupId);
 
-    const draftIds = appointments
-      .filter((appt) => appt.status === 'DRAFT')
-      .map((appt) => appt.id);
+    const transitionIds = appointments
+      .filter((appt) => appt.status === 'DRAFT' || appt.status === 'REJECTED')
+      .map((appt) => ({ id: appt.id, prevStatus: appt.status, tenantId: appt.tenantId }));
 
-    for (const id of draftIds) {
-      await this.appointmentRepo.update(id, appointments.find((a) => a.id === id)!.tenantId, {
-        status: 'AWAITING_INSPECTOR',
+    for (const { id, prevStatus, tenantId: apptTenantId } of transitionIds) {
+      await this.appointmentRepo.update(id, apptTenantId, { status: 'AWAITING_INSPECTOR' });
+      // DRAFT→AWAITING_INSPECTOR rule = OP+SYS (system-triggered); REJECTED→AWAITING_INSPECTOR rule = OP+AM (actor-driven).
+      this.auditService.log({
+        action: 'appointment.status_transition',
+        actorType: prevStatus === 'DRAFT' ? 'SYSTEM' : 'USER',
+        actorId: actor.userId,
+        entityType: 'Appointment',
+        entityId: id,
+        tenantId: apptTenantId,
+        before: { status: prevStatus },
+        after: { status: 'AWAITING_INSPECTOR' },
+        reason: 'Added to service group',
+        metadata: { systemTriggered: prevStatus === 'DRAFT', groupId, previousStatus: prevStatus },
       });
     }
 

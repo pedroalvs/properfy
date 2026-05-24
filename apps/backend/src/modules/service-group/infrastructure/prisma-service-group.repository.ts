@@ -638,4 +638,74 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     };
     return mapping[sortBy ?? ''] ?? 'created_at';
   }
+
+  async findAddableForAppointments(params: {
+    tenantId: string;
+    serviceTypeId: string;
+    scheduledDate: Date;
+    timeSlot: string;
+    batchSize: number;
+  }): Promise<Array<{
+    id: string;
+    name: string | null;
+    status: string;
+    scheduledDate: Date;
+    timeWindow: string;
+    currentSize: number;
+    serviceTypeName: string | null;
+  }>> {
+    const capacity = 30;
+    const dateStr = params.scheduledDate.toISOString().slice(0, 10);
+
+    // Use $queryRaw to get appointment count and service type name in one round-trip.
+    type Row = {
+      id: string;
+      name: string | null;
+      status: string;
+      scheduled_date: Date;
+      time_window: string;
+      appt_count: bigint;
+      service_type_name: string | null;
+    };
+
+    const rows = await this.prisma.$queryRaw<Row[]>`
+      SELECT
+        sg.id,
+        sg.name,
+        sg.status::text,
+        sg.scheduled_date,
+        sg.time_window,
+        sg.service_type_id,
+        COUNT(a.id) AS appt_count,
+        st.name AS service_type_name
+      FROM service_groups sg
+      LEFT JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
+      LEFT JOIN service_types st ON st.id = sg.service_type_id
+      WHERE sg.tenant_id = ${params.tenantId}
+        AND sg.service_type_id = ${params.serviceTypeId}
+        AND sg.scheduled_date::date = ${dateStr}::date
+        AND sg.status IN ('DRAFT', 'PUBLISHED')
+      GROUP BY sg.id, sg.name, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
+      ORDER BY sg.created_at ASC
+    `;
+
+    const [slotStart, slotEnd] = params.timeSlot.split('-');
+
+    return rows
+      .filter((row) => {
+        const currentSize = Number(row.appt_count);
+        if (currentSize + params.batchSize > capacity) return false;
+        const [groupStart, groupEnd] = row.time_window.split('-');
+        return (slotStart ?? '') >= (groupStart ?? '') && (slotEnd ?? '') <= (groupEnd ?? '');
+      })
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        status: row.status,
+        scheduledDate: row.scheduled_date,
+        timeWindow: row.time_window,
+        currentSize: Number(row.appt_count),
+        serviceTypeName: row.service_type_name,
+      }));
+  }
 }

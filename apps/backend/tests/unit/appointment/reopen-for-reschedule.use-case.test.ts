@@ -110,7 +110,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('AM'),
     });
@@ -119,7 +119,7 @@ describe('ReopenForRescheduleUseCase', () => {
     expect(result.previousStatus).toBe('SCHEDULED');
     expect(result.status).toBe('DRAFT');
     expect(result.previousScheduledDate).toBe('2026-04-10');
-    expect(result.scheduledDate).toBe('2026-04-15');
+    expect(result.scheduledDate).toBe('2027-06-15');
     expect(result.previousTimeSlot).toBe('09:00-12:00');
     expect(result.timeSlot).toBe('13:00-16:00');
     expect(result.previousInspectorId).toBe('insp-1');
@@ -129,7 +129,7 @@ describe('ReopenForRescheduleUseCase', () => {
     // Verify repository update call
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
       status: 'DRAFT',
-      scheduledDate: new Date('2026-04-15'),
+      scheduledDate: new Date('2027-06-15'),
       timeSlot: '13:00-16:00',
       inspectorId: null,
       tenantConfirmationStatus: 'PENDING',
@@ -143,13 +143,13 @@ describe('ReopenForRescheduleUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-20',
+      newScheduledDate: '2027-06-20',
       newTimeSlot: '08:00-11:00',
       actor: makeActor('SYS' as AuthContext['role']),
     });
 
     expect(result.status).toBe('DRAFT');
-    expect(result.scheduledDate).toBe('2026-04-20');
+    expect(result.scheduledDate).toBe('2027-06-20');
   });
 
   it('should reopen a SCHEDULED appointment for reschedule (OP actor)', async () => {
@@ -158,7 +158,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-18',
+      newScheduledDate: '2027-06-18',
       newTimeSlot: '10:00-13:00',
       actor: makeActor('OP'),
     });
@@ -172,14 +172,14 @@ describe('ReopenForRescheduleUseCase', () => {
 
     await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       reason: 'Tenant requested new date',
       actor: makeActor('AM'),
     });
 
     expect(auditService.log).toHaveBeenCalledWith({
-      action: 'appointment.reopened_for_reschedule',
+      action: 'appointment.rescheduled',
       actorType: 'USER',
       actorId: 'actor-1',
       entityType: 'Appointment',
@@ -194,7 +194,7 @@ describe('ReopenForRescheduleUseCase', () => {
       },
       after: {
         status: 'DRAFT',
-        scheduledDate: '2026-04-15',
+        scheduledDate: '2027-06-15',
         timeSlot: '13:00-16:00',
         inspectorId: null,
         tenantConfirmationStatus: 'PENDING',
@@ -213,7 +213,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('SYS' as AuthContext['role']),
     });
@@ -232,7 +232,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('AM'),
     });
@@ -250,7 +250,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
@@ -268,7 +268,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
@@ -281,7 +281,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
@@ -294,7 +294,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
@@ -307,31 +307,102 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'nonexistent',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
     ).rejects.toThrow(AppointmentNotFoundError);
   });
 
-  it('should reject CL_ADMIN actor', async () => {
+  // F1 Revisor cycle 11: CL_ADMIN is now allowed to reopen for reschedule.
+  it('should allow CL_ADMIN actor', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeWithRelations());
+    vi.mocked(appointmentRepo.update).mockResolvedValue(undefined as any);
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2027-06-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('CL_ADMIN', { tenantId: 'tenant-1' }),
+    });
+
+    expect(result.status).toBe('DRAFT');
+  });
+
+  // Revisor cycle 2/2: CL_ADMIN holding a foreign tenant's appointment id
+  // must not be able to reopen it. The repository receives the actor's
+  // tenantId as scope, and defense-in-depth rejects any mismatch even if
+  // the repo were ever to return data outside scope.
+  it('should reject CL_ADMIN when appointment belongs to another tenant', async () => {
+    // findById receives actor.tenantId for tenant-scoped roles; the repo
+    // returns null (tenant mismatch) — use case throws not-found.
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(null);
+
     await expect(
       useCase.execute({
-        appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        appointmentId: 'appt-foreign',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
-        actor: makeActor('CL_ADMIN'),
+        actor: makeActor('CL_ADMIN', { tenantId: 'tenant-attacker' }),
       }),
-    ).rejects.toThrow(ForbiddenError);
+    ).rejects.toThrow(AppointmentNotFoundError);
 
-    expect(appointmentRepo.findById).not.toHaveBeenCalled();
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-foreign', 'tenant-attacker');
+  });
+
+  // Defense-in-depth: even if a future repo bug returned an out-of-tenant
+  // appointment for a CL_ADMIN, the explicit ownership check rejects it.
+  it('should reject CL_ADMIN via defense-in-depth when repo returns mismatched tenant', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeWithRelations({ tenantId: 'tenant-victim' }),
+    );
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-victim',
+        newScheduledDate: '2027-06-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('CL_ADMIN', { tenantId: 'tenant-attacker' }),
+      }),
+    ).rejects.toThrow(AppointmentNotFoundError);
+  });
+
+  // AM and OP must keep cross-tenant access (Constitution v1.3.0): the
+  // repository is called with `null` so platform staff can act on any
+  // appointment regardless of tenant.
+  it('should call findById with null scope for AM actor (cross-tenant preserved)', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeWithRelations());
+    vi.mocked(appointmentRepo.update).mockResolvedValue(undefined as any);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2027-06-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('AM'),
+    });
+
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
+  });
+
+  it('should call findById with null scope for OP actor (cross-tenant preserved)', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeWithRelations());
+    vi.mocked(appointmentRepo.update).mockResolvedValue(undefined as any);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2027-06-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
   });
 
   it('should reject CL_USER actor', async () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('CL_USER'),
       }),
@@ -342,7 +413,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('INSP'),
       }),
@@ -357,7 +428,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('AM'),
     });
@@ -369,5 +440,75 @@ describe('ReopenForRescheduleUseCase', () => {
         metadata: expect.objectContaining({ previousInspectorId: null }),
       }),
     );
+  });
+});
+
+// 026 §FR-543 — additive constructor dep. The previous suite preserves
+// backward compatibility (no `tokenRepo` injected → no revoke path).
+// This suite pins the new path: when the repo IS injected, the use case
+// revokes active portal tokens AFTER the reschedule and emits a
+// `tenant_portal.tokens_revoked` audit event.
+describe('ReopenForRescheduleUseCase — token revoke (026 §FR-543)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls tokenRepo.revokeAllForAppointment after a successful reschedule', async () => {
+    const tokenRepo = {
+      revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
+      // Other methods aren't called by this code path; cast through unknown.
+    } as unknown as ConstructorParameters<typeof ReopenForRescheduleUseCase>[3];
+    const authorizationService = new AuthorizationService(auditService as any);
+    const useCase = new ReopenForRescheduleUseCase(
+      appointmentRepo as any,
+      auditService as any,
+      authorizationService,
+      tokenRepo,
+    );
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2027-06-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('OP'),
+    });
+
+    expect((tokenRepo as any).revokeAllForAppointment).toHaveBeenCalledTimes(1);
+    expect((tokenRepo as any).revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
+    // Plus the audit event for the revoke step (separate from the reopen audit).
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'tenant_portal.tokens_revoked',
+        entityId: 'appt-1',
+        metadata: expect.objectContaining({ reason: 'operator_reschedule' }),
+      }),
+    );
+  });
+
+  it('skips the revoke path entirely when tokenRepo is not injected (backward compat)', async () => {
+    const authorizationService = new AuthorizationService(auditService as any);
+    const useCase = new ReopenForRescheduleUseCase(
+      appointmentRepo as any,
+      auditService as any,
+      authorizationService,
+      // tokenRepo omitted
+    );
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    appointmentRepo.update.mockResolvedValue(undefined);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2027-06-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('OP'),
+    });
+
+    // No `tenant_portal.tokens_revoked` audit emitted.
+    const revokeCalls = (auditService.log as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([entry]) => (entry as { action: string }).action === 'tenant_portal.tokens_revoked',
+    );
+    expect(revokeCalls).toHaveLength(0);
   });
 });
