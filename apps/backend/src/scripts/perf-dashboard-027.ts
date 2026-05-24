@@ -8,7 +8,7 @@
  * Run: cd apps/backend && npx tsx --env-file .env src/scripts/perf-dashboard-027.ts
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { PrismaDashboardRepository } from '../modules/dashboard/infrastructure/prisma-dashboard.repository';
 
 type ExplainRow = { 'QUERY PLAN': string };
