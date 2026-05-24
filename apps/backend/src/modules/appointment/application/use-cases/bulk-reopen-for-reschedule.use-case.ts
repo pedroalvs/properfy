@@ -55,8 +55,10 @@ export class BulkReopenForRescheduleUseCase {
     // Same-group precheck. Fetch all appointments to inspect their
     // serviceGroupId; reject the entire batch with INVALID_SCOPE if the
     // selection spans groups or contains a non-grouped item.
+    // Cache the fetched appointments for the 30-day window check below.
     const groupIds = new Set<string | null>();
     const notFound: string[] = [];
+    const fetchedAppointments = new Map<string, { scheduledDate: Date }>();
     for (const apptId of input.appointmentIds) {
       const found = await this.appointmentRepo.findById(apptId, null);
       if (!found) {
@@ -64,6 +66,7 @@ export class BulkReopenForRescheduleUseCase {
         continue;
       }
       groupIds.add(found.appointment.serviceGroupId ?? null);
+      fetchedAppointments.set(apptId, { scheduledDate: found.appointment.scheduledDate });
     }
 
     if (groupIds.size > 1 || groupIds.has(null)) {
@@ -99,6 +102,26 @@ export class BulkReopenForRescheduleUseCase {
           error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found' },
         });
         continue;
+      }
+
+      // 30-day window check: new date must be within 30 days of the current scheduledDate.
+      const MAX_RESCHEDULE_WINDOW_DAYS = 30;
+      const cachedAppt = fetchedAppointments.get(apptId);
+      if (cachedAppt) {
+        const anchorDate = new Date(cachedAppt.scheduledDate);
+        const newDate = new Date(input.newDate.length >= 10 ? input.newDate.slice(0, 10) : input.newDate);
+        const diffDays = Math.floor((newDate.getTime() - anchorDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays > MAX_RESCHEDULE_WINDOW_DAYS) {
+          results.push({
+            appointmentId: apptId,
+            status: 'INVALID_TRANSITION',
+            error: {
+              code: 'INVALID_DATE_WINDOW',
+              message: `New date exceeds ${MAX_RESCHEDULE_WINDOW_DAYS}-day rescheduling window from ${anchorDate.toISOString().slice(0, 10)}`,
+            },
+          });
+          continue;
+        }
       }
 
       const idemKey = `bulk_reopen_reschedule:${apptId}:${dayKey}`;

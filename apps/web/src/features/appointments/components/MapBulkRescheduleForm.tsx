@@ -41,14 +41,11 @@ export function MapBulkRescheduleForm({
   const [newTimeSlot, setNewTimeSlot] = useState('');
   const [reason, setReason] = useState('');
 
-  // The slot catalog is per-branch + per-tenant. All checked appointments
-  // belong to the same group (precheck enforces it) so they share branchId
-  // and tenantName/tenantId — read the first row.
-  const head = checkedAppointments[0];
-  const branchId = head?.branchName ? undefined : undefined; // AppointmentMapItem doesn't carry branchId directly
-  // Slot options keyed by branch; for the map flow we don't have branchId
-  // in the marker payload. Fall back to a tenant-scoped catalog if branchId
-  // is unknown — `useTimeSlotOptions` already handles `undefined` branch.
+  // All checked appointments belong to the same group (precheck enforces it)
+  // so they share the same branchId — read the first row.
+  // C11-T4: branchId is now populated in AppointmentMapItem so the slot catalog
+  // is fetched for the correct branch.
+  const branchId = checkedAppointments[0]?.branchId;
   const { options: rawSlotOptions = [] } = useTimeSlotOptions(branchId);
   const today = todayLocalDateString();
   const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;

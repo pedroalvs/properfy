@@ -58,8 +58,8 @@ export class ReopenForRescheduleUseCase {
   async execute(input: ReopenForRescheduleInput): Promise<ReopenForRescheduleOutput> {
     const { appointmentId, newScheduledDate, newTimeSlot, reason, actor } = input;
 
-    // 1. RBAC: only SYS (tenant portal), AM, or OP can reopen for reschedule
-    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'SYS'], { action: 'appointment.reopen_reschedule', entityType: 'Appointment' });
+    // 1. RBAC: CL_ADMIN can reopen (F1 — Revisor cycle 11); SYS for tenant portal flow.
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'SYS', 'CL_ADMIN'], { action: 'appointment.reopen_reschedule', entityType: 'Appointment' });
 
     // 2. Find appointment (AM/OP/SYS have global access)
     const result = await this.appointmentRepo.findById(appointmentId, null);
@@ -118,7 +118,7 @@ export class ReopenForRescheduleUseCase {
     };
 
     this.auditService.log({
-      action: 'appointment.reopened_for_reschedule',
+      action: 'appointment.rescheduled',
       actorType: actor.role === 'SYS' ? 'SYSTEM' : 'USER',
       actorId: actor.userId,
       entityType: 'Appointment',

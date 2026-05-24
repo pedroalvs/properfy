@@ -179,7 +179,7 @@ describe('ReopenForRescheduleUseCase', () => {
     });
 
     expect(auditService.log).toHaveBeenCalledWith({
-      action: 'appointment.reopened_for_reschedule',
+      action: 'appointment.rescheduled',
       actorType: 'USER',
       actorId: 'actor-1',
       entityType: 'Appointment',
@@ -314,17 +314,19 @@ describe('ReopenForRescheduleUseCase', () => {
     ).rejects.toThrow(AppointmentNotFoundError);
   });
 
-  it('should reject CL_ADMIN actor', async () => {
-    await expect(
-      useCase.execute({
-        appointmentId: 'appt-1',
-        newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
-        actor: makeActor('CL_ADMIN'),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+  // F1 Revisor cycle 11: CL_ADMIN is now allowed to reopen for reschedule.
+  it('should allow CL_ADMIN actor', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeWithRelations());
+    vi.mocked(appointmentRepo.update).mockResolvedValue(undefined as any);
 
-    expect(appointmentRepo.findById).not.toHaveBeenCalled();
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2027-06-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('CL_ADMIN', { tenantId: 'tenant-1' }),
+    });
+
+    expect(result.status).toBe('DRAFT');
   });
 
   it('should reject CL_USER actor', async () => {

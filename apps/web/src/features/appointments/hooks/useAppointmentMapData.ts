@@ -33,6 +33,8 @@ export interface AppointmentMapItem {
   tenantNote?: string | null;
   /** Optional service group id used to gate the "Add to group" action. */
   serviceGroupId?: string | null;
+  /** Branch id — used to load the correct time slot catalog in the reschedule form. */
+  branchId?: string;
 }
 
 export interface AppointmentMapFilters {
