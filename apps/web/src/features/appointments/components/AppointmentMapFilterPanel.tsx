@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { FilterSelect } from '@/components/filters/FilterSelect';
 import { FilterSegmented } from '@/components/filters/FilterSegmented';
 import { FilterInput } from '@/components/filters/FilterInput';
@@ -103,8 +102,6 @@ export function AppointmentMapFilterPanel({
   tenantOptions = [],
   actorRole,
 }: AppointmentMapFilterPanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
-
   const toggleStatus = (
     currentStatuses: string[],
     status: string,
@@ -115,38 +112,9 @@ export function AppointmentMapFilterPanel({
   };
 
   return (
-    <div className="border-b border-gray-200 bg-card-bg" data-testid="map-filter-panel">
-      <button
-        type="button"
-        onClick={() => setCollapsed(!collapsed)}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-bold text-secondary hover:bg-gray-50"
-        aria-expanded={!collapsed}
-        aria-controls="map-filter-panel-content"
-      >
-        <span className="flex items-center gap-2">
-          <i className="mdi mdi-filter-outline" aria-hidden="true" />
-          Filters
-        </span>
-        <i
-          className={`mdi ${collapsed ? 'mdi-chevron-down' : 'mdi-chevron-up'} text-text-muted`}
-          aria-hidden="true"
-        />
-      </button>
-
-      <div
-        id="map-filter-panel-content"
-        // Issue #1 (UX smoke): bump the open max-height so tall filter
-        // stacks (mode + 9 fields on AM/OP) are not clipped; the parent
-        // side-panel container handles the actual scrolling. `max-h-0`
-        // when collapsed still drives the slide animation.
-        className={`overflow-hidden transition-all duration-200 ${
-          collapsed ? 'max-h-0' : 'max-h-[2000px]'
-        }`}
-      >
-        {/* `pt-3` gives the first field's floating label (rendered at
-            `-top-2.5` via filter-styles.ts) the vertical room it needs
-            so it does not get clipped by the parent's overflow-hidden. */}
-        <div className="space-y-3 px-4 pt-3 pb-4">
+    <div className="bg-transparent" data-testid="map-filter-panel">
+      {/* No internal collapse button — the panel header in AppointmentMapPage owns collapse/expand. */}
+      <div className="space-y-3 px-4 pt-3 pb-4">
           {/* Mode selector (segmented pills) */}
           <FilterSegmented
             label="Mode"
@@ -175,7 +143,6 @@ export function AppointmentMapFilterPanel({
             />
           )}
         </div>
-      </div>
     </div>
   );
 }

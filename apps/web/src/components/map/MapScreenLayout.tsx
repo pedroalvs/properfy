@@ -47,7 +47,7 @@ export function MapScreenLayout({
       {/* Floating filter panel — fixed position so it overlays the map without displacing it */}
       {sidePanelOpen && (
         <div
-          className={`fixed left-4 top-4 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg/95 shadow-xl backdrop-blur-sm${isDragging ? ' select-none' : ''}`}
+          className={`fixed left-4 top-4 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg/85 shadow-xl backdrop-blur-sm md:left-[91px]${isDragging ? ' select-none' : ''}`}
           style={{ width: widthPx, maxHeight: 'calc(100vh - 32px)' }}
           data-testid="map-side-panel"
         >
