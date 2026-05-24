@@ -28,6 +28,7 @@ import {
 } from '../components/AppointmentMapFilterPanel';
 import { MapLassoSelect, type LassoPoint, type LassoState, type MapLassoSelectHandle } from '@/components/map/MapLassoSelect';
 import { MapFilterToggleButton } from '@/components/map/MapFilterToggleButton';
+import { MapListViewToggleButton } from '@/components/map/MapListViewToggleButton';
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
@@ -825,6 +826,13 @@ export function AppointmentMapPage() {
             </div>
           </div>
         )}
+
+        {/* C10 — List view button: top-right, offset left of the Mapbox zoom controls */}
+        <div className="pointer-events-none absolute right-14 top-4 z-30">
+          <div className="pointer-events-auto">
+            <MapListViewToggleButton />
+          </div>
+        </div>
 
       <MapBulkActionModal
         appointments={selectedAppointmentsForPanel}
