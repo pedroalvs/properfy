@@ -65,7 +65,7 @@ export interface ListAppointmentsOutput {
     contactPhone: string | null;
     contactEmail: string | null;
     inspectorName: string | null;
-    tenantName: string;
+    clientName: string;
     branchName: string;
     serviceTypeName: string;
     isOverdue: boolean;
@@ -173,7 +173,7 @@ export class ListAppointmentsUseCase {
         contactPhone: item.contact?.primaryPhone ?? null,
         contactEmail: item.contact?.primaryEmail ?? null,
         inspectorName: item.inspectorName,
-        tenantName: item.tenantName,
+        clientName: item.tenantName,
         branchName: item.branchName,
         serviceTypeName: item.serviceTypeName,
         isOverdue: isAppointmentOverdue(item.appointment.status, item.appointment.scheduledDate),

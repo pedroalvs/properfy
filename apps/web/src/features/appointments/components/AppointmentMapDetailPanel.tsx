@@ -125,9 +125,8 @@ export function AppointmentMapDetailPanel({
 
   if (!appointment) return null;
 
-  // CLIENT comes from the marker tenantName first (no fetch), with the lazily
-  // hydrated `clientName` as authoritative once available.
-  const clientName = detail?.clientName ?? appointment.tenantName ?? '—';
+  // CLIENT comes from the marker clientName (no fetch), with the detail's clientName as authoritative once available.
+  const clientName = detail?.clientName ?? appointment.clientName ?? '—';
 
   return (
     <div
@@ -161,6 +160,27 @@ export function AppointmentMapDetailPanel({
           </button>
         </div>
       </div>
+
+      {/* T-C5-5 — REJECTED banner: shown at top when appointment is rejected */}
+      {appointment.status === 'REJECTED' && (
+        <div
+          className="flex items-start gap-2 border-b border-red-200 border-l-4 border-l-red-500 bg-red-50 px-3 py-2"
+          data-testid="map-detail-rejected-banner"
+        >
+          <i className="mdi mdi-cancel mt-0.5 flex-shrink-0 text-sm text-red-500" />
+          <div className="min-w-0 text-sm text-red-900">
+            <p className="font-medium">Rejected</p>
+            {(detail?.rejectionReasonCode ?? appointment.rejectionReasonCode) && (
+              <span className="mr-1 inline-block rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-red-700">
+                {detail?.rejectionReasonCode ?? appointment.rejectionReasonCode}
+              </span>
+            )}
+            {(detail?.reason ?? appointment.reason) && (
+              <p className="mt-0.5 text-xs text-red-800">{detail?.reason ?? appointment.reason}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Always-expanded summary: CLIENT + PROPERTIES */}
       <div className="space-y-2 border-b border-border-subtle px-4 py-3">

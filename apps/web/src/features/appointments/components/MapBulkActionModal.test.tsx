@@ -42,13 +42,13 @@ const sampleAppointments: AppointmentMapItem[] = [
   {
     id: UUID_A, code: 'INS-0001', status: 'DRAFT', propertyAddress: '123 Pitt St', latitude: -33.8, longitude: 151.2,
     scheduledDate: '2026-06-01', timeSlot: '09:00-10:00', inspectorName: 'Alice Smith', branchName: 'Sydney',
-    tenantName: 'Acme Realty', contactName: 'Bob', contactPhone: '+61400000000', contactEmail: 'b@example.com',
+    clientName: 'Acme Realty', contactName: 'Bob', contactPhone: '+61400000000', contactEmail: 'b@example.com',
     tenantConfirmationStatus: 'PENDING',
   },
   {
     id: UUID_B, code: 'INS-0002', status: 'AWAITING_INSPECTOR', propertyAddress: '456 George St', latitude: -33.9, longitude: 151.3,
     scheduledDate: '2026-06-02', timeSlot: '10:00-11:00', inspectorName: null, branchName: 'Sydney',
-    tenantName: 'Acme Realty', contactName: 'Carol', contactPhone: null, contactEmail: 'c@example.com',
+    clientName: 'Acme Realty', contactName: 'Carol', contactPhone: null, contactEmail: 'c@example.com',
     tenantConfirmationStatus: 'CONFIRMED',
   },
 ];

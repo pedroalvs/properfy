@@ -47,7 +47,7 @@ const sampleAppointment: AppointmentMapItem = {
   timeSlot: '09:00-10:00',
   inspectorName: 'Alice Smith',
   branchName: 'Sydney',
-  tenantName: 'Acme Realty',
+  clientName: 'Acme Realty',
   contactName: 'Bob',
   contactPhone: '+61400000000',
   contactEmail: 'b@example.com',

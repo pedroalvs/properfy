@@ -15,7 +15,7 @@ export interface AppointmentMapItem {
   /** Tenant ID — used for cross-tenant operations (e.g. region resolution for AM/OP). */
   tenantId?: string;
   /** Tenant (agency) display name — column 1 of the MapBulkActionModal. */
-  tenantName?: string;
+  clientName?: string;
   /** Primary contact name for the appointment (may be empty when not loaded). */
   contactName?: string;
   contactPhone?: string | null;
@@ -24,6 +24,9 @@ export interface AppointmentMapItem {
   tenantConfirmationStatus?: string;
   /** Optional service type label surfaced in the detail panel header. */
   serviceTypeName?: string;
+  /** Populated when status = REJECTED — surfaces in the detail panel red banner (T-C5-5). */
+  rejectionReasonCode?: string | null;
+  reason?: string | null;
   /** Optional service group id used to gate the "Add to group" action. */
   serviceGroupId?: string | null;
 }
