@@ -126,6 +126,23 @@ describe('ViewportAwareDropdown', () => {
     expect(screen.queryByTestId('viewport-aware-dropdown-menu')).toBeNull();
   });
 
+  it('renders menu in document.body when renderInPortal=true', () => {
+    stubTriggerRect({ left: 200, top: 100, right: 300, bottom: 130, width: 100, height: 30 });
+    const { container } = render(
+      <ViewportAwareDropdown
+        renderInPortal
+        trigger={<button type="button">Open</button>}
+      >
+        <div>portal-menu-content</div>
+      </ViewportAwareDropdown>,
+    );
+    fireEvent.click(screen.getByText('Open'));
+    const menu = screen.getByTestId('viewport-aware-dropdown-menu');
+    // Menu is NOT inside the component's own DOM tree — it lives in document.body.
+    expect(container.contains(menu)).toBe(false);
+    expect(document.body.contains(menu)).toBe(true);
+  });
+
   it('exposes aria-haspopup + aria-expanded on the trigger wrapper', () => {
     render(
       <ViewportAwareDropdown trigger={<button type="button">Open</button>}>

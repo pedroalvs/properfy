@@ -9,6 +9,12 @@ interface UseResizableWidthOptions {
   maxPx?: number;
   /** sessionStorage key for persistence across page reloads. */
   storageKey?: string;
+  /**
+   * Which edge the resize handle sits on.
+   * 'left' (default): handle is on the left edge; dragging left = wider.
+   * 'right': handle is on the right edge; dragging right = wider.
+   */
+  direction?: 'left' | 'right';
 }
 
 interface UseResizableWidthReturn {
@@ -28,6 +34,7 @@ export function useResizableWidth({
   minPx = 360,
   maxPx = Math.round(window.innerWidth * 0.9),
   storageKey,
+  direction = 'left',
 }: UseResizableWidthOptions = {}): UseResizableWidthReturn {
   const clamp = (v: number) => Math.min(maxPx, Math.max(minPx, v));
 
@@ -57,8 +64,9 @@ export function useResizableWidth({
     if (!isDragging) return;
 
     const onMouseMove = (e: MouseEvent) => {
-      // Handle is on the left edge — dragging LEFT makes the panel wider.
-      const delta = dragStartX.current - e.clientX;
+      const delta = direction === 'right'
+        ? e.clientX - dragStartX.current   // right-edge: dragging right = wider
+        : dragStartX.current - e.clientX;  // left-edge: dragging left = wider
       const next = clamp(dragStartWidth.current + delta);
       setWidthPx(next);
     };

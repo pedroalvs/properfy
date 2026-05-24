@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 export type DropdownPlacement = 'auto' | 'top' | 'bottom' | 'left' | 'right';
 
@@ -19,12 +20,21 @@ interface ViewportAwareDropdownProps {
   menuMinWidth?: number;
   /** Optional className on the OUTER wrapper. */
   className?: string;
+  /**
+   * When true the menu is rendered into `document.body` via a portal with
+   * `position: fixed` coords computed from the trigger's viewport rect.
+   * Use this when the dropdown sits inside an overflow:hidden container
+   * (e.g. a fixed modal panel) where `position: absolute` would clip.
+   */
+  renderInPortal?: boolean;
 }
 
 interface MenuPosition {
   top: number;
   left: number;
   placement: 'top' | 'bottom' | 'left' | 'right';
+  /** When true the coords are viewport-fixed (for portal mode). */
+  fixed?: boolean;
 }
 
 /**
@@ -47,6 +57,7 @@ export function ViewportAwareDropdown({
   offset = 4,
   menuMinWidth = 200,
   className = '',
+  renderInPortal = false,
 }: ViewportAwareDropdownProps) {
   const [open, setOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
@@ -86,9 +97,25 @@ export function ViewportAwareDropdown({
       else actual = 'bottom'; // best-effort fallback when no side fits cleanly
     }
 
-    // Compute absolute coords (relative to the document, since the menu
-    // is rendered as a sibling of the trigger inside this wrapper which
-    // is itself `position: relative`).
+    if (renderInPortal) {
+      // Portal mode: coords are viewport-fixed so the menu escapes overflow:hidden parents.
+      let top = 0;
+      let left = rect.left;
+      switch (actual) {
+        case 'bottom': top = rect.bottom + offset; break;
+        case 'top':    top = rect.top - menuHeight - offset; break;
+        case 'right':  top = rect.top; left = rect.right + offset; break;
+        case 'left':   top = rect.top; left = rect.left - menuWidth - offset; break;
+      }
+      // Clamp to viewport
+      if (actual === 'top' || actual === 'bottom') {
+        if (left + menuWidth > vw - 8) left = vw - 8 - menuWidth;
+        if (left < 8) left = 8;
+      }
+      return { top, left, placement: actual, fixed: true };
+    }
+
+    // Non-portal mode: coords relative to the trigger wrapper (position: relative).
     let top = 0;
     let left = 0;
     switch (actual) {
@@ -122,7 +149,7 @@ export function ViewportAwareDropdown({
     }
 
     return { top, left, placement: actual };
-  }, [placement, offset, menuMinWidth]);
+  }, [placement, offset, menuMinWidth, renderInPortal]);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -163,6 +190,27 @@ export function ViewportAwareDropdown({
     };
   }, [open]);
 
+  const menuNode = open ? (
+    <div
+      ref={menuRef}
+      id={menuId}
+      role="menu"
+      className="rounded border border-border-subtle bg-card-bg shadow-lg"
+      style={{
+        position: menuPosition?.fixed ? 'fixed' : 'absolute',
+        zIndex: 50,
+        top: menuPosition?.top ?? 0,
+        left: menuPosition?.left ?? 0,
+        minWidth: menuMinWidth,
+        visibility: menuPosition ? 'visible' : 'hidden',
+      }}
+      data-placement={menuPosition?.placement ?? 'bottom'}
+      data-testid="viewport-aware-dropdown-menu"
+    >
+      {children}
+    </div>
+  ) : null;
+
   return (
     <div className={`relative inline-block ${className}`} data-testid="viewport-aware-dropdown">
       <div
@@ -174,24 +222,9 @@ export function ViewportAwareDropdown({
       >
         {trigger}
       </div>
-      {open && (
-        <div
-          ref={menuRef}
-          id={menuId}
-          role="menu"
-          className="absolute z-50 rounded border border-border-subtle bg-card-bg shadow-lg"
-          style={{
-            top: menuPosition?.top ?? 0,
-            left: menuPosition?.left ?? 0,
-            minWidth: menuMinWidth,
-            visibility: menuPosition ? 'visible' : 'hidden',
-          }}
-          data-placement={menuPosition?.placement ?? 'bottom'}
-          data-testid="viewport-aware-dropdown-menu"
-        >
-          {children}
-        </div>
-      )}
+      {renderInPortal && open
+        ? createPortal(menuNode, document.body)
+        : menuNode}
     </div>
   );
 }
