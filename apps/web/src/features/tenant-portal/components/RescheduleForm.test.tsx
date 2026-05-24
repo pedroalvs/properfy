@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 import type { PortalAppointment } from '../types';
@@ -81,6 +81,18 @@ const BASE_APPOINTMENT: PortalAppointment = {
   meetingLocation: null,
   notes: null,
 };
+
+// Freeze "now" at 2026-04-10 so the mock scheduledDate (2026-04-15) stays in
+// the future and the 30-day reschedule window guard never trips on CI date
+// drift. Tests submit `Date.now() + 7 days` → 2026-04-17, inside the window.
+beforeAll(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date('2026-04-10T00:00:00.000Z'));
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 describe('RescheduleForm', () => {
   beforeEach(() => {
