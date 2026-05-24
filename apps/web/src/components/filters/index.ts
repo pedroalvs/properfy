@@ -1,4 +1,5 @@
 export { FilterBar } from './FilterBar';
+export { FilterSegmented } from './FilterSegmented';
 export { FilterInput } from './FilterInput';
 export { FilterSelect, type FilterSelectOption } from './FilterSelect';
 export { FilterMultiSelect, type FilterMultiSelectOption } from './FilterMultiSelect';

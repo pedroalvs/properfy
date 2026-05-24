@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FilterSelect } from '@/components/filters/FilterSelect';
+import { FilterSegmented } from '@/components/filters/FilterSegmented';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { FilterBoolean } from '@/components/filters/FilterBoolean';
@@ -12,6 +13,8 @@ export interface AppointmentModeFilters {
   statuses: string[];
   serviceTypeId: string;
   contactSearch: string;
+  /** AM-only: filter by tenant (agency). */
+  tenantId: string;
   branchId: string;
   dateFrom: string;
   dateTo: string;
@@ -34,6 +37,7 @@ export const DEFAULT_APPOINTMENT_FILTERS: AppointmentModeFilters = {
   statuses: ['DRAFT', 'REJECTED'],
   serviceTypeId: '',
   contactSearch: '',
+  tenantId: '',
   branchId: '',
   dateFrom: '',
   dateTo: '',
@@ -80,6 +84,10 @@ interface AppointmentMapFilterPanelProps {
   serviceTypeOptions?: Array<{ label: string; value: string }>;
   branchOptions?: Array<{ label: string; value: string }>;
   timeSlotOptions?: Array<{ label: string; value: string }>;
+  /** AM-only: list of tenants for the Customers filter. */
+  tenantOptions?: Array<{ label: string; value: string }>;
+  /** Actor role — gates the Customers filter to AM only. */
+  actorRole?: string;
 }
 
 export function AppointmentMapFilterPanel({
@@ -92,6 +100,8 @@ export function AppointmentMapFilterPanel({
   serviceTypeOptions = [],
   branchOptions = [],
   timeSlotOptions = [],
+  tenantOptions = [],
+  actorRole,
 }: AppointmentMapFilterPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -137,8 +147,8 @@ export function AppointmentMapFilterPanel({
             `-top-2.5` via filter-styles.ts) the vertical room it needs
             so it does not get clipped by the parent's overflow-hidden. */}
         <div className="space-y-3 px-4 pt-3 pb-4">
-          {/* Mode selector */}
-          <FilterSelect
+          {/* Mode selector (segmented pills) */}
+          <FilterSegmented
             label="Mode"
             value={mode}
             options={MODE_OPTIONS}
@@ -153,6 +163,8 @@ export function AppointmentMapFilterPanel({
               serviceTypeOptions={serviceTypeOptions}
               branchOptions={branchOptions}
               timeSlotOptions={timeSlotOptions}
+              tenantOptions={tenantOptions}
+              actorRole={actorRole}
             />
           ) : (
             <GroupModeFields
@@ -213,6 +225,8 @@ function AppointmentModeFields({
   serviceTypeOptions,
   branchOptions,
   timeSlotOptions,
+  tenantOptions,
+  actorRole,
 }: {
   filters: AppointmentModeFilters;
   onChange: (f: AppointmentModeFilters) => void;
@@ -220,6 +234,8 @@ function AppointmentModeFields({
   serviceTypeOptions: Array<{ label: string; value: string }>;
   branchOptions: Array<{ label: string; value: string }>;
   timeSlotOptions: Array<{ label: string; value: string }>;
+  tenantOptions: Array<{ label: string; value: string }>;
+  actorRole?: string;
 }) {
   return (
     <>
@@ -246,12 +262,15 @@ function AppointmentModeFields({
         />
       )}
 
-      <FilterInput
-        label="Contact"
-        value={filters.contactSearch}
-        onChange={(v) => onChange({ ...filters, contactSearch: v })}
-        placeholder="Name, email, phone..."
-      />
+      {/* Customers filter — AM only (cross-tenant role, needs per-tenant narrowing). */}
+      {actorRole === 'AM' && tenantOptions.length > 0 && (
+        <FilterSelect
+          label="Customers"
+          value={filters.tenantId}
+          options={[{ label: 'All', value: '' }, ...tenantOptions]}
+          onChange={(v) => onChange({ ...filters, tenantId: v })}
+        />
+      )}
 
       {branchOptions.length > 0 && (
         <FilterSelect
@@ -284,6 +303,13 @@ function AppointmentModeFields({
         value={filters.confirmationStatus}
         options={CONFIRMATION_OPTIONS}
         onChange={(v) => onChange({ ...filters, confirmationStatus: v })}
+      />
+
+      <FilterInput
+        label="Contact"
+        value={filters.contactSearch}
+        onChange={(v) => onChange({ ...filters, contactSearch: v })}
+        placeholder="Name, email, phone..."
       />
 
       <FilterBoolean
