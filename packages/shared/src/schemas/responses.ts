@@ -741,12 +741,28 @@ export type ScheduledReportResponse = z.infer<typeof scheduledReportResponseSche
 
 // ─── Dashboard ────────────────────────────────────────────────────────────
 
+export const inspectorDayCountSchema = z.object({
+  inspectorId: z.string().uuid(),
+  inspectorName: z.string(),
+  count: z.number().int().nonnegative(),
+  alertLevel: z.enum(['yellow', 'red']).nullable(),
+});
+
+export const inspectorBreakdownsSchema = z.object({
+  tomorrowByInspector: z.array(inspectorDayCountSchema),
+  scheduledThisWeekByInspector: z.array(inspectorDayCountSchema),
+  confirmedThisWeekByInspector: z.array(inspectorDayCountSchema),
+});
+
 export const dashboardStatsResponseSchema = z.object({
   appointmentsByStatus: z.object({
     draft: z.number(),
     awaitingInspector: z.number(),
     scheduled: z.number(),
     doneThisMonth: z.number(),
+    doneThisWeek: z.number(),
+    scheduledThisWeek: z.number(),
+    rejectedTotal: z.number(),
   }),
   recentAppointments: z.array(z.object({
     id: z.string().uuid(),
@@ -768,6 +784,7 @@ export const dashboardStatsResponseSchema = z.object({
     activeInspectors: z.number(),
     activeServiceGroups: z.number(),
   }),
+  inspectorBreakdowns: inspectorBreakdownsSchema.nullable(),
 });
 
 // ─── Webhook ───────────────────────────────────────────────────────────────
@@ -800,4 +817,6 @@ export type ReportResponse = z.infer<typeof reportResponseSchema>;
 export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;
 export type InspectionAssetResponse = z.infer<typeof inspectionAssetResponseSchema>;
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
+export type InspectorDayCount = z.infer<typeof inspectorDayCountSchema>;
+export type InspectorBreakdowns = z.infer<typeof inspectorBreakdownsSchema>;
 export type TenantInvoiceResponse = z.infer<typeof tenantInvoiceResponseSchema>;
