@@ -29,19 +29,6 @@ export function DashboardPage() {
             donePendingCrossCheck={stats.pendingActions.pendingOperatorCrossChecks}
           />
 
-          <div className="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3">
-              <RecentAppointmentsList
-                appointments={stats.recentAppointments}
-                onViewAppointment={(id) => navigate(`/appointments/${id}`)}
-                onViewAll={() => navigate('/appointments')}
-              />
-            </div>
-            <div className="lg:col-span-2">
-              <PendingActionsCard {...stats.pendingActions} />
-            </div>
-          </div>
-
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard
               icon="mdi-home-city-outline"
@@ -77,6 +64,19 @@ export function DashboardPage() {
               />
             </div>
           )}
+
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-3">
+              <RecentAppointmentsList
+                appointments={stats.recentAppointments}
+                onViewAppointment={(id) => navigate(`/appointments/${id}`)}
+                onViewAll={() => navigate('/appointments')}
+              />
+            </div>
+            <div className="lg:col-span-2">
+              <PendingActionsCard {...stats.pendingActions} />
+            </div>
+          </div>
         </>
       )}
     </div>
