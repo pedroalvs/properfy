@@ -31,7 +31,6 @@ import {
   AppointmentServiceTypeNotFoundError,
   AppointmentServiceTypeInactiveError,
   AppointmentNoPriceRuleError,
-  AppointmentPastDateError,
   AppointmentDateInPastError,
   AppointmentTimeInPastError,
 } from '../../domain/appointment.errors';

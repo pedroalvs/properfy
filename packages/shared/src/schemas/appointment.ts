@@ -4,7 +4,6 @@ import { contactSchema, appointmentContactsArraySchema } from './contact';
 import { restrictionSchema } from './restriction';
 import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
-import { todayLocalDateString } from '../utils/local-date';
 
 // Inline property for creation (matches createPropertySchema subset)
 const inlinePropertySchema = z.object({

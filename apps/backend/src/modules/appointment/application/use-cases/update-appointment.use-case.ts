@@ -12,7 +12,6 @@ import { AppointmentRestrictionEntity } from '../../domain/appointment-restricti
 import {
   AppointmentNotFoundError,
   AppointmentUpdateNotAllowedError,
-  AppointmentPastDateError,
   AppointmentDateInPastError,
   AppointmentTimeInPastError,
 } from '../../domain/appointment.errors';
