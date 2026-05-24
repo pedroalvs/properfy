@@ -69,6 +69,9 @@ export interface AppointmentDetail extends Appointment {
   tenantNote: string | null;
   /** Tenant (agency) display name — surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
   clientName?: string;
+  /** T-C5-5 — populated when status = REJECTED; surfaced in the map detail panel red banner. */
+  rejectionReasonCode?: string | null;
+  reason?: string | null;
   contacts?: AppointmentContactEntry[];
   restrictions?: Array<{
     id: string;

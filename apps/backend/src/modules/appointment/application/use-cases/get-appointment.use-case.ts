@@ -34,6 +34,7 @@ export interface GetAppointmentOutput {
   tenantNote: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
+  rejectionReasonCode: string | null;
   createdByUserId: string;
   doneCheckedByUserId: string | null;
   doneCheckedAt: Date | null;
@@ -112,6 +113,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     tenantNote: appointment.tenantNote,
     customFieldsJson: appointment.customFieldsJson,
     reason: appointment.reason,
+    rejectionReasonCode: appointment.rejectionReasonCode ?? null,
     createdByUserId: appointment.createdByUserId,
     doneCheckedByUserId: appointment.doneCheckedByUserId,
     doneCheckedAt: appointment.doneCheckedAt,
