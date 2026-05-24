@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { SelectInput } from '@/components/forms/SelectInput';
-import { usePaginatedQuery } from '@/hooks/useApiQuery';
+import { useFindAddableGroupsForAppointments } from '../hooks/useFindAddableGroupsForAppointments';
 import { useAppointmentsEligibilityCheck } from '../hooks/useAppointmentsEligibilityCheck';
 import { useAddAppointmentsToGroup } from '../hooks/useAddAppointmentsToGroup';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
+import type { AddableGroupSummary } from '@properfy/shared';
 
 interface MapAddToGroupSubModalProps {
   open: boolean;
@@ -16,15 +17,11 @@ interface MapAddToGroupSubModalProps {
   onSuccess?: () => void;
 }
 
-interface ServiceGroupOption {
-  id: string;
-  name: string | null;
-  status: string;
-  groupSize: number;
-  scheduledDate: string;
-  tenantName?: string;
-  serviceTypeName?: string;
-}
+type GroupsState =
+  | { phase: 'idle' }
+  | { phase: 'loading' }
+  | { phase: 'ready'; groups: AddableGroupSummary[]; reason?: 'MIXED_APPOINTMENT_PROPERTIES' }
+  | { phase: 'error' };
 
 type EligibilityState =
   | { phase: 'idle' }
@@ -40,13 +37,10 @@ type AddResultState =
  * 026 §FR-510 — Add-to-group sub-modal.
  *
  * Two-step UX:
- *  1. Pick a target group from the list of existing groups in the
- *     active tenant. Selecting a group fires the eligibility-check
- *     endpoint to compute per-appointment eligibility AND per-group
- *     reasons (terminal state / capacity).
- *  2. Confirm — calls the add endpoint with the ELIGIBLE subset only.
- *     The result envelope mirrors 025 (per-item OK / reasonCode), and
- *     a success summary closes the loop.
+ *  1. Pick a target group from the pre-filtered list (026 B1 — only groups
+ *     that can actually accept these appointments are shown).
+ *  2. Confirm — runs the eligibility-check for per-appointment detail, then
+ *     calls the add endpoint with the ELIGIBLE subset only.
  */
 export function MapAddToGroupSubModal({
   open,
@@ -55,71 +49,68 @@ export function MapAddToGroupSubModal({
   onSuccess,
 }: MapAddToGroupSubModalProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [groupsState, setGroupsState] = useState<GroupsState>({ phase: 'idle' });
   const [eligibility, setEligibility] = useState<EligibilityState>({ phase: 'idle' });
   const [addResult, setAddResult] = useState<AddResultState>(null);
 
-  // Fetch existing groups. Filtered by the active selection's tenant so
-  // cross-tenant groups never appear; same tenant is enforced again by
-  // the backend validator (defence in depth).
-  const tenantName = appointments[0]?.tenantName;
-  const groupsParams = useMemo(() => ({
-    page: 1,
-    pageSize: 50,
-    // Only DRAFT and PUBLISHED accept new members; ACCEPTED/CANCELLED/REJECTED
-    // are terminal per `ServiceGroupValidator.isAddableStatus`.
-    status: 'DRAFT,PUBLISHED',
-    ...(tenantName ? { tenantName } : {}),
-  }), [tenantName]);
-
-  const { data: groupsResp } = usePaginatedQuery<ServiceGroupOption>(
-    ['service-groups', 'addable', tenantName ?? ''],
-    '/v1/service-groups',
-    groupsParams,
-    { enabled: open },
-  );
-  const groupOptions = (groupsResp?.data ?? []).map((g) => ({
-    value: g.id,
-    label: g.name ?? `Group ${g.id.slice(0, 8)} · ${g.scheduledDate}`,
-  }));
-
+  const findGroupsMutation = useFindAddableGroupsForAppointments();
   const eligibilityMutation = useAppointmentsEligibilityCheck(selectedGroupId);
   const addMutation = useAddAppointmentsToGroup(selectedGroupId);
 
   useEffect(() => {
     if (!open) {
       setSelectedGroupId(null);
+      setGroupsState({ phase: 'idle' });
       setEligibility({ phase: 'idle' });
       setAddResult(null);
     }
   }, [open]);
 
-  // Stable key for the selected appointment IDs — avoids re-firing the
-  // eligibility check every time the parent re-renders with a new array
-  // reference that carries the same IDs (e.g. on background map refetch).
+  // Stable key for the appointment IDs — avoids re-firing on parent re-renders.
   const appointmentIdsKey = useMemo(() => appointments.map((a) => a.id).join(','), [appointments]);
 
-  // Fire eligibility-check when a group is picked. Each pick triggers a
-  // fresh check — the backend re-validates so a stale preview can never
-  // commit a now-invalid add.
+  // Fetch addable groups when the modal opens (026 B1 pre-filter).
+  useEffect(() => {
+    if (!open || appointments.length === 0) return;
+    setGroupsState({ phase: 'loading' });
+    findGroupsMutation
+      .mutateAsync({ appointmentIds: appointments.map((a) => a.id) })
+      .then((res) => {
+        setGroupsState({
+          phase: 'ready',
+          groups: res.data.groups,
+          reason: res.data.reason,
+        });
+      })
+      .catch(() => setGroupsState({ phase: 'error' }));
+  }, [open, appointmentIdsKey]);
+
+  const groupOptions = groupsState.phase === 'ready'
+    ? groupsState.groups.map((g) => ({
+        value: g.id,
+        label: g.name ?? `Group · ${g.scheduledDate} · ${g.timeWindow} (${g.currentSize} appts)`,
+      }))
+    : [];
+
+  // Fire eligibility-check when a group is picked.
   useEffect(() => {
     if (!selectedGroupId || !open) return;
     setEligibility({ phase: 'loading' });
-    eligibilityMutation.mutateAsync({
-      appointmentIds: appointments.map((a) => a.id),
-    }).then((res) => {
-      setEligibility({
-        phase: 'ready',
-        eligible: res.data.eligibleAppointmentIds,
-        ineligible: res.data.ineligibleAppointmentIds,
-        groupAccepts: res.data.groupAccepts,
-        groupReasons: res.data.groupReasons,
+    eligibilityMutation
+      .mutateAsync({ appointmentIds: appointments.map((a) => a.id) })
+      .then((res) => {
+        setEligibility({
+          phase: 'ready',
+          eligible: res.data.eligibleAppointmentIds,
+          ineligible: res.data.ineligibleAppointmentIds,
+          groupAccepts: res.data.groupAccepts,
+          groupReasons: res.data.groupReasons,
+        });
+      })
+      .catch((err) => {
+        setEligibility({ phase: 'error', message: err instanceof Error ? err.message : 'Eligibility check failed' });
       });
-    }).catch((err) => {
-      setEligibility({ phase: 'error', message: err instanceof Error ? err.message : 'Eligibility check failed' });
-    });
-    // eligibilityMutation.mutateAsync intentionally omitted from deps;
-    // the react-query mutation object changes identity each render,
-    // which would cause an infinite re-fire loop.
+    // eligibilityMutation.mutateAsync intentionally omitted from deps.
   }, [selectedGroupId, open, appointmentIdsKey]);
 
   const handleAdd = async () => {
@@ -136,13 +127,35 @@ export function MapAddToGroupSubModal({
           Pick a service group to add the {appointments.length} selected appointment{appointments.length === 1 ? '' : 's'} to.
         </p>
 
-        <SelectInput
-          value={selectedGroupId ?? ''}
-          onChange={(v) => setSelectedGroupId(v || null)}
-          options={groupOptions}
-          placeholder="Select a service group…"
-          aria-label="Service group"
-        />
+        {/* Groups loading / empty states */}
+        {groupsState.phase === 'loading' && (
+          <p className="text-xs text-text-muted">Loading compatible groups…</p>
+        )}
+        {groupsState.phase === 'error' && (
+          <p className="text-xs text-error">Failed to load compatible groups. Please try again.</p>
+        )}
+        {groupsState.phase === 'ready' && groupsState.reason === 'MIXED_APPOINTMENT_PROPERTIES' && (
+          <div className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="map-add-to-group-mixed-banner">
+            Selected appointments don&apos;t share service type, date, or time — refine your selection to appointments from the same property group.
+          </div>
+        )}
+        {groupsState.phase === 'ready' && !groupsState.reason && groupsState.groups.length === 0 && (
+          <div className="rounded border border-border-subtle bg-gray-50 px-3 py-2 text-xs text-text-secondary" data-testid="map-add-to-group-empty-banner">
+            No compatible group exists for these appointments.{' '}
+            <span className="font-medium">Create a new group instead.</span>
+          </div>
+        )}
+
+        {/* Group selector — only shown when there are options */}
+        {groupsState.phase === 'ready' && groupsState.groups.length > 0 && (
+          <SelectInput
+            value={selectedGroupId ?? ''}
+            onChange={(v) => setSelectedGroupId(v || null)}
+            options={groupOptions}
+            placeholder="Select a service group…"
+            aria-label="Service group"
+          />
+        )}
 
         {selectedGroupId && eligibility.phase === 'loading' && (
           <p className="text-xs text-text-muted">Checking eligibility…</p>

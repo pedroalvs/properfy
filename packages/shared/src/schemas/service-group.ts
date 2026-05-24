@@ -161,3 +161,28 @@ export const eligibilityCheckResponseSchema = z.object({
   groupReasons: z.array(z.string()),
 });
 export type EligibilityCheckResponse = z.infer<typeof eligibilityCheckResponseSchema>;
+
+// ─── 026 B1 — Find addable groups for appointments ──────────────────────────
+
+export const findAddableGroupsRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+});
+export type FindAddableGroupsRequest = z.infer<typeof findAddableGroupsRequestSchema>;
+
+export const addableGroupSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  status: z.string(),
+  scheduledDate: z.string(),
+  timeWindow: z.string(),
+  currentSize: z.number().int(),
+  serviceTypeName: z.string().nullable(),
+});
+export type AddableGroupSummary = z.infer<typeof addableGroupSummarySchema>;
+
+export const findAddableGroupsResponseSchema = z.object({
+  groups: z.array(addableGroupSummarySchema),
+  /** Set when the selected appointments have mixed properties (different tenantId / serviceTypeId / date / timeSlot). */
+  reason: z.enum(['MIXED_APPOINTMENT_PROPERTIES']).optional(),
+});
+export type FindAddableGroupsResponse = z.infer<typeof findAddableGroupsResponseSchema>;

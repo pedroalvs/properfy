@@ -362,6 +362,7 @@ import { BulkAssignInspectorUseCase } from '../modules/appointment/application/u
 import { BulkReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/bulk-reopen-for-reschedule.use-case';
 import { AddAppointmentsToGroupUseCase } from '../modules/service-group/application/use-cases/add-appointments-to-group.use-case';
 import { CheckAppointmentsEligibilityForGroupUseCase } from '../modules/service-group/application/use-cases/check-appointments-eligibility-for-group.use-case';
+import { FindAddableGroupsForAppointmentsUseCase } from '../modules/service-group/application/use-cases/find-addable-groups-for-appointments.use-case';
 import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
@@ -835,6 +836,11 @@ export function createContainer(logger: Logger): AppContainer {
     authorizationService,
   );
   const checkAppointmentsEligibilityForGroupUseCase = new CheckAppointmentsEligibilityForGroupUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    authorizationService,
+  );
+  const findAddableGroupsForAppointmentsUseCase = new FindAddableGroupsForAppointmentsUseCase(
     serviceGroupRepo,
     appointmentRepo,
     authorizationService,
@@ -1336,6 +1342,7 @@ export function createContainer(logger: Logger): AppContainer {
       republishServiceGroupUseCase,
       addAppointmentsToGroupUseCase,
       checkAppointmentsEligibilityForGroupUseCase,
+      findAddableGroupsForAppointmentsUseCase,
       jwtService,
       tenantRepo,
     },

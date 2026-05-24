@@ -14,6 +14,8 @@ import {
   addAppointmentsToGroupRequestSchema,
   eligibilityCheckRequestSchema,
   eligibilityCheckResponseSchema,
+  findAddableGroupsRequestSchema,
+  findAddableGroupsResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -29,6 +31,7 @@ import type { UpdateServiceGroupUseCase } from '../application/use-cases/update-
 import type { RepublishServiceGroupUseCase } from '../application/use-cases/republish-service-group.use-case';
 import type { AddAppointmentsToGroupUseCase } from '../application/use-cases/add-appointments-to-group.use-case';
 import type { CheckAppointmentsEligibilityForGroupUseCase } from '../application/use-cases/check-appointments-eligibility-for-group.use-case';
+import type { FindAddableGroupsForAppointmentsUseCase } from '../application/use-cases/find-addable-groups-for-appointments.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface ServiceGroupRouteContainer {
@@ -43,6 +46,7 @@ export interface ServiceGroupRouteContainer {
   republishServiceGroupUseCase: RepublishServiceGroupUseCase;
   addAppointmentsToGroupUseCase: AddAppointmentsToGroupUseCase;
   checkAppointmentsEligibilityForGroupUseCase: CheckAppointmentsEligibilityForGroupUseCase;
+  findAddableGroupsForAppointmentsUseCase: FindAddableGroupsForAppointmentsUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -376,6 +380,42 @@ export async function registerServiceGroupRoutes(
         actor: auth,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // 026 B1 — POST /v1/service-groups/find-addable-for-appointments
+  // Read-only — returns only groups the given appointments can actually join.
+  app.post(
+    '/v1/service-groups/find-addable-for-appointments',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: findAddableGroupsRequestSchema,
+        response: {
+          200: successResponseSchema(findAddableGroupsResponseSchema),
+        },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const parsed = findAddableGroupsRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.findAddableGroupsForAppointmentsUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        actor: auth,
+      });
+      return reply.status(200).send(success({
+        groups: result.groups.map((g) => ({
+          ...g,
+          scheduledDate: g.scheduledDate.toISOString().slice(0, 10),
+        })),
+        ...(result.reason ? { reason: result.reason } : {}),
+      }));
     },
   );
 }
