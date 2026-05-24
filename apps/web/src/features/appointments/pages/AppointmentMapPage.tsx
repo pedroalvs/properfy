@@ -188,10 +188,10 @@ export function AppointmentMapPage() {
     error: appointmentsErrorObj,
     refetch: refetchAppointments,
   } = usePaginatedQuery<AppointmentMapItem>(
-    ['appointments-map', mode],
+    ['appointments-map'],
     '/v1/appointments',
     appointmentParams,
-    { enabled: mode === 'appointments', placeholderData: keepPreviousData },
+    { enabled: true, placeholderData: keepPreviousData },
   );
 
   const appointmentData = useMemo(
@@ -223,10 +223,10 @@ export function AppointmentMapPage() {
     error: groupsErrorObj,
     refetch: refetchGroups,
   } = usePaginatedQuery<ServiceGroupMapItem>(
-    ['service-groups-map', mode],
+    ['service-groups-map'],
     '/v1/service-groups',
     groupParams,
-    { enabled: mode === 'groups', placeholderData: keepPreviousData },
+    { enabled: true, placeholderData: keepPreviousData },
   );
 
   const groupData = groupResponse?.data ?? [];
