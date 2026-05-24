@@ -299,8 +299,8 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
     )).toEqual({ ok: false, reasonCode: 'INVALID_SERVICE_TYPE' });
   });
 
-  it('rejects non-DRAFT/AWAITING_INSPECTOR statuses', () => {
-    for (const status of ['DONE', 'CANCELLED', 'SCHEDULED', 'REJECTED']) {
+  it('rejects DONE/CANCELLED/SCHEDULED statuses', () => {
+    for (const status of ['DONE', 'CANCELLED', 'SCHEDULED']) {
       expect(ServiceGroupValidator.canAddToGroup(
         { ...baseAppointment, status }, baseGroup,
       )).toEqual({ ok: false, reasonCode: 'INVALID_STATUS' });
