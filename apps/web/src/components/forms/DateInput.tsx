@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import {
   formInput,
   formInputContainer,
@@ -26,6 +27,7 @@ export function DateInput({
   id,
   'aria-label': ariaLabel,
 }: DateInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const containerClass = disabled
     ? formInputContainerDisabled
     : error
@@ -33,8 +35,12 @@ export function DateInput({
       : formInputContainer;
 
   return (
-    <div className={containerClass}>
+    <div
+      className={containerClass}
+      onClick={() => !disabled && (inputRef.current as any)?.showPicker?.()}
+    >
       <input
+        ref={inputRef}
         type="date"
         id={id}
         className={formInput}
