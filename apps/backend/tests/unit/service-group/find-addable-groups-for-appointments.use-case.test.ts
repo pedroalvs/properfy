@@ -20,6 +20,7 @@ function makeApptResult(overrides: Record<string, unknown> = {}) {
       serviceTypeId: 'svc-1',
       scheduledDate: new Date('2026-07-01T00:00:00.000Z'),
       timeSlot: '09:00-10:00',
+      status: 'DRAFT',
       ...overrides,
     },
     // required fields from AppointmentWithRelations
