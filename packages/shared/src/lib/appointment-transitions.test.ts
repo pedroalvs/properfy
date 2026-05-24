@@ -109,18 +109,21 @@ describe('getValidTransitions — DONE', () => {
 });
 
 describe('getValidTransitions — CANCELLED / REJECTED', () => {
-  it('OP/AM can revive both back to DRAFT', () => {
+  it('OP/AM can revive CANCELLED back to DRAFT and REJECTED to DRAFT or AWAITING_INSPECTOR', () => {
     expect(getValidTransitions(AppointmentStatus.CANCELLED, 'OP')).toEqual([
       AppointmentStatus.DRAFT,
     ]);
     expect(getValidTransitions(AppointmentStatus.CANCELLED, 'AM')).toEqual([
       AppointmentStatus.DRAFT,
     ]);
+    // REJECTED → AWAITING_INSPECTOR added in cycle 5 (groupable) + cycle 6 (TZ-aware re-open)
     expect(getValidTransitions(AppointmentStatus.REJECTED, 'OP')).toEqual([
       AppointmentStatus.DRAFT,
+      AppointmentStatus.AWAITING_INSPECTOR,
     ]);
     expect(getValidTransitions(AppointmentStatus.REJECTED, 'AM')).toEqual([
       AppointmentStatus.DRAFT,
+      AppointmentStatus.AWAITING_INSPECTOR,
     ]);
   });
 

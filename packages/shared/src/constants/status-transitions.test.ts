@@ -38,7 +38,7 @@ describe('VALID_TRANSITIONS', () => {
     expect(VALID_TRANSITIONS.CANCELLED).toEqual(['DRAFT']);
   });
 
-  it('REJECTED can only transition back to DRAFT', () => {
-    expect(VALID_TRANSITIONS.REJECTED).toEqual(['DRAFT']);
+  it('REJECTED can transition to DRAFT or AWAITING_INSPECTOR (cycle 5: groupable + cycle 6: TZ-aware)', () => {
+    expect(VALID_TRANSITIONS.REJECTED).toEqual(['DRAFT', 'AWAITING_INSPECTOR']);
   });
 });

@@ -22,6 +22,7 @@ export const createServiceGroupSchema = z
   .object({
     appointmentIds: z.array(z.string().uuid()).min(1).max(30),
     serviceTypeId: z.string().uuid(),
+    // Temporal validation is TZ-aware and performed in the use case.
     scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     timeWindow: z.string().regex(timeWindowRegex),
     name: z.string().min(1).max(255).optional(),
@@ -30,6 +31,7 @@ export const createServiceGroupSchema = z
     priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
     exceptionType: exceptionTypeEnum.optional(),
     exceptionReason: z.string().min(10).max(1000).optional(),
+    actorTimezone: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -46,12 +48,13 @@ export const updateServiceGroupSchema = z
     name: z.string().min(1).max(255).optional(),
     serviceRegionId: z.string().uuid().nullable().optional(),
     description: z.string().max(5000).optional(),
-    // Draft-only fields
+    // Draft-only fields; temporal validation is TZ-aware and performed in the use case.
     scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     timeWindow: z.string().regex(timeWindowRegex).optional(),
     priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
     exceptionType: exceptionTypeEnum.nullable().optional(),
     exceptionReason: z.string().min(10).max(1000).nullable().optional(),
+    actorTimezone: z.string().optional(),
   })
   .refine(
     (data) => {

@@ -26,10 +26,8 @@ export const createAppointmentSchema = z.object({
   propertyId: z.string().uuid().optional(),
   property: inlinePropertySchema.optional(),
   serviceTypeId: z.string().uuid(),
-  scheduledDate: z.string().date().refine(
-    (val) => val >= todayLocalDateString(),
-    { message: 'Scheduled date cannot be in the past' },
-  ),
+  // Temporal validation (past-date / past-time) is TZ-aware and performed in the use case.
+  scheduledDate: z.string().date(),
   timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format'),
   /** @deprecated Use `contacts` array instead. Kept for backward compat during transition. */
   contact: contactSchema.optional(),
@@ -41,6 +39,7 @@ export const createAppointmentSchema = z.object({
   keyLocation: z.string().max(500).optional(),
   notes: z.string().max(2000).optional(),
   customFields: z.record(z.unknown()).optional(),
+  actorTimezone: z.string().optional(),
 }).refine(
   (data) => !!data.propertyId !== !!data.property,
   { message: 'Must provide either propertyId or property (inline), but not both', path: ['propertyId'] },
@@ -55,6 +54,7 @@ export const createAppointmentSchema = z.object({
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
 export const updateAppointmentSchema = z.object({
+  // Temporal validation (past-date / past-time) is TZ-aware and performed in the use case.
   scheduledDate: z.string().date().optional(),
   timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
   keyRequired: z.boolean().optional(),
@@ -67,13 +67,8 @@ export const updateAppointmentSchema = z.object({
   contacts: appointmentContactsArraySchema.optional(),
   restriction: restrictionSchema.optional(),
   customFields: z.record(z.unknown()).nullable().optional(),
+  actorTimezone: z.string().optional(),
 }).refine(
-  (data) => {
-    if (data.scheduledDate === undefined) return true;
-    return data.scheduledDate >= todayLocalDateString();
-  },
-  { message: 'Scheduled date cannot be in the past', path: ['scheduledDate'] },
-).refine(
   (data) => {
     const hasLegacy = data.contact !== undefined;
     const hasNew = data.contacts !== undefined;
@@ -158,6 +153,7 @@ export const bulkEditAppointmentSchema = z.object({
     { message: 'At least one field must be provided in changes' },
   ),
   options: bulkEditOptionsSchema,
+  actorTimezone: z.string().optional(),
 });
 export type BulkEditAppointmentInput = z.infer<typeof bulkEditAppointmentSchema>;
 

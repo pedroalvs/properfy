@@ -122,7 +122,8 @@ describe('createAppointmentSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should reject a past date (2020-01-01)', () => {
+  it('should accept a past date (temporal validation moved to use case for TZ-awareness)', () => {
+    // Schema only validates date format; past-date rejection is TZ-aware and done in the use case.
     const result = createAppointmentSchema.safeParse({
       branchId: validBranchId,
       propertyId: validPropertyId,
@@ -131,10 +132,7 @@ describe('createAppointmentSchema', () => {
       timeSlot: '09:00-10:00',
       contact: validContact,
     });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues.some((i) => i.message === 'Scheduled date cannot be in the past')).toBe(true);
-    }
+    expect(result.success).toBe(true);
   });
 
   it('should accept today as scheduledDate', () => {
@@ -203,14 +201,12 @@ describe('updateAppointmentSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject a past scheduledDate (2020-01-01)', () => {
+  it('should accept a past scheduledDate (temporal validation moved to use case for TZ-awareness)', () => {
+    // Schema only validates date format; past-date rejection is TZ-aware and done in the use case.
     const result = updateAppointmentSchema.safeParse({
       scheduledDate: '2020-01-01',
     });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues.some((i) => i.message === 'Scheduled date cannot be in the past')).toBe(true);
-    }
+    expect(result.success).toBe(true);
   });
 
   it('should accept today as scheduledDate', () => {
