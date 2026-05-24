@@ -2,11 +2,18 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '../hooks';
-import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, StatCard } from '../components';
+import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, StatCard, InspectorBreakdownSection } from '../components';
+
+function computeTomorrowLabel(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return Intl.DateTimeFormat('en-US', { weekday: 'short', day: 'numeric', month: 'short' }).format(tomorrow);
+}
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const { stats, isLoading } = useDashboardStats();
+  const tomorrowLabel = computeTomorrowLabel();
 
   return (
     <div>
@@ -60,6 +67,15 @@ export function DashboardPage() {
               href="/service-groups"
             />
           </div>
+
+          {stats.inspectorBreakdowns && (
+            <div className="mt-6">
+              <InspectorBreakdownSection
+                breakdowns={stats.inspectorBreakdowns}
+                tomorrowLabel={tomorrowLabel}
+              />
+            </div>
+          )}
         </>
       )}
     </div>
