@@ -7,7 +7,8 @@ import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, Stat
 function computeTomorrowLabel(): string {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  return Intl.DateTimeFormat('en-US', { weekday: 'short', day: 'numeric', month: 'short' }).format(tomorrow);
+  const dateStr = Intl.DateTimeFormat('en-US', { weekday: 'short', day: 'numeric', month: 'short' }).format(tomorrow);
+  return `Tomorrow — ${dateStr}`;
 }
 
 export function DashboardPage() {
