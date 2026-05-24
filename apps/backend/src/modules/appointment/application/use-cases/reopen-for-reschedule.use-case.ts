@@ -61,13 +61,26 @@ export class ReopenForRescheduleUseCase {
     // 1. RBAC: CL_ADMIN can reopen (F1 — Revisor cycle 11); SYS for tenant portal flow.
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'SYS', 'CL_ADMIN'], { action: 'appointment.reopen_reschedule', entityType: 'Appointment' });
 
-    // 2. Find appointment (AM/OP/SYS have global access)
-    const result = await this.appointmentRepo.findById(appointmentId, null);
+    // 2. Resolve tenant scope for lookup. AM and OP are cross-tenant per
+    //    Constitution v1.3.0; SYS carries the appointment's tenant in its
+    //    actor for the tenant-portal flow but is treated as global at lookup.
+    //    CL_ADMIN (and any future CL_* role) is tenant-scoped — pin findById
+    //    to actor.tenantId so an attacker with a foreign appointment ID gets
+    //    a 404, not unintended access (Revisor cycle 2/2 finding).
+    const isTenantScoped = actor.role === 'CL_ADMIN' || actor.role === 'CL_USER';
+    const tenantScope = isTenantScoped ? actor.tenantId : null;
+    const result = await this.appointmentRepo.findById(appointmentId, tenantScope);
     if (!result) {
       throw new AppointmentNotFoundError();
     }
 
     const { appointment } = result;
+
+    // 2b. Defense-in-depth: even if the repository did not filter, reject when
+    //     a tenant-scoped role's claim does not match the appointment's tenant.
+    if (isTenantScoped && appointment.tenantId !== actor.tenantId) {
+      throw new AppointmentNotFoundError();
+    }
 
     // 3. Validate appointment is SCHEDULED
     if (appointment.status !== 'SCHEDULED') {

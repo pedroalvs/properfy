@@ -329,6 +329,75 @@ describe('ReopenForRescheduleUseCase', () => {
     expect(result.status).toBe('DRAFT');
   });
 
+  // Revisor cycle 2/2: CL_ADMIN holding a foreign tenant's appointment id
+  // must not be able to reopen it. The repository receives the actor's
+  // tenantId as scope, and defense-in-depth rejects any mismatch even if
+  // the repo were ever to return data outside scope.
+  it('should reject CL_ADMIN when appointment belongs to another tenant', async () => {
+    // findById receives actor.tenantId for tenant-scoped roles; the repo
+    // returns null (tenant mismatch) — use case throws not-found.
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-foreign',
+        newScheduledDate: '2027-06-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('CL_ADMIN', { tenantId: 'tenant-attacker' }),
+      }),
+    ).rejects.toThrow(AppointmentNotFoundError);
+
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-foreign', 'tenant-attacker');
+  });
+
+  // Defense-in-depth: even if a future repo bug returned an out-of-tenant
+  // appointment for a CL_ADMIN, the explicit ownership check rejects it.
+  it('should reject CL_ADMIN via defense-in-depth when repo returns mismatched tenant', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeWithRelations({ tenantId: 'tenant-victim' }),
+    );
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-victim',
+        newScheduledDate: '2027-06-15',
+        newTimeSlot: '13:00-16:00',
+        actor: makeActor('CL_ADMIN', { tenantId: 'tenant-attacker' }),
+      }),
+    ).rejects.toThrow(AppointmentNotFoundError);
+  });
+
+  // AM and OP must keep cross-tenant access (Constitution v1.3.0): the
+  // repository is called with `null` so platform staff can act on any
+  // appointment regardless of tenant.
+  it('should call findById with null scope for AM actor (cross-tenant preserved)', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeWithRelations());
+    vi.mocked(appointmentRepo.update).mockResolvedValue(undefined as any);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2027-06-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('AM'),
+    });
+
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
+  });
+
+  it('should call findById with null scope for OP actor (cross-tenant preserved)', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeWithRelations());
+    vi.mocked(appointmentRepo.update).mockResolvedValue(undefined as any);
+
+    await useCase.execute({
+      appointmentId: 'appt-1',
+      newScheduledDate: '2027-06-15',
+      newTimeSlot: '13:00-16:00',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
+  });
+
   it('should reject CL_USER actor', async () => {
     await expect(
       useCase.execute({
