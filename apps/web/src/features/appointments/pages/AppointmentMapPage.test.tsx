@@ -101,14 +101,11 @@ function renderPage() {
 }
 
 describe('AppointmentMapPage', () => {
-  it('renders page title', () => {
+  it('renders map screen layout in fullscreen mode (no page title)', () => {
+    // 026 F3: PageHeader removed — map is now fullscreen with no title.
     renderPage();
-    expect(screen.getByText('Appointment Map')).toBeInTheDocument();
-  });
-
-  it('renders List View button', () => {
-    renderPage();
-    expect(screen.getByText('List View')).toBeInTheDocument();
+    expect(screen.queryByText('Appointment Map')).not.toBeInTheDocument();
+    expect(screen.getByTestId('map-screen-layout')).toBeInTheDocument();
   });
 
   it('renders map container', () => {

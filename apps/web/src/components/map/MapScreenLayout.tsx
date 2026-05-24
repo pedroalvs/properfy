@@ -30,17 +30,24 @@ export function MapScreenLayout({
 }: MapScreenLayoutProps) {
   return (
     <div
-      className="relative flex min-h-[calc(100vh-var(--page-padding-y)*2)] flex-col gap-0 md:h-[calc(100vh-var(--page-padding-y)*2)] md:flex-row"
+      className="relative flex h-screen flex-col gap-0 md:flex-row"
       data-testid="map-screen-layout"
     >
       {sidePanelOpen && (
-        <div
-          className="flex max-h-[40vh] flex-col overflow-hidden border-gray-200 bg-card-bg md:absolute md:left-0 md:top-0 md:z-30 md:h-full md:max-h-full md:flex-shrink-0 md:border-r md:shadow-lg"
-          style={{ width: sidePanelWidth, maxWidth: '100%' }}
-          data-testid="map-side-panel"
-        >
-          {sidePanel}
-        </div>
+        <>
+          {/* Semitransparent backdrop visible on desktop behind the overlay panel. */}
+          <div
+            className="pointer-events-none hidden md:absolute md:inset-0 md:z-20 md:block md:bg-black/30 md:backdrop-blur-sm"
+            aria-hidden="true"
+          />
+          <div
+            className="flex max-h-[40vh] flex-col overflow-hidden border-gray-200 bg-card-bg md:absolute md:left-0 md:top-0 md:z-30 md:h-full md:max-h-full md:flex-shrink-0 md:border-r md:shadow-lg"
+            style={{ width: sidePanelWidth, maxWidth: '100%' }}
+            data-testid="map-side-panel"
+          >
+            {sidePanel}
+          </div>
+        </>
       )}
 
       <div
