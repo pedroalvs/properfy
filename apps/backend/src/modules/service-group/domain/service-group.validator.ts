@@ -106,8 +106,8 @@ export class ServiceGroupValidator {
     }
 
     for (const appt of appointments) {
-      // Status must be DRAFT or AWAITING_INSPECTOR (grouping transitions DRAFT → AWAITING_INSPECTOR)
-      if (appt.status !== 'AWAITING_INSPECTOR' && appt.status !== 'DRAFT') {
+      // Groupable statuses: DRAFT and REJECTED auto-transition to AWAITING_INSPECTOR on group join.
+      if (appt.status !== 'AWAITING_INSPECTOR' && appt.status !== 'DRAFT' && appt.status !== 'REJECTED') {
         throw new AppointmentInvalidStatusError(appt.appointmentNumber);
       }
 
@@ -148,7 +148,7 @@ export class ServiceGroupValidator {
     if (appointment.serviceTypeId !== group.serviceTypeId) {
       return { ok: false, reasonCode: 'INVALID_SERVICE_TYPE' };
     }
-    if (appointment.status !== 'DRAFT' && appointment.status !== 'AWAITING_INSPECTOR') {
+    if (appointment.status !== 'DRAFT' && appointment.status !== 'AWAITING_INSPECTOR' && appointment.status !== 'REJECTED') {
       return { ok: false, reasonCode: 'INVALID_STATUS' };
     }
     if (appointment.serviceGroupId !== null) {

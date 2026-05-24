@@ -68,7 +68,8 @@ export class FindAddableGroupsForAppointmentsUseCase {
     if (isMixed) return { groups: [], reason: 'MIXED_APPOINTMENT_PROPERTIES' };
 
     // Pre-condition: all appointments must be in a groupable status.
-    const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR']);
+    // REJECTED is now groupable — it auto-transitions to AWAITING_INSPECTOR on group join (cycle 5).
+    const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR', 'REJECTED']);
     const ineligibleByStatus = valid.filter((a) => !GROUPABLE_STATUSES.has(a.status));
     if (ineligibleByStatus.length > 0) return { groups: [], reason: 'INVALID_APPOINTMENT_STATUS' };
 

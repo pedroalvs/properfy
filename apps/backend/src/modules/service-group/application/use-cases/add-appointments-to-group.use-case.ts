@@ -1,7 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
-import type { ExecuteStatusTransitionUseCase } from '../../../appointment/application/use-cases/execute-status-transition.use-case';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
@@ -44,7 +43,6 @@ export class AddAppointmentsToGroupUseCase {
   constructor(
     private readonly groupRepo: IServiceGroupRepository,
     private readonly appointmentRepo: IAppointmentRepository,
-    private readonly executeStatusTransition: ExecuteStatusTransitionUseCase,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
   ) {}
@@ -113,11 +111,20 @@ export class AddAppointmentsToGroupUseCase {
         await this.groupRepo.linkAppointments([apptId], input.groupId);
         currentSize += 1;
 
-        if (appointment.status === 'DRAFT') {
-          await this.executeStatusTransition.execute({
-            appointmentId: apptId,
-            targetStatus: 'AWAITING_INSPECTOR',
-            actor: input.actor,
+        if (appointment.status === 'DRAFT' || appointment.status === 'REJECTED') {
+          const prevStatus = appointment.status;
+          await this.appointmentRepo.update(apptId, appointment.tenantId, { status: 'AWAITING_INSPECTOR' });
+          this.auditService.log({
+            action: 'appointment.status_transition',
+            actorType: 'USER',
+            actorId: input.actor.userId,
+            entityType: 'Appointment',
+            entityId: apptId,
+            tenantId: appointment.tenantId,
+            before: { status: prevStatus },
+            after: { status: 'AWAITING_INSPECTOR' },
+            reason: `Added to service group ${input.groupId}`,
+            metadata: { systemTriggered: true, groupId: input.groupId, previousStatus: prevStatus },
           });
         }
 

@@ -831,7 +831,6 @@ export function createContainer(logger: Logger): AppContainer {
   const addAppointmentsToGroupUseCase = new AddAppointmentsToGroupUseCase(
     serviceGroupRepo,
     appointmentRepo,
-    executeStatusTransitionUseCase,
     auditService,
     authorizationService,
   );

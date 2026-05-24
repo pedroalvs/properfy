@@ -175,13 +175,23 @@ export class CreateServiceGroupUseCase {
     // 7. Link appointments to group and transition DRAFT ones to AWAITING_INSPECTOR
     await this.serviceGroupRepo.linkAppointments(input.appointmentIds, groupId);
 
-    const draftIds = appointments
-      .filter((appt) => appt.status === 'DRAFT')
-      .map((appt) => appt.id);
+    const transitionIds = appointments
+      .filter((appt) => appt.status === 'DRAFT' || appt.status === 'REJECTED')
+      .map((appt) => ({ id: appt.id, prevStatus: appt.status, tenantId: appt.tenantId }));
 
-    for (const id of draftIds) {
-      await this.appointmentRepo.update(id, appointments.find((a) => a.id === id)!.tenantId, {
-        status: 'AWAITING_INSPECTOR',
+    for (const { id, prevStatus, tenantId: apptTenantId } of transitionIds) {
+      await this.appointmentRepo.update(id, apptTenantId, { status: 'AWAITING_INSPECTOR' });
+      this.auditService.log({
+        action: 'appointment.status_transition',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'Appointment',
+        entityId: id,
+        tenantId: apptTenantId,
+        before: { status: prevStatus },
+        after: { status: 'AWAITING_INSPECTOR' },
+        reason: 'Added to service group',
+        metadata: { systemTriggered: true, groupId, previousStatus: prevStatus },
       });
     }
 

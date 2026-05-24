@@ -213,7 +213,7 @@ export function MapBulkActionModal({
     {
       key: 'client',
       label: 'Client',
-      render: (row) => <span className="text-sm text-text-primary">{row.tenantName ?? '—'}</span>,
+      render: (row) => <span className="text-sm text-text-primary">{row.clientName ?? '—'}</span>,
     },
     {
       key: 'address',
@@ -305,10 +305,10 @@ export function MapBulkActionModal({
   // buttons (not in the dropdown). Both AM/OP only; disabled when:
   //   - no rows checked
   //   - selection spans tenants (cross-tenant grouping is impossible per Regras)
-  //   - any checked row has an ungroupable status (must be DRAFT or AWAITING_INSPECTOR)
+  //   - any checked row has an ungroupable status (must be DRAFT, AWAITING_INSPECTOR, or REJECTED)
   const canAddToGroup = actorRole === 'AM' || actorRole === 'OP';
-  // T-C4-1 L1 — statuses that can be added to a service group.
-  const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR']);
+  // T-C4-1 L1 / T-C5-1 L4 — REJECTED is now groupable (auto-transitions to AWAITING_INSPECTOR on join).
+  const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR', 'REJECTED']);
   const groupButtonState = useMemo<{ disabled: boolean; reason?: string }>(() => {
     if (!canAddToGroup) return { disabled: true, reason: 'Add to group is AM/OP only' };
     if (checkedIds.size === 0) return { disabled: true, reason: 'Tick at least one appointment first' };
@@ -316,10 +316,10 @@ export function MapBulkActionModal({
     if (invalidStatusRows.length > 0) {
       return {
         disabled: true,
-        reason: `${invalidStatusRows.length} selected appointment(s) cannot be grouped (status must be Draft or Awaiting Inspector)`,
+        reason: `${invalidStatusRows.length} selected appointment(s) cannot be grouped (status must be Draft, Awaiting Inspector, or Rejected)`,
       };
     }
-    const tenantNames = new Set(checkedAppointments.map((c) => c.tenantName).filter(Boolean));
+    const tenantNames = new Set(checkedAppointments.map((c) => c.clientName).filter(Boolean));
     if (tenantNames.size > 1) return { disabled: true, reason: 'Selection spans multiple agencies — pick rows from a single agency' };
     return { disabled: false };
   }, [canAddToGroup, checkedIds.size, checkedAppointments]);
