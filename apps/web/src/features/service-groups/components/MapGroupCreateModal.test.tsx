@@ -63,7 +63,10 @@ function renderModal(props: Partial<React.ComponentProps<typeof MapGroupCreateMo
       <MapGroupCreateModal
         open={true}
         onClose={vi.fn()}
-        selectedAppointmentIds={['apt-1', 'apt-2']}
+        selectedAppointments={[
+          { id: 'apt-1', code: 'INS-0001', status: 'DRAFT', propertyAddress: '1 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', tenantName: 'Acme' },
+          { id: 'apt-2', code: 'INS-0002', status: 'DRAFT', propertyAddress: '2 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', tenantName: 'Acme' },
+        ]}
         onSuccess={vi.fn()}
         {...props}
       />

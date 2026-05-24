@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+
 import mapboxgl from 'mapbox-gl';
-import { PageHeader } from '@/components/layout/PageHeader';
 import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
 import { MapMarker } from '@/components/map/MapMarker';
@@ -102,7 +101,7 @@ export function filterAppointmentsByGrouping<T extends { serviceGroupId?: string
 }
 
 export function AppointmentMapPage() {
-  const navigate = useNavigate();
+
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { hasRole } = usePermissions();
@@ -173,6 +172,7 @@ export function AppointmentMapPage() {
     ...(appointmentFilters.timeSlot ? { timeSlot: appointmentFilters.timeSlot } : {}),
     ...(appointmentFilters.contactSearch ? { contactSearch: appointmentFilters.contactSearch } : {}),
     ...(appointmentFilters.confirmationStatus ? { confirmationStatus: appointmentFilters.confirmationStatus } : {}),
+    ...(appointmentFilters.tenantId ? { tenantId: appointmentFilters.tenantId } : {}),
   }), [appointmentFilters]);
 
   const {
@@ -238,6 +238,15 @@ export function AppointmentMapPage() {
     '/v1/service-types',
     (item) => ({ value: item.id, label: item.name }),
     { status: 'ACTIVE' },
+  );
+
+  // Tenant options — AM only (cross-tenant Customers filter).
+  const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
+    ['tenants', 'map-filter'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+    { status: 'ACTIVE' },
+    { enabled: user?.role === 'AM' },
   );
 
   // Branch options
@@ -620,6 +629,8 @@ export function AppointmentMapPage() {
           serviceTypeOptions={serviceTypeOptions}
           branchOptions={branchOptions}
           timeSlotOptions={timeSlotOptions}
+          tenantOptions={tenantOptions}
+          actorRole={actorRole}
         />
       </div>
     </div>
@@ -792,15 +803,8 @@ export function AppointmentMapPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        title="Appointment Map"
-        secondaryActions={[
-          { label: 'List View', icon: 'mdi-format-list-bulleted', onClick: () => navigate('/appointments/list') },
-        ]}
-      />
-      <div className="relative">
-        <MapScreenLayout sidePanel={sidePanel} map={mapContent} sidePanelOpen={filtersOpen} />
+    <div className="relative -mx-4 -mt-4 md:-mx-8 md:-mt-6">
+      <MapScreenLayout sidePanel={sidePanel} map={mapContent} sidePanelOpen={filtersOpen} />
         {/* 026 cycle-1 devolução — render the top-left toggle ONLY while
             the panel is closed. When open, the panel's own close `×`
             button is the canonical affordance; the external toggle was
@@ -812,7 +816,6 @@ export function AppointmentMapPage() {
             </div>
           </div>
         )}
-      </div>
 
       <MapBulkActionModal
         appointments={selectedAppointmentsForPanel}
@@ -867,7 +870,9 @@ export function AppointmentMapPage() {
       <MapGroupCreateModal
         open={groupModalOpen}
         onClose={() => { setGroupModalOpen(false); setGroupModalSeedIds([]); }}
-        selectedAppointmentIds={groupModalSeedIds.length > 0 ? groupModalSeedIds : lassoSelectedIds}
+        selectedAppointments={(groupModalSeedIds.length > 0 ? groupModalSeedIds : lassoSelectedIds)
+          .map((id) => appointmentData.find((a) => a.id === id))
+          .filter(Boolean) as AppointmentMapItem[]}
         onSuccess={handleGroupCreateSuccess}
       />
     </div>

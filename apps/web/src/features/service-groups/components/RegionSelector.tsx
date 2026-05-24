@@ -27,8 +27,8 @@ export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChang
   const selectedRegion = data?.regions?.find((r) => r.regionId === selectedRegionId);
   const unmatchedCount = data?.unmatchedAppointmentIds.length ?? 0;
   const hasPartialMatch = unmatchedCount > 0 && (data?.regions.length ?? 0) > 0;
-  const hasNoMatch = (data?.regions.length ?? 0) === 0 && !isLoading && appointmentIds.length > 0;
-  const noInspectors = selectedRegion && selectedRegion.inspectorCount === 0;
+  const hasNoMatch = (data?.regions.length ?? 0) === 0 && !isLoading && !isError && appointmentIds.length > 0;
+  const noInspectors = !!(selectedRegion && selectedRegion.inspectorCount === 0);
 
   if (isLoading) {
     return (
@@ -37,6 +37,29 @@ export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChang
       </FormField>
     );
   }
+
+  // One banner at a time — priority: isError > hasNoMatch > hasPartialMatch > noInspectors.
+  const banner = isError ? (
+    <InfoBanner>
+      Failed to load regions. Retry or skip — you can add a region when editing the group before publishing.
+    </InfoBanner>
+  ) : hasNoMatch ? (
+    <InfoBanner>
+      No active regions contain these appointments. You can{' '}
+      <a href="/service-regions" target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+        manage regions
+      </a>{' '}
+      or assign an inspector manually after creation.
+    </InfoBanner>
+  ) : hasPartialMatch && selectedRegionId ? (
+    <InfoBanner>
+      {unmatchedCount} of {data!.totalAppointments} appointment{unmatchedCount > 1 ? 's' : ''} could not be matched to any region (missing coordinates or outside all regions).
+    </InfoBanner>
+  ) : noInspectors ? (
+    <InfoBanner>
+      No inspectors are currently assigned to this region. Publishing will not generate marketplace offers until inspectors are assigned.
+    </InfoBanner>
+  ) : null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -54,33 +77,7 @@ export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChang
         />
       </FormField>
 
-      {isError && (
-        <InfoBanner>
-          Failed to load regions. Retry or skip — you can add a region when editing the group before publishing.
-        </InfoBanner>
-      )}
-
-      {hasPartialMatch && selectedRegionId && (
-        <InfoBanner>
-          {unmatchedCount} of {data!.totalAppointments} appointment{unmatchedCount > 1 ? 's' : ''} could not be matched to any region (missing coordinates or outside all regions).
-        </InfoBanner>
-      )}
-
-      {hasNoMatch && (
-        <InfoBanner>
-          No active regions contain these appointments. You can{' '}
-          <a href="/service-regions" target="_blank" rel="noopener noreferrer" className="font-semibold underline">
-            manage regions
-          </a>{' '}
-          or assign an inspector manually after creation.
-        </InfoBanner>
-      )}
-
-      {noInspectors && (
-        <InfoBanner>
-          No inspectors are currently assigned to this region. Publishing will not generate marketplace offers until inspectors are assigned.
-        </InfoBanner>
-      )}
+      {banner}
     </div>
   );
 }

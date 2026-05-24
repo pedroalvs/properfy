@@ -14,6 +14,7 @@ import { PriorityModeSelect } from './PriorityModeSelect';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
+import type { AppointmentMapItem } from '@/features/appointments/hooks/useAppointmentMapData';
 
 const EXCEPTION_TYPE_OPTIONS = [
   { value: '', label: 'None (standard group)' },
@@ -25,16 +26,20 @@ const EXCEPTION_TYPE_OPTIONS = [
 interface MapGroupCreateModalProps {
   open: boolean;
   onClose: () => void;
-  selectedAppointmentIds: string[];
+  /** Full appointment objects — tenantId extracted for region resolution. */
+  selectedAppointments: AppointmentMapItem[];
   onSuccess: () => void;
 }
 
 export function MapGroupCreateModal({
   open,
   onClose,
-  selectedAppointmentIds,
+  selectedAppointments,
   onSuccess,
 }: MapGroupCreateModalProps) {
+  const selectedAppointmentIds = selectedAppointments.map((a) => a.id);
+  // Lasso guarantees same-tenant, so the first item's tenantId is representative.
+  const tenantId = selectedAppointments[0]?.tenantId;
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useSnackbar();
 
@@ -150,6 +155,7 @@ export function MapGroupCreateModal({
             appointmentIds={selectedAppointmentIds}
             selectedRegionId={serviceRegionId}
             onRegionChange={setServiceRegionId}
+            tenantId={tenantId}
           />
         </FormField>
 

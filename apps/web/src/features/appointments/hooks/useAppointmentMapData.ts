@@ -12,6 +12,8 @@ export interface AppointmentMapItem {
   timeSlot: string;
   inspectorName: string | null;
   branchName: string;
+  /** Tenant ID — used for cross-tenant operations (e.g. region resolution for AM/OP). */
+  tenantId?: string;
   /** Tenant (agency) display name — column 1 of the MapBulkActionModal. */
   tenantName?: string;
   /** Primary contact name for the appointment (may be empty when not loaded). */
