@@ -110,7 +110,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('AM'),
     });
@@ -119,7 +119,7 @@ describe('ReopenForRescheduleUseCase', () => {
     expect(result.previousStatus).toBe('SCHEDULED');
     expect(result.status).toBe('DRAFT');
     expect(result.previousScheduledDate).toBe('2026-04-10');
-    expect(result.scheduledDate).toBe('2026-04-15');
+    expect(result.scheduledDate).toBe('2027-06-15');
     expect(result.previousTimeSlot).toBe('09:00-12:00');
     expect(result.timeSlot).toBe('13:00-16:00');
     expect(result.previousInspectorId).toBe('insp-1');
@@ -129,7 +129,7 @@ describe('ReopenForRescheduleUseCase', () => {
     // Verify repository update call
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
       status: 'DRAFT',
-      scheduledDate: new Date('2026-04-15'),
+      scheduledDate: new Date('2027-06-15'),
       timeSlot: '13:00-16:00',
       inspectorId: null,
       tenantConfirmationStatus: 'PENDING',
@@ -143,13 +143,13 @@ describe('ReopenForRescheduleUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-20',
+      newScheduledDate: '2027-06-20',
       newTimeSlot: '08:00-11:00',
       actor: makeActor('SYS' as AuthContext['role']),
     });
 
     expect(result.status).toBe('DRAFT');
-    expect(result.scheduledDate).toBe('2026-04-20');
+    expect(result.scheduledDate).toBe('2027-06-20');
   });
 
   it('should reopen a SCHEDULED appointment for reschedule (OP actor)', async () => {
@@ -158,7 +158,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-18',
+      newScheduledDate: '2027-06-18',
       newTimeSlot: '10:00-13:00',
       actor: makeActor('OP'),
     });
@@ -172,7 +172,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       reason: 'Tenant requested new date',
       actor: makeActor('AM'),
@@ -194,7 +194,7 @@ describe('ReopenForRescheduleUseCase', () => {
       },
       after: {
         status: 'DRAFT',
-        scheduledDate: '2026-04-15',
+        scheduledDate: '2027-06-15',
         timeSlot: '13:00-16:00',
         inspectorId: null,
         tenantConfirmationStatus: 'PENDING',
@@ -213,7 +213,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('SYS' as AuthContext['role']),
     });
@@ -232,7 +232,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('AM'),
     });
@@ -250,7 +250,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
@@ -268,7 +268,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
@@ -281,7 +281,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
@@ -294,7 +294,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
@@ -307,7 +307,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'nonexistent',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('AM'),
       }),
@@ -318,7 +318,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('CL_ADMIN'),
       }),
@@ -331,7 +331,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('CL_USER'),
       }),
@@ -342,7 +342,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await expect(
       useCase.execute({
         appointmentId: 'appt-1',
-        newScheduledDate: '2026-04-15',
+        newScheduledDate: '2027-06-15',
         newTimeSlot: '13:00-16:00',
         actor: makeActor('INSP'),
       }),
@@ -357,7 +357,7 @@ describe('ReopenForRescheduleUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('AM'),
     });
@@ -399,7 +399,7 @@ describe('ReopenForRescheduleUseCase — token revoke (026 §FR-543)', () => {
 
     await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('OP'),
     });
@@ -429,7 +429,7 @@ describe('ReopenForRescheduleUseCase — token revoke (026 §FR-543)', () => {
 
     await useCase.execute({
       appointmentId: 'appt-1',
-      newScheduledDate: '2026-04-15',
+      newScheduledDate: '2027-06-15',
       newTimeSlot: '13:00-16:00',
       actor: makeActor('OP'),
     });
