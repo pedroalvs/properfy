@@ -181,9 +181,10 @@ export class CreateServiceGroupUseCase {
 
     for (const { id, prevStatus, tenantId: apptTenantId } of transitionIds) {
       await this.appointmentRepo.update(id, apptTenantId, { status: 'AWAITING_INSPECTOR' });
+      // DRAFT→AWAITING_INSPECTOR rule = OP+SYS (system-triggered); REJECTED→AWAITING_INSPECTOR rule = OP+AM (actor-driven).
       this.auditService.log({
         action: 'appointment.status_transition',
-        actorType: 'USER',
+        actorType: prevStatus === 'DRAFT' ? 'SYSTEM' : 'USER',
         actorId: actor.userId,
         entityType: 'Appointment',
         entityId: id,
@@ -191,7 +192,7 @@ export class CreateServiceGroupUseCase {
         before: { status: prevStatus },
         after: { status: 'AWAITING_INSPECTOR' },
         reason: 'Added to service group',
-        metadata: { systemTriggered: true, groupId, previousStatus: prevStatus },
+        metadata: { systemTriggered: prevStatus === 'DRAFT', groupId, previousStatus: prevStatus },
       });
     }
 

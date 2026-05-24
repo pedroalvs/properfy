@@ -111,8 +111,23 @@ export class AddAppointmentsToGroupUseCase {
         await this.groupRepo.linkAppointments([apptId], input.groupId);
         currentSize += 1;
 
-        if (appointment.status === 'DRAFT' || appointment.status === 'REJECTED') {
-          const prevStatus = appointment.status;
+        if (appointment.status === 'DRAFT') {
+          // DRAFT→AWAITING_INSPECTOR rule = OP+SYS; system-triggered by group add.
+          await this.appointmentRepo.update(apptId, appointment.tenantId, { status: 'AWAITING_INSPECTOR' });
+          this.auditService.log({
+            action: 'appointment.status_transition',
+            actorType: 'SYSTEM',
+            actorId: input.actor.userId,
+            entityType: 'Appointment',
+            entityId: apptId,
+            tenantId: appointment.tenantId,
+            before: { status: 'DRAFT' },
+            after: { status: 'AWAITING_INSPECTOR' },
+            reason: `Added to service group ${input.groupId}`,
+            metadata: { systemTriggered: true, groupId: input.groupId, previousStatus: 'DRAFT' },
+          });
+        } else if (appointment.status === 'REJECTED') {
+          // REJECTED→AWAITING_INSPECTOR rule = OP+AM; actor is real (not system).
           await this.appointmentRepo.update(apptId, appointment.tenantId, { status: 'AWAITING_INSPECTOR' });
           this.auditService.log({
             action: 'appointment.status_transition',
@@ -121,10 +136,10 @@ export class AddAppointmentsToGroupUseCase {
             entityType: 'Appointment',
             entityId: apptId,
             tenantId: appointment.tenantId,
-            before: { status: prevStatus },
+            before: { status: 'REJECTED' },
             after: { status: 'AWAITING_INSPECTOR' },
             reason: `Added to service group ${input.groupId}`,
-            metadata: { systemTriggered: true, groupId: input.groupId, previousStatus: prevStatus },
+            metadata: { systemTriggered: false, groupId: input.groupId, previousStatus: 'REJECTED' },
           });
         }
 
