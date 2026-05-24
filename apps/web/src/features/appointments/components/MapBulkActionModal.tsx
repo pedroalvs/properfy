@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, type ReactNode } from 'react';
+import { useResizableWidth } from '@/hooks/useResizableWidth';
 import { Dialog } from '@/components/ui/Dialog';
 import { ViewportAwareDropdown } from '@/components/ui/ViewportAwareDropdown';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
@@ -101,6 +102,13 @@ export function MapBulkActionModal({
   onActionComplete,
   position = 'top-right',
 }: MapBulkActionModalProps) {
+  const { widthPx, isDragging, onHandleMouseDown } = useResizableWidth({
+    initialPx: Math.round(window.innerWidth * 0.6),
+    minPx: 480,
+    maxPx: Math.round(window.innerWidth * 0.9),
+    storageKey: 'appointments-map.bulk-modal.width',
+  });
+
   // Default UNCHECKED per mockup empty-state: nothing happens until the user
   // explicitly ticks at least one row. The footer state matrix matches this.
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
@@ -501,9 +509,9 @@ export function MapBulkActionModal({
   if (position === 'top-right') {
     return (
       <div
-        className="fixed right-4 top-4 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl"
+        className={`fixed right-4 top-4 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl${isDragging ? ' select-none' : ''}`}
         style={{
-          width: 'min(480px, calc(100vw - 32px))',
+          width: `min(${widthPx}px, calc(100vw - 32px))`,
           maxHeight: 'calc(100vh - 32px)',
           pointerEvents: 'auto',
         }}
@@ -512,6 +520,15 @@ export function MapBulkActionModal({
         aria-label="Bulk actions"
         data-testid="map-bulk-action-modal"
       >
+        {/* Left-edge resize handle — hidden on mobile (< 640px). */}
+        <div
+          className="absolute left-0 top-0 hidden h-full w-1.5 cursor-col-resize items-center justify-center sm:flex"
+          onMouseDown={onHandleMouseDown}
+          aria-hidden="true"
+        >
+          <div className="h-8 w-0.5 rounded-full bg-border-subtle opacity-60" />
+        </div>
+
         <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
           <h2 className="text-sm font-semibold text-text-primary">Bulk actions</h2>
           <button
