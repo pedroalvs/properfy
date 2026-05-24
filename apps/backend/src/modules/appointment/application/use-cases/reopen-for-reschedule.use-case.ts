@@ -4,7 +4,8 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ITenantPortalTokenRepository } from '../../../tenant-portal/domain/tenant-portal-token.repository';
 import { DomainError } from '../../../../shared/domain/errors';
-import { AppointmentNotFoundError } from '../../domain/appointment.errors';
+import { AppointmentNotFoundError, AppointmentDateInPastError, AppointmentTimeInPastError } from '../../domain/appointment.errors';
+import { validateEditedSchedule } from '@properfy/shared';
 
 export class AppointmentNotScheduledError extends DomainError {
   constructor(currentStatus: string) {
@@ -21,6 +22,7 @@ export interface ReopenForRescheduleInput {
   newScheduledDate: string; // YYYY-MM-DD
   newTimeSlot: string; // HH:mm-HH:mm
   reason?: string;
+  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -70,6 +72,20 @@ export class ReopenForRescheduleUseCase {
     // 3. Validate appointment is SCHEDULED
     if (appointment.status !== 'SCHEDULED') {
       throw new AppointmentNotScheduledError(appointment.status);
+    }
+
+    // 3b. TZ-aware past-date/time validation for the new schedule (R7: falls back to UTC).
+    const tz = input.actorTimezone ?? 'UTC';
+    const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
+    const scheduleCheck = validateEditedSchedule({
+      existingDate: existingDateStr,
+      existingTimeSlot: appointment.timeSlot,
+      newDate: newScheduledDate,
+      newTimeSlot,
+      tz,
+    });
+    if (!scheduleCheck.ok) {
+      throw scheduleCheck.code === 'TIME_IN_PAST' ? new AppointmentTimeInPastError() : new AppointmentDateInPastError();
     }
 
     // 4. Capture before state for audit

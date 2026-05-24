@@ -13,7 +13,10 @@ import {
   AppointmentNotFoundError,
   AppointmentUpdateNotAllowedError,
   AppointmentPastDateError,
+  AppointmentDateInPastError,
+  AppointmentTimeInPastError,
 } from '../../domain/appointment.errors';
+import { validateEditedSchedule } from '@properfy/shared';
 import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
@@ -59,6 +62,7 @@ export interface UpdateAppointmentInput {
       source: RestrictionSource;
     } | null;
   };
+  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -160,11 +164,19 @@ export class UpdateAppointmentUseCase {
       }
     }
 
-    // Reject past dates (AM/OP bypass) — UTC comparison for server consistency
-    if (data.scheduledDate !== undefined) {
-      const todayStr = this.clock.now().toISOString().split('T')[0]!;
-      if (data.scheduledDate < todayStr && actor.role !== 'AM' && actor.role !== 'OP') {
-        throw new AppointmentPastDateError();
+    // TZ-aware past-date/time validation for date or time changes. Falls back to UTC (R7).
+    if (data.scheduledDate !== undefined || data.timeSlot !== undefined) {
+      const tz = input.actorTimezone ?? 'UTC';
+      const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
+      const scheduleCheck = validateEditedSchedule({
+        existingDate: existingDateStr,
+        existingTimeSlot: appointment.timeSlot,
+        newDate: data.scheduledDate,
+        newTimeSlot: data.timeSlot,
+        tz,
+      });
+      if (!scheduleCheck.ok) {
+        throw scheduleCheck.code === 'TIME_IN_PAST' ? new AppointmentTimeInPastError() : new AppointmentDateInPastError();
       }
     }
 

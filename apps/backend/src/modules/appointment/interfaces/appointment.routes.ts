@@ -195,6 +195,7 @@ export async function registerAppointmentRoutes(
       const result = await container.updateAppointmentUseCase.execute({
         appointmentId: params.data.appointmentId,
         data: parsed.data,
+        actorTimezone: parsed.data.actorTimezone,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -578,6 +579,7 @@ export async function registerAppointmentRoutes(
         ids: parsed.data.ids,
         changes: parsed.data.changes,
         options: parsed.data.options,
+        actorTimezone: parsed.data.actorTimezone,
         actor: auth,
         requestId: (request as any).requestId,
       });

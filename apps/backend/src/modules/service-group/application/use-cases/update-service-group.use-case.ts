@@ -7,7 +7,10 @@ import {
   ServiceGroupNotDraftError,
   ServiceGroupInvalidStatusError,
   PriorityDateTooCloseError,
+  ServiceGroupDateInPastError,
+  ServiceGroupTimeInPastError,
 } from '../../domain/service-group.errors';
+import { validateEditedSchedule } from '@properfy/shared';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
@@ -31,6 +34,7 @@ export interface UpdateServiceGroupInput {
   priorityMode?: PriorityMode;
   exceptionType?: ServiceGroupExceptionType | null;
   exceptionReason?: string | null;
+  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -92,6 +96,22 @@ export class UpdateServiceGroupUseCase {
     );
     if (hasDraftOnlyFields && group.status !== 'DRAFT') {
       throw new ServiceGroupNotDraftError();
+    }
+
+    // TZ-aware past-date/time validation when date or window changes (R7: falls back to UTC).
+    if (input.scheduledDate !== undefined || input.timeWindow !== undefined) {
+      const tz = input.actorTimezone ?? 'UTC';
+      const existingDateStr = group.scheduledDate.toISOString().slice(0, 10);
+      const scheduleCheck = validateEditedSchedule({
+        existingDate: existingDateStr,
+        existingTimeSlot: group.timeWindow,
+        newDate: input.scheduledDate,
+        newTimeSlot: input.timeWindow,
+        tz,
+      });
+      if (!scheduleCheck.ok) {
+        throw scheduleCheck.code === 'TIME_IN_PAST' ? new ServiceGroupTimeInPastError() : new ServiceGroupDateInPastError();
+      }
     }
 
     // Build the update payload

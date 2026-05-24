@@ -63,6 +63,7 @@ export class BulkRescheduleAppointmentsUseCase {
             scheduledDate: newDate,
             ...(input.newTimeSlot ? { timeSlot: input.newTimeSlot } : {}),
           },
+          actorTimezone: input.actorTimezone,
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId, status: 'OK' };

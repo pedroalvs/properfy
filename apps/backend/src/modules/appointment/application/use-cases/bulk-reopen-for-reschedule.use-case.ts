@@ -114,6 +114,7 @@ export class BulkReopenForRescheduleUseCase {
           newScheduledDate: input.newDate.length >= 10 ? input.newDate.slice(0, 10) : input.newDate,
           newTimeSlot: input.newTimeSlot,
           ...(input.reason ? { reason: input.reason } : {}),
+          actorTimezone: input.actorTimezone,
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId: apptId, status: 'OK' };

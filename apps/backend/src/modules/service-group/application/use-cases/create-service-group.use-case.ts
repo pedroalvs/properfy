@@ -9,7 +9,8 @@ import type { ITenantRepository } from '../../../tenant/domain/tenant.repository
 import { ServiceGroupEntity } from '../../domain/service-group.entity';
 import { ServiceGroupValidator } from '../../domain/service-group.validator';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
-import { PriorityDateTooCloseError, ServiceRegionInactiveError } from '../../domain/service-group.errors';
+import { PriorityDateTooCloseError, ServiceRegionInactiveError, ServiceGroupDateInPastError, ServiceGroupTimeInPastError } from '../../domain/service-group.errors';
+import { validateNewSchedule } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import type { PriorityMode } from '@properfy/shared';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
@@ -25,6 +26,7 @@ export interface CreateServiceGroupInput {
   priorityMode: PriorityMode;
   exceptionType?: ServiceGroupExceptionType;
   exceptionReason?: string;
+  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -68,6 +70,13 @@ export class CreateServiceGroupUseCase {
 
     // 1. RBAC
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.create', entityType: 'ServiceGroup' });
+
+    // 1b. TZ-aware past-date/time validation (R7: falls back to UTC when tz absent).
+    const tz = input.actorTimezone ?? 'UTC';
+    const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeWindow, tz });
+    if (!scheduleCheck.ok) {
+      throw scheduleCheck.code === 'TIME_IN_PAST' ? new ServiceGroupTimeInPastError() : new ServiceGroupDateInPastError();
+    }
 
     // 2. Load and validate appointments
     const appointments = [];
