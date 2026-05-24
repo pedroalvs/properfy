@@ -14,7 +14,9 @@ describe('MapScreenLayout', () => {
     expect(screen.getByText('Map Content')).toBeInTheDocument();
   });
 
-  it('renders layout container', () => {
+  it('renders layout container (cycle 4: floating card, full-viewport map)', () => {
+    // Cycle 4: the layout root is `relative h-screen` — the map fills
+    // the full viewport and the filter panel floats at position:fixed.
     render(
       <MapScreenLayout
         sidePanel={<div>Panel</div>}
@@ -23,11 +25,11 @@ describe('MapScreenLayout', () => {
     );
     const layout = screen.getByTestId('map-screen-layout');
     expect(layout).toBeInTheDocument();
-    expect(layout).toHaveClass('flex-col');
-    expect(layout).toHaveClass('md:flex-row');
+    expect(layout).toHaveClass('h-screen');
   });
 
-  it('renders side panel with default width', () => {
+  it('renders floating panel with position:fixed left-4 top-4 (cycle 4)', () => {
+    // Cycle 4: panel is fixed-positioned, not an absolute overlay with a width prop.
     render(
       <MapScreenLayout
         sidePanel={<div>Panel</div>}
@@ -35,8 +37,11 @@ describe('MapScreenLayout', () => {
       />,
     );
     const panel = screen.getByTestId('map-side-panel');
-    expect(panel).toHaveStyle({ width: '400px' });
-    expect(panel).toHaveStyle({ maxWidth: '100%' });
+    expect(panel).toHaveClass('fixed');
+    expect(panel).toHaveClass('left-4');
+    expect(panel).toHaveClass('top-4');
+    // Backdrop is REMOVED — the dark md:bg-black/30 overlay no longer exists.
+    expect(document.querySelector('.md\\:bg-black\\/30')).toBeNull();
   });
 
   it('hides side panel completely when sidePanelOpen is false (026 cycle-1 devolução)', () => {
