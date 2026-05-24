@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 import type { PortalAppointment } from '../types';
@@ -70,10 +70,20 @@ vi.mock('@/components/forms/Textarea', () => ({
 
 import { RescheduleForm } from './RescheduleForm';
 
+// Use a dynamic scheduledDate (3 days from now) so the 30-day reschedule
+// window guard never trips on CI date drift. Tests that submit
+// `Date.now() + 7 days` land 4 days after this anchor — comfortably inside
+// the window. Avoiding `vi.useFakeTimers` here keeps timer-driven Testing
+// Library queries (`findByText`, `waitFor`) on real time so React state
+// transitions resolve as expected.
+const SCHEDULED_DATE_ANCHOR = new Date(Date.now() + 3 * 24 * 3600 * 1000)
+  .toISOString()
+  .split('T')[0]!;
+
 const BASE_APPOINTMENT: PortalAppointment = {
   id: 'apt-1',
   status: AppointmentStatus.SCHEDULED,
-  scheduledDate: '2026-04-15',
+  scheduledDate: SCHEDULED_DATE_ANCHOR,
   timeSlot: '09:00-11:00',
   serviceTypeId: 'svc-1',
   tenantConfirmationStatus: TenantConfirmationStatus.PENDING,
@@ -81,18 +91,6 @@ const BASE_APPOINTMENT: PortalAppointment = {
   meetingLocation: null,
   notes: null,
 };
-
-// Freeze "now" at 2026-04-10 so the mock scheduledDate (2026-04-15) stays in
-// the future and the 30-day reschedule window guard never trips on CI date
-// drift. Tests submit `Date.now() + 7 days` → 2026-04-17, inside the window.
-beforeAll(() => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
-  vi.setSystemTime(new Date('2026-04-10T00:00:00.000Z'));
-});
-
-afterAll(() => {
-  vi.useRealTimers();
-});
 
 describe('RescheduleForm', () => {
   beforeEach(() => {
