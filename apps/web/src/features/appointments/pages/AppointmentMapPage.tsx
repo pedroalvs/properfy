@@ -82,21 +82,20 @@ function computeGroupCentroid(
 }
 
 /**
- * Issue #2 (UX smoke) — pure helper for the "Show grouped" filter so the
- * toggle behaviour is testable in isolation. The toggle is a SWITCH:
- *   - `showGrouped = true`  → return ONLY appointments with a
- *     `serviceGroupId` (i.e. members of a service group).
+ * Cycle 8 fix — "Show grouped" is an ADDITIVE toggle, not an exclusive switch:
+ *   - `showGrouped = true`  → return ALL appointments (individual + grouped).
+ *     The backend already returns all when ungroupedOnly is not set.
  *   - `showGrouped = false` → return ONLY the individual (non-grouped)
- *     appointments.
- * Exported so `AppointmentMapPage.test.tsx` can pin the logic without
- * needing to mock the full map render.
+ *     appointments (backend also filters via ungroupedOnly=true for performance).
+ *
+ * Exported so `AppointmentMapPage.filter.test.ts` can pin the logic.
  */
 export function filterAppointmentsByGrouping<T extends { serviceGroupId?: string | null }>(
   items: T[],
   showGrouped: boolean,
 ): T[] {
   if (showGrouped) {
-    return items.filter((item) => Boolean(item.serviceGroupId));
+    return items; // ALL — "include grouped" means show everything
   }
   return items.filter((item) => !item.serviceGroupId);
 }
@@ -168,6 +167,10 @@ export function AppointmentMapPage() {
   const appointmentParams: ListParams = useMemo(() => ({
     page: 1,
     pageSize: 100,
+    // ungroupedOnly: when the toggle is OFF, ask the backend to pre-filter so
+    // only non-grouped appointments are returned (performance + semantic alignment).
+    // When the toggle is ON the backend returns all and the client shows all.
+    ...(appointmentFilters.showGrouped ? {} : { ungroupedOnly: true }),
     ...(appointmentFilters.statuses.length > 0 ? { status: appointmentFilters.statuses.join(',') } : {}),
     ...(appointmentFilters.search ? { search: appointmentFilters.search } : {}),
     ...(appointmentFilters.serviceTypeId ? { serviceTypeId: appointmentFilters.serviceTypeId } : {}),

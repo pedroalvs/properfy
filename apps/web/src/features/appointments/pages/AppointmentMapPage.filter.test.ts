@@ -1,14 +1,11 @@
 /**
- * Issue #2 (UX smoke) anti-regression — pin the SWITCH semantics of the
- * "Show grouped appointments" toggle on the /appointments map page.
+ * Cycle 8 fix — "Show grouped" is an ADDITIVE toggle:
+ *   - off → only individual (non-grouped) appointments (backend also sends ungroupedOnly).
+ *   - on  → ALL appointments (individual + grouped combined).
  *
- * The toggle is a switch, not an additive checkbox:
- *   - off → only individual (non-grouped) appointments.
- *   - on  → only appointments that belong to a service group.
- *
- * Pre-fix the `on` branch returned every item, which is what the
- * smoke caught. The behaviour now lives in the exported pure helper
- * `filterAppointmentsByGrouping` for surgical testing.
+ * Cycle 8 corrected: the toggle was previously an exclusive switch where
+ * `on` showed only grouped, leaving the view empty when grouped appointments
+ * weren't in the response. Now `on` means "include grouped" = show everything.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -28,9 +25,9 @@ describe('filterAppointmentsByGrouping — Issue #2', () => {
     expect(result.map((r) => r.id)).toEqual(['a', 'c', 'e']);
   });
 
-  it('ON: returns only appointments that belong to a service group', () => {
+  it('ON: returns ALL appointments (individual + grouped combined)', () => {
     const result = filterAppointmentsByGrouping(SEED, true);
-    expect(result.map((r) => r.id)).toEqual(['b', 'd']);
+    expect(result.map((r) => r.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
   });
 
   it('OFF + empty input: returns []', () => {
@@ -41,10 +38,10 @@ describe('filterAppointmentsByGrouping — Issue #2', () => {
     expect(filterAppointmentsByGrouping([], true)).toEqual([]);
   });
 
-  it('treats an empty-string serviceGroupId as "not grouped" (defence against backend quirk)', () => {
+  it('OFF: treats an empty-string serviceGroupId as "not grouped" (defence against backend quirk)', () => {
     // Defensive: if the backend ever emits an empty string instead of
     // `null`, Boolean(emptyString) is false, so the item is classified
-    // as individual. This keeps the toggle behaviour predictable.
+    // as individual. This keeps the toggle-off behaviour predictable.
     const result = filterAppointmentsByGrouping(
       [{ id: 'x', serviceGroupId: '' }],
       false,
