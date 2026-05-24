@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 
 import mapboxgl from 'mapbox-gl';
@@ -126,6 +127,10 @@ export function AppointmentMapPage() {
   // 026 §FR-510 — Add-to-group sub-modal seeded from the bulk modal footer.
   const [addToGroupOpen, setAddToGroupOpen] = useState(false);
   const [addToGroupSeedIds, setAddToGroupSeedIds] = useState<string[]>([]);
+  // T-C4-4 — tracks bulk modal width so flyTo can pad right by modalWidth+32
+  // to keep the focused marker visible beside the modal.
+  const [bulkModalWidth, setBulkModalWidth] = useState(() => Math.round(window.innerWidth * 0.6));
+
   // 026 §FR-570 — Filter panel collapse + sessionStorage persistence.
   // Default CLOSED on first load; the toggle button at top-left re-opens
   // the panel. The state survives reload because the operator typically
@@ -178,6 +183,7 @@ export function AppointmentMapPage() {
   const {
     data: appointmentResponse,
     isLoading: appointmentsLoading,
+    isFetching: appointmentsFetching,
     isError: appointmentsError,
     error: appointmentsErrorObj,
     refetch: refetchAppointments,
@@ -185,7 +191,7 @@ export function AppointmentMapPage() {
     ['appointments-map', mode],
     '/v1/appointments',
     appointmentParams,
-    { enabled: mode === 'appointments' },
+    { enabled: mode === 'appointments', placeholderData: keepPreviousData },
   );
 
   const appointmentData = useMemo(
@@ -212,6 +218,7 @@ export function AppointmentMapPage() {
   const {
     data: groupResponse,
     isLoading: groupsLoading,
+    isFetching: groupsFetching,
     isError: groupsError,
     error: groupsErrorObj,
     refetch: refetchGroups,
@@ -219,13 +226,14 @@ export function AppointmentMapPage() {
     ['service-groups-map', mode],
     '/v1/service-groups',
     groupParams,
-    { enabled: mode === 'groups' },
+    { enabled: mode === 'groups', placeholderData: keepPreviousData },
   );
 
   const groupData = groupResponse?.data ?? [];
 
   // Shared loading/error states
   const isLoading = mode === 'appointments' ? appointmentsLoading : groupsLoading;
+  const isFetching = mode === 'appointments' ? appointmentsFetching : groupsFetching;
   const isError = mode === 'appointments' ? appointmentsError : groupsError;
   const errorMessage = mode === 'appointments'
     ? appointmentsErrorObj?.message ?? null
@@ -581,17 +589,15 @@ export function AppointmentMapPage() {
   //    filters so the operator is never silently stuck on a stale view.
   const sidePanel = (
     <div className="flex h-full flex-col" data-testid="map-side-panel-content">
-      <div className="flex items-start justify-between border-b border-gray-200 px-4 py-3">
-        <div>
-          <h2 className="text-base font-bold text-secondary">Filters</h2>
-          <p className="text-xs text-text-muted">
-            {mode === 'appointments'
-              ? `${appointmentData.length} appointments on map`
-              : `${groupData.length} groups on map`}
-          </p>
-        </div>
-        {/* 026 §FR-570 — Close button inside the panel header so the
-            operator can collapse without hunting for the top-left toggle. */}
+      <div className="flex items-center justify-between border-b border-border-subtle px-3 py-2">
+        <h2 className="text-sm font-semibold text-text-primary">
+          Filters{' '}
+          <span className="font-normal text-text-muted">
+            · {mode === 'appointments'
+              ? `${appointmentData.length} appointments`
+              : `${groupData.length} groups`}
+          </span>
+        </h2>
         <button
           type="button"
           onClick={toggleFilters}
@@ -608,9 +614,16 @@ export function AppointmentMapPage() {
           <ErrorState message={errorMessage ?? 'Failed to load'} onRetry={refetch} />
         </div>
       )}
+      {/* T-C4-6 — first load: full skeleton; background refetch with stale data: inline spinner */}
       {isLoading && (
         <div className="border-b border-border-subtle px-4 py-2">
           <LoadingState />
+        </div>
+      )}
+      {isFetching && !isLoading && (
+        <div className="flex items-center gap-1.5 border-b border-border-subtle px-3 py-1.5">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-border-subtle border-t-real-estate" aria-hidden="true" />
+          <span className="text-xs text-text-muted">Updating…</span>
         </div>
       )}
 
@@ -826,11 +839,22 @@ export function AppointmentMapPage() {
         clUserFlags={clUserFlags}
         onAddToGroup={handleOpenAddToGroup}
         onCreateGroup={handleOpenCreateGroup}
-        // 026 §FR-560 — clicking the code pill in any row opens the
-        // detail popup for that appointment without closing the modal.
+        // T-C4-4 — track modal width so flyTo right-padding stays in sync
+        onResize={setBulkModalWidth}
+        // 026 §FR-560 + T-C4-4 — clicking the code pill opens the detail popup
+        // and flies the map to the pin, padding right by the modal width.
         onOpenDetailPanel={(id) => {
           const item = appointmentData.find((a) => a.id === id) ?? null;
-          if (item) setSelectedItem(item);
+          if (!item) return;
+          setSelectedItem(item);
+          if (mapInstance && item.longitude != null && item.latitude != null) {
+            mapInstance.flyTo({
+              center: [item.longitude, item.latitude],
+              zoom: 15,
+              duration: 600,
+              padding: { right: bulkModalWidth + 32 },
+            });
+          }
         }}
         onActionComplete={() => {
           queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
