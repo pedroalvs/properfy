@@ -251,11 +251,23 @@ export function MapBulkActionModal({
       width: '80px',
       align: 'center',
       render: (row) => (
-        <ConfirmationChannelIcons
-          tenantConfirmationStatus={row.tenantConfirmationStatus}
-          hasEmail={!!row.contactEmail}
-          hasSms={!!row.contactPhone}
-        />
+        <div className="flex items-center justify-center gap-1">
+          <ConfirmationChannelIcons
+            tenantConfirmationStatus={row.tenantConfirmationStatus}
+            hasEmail={!!row.contactEmail}
+            hasSms={!!row.contactPhone}
+          />
+          {row.hasTenantNote && (
+            <span
+              className="cursor-help text-text-secondary"
+              title={row.tenantNote ?? 'Tenant left a note'}
+              aria-label="Tenant note from portal"
+              data-testid="bulk-modal-tenant-note-icon"
+            >
+              <i className="mdi mdi-note-text-outline text-base" />
+            </span>
+          )}
+        </div>
       ),
     },
   ], [allChecked, indeterminate, checkedIds, onOpenDetailPanel]);

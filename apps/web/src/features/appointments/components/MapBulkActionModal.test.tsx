@@ -143,4 +143,33 @@ describe('MapBulkActionModal', () => {
     renderModal({ appointments: [] });
     expect(screen.getByText(/No appointments inside the lasso/)).toBeInTheDocument();
   });
+
+  // T-C7 — tenant note icon in Confirm column
+  it('shows note icon with tooltip when hasTenantNote=true', () => {
+    const withNote: AppointmentMapItem = {
+      ...sampleAppointments[0]!,
+      hasTenantNote: true,
+      tenantNote: 'Will be home after 3pm',
+    };
+    renderModal({ appointments: [withNote] });
+    const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute('title', 'Will be home after 3pm');
+  });
+
+  it('shows fallback tooltip text when hasTenantNote=true but tenantNote is null', () => {
+    const withNoteNoText: AppointmentMapItem = {
+      ...sampleAppointments[0]!,
+      hasTenantNote: true,
+      tenantNote: null,
+    };
+    renderModal({ appointments: [withNoteNoText] });
+    const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
+    expect(icon).toHaveAttribute('title', 'Tenant left a note');
+  });
+
+  it('does not show note icon when hasTenantNote is false or absent', () => {
+    renderModal(); // sampleAppointments have no hasTenantNote
+    expect(screen.queryByTestId('bulk-modal-tenant-note-icon')).toBeNull();
+  });
 });

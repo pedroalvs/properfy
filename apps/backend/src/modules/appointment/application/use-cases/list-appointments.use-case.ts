@@ -70,6 +70,7 @@ export interface ListAppointmentsOutput {
     serviceTypeName: string;
     isOverdue: boolean;
     hasTenantNote: boolean;
+    tenantNote: string | null;
     latitude: number | null;
     longitude: number | null;
   }>;
@@ -178,6 +179,7 @@ export class ListAppointmentsUseCase {
         serviceTypeName: item.serviceTypeName,
         isOverdue: isAppointmentOverdue(item.appointment.status, item.appointment.scheduledDate),
         hasTenantNote: !!item.appointment.tenantNote,
+        tenantNote: item.appointment.tenantNote ?? null,
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
       };

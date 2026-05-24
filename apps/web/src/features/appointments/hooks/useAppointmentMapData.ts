@@ -27,6 +27,10 @@ export interface AppointmentMapItem {
   /** Populated when status = REJECTED — surfaces in the detail panel red banner (T-C5-5). */
   rejectionReasonCode?: string | null;
   reason?: string | null;
+  /** True when the tenant left a note via the portal. */
+  hasTenantNote?: boolean;
+  /** Tenant note text — shown as tooltip on the note icon in the bulk modal. */
+  tenantNote?: string | null;
   /** Optional service group id used to gate the "Add to group" action. */
   serviceGroupId?: string | null;
 }
