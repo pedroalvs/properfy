@@ -63,7 +63,10 @@ function renderModal(props: Partial<React.ComponentProps<typeof MapGroupCreateMo
       <MapGroupCreateModal
         open={true}
         onClose={vi.fn()}
-        selectedAppointmentIds={['apt-1', 'apt-2']}
+        selectedAppointments={[
+          { id: 'apt-1', code: 'INS-0001', status: 'DRAFT', propertyAddress: '1 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
+          { id: 'apt-2', code: 'INS-0002', status: 'DRAFT', propertyAddress: '2 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
+        ]}
         onSuccess={vi.fn()}
         {...props}
       />
@@ -91,10 +94,34 @@ describe('MapGroupCreateModal', () => {
     expect(screen.getByText('Create Group')).toBeInTheDocument();
   });
 
-  it('create button is disabled when required fields are empty', () => {
+  it('create button is disabled when required fields (service type, date) are empty', () => {
     renderModal();
     const createBtn = screen.getByText('Create Group').closest('button');
     expect(createBtn).toBeDisabled();
+  });
+
+  it('create button is enabled when service type and date are filled even without a region', () => {
+    // 026 BUG-004: region is optional at creation (spec 005 FR-007).
+    // The submit button must NOT be gated on serviceRegionId.
+    //
+    // SelectInput is a custom dropdown (not a native <select>), so we
+    // interact with it via click — open the trigger, then click the option.
+    renderModal();
+
+    // Open the Service Type dropdown (the first button with aria-haspopup).
+    const serviceTypeTrigger = screen.getAllByRole('button', { name: /select\.\.\./i })[0]
+      ?? screen.getAllByRole('button').find((b) => b.getAttribute('aria-haspopup') === 'listbox');
+    fireEvent.click(serviceTypeTrigger!);
+    // Pick "Routine Inspection".
+    fireEvent.click(screen.getByText('Routine Inspection'));
+
+    // Fill scheduled date via the type="date" input (unique in the modal).
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: '2026-07-01' } });
+
+    // Region is still empty — button must be enabled.
+    const createBtn = screen.getByText('Create Group').closest('button');
+    expect(createBtn).not.toBeDisabled();
   });
 
   it('calls onClose when cancel is clicked', () => {

@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, ServiceGroupExceptionType } from '@properfy/shared';
+import { createServiceGroupSchema, ServiceGroupExceptionType, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
@@ -14,6 +14,7 @@ import { PriorityModeSelect } from './PriorityModeSelect';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
+import type { AppointmentMapItem } from '@/features/appointments/hooks/useAppointmentMapData';
 
 const EXCEPTION_TYPE_OPTIONS = [
   { value: '', label: 'None (standard group)' },
@@ -25,16 +26,20 @@ const EXCEPTION_TYPE_OPTIONS = [
 interface MapGroupCreateModalProps {
   open: boolean;
   onClose: () => void;
-  selectedAppointmentIds: string[];
+  /** Full appointment objects — tenantId extracted for region resolution. */
+  selectedAppointments: AppointmentMapItem[];
   onSuccess: () => void;
 }
 
 export function MapGroupCreateModal({
   open,
   onClose,
-  selectedAppointmentIds,
+  selectedAppointments,
   onSuccess,
 }: MapGroupCreateModalProps) {
+  const selectedAppointmentIds = selectedAppointments.map((a) => a.id);
+  // Lasso guarantees same-tenant, so the first item's tenantId is representative.
+  const tenantId = selectedAppointments[0]?.tenantId;
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useSnackbar();
 
@@ -57,6 +62,10 @@ export function MapGroupCreateModal({
     { status: 'ACTIVE' },
   );
 
+  const today = todayLocalDateString();
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const minStartTime = useMemo(() => scheduledDate === today ? currentTimeInTzHHmm(browserTz) : undefined, [scheduledDate, today, browserTz]);
+
   const handleSubmit = useCallback(async () => {
     const timeWindow = `${startTime}-${endTime}`;
     const payload: Record<string, unknown> = {
@@ -64,11 +73,12 @@ export function MapGroupCreateModal({
       serviceTypeId,
       scheduledDate,
       timeWindow,
-      serviceRegionId,
+      ...(serviceRegionId ? { serviceRegionId } : {}),
       priorityMode,
       ...(name ? { name } : {}),
       ...(description ? { description } : {}),
       ...(exceptionType ? { exceptionType, exceptionReason } : {}),
+      actorTimezone: browserTz,
     };
 
     const result = createServiceGroupSchema.safeParse(payload);
@@ -103,6 +113,21 @@ export function MapGroupCreateModal({
       open={open}
       onClose={onClose}
       title={`Create Service Group (${selectedAppointmentIds.length} appointments)`}
+      actions={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={submitting || !serviceTypeId || !scheduledDate}
+            loading={submitting}
+          >
+            Create Group
+          </Button>
+        </>
+      }
     >
       <div className="space-y-4">
         <FormField label="Name">
@@ -118,7 +143,7 @@ export function MapGroupCreateModal({
         </FormField>
 
         <FormField label="Scheduled Date" required>
-          <DateInput value={scheduledDate} onChange={setScheduledDate} />
+          <DateInput value={scheduledDate} onChange={setScheduledDate} min={today} />
         </FormField>
 
         <FormField label="Time Window" required>
@@ -127,14 +152,16 @@ export function MapGroupCreateModal({
             endTime={endTime}
             onStartTimeChange={setStartTime}
             onEndTimeChange={setEndTime}
+            minStartTime={minStartTime}
           />
         </FormField>
 
-        <FormField label="Service Region" required>
+        <FormField label="Service Region">
           <RegionSelector
             appointmentIds={selectedAppointmentIds}
             selectedRegionId={serviceRegionId}
             onRegionChange={setServiceRegionId}
+            tenantId={tenantId}
           />
         </FormField>
 
@@ -169,20 +196,6 @@ export function MapGroupCreateModal({
             rows={2}
           />
         </FormField>
-
-        <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={submitting || !serviceTypeId || !scheduledDate || !serviceRegionId}
-            loading={submitting}
-          >
-            Create Group
-          </Button>
-        </div>
       </div>
     </Dialog>
   );

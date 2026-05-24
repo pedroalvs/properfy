@@ -12,6 +12,13 @@ interface MapMarkerProps {
   active?: boolean;
   clustered?: boolean;
   clusterCount?: number;
+  /**
+   * Disables pointer interaction with the marker. Used by the appointments
+   * map flow while a lasso polygon is being drawn — without this, clicking
+   * near a marker to close the polygon lands on the marker's button and is
+   * swallowed by `stopPropagation`, leaving the lasso unclosed.
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -45,6 +52,7 @@ export function MapMarker({
   active = false,
   clustered = false,
   clusterCount,
+  disabled = false,
 }: MapMarkerProps) {
   const { getMap } = useMapInstance();
   // Portal target is the detached DOM node owned by mapboxgl.Marker.
@@ -96,13 +104,22 @@ export function MapMarker({
 
   // Inner UI rendered both inline (no map / tests) and via portal (with map).
   // Identical markup either way so `data-testid`/role assertions hold.
+  // `pointer-events: none` on the wrapper while disabled propagates to the
+  // button + label, so the canvas underneath receives the click (used by the
+  // lasso-draw close-polygon gesture). `cursor: pointer` on the label fixes
+  // the "cursor turns into text-cursor over the label" flicker.
   const inner = (
-    <>
+    <div
+      className={`inline-flex flex-col items-center ${disabled ? 'pointer-events-none' : 'cursor-pointer'}`}
+      style={disabled ? { pointerEvents: 'none' } : undefined}
+    >
       <button
         type="button"
-        className={`flex items-center justify-center rounded-full shadow-md transition-transform hover:scale-110 ${size} ${ringClass}`}
+        disabled={disabled}
+        className={`flex items-center justify-center rounded-full shadow-md transition-transform hover:scale-110 ${size} ${ringClass} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
         style={{ backgroundColor: color }}
         onClick={(e) => {
+          if (disabled) return;
           e.stopPropagation();
           onClick?.();
         }}
@@ -115,11 +132,11 @@ export function MapMarker({
         )}
       </button>
       {label && !clustered && (
-        <div className="mt-1 whitespace-nowrap text-center text-xs font-medium text-text-primary">
+        <div className="mt-1 whitespace-nowrap text-center text-xs font-medium text-text-primary select-none">
           {label}
         </div>
       )}
-    </>
+    </div>
   );
 
   if (portalNode) {
@@ -149,6 +166,7 @@ export function MapMarker({
       data-longitude={longitude}
       data-latitude={latitude}
       data-color={color}
+      data-disabled={disabled ? 'true' : undefined}
     >
       {inner}
     </div>

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { UpdateAppointmentUseCase } from '../../../src/modules/appointment/application/use-cases/update-appointment.use-case';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
@@ -9,6 +9,7 @@ import {
   AppointmentNotFoundError,
   AppointmentUpdateNotAllowedError,
   AppointmentPastDateError,
+  AppointmentDateInPastError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -106,10 +107,10 @@ describe('UpdateAppointmentUseCase', () => {
   it('should update a DRAFT appointment successfully', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
+    // Only update non-temporal fields so validateEditedSchedule short-circuits (no date/time change).
     const result = await useCase.execute({
       appointmentId: 'appt-1',
       data: {
-        timeSlot: '10:00-11:00',
         notes: 'Updated notes',
       },
       actor: makeActor(),
@@ -119,7 +120,7 @@ describe('UpdateAppointmentUseCase', () => {
     expect(appointmentRepo.update).toHaveBeenCalledWith(
       'appt-1',
       'tenant-1',
-      expect.objectContaining({ timeSlot: '10:00-11:00', notes: 'Updated notes' }),
+      expect.objectContaining({ notes: 'Updated notes' }),
     );
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -342,37 +343,41 @@ describe('UpdateAppointmentUseCase', () => {
           data: { scheduledDate: '2020-01-01' },
           actor: makeActor({ role: 'CL_ADMIN' }),
         }),
-      ).rejects.toThrow(AppointmentPastDateError);
+      ).rejects.toThrow(AppointmentDateInPastError);
     });
 
-    it('should accept past scheduledDate for AM', async () => {
+    // Cycle 6: AM/OP past-date exemption removed — universal rejection for all roles.
+    it('should reject past scheduledDate for AM', async () => {
       vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
-      const result = await useCase.execute({
-        appointmentId: 'appt-1',
-        data: { scheduledDate: '2020-01-01' },
-        actor: makeActor({ role: 'AM', tenantId: null }),
-      });
-
-      expect(result.id).toBe('appt-1');
+      await expect(
+        useCase.execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2020-01-01' },
+          actor: makeActor({ role: 'AM', tenantId: null }),
+        }),
+      ).rejects.toThrow(AppointmentDateInPastError);
     });
 
-    it('should accept past scheduledDate for OP', async () => {
+    it('should reject past scheduledDate for OP', async () => {
       vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
-      const result = await useCase.execute({
-        appointmentId: 'appt-1',
-        data: { scheduledDate: '2020-01-01' },
-        actor: makeActor({ role: 'OP', tenantId: null }),
-      });
-
-      expect(result.id).toBe('appt-1');
+      await expect(
+        useCase.execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2020-01-01' },
+          actor: makeActor({ role: 'OP', tenantId: null }),
+        }),
+      ).rejects.toThrow(AppointmentDateInPastError);
     });
 
     it('should accept today for CL_ADMIN', async () => {
+      // Freeze time before the existing appointment's time slot (09:00) so
+      // the slot-in-past check does not fire when rescheduling to today.
+      vi.useFakeTimers({ now: new Date('2026-06-15T07:00:00Z') });
       vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = '2026-06-15'; // matches frozen date
       const result = await useCase.execute({
         appointmentId: 'appt-1',
         data: { scheduledDate: today },
@@ -380,6 +385,7 @@ describe('UpdateAppointmentUseCase', () => {
       });
 
       expect(result.id).toBe('appt-1');
+      vi.useRealTimers();
     });
 
     it('should not check past date when scheduledDate is not provided', async () => {

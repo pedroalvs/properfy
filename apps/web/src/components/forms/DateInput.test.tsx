@@ -34,4 +34,29 @@ describe('DateInput', () => {
     const { container } = render(<DateInput value="" onChange={() => {}} error aria-label="Data" />);
     expect(container.firstChild).toHaveClass('shadow-[0_0_0_2px_var(--color-error)]');
   });
+
+  it('calls showPicker() on the input when the container is clicked', () => {
+    render(<DateInput value="" onChange={vi.fn()} aria-label="Data" />);
+    const input = screen.getByLabelText('Data') as HTMLInputElement;
+    const showPickerSpy = vi.fn();
+    (input as any).showPicker = showPickerSpy;
+    fireEvent.click(input.parentElement!);
+    expect(showPickerSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call showPicker() when disabled', () => {
+    render(<DateInput value="" onChange={vi.fn()} disabled aria-label="Data" />);
+    const input = screen.getByLabelText('Data') as HTMLInputElement;
+    const showPickerSpy = vi.fn();
+    (input as any).showPicker = showPickerSpy;
+    fireEvent.click(input.parentElement!);
+    expect(showPickerSpy).not.toHaveBeenCalled();
+  });
+
+  it('is safe when showPicker is undefined (older browsers)', () => {
+    render(<DateInput value="" onChange={vi.fn()} aria-label="Data" />);
+    const input = screen.getByLabelText('Data') as HTMLInputElement;
+    // showPicker is undefined by default in jsdom — should not throw
+    expect(() => fireEvent.click(input.parentElement!)).not.toThrow();
+  });
 });

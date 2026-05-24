@@ -65,11 +65,12 @@ export interface ListAppointmentsOutput {
     contactPhone: string | null;
     contactEmail: string | null;
     inspectorName: string | null;
-    tenantName: string;
+    clientName: string;
     branchName: string;
     serviceTypeName: string;
     isOverdue: boolean;
     hasTenantNote: boolean;
+    tenantNote: string | null;
     latitude: number | null;
     longitude: number | null;
   }>;
@@ -167,17 +168,18 @@ export class ListAppointmentsUseCase {
         createdAt: item.appointment.createdAt,
         updatedAt: item.appointment.updatedAt,
         appointmentCode,
-        code: item.propertyCode,
+        code: appointmentCode,
         propertyAddress: item.propertyAddress,
         contactName: item.contact?.tenantName ?? '',
         contactPhone: item.contact?.primaryPhone ?? null,
         contactEmail: item.contact?.primaryEmail ?? null,
         inspectorName: item.inspectorName,
-        tenantName: item.tenantName,
+        clientName: item.tenantName,
         branchName: item.branchName,
         serviceTypeName: item.serviceTypeName,
         isOverdue: isAppointmentOverdue(item.appointment.status, item.appointment.scheduledDate),
         hasTenantNote: !!item.appointment.tenantNote,
+        tenantNote: item.appointment.tenantNote ?? null,
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
       };

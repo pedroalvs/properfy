@@ -10,6 +10,7 @@ export interface UpdateServiceGroupData {
   priorityMode?: 'STANDARD' | 'PRIORITY_24H';
   exceptionType?: string | null;
   exceptionReason?: string | null;
+  actorTimezone?: string;
 }
 
 export interface UseUpdateServiceGroupReturn {

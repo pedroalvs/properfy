@@ -1,4 +1,5 @@
 import type { AuthContext, AppointmentContactRole } from '@properfy/shared';
+import { validateEditedSchedule } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
@@ -35,6 +36,7 @@ export interface BulkEditInput {
   ids: string[];
   changes: Record<string, unknown>;
   options?: BulkEditOptions;
+  actorTimezone?: string;
   actor: AuthContext;
   requestId?: string;
 }
@@ -134,6 +136,23 @@ export class BulkEditAppointmentsUseCase {
           before['timeSlot'] = appointment.timeSlot;
           after['timeSlot'] = changes.timeSlot;
           updateData['timeSlot'] = changes.timeSlot;
+        }
+
+        // Per-row TZ-aware past-date/time validation (R7: falls back to UTC).
+        if (changes.scheduledDate !== undefined || changes.timeSlot !== undefined) {
+          const tz = input.actorTimezone ?? 'UTC';
+          const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
+          const scheduleCheck = validateEditedSchedule({
+            existingDate: existingDateStr,
+            existingTimeSlot: appointment.timeSlot,
+            newDate: changes.scheduledDate as string | undefined,
+            newTimeSlot: changes.timeSlot as string | undefined,
+            tz,
+          });
+          if (!scheduleCheck.ok) {
+            failed.push({ id: appointmentId, code: scheduleCheck.code, message: scheduleCheck.code === 'TIME_IN_PAST' ? 'Selected time slot has already passed for today' : 'Scheduled date cannot be in the past' });
+            continue;
+          }
         }
 
         if (changes.branchId !== undefined) {

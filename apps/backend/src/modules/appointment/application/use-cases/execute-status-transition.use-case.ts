@@ -214,6 +214,9 @@ export class ExecuteStatusTransitionUseCase {
     }
     if (targetStatus === 'REJECTED' && rejectionReasonCode) {
       updateData.rejectionReasonCode = rejectionReasonCode;
+    } else if (appointment.status === 'REJECTED' && targetStatus !== 'REJECTED') {
+      // Clear stale rejectionReasonCode when reopening from REJECTED.
+      updateData.rejectionReasonCode = null;
     }
 
     // Set inspector for SCHEDULED

@@ -134,6 +134,18 @@ export class ServiceRegionInactiveError extends DomainError {
   }
 }
 
+export class ServiceGroupDateInPastError extends DomainError {
+  constructor() {
+    super('SERVICE_GROUP_DATE_IN_PAST', 'Service group scheduled date cannot be in the past', 422);
+  }
+}
+
+export class ServiceGroupTimeInPastError extends DomainError {
+  constructor() {
+    super('SERVICE_GROUP_TIME_IN_PAST', 'Selected time window has already passed for today — please choose a later window', 422);
+  }
+}
+
 export class ServiceGroupNotDraftError extends DomainError {
   constructor() {
     super(

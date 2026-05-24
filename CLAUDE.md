@@ -133,6 +133,7 @@ Official statuses:
 | `SCHEDULED` | `CANCELLED` | OP, CL, AM | Yes |
 | `SCHEDULED` | `REJECTED` | OP, SYS | Yes |
 | `REJECTED` | `DRAFT` | OP, AM | Yes |
+| `REJECTED` | `AWAITING_INSPECTOR` | OP, AM | Yes | System-triggered when appointment is added to a service group |
 | `CANCELLED` | `DRAFT` | OP, AM | Yes |
 | `DONE` | `DRAFT` | AM only | Yes |
 

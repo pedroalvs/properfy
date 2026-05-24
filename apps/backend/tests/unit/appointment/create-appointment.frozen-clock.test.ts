@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CreateAppointmentUseCase } from '../../../src/modules/appointment/application/use-cases/create-appointment.use-case';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
@@ -13,19 +13,18 @@ import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
-import { AppointmentPastDateError } from '../../../src/modules/appointment/domain/appointment.errors';
-import { FakeClock } from '../../helpers/fake-clock';
+import { AppointmentDateInPastError } from '../../../src/modules/appointment/domain/appointment.errors';
 
 /**
- * Deterministic past-date edge cases using the Clock port. Before the
- * refactor, these tests could not be written — the boundary ("today" vs
- * "yesterday") depended on the wall clock at the moment the suite ran, so
- * either they were skipped or they drifted.
+ * Deterministic past-date edge cases. Cycle 6 refactor: validation now uses
+ * validateNewSchedule() from shared (calls new Date() internally) rather than
+ * the injected Clock port. Tests now use vi.useFakeTimers to freeze new Date().
  *
- * Exercises the single code path we care about: `scheduledDate < today`
- * gated by role. AM/OP bypass is already covered by the regular suite.
+ * Exercises the boundary cases: scheduledDate < today → AppointmentDateInPastError.
+ * AM/OP bypass was removed in cycle 6 (universal rejection policy).
  */
 describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => {
+  afterEach(() => vi.useRealTimers());
   let appointmentRepo: IAppointmentRepository;
   let branchRepo: IBranchRepository;
   let propertyRepo: IPropertyRepository;
@@ -109,7 +108,9 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
     authorizationService = new AuthorizationService(auditService);
   });
 
-  function buildUseCase(clock: FakeClock): CreateAppointmentUseCase {
+  // Clock port no longer used for date validation (now uses validateNewSchedule via new Date()).
+  // Tests use vi.useFakeTimers to freeze new Date() instead of injecting a FakeClock.
+  function buildUseCase(): CreateAppointmentUseCase {
     return new CreateAppointmentUseCase(
       appointmentRepo,
       branchRepo,
@@ -119,10 +120,6 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
       createPropertyUseCase,
       auditService,
       authorizationService,
-      undefined,
-      undefined,
-      undefined,
-      clock,
     );
   }
 
@@ -144,8 +141,9 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
   };
 
   it('accepts scheduledDate equal to the frozen "today" UTC', async () => {
-    const clock = new FakeClock(new Date('2026-06-15T10:00:00Z'));
-    const uc = buildUseCase(clock);
+    // Freeze at 07:00 UTC so the baseInput timeSlot 09:00-10:00 is in the future.
+    vi.useFakeTimers({ now: new Date('2026-06-15T07:00:00Z') });
+    const uc = buildUseCase();
 
     const result = await uc.execute({
       ...baseInput,
@@ -157,8 +155,8 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
   });
 
   it('rejects scheduledDate one day before the frozen "today"', async () => {
-    const clock = new FakeClock(new Date('2026-06-15T00:00:01Z'));
-    const uc = buildUseCase(clock);
+    vi.useFakeTimers({ now: new Date('2026-06-15T00:00:01Z') });
+    const uc = buildUseCase();
 
     await expect(
       uc.execute({
@@ -166,15 +164,15 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
         scheduledDate: '2026-06-14',
         actor,
       }),
-    ).rejects.toBeInstanceOf(AppointmentPastDateError);
+    ).rejects.toBeInstanceOf(AppointmentDateInPastError);
   });
 
   it('rejects when the UTC day has just rolled over to the next date', async () => {
-    // 00:00:05 UTC on June 16 — `todayStr` resolves to "2026-06-16".
+    // 00:00:05 UTC on June 16 — todayInTzDateString('UTC') resolves to "2026-06-16".
     // Input "2026-06-15" is strictly less and must be rejected even though
     // only five seconds ago it was still "today".
-    const clock = new FakeClock(new Date('2026-06-16T00:00:05Z'));
-    const uc = buildUseCase(clock);
+    vi.useFakeTimers({ now: new Date('2026-06-16T00:00:05Z') });
+    const uc = buildUseCase();
 
     await expect(
       uc.execute({
@@ -182,6 +180,6 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
         scheduledDate: '2026-06-15',
         actor,
       }),
-    ).rejects.toBeInstanceOf(AppointmentPastDateError);
+    ).rejects.toBeInstanceOf(AppointmentDateInPastError);
   });
 });

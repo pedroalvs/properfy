@@ -11,6 +11,12 @@ import {
   forceManualConfirmationResponseSchema,
   bulkResendReminderRequestSchema,
   bulkResendReminderResponseSchema,
+  bulkCancelRequestSchema,
+  bulkRescheduleRequestSchema,
+  bulkStatusTransitionRequestSchema,
+  bulkAssignInspectorRequestSchema,
+  bulkReopenForRescheduleRequestSchema,
+  bulkActionResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
 } from '@properfy/shared';
@@ -29,6 +35,11 @@ import type { GetImportStatusUseCase } from '../application/use-cases/get-import
 import type { DeleteAppointmentUseCase } from '../application/use-cases/delete-appointment.use-case';
 import type { BulkEditAppointmentsUseCase } from '../application/use-cases/bulk-edit-appointments.use-case';
 import type { BulkResendReminderUseCase } from '../application/use-cases/bulk-resend-reminder.use-case';
+import type { BulkCancelAppointmentsUseCase } from '../application/use-cases/bulk-cancel-appointments.use-case';
+import type { BulkRescheduleAppointmentsUseCase } from '../application/use-cases/bulk-reschedule-appointments.use-case';
+import type { BulkStatusTransitionUseCase } from '../application/use-cases/bulk-status-transition.use-case';
+import type { BulkAssignInspectorUseCase } from '../application/use-cases/bulk-assign-inspector.use-case';
+import type { BulkReopenForRescheduleUseCase } from '../application/use-cases/bulk-reopen-for-reschedule.use-case';
 import type { ReopenForRescheduleUseCase } from '../application/use-cases/reopen-for-reschedule.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import type { IIdempotencyService } from '../../../shared/domain/idempotency.service';
@@ -49,6 +60,11 @@ export interface AppointmentRouteContainer {
   deleteAppointmentUseCase: DeleteAppointmentUseCase;
   bulkEditAppointmentsUseCase: BulkEditAppointmentsUseCase;
   bulkResendReminderUseCase: BulkResendReminderUseCase;
+  bulkCancelAppointmentsUseCase: BulkCancelAppointmentsUseCase;
+  bulkRescheduleAppointmentsUseCase: BulkRescheduleAppointmentsUseCase;
+  bulkStatusTransitionUseCase: BulkStatusTransitionUseCase;
+  bulkAssignInspectorUseCase: BulkAssignInspectorUseCase;
+  bulkReopenForRescheduleUseCase: BulkReopenForRescheduleUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
   idempotencyService?: IIdempotencyService;
@@ -179,6 +195,7 @@ export async function registerAppointmentRoutes(
       const result = await container.updateAppointmentUseCase.execute({
         appointmentId: params.data.appointmentId,
         data: parsed.data,
+        actorTimezone: parsed.data.actorTimezone,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -328,6 +345,167 @@ export async function registerAppointmentRoutes(
     },
   );
 
+  // POST /v1/appointments/bulk-cancel — 200 (025 §FR-411)
+  // AM / OP / CL_ADMIN / CL_USER (with cancel_appointments flag).
+  // Delegates per-item to ExecuteStatusTransitionUseCase with CANCELLED.
+  app.post(
+    '/v1/appointments/bulk-cancel',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: bulkCancelRequestSchema,
+        response: { 200: successResponseSchema(bulkActionResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role === 'INSP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Inspectors cannot bulk cancel' } });
+      }
+      const parsed = bulkCancelRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.bulkCancelAppointmentsUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        reason: parsed.data.reason,
+        actor: auth,
+        actorTimezone: parsed.data.actorTimezone,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/bulk-reschedule — 200 (025 §FR-421)
+  // AM / OP / CL_ADMIN / CL_USER (with reschedule_appointments flag).
+  // Delegates per-item to UpdateAppointmentUseCase with scheduledDate/timeSlot.
+  app.post(
+    '/v1/appointments/bulk-reschedule',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: bulkRescheduleRequestSchema,
+        response: { 200: successResponseSchema(bulkActionResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role === 'INSP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Inspectors cannot bulk reschedule' } });
+      }
+      const parsed = bulkRescheduleRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.bulkRescheduleAppointmentsUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        newDate: parsed.data.newDate,
+        newTimeSlot: parsed.data.newTimeSlot,
+        actor: auth,
+        actorTimezone: parsed.data.actorTimezone,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/bulk-status-transition — 200 (025 §FR-431)
+  // AM / OP only. State machine validates each transition; reason
+  // requirements are enforced by the underlying ExecuteStatusTransitionUseCase.
+  app.post(
+    '/v1/appointments/bulk-status-transition',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: bulkStatusTransitionRequestSchema,
+        response: { 200: successResponseSchema(bulkActionResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const parsed = bulkStatusTransitionRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.bulkStatusTransitionUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        targetStatus: parsed.data.targetStatus,
+        reason: parsed.data.reason,
+        actor: auth,
+        actorTimezone: parsed.data.actorTimezone,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/bulk-assign-inspector — 200 (025 §FR-441)
+  // AM / OP only. Per-row eligibility checks handled by BulkEditAppointmentsUseCase.
+  app.post(
+    '/v1/appointments/bulk-assign-inspector',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: bulkAssignInspectorRequestSchema,
+        response: { 200: successResponseSchema(bulkActionResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const parsed = bulkAssignInspectorRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.bulkAssignInspectorUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        inspectorId: parsed.data.inspectorId,
+        actor: auth,
+        actorTimezone: parsed.data.actorTimezone,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/bulk-reopen-for-reschedule — 200 (026 §FR-540)
+  // Same-group only (cross-group is GAP-501 future). Per-item delegates
+  // to ReopenForRescheduleUseCase (which also revokes portal tokens since
+  // 026 §FR-543). Mixed selections → INVALID_TRANSITION for every item.
+  app.post(
+    '/v1/appointments/bulk-reopen-for-reschedule',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: bulkReopenForRescheduleRequestSchema,
+        response: { 200: successResponseSchema(bulkActionResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      // Matriz 2.2 — AM / OP / CL_ADMIN. CL_USER not allowed even with
+      // reschedule_appointments flag (single-item path remains via PATCH).
+      if (auth.role !== 'AM' && auth.role !== 'OP' && auth.role !== 'CL_ADMIN') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM, OP, or CL_ADMIN role required' } });
+      }
+      const parsed = bulkReopenForRescheduleRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.bulkReopenForRescheduleUseCase.execute({
+        appointmentIds: parsed.data.appointmentIds,
+        newDate: parsed.data.newDate,
+        newTimeSlot: parsed.data.newTimeSlot,
+        ...(parsed.data.reason ? { reason: parsed.data.reason } : {}),
+        actor: auth,
+        ...(parsed.data.actorTimezone ? { actorTimezone: parsed.data.actorTimezone } : {}),
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
   // POST /v1/appointments/import — 202 (multipart file upload)
   app.post(
     '/v1/appointments/import',
@@ -401,6 +579,7 @@ export async function registerAppointmentRoutes(
         ids: parsed.data.ids,
         changes: parsed.data.changes,
         options: parsed.data.options,
+        actorTimezone: parsed.data.actorTimezone,
         actor: auth,
         requestId: (request as any).requestId,
       });

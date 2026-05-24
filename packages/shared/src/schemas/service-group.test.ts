@@ -7,6 +7,9 @@ import {
   acceptOfferSchema,
   listServiceGroupsQuerySchema,
   listMarketplaceOffersQuerySchema,
+  addAppointmentsToGroupRequestSchema,
+  eligibilityCheckRequestSchema,
+  eligibilityCheckResponseSchema,
 } from './service-group';
 
 const validUuid = '550e8400-e29b-41d4-a716-446655440000';
@@ -95,13 +98,21 @@ describe('createServiceGroupSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject missing serviceRegionId', () => {
+  it('should accept missing serviceRegionId — optional at creation (spec 005 FR-007)', () => {
     const { serviceRegionId: _serviceRegionId, ...rest } = validInput;
     const result = createServiceGroupSchema.safeParse(rest);
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it('should reject invalid UUID for serviceRegionId', () => {
+  it('should accept null serviceRegionId — optional at creation (spec 005 FR-007)', () => {
+    const result = createServiceGroupSchema.safeParse({
+      ...validInput,
+      serviceRegionId: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid UUID for serviceRegionId when provided', () => {
     const result = createServiceGroupSchema.safeParse({
       ...validInput,
       serviceRegionId: 'not-a-uuid',
@@ -213,5 +224,77 @@ describe('listMarketplaceOffersQuerySchema', () => {
       expect(result.data.pageSize).toBe(20);
       expect(result.data.sortOrder).toBe('desc');
     }
+  });
+});
+
+describe('addAppointmentsToGroupRequestSchema (026 §FR-503)', () => {
+  it('accepts 1..30 uuids', () => {
+    expect(addAppointmentsToGroupRequestSchema.safeParse({
+      appointmentIds: generateUuids(1),
+    }).success).toBe(true);
+    expect(addAppointmentsToGroupRequestSchema.safeParse({
+      appointmentIds: generateUuids(30),
+    }).success).toBe(true);
+  });
+
+  it('rejects empty array', () => {
+    expect(addAppointmentsToGroupRequestSchema.safeParse({
+      appointmentIds: [],
+    }).success).toBe(false);
+  });
+
+  it('rejects more than 30 ids (group capacity cap)', () => {
+    expect(addAppointmentsToGroupRequestSchema.safeParse({
+      appointmentIds: generateUuids(31),
+    }).success).toBe(false);
+  });
+
+  it('rejects non-uuid ids', () => {
+    expect(addAppointmentsToGroupRequestSchema.safeParse({
+      appointmentIds: ['not-a-uuid'],
+    }).success).toBe(false);
+  });
+});
+
+describe('eligibilityCheckRequestSchema (026 §FR-503)', () => {
+  it('shares the same shape as the add request', () => {
+    expect(eligibilityCheckRequestSchema.safeParse({
+      appointmentIds: generateUuids(5),
+    }).success).toBe(true);
+  });
+
+  it('caps at 30 ids like the add request', () => {
+    expect(eligibilityCheckRequestSchema.safeParse({
+      appointmentIds: generateUuids(31),
+    }).success).toBe(false);
+  });
+});
+
+describe('eligibilityCheckResponseSchema (026 §FR-503)', () => {
+  it('accepts a fully eligible response', () => {
+    expect(eligibilityCheckResponseSchema.safeParse({
+      eligibleAppointmentIds: generateUuids(3),
+      ineligibleAppointmentIds: [],
+      groupAccepts: true,
+      groupReasons: [],
+    }).success).toBe(true);
+  });
+
+  it('accepts a mixed response with reasons', () => {
+    expect(eligibilityCheckResponseSchema.safeParse({
+      eligibleAppointmentIds: generateUuids(2),
+      ineligibleAppointmentIds: [{ id: validUuid, reasonCode: 'INVALID_TENANT' }],
+      groupAccepts: false,
+      groupReasons: ['GROUP_CAPACITY_EXCEEDED'],
+    }).success).toBe(true);
+  });
+
+  it('rejects ineligible entries missing the reasonCode', () => {
+    expect(eligibilityCheckResponseSchema.safeParse({
+      eligibleAppointmentIds: [],
+      ineligibleAppointmentIds: [{ id: validUuid }],
+      groupAccepts: false,
+      groupReasons: [],
+    }).success).toBe(false);
   });
 });

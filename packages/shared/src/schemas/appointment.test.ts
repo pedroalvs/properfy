@@ -5,6 +5,13 @@ import {
   statusTransitionSchema,
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
+  bulkCancelRequestSchema,
+  bulkRescheduleRequestSchema,
+  bulkStatusTransitionRequestSchema,
+  bulkAssignInspectorRequestSchema,
+  bulkActionResultItemSchema,
+  bulkActionResponseSchema,
+  bulkReopenForRescheduleRequestSchema,
 } from './appointment';
 import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
 import { RestrictionSource } from '../enums/appointment';
@@ -115,7 +122,8 @@ describe('createAppointmentSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should reject a past date (2020-01-01)', () => {
+  it('should accept a past date (temporal validation moved to use case for TZ-awareness)', () => {
+    // Schema only validates date format; past-date rejection is TZ-aware and done in the use case.
     const result = createAppointmentSchema.safeParse({
       branchId: validBranchId,
       propertyId: validPropertyId,
@@ -124,10 +132,7 @@ describe('createAppointmentSchema', () => {
       timeSlot: '09:00-10:00',
       contact: validContact,
     });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues.some((i) => i.message === 'Scheduled date cannot be in the past')).toBe(true);
-    }
+    expect(result.success).toBe(true);
   });
 
   it('should accept today as scheduledDate', () => {
@@ -196,14 +201,12 @@ describe('updateAppointmentSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject a past scheduledDate (2020-01-01)', () => {
+  it('should accept a past scheduledDate (temporal validation moved to use case for TZ-awareness)', () => {
+    // Schema only validates date format; past-date rejection is TZ-aware and done in the use case.
     const result = updateAppointmentSchema.safeParse({
       scheduledDate: '2020-01-01',
     });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues.some((i) => i.message === 'Scheduled date cannot be in the past')).toBe(true);
-    }
+    expect(result.success).toBe(true);
   });
 
   it('should accept today as scheduledDate', () => {
@@ -416,5 +419,270 @@ describe('forceManualConfirmationSchema', () => {
       reason: '',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+const apptIdA = '11111111-1111-4111-8111-111111111111';
+const apptIdB = '22222222-2222-4222-8222-222222222222';
+const apptIdC = '33333333-3333-4333-8333-333333333333';
+
+describe('bulkCancelRequestSchema', () => {
+  it('accepts up to 100 ids with a reason', () => {
+    const result = bulkCancelRequestSchema.safeParse({
+      appointmentIds: [apptIdA, apptIdB],
+      reason: 'Operator cancelled per agency request',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts optional actorTimezone', () => {
+    const result = bulkCancelRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      reason: 'cancel',
+      actorTimezone: 'Australia/Sydney',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects empty appointmentIds', () => {
+    const result = bulkCancelRequestSchema.safeParse({
+      appointmentIds: [],
+      reason: 'reason',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects more than 100 ids', () => {
+    const ids = Array.from({ length: 101 }, (_, i) =>
+      `${(i + 1).toString(16).padStart(8, '0')}-1111-4111-8111-111111111111`,
+    );
+    const result = bulkCancelRequestSchema.safeParse({
+      appointmentIds: ids,
+      reason: 'too many',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing reason', () => {
+    const result = bulkCancelRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects reason shorter than 3 chars', () => {
+    const result = bulkCancelRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      reason: 'no',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects non-uuid ids', () => {
+    const result = bulkCancelRequestSchema.safeParse({
+      appointmentIds: ['not-a-uuid'],
+      reason: 'valid reason',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('bulkRescheduleRequestSchema', () => {
+  it('accepts a date-only newDate', () => {
+    const result = bulkRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA, apptIdB],
+      newDate: '2027-06-01',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an ISO datetime newDate', () => {
+    const result = bulkRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01T09:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts newTimeSlot when in HH:mm-HH:mm format', () => {
+    const result = bulkRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+      newTimeSlot: '09:00-10:00',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects malformed newTimeSlot', () => {
+    const result = bulkRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+      newTimeSlot: '9-10',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects when newDate is missing', () => {
+    const result = bulkRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('bulkStatusTransitionRequestSchema', () => {
+  it('accepts targetStatus without reason (state machine decides)', () => {
+    const result = bulkStatusTransitionRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      targetStatus: AppointmentStatus.AWAITING_INSPECTOR,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts targetStatus with reason', () => {
+    const result = bulkStatusTransitionRequestSchema.safeParse({
+      appointmentIds: [apptIdA, apptIdB],
+      targetStatus: AppointmentStatus.REJECTED,
+      reason: 'Invalid property',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects unknown status string', () => {
+    const result = bulkStatusTransitionRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      targetStatus: 'FROZEN',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('bulkAssignInspectorRequestSchema', () => {
+  it('accepts inspector id with appointment ids', () => {
+    const result = bulkAssignInspectorRequestSchema.safeParse({
+      appointmentIds: [apptIdA, apptIdB, apptIdC],
+      inspectorId: validInspectorId,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects non-uuid inspectorId', () => {
+    const result = bulkAssignInspectorRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      inspectorId: 'not-a-uuid',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('bulkActionResultItemSchema', () => {
+  it('accepts an OK item without error', () => {
+    const result = bulkActionResultItemSchema.safeParse({
+      appointmentId: apptIdA,
+      status: 'OK',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an INVALID_TRANSITION item with error', () => {
+    const result = bulkActionResultItemSchema.safeParse({
+      appointmentId: apptIdA,
+      status: 'INVALID_TRANSITION',
+      error: { code: 'APPOINTMENT_INVALID_TRANSITION', message: 'DRAFT → DONE not allowed' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects unknown status', () => {
+    const result = bulkActionResultItemSchema.safeParse({
+      appointmentId: apptIdA,
+      status: 'WHATEVER',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('bulkActionResponseSchema', () => {
+  it('accepts an empty results array', () => {
+    const result = bulkActionResponseSchema.safeParse({ results: [] });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a mixed result envelope', () => {
+    const result = bulkActionResponseSchema.safeParse({
+      results: [
+        { appointmentId: apptIdA, status: 'OK' },
+        { appointmentId: apptIdB, status: 'IDEMPOTENT_REPLAY' },
+        {
+          appointmentId: apptIdC,
+          status: 'FORBIDDEN',
+          error: { code: 'FORBIDDEN', message: 'CL_USER lacks cancel_appointments flag' },
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('bulkReopenForRescheduleRequestSchema (026 §FR-540)', () => {
+  it('accepts a valid request with all required fields', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA, apptIdB],
+      newDate: '2027-06-01',
+      newTimeSlot: '09:00-10:00',
+    }).success).toBe(true);
+  });
+
+  it('accepts an ISO datetime newDate', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01T09:00:00.000Z',
+      newTimeSlot: '09:00-10:00',
+    }).success).toBe(true);
+  });
+
+  it('accepts optional reason and actorTimezone', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+      newTimeSlot: '09:00-10:00',
+      reason: 'Tenant requested change',
+      actorTimezone: 'Australia/Sydney',
+    }).success).toBe(true);
+  });
+
+  it('rejects when newTimeSlot is missing (dropdown is mandatory, NOT numeric input)', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+    }).success).toBe(false);
+  });
+
+  it('rejects empty newTimeSlot', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+      newTimeSlot: '',
+    }).success).toBe(false);
+  });
+
+  it('caps appointmentIds at 30 (same-group capacity invariant)', () => {
+    const ids = Array.from({ length: 31 }, (_, i) =>
+      `${(i + 1).toString(16).padStart(8, '0')}-1111-4111-8111-111111111111`,
+    );
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: ids,
+      newDate: '2027-06-01',
+      newTimeSlot: '09:00-10:00',
+    }).success).toBe(false);
+  });
+
+  it('rejects too-short reason', () => {
+    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+      newTimeSlot: '09:00-10:00',
+      reason: 'no',
+    }).success).toBe(false);
   });
 });

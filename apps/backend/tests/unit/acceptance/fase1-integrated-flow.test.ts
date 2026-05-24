@@ -692,7 +692,9 @@ describe('FASE 1 integrated proof', () => {
   });
 
   it('proves the legitimate flow from real-estate scheduling to inspector schedule visibility', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    // Use a future date (30 days ahead) so TZ-aware time-slot validation never fires.
+    // Past-date and past-time-slot checks only apply to today; future dates always pass.
+    const today = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const propertyIds = ['property-1', 'property-2', 'property-3', 'property-4', 'property-5'];
 
     const createdAppointments = [];

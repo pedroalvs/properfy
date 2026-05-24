@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString, isTimeStartInPastForDate } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -525,7 +525,14 @@ export function AppointmentFormDrawer({
                       <DateInput
                         value={form.scheduledDate}
                         onChange={(v) => updateField('scheduledDate', v)}
-                        min={todayLocalDateString()}
+                        // Edit-conditional: allow keeping a legacy past date when editing;
+                        // create flow always enforces min=today.
+                        min={(() => {
+                          const today = todayLocalDateString();
+                          if (!isEditMode) return today;
+                          const existing = (appointment?.scheduledDate ?? '').split('T')[0] ?? '';
+                          return existing < today ? undefined : today;
+                        })()}
                         error={!!errors.scheduledDate}
                         aria-label="Scheduled Date"
                       />
@@ -540,7 +547,12 @@ export function AppointmentFormDrawer({
                         <SelectInput
                           value={form.timeSlot}
                           onChange={(v) => updateField('timeSlot', v)}
-                          options={timeSlotOptions}
+                          options={(() => {
+                            const today = todayLocalDateString();
+                            if (form.scheduledDate !== today) return timeSlotOptions;
+                            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                            return timeSlotOptions.filter((opt) => !isTimeStartInPastForDate(opt.value, form.scheduledDate, tz));
+                          })()}
                           placeholder={!form.branchId ? 'Select a branch first' : 'Select time slot'}
                           disabled={!form.branchId || timeSlotOptions.length === 0}
                           error={!!errors.timeSlot}
