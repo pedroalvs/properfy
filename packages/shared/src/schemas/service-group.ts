@@ -182,7 +182,7 @@ export type AddableGroupSummary = z.infer<typeof addableGroupSummarySchema>;
 
 export const findAddableGroupsResponseSchema = z.object({
   groups: z.array(addableGroupSummarySchema),
-  /** Set when the selected appointments have mixed properties (different tenantId / serviceTypeId / date / timeSlot). */
-  reason: z.enum(['MIXED_APPOINTMENT_PROPERTIES']).optional(),
+  /** Set when the selected appointments have mixed properties or invalid statuses. Groups will be empty. */
+  reason: z.enum(['MIXED_APPOINTMENT_PROPERTIES', 'INVALID_APPOINTMENT_STATUS']).optional(),
 });
 export type FindAddableGroupsResponse = z.infer<typeof findAddableGroupsResponseSchema>;

@@ -15,8 +15,8 @@ export interface AddableGroupSummary {
 
 export interface FindAddableGroupsOutput {
   groups: AddableGroupSummary[];
-  /** Populated when appointments have mixed properties; groups will be empty. */
-  reason?: 'MIXED_APPOINTMENT_PROPERTIES';
+  /** Populated when early-exit pre-conditions fail; groups will be empty. */
+  reason?: 'MIXED_APPOINTMENT_PROPERTIES' | 'INVALID_APPOINTMENT_STATUS';
 }
 
 /**
@@ -66,6 +66,11 @@ export class FindAddableGroupsForAppointmentsUseCase {
         a.timeSlot !== first.timeSlot,
     );
     if (isMixed) return { groups: [], reason: 'MIXED_APPOINTMENT_PROPERTIES' };
+
+    // Pre-condition: all appointments must be in a groupable status.
+    const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR']);
+    const ineligibleByStatus = valid.filter((a) => !GROUPABLE_STATUSES.has(a.status));
+    if (ineligibleByStatus.length > 0) return { groups: [], reason: 'INVALID_APPOINTMENT_STATUS' };
 
     const groups = await this.groupRepo.findAddableForAppointments({
       tenantId: first.tenantId,

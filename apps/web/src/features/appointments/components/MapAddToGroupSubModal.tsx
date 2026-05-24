@@ -20,7 +20,7 @@ interface MapAddToGroupSubModalProps {
 type GroupsState =
   | { phase: 'idle' }
   | { phase: 'loading' }
-  | { phase: 'ready'; groups: AddableGroupSummary[]; reason?: 'MIXED_APPOINTMENT_PROPERTIES' }
+  | { phase: 'ready'; groups: AddableGroupSummary[]; reason?: 'MIXED_APPOINTMENT_PROPERTIES' | 'INVALID_APPOINTMENT_STATUS' }
   | { phase: 'error' };
 
 type EligibilityState =
@@ -137,6 +137,11 @@ export function MapAddToGroupSubModal({
         {groupsState.phase === 'ready' && groupsState.reason === 'MIXED_APPOINTMENT_PROPERTIES' && (
           <div className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="map-add-to-group-mixed-banner">
             Selected appointments don&apos;t share service type, date, or time — refine your selection to appointments from the same property group.
+          </div>
+        )}
+        {groupsState.phase === 'ready' && groupsState.reason === 'INVALID_APPOINTMENT_STATUS' && (
+          <div className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="map-add-to-group-invalid-status-banner">
+            Only <strong>Draft</strong> or <strong>Awaiting Inspector</strong> appointments can be grouped — deselect the others and try again.
           </div>
         )}
         {groupsState.phase === 'ready' && !groupsState.reason && groupsState.groups.length === 0 && (
