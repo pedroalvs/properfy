@@ -94,14 +94,11 @@ describe('AppointmentMapFilterPanel', () => {
     );
   });
 
-  it('can collapse and expand', () => {
-    renderPanel();
-    const toggleButton = screen.getByRole('button', { name: /filters/i });
-    expect(toggleButton.getAttribute('aria-expanded')).toBe('true');
-
-    fireEvent.click(toggleButton);
-    expect(toggleButton.getAttribute('aria-expanded')).toBe('false');
-  });
+  // Cycle 5 T-C5-3 (commit ae45bb1) removed the internal collapse toggle:
+  // the floating filter panel is now expanded/collapsed by the external
+  // MapFilterToggleButton, not by an in-panel chevron. The previous
+  // "can collapse and expand" assertion has nothing to query and is
+  // intentionally retired.
 
   it('shows date range filter', () => {
     renderPanel();

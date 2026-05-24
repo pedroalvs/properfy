@@ -118,6 +118,11 @@ describe('useAppointmentSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
+    // Cycle 6 (commits 23fd1ab + 4801500) added TZ-aware past-date validation
+    // and started propagating the browser's resolved timezone in every
+    // appointment write so the backend can enforce the rule in the actor's
+    // local calendar day. The exact value is environment-dependent — assert
+    // its presence and shape, not a fixed string.
     expect(mockPost).toHaveBeenCalledWith('/v1/appointments', {
       body: {
         branchId: VALID_CREATE_DATA.branchId,
@@ -131,6 +136,7 @@ describe('useAppointmentSave', () => {
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
+        actorTimezone: expect.any(String),
       },
     });
   });
@@ -158,6 +164,7 @@ describe('useAppointmentSave', () => {
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
+        actorTimezone: expect.any(String),
       },
     });
   });
