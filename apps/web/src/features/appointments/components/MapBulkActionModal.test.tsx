@@ -99,11 +99,44 @@ describe('MapBulkActionModal', () => {
     expect(html).toContain('INS-0002');
   });
 
-  it('disables the bulk-actions dropdown options when nothing is checked', () => {
+  /**
+   * T-C4-5 — Cycle 4 invariant override (2nd override; 1st was the eager-fetch in cycle 2).
+   * Cycle 2 pinned "buttons visible+disabled at 0 checked". User requested full hide
+   * at 0 selected in cycle 4 user browser smoke. Replacing the old test with the new
+   * "hidden at 0, visible at ≥1" expectation.
+   */
+  it('hides all 3 action buttons when 0 rows are checked; shows them once at least 1 is checked', () => {
     renderModal();
-    fireEvent.click(screen.getByTestId('bulk-actions-toggle'));
-    const cancelOption = screen.getByTestId('bulk-action-cancel') as HTMLButtonElement;
-    expect(cancelOption.disabled).toBe(true);
+    // At 0 checked — all 3 footer buttons must be absent from the DOM.
+    expect(screen.queryByTestId('bulk-actions-toggle')).toBeNull();
+    expect(screen.queryByTestId('bulk-modal-footer-add-to-group')).toBeNull();
+    expect(screen.queryByTestId('bulk-modal-footer-create-group')).toBeNull();
+
+    // Check one row — all 3 buttons must appear.
+    fireEvent.click(screen.getByTestId(`bulk-modal-row-${sampleAppointments[0]!.code}`));
+    expect(screen.getByTestId('bulk-actions-toggle')).toBeInTheDocument();
+    expect(screen.getByTestId('bulk-modal-footer-add-to-group')).toBeInTheDocument();
+    expect(screen.getByTestId('bulk-modal-footer-create-group')).toBeInTheDocument();
+  });
+
+  it('T-C4-1: disables Add/Create group when selection contains a non-groupable status', () => {
+    const doneAppointment: AppointmentMapItem = {
+      ...sampleAppointments[0]!,
+      id: 'cccccccc-0000-4000-8000-000000000030',
+      code: 'INS-0003',
+      status: 'DONE',
+    };
+    renderModal({ appointments: [...sampleAppointments, doneAppointment] });
+
+    // Select only the DONE row
+    fireEvent.click(screen.getByTestId(`bulk-modal-row-${doneAppointment.code}`));
+
+    // Buttons appear (≥1 checked) but must be disabled with status reason
+    const addBtn = screen.getByTestId('bulk-modal-footer-add-to-group') as HTMLButtonElement;
+    const createBtn = screen.getByTestId('bulk-modal-footer-create-group') as HTMLButtonElement;
+    expect(addBtn.disabled).toBe(true);
+    expect(createBtn.disabled).toBe(true);
+    expect(addBtn.title).toContain('cannot be grouped');
   });
 
   it('shows the empty-state hint instead of the table when no rows are passed', () => {

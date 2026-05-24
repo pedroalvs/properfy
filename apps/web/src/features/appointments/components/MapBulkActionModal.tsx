@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import { useResizableWidth } from '@/hooks/useResizableWidth';
 import { Dialog } from '@/components/ui/Dialog';
 import { ViewportAwareDropdown } from '@/components/ui/ViewportAwareDropdown';
@@ -59,6 +59,11 @@ interface MapBulkActionModalProps {
    * Dialog with backdrop. Caller can override via prop.
    */
   position?: 'top-right' | 'centered';
+  /**
+   * T-C4-4 — fires on mount and on drag-end so the page can track the
+   * modal width for flyTo padding calculations.
+   */
+  onResize?: (widthPx: number) => void;
 }
 
 interface RowResult {
@@ -100,6 +105,7 @@ export function MapBulkActionModal({
   onCreateGroup,
   onOpenDetailPanel,
   onActionComplete,
+  onResize,
   position = 'top-right',
 }: MapBulkActionModalProps) {
   const { widthPx, isDragging, onHandleMouseDown } = useResizableWidth({
@@ -108,6 +114,17 @@ export function MapBulkActionModal({
     maxPx: Math.round(window.innerWidth * 0.9),
     storageKey: 'appointments-map.bulk-modal.width',
   });
+
+  // T-C4-4 — report modal width to page on mount and on drag end so the
+  // page can use it as flyTo right-padding when focusing a code-pill click.
+  const onResizeRef = useRef(onResize);
+  onResizeRef.current = onResize;
+  // Mount: widthPx is stable here (read from sessionStorage / initial), ref avoids stale closure.
+  useEffect(() => { onResizeRef.current?.(widthPx); }, []); // intentional mount-only
+  useEffect(() => {
+    if (isDragging) return;
+    onResizeRef.current?.(widthPx);
+  }, [isDragging]); // intentional: only re-run when isDragging flips
 
   // Default UNCHECKED per mockup empty-state: nothing happens until the user
   // explicitly ticks at least one row. The footer state matrix matches this.
@@ -288,10 +305,20 @@ export function MapBulkActionModal({
   // buttons (not in the dropdown). Both AM/OP only; disabled when:
   //   - no rows checked
   //   - selection spans tenants (cross-tenant grouping is impossible per Regras)
+  //   - any checked row has an ungroupable status (must be DRAFT or AWAITING_INSPECTOR)
   const canAddToGroup = actorRole === 'AM' || actorRole === 'OP';
+  // T-C4-1 L1 — statuses that can be added to a service group.
+  const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR']);
   const groupButtonState = useMemo<{ disabled: boolean; reason?: string }>(() => {
     if (!canAddToGroup) return { disabled: true, reason: 'Add to group is AM/OP only' };
     if (checkedIds.size === 0) return { disabled: true, reason: 'Tick at least one appointment first' };
+    const invalidStatusRows = checkedAppointments.filter((a) => !GROUPABLE_STATUSES.has(a.status));
+    if (invalidStatusRows.length > 0) {
+      return {
+        disabled: true,
+        reason: `${invalidStatusRows.length} selected appointment(s) cannot be grouped (status must be Draft or Awaiting Inspector)`,
+      };
+    }
     const tenantNames = new Set(checkedAppointments.map((c) => c.tenantName).filter(Boolean));
     if (tenantNames.size > 1) return { disabled: true, reason: 'Selection spans multiple agencies — pick rows from a single agency' };
     return { disabled: false };
@@ -446,34 +473,40 @@ export function MapBulkActionModal({
             </button>
             {activeAction === null ? (
               <>
-                <BulkActionsDropdown
-                  actions={visibleActions}
-                  isDisabled={isActionDisabled}
-                  selectedCount={checkedIds.size}
-                  onSelect={(key) => setActiveAction(key)}
-                />
-                {/* 026 §FR-510 — Add to group / Create group as SEPARATE
-                    footer buttons. Both AM/OP only. */}
-                <button
-                  type="button"
-                  disabled={groupButtonState.disabled}
-                  title={groupButtonState.reason}
-                  onClick={() => { if (!groupButtonState.disabled) onAddToGroup(Array.from(checkedIds)); }}
-                  className="rounded border border-real-estate px-4 py-2 text-sm font-semibold text-real-estate hover:bg-real-estate/5 disabled:cursor-not-allowed disabled:opacity-50"
-                  data-testid="bulk-modal-footer-add-to-group"
-                >
-                  Add to group
-                </button>
-                <button
-                  type="button"
-                  disabled={groupButtonState.disabled}
-                  title={groupButtonState.reason}
-                  onClick={() => { if (!groupButtonState.disabled) onCreateGroup(Array.from(checkedIds)); }}
-                  className="rounded bg-real-estate px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
-                  data-testid="bulk-modal-footer-create-group"
-                >
-                  Create group{checkedIds.size > 0 ? ` (${checkedIds.size})` : ''}
-                </button>
+                {/* T-C4-5 — Cycle 4 override of the cycle-2 "buttons visible+disabled at 0 checked"
+                    invariant. User requested full hide at 0 selected: cleaner empty state. */}
+                {checkedIds.size > 0 && (
+                  <>
+                    <BulkActionsDropdown
+                      actions={visibleActions}
+                      isDisabled={isActionDisabled}
+                      selectedCount={checkedIds.size}
+                      onSelect={(key) => setActiveAction(key)}
+                    />
+                    {/* 026 §FR-510 — Add to group / Create group as SEPARATE
+                        footer buttons. Both AM/OP only. */}
+                    <button
+                      type="button"
+                      disabled={groupButtonState.disabled}
+                      title={groupButtonState.reason}
+                      onClick={() => { if (!groupButtonState.disabled) onAddToGroup(Array.from(checkedIds)); }}
+                      className="rounded border border-real-estate px-4 py-2 text-sm font-semibold text-real-estate hover:bg-real-estate/5 disabled:cursor-not-allowed disabled:opacity-50"
+                      data-testid="bulk-modal-footer-add-to-group"
+                    >
+                      Add to group
+                    </button>
+                    <button
+                      type="button"
+                      disabled={groupButtonState.disabled}
+                      title={groupButtonState.reason}
+                      onClick={() => { if (!groupButtonState.disabled) onCreateGroup(Array.from(checkedIds)); }}
+                      className="rounded bg-real-estate px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                      data-testid="bulk-modal-footer-create-group"
+                    >
+                      Create group ({checkedIds.size})
+                    </button>
+                  </>
+                )}
               </>
             ) : (
               <button
@@ -572,6 +605,7 @@ function BulkActionsDropdown({ actions, isDisabled, selectedCount, onSelect }: B
     <ViewportAwareDropdown
       placement="auto"
       menuMinWidth={224}
+      renderInPortal
       trigger={
         <button
           type="button"
