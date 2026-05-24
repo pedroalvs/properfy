@@ -5,6 +5,8 @@ interface TimeWindowPickerProps {
   endTime: string;
   onStartTimeChange: (value: string) => void;
   onEndTimeChange: (value: string) => void;
+  /** When provided (HH:mm), the start-time input gets a min attribute — used to prevent past slots when date = today. */
+  minStartTime?: string;
 }
 
 export function TimeWindowPicker({
@@ -12,6 +14,7 @@ export function TimeWindowPicker({
   endTime,
   onStartTimeChange,
   onEndTimeChange,
+  minStartTime,
 }: TimeWindowPickerProps) {
   const startRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLInputElement>(null);
@@ -31,6 +34,7 @@ export function TimeWindowPicker({
           onClick={() => (startRef.current as any)?.showPicker?.()}
           className="rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           aria-label="Start time"
+          {...(minStartTime ? { min: minStartTime } : {})}
         />
       </div>
       <span className="mt-5 text-text-secondary">to</span>

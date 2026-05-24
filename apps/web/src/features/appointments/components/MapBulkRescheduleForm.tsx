@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
+import { todayLocalDateString, isTimeStartInPastForDate } from '@properfy/shared';
 import { useBulkReopenForReschedule } from '../hooks/useBulkReopenForReschedule';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 
@@ -48,7 +49,14 @@ export function MapBulkRescheduleForm({
   // Slot options keyed by branch; for the map flow we don't have branchId
   // in the marker payload. Fall back to a tenant-scoped catalog if branchId
   // is unknown — `useTimeSlotOptions` already handles `undefined` branch.
-  const { options: slotOptions = [] } = useTimeSlotOptions(branchId);
+  const { options: rawSlotOptions = [] } = useTimeSlotOptions(branchId);
+  const today = todayLocalDateString();
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Filter out past time slots when date = today (Layer 4c).
+  const slotOptions = useMemo(() => {
+    if (newDate !== today) return rawSlotOptions;
+    return rawSlotOptions.filter((opt) => !isTimeStartInPastForDate(opt.value, newDate, browserTz));
+  }, [rawSlotOptions, newDate, today, browserTz]);
 
   // Same-group precheck — disable submit when the selection spans
   // groups or contains a non-grouped item.
@@ -98,6 +106,7 @@ export function MapBulkRescheduleForm({
           value={newDate}
           onChange={(e) => setNewDate(e.target.value)}
           required
+          min={today}
           disabled={!sameGroupCheck.ok}
           className="mt-1 block w-full rounded border border-border-subtle p-2 text-sm disabled:bg-gray-50"
           data-testid="map-bulk-reschedule-date"

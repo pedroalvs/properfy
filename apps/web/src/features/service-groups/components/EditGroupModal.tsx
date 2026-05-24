@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { TextInput } from '@/components/forms/TextInput';
@@ -64,6 +65,7 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
       data.priorityMode = priorityMode as 'STANDARD' | 'PRIORITY_24H';
     }
 
+    data.actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     update(data);
   };
 
@@ -115,6 +117,8 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
                 type="date"
                 value={scheduledDate}
                 onChange={(e) => setScheduledDate(e.target.value)}
+                // Edit-conditional: always enforce min when editing (service groups start fresh).
+                min={todayLocalDateString()}
                 className="w-full rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 aria-label="Scheduled date"
               />
@@ -126,6 +130,7 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
                 endTime={endTime}
                 onStartTimeChange={setStartTime}
                 onEndTimeChange={setEndTime}
+                minStartTime={scheduledDate === todayLocalDateString() ? currentTimeInTzHHmm(Intl.DateTimeFormat().resolvedOptions().timeZone) : undefined}
               />
             </FormField>
 

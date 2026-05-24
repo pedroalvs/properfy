@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserRole } from '@properfy/shared';
+import { UserRole, todayLocalDateString, isTimeStartInPastForDate } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -270,6 +270,7 @@ export function AppointmentCreatePage() {
               <DateInput
                 value={form.scheduledDate}
                 onChange={(v) => updateField('scheduledDate', v)}
+                min={todayLocalDateString()}
                 error={!!errors.scheduledDate}
                 aria-label="Scheduled Date"
               />
@@ -284,7 +285,12 @@ export function AppointmentCreatePage() {
                 <SelectInput
                   value={form.timeSlot}
                   onChange={(v) => updateField('timeSlot', v)}
-                  options={timeSlotOptions}
+                  options={(() => {
+                    const today = todayLocalDateString();
+                    if (form.scheduledDate !== today) return timeSlotOptions;
+                    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    return timeSlotOptions.filter((opt) => !isTimeStartInPastForDate(opt.value, form.scheduledDate, tz));
+                  })()}
                   placeholder={!form.branchId ? 'Select a branch first' : 'Select time slot'}
                   disabled={!form.branchId || timeSlotOptions.length === 0}
                   error={!!errors.timeSlot}

@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, ServiceGroupExceptionType } from '@properfy/shared';
+import { createServiceGroupSchema, ServiceGroupExceptionType, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
@@ -62,6 +62,10 @@ export function MapGroupCreateModal({
     { status: 'ACTIVE' },
   );
 
+  const today = todayLocalDateString();
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const minStartTime = useMemo(() => scheduledDate === today ? currentTimeInTzHHmm(browserTz) : undefined, [scheduledDate, today, browserTz]);
+
   const handleSubmit = useCallback(async () => {
     const timeWindow = `${startTime}-${endTime}`;
     const payload: Record<string, unknown> = {
@@ -74,6 +78,7 @@ export function MapGroupCreateModal({
       ...(name ? { name } : {}),
       ...(description ? { description } : {}),
       ...(exceptionType ? { exceptionType, exceptionReason } : {}),
+      actorTimezone: browserTz,
     };
 
     const result = createServiceGroupSchema.safeParse(payload);
@@ -138,7 +143,7 @@ export function MapGroupCreateModal({
         </FormField>
 
         <FormField label="Scheduled Date" required>
-          <DateInput value={scheduledDate} onChange={setScheduledDate} />
+          <DateInput value={scheduledDate} onChange={setScheduledDate} min={today} />
         </FormField>
 
         <FormField label="Time Window" required>
@@ -147,6 +152,7 @@ export function MapGroupCreateModal({
             endTime={endTime}
             onStartTimeChange={setStartTime}
             onEndTimeChange={setEndTime}
+            minStartTime={minStartTime}
           />
         </FormField>
 
