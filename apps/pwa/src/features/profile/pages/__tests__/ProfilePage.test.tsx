@@ -15,6 +15,10 @@ vi.mock('@/app/useInstallPrompt', () => ({
   InstallPromptProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('../../hooks/useInspectorAvailabilityTemplate', () => ({
+  useInspectorAvailabilityTemplate: () => ({ data: undefined, isLoading: true, isError: false }),
+}));
+
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual('@tanstack/react-query');
   return {

@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { TopBar } from '@/components/shell/TopBar';
 import { ProfileCard } from '../components/ProfileCard';
 import { InspectorDetailsCard } from '../components/InspectorDetailsCard';
+import { AvailabilityGrid } from '../components/AvailabilityGrid';
 import { ChangePasswordSection } from '../components/ChangePasswordSection';
 import { TwoFactorSection } from '../components/TwoFactorSection';
 import { SessionsSection } from '../components/SessionsSection';
@@ -10,9 +11,11 @@ import { InstallAppCard } from '../components/InstallAppCard';
 import { AvatarUploader } from '../components/AvatarUploader';
 import { UserDataSection } from '../components/UserDataSection';
 import { Button } from '@/components/ui/Button';
+import { useInspectorAvailabilityTemplate } from '../hooks/useInspectorAvailabilityTemplate';
 
 export function ProfilePage() {
   const { user, logout, refreshUser } = useAuth();
+  const { data: availability } = useInspectorAvailabilityTemplate();
   const [totpEnabled, setTotpEnabled] = useState(user?.totpEnabled ?? false);
 
   if (!user) return null;
@@ -63,6 +66,12 @@ export function ProfilePage() {
 
         {/* Inspector details (read-only) */}
         <InspectorDetailsCard />
+
+        {/* Availability schedule */}
+        <h2 className="mt-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-muted">Availability</h2>
+        <div className="rounded-2xl bg-surface p-4 shadow-card" data-testid="availability-section">
+          <AvailabilityGrid availability={availability} />
+        </div>
 
         {/* Security section */}
         <h2 className="mt-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-muted">Security</h2>

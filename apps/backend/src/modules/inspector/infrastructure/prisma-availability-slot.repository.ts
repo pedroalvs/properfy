@@ -22,6 +22,7 @@ function mapToEntity(row: {
   region_json: unknown;
   capacity: number;
   status: string;
+  is_operator_override?: boolean;
   created_at: Date;
   updated_at: Date;
 }): AvailabilitySlotEntity {
@@ -34,6 +35,7 @@ function mapToEntity(row: {
     regionJson: (row.region_json as Record<string, unknown>) ?? null,
     capacity: row.capacity,
     status: row.status as AvailabilitySlotStatus,
+    isOperatorOverride: row.is_operator_override ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -131,6 +133,7 @@ export class PrismaAvailabilitySlotRepository
         region_json: (slot.regionJson as Prisma.InputJsonValue) ?? undefined,
         capacity: slot.capacity,
         status: slot.status as PrismaAvailabilitySlotStatus,
+        is_operator_override: slot.isOperatorOverride,
       },
     });
   }
@@ -219,6 +222,63 @@ export class PrismaAvailabilitySlotRepository
       orderBy: { start_time: 'asc' },
     });
     return row ? mapToEntity(row) : null;
+  }
+
+  async findSlotsForRegeneration(
+    inspectorId: string,
+    from: Date,
+    to: Date,
+  ): Promise<Array<{ id: string; date: Date; startTime: string; endTime: string; capacity: number; isOperatorOverride: boolean }>> {
+    const rows = await (this.prisma.inspectorAvailabilitySlot as any).findMany({
+      where: {
+        inspector_id: inspectorId,
+        date: { gte: from, lte: to },
+        status: { not: 'CANCELLED' },
+      },
+      select: {
+        id: true,
+        date: true,
+        start_time: true,
+        end_time: true,
+        capacity: true,
+        is_operator_override: true,
+      },
+    });
+    return rows.map((r: any) => ({
+      id: r.id,
+      date: r.date,
+      startTime: r.start_time,
+      endTime: r.end_time,
+      capacity: r.capacity,
+      isOperatorOverride: r.is_operator_override ?? false,
+    }));
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await this.prisma.inspectorAvailabilitySlot.delete({ where: { id } });
+  }
+
+  async saveForRegeneration(data: {
+    inspectorId: string;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    capacity: number;
+    status: string;
+    isOperatorOverride: false;
+  }): Promise<void> {
+    await (this.prisma.inspectorAvailabilitySlot as any).create({
+      data: {
+        id: crypto.randomUUID(),
+        inspector_id: data.inspectorId,
+        date: data.date,
+        start_time: data.startTime,
+        end_time: data.endTime,
+        capacity: data.capacity,
+        status: data.status,
+        is_operator_override: false,
+      },
+    });
   }
 
   private buildWhere(filters: AvailabilitySlotFilters) {

@@ -1,8 +1,18 @@
 import { z } from 'zod';
 
-export const inspectorScheduleQuerySchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format').optional(),
-});
+export const inspectorScheduleQuerySchema = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format').optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format').optional(),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format').optional(),
+    status: z.enum(['DONE']).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine(
+    (q) => !(q.date && (q.from ?? q.to)),
+    { message: 'Use either date (single-day mode) or from/to (range mode), not both.' },
+  );
 
 export type InspectorScheduleQuery = z.infer<typeof inspectorScheduleQuerySchema>;
 

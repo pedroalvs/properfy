@@ -4,7 +4,9 @@ import type {
   PaymentSettings,
   ServiceTypeEntry,
   ClientEligibilityEntry,
+  AvailabilityTemplate,
 } from '@properfy/shared';
+import { availabilityTemplateSchema } from '@properfy/shared';
 
 export interface InspectorProps {
   id: string;
@@ -31,6 +33,7 @@ export interface InspectorProps {
   policeCheckExpiresAt: Date | null;
   policeCheckMetaJson: Record<string, unknown> | null;
   photoStorageKey: string | null;
+  availabilityTemplateJson: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -58,6 +61,7 @@ export class InspectorEntity extends BaseEntity {
   readonly policeCheckExpiresAt: Date | null;
   readonly policeCheckMetaJson: Record<string, unknown> | null;
   readonly photoStorageKey: string | null;
+  readonly availabilityTemplateJson: Record<string, unknown>;
   readonly deletedAt: Date | null;
 
   constructor(props: InspectorProps) {
@@ -82,7 +86,16 @@ export class InspectorEntity extends BaseEntity {
     this.policeCheckExpiresAt = props.policeCheckExpiresAt;
     this.policeCheckMetaJson = props.policeCheckMetaJson;
     this.photoStorageKey = props.photoStorageKey;
+    this.availabilityTemplateJson = props.availabilityTemplateJson;
     this.deletedAt = props.deletedAt;
+  }
+
+  /** Returns the weekly availability template, defaulting all-false when the JSON is empty. */
+  get availabilityTemplate(): AvailabilityTemplate {
+    const parsed = availabilityTemplateSchema.safeParse(this.availabilityTemplateJson);
+    if (parsed.success) return parsed.data;
+    const off = { am: false, pm: false };
+    return { mon: off, tue: off, wed: off, thu: off, fri: off, sat: off, sun: off };
   }
 
   isActive(): boolean {

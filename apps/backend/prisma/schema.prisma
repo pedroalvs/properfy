@@ -414,11 +414,12 @@ model Inspector {
   insurance_meta_json     Json?
   police_check_file_key   String?
   police_check_expires_at DateTime?       @db.Date
-  police_check_meta_json  Json?
-  photo_storage_key       String?
-  created_at              DateTime        @default(now())
-  updated_at              DateTime        @updatedAt
-  deleted_at              DateTime?
+  police_check_meta_json     Json?
+  photo_storage_key          String?
+  availability_template_json Json            @default("{}")
+  created_at                 DateTime        @default(now())
+  updated_at                 DateTime        @updatedAt
+  deleted_at                 DateTime?
 
   user                    User?                       @relation(fields: [user_id], references: [id])
   availability_slots      InspectorAvailabilitySlot[]
@@ -438,16 +439,17 @@ model Inspector {
 }
 
 model InspectorAvailabilitySlot {
-  id           String                 @id @default(uuid())
-  inspector_id String
-  date         DateTime               @db.Date
-  start_time   String                 @db.VarChar(5)
-  end_time     String                 @db.VarChar(5)
-  region_json  Json?
-  capacity     Int                    @default(1)
-  status       AvailabilitySlotStatus @default(AVAILABLE)
-  created_at   DateTime               @default(now())
-  updated_at   DateTime               @updatedAt
+  id                   String                 @id @default(uuid())
+  inspector_id         String
+  date                 DateTime               @db.Date
+  start_time           String                 @db.VarChar(5)
+  end_time             String                 @db.VarChar(5)
+  region_json          Json?
+  capacity             Int                    @default(1)
+  status               AvailabilitySlotStatus @default(AVAILABLE)
+  is_operator_override Boolean                @default(false)
+  created_at           DateTime               @default(now())
+  updated_at           DateTime               @updatedAt
 
   inspector Inspector @relation(fields: [inspector_id], references: [id])
 

@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { OfferFeed } from '../components/OfferFeed';
 import { OfflineMarketplaceBanner } from '../components/OfflineMarketplaceBanner';
+import { GroupDetailBottomSheet } from '../components/GroupDetailBottomSheet';
+import { OffersViewToggle } from '../components/OffersViewToggle';
+import { OffersMapView } from '../components/OffersMapView';
 import { useMarketplaceOffers } from '../hooks/useMarketplaceOffers';
 import { useIsOnline } from '@/hooks/useIsOnline';
 
@@ -19,6 +23,8 @@ function formatTimeAgo(timestamp: number): string {
 export function MarketplacePage() {
   const isOnline = useIsOnline();
   const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useMarketplaceOffers();
+  const [detailGroupId, setDetailGroupId] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'map'>('list');
   const offers = data?.data ?? [];
   const hasCachedOffers = offers.length > 0;
   const shouldShowFeed = !isLoading && (!isError || hasCachedOffers);
@@ -39,6 +45,8 @@ export function MarketplacePage() {
         </section>
       </div>
 
+      <OffersViewToggle value={view} onChange={setView} />
+
       {!isOnline && <OfflineMarketplaceBanner />}
 
       {isOnline && isLoading && (
@@ -55,16 +63,27 @@ export function MarketplacePage() {
         />
       )}
 
-      {shouldShowFeed && (
+      {view === 'map' && (
+        <div className="px-page-x py-2">
+          <OffersMapView offers={offers} onSelectOffer={setDetailGroupId} />
+        </div>
+      )}
+
+      {view === 'list' && shouldShowFeed && (
         <PullToRefresh onRefresh={refetch}>
           {dataUpdatedAt > 0 && (
             <p className="px-page-x pt-1 text-xs text-text-muted" data-testid="last-updated">
               Last updated {formatTimeAgo(dataUpdatedAt)}
             </p>
           )}
-          <OfferFeed offers={offers} onRefresh={refetch} />
+          <OfferFeed offers={offers} onRefresh={refetch} onViewDetail={setDetailGroupId} />
         </PullToRefresh>
       )}
+
+      <GroupDetailBottomSheet
+        groupId={detailGroupId}
+        onClose={() => setDetailGroupId(null)}
+      />
     </div>
   );
 }
