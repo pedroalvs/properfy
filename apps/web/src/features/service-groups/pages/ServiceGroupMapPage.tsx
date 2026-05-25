@@ -44,7 +44,7 @@ interface PopupAppointment {
   id: string;
   code: string;
   status: string;
-  address: string;
+  suburb: string;
   longitude: number;
   latitude: number;
   scheduledDate?: string;
@@ -244,7 +244,7 @@ export function ServiceGroupMapPage() {
                 id: apt.id,
                 code: apt.code,
                 status: apt.status,
-                address: apt.address,
+                suburb: apt.suburb,
                 longitude: apt.longitude,
                 latitude: apt.latitude,
                 scheduledDate: apt.scheduledDate,
@@ -280,7 +280,7 @@ export function ServiceGroupMapPage() {
               <AppointmentStatusChip status={popupAppointment.status as AppointmentStatus} />
             </p>
             <p>
-              <span className="text-text-muted">Address:</span> {popupAppointment.address}
+              <span className="text-text-muted">Suburb:</span> {popupAppointment.suburb}
             </p>
             {popupAppointment.scheduledDate && (
               <p>
