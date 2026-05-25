@@ -112,6 +112,16 @@ export function ServiceGroupDetailPage() {
   const canReject = isPublished || isAccepted;
   const canEdit = !isAccepted;
 
+  // Publish requires every appointment to be AWAITING_INSPECTOR.
+  // Surface blocking appointments so the user knows what to fix before clicking.
+  const blockingAppointments = isDraft
+    ? (serviceGroup.appointments ?? []).filter((a) => a.status !== 'AWAITING_INSPECTOR')
+    : [];
+  const publishBlocked = blockingAppointments.length > 0;
+  const publishBlockReason = publishBlocked
+    ? `Cannot publish: appointment${blockingAppointments.length > 1 ? 's' : ''} ${blockingAppointments.map((a) => `#${a.appointmentNumber} (${a.status})`).join(', ')} must be Awaiting Inspector`
+    : undefined;
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -154,14 +164,17 @@ export function ServiceGroupDetailPage() {
       {/* Action buttons */}
       <div className="mt-4 flex flex-wrap gap-3">
         {isDraft && (
-          <Button
-            variant="primary"
-            loading={isPublishing}
-            onClick={publish}
-          >
-            <i className="mdi mdi-publish text-base" aria-hidden="true" />
-            Publish
-          </Button>
+          <span title={publishBlockReason}>
+            <Button
+              variant="primary"
+              loading={isPublishing}
+              disabled={publishBlocked}
+              onClick={publish}
+            >
+              <i className="mdi mdi-publish text-base" aria-hidden="true" />
+              Publish
+            </Button>
+          </span>
         )}
         {isPublished && (
           <Button
