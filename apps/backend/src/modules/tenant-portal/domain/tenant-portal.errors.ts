@@ -69,3 +69,21 @@ export class PortalTokenAlreadyUsedError extends ConflictError {
     super('PORTAL_TOKEN_ALREADY_USED', 'This portal token has already been used for a mutation');
   }
 }
+
+export class PortalGroupNotFoundError extends NotFoundError {
+  constructor() {
+    super('PORTAL_GROUP_NOT_FOUND', 'Service group not found or no longer eligible');
+  }
+}
+
+export class PortalGroupFullError extends ConflictError {
+  constructor() {
+    super('PORTAL_GROUP_FULL', 'Service group has reached maximum confirmed capacity');
+  }
+}
+
+export class PortalGroupUnavailableError extends ConflictError {
+  constructor() {
+    super('PORTAL_GROUP_UNAVAILABLE', 'Service group is no longer available for joining');
+  }
+}

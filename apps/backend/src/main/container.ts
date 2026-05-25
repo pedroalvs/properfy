@@ -694,7 +694,7 @@ export function createContainer(logger: Logger): AppContainer {
     domainEventBus,
   );
 
-  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
+  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
   const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo);
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase);
