@@ -72,35 +72,42 @@ export class DraftInspectorInvoiceUseCase {
     const totalAmount = entries.reduce((sum: number, e: { amount: any }) => sum + Number(e.amount), 0);
     const currency = entries[0]?.currency ?? 'AUD';
 
-    // 4. Supersede any existing PENDING_REVIEW invoice for the same period before creating
-    await this.prisma.inspectorInvoice.updateMany({
+    // 4. Upsert: the unique constraint on (inspector_id, period_start, period_end) is
+    //    status-agnostic, so a separate supersede-then-insert would hit a constraint
+    //    violation. Instead, upsert refreshes any existing row for this exact period
+    //    (SUPERSEDED or PENDING_REVIEW) back to PENDING_REVIEW with updated amounts,
+    //    or creates a new row when none exists.
+    const newId = crypto.randomUUID();
+    const upserted = await this.prisma.inspectorInvoice.upsert({
       where: {
-        inspector_id: inspectorId,
-        status: 'PENDING_REVIEW',
-        OR: [
-          { period_start: { lte: end }, period_end: { gte: start } },
-        ],
+        inspector_id_period_start_period_end: {
+          inspector_id: inspectorId,
+          period_start: start,
+          period_end: end,
+        },
       },
-      data: { status: 'SUPERSEDED' },
-    });
-
-    // 5. Create invoice in PENDING_REVIEW
-    const invoiceId = crypto.randomUUID();
-    await this.prisma.inspectorInvoice.create({
-      data: {
-        id: invoiceId,
-        inspector_id: inspectorId,
-        period_start: start,
-        period_end: end,
-        period_type: 'BIWEEKLY', // Default — can be parameterized later
+      update: {
         status: 'PENDING_REVIEW',
         total_amount: totalAmount,
         currency,
         drafted_by_inspector_id: inspectorId,
       },
+      create: {
+        id: newId,
+        inspector_id: inspectorId,
+        period_start: start,
+        period_end: end,
+        period_type: 'BIWEEKLY',
+        status: 'PENDING_REVIEW',
+        total_amount: totalAmount,
+        currency,
+        drafted_by_inspector_id: inspectorId,
+      },
+      select: { id: true },
     });
+    const invoiceId = upserted.id;
 
-    // 6. Audit
+    // 5. Audit
     this.auditService.log({
       action: 'inspector_invoice.drafted',
       actorType: 'USER',

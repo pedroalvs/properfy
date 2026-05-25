@@ -3,15 +3,13 @@ import { DraftInspectorInvoiceUseCase } from '../../../src/modules/billing/appli
 import { DomainError } from '../../../src/shared/domain/errors';
 
 const mockFindMany = vi.fn();
-const mockCreate = vi.fn();
+const mockUpsert = vi.fn();
 const mockFindFirst = vi.fn();
-const mockUpdateMany = vi.fn();
 
 const prisma = {
   inspectorInvoice: {
     findFirst: mockFindFirst,
-    create: mockCreate,
-    updateMany: mockUpdateMany,
+    upsert: mockUpsert,
   },
   financialEntry: {
     findMany: mockFindMany,
@@ -38,8 +36,7 @@ const baseInput = {
 describe('DraftInspectorInvoiceUseCase — period overlap logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreate.mockResolvedValue(undefined);
-    mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockUpsert.mockResolvedValue({ id: 'new-invoice-id' });
     mockFindMany.mockResolvedValue(validEntries);
   });
 
@@ -77,19 +74,20 @@ describe('DraftInspectorInvoiceUseCase — period overlap logic', () => {
     expect(result.status).toBe('PENDING_REVIEW');
   });
 
-  it('should supersede existing PENDING_REVIEW invoices before creating a new one', async () => {
+  it('should upsert (refresh or create) on the composite period key to avoid constraint violations', async () => {
     mockFindFirst.mockResolvedValue(null); // overlap check passes
 
     const sut = makeSut();
-    await sut.execute(baseInput);
+    const result = await sut.execute(baseInput);
 
-    expect(mockUpdateMany).toHaveBeenCalledWith(
+    expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ status: 'PENDING_REVIEW' }),
-        data: { status: 'SUPERSEDED' },
+        where: expect.objectContaining({ inspector_id_period_start_period_end: expect.any(Object) }),
+        update: expect.objectContaining({ status: 'PENDING_REVIEW' }),
+        create: expect.objectContaining({ status: 'PENDING_REVIEW' }),
       }),
     );
-    expect(mockCreate).toHaveBeenCalled();
+    expect(result.invoiceId).toBe('new-invoice-id');
   });
 
   it('should exclude PENDING_REVIEW from overlap query so it does not block new drafts', async () => {
