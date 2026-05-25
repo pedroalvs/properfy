@@ -96,7 +96,7 @@ export function LoginPage() {
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(65,166,157,0.28),transparent_28%)]" />
           <div className="relative">
             <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/8 px-4 py-2 backdrop-blur-sm">
-              <img src="/favicon.png" alt="" className="h-8 w-8 rounded-lg bg-white/90 p-1" />
+              <img src="/images/properfy-icon-square.png" alt="" className="h-8 w-8 rounded-lg bg-white/90 p-1" />
               <div>
                 <p className="font-poppins text-base font-semibold leading-tight">Properfy</p>
                 <p className="text-xs uppercase tracking-[0.18em] text-white/70">
@@ -145,7 +145,7 @@ export function LoginPage() {
           <div className="w-full max-w-md">
             <div className="mb-8 lg:hidden">
               <div className="inline-flex items-center gap-3">
-                <img src="/favicon.png" alt="" className="h-10 w-10 rounded-xl bg-white p-1 shadow-sm" />
+                <img src="/images/properfy-icon-square.png" alt="" className="h-10 w-10 rounded-xl bg-white p-1 shadow-sm" />
                 <div>
                   <p className="font-poppins text-lg font-semibold text-secondary">Properfy</p>
                   <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
