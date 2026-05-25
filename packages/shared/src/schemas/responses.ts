@@ -383,6 +383,7 @@ export const marketplaceOfferResponseSchema = z.object({
 
 export const marketplaceOfferDetailAppointmentSchema = z.object({
   id: z.string().uuid(),
+  appointmentCode: z.string(),
   appointmentNumber: z.number(),
   suburb: z.string(),
   keyRequired: z.boolean(),
