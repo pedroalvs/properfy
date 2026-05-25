@@ -47,7 +47,7 @@ describe('AppointmentMapFilterPanel', () => {
   it('shows appointment mode filters by default', () => {
     renderPanel();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByLabelText('Confirmation')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirmation Email')).toBeInTheDocument();
     expect(screen.getByText('Show grouped appointments')).toBeInTheDocument();
   });
 
@@ -55,7 +55,7 @@ describe('AppointmentMapFilterPanel', () => {
     renderPanel({ mode: 'groups' });
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.queryByText('Show grouped appointments')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Confirmation')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Confirmation Email')).not.toBeInTheDocument();
   });
 
   it('appointment mode shows correct default status selections', () => {
