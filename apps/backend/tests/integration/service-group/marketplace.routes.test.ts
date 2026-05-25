@@ -56,6 +56,7 @@ const marketplaceOffer = {
   suburbs: ['Surry Hills', 'Redfern'],
   payoutEstimate: null,
   appointmentCount: 5,
+  centroid: null,
 };
 
 const acceptedOffer = {

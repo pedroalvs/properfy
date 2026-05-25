@@ -1,4 +1,4 @@
-import type { PaymentSettings, ServiceTypeEntry, ClientEligibilityEntry } from '@properfy/shared';
+import type { PaymentSettings, ServiceTypeEntry, ClientEligibilityEntry, AvailabilityTemplate } from '@properfy/shared';
 import type { InspectorEntity } from './inspector.entity';
 
 export interface InspectorFilters {
@@ -45,4 +45,6 @@ export interface IInspectorRepository {
     }>,
   ): Promise<void>;
   findByRegionId(regionId: string): Promise<InspectorEntity[]>;
+  getAvailabilityTemplate(inspectorId: string): Promise<AvailabilityTemplate>;
+  updateAvailabilityTemplate(inspectorId: string, template: AvailabilityTemplate): Promise<void>;
 }

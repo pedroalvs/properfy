@@ -10,6 +10,7 @@ export interface AvailabilitySlotProps {
   regionJson: Record<string, unknown> | null;
   capacity: number;
   status: AvailabilitySlotStatus;
+  isOperatorOverride: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +22,7 @@ export class AvailabilitySlotEntity extends BaseEntity {
   readonly endTime: string;
   readonly regionJson: Record<string, unknown> | null;
   readonly capacity: number;
+  readonly isOperatorOverride: boolean;
   status: AvailabilitySlotStatus;
 
   constructor(props: AvailabilitySlotProps) {
@@ -31,6 +33,7 @@ export class AvailabilitySlotEntity extends BaseEntity {
     this.endTime = props.endTime;
     this.regionJson = props.regionJson;
     this.capacity = props.capacity;
+    this.isOperatorOverride = props.isOperatorOverride;
     this.status = props.status;
   }
 

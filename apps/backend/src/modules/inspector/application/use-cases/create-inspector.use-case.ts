@@ -114,6 +114,7 @@ export class CreateInspectorUseCase {
       insuranceMetaJson: null,
       policeCheckMetaJson: null,
       photoStorageKey: null,
+      availabilityTemplateJson: {},
       createdAt: now,
       updatedAt: now,
       deletedAt: null,

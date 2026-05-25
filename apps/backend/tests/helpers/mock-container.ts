@@ -134,6 +134,8 @@ export function createMockContainer(
       generateInspectorDocumentUploadUrlUseCase: { execute: vi.fn() },
       confirmInspectorDocumentUploadUseCase: { execute: vi.fn() },
       getInspectorDocumentDownloadUrlUseCase: { execute: vi.fn() },
+      getInspectorAvailabilityTemplateUseCase: { execute: vi.fn() },
+      updateInspectorAvailabilityTemplateUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
       slotRepo: { findByIdAny: vi.fn() },
