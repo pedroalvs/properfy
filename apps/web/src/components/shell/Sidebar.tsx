@@ -97,7 +97,14 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
       data-testid="sidebar"
     >
       <div className={`flex items-center ${mobile ? 'justify-between border-b border-border-subtle px-4 py-4' : 'justify-center py-4'}`}>
-        <span className="text-xl font-bold text-secondary">{mobile ? 'Properfy' : 'P'}</span>
+        {mobile ? (
+          <div className="flex items-center gap-2">
+            <img src="/images/properfy-icon-square.png" alt="Properfy" className="h-8 w-8 object-contain" />
+            <span className="font-poppins text-base font-semibold text-secondary">Properfy</span>
+          </div>
+        ) : (
+          <img src="/images/properfy-icon-square.png" alt="Properfy" className="h-8 w-8 object-contain" />
+        )}
       </div>
 
       <nav className={`flex flex-1 flex-col ${mobile ? 'gap-3 overflow-y-auto px-3 py-4' : 'items-center gap-1 overflow-y-auto py-4 min-h-0'}`}>
