@@ -69,6 +69,7 @@ export interface MarketplaceOffer {
   suburbs: string[];
   payoutEstimate: number | null;
   appointmentCount: number;
+  centroid: { lat: number; lng: number } | null;
 }
 
 export interface MarketplaceOfferDetail extends MarketplaceOffer {
@@ -78,7 +79,7 @@ export interface MarketplaceOfferDetail extends MarketplaceOffer {
   appointments: Array<{
     id: string;
     appointmentNumber: number;
-    address: string;
+    suburb: string;
     keyRequired: boolean;
     notes: string | null;
     payoutAmount: number | null;

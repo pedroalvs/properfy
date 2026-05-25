@@ -22,3 +22,4 @@ export * from './responses';
 export * from './totp';
 export * from './import';
 export * from './service-region';
+export * from './inspector-availability';

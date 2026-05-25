@@ -327,6 +327,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         suburbs,
         payoutEstimate,
         appointmentCount: appts.length,
+        centroid: null,
       };
     });
   }
@@ -411,7 +412,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             key_required: true,
             payout_amount: true,
             notes: true,
-            property: { select: { suburb: true, street: true } },
+            property: { select: { suburb: true, state: true, street: true } },
           },
         },
       },
@@ -460,14 +461,15 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       addresses,
       keyRequired,
       notes: groupNotes,
+      centroid: null,
       appointments: appts.map((a) => {
         const p = a.property;
-        const address = p ? [p.street, p.suburb].filter(Boolean).join(', ') : '';
+        const suburb = p ? [p.suburb, p.state].filter(Boolean).join(' ') : '';
         const payoutVal = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : null;
         return {
           id: a.id,
           appointmentNumber: a.appointment_number,
-          address,
+          suburb,
           keyRequired: a.key_required === true,
           notes: a.notes ?? null,
           payoutAmount: payoutVal,

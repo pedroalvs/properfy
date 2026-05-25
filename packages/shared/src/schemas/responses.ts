@@ -364,6 +364,8 @@ export const serviceGroupResponseSchema = z.object({
 
 // ─── Marketplace Offer ─────────────────────────────────────────────────────
 
+const centroidSchema = z.object({ lat: z.number(), lng: z.number() }).nullable();
+
 export const marketplaceOfferResponseSchema = z.object({
   groupId: z.string().uuid(),
   tenantName: z.string(),
@@ -376,12 +378,13 @@ export const marketplaceOfferResponseSchema = z.object({
   suburbs: z.array(z.string()),
   payoutEstimate: z.number().nullable(),
   appointmentCount: z.number(),
+  centroid: centroidSchema,
 });
 
 export const marketplaceOfferDetailAppointmentSchema = z.object({
   id: z.string().uuid(),
   appointmentNumber: z.number(),
-  address: z.string(),
+  suburb: z.string(),
   keyRequired: z.boolean(),
   notes: z.string().nullable(),
   payoutAmount: z.number().nullable(),
