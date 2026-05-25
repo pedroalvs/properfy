@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
@@ -227,5 +227,38 @@ describe('InspectorDetailDrawer', () => {
     )!;
     fireEvent.click(confirmButton);
     expect(mockDeactivate).toHaveBeenCalledWith('Poor performance');
+  });
+});
+
+describe('InspectorDetailDrawer — Availability tab (T027)', () => {
+  beforeEach(() => { mockUserRole = 'AM'; });
+
+  it('renders TabsNav with Details and Availability tabs', () => {
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    const tabs = screen.getAllByRole('tab');
+    const tabLabels = tabs.map((t) => t.textContent);
+    expect(tabLabels).toContain('Details');
+    expect(tabLabels).toContain('Availability');
+  });
+
+  it('defaults to Details tab being active', () => {
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    const detailsTab = screen.getByRole('tab', { name: 'Details' });
+    expect(detailsTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Personal Details')).toBeInTheDocument();
+  });
+
+  it('switches to Availability tab on click', () => {
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    fireEvent.click(screen.getByRole('tab', { name: 'Availability' }));
+    const availTab = screen.getByRole('tab', { name: 'Availability' });
+    expect(availTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('does not show Availability tab for non-AM/OP roles', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    expect(screen.queryByRole('tab', { name: 'Availability' })).not.toBeInTheDocument();
+    mockUserRole = 'AM';
   });
 });

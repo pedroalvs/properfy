@@ -3,7 +3,6 @@ import { nextOccurrence } from '../next-day-of-week';
 
 // Day-of-week index: Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
 const DAY_NAMES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
-type DayKey = (typeof DAY_NAMES)[number];
 
 function toDate(yyyy_mm_dd: string): Date {
   const [y, m, d] = yyyy_mm_dd.split('-').map(Number);
