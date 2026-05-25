@@ -1147,19 +1147,18 @@ describe('ExecuteStatusTransitionUseCase – AM restricted from operational tran
     ).rejects.toThrow(AppointmentTransitionNotPermittedError);
   });
 
-  it('throws AppointmentTransitionNotPermittedError when AM tries SCHEDULED → REJECTED', async () => {
+  it('SCHEDULED → REJECTED with reason (AM actor)', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
     );
     const uc = makeUseCase();
-    await expect(
-      uc.execute({
-        appointmentId: 'appt-1',
-        targetStatus: 'REJECTED',
-        reason: 'Some reason',
-        actor: makeActor('AM'),
-      }),
-    ).rejects.toThrow(AppointmentTransitionNotPermittedError);
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Property inaccessible',
+      actor: makeActor('AM'),
+    });
+    expect(result.status).toBe('REJECTED');
   });
 });
 

@@ -523,8 +523,22 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         { OR: [{ tenant_note: null }, { tenant_note: '' }] },
       ];
     }
-    if (filters.confirmationStatus) {
-      where['tenant_confirmation_status'] = filters.confirmationStatus;
+    if (filters.confirmationStatus === 'sent') {
+      where['notifications'] = {
+        some: {
+          channel: 'EMAIL',
+          template_code: { startsWith: 'INSPECTION_NOTICE' },
+          status: { in: ['SENT', 'DELIVERED'] },
+        },
+      };
+    } else if (filters.confirmationStatus === 'not_sent') {
+      where['notifications'] = {
+        none: {
+          channel: 'EMAIL',
+          template_code: { startsWith: 'INSPECTION_NOTICE' },
+          status: { in: ['SENT', 'DELIVERED'] },
+        },
+      };
     }
     return where;
   }

@@ -122,7 +122,7 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   hasTenantNote: z
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),
-  confirmationStatus: z.nativeEnum(TenantConfirmationStatus).optional(),
+  confirmationStatus: z.enum(['sent', 'not_sent']).optional(),
 });
 export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySchema>;
 
