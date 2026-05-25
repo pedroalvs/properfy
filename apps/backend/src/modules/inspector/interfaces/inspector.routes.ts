@@ -402,7 +402,21 @@ export async function registerInspectorRoutes(
         capacity: parsed.data.capacity,
         actor: request.authContext!,
       });
-      return reply.status(201).send(success(result));
+      return reply.status(201).send(success({
+        id: result.id,
+        inspectorId: result.inspectorId,
+        inspectorName: null,
+        date: result.date instanceof Date ? result.date.toISOString().slice(0, 10) : String(result.date),
+        startTime: result.startTime,
+        endTime: result.endTime,
+        region: extractRegion(result.regionJson),
+        regionJson: result.regionJson,
+        capacity: result.capacity,
+        bookedCount: 0,
+        status: result.status,
+        createdAt: result.createdAt,
+        updatedAt: result.createdAt,
+      }));
     },
   );
 
