@@ -29,6 +29,36 @@ function deriveState(status: string | undefined, hasChannel: boolean): ChannelSt
   }
 }
 
+function labelFor(status: string | undefined, channel: 'SMS' | 'Email', hasChannel: boolean): string {
+  if (!hasChannel) {
+    return channel === 'SMS' ? 'SMS — no phone number on file' : 'Email — no email address on file';
+  }
+  switch ((status ?? '').toUpperCase()) {
+    case 'CONFIRMED': return `${channel} — Tenant confirmed`;
+    case 'DECLINED': return `${channel} — Tenant declined`;
+    case 'RESCHEDULE_REQUESTED': return `${channel} — Reschedule requested by tenant`;
+    case 'UNAVAILABLE': return `${channel} — Tenant marked as unavailable`;
+    case 'NO_RESPONSE': return `${channel} — No response from tenant`;
+    case 'PENDING':
+    default: return `${channel} — Awaiting tenant response`;
+  }
+}
+
+export function IconWithTooltip({ icon, label, colour, testId }: { icon: string; label: string; colour: string; testId?: string }) {
+  return (
+    <span className="group relative inline-flex">
+      <i className={`mdi ${icon} cursor-help text-base ${colour}`} aria-label={label} data-testid={testId} />
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+      >
+        {label}
+        <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+      </span>
+    </span>
+  );
+}
+
 /**
  * 025 — two inline icons (📱 SMS, 📧 Email) coloured red/green/gray
  * based on the tenant portal confirmation state. Pre-fix the modal had
@@ -47,15 +77,17 @@ export function ConfirmationChannelIcons({
   const emailState = deriveState(tenantConfirmationStatus, hasEmail);
   return (
     <span className="inline-flex items-center gap-1" data-testid="confirmation-channel-icons">
-      <i
-        className={`mdi mdi-cellphone-message text-base ${colourFor(smsState)}`}
-        aria-label={`SMS ${smsState}`}
-        title={`SMS ${smsState}`}
+      <IconWithTooltip
+        icon="mdi-cellphone-message"
+        label={labelFor(tenantConfirmationStatus, 'SMS', hasSms)}
+        colour={colourFor(smsState)}
+        testId="confirmation-sms-icon"
       />
-      <i
-        className={`mdi mdi-email-outline text-base ${colourFor(emailState)}`}
-        aria-label={`Email ${emailState}`}
-        title={`Email ${emailState}`}
+      <IconWithTooltip
+        icon="mdi-email-outline"
+        label={labelFor(tenantConfirmationStatus, 'Email', hasEmail)}
+        colour={colourFor(emailState)}
+        testId="confirmation-email-icon"
       />
     </span>
   );

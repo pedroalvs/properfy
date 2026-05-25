@@ -10,7 +10,7 @@ import { getValidTransitions, isReasonRequired } from '@properfy/shared';
 import type { AppointmentStatus, UserRole } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { AppointmentCodePill } from './AppointmentCodePill';
-import { ConfirmationChannelIcons } from './ConfirmationChannelIcons';
+import { ConfirmationChannelIcons, IconWithTooltip } from './ConfirmationChannelIcons';
 import { MapBulkRescheduleForm } from './MapBulkRescheduleForm';
 import { useBulkCancelAppointments } from '../hooks/useBulkCancelAppointments';
 import { useBulkStatusTransition } from '../hooks/useBulkStatusTransition';
@@ -258,14 +258,12 @@ export function MapBulkActionModal({
             hasSms={!!row.contactPhone}
           />
           {row.hasTenantNote && (
-            <span
-              className="cursor-help text-text-secondary"
-              title={row.tenantNote ?? 'Tenant left a note'}
-              aria-label="Tenant note from portal"
-              data-testid="bulk-modal-tenant-note-icon"
-            >
-              <i className="mdi mdi-note-text-outline text-base" />
-            </span>
+            <IconWithTooltip
+              icon="mdi-note-text-outline"
+              label={row.tenantNote ? `Note: ${row.tenantNote}` : 'Tenant left a note via portal'}
+              colour="text-text-secondary"
+              testId="bulk-modal-tenant-note-icon"
+            />
           )}
         </div>
       ),
