@@ -8,9 +8,17 @@ import { DaySelectorStrip } from '../components/DaySelectorStrip';
 import { AppointmentDayList } from '../components/AppointmentDayList';
 import { AppointmentCard } from '../components/AppointmentCard';
 import { ScheduleOfflineBanner } from '../components/ScheduleOfflineBanner';
+import { ScheduleTabs } from '../components/ScheduleTabs';
+import { ScheduleHistoryList } from '../components/ScheduleHistoryList';
+import { InstallBannerNative } from '../components/InstallBannerNative';
+import { InstallBannerIos } from '../components/InstallBannerIos';
+import { useInstallPrompt } from '@/app/useInstallPrompt';
 import { useScheduleRange } from '../hooks/useScheduleRange';
 import { useScheduleDay } from '../hooks/useScheduleDay';
+import { useScheduleHistory } from '../hooks/useScheduleHistory';
 import { isScheduleRisk, toLocalISODate, formatScheduleDate } from '../lib/time-slot';
+
+type Tab = 'upcoming' | 'history';
 
 function generateDays(count: number): string[] {
   const days: string[] = [];
@@ -42,8 +50,12 @@ export function SchedulePage() {
   }, [searchParams, days, today]);
   const [selectedDate, setSelectedDate] = useState(initialDate);
 
+  const [tab, setTab] = useState<Tab>('upcoming');
+  const { isIosSafariEligible, canInstall } = useInstallPrompt();
+
   const { data, isLoading, isError, error, refetch } = useScheduleRange(lookbackStart, lastDay);
   const dayAppointments = useScheduleDay(data?.appointments, selectedDate);
+  const history = useScheduleHistory();
 
   const appointmentCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -125,55 +137,83 @@ export function SchedulePage() {
         </section>
       </div>
 
-      <DaySelectorStrip
-        days={days}
-        selectedDate={selectedDate}
-        onDaySelect={setSelectedDate}
-        appointmentCounts={appointmentCounts}
-        urgentDays={urgentDays}
-      />
+      {isIosSafariEligible ? <InstallBannerIos /> : canInstall ? <InstallBannerNative /> : null}
 
-      <div className="px-page-x pt-1">
-        <ScheduleOfflineBanner />
-      </div>
+      <ScheduleTabs value={tab} onChange={setTab} />
 
-      <PullToRefresh onRefresh={refetch}>
-        <div className="pb-6 pt-3">
-          {isLoading && (
+      {tab === 'upcoming' && (
+        <>
+          <DaySelectorStrip
+            days={days}
+            selectedDate={selectedDate}
+            onDaySelect={setSelectedDate}
+            appointmentCounts={appointmentCounts}
+            urgentDays={urgentDays}
+          />
+
+          <div className="px-page-x pt-1">
+            <ScheduleOfflineBanner />
+          </div>
+
+          <PullToRefresh onRefresh={refetch}>
+            <div className="pb-6 pt-3">
+              {isLoading && (
+                <div className="px-page-x">
+                  <LoadingState rows={4} variant="card" />
+                </div>
+              )}
+
+              {isError && (
+                <ErrorState
+                  message="Failed to load schedule"
+                  detail={error instanceof Error ? error.message : undefined}
+                  onRetry={refetch}
+                />
+              )}
+
+              {!isLoading && !isError && stuckAppointments.length > 0 && (
+                <div className="mb-4 px-page-x">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-800">
+                      <i className="mdi mdi-clock-alert-outline text-base" />
+                      {stuckAppointments.length} incomplete {stuckAppointments.length === 1 ? 'job' : 'jobs'} from previous days
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {stuckAppointments.map((apt) => (
+                        <AppointmentCard key={apt.id} appointment={apt} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!isLoading && !isError && (
+                <AppointmentDayList appointments={dayAppointments} />
+              )}
+            </div>
+          </PullToRefresh>
+        </>
+      )}
+
+      {tab === 'history' && (
+        <div className="pb-6 pt-2">
+          {history.isLoading && (
             <div className="px-page-x">
               <LoadingState rows={4} variant="card" />
             </div>
           )}
-
-          {isError && (
+          {history.isError && (
             <ErrorState
-              message="Failed to load schedule"
-              detail={error instanceof Error ? error.message : undefined}
-              onRetry={refetch}
+              message="Failed to load history"
+              detail={history.error instanceof Error ? history.error.message : undefined}
+              onRetry={history.refetch}
             />
           )}
-
-          {!isLoading && !isError && stuckAppointments.length > 0 && (
-            <div className="mb-4 px-page-x">
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-800">
-                  <i className="mdi mdi-clock-alert-outline text-base" />
-                  {stuckAppointments.length} incomplete {stuckAppointments.length === 1 ? 'job' : 'jobs'} from previous days
-                </p>
-                <div className="flex flex-col gap-2">
-                  {stuckAppointments.map((apt) => (
-                    <AppointmentCard key={apt.id} appointment={apt} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!isLoading && !isError && (
-            <AppointmentDayList appointments={dayAppointments} />
+          {!history.isLoading && !history.isError && (
+            <ScheduleHistoryList items={history.data?.items ?? []} />
           )}
         </div>
-      </PullToRefresh>
+      )}
     </div>
   );
 }
