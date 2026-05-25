@@ -3,7 +3,9 @@ import type { IAvailabilitySlotRepository } from '../../domain/availability-slot
 
 const HORIZON_WEEKS = 8;
 const AM_START = '08:00';
+const AM_END = '13:00';
 const PM_START = '13:00';
+const PM_END = '18:00';
 
 type DayKey = keyof AvailabilityOverrideMap;
 
@@ -14,7 +16,8 @@ const DAY_INDEX_MAP: Record<number, DayKey> = {
 /**
  * Derives the 7×2 override map by querying operator-created slots with remaining
  * capacity in the next 8 weeks. A cell is `true` when at least one such slot
- * exists for that day-of-week × half-day window.
+ * overlaps that day-of-week × half-day window (AM: 08:00-13:00, PM: 13:00-18:00).
+ * Overlap detection handles non-standard operator time windows (e.g. 09:00-17:00).
  */
 export async function deriveOverrideMap(
   inspectorId: string,
@@ -38,14 +41,20 @@ export async function deriveOverrideMap(
     const dayKey = DAY_INDEX_MAP[slot.date.getDay()];
     if (!dayKey) continue;
 
-    if (slot.startTime === AM_START) {
+    if (overlapsWindow(slot.startTime, slot.endTime, AM_START, AM_END)) {
       map[dayKey].am = true;
-    } else if (slot.startTime === PM_START) {
+    }
+    if (overlapsWindow(slot.startTime, slot.endTime, PM_START, PM_END)) {
       map[dayKey].pm = true;
     }
   }
 
   return map;
+}
+
+/** Returns true when [slotStart, slotEnd) and [winStart, winEnd) overlap. */
+function overlapsWindow(slotStart: string, slotEnd: string, winStart: string, winEnd: string): boolean {
+  return slotStart < winEnd && slotEnd > winStart;
 }
 
 function startOfTomorrow(): Date {

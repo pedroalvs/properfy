@@ -74,6 +74,10 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
 
     const slotsByDateWindow = indexSlots(existingSlots);
 
+    // Pre-index operator overrides that don't align to the standard AM/PM start times
+    // so the main loop can detect collisions before creating new standard slots.
+    const nonStandardOverridesByDate = indexNonStandardOverrides(existingSlots);
+
     let slotsCreated = 0;
     let slotsDeleted = 0;
     let slotsPreserved = 0;
@@ -83,6 +87,8 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
     for (const date of days) {
       const dayKey = DAY_INDEX_MAP[date.getDay()];
       if (!dayKey) continue;
+
+      const dateStr = date.toISOString().slice(0, 10);
 
       for (const { period, startTime, endTime } of [
         { period: 'am' as PeriodKey, startTime: AM_START, endTime: AM_END },
@@ -106,6 +112,18 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
           await this.slotRepo.deleteById(existing.id);
           slotsDeleted++;
         } else {
+          // Before Rule 5: check for a non-standard operator override that overlaps
+          // this standard window. If one exists, skip creation to avoid collision.
+          const hasNonStandardOverride = nonStandardOverridesByDate
+            .get(dateStr)
+            ?.some((s) => overlapsWindow(s.startTime, s.endTime, startTime, endTime))
+            ?? false;
+
+          if (hasNonStandardOverride) {
+            // Rule 2 (indirect): non-standard operator override preserved, no new slot
+            continue;
+          }
+
           // Rule 5: template ON, no slot → create
           if (templateOn) {
             await this.slotRepo.saveForRegeneration({
@@ -165,4 +183,27 @@ function indexSlots(slots: SlotForRegen[]): Map<string, SlotForRegen> {
     map.set(toKey(slot.date, slot.startTime), slot);
   }
   return map;
+}
+
+/**
+ * Groups operator-override slots whose startTime does NOT exactly match AM_START or
+ * PM_START by their date string. Used to detect when a non-standard override (e.g.
+ * 09:00-17:00) would collide with a standard slot the regenerator would otherwise create.
+ */
+function indexNonStandardOverrides(slots: SlotForRegen[]): Map<string, SlotForRegen[]> {
+  const map = new Map<string, SlotForRegen[]>();
+  for (const slot of slots) {
+    if (!slot.isOperatorOverride) continue;
+    if (slot.startTime === AM_START || slot.startTime === PM_START) continue;
+    const d = slot.date.toISOString().slice(0, 10);
+    const list = map.get(d) ?? [];
+    list.push(slot);
+    map.set(d, list);
+  }
+  return map;
+}
+
+/** Returns true when [slotStart, slotEnd) and [winStart, winEnd) overlap. */
+function overlapsWindow(slotStart: string, slotEnd: string, winStart: string, winEnd: string): boolean {
+  return slotStart < winEnd && slotEnd > winStart;
 }
