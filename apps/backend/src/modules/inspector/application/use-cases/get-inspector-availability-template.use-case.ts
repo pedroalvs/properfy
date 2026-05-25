@@ -1,4 +1,4 @@
-import type { AvailabilityTemplate, AvailabilityOverrideMap, InspectorAvailabilityResponse } from '@properfy/shared';
+import type { InspectorAvailabilityResponse } from '@properfy/shared';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IAvailabilitySlotRepository } from '../../domain/availability-slot.repository';
 import { deriveOverrideMap } from './availability-override-map';
