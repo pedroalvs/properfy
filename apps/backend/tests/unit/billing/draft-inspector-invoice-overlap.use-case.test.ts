@@ -5,11 +5,13 @@ import { DomainError } from '../../../src/shared/domain/errors';
 const mockFindMany = vi.fn();
 const mockCreate = vi.fn();
 const mockFindFirst = vi.fn();
+const mockUpdateMany = vi.fn();
 
 const prisma = {
   inspectorInvoice: {
     findFirst: mockFindFirst,
     create: mockCreate,
+    updateMany: mockUpdateMany,
   },
   financialEntry: {
     findMany: mockFindMany,
@@ -37,6 +39,7 @@ describe('DraftInspectorInvoiceUseCase — period overlap logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreate.mockResolvedValue(undefined);
+    mockUpdateMany.mockResolvedValue({ count: 0 });
     mockFindMany.mockResolvedValue(validEntries);
   });
 
@@ -72,6 +75,21 @@ describe('DraftInspectorInvoiceUseCase — period overlap logic', () => {
     const sut = makeSut();
     const result = await sut.execute(baseInput);
     expect(result.status).toBe('PENDING_REVIEW');
+  });
+
+  it('should supersede existing PENDING_REVIEW invoices before creating a new one', async () => {
+    mockFindFirst.mockResolvedValue(null); // overlap check passes
+
+    const sut = makeSut();
+    await sut.execute(baseInput);
+
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'PENDING_REVIEW' }),
+        data: { status: 'SUPERSEDED' },
+      }),
+    );
+    expect(mockCreate).toHaveBeenCalled();
   });
 
   it('should exclude PENDING_REVIEW from overlap query so it does not block new drafts', async () => {

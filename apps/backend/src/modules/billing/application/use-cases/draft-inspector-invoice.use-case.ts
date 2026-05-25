@@ -72,7 +72,19 @@ export class DraftInspectorInvoiceUseCase {
     const totalAmount = entries.reduce((sum: number, e: { amount: any }) => sum + Number(e.amount), 0);
     const currency = entries[0]?.currency ?? 'AUD';
 
-    // 4. Create invoice in PENDING_REVIEW
+    // 4. Supersede any existing PENDING_REVIEW invoice for the same period before creating
+    await this.prisma.inspectorInvoice.updateMany({
+      where: {
+        inspector_id: inspectorId,
+        status: 'PENDING_REVIEW',
+        OR: [
+          { period_start: { lte: end }, period_end: { gte: start } },
+        ],
+      },
+      data: { status: 'SUPERSEDED' },
+    });
+
+    // 5. Create invoice in PENDING_REVIEW
     const invoiceId = crypto.randomUUID();
     await this.prisma.inspectorInvoice.create({
       data: {
@@ -88,7 +100,7 @@ export class DraftInspectorInvoiceUseCase {
       },
     });
 
-    // 5. Audit
+    // 6. Audit
     this.auditService.log({
       action: 'inspector_invoice.drafted',
       actorType: 'USER',

@@ -492,7 +492,8 @@ export const portalActivitiesResponseSchema = z.object({
 // ─── Inspector Execution ───────────────────────────────────────────────────
 
 export const inspectorScheduleItemSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
+  appointmentCode: z.string().optional(),
   status: z.string(),
   scheduledDate: dateStr(),
   timeSlot: z.string(),
