@@ -90,23 +90,21 @@ describe('DraftInspectorInvoiceUseCase — period overlap logic', () => {
     expect(result.invoiceId).toBe('new-invoice-id');
   });
 
-  it('should exclude PENDING_REVIEW from overlap query so it does not block new drafts', async () => {
-    // Regression: PENDING_REVIEW must be in `notIn` so stale unreviewed invoices
-    // do not prevent inspectors from re-drafting. The mock returns null to simulate
-    // a query that correctly excludes PENDING_REVIEW invoices.
-    mockFindFirst.mockResolvedValue(null);
+  it('should allow re-drafting the exact same period even when PENDING_REVIEW exists for it', async () => {
+    // Overlap check excludes the exact same period via NOT clause; upsert refreshes it in place.
+    mockFindFirst.mockResolvedValue(null); // NOT clause makes findFirst return null for same period
 
     const sut = makeSut();
     await expect(sut.execute(baseInput)).resolves.toMatchObject({ status: 'PENDING_REVIEW' });
+    expect(mockUpsert).toHaveBeenCalled();
+  });
 
-    expect(mockFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          status: expect.objectContaining({
-            notIn: expect.arrayContaining(['PENDING_REVIEW']),
-          }),
-        }),
-      }),
-    );
+  it('should throw INVOICE_PERIOD_OVERLAP when PENDING_REVIEW exists for a different overlapping period', async () => {
+    // A PENDING_REVIEW that overlaps but has different dates must still block drafting
+    // to prevent double-counting inspector payouts across partially-overlapping periods.
+    mockFindFirst.mockResolvedValue({ id: 'other-inv', status: 'PENDING_REVIEW' });
+
+    const sut = makeSut();
+    await expect(sut.execute(baseInput)).rejects.toMatchObject({ code: 'INVOICE_PERIOD_OVERLAP' });
   });
 });

@@ -36,11 +36,16 @@ export class DraftInspectorInvoiceUseCase {
     const start = new Date(periodStart);
     const end = new Date(periodEnd);
 
-    // 1. Check period overlap with existing non-rejected invoices
+    // 1. Check period overlap with existing invoices.
+    //    SUPERSEDED rows are always ignored (historical artefacts).
+    //    PENDING_REVIEW for the EXACT same period is allowed — the upsert below will
+    //    refresh it in place. PENDING_REVIEW for a DIFFERENT overlapping period must
+    //    still block the draft to prevent double-counting inspector payouts.
     const overlapping = await this.prisma.inspectorInvoice.findFirst({
       where: {
         inspector_id: inspectorId,
-        status: { notIn: ['SUPERSEDED', 'PENDING_REVIEW'] },
+        status: { notIn: ['SUPERSEDED'] },
+        NOT: { period_start: start, period_end: end },
         OR: [
           { period_start: { lte: end }, period_end: { gte: start } },
         ],
