@@ -61,11 +61,16 @@ function toStringParams(params?: ListParams): Record<string, string | string[]> 
 
 function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;
-  if (error && typeof error === 'object' && 'message' in error) {
-    return new ApiError(
-      (error as { status?: number }).status ?? 500,
-      (error as { message: string }).message,
-    );
+  if (error && typeof error === 'object') {
+    // Properfy API error envelope: { error: { code, message, details } }
+    const env = error as { error?: { code?: string; message?: string; details?: Array<{ field?: string; message: string }> }; status?: number };
+    if (env.error?.message) {
+      return new ApiError(env.status ?? 422, env.error.message, env.error.code, env.error.details);
+    }
+    // Fallback: plain Error-shaped object
+    if ('message' in error) {
+      return new ApiError((error as { status?: number }).status ?? 500, (error as { message: string }).message);
+    }
   }
   return new ApiError(500, 'Unknown error');
 }
