@@ -78,9 +78,10 @@ describe('getValidTransitions — SCHEDULED', () => {
     ]);
   });
 
-  it('AM/CL_ADMIN can cancel only (reject is OP-only on SCHEDULED)', () => {
+  it('AM can cancel + reject; CL_ADMIN can cancel only', () => {
     expect(getValidTransitions(AppointmentStatus.SCHEDULED, 'AM')).toEqual([
       AppointmentStatus.CANCELLED,
+      AppointmentStatus.REJECTED,
     ]);
     expect(getValidTransitions(AppointmentStatus.SCHEDULED, 'CL_ADMIN')).toEqual([
       AppointmentStatus.CANCELLED,
