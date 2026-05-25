@@ -37,16 +37,17 @@ describe('TenantPortalTokenStatus', () => {
 });
 
 describe('TenantPortalAction', () => {
-  it('should have VIEW, CONFIRM, RESCHEDULE, CONTACT_UPDATED, UNAVAILABLE_REPORTED values', () => {
+  it('should have VIEW, CONFIRM, RESCHEDULE, CONTACT_UPDATED, UNAVAILABLE_REPORTED, GROUP_JOIN values', () => {
     expect(TenantPortalAction.VIEW).toBe('VIEW');
     expect(TenantPortalAction.CONFIRM).toBe('CONFIRM');
     expect(TenantPortalAction.RESCHEDULE).toBe('RESCHEDULE');
     expect(TenantPortalAction.CONTACT_UPDATED).toBe('CONTACT_UPDATED');
     expect(TenantPortalAction.UNAVAILABLE_REPORTED).toBe('UNAVAILABLE_REPORTED');
+    expect(TenantPortalAction.GROUP_JOIN).toBe('GROUP_JOIN');
   });
 
-  it('should have exactly 5 actions', () => {
-    expect(Object.keys(TenantPortalAction)).toHaveLength(5);
+  it('should have exactly 6 actions', () => {
+    expect(Object.keys(TenantPortalAction)).toHaveLength(6);
   });
 });
 

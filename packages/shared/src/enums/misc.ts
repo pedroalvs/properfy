@@ -18,6 +18,7 @@ export const TenantPortalAction = {
   RESCHEDULE: 'RESCHEDULE',
   CONTACT_UPDATED: 'CONTACT_UPDATED',
   UNAVAILABLE_REPORTED: 'UNAVAILABLE_REPORTED',
+  GROUP_JOIN: 'GROUP_JOIN',
 } as const;
 export type TenantPortalAction = (typeof TenantPortalAction)[keyof typeof TenantPortalAction];
 
