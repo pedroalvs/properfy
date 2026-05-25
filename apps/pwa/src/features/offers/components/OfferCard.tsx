@@ -8,6 +8,7 @@ interface OfferCardProps {
   offer: MarketplaceOffer;
   state: OfferAcceptState;
   onAccept: () => void;
+  onViewDetail?: () => void;
 }
 
 function isToday(dateStr: string): boolean {
@@ -52,7 +53,7 @@ const stateLabels: Partial<Record<OfferAcceptState, { label: string; className: 
   ERROR: { label: 'Try again', className: 'bg-error/10 text-error' },
 };
 
-export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: OfferCardProps) {
+export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onViewDetail }: OfferCardProps) {
   const today = isToday(offer.scheduledDate);
   const tomorrow = isTomorrow(offer.scheduledDate);
   const resolved = stateLabels[state];
@@ -129,6 +130,17 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept }: Off
             <i className="mdi mdi-map-marker-outline mr-1 text-text-muted" />
             {offer.suburbs.join(' · ')}
           </p>
+        )}
+
+        {/* Details drill-down */}
+        {onViewDetail && (
+          <button
+            onClick={onViewDetail}
+            className="mt-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+            data-testid="view-detail-button"
+          >
+            View inspections
+          </button>
         )}
 
         {/* Priority countdown */}

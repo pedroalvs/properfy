@@ -40,7 +40,7 @@ export class DraftInspectorInvoiceUseCase {
     const overlapping = await this.prisma.inspectorInvoice.findFirst({
       where: {
         inspector_id: inspectorId,
-        status: { notIn: ['SUPERSEDED'] },
+        status: { notIn: ['SUPERSEDED', 'PENDING_REVIEW'] },
         OR: [
           { period_start: { lte: end }, period_end: { gte: start } },
         ],
