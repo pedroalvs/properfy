@@ -4298,6 +4298,321 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspectors/me/availability-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                template: {
+                                    mon: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    tue: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    wed: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    thu: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    fri: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sat: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sun: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                };
+                                overrides: {
+                                    mon: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    tue: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    wed: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    thu: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    fri: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sat: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sun: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        template: {
+                            mon: {
+                                am: boolean;
+                                pm: boolean;
+                            };
+                            tue: {
+                                am: boolean;
+                                pm: boolean;
+                            };
+                            wed: {
+                                am: boolean;
+                                pm: boolean;
+                            };
+                            thu: {
+                                am: boolean;
+                                pm: boolean;
+                            };
+                            fri: {
+                                am: boolean;
+                                pm: boolean;
+                            };
+                            sat: {
+                                am: boolean;
+                                pm: boolean;
+                            };
+                            sun: {
+                                am: boolean;
+                                pm: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                template: {
+                                    mon: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    tue: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    wed: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    thu: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    fri: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sat: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sun: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                };
+                                overrides: {
+                                    mon: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    tue: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    wed: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    thu: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    fri: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sat: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sun: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/{inspectorId}/availability-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                template: {
+                                    mon: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    tue: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    wed: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    thu: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    fri: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sat: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sun: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                };
+                                overrides: {
+                                    mon: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    tue: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    wed: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    thu: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    fri: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sat: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                    sun: {
+                                        am: boolean;
+                                        pm: boolean;
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments": {
         parameters: {
             query?: never;
@@ -6270,6 +6585,10 @@ export interface paths {
                                 suburbs: string[];
                                 payoutEstimate: number | null;
                                 appointmentCount: number;
+                                centroid: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
                             }[];
                             pagination: {
                                 page: number;
@@ -6328,6 +6647,10 @@ export interface paths {
                                 suburbs: string[];
                                 payoutEstimate: number | null;
                                 appointmentCount: number;
+                                centroid: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
                                 addresses: string[];
                                 keyRequired: boolean;
                                 notes: string | null;
@@ -6335,7 +6658,7 @@ export interface paths {
                                     /** Format: uuid */
                                     id: string;
                                     appointmentNumber: number;
-                                    address: string;
+                                    suburb: string;
                                     keyRequired: boolean;
                                     notes: string | null;
                                     payoutAmount: number | null;
@@ -7348,6 +7671,11 @@ export interface paths {
             parameters: {
                 query?: {
                     date?: string;
+                    from?: string;
+                    to?: string;
+                    status?: "DONE";
+                    page?: number;
+                    pageSize?: number;
                 };
                 header?: never;
                 path?: never;
@@ -7365,8 +7693,8 @@ export interface paths {
                             data: {
                                 date: string;
                                 appointments: {
-                                    /** Format: uuid */
                                     id: string;
+                                    appointmentCode?: string;
                                     status: string;
                                     scheduledDate: string;
                                     timeSlot: string;
@@ -7381,6 +7709,30 @@ export interface paths {
                                     executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
                                     agencyName?: string | null;
                                 }[];
+                            };
+                        } | {
+                            data: {
+                                id: string;
+                                appointmentCode?: string;
+                                status: string;
+                                scheduledDate: string;
+                                timeSlot: string;
+                                /** Format: uuid */
+                                serviceTypeId: string;
+                                /** Format: uuid */
+                                propertyId: string;
+                                tenantConfirmationStatus: string;
+                                keyRequired: boolean;
+                                meetingLocation: string | null;
+                                /** @enum {string} */
+                                executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                agencyName?: string | null;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
                             };
                         };
                     };
@@ -7874,6 +8226,10 @@ export interface paths {
                                 suburbs: string[];
                                 payoutEstimate: number | null;
                                 appointmentCount: number;
+                                centroid: {
+                                    lat: number;
+                                    lng: number;
+                                } | null;
                             }[];
                             pagination: {
                                 page: number;

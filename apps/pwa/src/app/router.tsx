@@ -39,6 +39,11 @@ const ProfilePage = lazy(() =>
     default: module.ProfilePage,
   })),
 );
+const ProfileEditPage = lazy(() =>
+  import('@/features/profile/pages/ProfileEditPage').then((module) => ({
+    default: module.ProfileEditPage,
+  })),
+);
 const EarningsPage = lazy(() =>
   import('@/features/earnings/pages/EarningsPage').then((module) => ({
     default: module.EarningsPage,
@@ -96,6 +101,7 @@ export const router = createBrowserRouter(
                 { path: 'earnings', element: lazyElement(EarningsPage) },
                 { path: 'earnings/draft-invoice', element: lazyElement(DraftInvoiceScreen) },
                 { path: 'profile', element: lazyElement(ProfilePage) },
+                { path: 'profile/edit', element: lazyElement(ProfileEditPage) },
               ],
             },
             { path: 'execution/:appointmentId', element: lazyElement(ExecutionPage) },

@@ -123,6 +123,7 @@ import { ConfirmInspectorDocumentUploadUseCase } from '../modules/inspector/appl
 import { GetInspectorDocumentDownloadUrlUseCase } from '../modules/inspector/application/use-cases/get-inspector-document-download-url.use-case';
 import { GetInspectorAvailabilityTemplateUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template.use-case';
 import { UpdateInspectorAvailabilityTemplateUseCase } from '../modules/inspector/application/use-cases/update-inspector-availability-template.use-case';
+import { GetInspectorAvailabilityTemplateForOperatorUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template-for-operator.use-case';
 import { PrismaInspectorAppointmentChecker } from '../modules/inspector/infrastructure/prisma-inspector-appointment-checker';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
 
@@ -596,6 +597,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getInspectorDocumentDownloadUrlUseCase = new GetInspectorDocumentDownloadUrlUseCase(inspectorRepo, storageService);
   const getInspectorAvailabilityTemplateUseCase = new GetInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo);
   const updateInspectorAvailabilityTemplateUseCase = new UpdateInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo, auditService);
+  const getInspectorAvailabilityTemplateForOperatorUseCase = new GetInspectorAvailabilityTemplateForOperatorUseCase(inspectorRepo, availabilitySlotRepo);
 
   // Notification repositories and create use case (needed before appointments for handler wiring)
   const notificationRepo = new PrismaNotificationRepository(prisma);
@@ -1271,6 +1273,7 @@ export function createContainer(logger: Logger): AppContainer {
       getInspectorDocumentDownloadUrlUseCase,
       getInspectorAvailabilityTemplateUseCase,
       updateInspectorAvailabilityTemplateUseCase,
+      getInspectorAvailabilityTemplateForOperatorUseCase,
       jwtService,
       tenantRepo,
       slotRepo: availabilitySlotRepo,

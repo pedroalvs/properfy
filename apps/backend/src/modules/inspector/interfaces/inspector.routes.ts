@@ -37,6 +37,7 @@ import type { ConfirmInspectorDocumentUploadUseCase } from '../application/use-c
 import type { GetInspectorDocumentDownloadUrlUseCase } from '../application/use-cases/get-inspector-document-download-url.use-case';
 import type { GetInspectorAvailabilityTemplateUseCase } from '../application/use-cases/get-inspector-availability-template.use-case';
 import type { UpdateInspectorAvailabilityTemplateUseCase } from '../application/use-cases/update-inspector-availability-template.use-case';
+import type { GetInspectorAvailabilityTemplateForOperatorUseCase } from '../application/use-cases/get-inspector-availability-template-for-operator.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface InspectorRouteContainer {
@@ -57,6 +58,7 @@ export interface InspectorRouteContainer {
   getInspectorDocumentDownloadUrlUseCase: GetInspectorDocumentDownloadUrlUseCase;
   getInspectorAvailabilityTemplateUseCase: GetInspectorAvailabilityTemplateUseCase;
   updateInspectorAvailabilityTemplateUseCase: UpdateInspectorAvailabilityTemplateUseCase;
+  getInspectorAvailabilityTemplateForOperatorUseCase: GetInspectorAvailabilityTemplateForOperatorUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
   slotRepo: { findByIdAny(id: string): Promise<{ inspectorId: string } | null> };
@@ -400,7 +402,21 @@ export async function registerInspectorRoutes(
         capacity: parsed.data.capacity,
         actor: request.authContext!,
       });
-      return reply.status(201).send(success(result));
+      return reply.status(201).send(success({
+        id: result.id,
+        inspectorId: result.inspectorId,
+        inspectorName: null,
+        date: result.date instanceof Date ? result.date.toISOString().slice(0, 10) : String(result.date),
+        startTime: result.startTime,
+        endTime: result.endTime,
+        region: extractRegion(result.regionJson),
+        regionJson: result.regionJson,
+        capacity: result.capacity,
+        bookedCount: 0,
+        status: result.status,
+        createdAt: result.createdAt,
+        updatedAt: result.createdAt,
+      }));
     },
   );
 
@@ -760,6 +776,30 @@ export async function registerInspectorRoutes(
         inspectorId: ctx.inspectorId,
         template: body.template,
         actorId: ctx.userId,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/inspectors/:inspectorId/availability-template — AM/OP only
+  app.get(
+    '/v1/inspectors/:inspectorId/availability-template',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: inspectorIdParam,
+        response: { 200: successResponseSchema(inspectorAvailabilityResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const ctx = request.authContext!;
+      if (ctx.role !== 'AM' && ctx.role !== 'OP') {
+        throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can view inspector availability');
+      }
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid inspector ID', params.error.errors);
+      const result = await container.getInspectorAvailabilityTemplateForOperatorUseCase.execute({
+        inspectorId: params.data.inspectorId,
       });
       return reply.status(200).send(success(result));
     },

@@ -126,7 +126,7 @@ export type ListAvailabilitySlotsQueryInput = z.infer<typeof listAvailabilitySlo
 // --- Inspector self-update (INSP role, PATCH /v1/inspectors/me) ---
 
 export const inspectorSelfUpdateSchema = z.object({
-  phone: z.string().max(20).nullable().optional(),
+  phone: z.string().regex(/^\+[1-9]\d{6,14}$/, 'Phone must be in E.164 format').nullable().optional(),
   fullName: z.string().max(300).nullable().optional(),
   paymentSettings: paymentSettingsSchema.optional(),
 });

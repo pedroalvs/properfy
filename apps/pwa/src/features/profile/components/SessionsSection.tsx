@@ -75,7 +75,7 @@ export function SessionsSection() {
                 <span className="text-sm font-medium text-text-primary">{formatDevice(s.userAgent)}</span>
                 {s.isCurrent && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">Current</span>}
               </div>
-              <p className="truncate text-xs text-text-muted">{s.ipAddress ?? 'Unknown IP'} \u00b7 Started {formatTime(s.createdAt)}</p>
+              <p className="truncate text-xs text-text-muted">{s.ipAddress ?? 'Unknown IP'} {'\u00b7'} Started {formatTime(s.createdAt)}</p>
             </div>
             {!s.isCurrent && (
               <Button
