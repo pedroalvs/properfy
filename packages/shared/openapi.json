@@ -9493,6 +9493,1016 @@
         }
       }
     },
+    "/v1/inspectors/me/availability-template": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "template": {
+                          "type": "object",
+                          "properties": {
+                            "mon": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "tue": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "wed": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "thu": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "fri": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sat": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sun": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "overrides": {
+                          "type": "object",
+                          "properties": {
+                            "mon": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "tue": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "wed": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "thu": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "fri": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sat": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sun": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "template",
+                        "overrides"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "template": {
+                    "type": "object",
+                    "properties": {
+                      "mon": {
+                        "type": "object",
+                        "properties": {
+                          "am": {
+                            "type": "boolean"
+                          },
+                          "pm": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "am",
+                          "pm"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "tue": {
+                        "type": "object",
+                        "properties": {
+                          "am": {
+                            "type": "boolean"
+                          },
+                          "pm": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "am",
+                          "pm"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "wed": {
+                        "type": "object",
+                        "properties": {
+                          "am": {
+                            "type": "boolean"
+                          },
+                          "pm": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "am",
+                          "pm"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "thu": {
+                        "type": "object",
+                        "properties": {
+                          "am": {
+                            "type": "boolean"
+                          },
+                          "pm": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "am",
+                          "pm"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "fri": {
+                        "type": "object",
+                        "properties": {
+                          "am": {
+                            "type": "boolean"
+                          },
+                          "pm": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "am",
+                          "pm"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "sat": {
+                        "type": "object",
+                        "properties": {
+                          "am": {
+                            "type": "boolean"
+                          },
+                          "pm": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "am",
+                          "pm"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "sun": {
+                        "type": "object",
+                        "properties": {
+                          "am": {
+                            "type": "boolean"
+                          },
+                          "pm": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "am",
+                          "pm"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "mon",
+                      "tue",
+                      "wed",
+                      "thu",
+                      "fri",
+                      "sat",
+                      "sun"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "template"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "template": {
+                          "type": "object",
+                          "properties": {
+                            "mon": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "tue": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "wed": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "thu": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "fri": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sat": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sun": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "overrides": {
+                          "type": "object",
+                          "properties": {
+                            "mon": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "tue": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "wed": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "thu": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "fri": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sat": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sun": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "template",
+                        "overrides"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/availability-template": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "template": {
+                          "type": "object",
+                          "properties": {
+                            "mon": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "tue": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "wed": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "thu": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "fri": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sat": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sun": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "overrides": {
+                          "type": "object",
+                          "properties": {
+                            "mon": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "tue": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "wed": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "thu": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "fri": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sat": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "sun": {
+                              "type": "object",
+                              "properties": {
+                                "am": {
+                                  "type": "boolean"
+                                },
+                                "pm": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "am",
+                                "pm"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "template",
+                        "overrides"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/appointments": {
       "post": {
         "requestBody": {
@@ -9819,6 +10829,9 @@
                   "customFields": {
                     "type": "object",
                     "additionalProperties": {}
+                  },
+                  "actorTimezone": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -11076,6 +12089,9 @@
                     "type": "object",
                     "additionalProperties": {},
                     "nullable": true
+                  },
+                  "actorTimezone": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -12427,7 +13443,8 @@
                   },
                   "serviceRegionId": {
                     "type": "string",
-                    "format": "uuid"
+                    "format": "uuid",
+                    "nullable": true
                   },
                   "description": {
                     "type": "string",
@@ -12453,14 +13470,16 @@
                     "type": "string",
                     "minLength": 10,
                     "maxLength": 1000
+                  },
+                  "actorTimezone": {
+                    "type": "string"
                   }
                 },
                 "required": [
                   "appointmentIds",
                   "serviceTypeId",
                   "scheduledDate",
-                  "timeWindow",
-                  "serviceRegionId"
+                  "timeWindow"
                 ],
                 "additionalProperties": false
               }
@@ -13251,6 +14270,9 @@
                     "minLength": 10,
                     "maxLength": 1000,
                     "nullable": true
+                  },
+                  "actorTimezone": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -14277,6 +15299,111 @@
         }
       }
     },
+    "/v1/service-groups/find-addable-for-appointments": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "groups": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "scheduledDate": {
+                                "type": "string"
+                              },
+                              "timeWindow": {
+                                "type": "string"
+                              },
+                              "currentSize": {
+                                "type": "integer"
+                              },
+                              "serviceTypeName": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "status",
+                              "scheduledDate",
+                              "timeWindow",
+                              "currentSize",
+                              "serviceTypeName"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "MIXED_APPOINTMENT_PROPERTIES",
+                            "INVALID_APPOINTMENT_STATUS"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "groups"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/marketplace/offers": {
       "get": {
         "parameters": [
@@ -14390,6 +15517,23 @@
                           },
                           "appointmentCount": {
                             "type": "number"
+                          },
+                          "centroid": {
+                            "type": "object",
+                            "properties": {
+                              "lat": {
+                                "type": "number"
+                              },
+                              "lng": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "lat",
+                              "lng"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
                           }
                         },
                         "required": [
@@ -14403,7 +15547,8 @@
                           "priorityExpiresAt",
                           "suburbs",
                           "payoutEstimate",
-                          "appointmentCount"
+                          "appointmentCount",
+                          "centroid"
                         ],
                         "additionalProperties": false
                       }
@@ -14524,6 +15669,23 @@
                         "appointmentCount": {
                           "type": "number"
                         },
+                        "centroid": {
+                          "type": "object",
+                          "properties": {
+                            "lat": {
+                              "type": "number"
+                            },
+                            "lng": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "lat",
+                            "lng"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
                         "addresses": {
                           "type": "array",
                           "items": {
@@ -14549,7 +15711,7 @@
                               "appointmentNumber": {
                                 "type": "number"
                               },
-                              "address": {
+                              "suburb": {
                                 "type": "string"
                               },
                               "keyRequired": {
@@ -14567,7 +15729,7 @@
                             "required": [
                               "id",
                               "appointmentNumber",
-                              "address",
+                              "suburb",
                               "keyRequired",
                               "notes",
                               "payoutAmount"
@@ -14588,6 +15750,7 @@
                         "suburbs",
                         "payoutEstimate",
                         "appointmentCount",
+                        "centroid",
                         "addresses",
                         "keyRequired",
                         "notes",
@@ -15854,6 +17017,56 @@
             "in": "query",
             "name": "date",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "from",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "to",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DONE"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
           }
         ],
         "responses": {
@@ -15862,30 +17075,124 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "date": {
-                          "anyOf": [
-                            {
-                              "type": "string"
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "date": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ]
                             },
-                            {
-                              "type": "string",
-                              "format": "date-time"
+                            "appointments": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "appointmentCode": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string"
+                                  },
+                                  "scheduledDate": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    ]
+                                  },
+                                  "timeSlot": {
+                                    "type": "string"
+                                  },
+                                  "serviceTypeId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "propertyId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "tenantConfirmationStatus": {
+                                    "type": "string"
+                                  },
+                                  "keyRequired": {
+                                    "type": "boolean"
+                                  },
+                                  "meetingLocation": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "executionStatus": {
+                                    "type": "string",
+                                    "enum": [
+                                      "NOT_STARTED",
+                                      "IN_PROGRESS",
+                                      "FINISHED"
+                                    ]
+                                  },
+                                  "agencyName": {
+                                    "type": "string",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "status",
+                                  "scheduledDate",
+                                  "timeSlot",
+                                  "serviceTypeId",
+                                  "propertyId",
+                                  "tenantConfirmationStatus",
+                                  "keyRequired",
+                                  "meetingLocation",
+                                  "executionStatus"
+                                ],
+                                "additionalProperties": false
+                              }
                             }
-                          ]
-                        },
-                        "appointments": {
+                          },
+                          "required": [
+                            "date",
+                            "appointments"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
                           "type": "array",
                           "items": {
                             "type": "object",
                             "properties": {
                               "id": {
-                                "type": "string",
-                                "format": "uuid"
+                                "type": "string"
+                              },
+                              "appointmentCode": {
+                                "type": "string"
                               },
                               "status": {
                                 "type": "string"
@@ -15949,19 +17256,39 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "page": {
+                              "type": "number"
+                            },
+                            "pageSize": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            },
+                            "totalPages": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "page",
+                            "pageSize",
+                            "total",
+                            "totalPages"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "date",
-                        "appointments"
+                        "data",
+                        "pagination"
                       ],
                       "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -17065,6 +18392,23 @@
                           },
                           "appointmentCount": {
                             "type": "number"
+                          },
+                          "centroid": {
+                            "type": "object",
+                            "properties": {
+                              "lat": {
+                                "type": "number"
+                              },
+                              "lng": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "lat",
+                              "lng"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
                           }
                         },
                         "required": [
@@ -17078,7 +18422,8 @@
                           "priorityExpiresAt",
                           "suburbs",
                           "payoutEstimate",
-                          "appointmentCount"
+                          "appointmentCount",
+                          "centroid"
                         ],
                         "additionalProperties": false
                       }

@@ -1,15 +1,19 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { Textarea } from '@/components/forms/Textarea';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { TabsNav } from '@/components/layout/TabsNav';
 import { useAuth } from '@/hooks/useAuth';
 import { useInspectorDetail } from '../hooks/useInspectorDetail';
 import { useInspectorDeactivate } from '../hooks/useInspectorDeactivate';
 import { InspectorStatusChip } from './InspectorStatusChip';
 import { InspectorDetailSections } from './InspectorDetailSections';
+import { InspectorAvailabilityTab } from './InspectorAvailabilityTab';
+
+type DrawerTab = 'details' | 'availability';
 
 interface InspectorDetailDrawerProps {
   inspectorId: string | null;
@@ -27,9 +31,14 @@ export function InspectorDetailDrawer({
   const { user } = useAuth();
   const { inspector, isLoading, refetch } = useInspectorDetail(inspectorId);
 
+  const [activeTab, setActiveTab] = useState<DrawerTab>('details');
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
   const [deactivateReason, setDeactivateReason] = useState('');
   const [reasonError, setReasonError] = useState('');
+
+  useEffect(() => {
+    setActiveTab('details');
+  }, [inspectorId]);
 
   const { deactivate, isDeactivating } = useInspectorDeactivate(
     inspectorId,
@@ -43,6 +52,10 @@ export function InspectorDetailDrawer({
 
   const isAmOp = user?.role === 'AM' || user?.role === 'OP';
   const canDeactivate = isAmOp && inspector?.status === 'ACTIVE';
+
+  const tabs = isAmOp
+    ? [{ id: 'details', label: 'Details' }, { id: 'availability', label: 'Availability' }]
+    : [{ id: 'details', label: 'Details' }];
 
   const handleEdit = useCallback(() => {
     if (onEdit && inspectorId) {
@@ -107,8 +120,17 @@ export function InspectorDetailDrawer({
                   </>
                 }
               />
+              <TabsNav
+                tabs={tabs}
+                activeTab={activeTab}
+                onChange={(id) => setActiveTab(id as DrawerTab)}
+              />
               <div className="flex-1 overflow-y-auto px-6 py-4">
-                <InspectorDetailSections inspector={inspector} />
+                {activeTab === 'details' ? (
+                  <InspectorDetailSections inspector={inspector} />
+                ) : (
+                  <InspectorAvailabilityTab inspectorId={inspector.id} />
+                )}
               </div>
             </>
           ) : null}
