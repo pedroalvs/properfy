@@ -411,7 +411,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const row = await this.prisma.serviceGroup.findUnique({
       where: { id: groupId },
       include: {
-        tenant: { select: { name: true } },
+        tenant: { select: { name: true, settings_json: true } },
         service_type: { select: { name: true } },
         appointments: {
           select: {
@@ -460,6 +460,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     // Collect group-level notes from appointments (first non-null)
     const groupNotes = appts.find((a) => a.notes != null)?.notes ?? null;
 
+    const tenantSettings = row.tenant?.settings_json as Record<string, unknown> | null;
+    const codePrefix =
+      typeof tenantSettings?.appointmentCodePrefix === 'string' &&
+      tenantSettings.appointmentCodePrefix.length > 0
+        ? tenantSettings.appointmentCodePrefix
+        : 'INS';
+
     return {
       groupId: row.id,
       tenantId: row.tenant_id,
@@ -481,8 +488,10 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         const p = a.property;
         const suburb = p ? [p.suburb, p.state].filter(Boolean).join(' ') : '';
         const payoutVal = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : null;
+        const padded = String(a.appointment_number).padStart(4, '0');
         return {
           id: a.id,
+          appointmentCode: `${codePrefix}-${padded}`,
           appointmentNumber: a.appointment_number,
           suburb,
           keyRequired: a.key_required === true,
