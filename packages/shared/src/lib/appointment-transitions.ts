@@ -57,7 +57,7 @@ const BASE_MATRIX: Record<AppointmentStatus, TransitionEntry[]> = {
       clUserFlag: 'cancel_appointments',
       reasonRequired: true,
     },
-    { target: AppointmentStatus.REJECTED, allowedRoles: ['OP'], reasonRequired: true },
+    { target: AppointmentStatus.REJECTED, allowedRoles: ['OP', 'AM'], reasonRequired: true },
   ],
   [AppointmentStatus.DONE]: [
     // Reopen — AM only per CLAUDE.md §5.
