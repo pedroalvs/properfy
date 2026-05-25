@@ -116,18 +116,23 @@ describe('PrismaAppointmentRepository date filters', () => {
     );
   });
 
-  it('filters by confirmationStatus', async () => {
+  it('filters by confirmationStatus=sent using notifications subquery', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
 
     await repo.findAll(
-      { confirmationStatus: 'CONFIRMED' },
+      { confirmationStatus: 'sent' },
       { page: 1, pageSize: 10, sortOrder: 'asc' },
     );
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          tenant_confirmation_status: 'CONFIRMED',
+          notifications: {
+            some: expect.objectContaining({
+              channel: 'EMAIL',
+              status: expect.objectContaining({ in: expect.arrayContaining(['SENT', 'DELIVERED']) }),
+            }),
+          },
         }),
       }),
     );
@@ -148,13 +153,18 @@ describe('PrismaAppointmentRepository date filters', () => {
   it('count uses same filters as findAll', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
 
-    await repo.count({ timeSlot: '10:00-11:00', confirmationStatus: 'PENDING' });
+    await repo.count({ timeSlot: '10:00-11:00', confirmationStatus: 'not_sent' });
 
     expect(count).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           time_slot: '10:00-11:00',
-          tenant_confirmation_status: 'PENDING',
+          notifications: {
+            none: expect.objectContaining({
+              channel: 'EMAIL',
+              status: expect.objectContaining({ in: expect.arrayContaining(['SENT', 'DELIVERED']) }),
+            }),
+          },
         }),
       }),
     );
