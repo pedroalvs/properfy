@@ -11,6 +11,9 @@ import {
   portalDataResponseSchema,
   portalTokenResponseSchema,
   portalActivitiesResponseSchema,
+  availableGroupsResponseSchema,
+  joinGroupRequestSchema,
+  joinGroupResponseSchema,
   paginationSchema,
   successResponseSchema,
 } from '@properfy/shared';
@@ -25,6 +28,8 @@ import type { UpdateContactUseCase } from '../application/use-cases/update-conta
 import type { ReportUnavailabilityUseCase } from '../application/use-cases/report-unavailability.use-case';
 import type { GeneratePortalTokenUseCase } from '../application/use-cases/generate-portal-token.use-case';
 import type { ListPortalActivitiesUseCase } from '../application/use-cases/list-portal-activities.use-case';
+import type { GetAvailableGroupsUseCase } from '../application/use-cases/get-available-groups.use-case';
+import type { JoinGroupUseCase } from '../application/use-cases/join-group.use-case';
 import type { ITenantPortalTokenRepository } from '../domain/tenant-portal-token.repository';
 import type { TokenService } from '../domain/token.service';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -37,6 +42,8 @@ export interface TenantPortalRouteContainer {
   reportUnavailabilityUseCase: ReportUnavailabilityUseCase;
   generatePortalTokenUseCase: GeneratePortalTokenUseCase;
   listPortalActivitiesUseCase: ListPortalActivitiesUseCase;
+  getAvailableGroupsUseCase: GetAvailableGroupsUseCase;
+  joinGroupUseCase: JoinGroupUseCase;
   tokenRepo: ITenantPortalTokenRepository;
   tokenService: TokenService;
   jwtService: JwtService;
@@ -230,6 +237,51 @@ export async function registerTenantPortalRoutes(
               notes: parsed.data.restrictions.notes ?? null,
             }
           : undefined,
+        tenantNote: parsed.data.tenantNote,
+        ipAddress,
+        userAgent,
+      });
+      return reply.status(200).send(result);
+    },
+  );
+
+  // GET /v1/tenant-portal/:token/available-groups
+  app.get(
+    '/v1/tenant-portal/:token/available-groups',
+    { preHandler: portalAuth, config: { rateLimit: { max: 30, timeWindow: '1 minute' } }, schema: { params: z.object({ token: z.string() }), response: { 200: availableGroupsResponseSchema } } },
+    async (request, reply) => {
+      const ctx = request.portalContext!;
+      const result = await container.getAvailableGroupsUseCase.execute({
+        appointmentId: ctx.appointmentId,
+        isReadOnly: ctx.isReadOnly,
+      });
+      return reply.status(200).send(result);
+    },
+  );
+
+  // POST /v1/tenant-portal/:token/join-group
+  app.post(
+    '/v1/tenant-portal/:token/join-group',
+    { preHandler: portalAuth, config: { rateLimit: { max: 30, timeWindow: '1 minute' } }, schema: { params: z.object({ token: z.string() }), body: joinGroupRequestSchema, response: { 200: joinGroupResponseSchema } } },
+    async (request, reply) => {
+      const ctx = request.portalContext!;
+      const parsed = joinGroupRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+
+      const ipAddress =
+        (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
+        request.ip ??
+        null;
+      const userAgent = request.headers['user-agent'] ?? null;
+
+      const result = await container.joinGroupUseCase.execute({
+        tokenId: ctx.tokenId,
+        appointmentId: ctx.appointmentId,
+        groupId: parsed.data.groupId,
+        isReadOnly: ctx.isReadOnly,
+        isUsed: ctx.isUsed,
         tenantNote: parsed.data.tenantNote,
         ipAddress,
         userAgent,
