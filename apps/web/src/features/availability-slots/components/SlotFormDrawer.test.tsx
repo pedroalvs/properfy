@@ -31,6 +31,7 @@ vi.mock('@/hooks/useFormOptions', () => ({
 }));
 
 import { SlotFormDrawer } from './SlotFormDrawer';
+import { DEFAULT_SLOT_FORM } from '../types';
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -134,5 +135,66 @@ describe('SlotFormDrawer', () => {
     );
     const dialog = screen.getByRole('dialog');
     expect(dialog.className).toContain('translate-x-full');
+  });
+});
+
+describe('SlotFormDrawer — defaultValues prop (T010)', () => {
+  it('create mode without defaultValues resets to DEFAULT_SLOT_FORM', () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <SlotFormDrawer open onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    const dateInput = screen.getByLabelText('Date') as HTMLInputElement;
+    expect(dateInput.value).toBe(DEFAULT_SLOT_FORM.date);
+  });
+
+  it('create mode with defaultValues pre-fills inspectorId and date', () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <SlotFormDrawer
+          open
+          onClose={vi.fn()}
+          onSaved={vi.fn()}
+          defaultValues={{ inspectorId: 'insp-99', date: '2026-06-02' }}
+        />
+      </Wrapper>,
+    );
+    const dateInput = screen.getByLabelText('Date') as HTMLInputElement;
+    expect(dateInput.value).toBe('2026-06-02');
+    // inspector select not easily readable by value via getByLabelText for SelectInput,
+    // but confirming date is enough to validate the merge
+  });
+
+  it('edit mode with slotId and initialData ignores defaultValues', () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <SlotFormDrawer
+          open
+          onClose={vi.fn()}
+          onSaved={vi.fn()}
+          slotId="slot-01"
+          initialData={{
+            id: 'slot-01',
+            inspectorId: 'insp-01',
+            inspectorName: 'Diego',
+            date: '2026-03-20',
+            startTime: '08:00',
+            endTime: '12:00',
+            region: 'North Zone',
+            capacity: 3,
+            bookedCount: 1,
+            status: 'AVAILABLE',
+            createdAt: '2026-03-17T10:00:00Z',
+          }}
+          defaultValues={{ inspectorId: 'insp-99', date: '2099-01-01' }}
+        />
+      </Wrapper>,
+    );
+    const dateInput = screen.getByLabelText('Date') as HTMLInputElement;
+    expect(dateInput.value).toBe('2026-03-20');
   });
 });

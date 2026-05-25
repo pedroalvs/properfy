@@ -21,6 +21,7 @@ interface SlotFormDrawerProps {
   onSaved: () => void;
   slotId?: string | null;
   initialData?: AvailabilitySlot | null;
+  defaultValues?: Partial<SlotFormData>;
 }
 
 export function SlotFormDrawer({
@@ -29,6 +30,7 @@ export function SlotFormDrawer({
   onSaved,
   slotId,
   initialData,
+  defaultValues,
 }: SlotFormDrawerProps) {
   const isEditMode = !!slotId;
   const { save, isSaving, validate } = useSlotSave();
@@ -62,11 +64,12 @@ export function SlotFormDrawer({
 
   useEffect(() => {
     if (open && !isEditMode) {
-      setForm(DEFAULT_SLOT_FORM);
-      setSavedForm(DEFAULT_SLOT_FORM);
+      const initial = { ...DEFAULT_SLOT_FORM, ...(defaultValues ?? {}) };
+      setForm(initial);
+      setSavedForm(initial);
       setErrors({});
     }
-  }, [open, isEditMode]);
+  }, [open, isEditMode, defaultValues]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm);
 
