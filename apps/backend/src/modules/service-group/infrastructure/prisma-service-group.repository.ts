@@ -12,6 +12,7 @@ import type {
   MarketplaceOfferDetail,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus, PriorityMode, ServiceGroupExceptionType } from '@properfy/shared';
+import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
 
 function mapToEntity(row: any): ServiceGroupEntity {
   return new ServiceGroupEntity({
@@ -297,7 +298,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         appointments: {
           select: {
             payout_amount: true,
-            property: { select: { suburb: true } },
+            property: { select: { suburb: true, state: true } },
           },
         },
       },
@@ -309,6 +310,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       const suburbs = [
         ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
       ] as string[];
+      const suburbStatePairs = [
+        ...new Map(
+          appts
+            .filter((a) => a.property?.suburb)
+            .map((a) => [`${a.property.suburb}|${a.property.state ?? ''}`, { name: a.property.suburb as string, state: (a.property.state ?? '') as string }]),
+        ).values(),
+      ];
       const payoutTotal = appts.reduce((sum: number, a) => {
         const val = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : 0;
         return sum + val;
@@ -327,6 +335,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         suburbs,
         payoutEstimate,
         appointmentCount: appts.length,
+        centroid: resolveCentroid(suburbStatePairs),
       };
     });
   }
@@ -411,7 +420,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             key_required: true,
             payout_amount: true,
             notes: true,
-            property: { select: { suburb: true, street: true } },
+            property: { select: { suburb: true, state: true, street: true } },
           },
         },
       },
@@ -423,6 +432,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const suburbs = [
       ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
     ] as string[];
+    const suburbStatePairsDetail = [
+      ...new Map(
+        appts
+          .filter((a) => a.property?.suburb)
+          .map((a) => [`${a.property.suburb}|${a.property.state ?? ''}`, { name: a.property.suburb as string, state: (a.property.state ?? '') as string }]),
+      ).values(),
+    ];
     const addresses = [
       ...new Set(
         appts
@@ -460,14 +476,15 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       addresses,
       keyRequired,
       notes: groupNotes,
+      centroid: resolveCentroid(suburbStatePairsDetail),
       appointments: appts.map((a) => {
         const p = a.property;
-        const address = p ? [p.street, p.suburb].filter(Boolean).join(', ') : '';
+        const suburb = p ? [p.suburb, p.state].filter(Boolean).join(' ') : '';
         const payoutVal = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : null;
         return {
           id: a.id,
           appointmentNumber: a.appointment_number,
-          address,
+          suburb,
           keyRequired: a.key_required === true,
           notes: a.notes ?? null,
           payoutAmount: payoutVal,

@@ -11,7 +11,9 @@ import type {
   PaymentSettings,
   ServiceTypeEntry,
   ClientEligibilityEntry,
+  AvailabilityTemplate,
 } from '@properfy/shared';
+import { availabilityTemplateSchema } from '@properfy/shared';
 
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
@@ -41,6 +43,7 @@ function mapToEntity(row: {
   police_check_expires_at: Date | null;
   police_check_meta_json: unknown;
   photo_storage_key: string | null;
+  availability_template_json: unknown;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -68,6 +71,7 @@ function mapToEntity(row: {
     policeCheckExpiresAt: row.police_check_expires_at ?? null,
     policeCheckMetaJson: row.police_check_meta_json as Record<string, unknown> | null ?? null,
     photoStorageKey: row.photo_storage_key ?? null,
+    availabilityTemplateJson: (row.availability_template_json as Record<string, unknown>) ?? {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -254,6 +258,24 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       },
     });
     return rows.map(mapToEntity);
+  }
+
+  async getAvailabilityTemplate(inspectorId: string): Promise<AvailabilityTemplate> {
+    const row = await this.prisma.inspector.findFirst({
+      where: { id: inspectorId },
+      select: { availability_template_json: true },
+    });
+    const parsed = availabilityTemplateSchema.safeParse(row?.availability_template_json);
+    if (parsed.success) return parsed.data;
+    const off = { am: false, pm: false };
+    return { mon: off, tue: off, wed: off, thu: off, fri: off, sat: off, sun: off };
+  }
+
+  async updateAvailabilityTemplate(inspectorId: string, template: AvailabilityTemplate): Promise<void> {
+    await this.prisma.inspector.update({
+      where: { id: inspectorId },
+      data: { availability_template_json: template as any },
+    });
   }
 
   private buildWhere(filters: InspectorFilters) {

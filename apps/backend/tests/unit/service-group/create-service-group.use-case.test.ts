@@ -374,6 +374,12 @@ describe('CreateServiceGroupUseCase', () => {
   });
 
   it('should throw PriorityDateTooCloseError for PRIORITY_24H with close date', async () => {
+    // Pin time to 06:00 UTC so +12h lands on the same day at 18:00 UTC.
+    // The time window 09:00-12:00 has not yet started at 06:00, so validateNewSchedule
+    // passes and the PRIORITY_24H check fires as expected.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T06:00:00.000Z'));
+
     const appointmentIds = makeAppointmentIds(5);
     for (let i = 0; i < 5; i++) {
       vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
@@ -381,7 +387,7 @@ describe('CreateServiceGroupUseCase', () => {
       );
     }
 
-    const tooCloseDate = new Date(Date.now() + 12 * 60 * 60 * 1000);
+    const tooCloseDate = new Date(Date.now() + 12 * 60 * 60 * 1000); // 2026-07-15T18:00Z → dateStr = '2026-07-15'
     const dateStr = tooCloseDate.toISOString().split('T')[0];
 
     await expect(
@@ -395,6 +401,8 @@ describe('CreateServiceGroupUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(PriorityDateTooCloseError);
+
+    vi.useRealTimers();
   });
 
   it('should set priorityExpiresAt for PRIORITY_24H with valid date', async () => {

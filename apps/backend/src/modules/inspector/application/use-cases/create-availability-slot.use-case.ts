@@ -73,6 +73,7 @@ export class CreateAvailabilitySlotUseCase {
       regionJson: regionJson ?? null,
       capacity: capacity ?? 1,
       status: 'AVAILABLE',
+      isOperatorOverride: actor.role === 'OP' || actor.role === 'AM',
       createdAt: now,
       updatedAt: now,
     });

@@ -8,6 +8,7 @@ import {
   saveExecutionProgressSchema,
   requestAssetUploadSchema,
   inspectorScheduleResponseSchema,
+  inspectorScheduleItemSchema,
   inspectionExecutionResponseSchema,
   inspectionAssetResponseSchema,
   inspectorAppointmentDetailResponseSchema,
@@ -74,11 +75,12 @@ export async function registerInspectorExecutionRoutes(
       preHandler: authenticate,
       schema: {
         querystring: inspectorScheduleQuerySchema,
-        // UX-baseline cleanup — wrap in `successResponseSchema` so the
-        // wire shape carries the canonical `{ data }` envelope every
-        // other GET in the app uses; pre-fix the bare object would
-        // break any consumer that auto-unwraps `response.data`.
-        response: { 200: successResponseSchema(inspectorScheduleResponseSchema) },
+        response: {
+          200: z.union([
+            successResponseSchema(inspectorScheduleResponseSchema),
+            paginatedResponseSchema(inspectorScheduleItemSchema),
+          ]),
+        },
       },
     },
     async (request, reply) => {
@@ -90,6 +92,10 @@ export async function registerInspectorExecutionRoutes(
         ...parsed.data,
         actor: request.authContext!,
       });
+      // Range mode returns { data, total, page, pageSize }; single-day returns { date, appointments }
+      if ('total' in result) {
+        return reply.status(200).send(paginated(result.data, result.total, result.page, result.pageSize));
+      }
       return reply.status(200).send(success(result));
     },
   );

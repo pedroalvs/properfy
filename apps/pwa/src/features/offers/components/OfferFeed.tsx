@@ -10,9 +10,10 @@ import { useAcceptOffer } from '../hooks/useAcceptOffer';
 interface OfferFeedProps {
   offers: MarketplaceOffer[] | undefined;
   onRefresh: () => void;
+  onViewDetail?: (groupId: string) => void;
 }
 
-export function OfferFeed({ offers, onRefresh }: OfferFeedProps) {
+export function OfferFeed({ offers, onRefresh, onViewDetail }: OfferFeedProps) {
   const { getState, startConfirm, cancelConfirm, accept } = useAcceptOffer();
   const [selectedOffer, setSelectedOffer] = useState<MarketplaceOffer | null>(null);
   const isOnline = useIsOnline();
@@ -70,6 +71,7 @@ export function OfferFeed({ offers, onRefresh }: OfferFeedProps) {
             offer={offer}
             state={getState(offer.groupId)}
             onAccept={() => handleAcceptClick(offer)}
+            onViewDetail={onViewDetail ? () => onViewDetail(offer.groupId) : undefined}
           />
         ))}
       </div>
