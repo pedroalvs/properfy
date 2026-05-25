@@ -2,11 +2,19 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '../hooks';
-import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, StatCard } from '../components';
+import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, StatCard, InspectorBreakdownSection } from '../components';
+
+function computeTomorrowLabel(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dateStr = Intl.DateTimeFormat('en-US', { weekday: 'short', day: 'numeric', month: 'short' }).format(tomorrow);
+  return `Tomorrow — ${dateStr}`;
+}
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const { stats, isLoading } = useDashboardStats();
+  const tomorrowLabel = computeTomorrowLabel();
 
   return (
     <div>
@@ -20,19 +28,6 @@ export function DashboardPage() {
             {...stats.appointmentsByStatus}
             donePendingCrossCheck={stats.pendingActions.pendingOperatorCrossChecks}
           />
-
-          <div className="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3">
-              <RecentAppointmentsList
-                appointments={stats.recentAppointments}
-                onViewAppointment={(id) => navigate(`/appointments/${id}`)}
-                onViewAll={() => navigate('/appointments')}
-              />
-            </div>
-            <div className="lg:col-span-2">
-              <PendingActionsCard {...stats.pendingActions} />
-            </div>
-          </div>
 
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard
@@ -59,6 +54,28 @@ export function DashboardPage() {
               iconColorClass="text-secondary"
               href="/service-groups"
             />
+          </div>
+
+          {stats.inspectorBreakdowns && (
+            <div className="mt-6">
+              <InspectorBreakdownSection
+                breakdowns={stats.inspectorBreakdowns}
+                tomorrowLabel={tomorrowLabel}
+              />
+            </div>
+          )}
+
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-3">
+              <RecentAppointmentsList
+                appointments={stats.recentAppointments}
+                onViewAppointment={(id) => navigate(`/appointments/${id}`)}
+                onViewAll={() => navigate('/appointments')}
+              />
+            </div>
+            <div className="lg:col-span-2">
+              <PendingActionsCard {...stats.pendingActions} />
+            </div>
           </div>
         </>
       )}

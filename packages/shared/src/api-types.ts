@@ -4502,6 +4502,7 @@ export interface paths {
                         customFields?: {
                             [key: string]: unknown;
                         };
+                        actorTimezone?: string;
                     };
                 };
             };
@@ -4767,6 +4768,7 @@ export interface paths {
                         customFields?: {
                             [key: string]: unknown;
                         } | null;
+                        actorTimezone?: string;
                     };
                 };
             };
@@ -5561,7 +5563,7 @@ export interface paths {
                         timeWindow: string;
                         name?: string;
                         /** Format: uuid */
-                        serviceRegionId: string;
+                        serviceRegionId?: string | null;
                         description?: string;
                         /**
                          * @default STANDARD
@@ -5571,6 +5573,7 @@ export interface paths {
                         /** @enum {string} */
                         exceptionType?: "LOW_DENSITY_REGION" | "ISOLATED_SERVICE" | "PRIORITY_CLIENT";
                         exceptionReason?: string;
+                        actorTimezone?: string;
                     };
                 };
             };
@@ -5715,6 +5718,7 @@ export interface paths {
                         /** @enum {string|null} */
                         exceptionType?: "LOW_DENSITY_REGION" | "ISOLATED_SERVICE" | "PRIORITY_CLIENT" | null;
                         exceptionReason?: string | null;
+                        actorTimezone?: string;
                     };
                 };
             };
@@ -6157,6 +6161,62 @@ export interface paths {
                                 }[];
                                 groupAccepts: boolean;
                                 groupReasons: string[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-groups/find-addable-for-appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                groups: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string | null;
+                                    status: string;
+                                    scheduledDate: string;
+                                    timeWindow: string;
+                                    currentSize: number;
+                                    serviceTypeName: string | null;
+                                }[];
+                                /** @enum {string} */
+                                reason?: "MIXED_APPOINTMENT_PROPERTIES" | "INVALID_APPOINTMENT_STATUS";
                             };
                         };
                     };
@@ -10837,6 +10897,9 @@ export interface paths {
                                     awaitingInspector: number;
                                     scheduled: number;
                                     doneThisMonth: number;
+                                    doneThisWeek: number;
+                                    scheduledThisWeek: number;
+                                    rejectedTotal: number;
                                 };
                                 recentAppointments: {
                                     /** Format: uuid */
@@ -10861,6 +10924,32 @@ export interface paths {
                                     activeInspectors: number;
                                     activeServiceGroups: number;
                                 };
+                                inspectorBreakdowns: {
+                                    tomorrowByInspector: {
+                                        /** Format: uuid */
+                                        inspectorId: string;
+                                        inspectorName: string;
+                                        count: number;
+                                        /** @enum {string|null} */
+                                        alertLevel: "yellow" | "red" | null;
+                                    }[];
+                                    scheduledThisWeekByInspector: {
+                                        /** Format: uuid */
+                                        inspectorId: string;
+                                        inspectorName: string;
+                                        count: number;
+                                        /** @enum {string|null} */
+                                        alertLevel: "yellow" | "red" | null;
+                                    }[];
+                                    confirmedThisWeekByInspector: {
+                                        /** Format: uuid */
+                                        inspectorId: string;
+                                        inspectorName: string;
+                                        count: number;
+                                        /** @enum {string|null} */
+                                        alertLevel: "yellow" | "red" | null;
+                                    }[];
+                                } | null;
                             };
                         };
                     };
