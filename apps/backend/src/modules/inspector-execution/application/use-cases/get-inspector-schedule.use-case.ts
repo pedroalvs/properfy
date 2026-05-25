@@ -6,6 +6,11 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 
 export interface GetInspectorScheduleInput {
   date?: string; // YYYY-MM-DD, defaults to today
+  from?: string; // range mode start
+  to?: string;   // range mode end
+  status?: 'DONE';
+  page?: number;
+  pageSize?: number;
   actor: AuthContext;
 }
 
@@ -31,6 +36,13 @@ export interface GetInspectorScheduleOutput {
   appointments: ScheduleAppointmentItem[];
 }
 
+export interface GetInspectorScheduleRangeOutput {
+  data: ScheduleAppointmentItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export class GetInspectorScheduleUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
@@ -38,7 +50,7 @@ export class GetInspectorScheduleUseCase {
     private readonly authorizationService: AuthorizationService,
   ) {}
 
-  async execute(input: GetInspectorScheduleInput): Promise<GetInspectorScheduleOutput> {
+  async execute(input: GetInspectorScheduleInput): Promise<GetInspectorScheduleOutput | GetInspectorScheduleRangeOutput> {
     const { actor } = input;
 
     this.authorizationService.assertRoles(actor, ['INSP'], {
@@ -48,6 +60,11 @@ export class GetInspectorScheduleUseCase {
 
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+    }
+
+    // Range mode: from/to provided
+    if (input.from && input.to) {
+      return this.executeRange(input, actor.inspectorId);
     }
 
     const today = new Date();
@@ -156,5 +173,65 @@ export class GetInspectorScheduleUseCase {
       date: targetDateStr,
       appointments: items,
     };
+  }
+
+  /** Range mode: returns paginated DONE appointments sorted newest-first. */
+  private async executeRange(
+    input: GetInspectorScheduleInput,
+    inspectorId: string,
+  ): Promise<GetInspectorScheduleRangeOutput> {
+    const page = input.page ?? 1;
+    const pageSize = input.pageSize ?? 50;
+    const statusFilter = input.status ? [input.status] : ['DONE'];
+
+    const rows = await this.appointmentRepo.findAll(
+      {
+        inspectorId,
+        status: statusFilter,
+        fromDate: input.from,
+        toDate: input.to,
+      },
+      { page, pageSize, sortBy: 'scheduled_date', sortOrder: 'desc' },
+    );
+
+    const total = await this.appointmentRepo.count({
+      inspectorId,
+      status: statusFilter,
+      fromDate: input.from,
+      toDate: input.to,
+    });
+
+    const appointmentIds = rows.map((r) => r.appointment.id);
+    const executions = appointmentIds.length > 0
+      ? await this.executionRepo.findByAppointmentIds(appointmentIds)
+      : [];
+    const executionMap = new Map(executions.map((e) => [e.appointmentId, e]));
+
+    const data: ScheduleAppointmentItem[] = rows.map((item) => {
+      const appt = item.appointment;
+      const exec = executionMap.get(appt.id);
+      let executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
+      if (exec) {
+        executionStatus = exec.isFinished() ? 'FINISHED' : 'IN_PROGRESS';
+      }
+      const codePrefix = item.tenantAppointmentCodePrefix ?? 'INS';
+      const codePadded = String(appt.appointmentNumber).padStart(4, '0');
+      return {
+        id: appt.id,
+        appointmentCode: `${codePrefix}-${codePadded}`,
+        status: appt.status,
+        scheduledDate: appt.scheduledDate.toISOString().split('T')[0]!,
+        timeSlot: appt.timeSlot,
+        serviceTypeId: appt.serviceTypeId,
+        propertyId: appt.propertyId,
+        tenantConfirmationStatus: appt.tenantConfirmationStatus,
+        keyRequired: appt.keyRequired,
+        meetingLocation: appt.meetingLocation,
+        agencyName: item.tenantName ?? '',
+        executionStatus,
+      };
+    });
+
+    return { data, total, page, pageSize };
   }
 }
