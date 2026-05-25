@@ -68,7 +68,7 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'SCHEDULED',
     to: 'REJECTED',
-    allowedActors: ['OP', 'SYS'],
+    allowedActors: ['AM', 'OP', 'SYS'],
     requiresReason: true,
     requiresDoneCheckedBy: false,
   },
