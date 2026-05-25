@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CreateAppointmentUseCase } from '../../../src/modules/appointment/application/use-cases/create-appointment.use-case';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
@@ -25,6 +25,7 @@ import {
   AppointmentServiceTypeInactiveError,
   AppointmentNoPriceRuleError,
   AppointmentPastDateError,
+  AppointmentDateInPastError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { futureDateStr } from '../../helpers/date-fixtures';
 
@@ -474,64 +475,52 @@ describe('CreateAppointmentUseCase', () => {
   // Past date prevention
   describe('past date prevention', () => {
     it('should reject past scheduledDate for CL_ADMIN', async () => {
-      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
-      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
-      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
-
       await expect(
         useCase.execute({
           ...baseInput,
           scheduledDate: '2020-01-01',
           actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
         }),
-      ).rejects.toThrow(AppointmentPastDateError);
+      ).rejects.toThrow(AppointmentDateInPastError);
     });
 
-    it('should accept past scheduledDate for AM', async () => {
-      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
-      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
-      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
-      vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
-
-      const result = await useCase.execute({
-        ...baseInput,
-        scheduledDate: '2020-01-01',
-        actor: makeActor({ role: 'AM' }),
-      });
-
-      expect(result.status).toBe('DRAFT');
+    // Cycle 6: AM/OP past-date exemption removed — universal rejection for all roles.
+    it('should reject past scheduledDate for AM', async () => {
+      await expect(
+        useCase.execute({
+          ...baseInput,
+          scheduledDate: '2020-01-01',
+          actor: makeActor({ role: 'AM' }),
+        }),
+      ).rejects.toThrow(AppointmentDateInPastError);
     });
 
-    it('should accept past scheduledDate for OP (tenant-scoped per CORRECTION-001 close-it)', async () => {
-      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
-      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
-      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
-      vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
-
-      const result = await useCase.execute({
-        ...baseInput,
-        scheduledDate: '2020-01-01',
-        // Sprint 1 W-4-IMPL: OP must have a tenantId
-        actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
-      });
-
-      expect(result.status).toBe('DRAFT');
+    it('should reject past scheduledDate for OP', async () => {
+      await expect(
+        useCase.execute({
+          ...baseInput,
+          scheduledDate: '2020-01-01',
+          actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+        }),
+      ).rejects.toThrow(AppointmentDateInPastError);
     });
 
     it('should accept today for CL_ADMIN', async () => {
+      // Freeze before baseInput timeSlot (09:00) so the slot is not yet past.
+      vi.useFakeTimers({ now: new Date('2027-01-15T07:00:00Z') });
       vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
       vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
       vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
       vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
 
-      const today = new Date().toISOString().split('T')[0];
       const result = await useCase.execute({
         ...baseInput,
-        scheduledDate: today,
+        scheduledDate: '2027-01-15', // matches frozen date
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       });
 
       expect(result.status).toBe('DRAFT');
+      vi.useRealTimers();
     });
   });
 

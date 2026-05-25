@@ -4,7 +4,7 @@ import { AuditLogTable } from './AuditLogTable';
 import type { AuditLog } from '../types';
 
 const MOCK_DATA: AuditLog[] = [
-  { id: 'log-01', tenantId: 'ten-1', actorType: 'USER', actorId: 'usr-1', entityType: 'APPOINTMENT', entityId: 'apt-01', action: 'appointment.status_transition', reason: 'Released', beforeJson: { status: 'DRAFT' }, afterJson: { status: 'AWAITING_INSPECTOR' }, requestId: 'req-1', ipAddress: '127.0.0.1', metadataJson: null, createdAt: '2026-03-17T10:00:00Z' },
+  { id: 'log-01', tenantId: 'ten-1', tenantName: null, actorType: 'USER', actorId: 'usr-1', actorName: null, entityType: 'APPOINTMENT', entityId: 'apt-01', action: 'appointment.status_transition', reason: 'Released', beforeJson: { status: 'DRAFT' }, afterJson: { status: 'AWAITING_INSPECTOR' }, requestId: 'req-1', ipAddress: '127.0.0.1', metadataJson: null, createdAt: '2026-03-17T10:00:00Z' },
 ];
 
 describe('AuditLogTable', () => {

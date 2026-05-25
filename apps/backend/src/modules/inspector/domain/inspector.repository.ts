@@ -37,7 +37,11 @@ export interface IInspectorRepository {
       paymentSettingsJson: PaymentSettings;
       serviceTypesJson: ServiceTypeEntry[];
       clientEligibilityJson: ClientEligibilityEntry[];
+      fullName: string | null;
       deletedAt: Date | null;
+      photoStorageKey: string | null;
+      insuranceMetaJson: Record<string, unknown> | null;
+      policeCheckMetaJson: Record<string, unknown> | null;
     }>,
   ): Promise<void>;
   findByRegionId(regionId: string): Promise<InspectorEntity[]>;

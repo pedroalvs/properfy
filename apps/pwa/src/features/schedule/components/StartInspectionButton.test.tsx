@@ -6,14 +6,14 @@ import { StartInspectionButton } from './StartInspectionButton';
 const wrap = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 describe('StartInspectionButton', () => {
-  it('enables button for past-due SCHEDULED appointment', () => {
+  it('disables button for past-due SCHEDULED appointment', () => {
     wrap(<StartInspectionButton appointmentId="id" scheduledDate="2026-01-01" timeSlot="08:00-12:00" />);
-    expect(screen.getByTestId('start-inspection-button')).not.toBeDisabled();
+    expect(screen.getByTestId('start-inspection-button')).toBeDisabled();
   });
 
-  it('shows overdue sublabel for past-due appointment', () => {
+  it('shows window-passed sublabel for past-due appointment', () => {
     wrap(<StartInspectionButton appointmentId="id" scheduledDate="2026-01-01" timeSlot="08:00-12:00" />);
-    expect(screen.getByTestId('start-inspection-sublabel').textContent).toMatch(/overdue|past|complete/i);
+    expect(screen.getByTestId('start-inspection-sublabel').textContent).toBe('Inspection window has passed');
   });
 
   it('disables button for future appointment', () => {

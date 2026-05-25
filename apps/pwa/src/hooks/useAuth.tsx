@@ -15,6 +15,8 @@ export interface AuthUser {
   phone?: string | null;
   totpEnabled?: boolean;
   lastLoginAt?: string | null;
+  inspectorId?: string | null;
+  inspectorPhotoUrl?: string | null;
 }
 
 interface AuthContextValue {
@@ -24,6 +26,7 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string, totpCode?: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -57,6 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             totpEnabled?: boolean;
             lastLoginAt?: string | null;
           };
+          const meExt = me as typeof me & {
+            inspectorId?: string | null;
+            inspectorPhotoUrl?: string | null;
+          };
           setUser(normalizePwaUser({
             id: me.id,
             name: me.name,
@@ -67,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone: me.phone,
             totpEnabled: me.totpEnabled,
             lastLoginAt: me.lastLoginAt,
+            inspectorId: meExt.inspectorId ?? null,
+            inspectorPhotoUrl: meExt.inspectorPhotoUrl ?? null,
           }));
         }
       })
@@ -112,6 +121,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const { data } = await api.GET('/v1/me');
+    if (data) {
+      const me = data as typeof data & {
+        status?: string;
+        phone?: string | null;
+        totpEnabled?: boolean;
+        lastLoginAt?: string | null;
+        inspectorId?: string | null;
+        inspectorPhotoUrl?: string | null;
+      };
+      setUser(normalizePwaUser({
+        id: me.id,
+        name: me.name,
+        email: me.email,
+        role: me.role,
+        tenantId: me.tenantId,
+        status: me.status,
+        phone: me.phone,
+        totpEnabled: me.totpEnabled,
+        lastLoginAt: me.lastLoginAt,
+        inspectorId: me.inspectorId ?? null,
+        inspectorPhotoUrl: me.inspectorPhotoUrl ?? null,
+      }));
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -121,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         logout,
+        refreshUser,
       }}
     >
       {children}

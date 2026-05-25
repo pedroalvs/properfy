@@ -4,6 +4,8 @@ import {
   refreshResponseSchema,
   meResponseSchema,
   portalDataResponseSchema,
+  dashboardStatsResponseSchema,
+  inspectorDayCountSchema,
 } from './responses';
 
 describe('loginResponseSchema', () => {
@@ -180,5 +182,142 @@ describe('portalDataResponseSchema', () => {
       },
     });
     expect(result.success).toBe(true);
+  });
+});
+
+// ─── T-027-102: dashboardStatsResponseSchema — new fields ─────────────────
+
+const amPayload = {
+  appointmentsByStatus: {
+    draft: 5,
+    awaitingInspector: 8,
+    scheduled: 12,
+    doneThisMonth: 34,
+    doneThisWeek: 7,
+    scheduledThisWeek: 10,
+    rejectedTotal: 3,
+  },
+  recentAppointments: [],
+  pendingActions: {
+    noResponseTenants: 1,
+    pendingOperatorCrossChecks: 2,
+    pendingFinancialEntries: 3,
+    processingReports: 0,
+  },
+  quickStats: {
+    totalProperties: 100,
+    activeInspectors: 10,
+    activeServiceGroups: 5,
+  },
+  inspectorBreakdowns: {
+    tomorrowByInspector: [
+      { inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', inspectorName: 'Alice', count: 18, alertLevel: 'red' },
+      { inspectorId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22', inspectorName: 'Bob', count: 15, alertLevel: 'yellow' },
+      { inspectorId: 'c2ccde11-1b2d-4ef0-dd8f-8dd1df502c33', inspectorName: 'Charlie', count: 3, alertLevel: null },
+    ],
+    scheduledThisWeekByInspector: [
+      { inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', inspectorName: 'Alice', count: 25, alertLevel: null },
+    ],
+    confirmedThisWeekByInspector: [
+      { inspectorId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22', inspectorName: 'Bob', count: 12, alertLevel: null },
+    ],
+  },
+};
+
+const clAdminPayload = {
+  ...amPayload,
+  inspectorBreakdowns: null,
+};
+
+describe('dashboardStatsResponseSchema — 027 new fields', () => {
+  it('parses a fully-populated AM-shaped payload', () => {
+    const result = dashboardStatsResponseSchema.safeParse(amPayload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appointmentsByStatus.doneThisWeek).toBe(7);
+      expect(result.data.appointmentsByStatus.scheduledThisWeek).toBe(10);
+      expect(result.data.appointmentsByStatus.rejectedTotal).toBe(3);
+      expect(result.data.inspectorBreakdowns?.tomorrowByInspector).toHaveLength(3);
+    }
+  });
+
+  it('parses a CL_ADMIN-shaped payload with inspectorBreakdowns: null', () => {
+    const result = dashboardStatsResponseSchema.safeParse(clAdminPayload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.inspectorBreakdowns).toBeNull();
+    }
+  });
+
+  it('rejects a payload missing inspectorBreakdowns entirely', () => {
+    const { inspectorBreakdowns: _omit, ...withoutBreakdowns } = amPayload;
+    const result = dashboardStatsResponseSchema.safeParse(withoutBreakdowns);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an alertLevel outside the enum', () => {
+    const invalidPayload = {
+      ...amPayload,
+      inspectorBreakdowns: {
+        ...amPayload.inspectorBreakdowns,
+        tomorrowByInspector: [
+          { inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', inspectorName: 'Alice', count: 18, alertLevel: 'orange' },
+        ],
+      },
+    };
+    const result = dashboardStatsResponseSchema.safeParse(invalidPayload);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('inspectorDayCountSchema', () => {
+  it('accepts a valid row with alertLevel null', () => {
+    const result = inspectorDayCountSchema.safeParse({
+      inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      inspectorName: 'Alice',
+      count: 5,
+      alertLevel: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts alertLevel yellow', () => {
+    const result = inspectorDayCountSchema.safeParse({
+      inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      inspectorName: 'Alice',
+      count: 15,
+      alertLevel: 'yellow',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts alertLevel red', () => {
+    const result = inspectorDayCountSchema.safeParse({
+      inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      inspectorName: 'Alice',
+      count: 18,
+      alertLevel: 'red',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a negative count', () => {
+    const result = inspectorDayCountSchema.safeParse({
+      inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      inspectorName: 'Alice',
+      count: -1,
+      alertLevel: null,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a non-UUID inspectorId', () => {
+    const result = inspectorDayCountSchema.safeParse({
+      inspectorId: 'not-a-uuid',
+      inspectorName: 'Alice',
+      count: 5,
+      alertLevel: null,
+    });
+    expect(result.success).toBe(false);
   });
 });

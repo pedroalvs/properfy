@@ -11,6 +11,7 @@ export interface InspectionAssetProps {
   status: 'PENDING' | 'UPLOADED' | 'UPLOAD_FAILED';
   uploadedBy: string;
   uploadExpiresAt: Date | null;
+  originalFilename: string | null;
   createdAt: Date;
 }
 
@@ -24,6 +25,7 @@ export class InspectionAssetEntity extends BaseEntity {
   status: 'PENDING' | 'UPLOADED' | 'UPLOAD_FAILED';
   readonly uploadedBy: string;
   readonly uploadExpiresAt: Date | null;
+  readonly originalFilename: string | null;
 
   constructor(props: InspectionAssetProps) {
     super(props.id, props.createdAt, props.createdAt); // assets have no updatedAt, use createdAt
@@ -36,6 +38,7 @@ export class InspectionAssetEntity extends BaseEntity {
     this.status = props.status;
     this.uploadedBy = props.uploadedBy;
     this.uploadExpiresAt = props.uploadExpiresAt;
+    this.originalFilename = props.originalFilename;
   }
 
   isUploaded(): boolean {

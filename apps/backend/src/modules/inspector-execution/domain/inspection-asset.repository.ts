@@ -4,6 +4,7 @@ export interface IInspectionAssetRepository {
   findById(id: string): Promise<InspectionAssetEntity | null>;
   findByExecutionId(executionId: string): Promise<InspectionAssetEntity[]>;
   findUploadedByExecutionId(executionId: string): Promise<InspectionAssetEntity[]>;
+  findUploadedByAppointmentId(appointmentId: string): Promise<InspectionAssetEntity[]>;
   save(asset: InspectionAssetEntity): Promise<void>;
   update(
     id: string,
@@ -13,4 +14,5 @@ export interface IInspectionAssetRepository {
     }>,
   ): Promise<void>;
   expirePendingAssets(): Promise<number>;
+  findExpiredPending(now: Date): Promise<InspectionAssetEntity[]>;
 }

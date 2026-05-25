@@ -12,6 +12,9 @@ const mockUseAuth = vi.fn();
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
 }));
+vi.mock('@/hooks/useSnackbar', () => ({
+  useSnackbar: () => ({ showInfo: vi.fn(), showError: vi.fn(), showSuccess: vi.fn() }),
+}));
 
 function renderServiceTypesRoute(_role: string) {
   return render(

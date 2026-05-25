@@ -92,6 +92,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     keyRequired: false,
     notes: null,
     isOverdue: false,
+    hasTenantNote: false,
     createdAt: '2026-04-01T00:00:00Z',
     updatedAt: '2026-04-01T00:00:00Z',
     ...overrides,

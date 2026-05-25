@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AvailabilitySlotStatus } from '@properfy/shared';
 import { formatDate, toLocalISODate } from '@/lib/format-date';
+import { FilterSelect } from '@/components/filters/FilterSelect';
 import type { AvailabilitySlot } from '../types';
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 06:00 to 22:00
@@ -110,20 +111,18 @@ export function SlotCalendarView({
     <div className="relative" onClick={() => setTooltip(null)}>
       {/* Controls */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <select
+        {/* UX-baseline cleanup: replace the bespoke `<select>` with the
+            shared `FilterSelect` so this filter visually lines up with
+            every other filter in the app (outlined+dense single-line
+            height, floating label, inline clear chip). */}
+        <div className="flex w-64 items-center gap-2">
+          <FilterSelect
+            label="Inspector"
             value={selectedInspectorId}
-            onChange={(e) => onInspectorChange(e.target.value)}
-            className="rounded border border-[#E0E0E0] bg-white px-3 py-1.5 text-sm text-text-primary"
-            aria-label="Inspector filter"
-          >
-            <option value="">All Inspectors</option>
-            {inspectors.map((insp) => (
-              <option key={insp.id} value={insp.id}>
-                {insp.name}
-              </option>
-            ))}
-          </select>
+            onChange={onInspectorChange}
+            options={inspectors.map((insp) => ({ label: insp.name, value: insp.id }))}
+            placeholder="All Inspectors"
+          />
         </div>
 
         <div className="flex items-center gap-3">

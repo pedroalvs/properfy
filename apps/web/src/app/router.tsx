@@ -36,6 +36,8 @@ const PropertyListPage = Loadable(lazyRetry(() => import('@/features/properties/
 const PropertyCreatePage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyCreatePage').then(m => ({ default: m.PropertyCreatePage }))));
 const PropertyDetailPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyDetailPage').then(m => ({ default: m.PropertyDetailPage }))));
 const PropertyImportPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyImportPage').then(m => ({ default: m.PropertyImportPage }))));
+const ContactListPage = Loadable(lazyRetry(() => import('@/features/contacts/pages/ContactListPage').then(m => ({ default: m.ContactListPage }))));
+const ContactDetailPage = Loadable(lazyRetry(() => import('@/features/contacts/pages/ContactDetailPage').then(m => ({ default: m.ContactDetailPage }))));
 const InspectorListPage = Loadable(lazyRetry(() => import('@/features/inspectors/pages/InspectorListPage').then(m => ({ default: m.InspectorListPage }))));
 const ServiceGroupListPage = Loadable(lazyRetry(() => import('@/features/service-groups/pages/ServiceGroupListPage').then(m => ({ default: m.ServiceGroupListPage }))));
 const ServiceGroupCreatePage = Loadable(lazyRetry(() => import('@/features/service-groups/pages/ServiceGroupCreatePage').then(m => ({ default: m.ServiceGroupCreatePage }))));
@@ -43,7 +45,6 @@ const ServiceGroupDetailPage = Loadable(lazyRetry(() => import('@/features/servi
 const UserListPage = Loadable(lazyRetry(() => import('@/features/users/pages/UserListPage').then(m => ({ default: m.UserListPage }))));
 const FinancialEntriesPage = Loadable(lazyRetry(() => import('@/features/financial/pages/FinancialEntriesPage').then(m => ({ default: m.FinancialEntriesPage }))));
 const InvoicesPage = Loadable(lazyRetry(() => import('@/features/financial/pages/InvoicesPage').then(m => ({ default: m.InvoicesPage }))));
-const TenantContactListPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantContactListPage').then(m => ({ default: m.TenantContactListPage }))));
 const TenantListPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantListPage').then(m => ({ default: m.TenantListPage }))));
 const TenantDetailPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantDetailPage').then(m => ({ default: m.TenantDetailPage }))));
 const ReportListPage = Loadable(lazyRetry(() => import('@/features/reports/pages/ReportListPage').then(m => ({ default: m.ReportListPage }))));
@@ -70,39 +71,62 @@ import { AuthGuard } from './AuthGuard';
 import { AppShell } from '@/components/shell/AppShell';
 import { UserRole } from '@properfy/shared';
 import { NotFoundPage } from './NotFoundPage';
+import { AppErrorBoundary } from '@/components/feedback/AppErrorBoundary';
 
 function PortalRedirect() {
   const { token } = useParams();
   return <Navigate to={`/tenant-portal/${token}`} replace />;
 }
 
+/**
+ * `errorElement: <AppErrorBoundary />` on every top-level route entry
+ * promotes our boundary instead of React Router's dev-only "Hey
+ * developer 👋" placeholder. React Router resolves the closest
+ * ancestor with `errorElement`, so attaching it at the layout level
+ * inside `ProtectedRoute` is enough for every protected screen; the
+ * public routes (login, portal) each take their own attachment.
+ */
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+    errorElement: <AppErrorBoundary />,
   },
   {
     path: '/forgot-password',
     element: <ForgotPasswordPage />,
+    errorElement: <AppErrorBoundary />,
   },
   {
     path: '/tenant-portal/:token',
     element: <PortalPage />,
+    errorElement: <AppErrorBoundary />,
   },
   {
     path: '/portal/:token',
     element: <PortalRedirect />,
+    errorElement: <AppErrorBoundary />,
   },
   {
     element: <ProtectedRoute />,
+    errorElement: <AppErrorBoundary />,
     children: [
       {
         element: <AppShell />,
+        errorElement: <AppErrorBoundary />,
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
           {
             path: 'appointments',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <AppointmentMapPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'appointments/list',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
                 <AppointmentListPage />
@@ -127,11 +151,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'appointments/map',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <AppointmentMapPage />
-              </AuthGuard>
-            ),
+            element: <Navigate to="/appointments" replace />,
           },
           {
             path: 'appointments/:id',
@@ -178,6 +198,22 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
                 <PropertyDetailPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'contacts',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <ContactListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'contacts/:id',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <ContactDetailPage />
               </AuthGuard>
             ),
           },
@@ -251,20 +287,6 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <InspectorListPage />
-              </AuthGuard>
-            ),
-          },
-          {
-            // Backend `appointment-contacts` list accepts AM/OP/CL_ADMIN/CL_USER
-            // (`ListAppointmentContactsUseCase.assertRoles`). Mirror that here
-            // so CL_USER doesn't get a redirect on a feature they're entitled
-            // to use.
-            path: 'tenant-contacts',
-            element: (
-              <AuthGuard
-                roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}
-              >
-                <TenantContactListPage />
               </AuthGuard>
             ),
           },
@@ -348,7 +370,7 @@ export const router = createBrowserRouter([
           {
             path: 'scheduled-reports',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
                 <ScheduledReportListPage />
               </AuthGuard>
             ),
@@ -377,6 +399,7 @@ export const router = createBrowserRouter([
   {
     path: '*',
     element: <NotFoundPage />,
+    errorElement: <AppErrorBoundary />,
   },
 ], {
   future: {

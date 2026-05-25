@@ -5,6 +5,7 @@ import type { INotificationTemplateRepository } from '../../domain/notification-
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import { NotificationEntity } from '../../domain/notification.entity';
 import { ValidationError } from '../../../../shared/domain/errors';
+import { MarketingDispatchDisabledError } from '../../domain/notification.errors';
 
 export interface CreateNotificationInput {
   tenantId: string;
@@ -52,6 +53,10 @@ export class CreateNotificationUseCase {
       if (defaultTemplate) {
         notificationClass = defaultTemplate.notificationClass;
       }
+    }
+
+    if (notificationClass === 'MARKETING') {
+      throw new MarketingDispatchDisabledError();
     }
 
     const now = new Date();

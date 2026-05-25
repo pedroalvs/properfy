@@ -75,7 +75,7 @@ describe('GET /v1/inspector/schedule — enriched fields', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.appointments[0].agencyName).toBe('Alpha Realty');
+    expect(res.body.data.appointments[0].agencyName).toBe('Alpha Realty');
   });
 
   it('should reflect keyRequired = true correctly', async () => {
@@ -104,7 +104,7 @@ describe('GET /v1/inspector/schedule — enriched fields', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.appointments[0].keyRequired).toBe(true);
-    expect(res.body.appointments[0].meetingLocation).toBe('Office reception');
+    expect(res.body.data.appointments[0].keyRequired).toBe(true);
+    expect(res.body.data.appointments[0].meetingLocation).toBe('Office reception');
   });
 });

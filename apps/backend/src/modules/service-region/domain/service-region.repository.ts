@@ -25,7 +25,7 @@ export interface ResolvedRegion {
 
 export interface IServiceRegionRepository {
   findById(id: string, tenantId: string | null): Promise<ServiceRegionEntity | null>;
-  findByName(tenantId: string, name: string): Promise<ServiceRegionEntity | null>;
+  findByName(tenantId: string | null, name: string): Promise<ServiceRegionEntity | null>;
   /** Pass `tenantId: null` to query across all tenants (AM only). */
   findAll(
     tenantId: string | null,
@@ -36,7 +36,7 @@ export interface IServiceRegionRepository {
   save(region: ServiceRegionEntity): Promise<void>;
   update(
     id: string,
-    tenantId: string,
+    tenantId: string | null,
     data: Partial<{
       name: string;
       geojson: Record<string, unknown>;
@@ -52,7 +52,7 @@ export interface IServiceRegionRepository {
   getInspectorRegionIds(inspectorId: string): Promise<string[]>;
   getInspectorRegionIdsBatch(inspectorIds: string[]): Promise<Map<string, string[]>>;
   countPublishedGroupsByRegionId(regionId: string): Promise<number>;
-  delete(id: string, tenantId: string): Promise<void>;
+  delete(id: string, tenantId: string | null): Promise<void>;
   findAllByInspector(
     inspectorId: string,
     tenantId: string,

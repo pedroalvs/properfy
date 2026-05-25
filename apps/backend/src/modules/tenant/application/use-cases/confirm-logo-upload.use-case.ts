@@ -3,8 +3,15 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ITenantRepository } from '../../domain/tenant.repository';
 import type { IBrandingStorageService } from '../../domain/branding-storage.service';
-import { TenantNotFoundError } from '../../domain/tenant.errors';
+import {
+  TenantNotFoundError,
+  LogoStorageKeyInvalidError,
+  LogoUploadObjectNotFoundError,
+} from '../../domain/tenant.errors';
 import { deepMerge } from '../../../../shared/domain/utils';
+
+// tenants/<uuid>/branding/logo.<ext>
+const LOGO_KEY_REGEX = /^tenants\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/branding\/logo\.(png|jpe?g|webp|svg)$/i;
 
 export interface ConfirmLogoUploadInput {
   tenantId: string;
@@ -35,18 +42,29 @@ export class ConfirmLogoUploadUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to update logo');
     }
 
+    // Validate storage key format
+    if (!LOGO_KEY_REGEX.test(storageKey)) {
+      throw new LogoStorageKeyInvalidError();
+    }
+
     // Verify tenant exists
     const tenant = await this.tenantRepo.findById(tenantId);
     if (!tenant || tenant.isDeleted()) {
       throw new TenantNotFoundError();
     }
 
+    // Verify object exists in storage
+    const head = await this.brandingStorage.headObject(storageKey);
+    if (!head.exists) {
+      throw new LogoUploadObjectNotFoundError();
+    }
+
     // Construct public URL
     const logoUrl = this.brandingStorage.getPublicUrl(storageKey);
 
-    // Update tenant settings with logoUrl via deep merge
+    // Update tenant settings with logoUrl and logoStorageKey via deep merge
     const previousLogoUrl = (tenant.settingsJson.logoUrl as string | undefined) ?? null;
-    const updatedSettings = deepMerge(tenant.settingsJson, { logoUrl });
+    const updatedSettings = deepMerge(tenant.settingsJson, { logoUrl, logoStorageKey: storageKey });
 
     await this.tenantRepo.update(tenantId, { settingsJson: updatedSettings });
 
@@ -59,7 +77,7 @@ export class ConfirmLogoUploadUseCase {
       entityId: tenantId,
       tenantId,
       before: { logoUrl: previousLogoUrl },
-      after: { logoUrl },
+      after: { logoUrl, logoStorageKey: storageKey },
     });
 
     return { logoUrl };

@@ -138,6 +138,18 @@ describe('POST /v1/service-regions', () => {
     expect(res.body.data.name).toBe('Sydney CBD');
   });
 
+  it('AM — creates global region without tenantId', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreate.mockResolvedValueOnce(fullRegion);
+
+    const res = await supertest(app.server)
+      .post('/v1/service-regions')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Global Region', geojson: validPolygon });
+
+    expect(res.status).toBe(201);
+  });
+
   // T126: Create success (OP with ?tenantId)
   it('OP — creates region successfully', async () => {
     mockJwtVerify.mockResolvedValueOnce(opContext);

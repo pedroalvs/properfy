@@ -53,7 +53,7 @@ interface OnDoneHandler {
 }
 
 interface OnTransitionHandler {
-  execute(input: { appointmentId: string; previousStatus: string; targetStatus: string }): Promise<unknown>;
+  execute(input: { appointmentId: string; tenantId?: string | null; previousStatus: string; targetStatus: string }): Promise<unknown>;
 }
 
 export class ExecuteStatusTransitionUseCase {
@@ -214,6 +214,9 @@ export class ExecuteStatusTransitionUseCase {
     }
     if (targetStatus === 'REJECTED' && rejectionReasonCode) {
       updateData.rejectionReasonCode = rejectionReasonCode;
+    } else if (appointment.status === 'REJECTED' && targetStatus !== 'REJECTED') {
+      // Clear stale rejectionReasonCode when reopening from REJECTED.
+      updateData.rejectionReasonCode = null;
     }
 
     // Set inspector for SCHEDULED
@@ -381,6 +384,7 @@ export class ExecuteStatusTransitionUseCase {
       try {
         await this.onTransitionHandler.execute({
           appointmentId,
+          tenantId: appointment.tenantId,
           previousStatus: appointment.status,
           targetStatus,
         });

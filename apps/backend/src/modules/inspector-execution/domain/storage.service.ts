@@ -9,6 +9,8 @@ export interface HeadObjectResult {
 }
 
 export interface IStorageService {
-  createSignedUploadUrl(bucket: string, key: string, ttlSeconds: number): Promise<SignedUploadUrlResult>;
+  createSignedUploadUrl(bucket: string, key: string, ttlSeconds: number, contentType: string): Promise<SignedUploadUrlResult>;
   headObject(bucket: string, key: string): Promise<HeadObjectResult>;
+  createSignedDownloadUrl(bucket: string, key: string, ttlSeconds: number): Promise<string>;
+  deleteObject(bucket: string, key: string): Promise<void>;
 }

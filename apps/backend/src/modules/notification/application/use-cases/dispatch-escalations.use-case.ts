@@ -1,6 +1,9 @@
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { INotificationRepository } from '../../domain/notification.repository';
+import type { BuildNotificationPayloadService } from '../../domain/build-notification-payload.service';
+import type { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
 import type { CreateNotificationUseCase } from './create-notification.use-case';
 
 export interface DispatchEscalationsOutput {
@@ -15,8 +18,12 @@ export class DispatchEscalationsUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly branchRepo: IBranchRepository,
+    private readonly tenantRepo: ITenantRepository,
     private readonly notificationRepo: INotificationRepository,
+    private readonly buildNotificationPayload: BuildNotificationPayloadService,
+    private readonly appointmentCodeFormatter: AppointmentCodeFormatter,
     private readonly createNotification: CreateNotificationUseCase,
+    private readonly tenantPortalBaseUrl: string,
   ) {}
 
   async execute(today?: Date): Promise<DispatchEscalationsOutput> {
@@ -36,8 +43,19 @@ export class DispatchEscalationsUseCase {
         continue;
       }
 
-      // PM Escalation (EMAIL)
+      const tenant = await this.tenantRepo.findById(appointment.tenantId);
+      if (!tenant || !contact) {
+        skipped++;
+        continue;
+      }
+
       const branch = await this.branchRepo.findById(appointment.branchId, appointment.tenantId);
+
+      // H13: Track skipped per-channel independently to avoid per-appointment double-count
+      let pmSkipped = false;
+      let smsSkipped = false;
+
+      // PM Escalation (EMAIL to branch contact)
       if (branch?.contactEmail) {
         const pmAlreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
           appointment.id,
@@ -50,24 +68,27 @@ export class DispatchEscalationsUseCase {
             recipient: branch.contactEmail,
             channel: 'EMAIL',
             templateCode: 'PROPERTY_MANAGER_ESCALATION',
-            payloadJson: {
-              tenantName: contact?.effectiveName ?? '',
-              scheduledDate: appointment.scheduledDate.toISOString().split('T')[0] ?? '',
-              timeSlot: appointment.timeSlot,
-              appointmentReference: appointment.id,
+            payloadJson: this.buildNotificationPayload.build({
+              templateCode: 'PROPERTY_MANAGER_ESCALATION',
+              tenant,
+              appointment,
+              contact,
               branchName: branch.name,
-            },
+              rawPortalToken: null,
+              portalBaseUrl: this.tenantPortalBaseUrl,
+              appointmentCodeFormatter: this.appointmentCodeFormatter,
+            }),
           });
           pmEscalations++;
         } else {
-          skipped++;
+          pmSkipped = true;
         }
       } else {
-        skipped++;
+        pmSkipped = true;
       }
 
       // Tenant SMS Alert
-      const effectivePhone = contact?.effectivePhone;
+      const effectivePhone = contact.effectivePhone;
       if (effectivePhone) {
         const smsAlreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
           appointment.id,
@@ -80,19 +101,26 @@ export class DispatchEscalationsUseCase {
             recipient: effectivePhone,
             channel: 'SMS',
             templateCode: 'TENANT_SMS_ALERT',
-            payloadJson: {
-              tenantName: contact.effectiveName,
-              scheduledDate: appointment.scheduledDate.toISOString().split('T')[0] ?? '',
-              timeSlot: appointment.timeSlot,
-            },
+            payloadJson: this.buildNotificationPayload.build({
+              templateCode: 'TENANT_SMS_ALERT',
+              tenant,
+              appointment,
+              contact,
+              rawPortalToken: null,
+              portalBaseUrl: this.tenantPortalBaseUrl,
+              appointmentCodeFormatter: this.appointmentCodeFormatter,
+            }),
           });
           smsAlerts++;
         } else {
-          skipped++;
+          smsSkipped = true;
         }
       } else {
-        skipped++;
+        smsSkipped = true;
       }
+
+      // Count appointment as skipped when at least one channel was not actioned
+      if (pmSkipped || smsSkipped) skipped++;
     }
 
     return { pmEscalations, smsAlerts, skipped };

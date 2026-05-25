@@ -62,7 +62,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => { await app.close(); });
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockJwtVerify.mockReset();
+  mockCreateContactExecute.mockReset();
+});
 
 describe('POST /v1/contacts — create-contact', () => {
   it('happy path: CL_ADMIN creates a contact with email', async () => {
@@ -96,9 +100,13 @@ describe('POST /v1/contacts — create-contact', () => {
     );
   });
 
-  it('happy path: OP creates a contact scoped to own tenant', async () => {
+  it('happy path: OP creates a standalone contact when no tenantId is sent (024 §FR-301)', async () => {
+    // 024: AM/OP are cross-tenant operational roles. Omitting `body.tenantId`
+    // creates a standalone contact (`tenantId = null`) instead of falling back
+    // to the operator's home tenant. The operator's JWT tenant is preserved
+    // separately on the audit row via `actorTenantId`.
     mockJwtVerify.mockResolvedValue(opContext);
-    mockCreateContactExecute.mockResolvedValue(makeContact());
+    mockCreateContactExecute.mockResolvedValue(makeContact({ tenantId: null }));
 
     const res = await supertest(app.server)
       .post('/v1/contacts')
@@ -107,7 +115,7 @@ describe('POST /v1/contacts — create-contact', () => {
 
     expect(res.status).toBe(201);
     expect(mockCreateContactExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_A }),
+      expect.objectContaining({ tenantId: null, actorTenantId: TENANT_A }),
     );
   });
 
@@ -182,32 +190,22 @@ describe('POST /v1/contacts — create-contact', () => {
     expect(res.status).toBe(201);
   });
 
-  // DEC-003: cross-tenant OP can target a tenant via body.tenantId.
-  it('cross-tenant OP creates a contact for a selected tenant via body.tenantId', async () => {
+  // Constitution v1.3.0 (op_role_rollback): AM and OP are both cross-tenant
+  // operational roles. OP tokens may carry `tenant_id = null` and resolve
+  // the target tenant from `body.tenantId` exactly like AM.
+  it('OP cross-tenant create: body.tenantId selects the target tenant', async () => {
     mockJwtVerify.mockResolvedValue(opCrossTenantContext);
     mockCreateContactExecute.mockResolvedValue(makeContact({ tenantId: TENANT_B }));
 
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ tenantId: TENANT_B, type: 'TENANT', displayName: 'Op Cross Create', primaryEmail: 'op-cross@example.com' });
+      .send({ tenantId: TENANT_B, type: 'TENANT', displayName: 'Op Cross-Tenant', primaryEmail: 'op-cross@example.com' });
 
     expect(res.status).toBe(201);
     expect(mockCreateContactExecute).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: TENANT_B }),
     );
-  });
-
-  it('cross-tenant OP without body.tenantId returns 400', async () => {
-    mockJwtVerify.mockResolvedValue(opCrossTenantContext);
-
-    const res = await supertest(app.server)
-      .post('/v1/contacts')
-      .set('Authorization', 'Bearer token')
-      .send({ type: 'TENANT', displayName: 'No Tenant', primaryEmail: 'no-tenant@example.com' });
-
-    expect(res.status).toBe(400);
-    expect(mockCreateContactExecute).not.toHaveBeenCalled();
   });
 
   // Defense in depth: CL_ADMIN must not be able to cross tenant via body.tenantId.

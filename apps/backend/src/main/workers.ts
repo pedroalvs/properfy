@@ -20,6 +20,7 @@ import type { ExpireAssetsWorker } from '../modules/inspector-execution/infrastr
 import type { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import type { ExpirePriorityWorker } from '../modules/service-group/infrastructure/workers/expire-priority.worker';
 import type { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
+import type { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import type { Logger } from '../shared/infrastructure/logger';
 import { DlqMonitor } from '../shared/infrastructure/dlq-monitor';
 import { prisma } from '../shared/infrastructure/prisma';
@@ -63,6 +64,7 @@ export async function registerWorkers(
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker,
   expirePriorityWorker: ExpirePriorityWorker,
   auditRetentionWorker: AuditRetentionWorker,
+  rejectUnconfirmedWorker: RejectUnconfirmedWorker,
   logger: Logger,
 ): Promise<void> {
   const boss = await getQueue();
@@ -206,6 +208,22 @@ export async function registerWorkers(
     );
   }));
 
+  // Reject unconfirmed appointments — daily at 09:00 UTC (19:00 AEST)
+  await boss.schedule('appointment.reject-unconfirmed', '0 9 * * *', {});
+  await boss.work('appointment.reject-unconfirmed', withJobMetrics('appointment.reject-unconfirmed', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing appointment.reject-unconfirmed job');
+    const result = await rejectUnconfirmedWorker.execute();
+    logger.info(
+      {
+        jobId: job.id,
+        rejectedCount: result.rejectedCount,
+        groupsClosedCount: result.groupsClosedCount,
+        groupsUpdatedCount: result.groupsUpdatedCount,
+      },
+      'Unconfirmed appointment rejection completed',
+    );
+  }));
+
   // DLQ monitor — alert on accumulated failed jobs
   const dlqMonitor = new DlqMonitor(prisma, logger, { threshold: 10 });
   await boss.schedule('system.dlq-monitor', '*/5 * * * *', {});
@@ -215,7 +233,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, report.process-schedules, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import, property.import, billing.generate-invoice-file, tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, service_group.expire-priority, audit.retention, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, report.process-schedules, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import, property.import, billing.generate-invoice-file, tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, service_group.expire-priority, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

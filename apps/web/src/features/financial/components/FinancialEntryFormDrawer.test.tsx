@@ -42,6 +42,7 @@ vi.mock('../hooks/useFinancialEntrySave', () => ({
     save: mockSave,
     isSaving: false,
     validate: mockValidate,
+    resetIdempotencyKey: vi.fn(),
   }),
 }));
 

@@ -4,7 +4,7 @@ import { AuditLogDetailDrawer } from './AuditLogDetailDrawer';
 import type { AuditLog } from '../types';
 
 const MOCK_LOG: AuditLog = {
-  id: 'log-01', tenantId: 'ten-1', actorType: 'USER', actorId: 'usr-1',
+  id: 'log-01', tenantId: 'ten-1', tenantName: null, actorType: 'USER', actorId: 'usr-1', actorName: null,
   entityType: 'APPOINTMENT', entityId: 'apt-01', action: 'appointment.status_transition',
   reason: 'Released to inspector', beforeJson: { status: 'DRAFT' },
   afterJson: { status: 'AWAITING_INSPECTOR' }, requestId: 'req-1',

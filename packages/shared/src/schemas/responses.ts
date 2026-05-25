@@ -64,6 +64,8 @@ export const meResponseSchema = z.object({
   status: z.string(),
   lastLoginAt: dateStrNullable(),
   createdAt: dateStr(),
+  inspectorId: z.string().uuid().nullable().optional(),
+  inspectorPhotoUrl: z.string().nullable().optional(),
 });
 
 // ─── Tenant ────────────────────────────────────────────────────────────────
@@ -185,6 +187,9 @@ export const inspectorResponseSchema = z.object({
   insuranceExpiresAt: dateStrNullable().optional(),
   policeCheckFileKey: z.string().nullable().optional(),
   policeCheckExpiresAt: dateStrNullable().optional(),
+  photoStorageKey: z.string().nullable().optional(),
+  insuranceMetaJson: z.unknown().optional(),
+  policeCheckMetaJson: z.unknown().optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });
@@ -226,6 +231,8 @@ export const appointmentResponseSchema = z.object({
   payoutAmount: z.number(),
   pricingRuleSnapshotJson: z.unknown().optional(),
   notes: z.string().nullable(),
+  tenantNote: z.string().nullable().optional(),
+  hasTenantNote: z.boolean().optional(),
   customFieldsJson: z.unknown().nullable().optional(),
   reason: z.string().nullable().optional(),
   cancellationReasonCode: z.string().nullable().optional(),
@@ -245,6 +252,8 @@ export const appointmentResponseSchema = z.object({
   inspectorName: z.string().nullable().optional(),
   branchName: z.string().nullable().optional(),
   serviceTypeName: z.string().nullable().optional(),
+  /** Tenant (agency) display name surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
+  clientName: z.string().optional(),
   cancellationReason: z.string().nullable().optional(),
   // Geographic coordinates propagated from the appointment's property (for map views)
   latitude: z.number().nullable().optional(),
@@ -398,6 +407,7 @@ export const marketplaceOfferAcceptResponseSchema = z.object({
 export const auditLogResponseSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid().nullable(),
+  tenantName: z.string().nullable().optional(),
   actorType: z.string(),
   actorId: z.string().nullable(),
   actorName: z.string().nullable(),
@@ -440,9 +450,21 @@ export const portalDataResponseSchema = z.object({
   }).optional(),
 });
 
+/**
+ * Response shape of `POST /v1/appointments/:appointmentId/portal-token`.
+ *
+ * 023 §FR-221 / BUG-023-001 — when the appointment has no primary contact,
+ * the use case still mints the token (auditable as a privileged action) but
+ * skips the notification dispatch and returns `dispatched: false` plus
+ * `reason: 'NO_PRIMARY_CONTACT'`. Without these fields in the schema,
+ * Fastify's whitelist serialiser silently strips them and API consumers
+ * cannot distinguish SUCCESS from a primary-less skip.
+ */
 export const portalTokenResponseSchema = z.object({
   token: z.string(),
   expiresAt: dateStr(),
+  dispatched: z.boolean().optional(),
+  reason: z.literal('NO_PRIMARY_CONTACT').optional(),
 });
 
 export const portalActivityItemSchema = z.object({
@@ -719,12 +741,28 @@ export type ScheduledReportResponse = z.infer<typeof scheduledReportResponseSche
 
 // ─── Dashboard ────────────────────────────────────────────────────────────
 
+export const inspectorDayCountSchema = z.object({
+  inspectorId: z.string().uuid(),
+  inspectorName: z.string(),
+  count: z.number().int().nonnegative(),
+  alertLevel: z.enum(['yellow', 'red']).nullable(),
+});
+
+export const inspectorBreakdownsSchema = z.object({
+  tomorrowByInspector: z.array(inspectorDayCountSchema),
+  scheduledThisWeekByInspector: z.array(inspectorDayCountSchema),
+  confirmedThisWeekByInspector: z.array(inspectorDayCountSchema),
+});
+
 export const dashboardStatsResponseSchema = z.object({
   appointmentsByStatus: z.object({
     draft: z.number(),
     awaitingInspector: z.number(),
     scheduled: z.number(),
     doneThisMonth: z.number(),
+    doneThisWeek: z.number(),
+    scheduledThisWeek: z.number(),
+    rejectedTotal: z.number(),
   }),
   recentAppointments: z.array(z.object({
     id: z.string().uuid(),
@@ -746,27 +784,7 @@ export const dashboardStatsResponseSchema = z.object({
     activeInspectors: z.number(),
     activeServiceGroups: z.number(),
   }),
-});
-
-// ─── Appointment Contact ───────────────────────────────────────────────────
-
-export const appointmentContactResponseSchema = z.object({
-  id: z.string().uuid(),
-  appointmentId: z.string().uuid(),
-  name: z.string(),
-  primaryEmail: z.string().nullable(),
-  primaryPhone: z.string().nullable(),
-  confirmationStatus: z.string(),
-  propertyAddress: z.string(),
-  appointmentDate: dateStr(),
-  lastActivityAt: dateStr().nullable(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
-});
-
-export const appointmentContactDetailResponseSchema = appointmentContactResponseSchema.extend({
-  alternativePhone: z.string().nullable(),
-  notes: z.string().nullable(),
+  inspectorBreakdowns: inspectorBreakdownsSchema.nullable(),
 });
 
 // ─── Webhook ───────────────────────────────────────────────────────────────
@@ -794,10 +812,11 @@ export type AuditLogResponse = z.infer<typeof auditLogResponseSchema>;
 export type FinancialEntryResponse = z.infer<typeof financialEntryResponseSchema>;
 export type InvoiceResponse = z.infer<typeof invoiceResponseSchema>;
 export type NotificationResponse = z.infer<typeof notificationResponseSchema>;
-export type AppointmentContactResponse = z.infer<typeof appointmentContactResponseSchema>;
 export type NotificationTemplateResponse = z.infer<typeof notificationTemplateResponseSchema>;
 export type ReportResponse = z.infer<typeof reportResponseSchema>;
 export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;
 export type InspectionAssetResponse = z.infer<typeof inspectionAssetResponseSchema>;
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
+export type InspectorDayCount = z.infer<typeof inspectorDayCountSchema>;
+export type InspectorBreakdowns = z.infer<typeof inspectorBreakdownsSchema>;
 export type TenantInvoiceResponse = z.infer<typeof tenantInvoiceResponseSchema>;

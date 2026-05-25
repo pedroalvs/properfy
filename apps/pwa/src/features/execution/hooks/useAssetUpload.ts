@@ -4,7 +4,6 @@ import {
   savePendingAsset,
   getPendingAssets,
   removePendingAsset,
-  type PendingAssetRecord,
 } from '../lib/indexeddb';
 import type { AssetUploadState } from '../types';
 

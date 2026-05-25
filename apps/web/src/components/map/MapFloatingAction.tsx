@@ -3,6 +3,7 @@ interface MapFloatingActionProps {
     icon: string;
     label: string;
     onClick: () => void;
+    active?: boolean;
   }[];
   position?: 'top-right' | 'bottom-right';
 }
@@ -24,11 +25,11 @@ export function MapFloatingAction({
           key={action.label}
           type="button"
           onClick={action.onClick}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-card-bg shadow-lg transition-shadow hover:shadow-xl"
+          className={`flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition-shadow hover:shadow-xl ${action.active ? 'bg-primary text-white' : 'bg-card-bg'}`}
           aria-label={action.label}
           title={action.label}
         >
-          <i className={`mdi ${action.icon} text-lg text-secondary`} aria-hidden="true" />
+          <i className={`mdi ${action.icon} text-lg ${action.active ? 'text-white' : 'text-secondary'}`} aria-hidden="true" />
         </button>
       ))}
     </div>

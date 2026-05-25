@@ -289,4 +289,58 @@ describe('ListServiceGroupsUseCase', () => {
     expect(result.data[0]!.appointments).toBeUndefined();
     expect(result.data[0]!.appointmentsCount).toBeUndefined();
   });
+
+  describe('search filter', () => {
+    it('passes search filter to repository', async () => {
+      vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([]);
+      vi.mocked(serviceGroupRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { search: 'sydney group' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(serviceGroupRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'sydney group' }),
+        defaultPagination,
+      );
+    });
+  });
+
+  describe('branchId filter', () => {
+    it('passes branchId filter to repository', async () => {
+      vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([]);
+      vi.mocked(serviceGroupRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { branchId: 'branch-123' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(serviceGroupRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ branchId: 'branch-123' }),
+        defaultPagination,
+      );
+    });
+  });
+
+  describe('contactSearch filter', () => {
+    it('passes contactSearch filter to repository', async () => {
+      vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([]);
+      vi.mocked(serviceGroupRepo.count).mockResolvedValue(0);
+
+      await useCase.execute({
+        filters: { contactSearch: 'john' },
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(serviceGroupRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ contactSearch: 'john' }),
+        defaultPagination,
+      );
+    });
+  });
 });

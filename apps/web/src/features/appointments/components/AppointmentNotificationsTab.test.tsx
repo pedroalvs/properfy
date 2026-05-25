@@ -46,7 +46,10 @@ describe('AppointmentNotificationsTab', () => {
     expect(screen.getByText('INITIAL_NOTICE')).toBeInTheDocument();
     expect(screen.getByText('EMAIL')).toBeInTheDocument();
     expect(screen.getByText('tenant@example.com')).toBeInTheDocument();
-    expect(screen.getByText('SENT')).toBeInTheDocument();
+    // UX-baseline cleanup: the local hex `NOTIFICATION_STATUS_COLORS` was
+    // replaced by the shared `NOTIFICATION_STATUS_MAP` driving `StatusChip`,
+    // which renders the human-readable `label` field instead of the enum.
+    expect(screen.getByText('Sent')).toBeInTheDocument();
   });
 
   it('renders table headers', () => {
@@ -64,7 +67,7 @@ describe('AppointmentNotificationsTab', () => {
   it('renders failure diagnostics when notification failed', () => {
     render(<AppointmentNotificationsTab appointmentId="apt-01" />);
     expect(screen.getByText('REMINDER_T1')).toBeInTheDocument();
-    expect(screen.getByText('FAILED')).toBeInTheDocument();
+    expect(screen.getByText('Failed')).toBeInTheDocument();
     expect(screen.getByText('Provider timeout')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
   });

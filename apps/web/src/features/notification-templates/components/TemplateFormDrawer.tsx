@@ -10,9 +10,12 @@ import { TextInput } from '@/components/forms/TextInput';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateSave } from '../hooks/useTemplateSave';
+import { SendTestEmailDialog } from './SendTestEmailDialog';
+import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
 import { TemplatePreview } from './TemplatePreview';
 import type { NotificationTemplate, TemplateFormData, TemplateFormErrors } from '../types';
+import { TEMPLATE_VARIABLES } from '../types';
 
 interface TemplateFormDrawerProps {
   open: boolean;
@@ -35,6 +38,8 @@ export function TemplateFormDrawer({
   const [initialData, setInitialData] = useState<TemplateFormData>({ subject: '', body: '', active: true });
   const [errors, setErrors] = useState<TemplateFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showTestDialog, setShowTestDialog] = useState(false);
+  const [showTestSmsDialog, setShowTestSmsDialog] = useState(false);
 
   useEffect(() => {
     if (template && open) {
@@ -85,10 +90,16 @@ export function TemplateFormDrawer({
     }
   }, [form.body, updateField]);
 
+  const templateVarSpec = template ? TEMPLATE_VARIABLES[template.code as keyof typeof TEMPLATE_VARIABLES] : undefined;
+  const canonicalRequired: string[] = templateVarSpec ? [...templateVarSpec.required] : template?.requiredVariables ?? [];
+  const canonicalAllowed: readonly string[] | undefined = templateVarSpec
+    ? [...templateVarSpec.required, ...templateVarSpec.optional]
+    : undefined;
+
   const handleSubmit = useCallback(async () => {
     if (!template) return;
 
-    const validationErrors = validate(form, template.requiredVariables);
+    const validationErrors = validate(form, canonicalRequired, canonicalAllowed);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -145,11 +156,11 @@ export function TemplateFormDrawer({
                     <span className="text-xs font-semibold text-text-muted">Channel</span>
                     <p className="text-sm font-semibold text-text-primary">{template.channel}</p>
                   </div>
-                  {template.requiredVariables.length > 0 && (
+                  {canonicalRequired.length > 0 && (
                     <div>
                       <span className="text-xs font-semibold text-text-muted">Required Variables</span>
                       <p className="text-sm text-text-primary">
-                        {template.requiredVariables.map((v) => `{{${v}}}`).join(', ')}
+                        {canonicalRequired.map((v) => `{{${v}}}`).join(', ')}
                       </p>
                     </div>
                   )}
@@ -171,6 +182,7 @@ export function TemplateFormDrawer({
                   <VariableInsertToolbar
                     onInsert={handleInsertVariable}
                     disabled={isSaving}
+                    variables={canonicalAllowed}
                   />
                   <FormField label="Body" error={errors.body}>
                     <div className={bodyContainerClass}>
@@ -211,6 +223,16 @@ export function TemplateFormDrawer({
               <Button variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
+              {template?.channel === 'EMAIL' && (
+                <Button variant="secondary" onClick={() => setShowTestDialog(true)} disabled={isSaving}>
+                  Send Test Email
+                </Button>
+              )}
+              {template?.channel === 'SMS' && (
+                <Button variant="secondary" onClick={() => setShowTestSmsDialog(true)} disabled={isSaving}>
+                  Send Test SMS
+                </Button>
+              )}
               <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
                 Save
               </Button>
@@ -218,6 +240,23 @@ export function TemplateFormDrawer({
           </div>
         </div>
       </DrawerPanel>
+
+      {template?.channel === 'EMAIL' && (
+        <SendTestEmailDialog
+          open={showTestDialog}
+          onClose={() => setShowTestDialog(false)}
+          templateCode={template.code}
+          channel={template.channel}
+        />
+      )}
+      {template?.channel === 'SMS' && (
+        <SendTestSmsDialog
+          open={showTestSmsDialog}
+          onClose={() => setShowTestSmsDialog(false)}
+          templateCode={template.code}
+          channel={template.channel}
+        />
+      )}
 
       <ConfirmDialog
         open={showConfirm}

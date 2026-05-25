@@ -15,12 +15,14 @@ export function formatAuditAction(action: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function formatAuditActor(actorType: string, actorId: string | null): string {
+export function formatAuditActor(actorType: string, actorId: string | null, actorName?: string | null): string {
+  if (actorName) return actorName;
   const label = toTitleCase(actorType);
   return actorId ? `${label} (${actorId})` : label;
 }
 
-export function formatAuditTenant(tenantId: string | null): string {
+export function formatAuditTenant(tenantId: string | null, tenantName?: string | null): string {
+  if (tenantName) return tenantName;
   return tenantId ?? 'Global';
 }
 

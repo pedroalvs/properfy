@@ -4,6 +4,10 @@ import {
   contactRegistryUpdateSchema,
   appointmentContactsArraySchema,
   contactSchema,
+  contactResponseSchema,
+  contactListItemSchema,
+  contactAppointmentItemSchema,
+  contactPropertyAggregateSchema,
 } from './contact';
 
 describe('contactRegistrySchema', () => {
@@ -219,6 +223,163 @@ describe('appointmentContactsArraySchema', () => {
       { contactId: '550e8400-e29b-41d4-a716-446655440001', role: 'PROPERTY_MANAGER', isPrimary: true },
     ]);
     expect(result.success).toBe(false);
+  });
+});
+
+describe('contactResponseSchema', () => {
+  const validResponse = {
+    id: '550e8400-e29b-41d4-a716-446655440000',
+    tenantId: '550e8400-e29b-41d4-a716-446655440001',
+    type: 'TENANT' as const,
+    displayName: 'Jane Doe',
+    company: 'Smith Realty',
+    primaryEmail: 'jane@example.com',
+    primaryPhone: '+61400000000',
+    additionalChannels: [
+      { channel: 'EMAIL' as const, value: 'jane.work@example.com', label: 'Work' },
+    ],
+    notes: 'Preferred contact',
+    isActive: true,
+    createdAt: '2026-05-09T10:00:00.000Z',
+    updatedAt: '2026-05-09T10:00:00.000Z',
+  };
+
+  it('accepts a fully-populated payload', () => {
+    expect(contactResponseSchema.safeParse(validResponse).success).toBe(true);
+  });
+
+  it('accepts null company / email / phone / notes', () => {
+    const result = contactResponseSchema.safeParse({
+      ...validResponse,
+      company: null,
+      primaryEmail: null,
+      primaryPhone: null,
+      notes: null,
+      additionalChannels: [],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects non-uuid id', () => {
+    const result = contactResponseSchema.safeParse({ ...validResponse, id: 'not-a-uuid' });
+    expect(result.success).toBe(false);
+  });
+
+  it('024 §FR-301 — accepts tenantId=null (standalone contact)', () => {
+    const result = contactResponseSchema.safeParse({ ...validResponse, tenantId: null });
+    expect(result.success).toBe(true);
+  });
+
+  it('024 §FR-301 — rejects non-uuid tenantId (when not null)', () => {
+    const result = contactResponseSchema.safeParse({ ...validResponse, tenantId: 'not-a-uuid' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing isActive flag', () => {
+    const { isActive: _omit, ...rest } = validResponse;
+    const result = contactResponseSchema.safeParse(rest);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('contactListItemSchema', () => {
+  const baseListItem = {
+    id: '550e8400-e29b-41d4-a716-446655440000',
+    tenantId: '550e8400-e29b-41d4-a716-446655440001',
+    type: 'BROKER' as const,
+    displayName: 'Jane Doe',
+    company: null,
+    primaryEmail: 'jane@example.com',
+    primaryPhone: null,
+    isActive: true,
+    propertyCount: 3,
+    primaryInPropertyCount: 1,
+    createdAt: '2026-05-09T10:00:00.000Z',
+    updatedAt: '2026-05-09T10:00:00.000Z',
+  };
+
+  it('accepts a list-row payload with propertyCount + primaryInPropertyCount', () => {
+    expect(contactListItemSchema.safeParse(baseListItem).success).toBe(true);
+  });
+
+  it('accepts propertyCount = 0 and primaryInPropertyCount = 0', () => {
+    expect(
+      contactListItemSchema.safeParse({ ...baseListItem, propertyCount: 0, primaryInPropertyCount: 0 }).success,
+    ).toBe(true);
+  });
+
+  it('024 §FR-301 — accepts tenantId=null on a list-row (standalone)', () => {
+    const result = contactListItemSchema.safeParse({ ...baseListItem, tenantId: null });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects negative propertyCount', () => {
+    const result = contactListItemSchema.safeParse({ ...baseListItem, propertyCount: -1 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects non-integer propertyCount', () => {
+    const result = contactListItemSchema.safeParse({ ...baseListItem, propertyCount: 1.5 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects negative primaryInPropertyCount (must be >= 0)', () => {
+    const result = contactListItemSchema.safeParse({ ...baseListItem, primaryInPropertyCount: -1 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing primaryInPropertyCount field', () => {
+    const { primaryInPropertyCount: _omit, ...rest } = baseListItem;
+    expect(contactListItemSchema.safeParse(rest).success).toBe(false);
+  });
+});
+
+describe('contactAppointmentItemSchema', () => {
+  const validItem = {
+    appointmentId: '550e8400-e29b-41d4-a716-446655440000',
+    appointmentNumber: 1042,
+    status: 'SCHEDULED',
+    scheduledDate: '2026-05-09T10:00:00.000Z',
+    role: 'TENANT' as const,
+    isPrimary: true,
+    propertyId: '550e8400-e29b-41d4-a716-446655440001',
+    propertyCode: 'P-001',
+  };
+
+  it('accepts a valid appointment item with primary + propertyId + propertyCode', () => {
+    expect(contactAppointmentItemSchema.safeParse(validItem).success).toBe(true);
+  });
+
+  it('rejects missing isPrimary flag', () => {
+    const { isPrimary: _omit, ...rest } = validItem;
+    expect(contactAppointmentItemSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('rejects missing propertyId', () => {
+    const { propertyId: _omit, ...rest } = validItem;
+    expect(contactAppointmentItemSchema.safeParse(rest).success).toBe(false);
+  });
+});
+
+describe('contactPropertyAggregateSchema', () => {
+  const validAggregate = {
+    propertyId: '550e8400-e29b-41d4-a716-446655440000',
+    propertyCode: 'P-001',
+    street: '1 Example St',
+    suburb: 'Bondi',
+    postcode: '2026',
+    state: 'NSW',
+    appointmentCount: 4,
+    isPrimaryInActiveAppointment: true,
+  };
+
+  it('accepts a valid property aggregate row', () => {
+    expect(contactPropertyAggregateSchema.safeParse(validAggregate).success).toBe(true);
+  });
+
+  it('rejects missing isPrimaryInActiveAppointment flag', () => {
+    const { isPrimaryInActiveAppointment: _omit, ...rest } = validAggregate;
+    expect(contactPropertyAggregateSchema.safeParse(rest).success).toBe(false);
   });
 });
 

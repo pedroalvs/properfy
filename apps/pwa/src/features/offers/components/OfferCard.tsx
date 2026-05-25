@@ -26,7 +26,7 @@ function formatTimeWindow(timeWindow: string): string {
 }
 
 function usePriorityCountdown(expiresAt: string | null): { label: string; isUrgent: boolean } | null {
-  const [tick, setTick] = useState(0);
+  const [_tick, setTick] = useState(0);
 
   useEffect(() => {
     if (!expiresAt) return;

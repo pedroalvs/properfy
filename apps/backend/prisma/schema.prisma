@@ -411,8 +411,11 @@ model Inspector {
   date_of_birth           DateTime?       @db.Date
   insurance_file_key      String?
   insurance_expires_at    DateTime?       @db.Date
+  insurance_meta_json     Json?
   police_check_file_key   String?
   police_check_expires_at DateTime?       @db.Date
+  police_check_meta_json  Json?
+  photo_storage_key       String?
   created_at              DateTime        @default(now())
   updated_at              DateTime        @updatedAt
   deleted_at              DateTime?
@@ -474,6 +477,7 @@ model Appointment {
   payout_amount              Decimal                  @db.Decimal(12, 2)
   pricing_rule_snapshot_json Json
   notes                      String?                  @db.Text
+  tenant_note                String?                  @db.Text
   custom_fields_json         Json?
   reason                     String?                  @db.Text
   cancellation_reason_code   String?                  @db.VarChar(50)
@@ -533,7 +537,7 @@ model ServiceGroup {
   exception_type        ServiceGroupExceptionType?
   exception_reason      String?                    @db.Text
   assigned_inspector_id String?
-  service_region_id     String
+  service_region_id     String?
   published_at          DateTime?
   assigned_at           DateTime?
   created_by_user_id    String
@@ -543,7 +547,7 @@ model ServiceGroup {
   tenant             Tenant         @relation(fields: [tenant_id], references: [id])
   service_type       ServiceType    @relation(fields: [service_type_id], references: [id])
   assigned_inspector Inspector?     @relation(fields: [assigned_inspector_id], references: [id])
-  service_region     ServiceRegion  @relation(fields: [service_region_id], references: [id], onDelete: Restrict)
+  service_region     ServiceRegion? @relation(fields: [service_region_id], references: [id], onDelete: Restrict)
   created_by         User           @relation("ServiceGroupCreatedBy", fields: [created_by_user_id], references: [id])
   appointments       Appointment[]
 
@@ -558,7 +562,11 @@ model ServiceGroup {
 
 model Contact {
   id                       String            @id @default(uuid())
-  tenant_id                String
+  // 024 §FR-301 — `tenant_id` is nullable. Contact is a cross-tenant entity;
+  // visibility for CL_ADMIN/CL_USER is derived via the operational junction
+  // (`appointment_contacts → appointments.tenant_id`). Standalone contacts
+  // (created by AM/OP without an appointment context) carry `tenant_id = null`.
+  tenant_id                String?
   type                     ContactType
   display_name             String            @db.VarChar(200)
   company                  String?           @db.VarChar(200)
@@ -570,12 +578,16 @@ model Contact {
   created_at               DateTime          @default(now())
   updated_at               DateTime          @updatedAt
 
-  tenant               Tenant               @relation(fields: [tenant_id], references: [id])
+  tenant               Tenant?              @relation(fields: [tenant_id], references: [id])
   appointment_contacts AppointmentContact[]
 
-  // Partial unique indexes managed in migration SQL (WHERE is_active = true):
-  // - contacts_tenant_email_active_unique
-  // - contacts_tenant_phone_active_unique
+  // Global partial unique indexes managed in 024 migration SQL (WHERE is_active = true):
+  // - contacts_email_active_unique
+  // - contacts_phone_active_unique
+  // The composite (tenant_id, *) indexes below remain as hints for the AM/OP
+  // explicit-tenant filter path; the new EXISTS-via-appointment_contacts
+  // visibility predicate uses different indexes (covered by the FK indexes
+  // on appointment_contacts.contact_id and appointments.tenant_id).
   @@index([tenant_id, type])
   @@index([tenant_id, is_active])
   @@index([tenant_id, display_name])
@@ -1004,6 +1016,7 @@ model InspectionAsset {
   status                  InspectionAssetStatus @default(PENDING)
   uploaded_by             String
   upload_expires_at       DateTime?
+  original_filename       String?               @db.VarChar(255)
   created_at              DateTime              @default(now())
 
   appointment Appointment         @relation(fields: [appointment_id], references: [id])
@@ -1373,7 +1386,7 @@ enum RegionStatus {
 
 model ServiceRegion {
   id                 String                                  @id @default(uuid())
-  tenant_id          String
+  tenant_id          String?
   name               String                                  @db.VarChar(255)
   geom               Unsupported("GEOMETRY(Polygon, 4326)")?
   geojson            Json                                    @default("{}")
@@ -1383,7 +1396,7 @@ model ServiceRegion {
   created_at         DateTime                                @default(now())
   updated_at         DateTime                                @updatedAt
 
-  tenant            Tenant            @relation(fields: [tenant_id], references: [id])
+  tenant            Tenant?           @relation(fields: [tenant_id], references: [id])
   created_by        User?             @relation("ServiceRegionCreatedBy", fields: [created_by_user_id], references: [id])
   inspector_regions InspectorRegion[]
   service_groups    ServiceGroup[]

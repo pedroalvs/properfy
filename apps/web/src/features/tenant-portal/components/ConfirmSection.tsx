@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TenantConfirmationStatus } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useConfirmAppointment } from '../hooks/usePortalData';
 import type { PortalAppointment } from '../types';
@@ -19,6 +20,7 @@ export function ConfirmSection({
   const { showSuccess, showError } = useSnackbar();
   const confirmMutation = useConfirmAppointment(token);
   const [confirmed, setConfirmed] = useState(false);
+  const [tenantNote, setTenantNote] = useState('');
 
   const isAlreadyConfirmed =
     appointment.tenantConfirmationStatus === TenantConfirmationStatus.CONFIRMED;
@@ -47,7 +49,9 @@ export function ConfirmSection({
 
   const handleConfirm = async () => {
     try {
-      await confirmMutation.mutateAsync({});
+      await confirmMutation.mutateAsync({
+        ...(tenantNote.trim() ? { tenantNote: tenantNote.trim() } : {}),
+      });
       setConfirmed(true);
       showSuccess('Attendance confirmed successfully.');
     } catch (err) {
@@ -65,6 +69,28 @@ export function ConfirmSection({
       <p className="mb-4 text-sm text-text-secondary">
         Please confirm that you will be available for the scheduled inspection.
       </p>
+
+      <div className="mb-4">
+        <label
+          htmlFor="confirm-tenant-note"
+          className="mb-1 block text-sm font-medium text-text-secondary"
+        >
+          Additional notes
+        </label>
+        <Textarea
+          id="confirm-tenant-note"
+          value={tenantNote}
+          onChange={setTenantNote}
+          placeholder="Any additional information for the operator (optional)"
+          disabled={isReadOnly}
+          rows={3}
+          maxLength={2000}
+          aria-label="Additional notes"
+        />
+        <p className="mt-1 text-xs text-text-muted">
+          {tenantNote.length}/2000 characters
+        </p>
+      </div>
 
       <Button
         variant="primary"

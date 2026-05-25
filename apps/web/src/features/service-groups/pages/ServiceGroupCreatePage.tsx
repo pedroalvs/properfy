@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, UserRole, ServiceGroupExceptionType } from '@properfy/shared';
+import { createServiceGroupSchema, UserRole, ServiceGroupExceptionType, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -26,10 +26,10 @@ import { GroupSummaryCard } from '../components/GroupSummaryCard';
 import { useEligibleAppointments } from '../hooks/useEligibleAppointments';
 
 const MIN_APPOINTMENTS = 5;
-const MAX_APPOINTMENTS = 25;
+const MAX_APPOINTMENTS = 30;
 
 const EXCEPTION_TYPE_OPTIONS = [
-  { value: ServiceGroupExceptionType.LOW_DENSITY_REGION, label: 'Low Density Region (max 25)' },
+  { value: ServiceGroupExceptionType.LOW_DENSITY_REGION, label: 'Low Density Region (max 30)' },
   { value: ServiceGroupExceptionType.ISOLATED_SERVICE,   label: 'Isolated Service (max 3)' },
   { value: ServiceGroupExceptionType.PRIORITY_CLIENT,    label: 'Priority Client (max 8)' },
 ];
@@ -89,6 +89,7 @@ export function ServiceGroupCreatePage() {
     ...(description ? { description } : {}),
     priorityMode,
     ...(exceptionType ? { exceptionType, exceptionReason: exceptionReason || undefined } : {}),
+    actorTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
   const parsedCreatePayload = createServiceGroupSchema.safeParse(createPayload);
 
@@ -342,6 +343,7 @@ export function ServiceGroupCreatePage() {
                 <DateInput
                   value={scheduledDate}
                   onChange={setScheduledDate}
+                  min={todayLocalDateString()}
                   aria-label="Scheduled Date"
                 />
               </FormField>
@@ -353,6 +355,10 @@ export function ServiceGroupCreatePage() {
                 endTime={endTime}
                 onStartTimeChange={setStartTime}
                 onEndTimeChange={setEndTime}
+                minStartTime={(() => {
+                  const today = todayLocalDateString();
+                  return scheduledDate === today ? currentTimeInTzHHmm(Intl.DateTimeFormat().resolvedOptions().timeZone) : undefined;
+                })()}
               />
             </FormSection>
 

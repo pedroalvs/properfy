@@ -10,6 +10,20 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
+vi.mock('@/lib/auth-storage', () => ({
+  authStorage: {
+    getAccessToken: vi.fn(() => null),
+    hasTokens: vi.fn(() => false),
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+  },
+}));
+
+vi.mock('@/hooks/useSnackbar', () => ({
+  useSnackbar: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
+  SnackbarProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock('@/services/api', () => ({
   api: {
     GET: vi.fn().mockResolvedValue({ data: { data: [], pagination: { total: 0, page: 1, pageSize: 1 } }, error: null }),

@@ -28,6 +28,26 @@ interface RegionMapProps {
 const DEFAULT_CENTER: [number, number] = [151.21, -33.87]; // Sydney
 const DEFAULT_ZOOM = 11;
 
+/**
+ * GeoJSON range guards. Mapbox's `LngLat` constructor rejects values
+ * outside [-180, 180] for longitude and [-90, 90] for latitude with an
+ * "Unexpected Application Error". The smoke caught this with a region
+ * whose stored polygon evaluated to lat > 90 — could be either a data-
+ * quality row (swapped [lat, lng] order, corrupt centroid) or an NaN
+ * from a missing coordinate. We validate at the boundary into Mapbox
+ * so a single bad row degrades to the default centre instead of
+ * crashing the whole route.
+ */
+export function isValidLng(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v) && v >= -180 && v <= 180;
+}
+export function isValidLat(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v) && v >= -90 && v <= 90;
+}
+export function isValidLngLat(lngLat: readonly [number, number]): boolean {
+  return isValidLng(lngLat[0]) && isValidLat(lngLat[1]);
+}
+
 export function RegionMap({
   geojson,
   onDraw,
@@ -57,15 +77,25 @@ export function RegionMap({
       const geo = region.geojson as { type?: string; coordinates?: number[][][] };
       if (geo?.type === 'Polygon' && geo.coordinates?.[0]) {
         for (const coord of geo.coordinates[0]!) {
-          sumLng += coord[0]!;
-          sumLat += coord[1]!;
-          count++;
+          // Guard each individual coordinate before accumulating. Mapbox
+          // rejects out-of-range values; one bad coord in a polygon must
+          // not poison the entire centroid (which would crash the route).
+          if (isValidLng(coord[0]) && isValidLat(coord[1])) {
+            sumLng += coord[0]!;
+            sumLat += coord[1]!;
+            count++;
+          }
         }
       }
     }
 
     if (count === 0) return DEFAULT_CENTER;
-    return [sumLng / count, sumLat / count];
+    const center: [number, number] = [sumLng / count, sumLat / count];
+    // Defence in depth: even if every coordinate passed individual
+    // validation, average them only counts as valid if the final pair
+    // is in range. A floating-point round-trip should never push us out
+    // — but if it ever does, falling back keeps the route alive.
+    return isValidLngLat(center) ? center : DEFAULT_CENTER;
   }, [existingRegions, geojson]);
 
   useEffect(() => {
@@ -193,8 +223,12 @@ export function RegionMap({
         const geo = gj as { type?: string; coordinates?: number[][][] };
         if (geo?.type === 'Polygon' && geo.coordinates?.[0]) {
           for (const coord of geo.coordinates[0]!) {
-            bounds.extend([coord[0] as number, coord[1] as number]);
-            hasBounds = true;
+            // Same out-of-range guard as `deriveCenter` — Mapbox's
+            // `bounds.extend()` throws the same LngLat range error.
+            if (isValidLng(coord[0]) && isValidLat(coord[1])) {
+              bounds.extend([coord[0] as number, coord[1] as number]);
+              hasBounds = true;
+            }
           }
         }
       }

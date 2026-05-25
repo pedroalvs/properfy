@@ -100,7 +100,10 @@ describe('useFinancialEntrySave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/financial/entries/adjust', { body: expect.any(Object) });
+    expect(mockPost).toHaveBeenCalledWith('/v1/financial/entries/adjust', {
+      body: expect.any(Object),
+      headers: { 'Idempotency-Key': expect.any(String) },
+    });
   });
 
   it('save returns success on edit', async () => {

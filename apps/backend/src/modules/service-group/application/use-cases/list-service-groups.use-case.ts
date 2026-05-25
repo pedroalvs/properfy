@@ -10,7 +10,7 @@ import type {
 export interface ListServiceGroupsInput {
   filters: {
     tenantId?: string;
-    status?: string;
+    status?: string[];
     serviceTypeId?: string;
     scheduledDateFrom?: string;
     scheduledDateTo?: string;
@@ -18,6 +18,9 @@ export interface ListServiceGroupsInput {
     /** When true, output items include `appointments[]` with property
      *  coordinates + inspector name. Used by the map page. */
     includeAppointments?: boolean;
+    search?: string;
+    branchId?: string;
+    contactSearch?: string;
   };
   pagination: PaginationParams;
   actor: AuthContext;

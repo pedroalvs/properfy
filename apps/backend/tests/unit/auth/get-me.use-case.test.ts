@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GetMeUseCase } from '../../../src/modules/auth/application/use-cases/get-me.use-case';
 import type { IUserRepository } from '../../../src/modules/auth/domain/user.repository';
+import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
+import type { IStorageService } from '../../../src/modules/inspector-execution/domain/storage.service';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
+import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { UnauthorizedError } from '../../../src/shared/domain/errors';
 
 function makeUser(
@@ -29,8 +32,42 @@ function makeUser(
   });
 }
 
+function makeInspector(
+  overrides: Partial<ConstructorParameters<typeof InspectorEntity>[0]> = {},
+): InspectorEntity {
+  return new InspectorEntity({
+    id: 'inspector-1',
+    userId: 'user-insp-1',
+    name: 'Inspector One',
+    email: 'inspector@example.com',
+    phone: null,
+    status: 'ACTIVE',
+    paymentSettingsJson: {},
+    serviceTypesJson: [],
+    clientEligibilityJson: [],
+    blockedClientsJson: [],
+    fullName: null,
+    address: null,
+    abn: null,
+    dateOfBirth: null,
+    insuranceFileKey: null,
+    insuranceExpiresAt: null,
+    policeCheckFileKey: null,
+    policeCheckExpiresAt: null,
+    insuranceMetaJson: null,
+    policeCheckMetaJson: null,
+    photoStorageKey: null,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
 describe('GetMeUseCase', () => {
   let userRepo: IUserRepository;
+  let inspectorRepo: IInspectorRepository;
+  let storageService: IStorageService;
   let useCase: GetMeUseCase;
 
   beforeEach(() => {
@@ -42,7 +79,24 @@ describe('GetMeUseCase', () => {
       updateFailedLogin: vi.fn(),
       updatePassword: vi.fn(),
     };
-    useCase = new GetMeUseCase(userRepo);
+    inspectorRepo = {
+      findById: vi.fn(),
+      findByEmail: vi.fn(),
+      findByUserId: vi.fn().mockResolvedValue(null),
+      linkUserId: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      findByRegionId: vi.fn(),
+    } as unknown as IInspectorRepository;
+    storageService = {
+      createSignedUploadUrl: vi.fn(),
+      createSignedDownloadUrl: vi.fn(),
+      headObject: vi.fn(),
+      deleteObject: vi.fn(),
+    } as unknown as IStorageService;
+    useCase = new GetMeUseCase(userRepo, inspectorRepo, storageService);
   });
 
   it('should return user profile for active user', async () => {
@@ -65,6 +119,8 @@ describe('GetMeUseCase', () => {
       totpEnabled: false,
       lastLoginAt: lastLogin.toISOString(),
       createdAt: new Date('2024-01-01').toISOString(),
+      inspectorId: null,
+      inspectorPhotoUrl: null,
     });
   });
 
@@ -92,5 +148,61 @@ describe('GetMeUseCase', () => {
     await expect(useCase.execute('user-1')).rejects.toThrow(
       UnauthorizedError,
     );
+  });
+
+  it('should return inspectorId and null photoUrl for INSP user without photo', async () => {
+    const user = makeUser({ id: 'user-insp-1', role: 'INSP', tenantId: null });
+    const inspector = makeInspector({ photoStorageKey: null });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+    vi.mocked(inspectorRepo.findByUserId).mockResolvedValue(inspector);
+
+    const result = await useCase.execute('user-insp-1');
+
+    expect(inspectorRepo.findByUserId).toHaveBeenCalledWith('user-insp-1');
+    expect(storageService.createSignedDownloadUrl).not.toHaveBeenCalled();
+    expect(result.inspectorId).toBe('inspector-1');
+    expect(result.inspectorPhotoUrl).toBeNull();
+  });
+
+  it('should return inspectorId and signed photoUrl for INSP user with photo', async () => {
+    const user = makeUser({ id: 'user-insp-1', role: 'INSP', tenantId: null });
+    const inspector = makeInspector({ photoStorageKey: 'inspectors/inspector-1/avatar.jpg' });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+    vi.mocked(inspectorRepo.findByUserId).mockResolvedValue(inspector);
+    vi.mocked(storageService.createSignedDownloadUrl).mockResolvedValue(
+      'https://storage.example.com/inspector-avatars/inspectors/inspector-1/avatar.jpg?sig=abc',
+    );
+
+    const result = await useCase.execute('user-insp-1');
+
+    expect(storageService.createSignedDownloadUrl).toHaveBeenCalledWith(
+      'inspector-avatars',
+      'inspectors/inspector-1/avatar.jpg',
+      900,
+    );
+    expect(result.inspectorId).toBe('inspector-1');
+    expect(result.inspectorPhotoUrl).toBe(
+      'https://storage.example.com/inspector-avatars/inspectors/inspector-1/avatar.jpg?sig=abc',
+    );
+  });
+
+  it('should return null inspectorId when INSP user has no linked inspector', async () => {
+    const user = makeUser({ id: 'user-insp-1', role: 'INSP', tenantId: null });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+    vi.mocked(inspectorRepo.findByUserId).mockResolvedValue(null);
+
+    const result = await useCase.execute('user-insp-1');
+
+    expect(result.inspectorId).toBeNull();
+    expect(result.inspectorPhotoUrl).toBeNull();
+  });
+
+  it('should not query inspector repo for non-INSP roles', async () => {
+    const user = makeUser({ role: 'OP', tenantId: null });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+
+    await useCase.execute('user-1');
+
+    expect(inspectorRepo.findByUserId).not.toHaveBeenCalled();
   });
 });

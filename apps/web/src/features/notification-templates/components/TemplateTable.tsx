@@ -6,7 +6,6 @@ import type { NotificationTemplate } from '../types';
 const CHANNEL_COLORS: Record<string, string> = {
   EMAIL: 'bg-[#B3E5FC] text-[#01579B]',
   SMS: 'bg-[#FFE0B2] text-[#E65100]',
-  WHATSAPP: 'bg-[#C8E6C9] text-[#1B5E20]',
 };
 
 interface TemplateTableProps {

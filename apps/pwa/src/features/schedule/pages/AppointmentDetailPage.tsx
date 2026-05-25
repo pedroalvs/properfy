@@ -70,6 +70,12 @@ export function AppointmentDetailPage() {
         <section className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(30,64,175,0.82))] px-5 py-5 text-white shadow-[0_18px_44px_rgba(15,23,42,0.20)]">
           <div className="flex items-start justify-between gap-3">
             <div>
+              <p
+                className="mb-1 text-xs font-bold tracking-wide text-white/70"
+                data-testid="appointment-code"
+              >
+                {apt.appointmentCode}
+              </p>
               <div className="flex items-center gap-2">
                 <p className="text-lg font-bold">{apt.serviceTypeName}</p>
                 <span

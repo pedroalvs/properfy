@@ -1,6 +1,7 @@
 import { type AuthContext, type PropertyType } from '@properfy/shared';
 import type { AppointmentContactRole } from '@properfy/shared';
 import {
+  NotFoundError,
   ValidationError,
 } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -30,8 +31,10 @@ import {
   AppointmentServiceTypeNotFoundError,
   AppointmentServiceTypeInactiveError,
   AppointmentNoPriceRuleError,
-  AppointmentPastDateError,
+  AppointmentDateInPastError,
+  AppointmentTimeInPastError,
 } from '../../domain/appointment.errors';
+import { validateNewSchedule } from '@properfy/shared';
 import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -91,6 +94,7 @@ export interface CreateAppointmentInput {
   notes?: string;
   customFields?: Record<string, unknown>;
   idempotencyKey?: string;
+  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -168,6 +172,16 @@ export class CreateAppointmentUseCase {
 
     // 1b. CL_USER must have create_appointments permission
     this.authorizationService.assertClUserPermission(actor, 'create_appointments');
+
+    // 1c. TZ-aware past-date/time validation — fail fast before expensive repo lookups.
+    // Falls back to UTC when actorTimezone absent (R7: PWA / future callers).
+    {
+      const tz = input.actorTimezone ?? 'UTC';
+      const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeSlot, tz });
+      if (!scheduleCheck.ok) {
+        throw scheduleCheck.code === 'TIME_IN_PAST' ? new AppointmentTimeInPastError() : new AppointmentDateInPastError();
+      }
+    }
 
     // 2. Resolve tenantId and validate branch. Only AM is cross-tenant.
     // OP is tenant-scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
@@ -248,13 +262,6 @@ export class CreateAppointmentUseCase {
       }
     }
 
-    // 5c. Reject past dates (AM/OP bypass) — UTC comparison for server consistency.
-    // Uses the injected Clock so tests can freeze the reference date.
-    const todayStr = this.clock.now().toISOString().split('T')[0]!;
-    if (input.scheduledDate < todayStr && actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new AppointmentPastDateError();
-    }
-
     // 6. Resolve pricing rule
     const pricingRules = await this.pricingRuleRepo.findAll(
       { tenantId, serviceTypeId: input.serviceTypeId, status: 'ACTIVE' },
@@ -325,10 +332,40 @@ export class CreateAppointmentUseCase {
         let snapshotPhone: string | null;
 
         if (entry.contactId) {
-          // Link to existing registry contact
-          const registryContact = await this.contactRepo.findById(entry.contactId, tenantId);
+          // Link to existing registry contact.
+          //
+          // 024 §FR-301/303 (BUG-024-001 → BUG-024-002 fix) — Contact is a
+          // cross-tenant entity. The registry lookup MUST always be global
+          // (no `tenant_id` WHERE filter), otherwise CL_ADMIN(B) trying to
+          // link a contact whose registry row lives in tenant A — even if
+          // operationally visible to B via `appointment_contacts` — gets a
+          // null findById and the visibility gate is unreachable. Cycle 2
+          // attempted `lookupTenantId = isCrossTenantActor ? null : tenantId`
+          // and the unit test passed because mocks ignore arguments;
+          // production Prisma's `WHERE tenant_id = $2` filtered out the row.
+          //
+          // Visibility for CL roles is enforced separately:
+          //   1. fast path: `registryContact.tenantId === tenantId` (legacy
+          //      pin — the contact is registry-owned by the actor's tenant);
+          //   2. fallback: operational-junction predicate
+          //      (`existsLinkedToTenant`) — a contact with `tenant_id = null`
+          //      or a different tenant is reachable iff already linked to an
+          //      appointment in the actor's tenant.
+          //
+          // Both "not in registry" and "not visible to CL" surface as the
+          // same NotFoundError → 404 (FR-022 leakage avoidance, OBS-024-003).
+          const isCrossTenantActor = actor.role === 'AM' || actor.role === 'OP';
+          const registryContact = await this.contactRepo.findById(entry.contactId, null);
           if (!registryContact) {
-            throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found in tenant`);
+            throw new NotFoundError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+          }
+          if (!isCrossTenantActor) {
+            const ownsContact = registryContact.tenantId === tenantId;
+            const visible = ownsContact
+              || await this.contactRepo.existsLinkedToTenant(entry.contactId, tenantId);
+            if (!visible) {
+              throw new NotFoundError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+            }
           }
           if (!registryContact.isActive) {
             throw new ValidationError('APPOINTMENT_CONTACT_INACTIVE', `Contact ${entry.contactId} is not active`);

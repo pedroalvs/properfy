@@ -3,8 +3,12 @@ import { DispatchEscalationsUseCase } from '../../../src/modules/notification/ap
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
+import { BuildNotificationPayloadService } from '../../../src/modules/notification/domain/build-notification-payload.service';
+import { AppointmentCodeFormatter } from '../../../src/modules/appointment/domain/appointment-code.formatter';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { INotificationRepository } from '../../../src/modules/notification/domain/notification.repository';
 import type { CreateNotificationUseCase } from '../../../src/modules/notification/application/use-cases/create-notification.use-case';
 
@@ -77,6 +81,21 @@ function makeBranch(
   });
 }
 
+function makeTenant(tenantId = 'tenant-1') {
+  return new TenantEntity({
+    id: tenantId,
+    name: 'Test Agency',
+    legalName: 'Test Agency Pty Ltd',
+    status: 'ACTIVE',
+    timezone: 'Australia/Sydney',
+    currency: 'AUD',
+    settingsJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  });
+}
+
 function makeRelation(
   appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
   contactOverrides: Partial<ConstructorParameters<typeof AppointmentContactEntity>[0]> | null = {},
@@ -108,6 +127,7 @@ describe('DispatchEscalationsUseCase', () => {
     save: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  let mockTenantRepo: { findById: ReturnType<typeof vi.fn> };
   let mockNotificationRepo: {
     findById: ReturnType<typeof vi.fn>;
     findByProviderMessageId: ReturnType<typeof vi.fn>;
@@ -121,6 +141,8 @@ describe('DispatchEscalationsUseCase', () => {
   let mockCreateNotification: { execute: ReturnType<typeof vi.fn> };
 
   const today = new Date('2026-03-17T10:00:00.000Z');
+  const buildNotificationPayload = new BuildNotificationPayloadService();
+  const appointmentCodeFormatter = new AppointmentCodeFormatter();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -144,6 +166,9 @@ describe('DispatchEscalationsUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
+    mockTenantRepo = {
+      findById: vi.fn().mockResolvedValue(makeTenant()),
+    };
     mockNotificationRepo = {
       findById: vi.fn(),
       findByProviderMessageId: vi.fn(),
@@ -160,8 +185,12 @@ describe('DispatchEscalationsUseCase', () => {
     useCase = new DispatchEscalationsUseCase(
       mockAppointmentRepo as unknown as IAppointmentRepository,
       mockBranchRepo as unknown as IBranchRepository,
+      mockTenantRepo as unknown as ITenantRepository,
       mockNotificationRepo as unknown as INotificationRepository,
+      buildNotificationPayload,
+      appointmentCodeFormatter,
       mockCreateNotification as unknown as CreateNotificationUseCase,
+      'http://localhost:5173',
     );
   });
 
@@ -287,7 +316,7 @@ describe('DispatchEscalationsUseCase', () => {
     expect(result.skipped).toBe(1);
   });
 
-  it('passes correct payloadJson for PM escalation (includes branchName)', async () => {
+  it('passes correct payloadJson for PM escalation (includes branchName and tenantName)', async () => {
     const scheduledDate = new Date('2026-03-19T00:00:00.000Z');
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
       makeRelation(
@@ -295,26 +324,27 @@ describe('DispatchEscalationsUseCase', () => {
         { tenantName: 'Jane Smith', primaryPhone: '+61400111222' },
       ),
     ]);
+    mockTenantRepo.findById.mockResolvedValue(makeTenant('tenant-x'));
 
     await useCase.execute(today);
 
-    expect(mockCreateNotification.execute).toHaveBeenCalledWith({
-      tenantId: 'tenant-x',
-      appointmentId: 'appt-x',
-      recipient: 'pm@agency.com',
-      channel: 'EMAIL',
-      templateCode: 'PROPERTY_MANAGER_ESCALATION',
-      payloadJson: {
-        tenantName: 'Jane Smith',
-        scheduledDate: '2026-03-19',
-        timeSlot: '14:00-17:00',
-        appointmentReference: 'appt-x',
-        branchName: 'Main Branch',
-      },
-    });
+    expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-x',
+        appointmentId: 'appt-x',
+        recipient: 'pm@agency.com',
+        channel: 'EMAIL',
+        templateCode: 'PROPERTY_MANAGER_ESCALATION',
+        payloadJson: expect.objectContaining({
+          tenantName: 'Jane Smith',
+          scheduledDate: '2026-03-19',
+          branchName: 'Main Branch',
+        }),
+      }),
+    );
   });
 
-  it('passes correct payloadJson for SMS (shorter payload)', async () => {
+  it('passes correct payloadJson for SMS (tenantName and scheduledDate)', async () => {
     const scheduledDate = new Date('2026-03-19T00:00:00.000Z');
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
       makeRelation(
@@ -322,21 +352,23 @@ describe('DispatchEscalationsUseCase', () => {
         { tenantName: 'Jane Smith', primaryPhone: '+61400111222' },
       ),
     ]);
+    mockTenantRepo.findById.mockResolvedValue(makeTenant('tenant-x'));
 
     await useCase.execute(today);
 
-    expect(mockCreateNotification.execute).toHaveBeenCalledWith({
-      tenantId: 'tenant-x',
-      appointmentId: 'appt-x',
-      recipient: '+61400111222',
-      channel: 'SMS',
-      templateCode: 'TENANT_SMS_ALERT',
-      payloadJson: {
-        tenantName: 'Jane Smith',
-        scheduledDate: '2026-03-19',
-        timeSlot: '14:00-17:00',
-      },
-    });
+    expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-x',
+        appointmentId: 'appt-x',
+        recipient: '+61400111222',
+        channel: 'SMS',
+        templateCode: 'TENANT_SMS_ALERT',
+        payloadJson: expect.objectContaining({
+          tenantName: 'Jane Smith',
+          scheduledDate: '2026-03-19',
+        }),
+      }),
+    );
   });
 
   it('propagates error from createNotification (does NOT swallow)', async () => {

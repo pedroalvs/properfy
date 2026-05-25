@@ -81,14 +81,15 @@ describe('CreateServiceRegionUseCase', () => {
     expect(regionRepo.findByName).toHaveBeenCalledWith('tenant-1', 'Sydney CBD');
   });
 
-  it('should reject when actor has no tenantId', async () => {
-    await expect(
-      useCase.execute({
-        name: 'Test',
-        geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
-        actor: makeActor({ tenantId: null }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+  it('should allow AM with null tenantId to create global region', async () => {
+    const result = await useCase.execute({
+      name: 'Test',
+      geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
+      actor: makeActor({ tenantId: null }),
+    });
+
+    expect(result).toBeDefined();
+    expect(regionRepo.save).toHaveBeenCalled();
   });
 
   it('should reject for unauthorized roles', async () => {

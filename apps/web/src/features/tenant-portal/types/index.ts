@@ -63,6 +63,7 @@ export interface PortalData {
   existingResponse?: PortalExistingResponse;
   agencyPhone?: string;
   deadline?: string;
+  rescheduleAllowed?: boolean;
 }
 
 export interface ConfirmInput {
@@ -72,12 +73,14 @@ export interface ConfirmInput {
     unavailableHoursJson?: Array<{ start: string; end: string }> | null;
     notes?: string | null;
   };
+  tenantNote?: string;
 }
 
 export interface RescheduleInput {
   newDate: string;
   newTimeSlot: string;
   restrictions?: ConfirmInput['restrictions'];
+  tenantNote?: string;
 }
 
 export interface UpdateContactInput {
@@ -89,4 +92,5 @@ export interface UpdateContactInput {
 
 export interface ReportUnavailabilityInput {
   restrictions?: ConfirmInput['restrictions'];
+  tenantNote?: string;
 }

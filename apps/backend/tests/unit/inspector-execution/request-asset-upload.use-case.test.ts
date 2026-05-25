@@ -246,13 +246,13 @@ describe('RequestAssetUploadUseCase', () => {
 
     const result = await useCase.execute({
       appointmentId: 'appt-1',
-      kind: 'DOCUMENT',
-      mimeType: 'application/pdf',
-      fileName: 'report.pdf',
+      kind: 'PHOTO',
+      mimeType: 'image/jpeg',
+      fileName: 'photo.jpg',
       actor: inspActor,
     });
 
-    const keyPattern = /^inspections\/tenant-abc\/appt-1\/[a-f0-9-]+\.pdf$/;
+    const keyPattern = /^inspections\/tenant-abc\/appt-1\/[a-f0-9-]+\.jpg$/;
     expect(result.storageKey).toMatch(keyPattern);
   });
 

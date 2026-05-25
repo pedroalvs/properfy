@@ -13,9 +13,10 @@ import {
   availabilitySlotResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
+  inspectorSelfUpdateSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
-import { ValidationError } from '../../../shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { CreateInspectorUseCase } from '../application/use-cases/create-inspector.use-case';
 import type { GetInspectorUseCase } from '../application/use-cases/get-inspector.use-case';
@@ -26,6 +27,12 @@ import type { ListAvailabilitySlotsUseCase } from '../application/use-cases/list
 import type { UpdateAvailabilitySlotUseCase } from '../application/use-cases/update-availability-slot.use-case';
 import type { LinkInspectorToUserUseCase } from '../application/use-cases/link-inspector-to-user.use-case';
 import type { DeactivateInspectorUseCase } from '../application/use-cases/deactivate-inspector.use-case';
+import type { GenerateInspectorPhotoUploadUrlUseCase } from '../application/use-cases/generate-inspector-photo-upload-url.use-case';
+import type { ConfirmInspectorPhotoUploadUseCase } from '../application/use-cases/confirm-inspector-photo-upload.use-case';
+import type { UpdateInspectorSelfProfileUseCase } from '../application/use-cases/update-inspector-self-profile.use-case';
+import type { GenerateInspectorDocumentUploadUrlUseCase } from '../application/use-cases/generate-inspector-document-upload-url.use-case';
+import type { ConfirmInspectorDocumentUploadUseCase } from '../application/use-cases/confirm-inspector-document-upload.use-case';
+import type { GetInspectorDocumentDownloadUrlUseCase } from '../application/use-cases/get-inspector-document-download-url.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface InspectorRouteContainer {
@@ -38,6 +45,12 @@ export interface InspectorRouteContainer {
   updateAvailabilitySlotUseCase: UpdateAvailabilitySlotUseCase;
   linkInspectorToUserUseCase: LinkInspectorToUserUseCase;
   deactivateInspectorUseCase: DeactivateInspectorUseCase;
+  generateInspectorPhotoUploadUrlUseCase: GenerateInspectorPhotoUploadUrlUseCase;
+  confirmInspectorPhotoUploadUseCase: ConfirmInspectorPhotoUploadUseCase;
+  updateInspectorSelfProfileUseCase: UpdateInspectorSelfProfileUseCase;
+  generateInspectorDocumentUploadUrlUseCase: GenerateInspectorDocumentUploadUrlUseCase;
+  confirmInspectorDocumentUploadUseCase: ConfirmInspectorDocumentUploadUseCase;
+  getInspectorDocumentDownloadUrlUseCase: GetInspectorDocumentDownloadUrlUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
   slotRepo: { findByIdAny(id: string): Promise<{ inspectorId: string } | null> };
@@ -496,6 +509,206 @@ export async function registerInspectorRoutes(
       const result = await container.deactivateInspectorUseCase.execute({
         inspectorId: params.data.inspectorId,
         reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/inspectors/me — INSP self-fetch
+  app.get(
+    '/v1/inspectors/me',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const actor = request.authContext!;
+      if (actor.role !== 'INSP' || !actor.inspectorId) {
+        throw new ForbiddenError('INSP_ONLY', 'This endpoint is only accessible to inspectors');
+      }
+      const result = await container.getInspectorUseCase.execute({
+        inspectorId: actor.inspectorId,
+        actor,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // PATCH /v1/inspectors/me — INSP self-update
+  app.patch(
+    '/v1/inspectors/me',
+    {
+      preHandler: authenticate,
+      schema: { body: inspectorSelfUpdateSchema },
+    },
+    async (request, reply) => {
+      const actor = request.authContext!;
+      if (actor.role !== 'INSP' || !actor.inspectorId) {
+        throw new ForbiddenError('INSP_ONLY', 'This endpoint is only accessible to inspectors');
+      }
+      const parsed = inspectorSelfUpdateSchema.safeParse(request.body);
+      if (!parsed.success) throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      const result = await container.updateInspectorSelfProfileUseCase.execute({
+        inspectorId: actor.inspectorId,
+        data: parsed.data as Parameters<typeof container.updateInspectorSelfProfileUseCase.execute>[0]['data'],
+        actor,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspectors/:inspectorId/photo/presign
+  app.post(
+    '/v1/inspectors/:inspectorId/photo/presign',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: inspectorIdParam,
+        body: z.object({ mimeType: z.string().min(1) }),
+      },
+    },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid inspector ID', params.error.errors);
+      const parsed = z.object({ mimeType: z.string().min(1) }).safeParse(request.body);
+      if (!parsed.success) throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      const result = await container.generateInspectorPhotoUploadUrlUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        mimeType: parsed.data.mimeType,
+        actor: request.authContext!,
+      });
+      // UX-baseline cleanup: wrap in `success()` so the wire shape carries
+      // the canonical `{ data }` envelope every other route uses.
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspectors/:inspectorId/photo/confirm
+  app.post(
+    '/v1/inspectors/:inspectorId/photo/confirm',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: inspectorIdParam,
+        body: z.object({ storageKey: z.string().min(1) }),
+      },
+    },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid inspector ID', params.error.errors);
+      const parsed = z.object({ storageKey: z.string().min(1) }).safeParse(request.body);
+      if (!parsed.success) throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      const result = await container.confirmInspectorPhotoUploadUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        storageKey: parsed.data.storageKey,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspectors/:inspectorId/documents/presign
+  app.post(
+    '/v1/inspectors/:inspectorId/documents/presign',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: inspectorIdParam,
+        body: z.object({
+          kind: z.enum(['INSURANCE', 'POLICE_CHECK']),
+          mimeType: z.string().min(1),
+          fileName: z.string().min(1).max(255),
+        }),
+      },
+    },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid inspector ID', params.error.errors);
+      const bodySchema = z.object({
+        kind: z.enum(['INSURANCE', 'POLICE_CHECK']),
+        mimeType: z.string().min(1),
+        fileName: z.string().min(1).max(255),
+      });
+      const parsed = bodySchema.safeParse(request.body);
+      if (!parsed.success) throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      const result = await container.generateInspectorDocumentUploadUrlUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        kind: parsed.data.kind,
+        mimeType: parsed.data.mimeType,
+        fileName: parsed.data.fileName,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspectors/:inspectorId/documents/confirm
+  app.post(
+    '/v1/inspectors/:inspectorId/documents/confirm',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: inspectorIdParam,
+        body: z.object({
+          kind: z.enum(['INSURANCE', 'POLICE_CHECK']),
+          storageKey: z.string().min(1),
+          fileName: z.string().min(1).max(255),
+        }),
+      },
+    },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid inspector ID', params.error.errors);
+      const bodySchema = z.object({
+        kind: z.enum(['INSURANCE', 'POLICE_CHECK']),
+        storageKey: z.string().min(1),
+        fileName: z.string().min(1).max(255),
+      });
+      const parsed = bodySchema.safeParse(request.body);
+      if (!parsed.success) throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      const result = await container.confirmInspectorDocumentUploadUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        kind: parsed.data.kind,
+        storageKey: parsed.data.storageKey,
+        fileName: parsed.data.fileName,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/inspectors/:inspectorId/documents/:kind/download
+  app.get(
+    '/v1/inspectors/:inspectorId/documents/:kind/download',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({
+          inspectorId: z.string().uuid(),
+          kind: z.enum(['INSURANCE', 'POLICE_CHECK']),
+        }),
+        response: {
+          // UX-baseline cleanup: wrap in successResponseSchema so the
+          // wire envelope matches every other route. `fastify-type-
+          // provider-zod` strips fields outside the schema, so the
+          // wrapper schema must encode the inner shape exactly.
+          200: successResponseSchema(
+            z.object({
+              downloadUrl: z.string().url(),
+              fileName: z.string().nullable(),
+            }),
+          ),
+        },
+      },
+    },
+    async (request, reply) => {
+      const paramsSchema = z.object({
+        inspectorId: z.string().uuid(),
+        kind: z.enum(['INSURANCE', 'POLICE_CHECK']),
+      });
+      const params = paramsSchema.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid params', params.error.errors);
+      const result = await container.getInspectorDocumentDownloadUrlUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        kind: params.data.kind,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

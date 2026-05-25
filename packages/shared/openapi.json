@@ -272,6 +272,15 @@
                           "format": "date-time"
                         }
                       ]
+                    },
+                    "inspectorId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "inspectorPhotoUrl": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
@@ -7192,6 +7201,71 @@
                         },
                         "serviceTypesJson": {},
                         "clientEligibilityJson": {},
+                        "blockedClients": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "fullName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "address": {},
+                        "abn": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dateOfBirth": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "insuranceFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "policeCheckFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "policeCheckExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "photoStorageKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceMetaJson": {},
+                        "policeCheckMetaJson": {},
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7368,6 +7442,71 @@
                           },
                           "serviceTypesJson": {},
                           "clientEligibilityJson": {},
+                          "blockedClients": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "fullName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "address": {},
+                          "abn": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "dateOfBirth": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "insuranceFileKey": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "insuranceExpiresAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "policeCheckFileKey": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "policeCheckExpiresAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "photoStorageKey": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "insuranceMetaJson": {},
+                          "policeCheckMetaJson": {},
                           "createdAt": {
                             "anyOf": [
                               {
@@ -7490,6 +7629,71 @@
                         },
                         "serviceTypesJson": {},
                         "clientEligibilityJson": {},
+                        "blockedClients": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "fullName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "address": {},
+                        "abn": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dateOfBirth": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "insuranceFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "policeCheckFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "policeCheckExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "photoStorageKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceMetaJson": {},
+                        "policeCheckMetaJson": {},
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7747,6 +7951,71 @@
                         },
                         "serviceTypesJson": {},
                         "clientEligibilityJson": {},
+                        "blockedClients": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "fullName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "address": {},
+                        "abn": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dateOfBirth": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "insuranceFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "policeCheckFileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "policeCheckExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "photoStorageKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "insuranceMetaJson": {},
+                        "policeCheckMetaJson": {},
                         "createdAt": {
                           "anyOf": [
                             {
@@ -8904,6 +9173,326 @@
         }
       }
     },
+    "/v1/inspectors/me": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "nullable": true
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "nullable": true
+                  },
+                  "paymentSettings": {
+                    "type": "object",
+                    "properties": {
+                      "bankName": {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "accountNumber": {
+                        "type": "string",
+                        "maxLength": 50
+                      },
+                      "bsb": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "abn": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "paymentMethod": {
+                        "type": "string",
+                        "enum": [
+                          "BANK_TRANSFER",
+                          "PAYPAL",
+                          "PIX",
+                          "OTHER"
+                        ]
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/photo/presign": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mimeType": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "mimeType"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/photo/confirm": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "storageKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "storageKey"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/documents/presign": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "INSURANCE",
+                      "POLICE_CHECK"
+                    ]
+                  },
+                  "mimeType": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                },
+                "required": [
+                  "kind",
+                  "mimeType",
+                  "fileName"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/documents/confirm": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "INSURANCE",
+                      "POLICE_CHECK"
+                    ]
+                  },
+                  "storageKey": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                },
+                "required": [
+                  "kind",
+                  "storageKey",
+                  "fileName"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/documents/{kind}/download": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INSURANCE",
+                "POLICE_CHECK"
+              ]
+            },
+            "in": "path",
+            "name": "kind",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "downloadUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "fileName": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "downloadUrl",
+                        "fileName"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/appointments": {
       "post": {
         "requestBody": {
@@ -9230,6 +9819,9 @@
                   "customFields": {
                     "type": "object",
                     "additionalProperties": {}
+                  },
+                  "actorTimezone": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -9327,6 +9919,13 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "tenantNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasTenantNote": {
+                          "type": "boolean"
+                        },
                         "customFieldsJson": {
                           "nullable": true
                         },
@@ -9385,6 +9984,9 @@
                             }
                           ]
                         },
+                        "appointmentNumber": {
+                          "type": "number"
+                        },
                         "code": {
                           "type": "string"
                         },
@@ -9414,6 +10016,9 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "clientName": {
+                          "type": "string"
+                        },
                         "cancellationReason": {
                           "type": "string",
                           "nullable": true
@@ -9428,6 +10033,10 @@
                         },
                         "contact": {
                           "nullable": true
+                        },
+                        "contacts": {
+                          "type": "array",
+                          "items": {}
                         },
                         "restrictions": {
                           "type": "array",
@@ -9517,15 +10126,19 @@
           },
           {
             "schema": {
-              "type": "string",
-              "enum": [
-                "DRAFT",
-                "AWAITING_INSPECTOR",
-                "SCHEDULED",
-                "DONE",
-                "CANCELLED",
-                "REJECTED"
-              ]
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "AWAITING_INSPECTOR",
+                  "SCHEDULED",
+                  "DONE",
+                  "CANCELLED",
+                  "REJECTED"
+                ]
+              },
+              "minItems": 1
             },
             "in": "query",
             "name": "status",
@@ -9640,6 +10253,46 @@
             "in": "query",
             "name": "ungroupedOnly",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
+            },
+            "in": "query",
+            "name": "timeSlot",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "contactSearch",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "hasTenantNote",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "UNAVAILABLE",
+                "NO_RESPONSE"
+              ]
+            },
+            "in": "query",
+            "name": "confirmationStatus",
+            "required": false
           }
         ],
         "responses": {
@@ -9727,6 +10380,13 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "tenantNote": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "hasTenantNote": {
+                            "type": "boolean"
+                          },
                           "customFieldsJson": {
                             "nullable": true
                           },
@@ -9785,6 +10445,9 @@
                               }
                             ]
                           },
+                          "appointmentNumber": {
+                            "type": "number"
+                          },
                           "code": {
                             "type": "string"
                           },
@@ -9814,6 +10477,9 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "clientName": {
+                            "type": "string"
+                          },
                           "cancellationReason": {
                             "type": "string",
                             "nullable": true
@@ -9828,6 +10494,10 @@
                           },
                           "contact": {
                             "nullable": true
+                          },
+                          "contacts": {
+                            "type": "array",
+                            "items": {}
                           },
                           "restrictions": {
                             "type": "array",
@@ -9994,6 +10664,13 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "tenantNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasTenantNote": {
+                          "type": "boolean"
+                        },
                         "customFieldsJson": {
                           "nullable": true
                         },
@@ -10052,6 +10729,9 @@
                             }
                           ]
                         },
+                        "appointmentNumber": {
+                          "type": "number"
+                        },
                         "code": {
                           "type": "string"
                         },
@@ -10081,6 +10761,9 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "clientName": {
+                          "type": "string"
+                        },
                         "cancellationReason": {
                           "type": "string",
                           "nullable": true
@@ -10095,6 +10778,10 @@
                         },
                         "contact": {
                           "nullable": true
+                        },
+                        "contacts": {
+                          "type": "array",
+                          "items": {}
                         },
                         "restrictions": {
                           "type": "array",
@@ -10392,6 +11079,9 @@
                     "type": "object",
                     "additionalProperties": {},
                     "nullable": true
+                  },
+                  "actorTimezone": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -10493,6 +11183,13 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "tenantNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasTenantNote": {
+                          "type": "boolean"
+                        },
                         "customFieldsJson": {
                           "nullable": true
                         },
@@ -10551,6 +11248,9 @@
                             }
                           ]
                         },
+                        "appointmentNumber": {
+                          "type": "number"
+                        },
                         "code": {
                           "type": "string"
                         },
@@ -10580,6 +11280,9 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "clientName": {
+                          "type": "string"
+                        },
                         "cancellationReason": {
                           "type": "string",
                           "nullable": true
@@ -10594,6 +11297,10 @@
                         },
                         "contact": {
                           "nullable": true
+                        },
+                        "contacts": {
+                          "type": "array",
+                          "items": {}
                         },
                         "restrictions": {
                           "type": "array",
@@ -10698,6 +11405,7 @@
                       "SAFETY_CONCERN",
                       "INSUFFICIENT_INFO",
                       "SERVICE_NOT_AVAILABLE",
+                      "TENANT_NO_RESPONSE",
                       "OTHER"
                     ]
                   },
@@ -10967,6 +11675,690 @@
         }
       }
     },
+    "/v1/appointments/bulk-resend-reminder": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "SENT",
+                                  "NO_PRIMARY_CONTACT",
+                                  "IDEMPOTENT_REPLAY",
+                                  "ERROR"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/bulk-cancel": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "appointmentIds",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "INVALID_TRANSITION",
+                                  "FORBIDDEN",
+                                  "NOT_FOUND",
+                                  "ERROR",
+                                  "IDEMPOTENT_REPLAY"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/bulk-reschedule": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "newDate": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "string",
+                        "format": "date"
+                      }
+                    ]
+                  },
+                  "newTimeSlot": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "appointmentIds",
+                  "newDate"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "INVALID_TRANSITION",
+                                  "FORBIDDEN",
+                                  "NOT_FOUND",
+                                  "ERROR",
+                                  "IDEMPOTENT_REPLAY"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/bulk-status-transition": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "targetStatus": {
+                    "type": "string",
+                    "enum": [
+                      "DRAFT",
+                      "AWAITING_INSPECTOR",
+                      "SCHEDULED",
+                      "DONE",
+                      "CANCELLED",
+                      "REJECTED"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "appointmentIds",
+                  "targetStatus"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "INVALID_TRANSITION",
+                                  "FORBIDDEN",
+                                  "NOT_FOUND",
+                                  "ERROR",
+                                  "IDEMPOTENT_REPLAY"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/bulk-assign-inspector": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "inspectorId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "appointmentIds",
+                  "inspectorId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "INVALID_TRANSITION",
+                                  "FORBIDDEN",
+                                  "NOT_FOUND",
+                                  "ERROR",
+                                  "IDEMPOTENT_REPLAY"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/bulk-reopen-for-reschedule": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  },
+                  "newDate": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "string",
+                        "format": "date"
+                      }
+                    ]
+                  },
+                  "newTimeSlot": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "appointmentIds",
+                  "newDate",
+                  "newTimeSlot"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "INVALID_TRANSITION",
+                                  "FORBIDDEN",
+                                  "NOT_FOUND",
+                                  "ERROR",
+                                  "IDEMPOTENT_REPLAY"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/appointments/import": {
       "post": {
         "responses": {
@@ -10996,346 +12388,6 @@
         }
       }
     },
-    "/v1/appointment-contacts": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1
-            },
-            "in": "query",
-            "name": "page",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 10
-            },
-            "in": "query",
-            "name": "pageSize",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "sortBy",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "default": "desc"
-            },
-            "in": "query",
-            "name": "sortOrder",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "confirmationStatus",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "search",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "query",
-            "name": "tenantId",
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "appointmentId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "primaryEmail": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "primaryPhone": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "confirmationStatus": {
-                            "type": "string"
-                          },
-                          "propertyAddress": {
-                            "type": "string"
-                          },
-                          "appointmentDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "lastActivityAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
-                          "createdAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "updatedAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "appointmentId",
-                          "name",
-                          "primaryEmail",
-                          "primaryPhone",
-                          "confirmationStatus",
-                          "propertyAddress",
-                          "appointmentDate",
-                          "lastActivityAt",
-                          "createdAt",
-                          "updatedAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "pagination": {
-                      "type": "object",
-                      "properties": {
-                        "page": {
-                          "type": "number"
-                        },
-                        "pageSize": {
-                          "type": "number"
-                        },
-                        "total": {
-                          "type": "number"
-                        },
-                        "totalPages": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "page",
-                        "pageSize",
-                        "total",
-                        "totalPages"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "pagination"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/appointment-contacts/{contactId}": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "contactId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "appointmentId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "primaryEmail": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "primaryPhone": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "confirmationStatus": {
-                          "type": "string"
-                        },
-                        "propertyAddress": {
-                          "type": "string"
-                        },
-                        "appointmentDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "lastActivityAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "alternativePhone": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "appointmentId",
-                        "name",
-                        "primaryEmail",
-                        "primaryPhone",
-                        "confirmationStatus",
-                        "propertyAddress",
-                        "appointmentDate",
-                        "lastActivityAt",
-                        "createdAt",
-                        "updatedAt",
-                        "alternativePhone",
-                        "notes"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/appointments/bulk-edit": {
       "post": {
         "responses": {
@@ -11360,7 +12412,7 @@
                       "format": "uuid"
                     },
                     "minItems": 1,
-                    "maxItems": 25
+                    "maxItems": 30
                   },
                   "serviceTypeId": {
                     "type": "string",
@@ -11381,7 +12433,8 @@
                   },
                   "serviceRegionId": {
                     "type": "string",
-                    "format": "uuid"
+                    "format": "uuid",
+                    "nullable": true
                   },
                   "description": {
                     "type": "string",
@@ -11407,6 +12460,9 @@
                     "type": "string",
                     "minLength": 10,
                     "maxLength": 1000
+                  },
+                  "actorTimezone": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -11557,6 +12613,9 @@
                             }
                           ]
                         },
+                        "appointmentsCount": {
+                          "type": "number"
+                        },
                         "appointments": {
                           "type": "array",
                           "items": {}
@@ -11649,14 +12708,18 @@
           },
           {
             "schema": {
-              "type": "string",
-              "enum": [
-                "DRAFT",
-                "PUBLISHED",
-                "ACCEPTED",
-                "CANCELLED",
-                "REJECTED"
-              ]
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PUBLISHED",
+                  "ACCEPTED",
+                  "CANCELLED",
+                  "REJECTED"
+                ]
+              },
+              "minItems": 1
             },
             "in": "query",
             "name": "status",
@@ -11699,6 +12762,57 @@
             },
             "in": "query",
             "name": "priorityMode",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "includeAppointments",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "branchId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "contactSearch",
             "required": false
           }
         ],
@@ -11839,6 +12953,9 @@
                                 "format": "date-time"
                               }
                             ]
+                          },
+                          "appointmentsCount": {
+                            "type": "number"
                           },
                           "appointments": {
                             "type": "array",
@@ -12053,6 +13170,9 @@
                             }
                           ]
                         },
+                        "appointmentsCount": {
+                          "type": "number"
+                        },
                         "appointments": {
                           "type": "array",
                           "items": {}
@@ -12140,6 +13260,9 @@
                     "minLength": 10,
                     "maxLength": 1000,
                     "nullable": true
+                  },
+                  "actorTimezone": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -12293,6 +13416,9 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "appointmentsCount": {
+                          "type": "number"
                         },
                         "appointments": {
                           "type": "array",
@@ -12480,6 +13606,9 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "appointmentsCount": {
+                          "type": "number"
                         },
                         "appointments": {
                           "type": "array",
@@ -12688,6 +13817,9 @@
                             }
                           ]
                         },
+                        "appointmentsCount": {
+                          "type": "number"
+                        },
                         "appointments": {
                           "type": "array",
                           "items": {}
@@ -12775,150 +13907,13 @@
                           "type": "string",
                           "format": "uuid"
                         },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "serviceTypeId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
                         "status": {
                           "type": "string"
-                        },
-                        "groupSize": {
-                          "type": "number"
-                        },
-                        "offeredCount": {
-                          "type": "number"
-                        },
-                        "confirmedCount": {
-                          "type": "number"
-                        },
-                        "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timeWindow": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "regionName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "description": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedInspectorId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "serviceRegionId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdByUserId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "appointments": {
-                          "type": "array",
-                          "items": {}
-                        },
-                        "assignedInspector": {
-                          "nullable": true
                         }
                       },
                       "required": [
                         "id",
-                        "tenantId",
-                        "serviceTypeId",
-                        "status",
-                        "groupSize",
-                        "offeredCount",
-                        "confirmedCount",
-                        "scheduledDate",
-                        "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
-                        "assignedInspectorId",
-                        "publishedAt",
-                        "createdAt"
+                        "status"
                       ],
                       "additionalProperties": false
                     }
@@ -12983,150 +13978,13 @@
                           "type": "string",
                           "format": "uuid"
                         },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "serviceTypeId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
                         "status": {
                           "type": "string"
-                        },
-                        "groupSize": {
-                          "type": "number"
-                        },
-                        "offeredCount": {
-                          "type": "number"
-                        },
-                        "confirmedCount": {
-                          "type": "number"
-                        },
-                        "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timeWindow": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "regionName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "description": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedInspectorId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "serviceRegionId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdByUserId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "appointments": {
-                          "type": "array",
-                          "items": {}
-                        },
-                        "assignedInspector": {
-                          "nullable": true
                         }
                       },
                       "required": [
                         "id",
-                        "tenantId",
-                        "serviceTypeId",
-                        "status",
-                        "groupSize",
-                        "offeredCount",
-                        "confirmedCount",
-                        "scheduledDate",
-                        "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
-                        "assignedInspectorId",
-                        "publishedAt",
-                        "createdAt"
+                        "status"
                       ],
                       "additionalProperties": false
                     }
@@ -13187,150 +14045,340 @@
                           "type": "string",
                           "format": "uuid"
                         },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "serviceTypeId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
                         "status": {
                           "type": "string"
-                        },
-                        "groupSize": {
-                          "type": "number"
-                        },
-                        "offeredCount": {
-                          "type": "number"
-                        },
-                        "confirmedCount": {
-                          "type": "number"
-                        },
-                        "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timeWindow": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "regionName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "description": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedInspectorId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "serviceRegionId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdByUserId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "appointments": {
-                          "type": "array",
-                          "items": {}
-                        },
-                        "assignedInspector": {
-                          "nullable": true
                         }
                       },
                       "required": [
                         "id",
-                        "tenantId",
-                        "serviceTypeId",
-                        "status",
-                        "groupSize",
-                        "offeredCount",
-                        "confirmedCount",
-                        "scheduledDate",
-                        "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
-                        "assignedInspectorId",
-                        "publishedAt",
-                        "createdAt"
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/appointments": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OK",
+                                  "INVALID_STATUS",
+                                  "ALREADY_GROUPED",
+                                  "INVALID_TENANT",
+                                  "INVALID_SERVICE_TYPE",
+                                  "INVALID_DATE",
+                                  "INVALID_TIME_WINDOW",
+                                  "GROUP_IN_TERMINAL_STATE",
+                                  "GROUP_CAPACITY_EXCEEDED",
+                                  "NOT_FOUND",
+                                  "ERROR"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/eligibility-check": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "eligibleAppointmentIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid"
+                          }
+                        },
+                        "ineligibleAppointmentIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "reasonCode": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "reasonCode"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "groupAccepts": {
+                          "type": "boolean"
+                        },
+                        "groupReasons": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "eligibleAppointmentIds",
+                        "ineligibleAppointmentIds",
+                        "groupAccepts",
+                        "groupReasons"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/find-addable-for-appointments": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "appointmentIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "groups": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "scheduledDate": {
+                                "type": "string"
+                              },
+                              "timeWindow": {
+                                "type": "string"
+                              },
+                              "currentSize": {
+                                "type": "integer"
+                              },
+                              "serviceTypeName": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "status",
+                              "scheduledDate",
+                              "timeWindow",
+                              "currentSize",
+                              "serviceTypeName"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "MIXED_APPOINTMENT_PROPERTIES",
+                            "INVALID_APPOINTMENT_STATUS"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "groups"
                       ],
                       "additionalProperties": false
                     }
@@ -13886,6 +14934,10 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "tenantName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "actorType": {
                             "type": "string"
                           },
@@ -14362,6 +15414,10 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "tenantNote": {
+                    "type": "string",
+                    "maxLength": 2000
                   }
                 },
                 "additionalProperties": false
@@ -14468,6 +15524,10 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "tenantNote": {
+                    "type": "string",
+                    "maxLength": 2000
                   }
                 },
                 "required": [
@@ -14638,6 +15698,10 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "tenantNote": {
+                    "type": "string",
+                    "maxLength": 2000
                   }
                 },
                 "additionalProperties": false
@@ -14706,24 +15770,42 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "token": {
-                      "type": "string"
-                    },
-                    "expiresAt": {
-                      "anyOf": [
-                        {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
                           "type": "string"
                         },
-                        {
+                        "expiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "dispatched": {
+                          "type": "boolean"
+                        },
+                        "reason": {
                           "type": "string",
-                          "format": "date-time"
+                          "enum": [
+                            "NO_PRIMARY_CONTACT"
+                          ]
                         }
-                      ]
+                      },
+                      "required": [
+                        "token",
+                        "expiresAt"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "token",
-                    "expiresAt"
+                    "data"
                   ],
                   "additionalProperties": false
                 }
@@ -14899,93 +15981,102 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "date": {
-                      "anyOf": [
-                        {
-                          "type": "string"
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
                         },
-                        {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      ]
-                    },
-                    "appointments": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "status": {
-                            "type": "string"
-                          },
-                          "scheduledDate": {
-                            "anyOf": [
-                              {
+                        "appointments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
                                 "type": "string"
                               },
-                              {
+                              "scheduledDate": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              },
+                              "timeSlot": {
+                                "type": "string"
+                              },
+                              "serviceTypeId": {
                                 "type": "string",
-                                "format": "date-time"
+                                "format": "uuid"
+                              },
+                              "propertyId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "tenantConfirmationStatus": {
+                                "type": "string"
+                              },
+                              "keyRequired": {
+                                "type": "boolean"
+                              },
+                              "meetingLocation": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "executionStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_STARTED",
+                                  "IN_PROGRESS",
+                                  "FINISHED"
+                                ]
+                              },
+                              "agencyName": {
+                                "type": "string",
+                                "nullable": true
                               }
-                            ]
-                          },
-                          "timeSlot": {
-                            "type": "string"
-                          },
-                          "serviceTypeId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "propertyId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "tenantConfirmationStatus": {
-                            "type": "string"
-                          },
-                          "keyRequired": {
-                            "type": "boolean"
-                          },
-                          "meetingLocation": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "executionStatus": {
-                            "type": "string",
-                            "enum": [
-                              "NOT_STARTED",
-                              "IN_PROGRESS",
-                              "FINISHED"
-                            ]
-                          },
-                          "agencyName": {
-                            "type": "string",
-                            "nullable": true
+                            },
+                            "required": [
+                              "id",
+                              "status",
+                              "scheduledDate",
+                              "timeSlot",
+                              "serviceTypeId",
+                              "propertyId",
+                              "tenantConfirmationStatus",
+                              "keyRequired",
+                              "meetingLocation",
+                              "executionStatus"
+                            ],
+                            "additionalProperties": false
                           }
-                        },
-                        "required": [
-                          "id",
-                          "status",
-                          "scheduledDate",
-                          "timeSlot",
-                          "serviceTypeId",
-                          "propertyId",
-                          "tenantConfirmationStatus",
-                          "keyRequired",
-                          "meetingLocation",
-                          "executionStatus"
-                        ],
-                        "additionalProperties": false
-                      }
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "appointments"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "date",
-                    "appointments"
+                    "data"
                   ],
                   "additionalProperties": false
                 }
@@ -15755,9 +16846,7 @@
                   "kind": {
                     "type": "string",
                     "enum": [
-                      "PHOTO",
-                      "DOCUMENT",
-                      "SIGNATURE"
+                      "PHOTO"
                     ]
                   },
                   "mimeType": {
@@ -16139,6 +17228,140 @@
                   "required": [
                     "data",
                     "pagination"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/{appointmentId}/assets": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "storageKey": {
+                            "type": "string"
+                          },
+                          "mimeType": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "originalFilename": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "storageKey",
+                          "mimeType",
+                          "sizeBytes",
+                          "kind",
+                          "status",
+                          "originalFilename",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/{appointmentId}/assets/{assetId}/download": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "assetId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "downloadUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "fileName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "mimeType": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "downloadUrl",
+                    "fileName",
+                    "mimeType"
                   ],
                   "additionalProperties": false
                 }
@@ -17566,6 +18789,10 @@
                             "type": "string",
                             "format": "uuid"
                           },
+                          "inspectorName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "periodStart": {
                             "anyOf": [
                               {
@@ -17777,6 +19004,10 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "periodStart": {
                           "anyOf": [
                             {
@@ -17938,6 +19169,10 @@
                         "inspectorId": {
                           "type": "string",
                           "format": "uuid"
+                        },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "periodStart": {
                           "anyOf": [
@@ -18818,6 +20053,10 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "periodStart": {
                           "anyOf": [
                             {
@@ -19267,6 +20506,10 @@
                             "type": "string",
                             "format": "uuid"
                           },
+                          "inspectorName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "periodStart": {
                             "anyOf": [
                               {
@@ -19478,6 +20721,10 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "periodStart": {
                           "anyOf": [
                             {
@@ -19640,6 +20887,10 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "periodStart": {
                           "anyOf": [
                             {
@@ -19766,6 +21017,66 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/close": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/pay": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paidAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "paymentReference": {
+                    "type": "string",
+                    "maxLength": 255
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }
@@ -20090,6 +21401,10 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "fileUrl": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "requestedByUserId": {
                             "type": "string",
                             "format": "uuid"
@@ -20267,6 +21582,10 @@
                           "type": "string"
                         },
                         "fileKey": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "fileUrl": {
                           "type": "string",
                           "nullable": true
                         },
@@ -20580,6 +21899,10 @@
                   "deliveryEmail": {
                     "type": "string",
                     "format": "email"
+                  },
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
                   }
                 },
                 "required": [
@@ -21965,6 +23288,33 @@
         }
       }
     },
+    "/v1/notification-templates/{templateCode}/{channel}/test-send": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "templateCode",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "channel",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/v1/notification-templates/{templateCode}/{channel}": {
       "put": {
         "requestBody": {
@@ -22151,13 +23501,25 @@
                             },
                             "doneThisMonth": {
                               "type": "number"
+                            },
+                            "doneThisWeek": {
+                              "type": "number"
+                            },
+                            "scheduledThisWeek": {
+                              "type": "number"
+                            },
+                            "rejectedTotal": {
+                              "type": "number"
                             }
                           },
                           "required": [
                             "draft",
                             "awaitingInspector",
                             "scheduled",
-                            "doneThisMonth"
+                            "doneThisMonth",
+                            "doneThisWeek",
+                            "scheduledThisWeek",
+                            "rejectedTotal"
                           ],
                           "additionalProperties": false
                         },
@@ -22254,13 +23616,128 @@
                             "activeServiceGroups"
                           ],
                           "additionalProperties": false
+                        },
+                        "inspectorBreakdowns": {
+                          "type": "object",
+                          "properties": {
+                            "tomorrowByInspector": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "inspectorId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "inspectorName": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "alertLevel": {
+                                    "type": "string",
+                                    "enum": [
+                                      "yellow",
+                                      "red"
+                                    ],
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "inspectorId",
+                                  "inspectorName",
+                                  "count",
+                                  "alertLevel"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "scheduledThisWeekByInspector": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "inspectorId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "inspectorName": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "alertLevel": {
+                                    "type": "string",
+                                    "enum": [
+                                      "yellow",
+                                      "red"
+                                    ],
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "inspectorId",
+                                  "inspectorName",
+                                  "count",
+                                  "alertLevel"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "confirmedThisWeekByInspector": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "inspectorId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "inspectorName": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "alertLevel": {
+                                    "type": "string",
+                                    "enum": [
+                                      "yellow",
+                                      "red"
+                                    ],
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "inspectorId",
+                                  "inspectorName",
+                                  "count",
+                                  "alertLevel"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "tomorrowByInspector",
+                            "scheduledThisWeekByInspector",
+                            "confirmedThisWeekByInspector"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
                         }
                       },
                       "required": [
                         "appointmentsByStatus",
                         "recentAppointments",
                         "pendingActions",
-                        "quickStats"
+                        "quickStats",
+                        "inspectorBreakdowns"
                       ],
                       "additionalProperties": false
                     }
@@ -22805,26 +24282,559 @@
     },
     "/v1/contacts": {
       "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "TENANT",
+                      "PROPERTY_MANAGER",
+                      "HOUSEKEEPER",
+                      "BROKER",
+                      "OTHER"
+                    ]
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "company": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "primaryEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "nullable": true
+                  },
+                  "primaryPhone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30,
+                    "nullable": true
+                  },
+                  "additionalChannels": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "channel": {
+                          "type": "string",
+                          "enum": [
+                            "EMAIL",
+                            "PHONE"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 254
+                        },
+                        "label": {
+                          "type": "string",
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "channel",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 10,
+                    "default": []
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "type",
+                  "displayName"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
-            "description": "Default Response"
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "PROPERTY_MANAGER",
+                            "HOUSEKEEPER",
+                            "BROKER",
+                            "OTHER"
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "additionalChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "enum": [
+                                  "EMAIL",
+                                  "PHONE"
+                                ]
+                              },
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 254
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tenantId",
+                        "type",
+                        "displayName",
+                        "company",
+                        "primaryEmail",
+                        "primaryPhone",
+                        "additionalChannels",
+                        "notes",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       },
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "TENANT",
+                    "PROPERTY_MANAGER",
+                    "HOUSEKEEPER",
+                    "BROKER",
+                    "OTHER"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "TENANT",
+                      "PROPERTY_MANAGER",
+                      "HOUSEKEEPER",
+                      "BROKER",
+                      "OTHER"
+                    ]
+                  }
+                }
+              ]
+            },
+            "in": "query",
+            "name": "type",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "in": "query",
+            "name": "branchIds",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "primary",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "isActive",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "displayName",
+                "createdAt",
+                "type"
+              ],
+              "default": "displayName"
+            },
+            "in": "query",
+            "name": "sortBy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "in": "query",
+            "name": "sortOrder",
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tenantId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "TENANT",
+                              "PROPERTY_MANAGER",
+                              "HOUSEKEEPER",
+                              "BROKER",
+                              "OTHER"
+                            ]
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "company": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "primaryEmail": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "primaryPhone": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "propertyCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "primaryInPropertyCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tenantId",
+                          "type",
+                          "displayName",
+                          "company",
+                          "primaryEmail",
+                          "primaryPhone",
+                          "isActive",
+                          "propertyCount",
+                          "primaryInPropertyCount",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "totalPages": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "pageSize",
+                        "total",
+                        "totalPages"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
     },
     "/v1/contacts/{contactId}": {
       "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "TENANT",
+                      "PROPERTY_MANAGER",
+                      "HOUSEKEEPER",
+                      "BROKER",
+                      "OTHER"
+                    ]
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "company": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "primaryEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "nullable": true
+                  },
+                  "primaryPhone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30,
+                    "nullable": true
+                  },
+                  "additionalChannels": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "channel": {
+                          "type": "string",
+                          "enum": [
+                            "EMAIL",
+                            "PHONE"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 254
+                        },
+                        "label": {
+                          "type": "string",
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "channel",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 10
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
             "in": "path",
             "name": "contactId",
@@ -22833,7 +24843,118 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "PROPERTY_MANAGER",
+                            "HOUSEKEEPER",
+                            "BROKER",
+                            "OTHER"
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "additionalChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "enum": [
+                                  "EMAIL",
+                                  "PHONE"
+                                ]
+                              },
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 254
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tenantId",
+                        "type",
+                        "displayName",
+                        "company",
+                        "primaryEmail",
+                        "primaryPhone",
+                        "additionalChannels",
+                        "notes",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       },
@@ -22841,7 +24962,70 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "includeAppointments",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "includeProperties",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "appointmentsPage",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "appointmentsPageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "propertiesPage",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "propertiesPageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             },
             "in": "path",
             "name": "contactId",
@@ -22850,7 +25034,415 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "PROPERTY_MANAGER",
+                            "HOUSEKEEPER",
+                            "BROKER",
+                            "OTHER"
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "additionalChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "enum": [
+                                  "EMAIL",
+                                  "PHONE"
+                                ]
+                              },
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 254
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "appointments": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "appointmentId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "appointmentNumber": {
+                                    "type": "integer"
+                                  },
+                                  "status": {
+                                    "type": "string"
+                                  },
+                                  "scheduledDate": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "role": {
+                                    "type": "string",
+                                    "enum": [
+                                      "TENANT",
+                                      "TENANT_REPRESENTATIVE",
+                                      "HOUSEKEEPER",
+                                      "PROPERTY_MANAGER",
+                                      "BROKER",
+                                      "OTHER"
+                                    ]
+                                  },
+                                  "isPrimary": {
+                                    "type": "boolean"
+                                  },
+                                  "propertyId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "propertyCode": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "appointmentId",
+                                  "appointmentNumber",
+                                  "status",
+                                  "scheduledDate",
+                                  "role",
+                                  "isPrimary",
+                                  "propertyId",
+                                  "propertyCode"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "pagination": {
+                              "type": "object",
+                              "properties": {
+                                "page": {
+                                  "type": "number"
+                                },
+                                "pageSize": {
+                                  "type": "number"
+                                },
+                                "total": {
+                                  "type": "number"
+                                },
+                                "totalPages": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "page",
+                                "pageSize",
+                                "total",
+                                "totalPages"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "data",
+                            "pagination"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "properties": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "propertyId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "propertyCode": {
+                                    "type": "string"
+                                  },
+                                  "street": {
+                                    "type": "string"
+                                  },
+                                  "suburb": {
+                                    "type": "string"
+                                  },
+                                  "postcode": {
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "type": "string"
+                                  },
+                                  "appointmentCount": {
+                                    "type": "integer"
+                                  },
+                                  "isPrimaryInActiveAppointment": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "propertyId",
+                                  "propertyCode",
+                                  "street",
+                                  "suburb",
+                                  "postcode",
+                                  "state",
+                                  "appointmentCount",
+                                  "isPrimaryInActiveAppointment"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "pagination": {
+                              "type": "object",
+                              "properties": {
+                                "page": {
+                                  "type": "number"
+                                },
+                                "pageSize": {
+                                  "type": "number"
+                                },
+                                "total": {
+                                  "type": "number"
+                                },
+                                "totalPages": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "page",
+                                "pageSize",
+                                "total",
+                                "totalPages"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "data",
+                            "pagination"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tenantId",
+                        "type",
+                        "displayName",
+                        "company",
+                        "primaryEmail",
+                        "primaryPhone",
+                        "additionalChannels",
+                        "notes",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/contacts/{contactId}/deactivate": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "contactId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TENANT",
+                            "PROPERTY_MANAGER",
+                            "HOUSEKEEPER",
+                            "BROKER",
+                            "OTHER"
+                          ]
+                        },
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "additionalChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "enum": [
+                                  "EMAIL",
+                                  "PHONE"
+                                ]
+                              },
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 254
+                              },
+                              "label": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tenantId",
+                        "type",
+                        "displayName",
+                        "company",
+                        "primaryEmail",
+                        "primaryPhone",
+                        "additionalChannels",
+                        "notes",
+                        "isActive",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }

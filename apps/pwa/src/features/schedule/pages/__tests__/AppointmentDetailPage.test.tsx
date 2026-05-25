@@ -66,6 +66,7 @@ function renderPage() {
 const appointmentData = {
   data: {
     id: 'apt-1',
+    appointmentCode: 'INS-0099',
     propertyAddress: '123 Main St',
     suburb: 'Brunswick',
     scheduledDate: '2026-03-25',
@@ -104,6 +105,11 @@ describe('AppointmentDetailPage', () => {
       state: { phase: 'PRE_START' },
       isRestored: true,
     });
+  });
+
+  it('displays the appointment code in the header', () => {
+    renderPage();
+    expect(screen.getByTestId('appointment-code')).toHaveTextContent('INS-0099');
   });
 
   it('shows start CTA for scheduled appointments with no local progress', () => {

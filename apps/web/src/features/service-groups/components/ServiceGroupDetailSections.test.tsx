@@ -71,7 +71,7 @@ describe('ServiceGroupDetailSections', () => {
 
   it('shows status chip and priority mode chip', () => {
     renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
-    expect(screen.getByText('Published')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting Inspector')).toBeInTheDocument();
     expect(screen.getByText('Standard')).toBeInTheDocument();
   });
 

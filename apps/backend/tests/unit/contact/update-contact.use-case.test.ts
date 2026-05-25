@@ -72,9 +72,13 @@ describe('UpdateContactUseCase', () => {
       data: { displayName: 'Alice Jones' },
     });
 
+    // Review fix — Issue 1: the update SQL is unscoped (`tenantId = null`)
+    // so a CL_ADMIN editing a standalone or cross-tenant contact actually
+    // mutates the row. Visibility is gated upstream via ownsContact /
+    // existsLinkedToTenant, not at the row level.
     expect(contactRepo.update).toHaveBeenCalledWith(
       CONTACT_ID,
-      TENANT_ID,
+      null,
       expect.objectContaining({ displayName: 'Alice Jones' }),
     );
     expect(result?.displayName).toBe('Alice Jones');

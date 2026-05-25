@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
+import { successResponseSchema, dashboardStatsResponseSchema } from '@properfy/shared';
 
 const mockGetDashboardStatsExecute = vi.fn();
 const mockJwtVerify = vi.fn();
@@ -40,12 +41,15 @@ const amContext = {
   inspectorId: null,
 };
 
-const mockStats = {
+const baseStats = {
   appointmentsByStatus: {
     draft: 5,
     awaitingInspector: 8,
     scheduled: 12,
     doneThisMonth: 34,
+    doneThisWeek: 7,
+    scheduledThisWeek: 10,
+    rejectedTotal: 3,
   },
   recentAppointments: [
     {
@@ -54,7 +58,7 @@ const mockStats = {
       propertyAddress: '123 Main St, Sydney NSW 2000',
       status: 'SCHEDULED',
       doneMarkedByUserId: null,
-    doneCheckedByUserId: null,
+      doneCheckedByUserId: null,
       scheduledDate: '2026-03-17',
     },
   ],
@@ -70,6 +74,22 @@ const mockStats = {
     activeServiceGroups: 4,
   },
 };
+
+const inspectorBreakdowns = {
+  tomorrowByInspector: [
+    { inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', inspectorName: 'Alice', count: 18, alertLevel: 'red' },
+    { inspectorId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22', inspectorName: 'Bob', count: 15, alertLevel: 'yellow' },
+    { inspectorId: 'c2ccde11-1b2d-4ef0-dd8f-8dd1df502c33', inspectorName: 'Charlie', count: 3, alertLevel: null },
+  ],
+  scheduledThisWeekByInspector: [
+    { inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', inspectorName: 'Alice', count: 25, alertLevel: null },
+  ],
+  confirmedThisWeekByInspector: [
+    { inspectorId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22', inspectorName: 'Bob', count: 12, alertLevel: null },
+  ],
+};
+
+const mockStats = { ...baseStats, inspectorBreakdowns: null };
 
 let app: FastifyInstance;
 
@@ -123,5 +143,56 @@ describe('GET /v1/dashboard/stats', () => {
     expect(mockGetDashboardStatsExecute).toHaveBeenCalledWith({
       actor: amContext,
     });
+  });
+
+  // T-027-502: Mandatory contract tests for the widened schema
+
+  it('AM context: response with populated inspectorBreakdowns round-trips through dashboardStatsResponseSchema', async () => {
+    const amStats = { ...baseStats, inspectorBreakdowns };
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetDashboardStatsExecute.mockResolvedValueOnce(amStats);
+
+    const res = await supertest(app.server)
+      .get('/v1/dashboard/stats')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+
+    const parseResult = successResponseSchema(dashboardStatsResponseSchema).safeParse(res.body);
+    expect(parseResult.success).toBe(true);
+
+    if (parseResult.success) {
+      expect(parseResult.data.data.appointmentsByStatus.doneThisWeek).toBe(7);
+      expect(parseResult.data.data.appointmentsByStatus.scheduledThisWeek).toBe(10);
+      expect(parseResult.data.data.appointmentsByStatus.rejectedTotal).toBe(3);
+      expect(parseResult.data.data.inspectorBreakdowns).not.toBeNull();
+      expect(parseResult.data.data.inspectorBreakdowns?.tomorrowByInspector).toHaveLength(3);
+    }
+  });
+
+  it('CL_ADMIN context: response with inspectorBreakdowns: null round-trips through dashboardStatsResponseSchema', async () => {
+    const clAdminContext = {
+      userId: 'user-cl-1',
+      tenantId: 'tenant-uuid-0000-0000-0000-000000000001',
+      role: 'CL_ADMIN',
+      branchId: null,
+      inspectorId: null,
+    };
+    const clAdminStats = { ...baseStats, inspectorBreakdowns: null };
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockGetDashboardStatsExecute.mockResolvedValueOnce(clAdminStats);
+
+    const res = await supertest(app.server)
+      .get('/v1/dashboard/stats')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+
+    const parseResult = successResponseSchema(dashboardStatsResponseSchema).safeParse(res.body);
+    expect(parseResult.success).toBe(true);
+
+    if (parseResult.success) {
+      expect(parseResult.data.data.inspectorBreakdowns).toBeNull();
+    }
   });
 });

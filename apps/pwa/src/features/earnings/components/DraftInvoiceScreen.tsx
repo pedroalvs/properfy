@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiPost } from '@/hooks/useApiQuery';
-import { ApiError } from '@/lib/api-error';
+import type { ApiError } from '@/lib/api-error';
 import { Button } from '@/components/ui/Button';
 import { TopBar } from '@/components/shell/TopBar';
 

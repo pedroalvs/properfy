@@ -9,27 +9,29 @@ const exceptionTypeEnum = z.enum(['LOW_DENSITY_REGION', 'ISOLATED_SERVICE', 'PRI
  * Schema for creating a service group.
  *
  * Size limits:
- *   - Standard (no exception): min 5, max 25
- *   - LOW_DENSITY_REGION: min 1, max 25
+ *   - Standard (no exception): min 5, max 30
+ *   - LOW_DENSITY_REGION: min 1, max 30
  *   - ISOLATED_SERVICE: min 1, max 3
  *   - PRIORITY_CLIENT: min 1, max 8
  *
- * The shared schema enforces the hard boundary (min 1, max 25).
+ * The shared schema enforces the hard boundary (min 1, max 30).
  * Business-rule limits per exception type are enforced by the domain validator.
  * See: projeto-consolidado/service-group-exceptions.md
  */
 export const createServiceGroupSchema = z
   .object({
-    appointmentIds: z.array(z.string().uuid()).min(1).max(25),
+    appointmentIds: z.array(z.string().uuid()).min(1).max(30),
     serviceTypeId: z.string().uuid(),
+    // Temporal validation is TZ-aware and performed in the use case.
     scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     timeWindow: z.string().regex(timeWindowRegex),
     name: z.string().min(1).max(255).optional(),
-    serviceRegionId: z.string().uuid(),
+    serviceRegionId: z.string().uuid().nullable().optional(),
     description: z.string().max(5000).optional(),
     priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
     exceptionType: exceptionTypeEnum.optional(),
     exceptionReason: z.string().min(10).max(1000).optional(),
+    actorTimezone: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -46,12 +48,13 @@ export const updateServiceGroupSchema = z
     name: z.string().min(1).max(255).optional(),
     serviceRegionId: z.string().uuid().nullable().optional(),
     description: z.string().max(5000).optional(),
-    // Draft-only fields
+    // Draft-only fields; temporal validation is TZ-aware and performed in the use case.
     scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     timeWindow: z.string().regex(timeWindowRegex).optional(),
     priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
     exceptionType: exceptionTypeEnum.nullable().optional(),
     exceptionReason: z.string().min(10).max(1000).nullable().optional(),
+    actorTimezone: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -99,7 +102,15 @@ export type AcceptOfferInput = z.infer<typeof acceptOfferSchema>;
 
 export const listServiceGroupsQuerySchema = paginationSchema.extend({
   tenantId: z.string().uuid().optional(),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ACCEPTED', 'CANCELLED', 'REJECTED']).optional(),
+  status: z.preprocess(
+    (v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'string') return v.split(',').map((s) => s.trim()).filter(Boolean);
+      return [v];
+    },
+    z.array(z.enum(['DRAFT', 'PUBLISHED', 'ACCEPTED', 'CANCELLED', 'REJECTED'])).min(1).optional(),
+  ),
   serviceTypeId: z.string().uuid().optional(),
   scheduledDateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   scheduledDateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -109,8 +120,72 @@ export const listServiceGroupsQuerySchema = paginationSchema.extend({
     .union([z.boolean(), z.literal('true'), z.literal('false')])
     .optional()
     .transform((v) => v === true || v === 'true'),
+  search: z.string().max(200).optional(),
+  branchId: z.string().uuid().optional(),
+  contactSearch: z.string().max(200).optional(),
 });
 export type ListServiceGroupsQuery = z.infer<typeof listServiceGroupsQuerySchema>;
 
 export const listMarketplaceOffersQuerySchema = paginationSchema.extend({});
 export type ListMarketplaceOffersQuery = z.infer<typeof listMarketplaceOffersQuerySchema>;
+
+// ─── Add appointments to group (026 §FR-503..520) ────────────────────────
+//
+// Reuses `ServiceGroupValidator` server-side; the same request shape feeds
+// both the add endpoint and the read-only eligibility-check preview.
+// Capacity cap of 30 matches the existing service-group invariant
+// (spec 005 line 244).
+
+export const addAppointmentsToGroupRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+});
+export type AddAppointmentsToGroupRequest = z.infer<typeof addAppointmentsToGroupRequestSchema>;
+
+export const eligibilityCheckRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+});
+export type EligibilityCheckRequest = z.infer<typeof eligibilityCheckRequestSchema>;
+
+/**
+ * The eligibility preview is a snapshot, not a commitment — the actual
+ * add call re-validates each appointment because group state may have
+ * changed between preview and add. `reasonCode` strings follow the
+ * `ServiceGroupValidator` set: INVALID_STATUS / INVALID_TENANT /
+ * INVALID_SERVICE_TYPE / INVALID_DATE / INVALID_TIME_WINDOW /
+ * ALREADY_GROUPED / GROUP_CAPACITY_EXCEEDED / GROUP_IN_TERMINAL_STATE.
+ */
+export const eligibilityCheckResponseSchema = z.object({
+  eligibleAppointmentIds: z.array(z.string().uuid()),
+  ineligibleAppointmentIds: z.array(z.object({
+    id: z.string().uuid(),
+    reasonCode: z.string(),
+  })),
+  groupAccepts: z.boolean(),
+  groupReasons: z.array(z.string()),
+});
+export type EligibilityCheckResponse = z.infer<typeof eligibilityCheckResponseSchema>;
+
+// ─── 026 B1 — Find addable groups for appointments ──────────────────────────
+
+export const findAddableGroupsRequestSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1).max(30),
+});
+export type FindAddableGroupsRequest = z.infer<typeof findAddableGroupsRequestSchema>;
+
+export const addableGroupSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  status: z.string(),
+  scheduledDate: z.string(),
+  timeWindow: z.string(),
+  currentSize: z.number().int(),
+  serviceTypeName: z.string().nullable(),
+});
+export type AddableGroupSummary = z.infer<typeof addableGroupSummarySchema>;
+
+export const findAddableGroupsResponseSchema = z.object({
+  groups: z.array(addableGroupSummarySchema),
+  /** Set when the selected appointments have mixed properties or invalid statuses. Groups will be empty. */
+  reason: z.enum(['MIXED_APPOINTMENT_PROPERTIES', 'INVALID_APPOINTMENT_STATUS']).optional(),
+});
+export type FindAddableGroupsResponse = z.infer<typeof findAddableGroupsResponseSchema>;

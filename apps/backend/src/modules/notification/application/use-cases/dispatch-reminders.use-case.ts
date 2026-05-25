@@ -1,5 +1,8 @@
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { INotificationRepository } from '../../domain/notification.repository';
+import type { BuildNotificationPayloadService } from '../../domain/build-notification-payload.service';
+import type { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
 import type { CreateNotificationUseCase } from './create-notification.use-case';
 import type { NotificationChannel } from '@properfy/shared';
 
@@ -17,8 +20,12 @@ const REMINDER_WINDOWS: Array<[number, string]> = [
 export class DispatchRemindersUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
+    private readonly tenantRepo: ITenantRepository,
     private readonly notificationRepo: INotificationRepository,
+    private readonly buildNotificationPayload: BuildNotificationPayloadService,
+    private readonly appointmentCodeFormatter: AppointmentCodeFormatter,
     private readonly createNotification: CreateNotificationUseCase,
+    private readonly tenantPortalBaseUrl: string,
   ) {}
 
   async execute(today?: Date): Promise<DispatchRemindersOutput> {
@@ -33,7 +40,6 @@ export class DispatchRemindersUseCase {
       const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
 
       for (const { appointment, contact } of appointments) {
-        // Determine channel and recipient
         let channel: NotificationChannel;
         let recipient: string;
         let effectiveTemplateCode: string;
@@ -46,12 +52,10 @@ export class DispatchRemindersUseCase {
           recipient = effectiveEmail;
           effectiveTemplateCode = templateCode;
         } else if (effectivePhone) {
-          // GAP-010: SMS fallback when email is missing but phone is present
           channel = 'SMS';
           recipient = effectivePhone;
           effectiveTemplateCode = `${templateCode}_SMS`;
         } else {
-          // No email and no phone: skip entirely
           skipped++;
           continue;
         }
@@ -65,18 +69,29 @@ export class DispatchRemindersUseCase {
           continue;
         }
 
+        const tenant = await this.tenantRepo.findById(appointment.tenantId);
+        if (!tenant || !contact) {
+          skipped++;
+          continue;
+        }
+
+        const payloadJson = this.buildNotificationPayload.build({
+          templateCode: effectiveTemplateCode,
+          tenant,
+          appointment,
+          contact,
+          rawPortalToken: null,
+          portalBaseUrl: this.tenantPortalBaseUrl,
+          appointmentCodeFormatter: this.appointmentCodeFormatter,
+        });
+
         await this.createNotification.execute({
           tenantId: appointment.tenantId,
           appointmentId: appointment.id,
           recipient,
           channel,
           templateCode: effectiveTemplateCode,
-          payloadJson: {
-            tenantName: contact.effectiveName,
-            scheduledDate: appointment.scheduledDate.toISOString().split('T')[0] ?? '',
-            timeSlot: appointment.timeSlot,
-            appointmentReference: appointment.id,
-          },
+          payloadJson,
         });
         dispatched++;
       }

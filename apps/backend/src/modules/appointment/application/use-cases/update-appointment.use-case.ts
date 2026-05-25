@@ -1,5 +1,5 @@
 import { type AuthContext, type AppointmentContactRole } from '@properfy/shared';
-import { ValidationError } from '../../../../shared/domain/errors';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
@@ -12,8 +12,10 @@ import { AppointmentRestrictionEntity } from '../../domain/appointment-restricti
 import {
   AppointmentNotFoundError,
   AppointmentUpdateNotAllowedError,
-  AppointmentPastDateError,
+  AppointmentDateInPastError,
+  AppointmentTimeInPastError,
 } from '../../domain/appointment.errors';
+import { validateEditedSchedule } from '@properfy/shared';
 import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
@@ -59,6 +61,7 @@ export interface UpdateAppointmentInput {
       source: RestrictionSource;
     } | null;
   };
+  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -160,11 +163,19 @@ export class UpdateAppointmentUseCase {
       }
     }
 
-    // Reject past dates (AM/OP bypass) — UTC comparison for server consistency
-    if (data.scheduledDate !== undefined) {
-      const todayStr = this.clock.now().toISOString().split('T')[0]!;
-      if (data.scheduledDate < todayStr && actor.role !== 'AM' && actor.role !== 'OP') {
-        throw new AppointmentPastDateError();
+    // TZ-aware past-date/time validation for date or time changes. Falls back to UTC (R7).
+    if (data.scheduledDate !== undefined || data.timeSlot !== undefined) {
+      const tz = input.actorTimezone ?? 'UTC';
+      const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
+      const scheduleCheck = validateEditedSchedule({
+        existingDate: existingDateStr,
+        existingTimeSlot: appointment.timeSlot,
+        newDate: data.scheduledDate,
+        newTimeSlot: data.timeSlot,
+        tz,
+      });
+      if (!scheduleCheck.ok) {
+        throw scheduleCheck.code === 'TIME_IN_PAST' ? new AppointmentTimeInPastError() : new AppointmentDateInPastError();
       }
     }
 
@@ -205,8 +216,20 @@ export class UpdateAppointmentUseCase {
         let sPhone: string | null;
 
         if (entry.contactId) {
-          const reg = await this.contactRepo.findById(entry.contactId, appointment.tenantId);
-          if (!reg) throw new ValidationError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+          // 024 §FR-301/303 (BUG-024-001 → BUG-024-002 fix) — paridade com
+          // create-appointment. Lookup global; visibility para CL roles via
+          // owns-or-junction. NotFoundError 404 colapsa "não existe" e "não
+          // visível" (FR-022 + OBS-024-003). Ver create-appointment.use-case
+          // para o racional completo.
+          const isCrossTenantActor = actor.role === 'AM' || actor.role === 'OP';
+          const reg = await this.contactRepo.findById(entry.contactId, null);
+          if (!reg) throw new NotFoundError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+          if (!isCrossTenantActor) {
+            const ownsContact = reg.tenantId === appointment.tenantId;
+            const visible = ownsContact
+              || await this.contactRepo.existsLinkedToTenant(entry.contactId, appointment.tenantId);
+            if (!visible) throw new NotFoundError('APPOINTMENT_CONTACT_NOT_FOUND', `Contact ${entry.contactId} not found`);
+          }
           if (!reg.isActive) throw new ValidationError('APPOINTMENT_CONTACT_INACTIVE', `Contact ${entry.contactId} is not active`);
           cId = reg.id;
           sName = reg.displayName;

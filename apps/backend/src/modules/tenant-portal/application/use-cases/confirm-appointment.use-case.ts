@@ -23,6 +23,7 @@ export interface ConfirmAppointmentInput {
     unavailableHoursJson: string[] | null;
     notes: string | null;
   };
+  tenantNote?: string;
   ipAddress: string | null;
   userAgent: string | null;
 }
@@ -34,7 +35,7 @@ export class ConfirmAppointmentUseCase {
     private readonly activityRepo: ITenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
-    private readonly onNotificationHandler?: { execute(input: { appointmentId: string; action: string }): Promise<unknown> },
+    private readonly onNotificationHandler?: { execute(input: { appointmentId: string; tenantId?: string | null; action: string }): Promise<unknown> },
     private readonly domainEventBus?: DomainEventBus,
     private readonly tokenRepo?: ITenantPortalTokenRepository,
   ) {}
@@ -76,9 +77,10 @@ export class ConfirmAppointmentUseCase {
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
     };
 
-    // 6. Update appointment confirmation status
+    // 6. Update appointment confirmation status (and tenant note if provided)
     await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
       tenantConfirmationStatus: 'CONFIRMED',
+      ...(input.tenantNote !== undefined ? { tenantNote: input.tenantNote } : {}),
     });
 
     // 7. Confirm resets stale tenant-portal restrictions from previous unavailability/reschedule cycles.
@@ -133,7 +135,7 @@ export class ConfirmAppointmentUseCase {
     // 10. Side effect: notification on confirmation
     if (this.onNotificationHandler) {
       try {
-        await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, action: 'CONFIRM' });
+        await this.onNotificationHandler.execute({ appointmentId: input.appointmentId, tenantId: appointment.tenantId, action: 'CONFIRM' });
       } catch {
         // fire-and-forget — notification failure must not affect the confirmation
       }

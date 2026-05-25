@@ -1,60 +1,46 @@
-# Cross-Feature Correction: OP Must Be Tenant-Scoped
+# Cross-Feature Correction: OP Tenant-Scope — CLOSED-REJECTED
 
 **Created**: 2026-04-06
-**Status**: OPEN — approved rule, implementation diverges
+**Closed**: 2026-05-09
+**Status**: **CLOSED-REJECTED** — the correction is reverted; OP returns to cross-tenant access.
 **Origin**: Validation of feature 001 against business dossier via guia-properfy
-**Impact**: ALL features (001–011)
+**Resolution authority**: Explicit user decision (Pedro Alves, 2026-05-09) after QA cycle 1/2 of feature 022 surfaced the operational cost of the proposed tenant-scoped OP model.
 
-## Canonical Rule
+> **DO NOT cite this file as an authoritative rule going forward.** It is preserved for historical context only. The active rule is the one published in `constitution.md` v1.3.0+ — OP is cross-tenant, like AM.
 
-- `AM` is the **only** role with `tenant_id = null` and global access.
-- `OP` **MUST** have a mandatory `tenant_id` in the JWT and operate only within its tenant.
-- `CL_ADMIN` and `CL_USER` are tenant-scoped (already implemented correctly).
-- Every query/mutation of a business entity must apply `tenant_id` filter based on the actor, except for `AM`.
+## Why this correction was rejected
 
-## Current Divergence
+During QA of `022-contacts-screen-enhancement` (2026-05-09), the deployed implementation of `FR-105a` ("OP tenant-scope correction in `/v1/contacts*` routes") interacted badly with the operational reality of the codebase:
 
-The codebase treats OP as tenant-free (`tenant_id = null` in JWT, cross-tenant access allowed). This is documented in `CLAUDE.md` as "OP is tenant-free: Same as AM regarding tenant_id" — but the business dossier **does not approve this**.
+- **BUG-002 (HIGH, 022 QA)**: the OP seed user had `tenant_id = null` (matching CLAUDE.md `§6` and the shipped JWT model). FR-105a hardened the contact routes to require a non-null `auth.tenantId` for OP, which produced silent `500 INTERNAL_ERROR` responses every time an OP user logged in to `/contacts`.
+- The proposed fix paths were:
+  1. Migrate every OP user to a non-null `tenant_id` plus update auth middleware to enforce it (constitution-compliant), OR
+  2. Revert FR-105a, restore OP cross-tenant behavior, and update the constitution to match shipped reality.
+- The user evaluated the tradeoffs and chose option (2). Migrating OP scope across 11 features (001–011) before shipping 022 was not acceptable; the operational practice of "OP is a platform operator" was approved in conversation as the canonical model.
 
-## Reading of the OP Role
+## What changes (from this date forward)
 
-- OP = strong operational user **within** a single tenant (agency). Think "admin operacional local".
-- OP can do more than CL_ADMIN (e.g., deactivate branches, manage service groups, cross-check DONE, approve financial entries) but only within their own tenant.
-- OP cannot list, create, edit, or transition data from other tenants.
+- `constitution.md` is bumped to **v1.3.0** with the RBAC section revised: OP is the second cross-tenant role (alongside AM); `tenant_id` MAY be `null` in OP JWTs; OP can pass `tenantId` in `/v1/*` requests like AM.
+- `CLAUDE.md` (root) §6 already reads `Operator | Operational team, cross-tenant` — no change needed there.
+- Feature 022 is revised to **REV 4** removing FR-105a entirely; the contact routes are reverted to accept OP `tenantId` overrides like AM, and the frontend `Agency selector` gate is widened to include OP.
+- Future features (001–011) MUST NOT cite the deprecated FR-105a / op_tenant_scope correction. Any spec text under `## CORRECTION` or `## Cross-References` that references this track must be removed or marked `[SUPERSEDED 2026-05-09]`.
+- The audit-log mandatory list (constitution §Audit) keeps `cross-tenant actions by AM/OP` as an audit event; no change there.
 
-## Affected Features
+## Security tradeoff (acknowledged)
 
-Every feature that checks `actor.role === 'OP'` alongside `actor.role === 'AM'` for cross-tenant access is affected:
+Cross-tenant OP carries a data-isolation risk: a compromised OP credential can act on any tenant's data. Mitigations in place:
 
-| Feature | Affected Areas |
-|---|---|
-| 001-identity-access | User CRUD (OP creates users for any tenant), auth middleware (OP skips tenant check) |
-| 002-tenants-branches | ListTenants (OP sees all), CreateBranch (OP any tenant), Deactivate (if OP has access) |
-| 003-properties | Create/update properties cross-tenant |
-| 004-service-catalog | Service types are global (OK), pricing rules cross-tenant |
-| 005-service-groups-marketplace | Publish/assign cross-tenant |
-| 006-appointments | State transitions cross-tenant, cross-check cross-tenant |
-| 007-tenant-portal | Token generation (OP scope) |
-| 008-inspectors-execution | Inspector CRUD (global entity, but OP creates for any tenant context) |
-| 009-notifications | Template management cross-tenant |
-| 010-billing-ledger | Approve entries cross-tenant, manual adjustments cross-tenant |
-| 011-reports-audit | Audit log scope (OP should see only own tenant), report scope |
+- Every cross-tenant action by AM/OP produces an audit log entry (constitution §Audit).
+- Use-case-level `actor.role` checks remain in place; route-level scope checks were what FR-105a tried to harden, but the cost outweighed the benefit.
+- Future hardening (if needed) MUST be proposed as a fresh APPROVED RULE through the standard amendment workflow, not by re-opening this track.
 
-## Correction Plan
+## What this file is now
 
-1. **JWT model**: `OP` tokens MUST carry `tenant_id` (non-null). Migration: update user rows for OP users to have `tenant_id` set.
-2. **Auth middleware**: maintain tenant-active check for OP (already done for CL roles). OP is no longer exempt.
-3. **Use cases**: every use case that currently grants OP the same scope as AM must be reviewed. OP should use `actor.tenantId` for scoping, not pass-through `null`.
-4. **Prisma seed/migration**: ensure every OP user has a `tenant_id` assigned.
-5. **Constitution + CLAUDE.md**: update to reflect the canonical rule.
-6. **Each feature spec**: update the RBAC tables and endpoint notes to reflect OP as tenant-scoped.
+A historical record. **Status: CLOSED-REJECTED.** The active OP scope rule lives in `constitution.md` v1.3.0+ Tenant Scope Rule.
 
-## Priority
+## Related artifacts
 
-HIGH — this is a security and data isolation concern. OP users currently have unintended cross-tenant access.
-
-## Notes
-
-- Service types and service regions are global entities (no `tenant_id`) — OP CRUD on these should still be allowed since they are platform-level catalogs. But OP should not be able to create pricing rules or service groups for other tenants.
-- Inspectors are cross-tenant entities — but OP creating/managing inspectors should be scoped to inspectors eligible for the OP's tenant (not all inspectors).
-- The correction should be tracked as a single coordinated effort, not scattered across 11 separate tasks.
+- `constitution.md` v1.3.0 (active rule)
+- `specs/022-contacts-screen-enhancement/spec.md` rev 4 (FR-105a removed)
+- `specs/022-contacts-screen-enhancement/plan.md` rev 4 (revert + BUG-001 fix)
+- Memory: `project_op_role_constitution_v13.md` (user decision recorded 2026-05-09)

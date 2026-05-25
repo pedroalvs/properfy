@@ -31,4 +31,45 @@ describe('AssetThumbnail', () => {
 
     expect(screen.getByText('Sync failed')).toBeInTheDocument();
   });
+
+  it('renders <img> for image/jpeg content type', () => {
+    render(
+      <AssetThumbnail
+        asset={{ ...baseAsset, contentType: 'image/jpeg', blobUrl: 'blob:photo', filename: 'photo.jpg' }}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('img', { name: 'photo.jpg' })).toBeInTheDocument();
+  });
+
+  it('renders <img> for image/png content type', () => {
+    render(
+      <AssetThumbnail
+        asset={{ ...baseAsset, contentType: 'image/png', blobUrl: 'blob:png', filename: 'img.png' }}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('img', { name: 'img.png' })).toBeInTheDocument();
+  });
+
+  it('renders file-document icon (no <img>) for non-image MIME types', () => {
+    render(
+      <AssetThumbnail
+        asset={{ ...baseAsset, contentType: 'application/pdf', filename: 'report.pdf' }}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('img', { name: 'report.pdf' })).not.toBeInTheDocument();
+    expect(screen.getByText('report.pdf')).toBeInTheDocument();
+  });
+
+  it('renders filename label for non-image assets', () => {
+    render(
+      <AssetThumbnail
+        asset={{ ...baseAsset, contentType: 'video/mp4', filename: 'clip.mp4' }}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('clip.mp4')).toBeInTheDocument();
+  });
 });

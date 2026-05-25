@@ -33,7 +33,8 @@ export const reopenExecutionSchema = z.object({
 export type ReopenExecutionInput = z.infer<typeof reopenExecutionSchema>;
 
 export const requestAssetUploadSchema = z.object({
-  kind: z.enum(['PHOTO', 'DOCUMENT', 'SIGNATURE']),
+  // DOCUMENT/SIGNATURE are reserved in the DB enum but not yet supported in the execution flow
+  kind: z.literal('PHOTO'),
   mimeType: z.string().min(1),
   fileName: z.string().min(1).max(255),
 });

@@ -21,6 +21,7 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:refresh-demo": "tsx prisma/refresh-demo-seed.ts",
     "qa:provision-users": "tsx prisma/provision-qa-users.ts",
+    "storage:provision": "tsx --env-file .env prisma/provision-storage-buckets.ts",
     "generate:openapi": "NODE_ENV=test tsx src/scripts/generate-openapi.ts"
   },
   "prisma": {

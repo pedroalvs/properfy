@@ -3,7 +3,7 @@ import type { RegionStatus } from '@properfy/shared';
 
 export interface ServiceRegionProps {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   name: string;
   geojson: Record<string, unknown>;
   color: string;
@@ -14,7 +14,7 @@ export interface ServiceRegionProps {
 }
 
 export class ServiceRegionEntity extends BaseEntity {
-  readonly tenantId: string;
+  readonly tenantId: string | null;
   readonly name: string;
   readonly geojson: Record<string, unknown>;
   readonly color: string;

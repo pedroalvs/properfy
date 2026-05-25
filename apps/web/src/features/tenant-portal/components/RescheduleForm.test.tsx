@@ -56,12 +56,34 @@ vi.mock('@/components/forms/TextInput', () => ({
   ),
 }));
 
+vi.mock('@/components/forms/Textarea', () => ({
+  Textarea: ({ value, onChange, disabled, 'aria-label': ariaLabel, maxLength }: any) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(e: any) => onChange(e.target.value)}
+      disabled={disabled}
+      maxLength={maxLength}
+    />
+  ),
+}));
+
 import { RescheduleForm } from './RescheduleForm';
+
+// Use a dynamic scheduledDate (3 days from now) so the 30-day reschedule
+// window guard never trips on CI date drift. Tests that submit
+// `Date.now() + 7 days` land 4 days after this anchor — comfortably inside
+// the window. Avoiding `vi.useFakeTimers` here keeps timer-driven Testing
+// Library queries (`findByText`, `waitFor`) on real time so React state
+// transitions resolve as expected.
+const SCHEDULED_DATE_ANCHOR = new Date(Date.now() + 3 * 24 * 3600 * 1000)
+  .toISOString()
+  .split('T')[0]!;
 
 const BASE_APPOINTMENT: PortalAppointment = {
   id: 'apt-1',
   status: AppointmentStatus.SCHEDULED,
-  scheduledDate: '2026-04-15',
+  scheduledDate: SCHEDULED_DATE_ANCHOR,
   timeSlot: '09:00-11:00',
   serviceTypeId: 'svc-1',
   tenantConfirmationStatus: TenantConfirmationStatus.PENDING,
@@ -131,6 +153,42 @@ describe('RescheduleForm', () => {
 
     await screen.findByText('Reschedule Requested');
     expect(mockShowSuccess).toHaveBeenCalledWith('Reschedule request submitted successfully.');
+  });
+
+  it('renders the additional notes textarea', () => {
+    render(
+      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={false} />,
+    );
+
+    expect(screen.getByLabelText('Additional notes')).toBeInTheDocument();
+  });
+
+  it('includes tenantNote in submission when provided', async () => {
+    mockMutateAsync.mockResolvedValue({});
+
+    render(
+      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={false} />,
+    );
+
+    const futureDate = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0];
+    fireEvent.change(screen.getByLabelText('date-input'), {
+      target: { value: futureDate },
+    });
+    fireEvent.change(screen.getByLabelText('text-input'), {
+      target: { value: '14:00-16:00' },
+    });
+    fireEvent.change(screen.getByLabelText('Additional notes'), {
+      target: { value: 'I need afternoon slots only' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Request Reschedule/ }));
+
+    await screen.findByText('Reschedule Requested');
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantNote: 'I need afternoon slots only',
+      }),
+    );
   });
 
   it('shows error on failed submission', async () => {

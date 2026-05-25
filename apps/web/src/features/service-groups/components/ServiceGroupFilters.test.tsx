@@ -26,10 +26,10 @@ describe('ServiceGroupFilters', () => {
     await user.click(screen.getByLabelText('Status'));
     const listbox = screen.getByRole('listbox', { name: 'Status' });
     expect(listbox).toHaveTextContent('All');
-    expect(screen.getByText('Draft')).toBeInTheDocument();
-    expect(screen.getByText('Published')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting Host')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting Inspector')).toBeInTheDocument();
     expect(screen.getByText('Accepted')).toBeInTheDocument();
-    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.getByText('Canceled')).toBeInTheDocument();
   });
 
   it('calls onFiltersChange on status selection', async () => {
@@ -42,7 +42,7 @@ describe('ServiceGroupFilters', () => {
       />,
     );
     await user.click(screen.getByLabelText('Status'));
-    await user.click(screen.getByText('Published'));
+    await user.click(screen.getByText('Awaiting Inspector'));
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'PUBLISHED' });
   });
 

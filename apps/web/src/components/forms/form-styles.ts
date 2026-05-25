@@ -28,7 +28,7 @@ export const formSelectTrigger =
 
 // Dropdown
 export const formDropdown =
-  'absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-auto rounded bg-card-bg shadow-lg border border-black/10';
+  'absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-auto overscroll-contain rounded bg-card-bg shadow-lg border border-black/10';
 
 export const formOption =
   'cursor-pointer px-3 py-2 text-sm text-text-primary hover:bg-primary/5 transition-colors';

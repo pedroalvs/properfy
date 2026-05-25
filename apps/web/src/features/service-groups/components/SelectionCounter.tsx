@@ -4,7 +4,7 @@ interface SelectionCounterProps {
   max?: number;
 }
 
-export function SelectionCounter({ count, min = 5, max = 25 }: SelectionCounterProps) {
+export function SelectionCounter({ count, min = 5, max = 30 }: SelectionCounterProps) {
   const isOutOfRange = count < min || count > max;
   const textColor = isOutOfRange ? 'text-warning' : 'text-text-secondary';
 

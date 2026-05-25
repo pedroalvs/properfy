@@ -89,6 +89,17 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
         </FormSection>
       )}
 
+      {appointment.tenantNote && (
+        <div className="rounded border border-info/30 bg-info/5 p-4">
+          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-text-secondary">
+            Tenant Note
+          </h3>
+          <p className="whitespace-pre-wrap text-sm text-text-primary">
+            {appointment.tenantNote}
+          </p>
+        </div>
+      )}
+
       {appointment.notes && (
         <FormSection title="Notes">
           <DetailRow label="Notes" value={appointment.notes} />

@@ -2,11 +2,17 @@ import type { ServiceGroupEntity } from './service-group.entity';
 
 export interface ServiceGroupFilters {
   tenantId?: string;
-  status?: string;
+  status?: string[];
   serviceTypeId?: string;
   scheduledDateFrom?: string;
   scheduledDateTo?: string;
   priorityMode?: string;
+  /** Text search on group name and description. */
+  search?: string;
+  /** Filter by branch ID of linked appointments. */
+  branchId?: string;
+  /** Search in linked appointments' contact snapshots (name, email, phone). */
+  contactSearch?: string;
 }
 
 export interface PaginationParams {
@@ -155,4 +161,20 @@ export interface IServiceGroupRepository {
   scheduleAppointments(groupId: string, inspectorId: string): Promise<number>;
   /** Find PUBLISHED groups whose priority window has expired */
   findExpiredPublished(): Promise<ServiceGroupEntity[]>;
+  /** 026 B1 — find DRAFT/PUBLISHED groups that can absorb a batch of same-property appointments. */
+  findAddableForAppointments(params: {
+    tenantId: string;
+    serviceTypeId: string;
+    scheduledDate: Date;
+    timeSlot: string;
+    batchSize: number;
+  }): Promise<Array<{
+    id: string;
+    name: string | null;
+    status: string;
+    scheduledDate: Date;
+    timeWindow: string;
+    currentSize: number;
+    serviceTypeName: string | null;
+  }>>;
 }

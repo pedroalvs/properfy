@@ -16,6 +16,7 @@ export interface MarketplaceOffer {
 
 export interface MarketplaceOfferDetailAppointment {
   id: string;
+  appointmentCode: string;
   appointmentNumber: number;
   address: string;
   keyRequired: boolean;

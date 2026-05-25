@@ -53,7 +53,7 @@ export function AuditLogTable({
           <div className="flex flex-col gap-1">
             <StatusChip label={row.actorType} bg={style.bg} text={style.text} />
             <span className="text-xs text-text-secondary">
-              {formatAuditActor(row.actorType, row.actorId)}
+              {formatAuditActor(row.actorType, row.actorId, row.actorName)}
             </span>
           </div>
         );
@@ -63,7 +63,7 @@ export function AuditLogTable({
       key: 'tenantId',
       label: 'Tenant',
       width: '180px',
-      render: (row) => <>{formatAuditTenant(row.tenantId)}</>,
+      render: (row) => <>{formatAuditTenant(row.tenantId, row.tenantName)}</>,
     },
     {
       key: 'entityType',

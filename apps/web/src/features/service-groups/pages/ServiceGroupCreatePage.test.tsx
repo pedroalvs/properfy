@@ -263,7 +263,14 @@ describe('ServiceGroupCreatePage', () => {
     selectServiceType();
     selectMinAppointments();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.change(screen.getByLabelText('Scheduled Date'), { target: { value: '2026-04-10' } });
+    // Use a date 14 days from now so the universal past-date guard
+    // (cycle 6 §FR-560+, commits 23fd1ab + 4801500) accepts the form
+    // regardless of when CI runs. Hardcoded April 2026 made this test a
+    // time bomb that detonated once today crossed it.
+    const futureDate = new Date(Date.now() + 14 * 24 * 3600 * 1000)
+      .toISOString()
+      .split('T')[0]!;
+    fireEvent.change(screen.getByLabelText('Scheduled Date'), { target: { value: futureDate } });
 
     // Wait for the region selector to load its options then select one
     await waitFor(() => expect(screen.getByLabelText('Target Region')).not.toBeDisabled());
@@ -277,10 +284,13 @@ describe('ServiceGroupCreatePage', () => {
         body: {
           appointmentIds: MOCK_ELIGIBLE.slice(0, 5).map((item) => item.id),
           serviceTypeId: '11111111-1111-4111-8111-111111111111',
-          scheduledDate: '2026-04-10',
+          scheduledDate: futureDate,
           timeWindow: '08:00-17:00',
           priorityMode: 'STANDARD',
           serviceRegionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          // Cycle 6 added the actor's resolved timezone to every group write
+          // so the backend can validate "today" in the operator's calendar.
+          actorTimezone: expect.any(String),
         },
       });
     });

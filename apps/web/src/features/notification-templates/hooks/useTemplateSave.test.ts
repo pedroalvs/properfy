@@ -74,7 +74,7 @@ describe('useTemplateSave', () => {
     expect(errors.body).toContain('unknown_var');
   });
 
-  it('rejects HTML characters in subject', () => {
+  it('rejects HTML in subject line', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateSave(), { wrapper });
 
@@ -85,21 +85,41 @@ describe('useTemplateSave', () => {
     };
 
     const errors = result.current.validate(data, []);
-    expect(errors.subject).toContain('HTML characters');
+    expect(errors.subject).toContain('HTML is not allowed in the subject line');
   });
 
-  it('rejects HTML characters in body', () => {
+  it('allows HTML in body', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateSave(), { wrapper });
 
     const data: TemplateFormData = {
       subject: 'Valid subject',
-      body: 'Text with <script>alert</script>',
+      body: '<p>Hello <strong>{{tenantName}}</strong></p>',
       active: true,
     };
 
-    const errors = result.current.validate(data, []);
-    expect(errors.body).toContain('HTML characters');
+    const errors = result.current.validate(data, ['tenantName']);
+    expect(errors.body).toBeUndefined();
+  });
+
+  it('sends bodyHtml and bodyText when body contains HTML', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    const htmlData: TemplateFormData = {
+      subject: 'Test',
+      body: '<p>Hello {{tenantName}}</p>',
+      active: true,
+    };
+
+    await act(async () => {
+      await result.current.save('INSPECTION_NOTICE', 'EMAIL', htmlData);
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
+      { body: { subject: 'Test', bodyHtml: '<p>Hello {{tenantName}}</p>', bodyText: 'Hello {{tenantName}}', isActive: true } },
+    );
   });
 
   it('reports missing required variables', () => {

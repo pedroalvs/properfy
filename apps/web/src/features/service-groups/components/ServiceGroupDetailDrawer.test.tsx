@@ -123,7 +123,7 @@ describe('ServiceGroupDetailDrawer', () => {
 
   it('shows status chip in header', () => {
     renderDrawer({ serviceGroupId: 'sg-01', open: true });
-    const matches = screen.getAllByText('Published');
+    const matches = screen.getAllByText('Awaiting Inspector');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 

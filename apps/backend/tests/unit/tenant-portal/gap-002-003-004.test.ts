@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import { ConfirmAppointmentUseCase } from '../../../src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case';
 import { RescheduleRequestUseCase, type RescheduleRequestInput } from '../../../src/modules/tenant-portal/application/use-cases/reschedule-request.use-case';
 import { ReportUnavailabilityUseCase, type ReportUnavailabilityInput } from '../../../src/modules/tenant-portal/application/use-cases/report-unavailability.use-case';
@@ -19,6 +19,19 @@ import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import {
   PortalTokenAlreadyUsedError,
 } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+
+// Freeze "now" at 2026-04-10 so the mock scheduledDate (2026-04-15) stays in
+// the future and the 30-day reschedule window guard never trips on CI date
+// drift. Tests that submit `Date.now() + 7 days` land at 2026-04-17, well
+// inside the window from 2026-04-15.
+beforeAll(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date('2026-04-10T00:00:00.000Z'));
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
@@ -135,6 +148,7 @@ function makeTokenRepo() {
     findByTokenHash: vi.fn(),
     findActiveByAppointmentId: vi.fn(),
     save: vi.fn(),
+    revokeAndSave: vi.fn().mockResolvedValue(undefined),
     updateStatus: vi.fn(),
     updateLastAccessedAt: vi.fn(),
     markUsed: vi.fn().mockResolvedValue(undefined),

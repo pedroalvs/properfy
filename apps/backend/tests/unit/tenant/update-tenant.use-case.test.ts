@@ -241,8 +241,9 @@ describe('UpdateTenantUseCase', () => {
 
     const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
     const mergedSettings = updateCall.settingsJson as Record<string, unknown>;
-    // Allowed keys should be present
-    expect(mergedSettings).toHaveProperty('logoUrl', 'https://example.com/logo.png');
+    // logoUrl is blocked for all roles — must use dedicated upload flow
+    expect(mergedSettings).not.toHaveProperty('logoUrl');
+    // Other branding/notification keys allowed for CL_ADMIN
     expect(mergedSettings).toHaveProperty('primaryColor', '#FF5733');
     expect(mergedSettings).toHaveProperty('notificationFromName', 'Agency');
     // Blocked keys should NOT be present
@@ -250,6 +251,32 @@ describe('UpdateTenantUseCase', () => {
     expect(mergedSettings).not.toHaveProperty('clUserPermissions');
     expect(mergedSettings).not.toHaveProperty('allowClientCancellation');
     expect(mergedSettings).not.toHaveProperty('priorityOfferHours');
+  });
+
+  it('should throw ValidationError when AM tries to set logoUrl via PATCH', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ settingsJson: {} }));
+    const { ValidationError } = await import('../../../src/shared/domain/errors');
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        data: { settings: { logoUrl: 'https://example.com/logo.png' } },
+        actor: makeActor({ role: 'AM' }),
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('should throw ValidationError when AM tries to set logoStorageKey via PATCH', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ settingsJson: {} }));
+    const { ValidationError } = await import('../../../src/shared/domain/errors');
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        data: { settings: { logoStorageKey: 'tenants/some-id/branding/logo.png' } },
+        actor: makeActor({ role: 'AM' }),
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('should NOT filter settings keys for AM — all keys pass through', async () => {

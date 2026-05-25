@@ -27,6 +27,7 @@ const portalRestrictionsSchema = z
 // POST /confirm body
 export const confirmAppointmentPortalSchema = z.object({
   restrictions: portalRestrictionsSchema,
+  tenantNote: z.string().max(2000).optional(),
 });
 export type ConfirmAppointmentPortalInput = z.infer<typeof confirmAppointmentPortalSchema>;
 
@@ -41,6 +42,7 @@ export const rescheduleRequestPortalSchema = z.object({
   newDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
   newTimeSlot: z.string().min(1).max(50),
   restrictions: portalRestrictionsSchema,
+  tenantNote: z.string().max(2000).optional(),
 });
 export type RescheduleRequestPortalInput = z.infer<typeof rescheduleRequestPortalSchema>;
 
@@ -67,6 +69,7 @@ export type UpdateContactPortalInput = z.infer<typeof updateContactPortalSchema>
 // POST /unavailable body
 export const reportUnavailabilityPortalSchema = z.object({
   restrictions: portalRestrictionsSchema,
+  tenantNote: z.string().max(2000).optional(),
 });
 export type ReportUnavailabilityPortalInput = z.infer<typeof reportUnavailabilityPortalSchema>;
 

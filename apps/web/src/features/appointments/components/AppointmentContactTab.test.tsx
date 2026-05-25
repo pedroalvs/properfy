@@ -32,6 +32,8 @@ const MOCK_APPOINTMENT: AppointmentDetail = {
   meetingLocation: 'Front entrance',
   keyLocation: 'Reception desk',
   cancellationReason: null,
+  hasTenantNote: false,
+  tenantNote: null,
   restrictions: [
     {
       id: 'res-1',

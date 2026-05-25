@@ -2,6 +2,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { formatDate, formatDateTime, toLocalISODate } from '@/lib/format-date';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
+import { useInspectorDocumentDownload } from '../hooks/useInspectorDocumentDownload';
 import type { InspectorDetail } from '../types';
 
 interface InspectorDetailSectionsProps {
@@ -39,6 +40,10 @@ function useInspectorWorkload(inspectorId: string) {
 
 export function InspectorDetailSections({ inspector }: InspectorDetailSectionsProps) {
   const { scheduledCount, weekCount, isLoading: workloadLoading } = useInspectorWorkload(inspector.id);
+  const { download, isDownloading } = useInspectorDocumentDownload();
+
+  const insuranceMeta = inspector.insuranceMetaJson as { fileName?: string | null; uploadedAt?: string | null } | null | undefined;
+  const policeMeta = inspector.policeCheckMetaJson as { fileName?: string | null; uploadedAt?: string | null } | null | undefined;
   const { data: serviceTypesData } = usePaginatedQuery<{ id: string; name: string }>(
     ['service-types', 'inspector-detail'],
     '/v1/service-types',
@@ -89,7 +94,19 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
       <FormSection title="Insurance &amp; Police Check">
         <DetailRow
           label="Insurance File"
-          value={inspector.insuranceFileKey ?? null}
+          value={insuranceMeta?.fileName ?? inspector.insuranceFileKey ?? null}
+          action={
+            insuranceMeta?.fileName || inspector.insuranceFileKey ? (
+              <button
+                onClick={() => download(inspector.id, 'INSURANCE')}
+                disabled={isDownloading}
+                className="text-xs text-primary hover:underline disabled:opacity-50"
+                aria-label="Download insurance document"
+              >
+                Download
+              </button>
+            ) : undefined
+          }
         />
         <DetailRow
           label="Insurance Expiry"
@@ -97,7 +114,19 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
         />
         <DetailRow
           label="Police Check File"
-          value={inspector.policeCheckFileKey ?? null}
+          value={policeMeta?.fileName ?? inspector.policeCheckFileKey ?? null}
+          action={
+            policeMeta?.fileName || inspector.policeCheckFileKey ? (
+              <button
+                onClick={() => download(inspector.id, 'POLICE_CHECK')}
+                disabled={isDownloading}
+                className="text-xs text-primary hover:underline disabled:opacity-50"
+                aria-label="Download police check document"
+              >
+                Download
+              </button>
+            ) : undefined
+          }
         />
         <DetailRow
           label="Police Check Expiry"

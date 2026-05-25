@@ -14,6 +14,7 @@ export const RejectionReasonCode = {
   SAFETY_CONCERN: 'SAFETY_CONCERN',
   INSUFFICIENT_INFO: 'INSUFFICIENT_INFO',
   SERVICE_NOT_AVAILABLE: 'SERVICE_NOT_AVAILABLE',
+  TENANT_NO_RESPONSE: 'TENANT_NO_RESPONSE',
   OTHER: 'OTHER',
 } as const;
 export type RejectionReasonCode = (typeof RejectionReasonCode)[keyof typeof RejectionReasonCode];

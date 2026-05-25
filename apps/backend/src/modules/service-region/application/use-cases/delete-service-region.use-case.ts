@@ -1,5 +1,4 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
@@ -26,9 +25,7 @@ export class DeleteServiceRegionUseCase {
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_region.delete', entityType: 'ServiceRegion' });
 
-    const tenantId = this.resolveTenantId(actor);
-
-    const region = await this.regionRepo.findById(regionId, tenantId);
+    const region = await this.regionRepo.findById(regionId, actor.tenantId ?? null);
     if (!region) {
       throw new ServiceRegionNotFoundError();
     }
@@ -42,7 +39,7 @@ export class DeleteServiceRegionUseCase {
       throw new ServiceRegionHasPublishedGroupsError();
     }
 
-    await this.regionRepo.delete(regionId, tenantId);
+    await this.regionRepo.delete(regionId, region.tenantId);
 
     this.auditService.log({
       action: 'service_region.deleted',
@@ -53,12 +50,5 @@ export class DeleteServiceRegionUseCase {
       before: { id: region.id, name: region.name, status: region.status },
       after: null,
     });
-  }
-
-  private resolveTenantId(actor: AuthContext): string {
-    if (!actor.tenantId) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
-    }
-    return actor.tenantId;
   }
 }

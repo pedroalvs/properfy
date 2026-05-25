@@ -115,6 +115,12 @@ import { ListAvailabilitySlotsUseCase } from '../modules/inspector/application/u
 import { UpdateAvailabilitySlotUseCase } from '../modules/inspector/application/use-cases/update-availability-slot.use-case';
 import { LinkInspectorToUserUseCase } from '../modules/inspector/application/use-cases/link-inspector-to-user.use-case';
 import { DeactivateInspectorUseCase } from '../modules/inspector/application/use-cases/deactivate-inspector.use-case';
+import { GenerateInspectorPhotoUploadUrlUseCase } from '../modules/inspector/application/use-cases/generate-inspector-photo-upload-url.use-case';
+import { ConfirmInspectorPhotoUploadUseCase } from '../modules/inspector/application/use-cases/confirm-inspector-photo-upload.use-case';
+import { UpdateInspectorSelfProfileUseCase } from '../modules/inspector/application/use-cases/update-inspector-self-profile.use-case';
+import { GenerateInspectorDocumentUploadUrlUseCase } from '../modules/inspector/application/use-cases/generate-inspector-document-upload-url.use-case';
+import { ConfirmInspectorDocumentUploadUseCase } from '../modules/inspector/application/use-cases/confirm-inspector-document-upload.use-case';
+import { GetInspectorDocumentDownloadUrlUseCase } from '../modules/inspector/application/use-cases/get-inspector-document-download-url.use-case';
 import { PrismaInspectorAppointmentChecker } from '../modules/inspector/infrastructure/prisma-inspector-appointment-checker';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
 
@@ -168,6 +174,7 @@ import type { MarketplaceRouteContainer } from '../modules/service-group/interfa
 import { PrismaTenantPortalTokenRepository } from '../modules/tenant-portal/infrastructure/prisma-tenant-portal-token.repository';
 import { PrismaTenantPortalActivityRepository } from '../modules/tenant-portal/infrastructure/prisma-tenant-portal-activity.repository';
 import { TokenService } from '../modules/tenant-portal/domain/token.service';
+import { MintPortalTokenService } from '../modules/tenant-portal/domain/mint-portal-token.service';
 import { GetPortalDataUseCase } from '../modules/tenant-portal/application/use-cases/get-portal-data.use-case';
 import { ConfirmAppointmentUseCase } from '../modules/tenant-portal/application/use-cases/confirm-appointment.use-case';
 import { RescheduleRequestUseCase } from '../modules/tenant-portal/application/use-cases/reschedule-request.use-case';
@@ -193,6 +200,8 @@ import { RequestAssetUploadUseCase } from '../modules/inspector-execution/applic
 import { ConfirmAssetUploadUseCase } from '../modules/inspector-execution/application/use-cases/confirm-asset-upload.use-case';
 import { SaveExecutionProgressUseCase } from '../modules/inspector-execution/application/use-cases/save-execution-progress.use-case';
 import { ReopenExecutionUseCase } from '../modules/inspector-execution/application/use-cases/reopen-execution.use-case';
+import { ListAppointmentAssetsUseCase } from '../modules/inspector-execution/application/use-cases/list-appointment-assets.use-case';
+import { GetAppointmentAssetDownloadUrlUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-asset-download-url.use-case';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 
 // Billing module
@@ -272,6 +281,7 @@ import { HandleProviderWebhookUseCase } from '../modules/notification/applicatio
 import { ListNotificationsUseCase } from '../modules/notification/application/use-cases/list-notifications.use-case';
 import { GetNotificationUseCase } from '../modules/notification/application/use-cases/get-notification.use-case';
 import { UpsertNotificationTemplateUseCase } from '../modules/notification/application/use-cases/upsert-notification-template.use-case';
+import { SendTestNotificationUseCase } from '../modules/notification/application/use-cases/send-test-notification.use-case';
 import { ListNotificationTemplatesUseCase } from '../modules/notification/application/use-cases/list-notification-templates.use-case';
 import { CreateNotificationUseCase } from '../modules/notification/application/use-cases/create-notification.use-case';
 import { PollRetryableNotificationsUseCase } from '../modules/notification/application/use-cases/poll-retryable-notifications.use-case';
@@ -283,6 +293,8 @@ import { ListConsentsByRecipientUseCase } from '../modules/notification/applicat
 import { OverrideConsentUseCase } from '../modules/notification/application/use-cases/override-consent.use-case';
 import { ReOptInUseCase } from '../modules/notification/application/use-cases/re-opt-in.use-case';
 import { UnsubscribeTokenService } from '../modules/notification/domain/unsubscribe-token.service';
+import { BuildNotificationPayloadService } from '../modules/notification/domain/build-notification-payload.service';
+import { AppointmentCodeFormatter } from '../modules/appointment/domain/appointment-code.formatter';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
 import { createWebhookSignatureValidator } from '../modules/notification/infrastructure/webhook-signature-validator';
 
@@ -340,13 +352,23 @@ import { ImportAppointmentsUseCase } from '../modules/appointment/application/us
 import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
 import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment/application/handlers/compensate-financial-on-done-rejected.handler';
 import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
-import { ListAppointmentContactsUseCase } from '../modules/appointment/application/use-cases/list-appointment-contacts.use-case';
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
 import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
+import { BulkResendReminderUseCase } from '../modules/appointment/application/use-cases/bulk-resend-reminder.use-case';
+import { BulkCancelAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-cancel-appointments.use-case';
+import { BulkRescheduleAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-reschedule-appointments.use-case';
+import { BulkStatusTransitionUseCase } from '../modules/appointment/application/use-cases/bulk-status-transition.use-case';
+import { BulkAssignInspectorUseCase } from '../modules/appointment/application/use-cases/bulk-assign-inspector.use-case';
+import { BulkReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/bulk-reopen-for-reschedule.use-case';
+import { AddAppointmentsToGroupUseCase } from '../modules/service-group/application/use-cases/add-appointments-to-group.use-case';
+import { CheckAppointmentsEligibilityForGroupUseCase } from '../modules/service-group/application/use-cases/check-appointments-eligibility-for-group.use-case';
+import { FindAddableGroupsForAppointmentsUseCase } from '../modules/service-group/application/use-cases/find-addable-groups-for-appointments.use-case';
 import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
+import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
+import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
 // Appointment time slot module
@@ -398,6 +420,7 @@ export interface AppContainer {
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
   expirePriorityWorker: ExpirePriorityWorker;
   auditRetentionWorker: AuditRetentionWorker;
+  rejectUnconfirmedWorker: RejectUnconfirmedWorker;
 }
 
 export function createContainer(logger: Logger): AppContainer {
@@ -455,11 +478,16 @@ export function createContainer(logger: Logger): AppContainer {
   const geoIpService = new StubGeoIpService();
   const sessionTrustService = new SessionTrustService(sessionRepo, geoIpService);
 
+  // S3 storage service (shared across modules)
+  const storageService = s3Client
+    ? new SupabaseStorageService(s3Client)
+    : new StubStorageService();
+
   // Auth use cases
   const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo, totpEncryptionService, sessionTrustService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
-  const getMeUseCase = new GetMeUseCase(userRepo);
+  const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService);
   const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
@@ -558,6 +586,12 @@ export function createContainer(logger: Logger): AppContainer {
   const linkInspectorToUserUseCase = new LinkInspectorToUserUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService);
   const inspectorAppointmentChecker = new PrismaInspectorAppointmentChecker(prisma);
   const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService, authorizationService);
+  const generateInspectorPhotoUploadUrlUseCase = new GenerateInspectorPhotoUploadUrlUseCase(inspectorRepo, storageService, auditService);
+  const confirmInspectorPhotoUploadUseCase = new ConfirmInspectorPhotoUploadUseCase(inspectorRepo, storageService, auditService);
+  const updateInspectorSelfProfileUseCase = new UpdateInspectorSelfProfileUseCase(inspectorRepo, auditService);
+  const generateInspectorDocumentUploadUrlUseCase = new GenerateInspectorDocumentUploadUrlUseCase(inspectorRepo, storageService, auditService);
+  const confirmInspectorDocumentUploadUseCase = new ConfirmInspectorDocumentUploadUseCase(inspectorRepo, storageService, auditService);
+  const getInspectorDocumentDownloadUrlUseCase = new GetInspectorDocumentDownloadUrlUseCase(inspectorRepo, storageService);
 
   // Notification repositories and create use case (needed before appointments for handler wiring)
   const notificationRepo = new PrismaNotificationRepository(prisma);
@@ -618,12 +652,37 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
     appointmentTimeSlotRepo, auditService, authorizationService,
   );
-  // Notification handlers (depend on appointmentRepo, propertyRepo, createNotificationUseCase)
+  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService);
+
+  // Tenant portal repositories — created BEFORE reopenForRescheduleUseCase
+  // so 026 §FR-543 can inject the token repo (revoke active portal tokens
+  // when the appointment is rescheduled).
+  const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
+  const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
+  const tokenService = new TokenService();
+  const mintPortalTokenService = new MintPortalTokenService(tenantPortalTokenRepo, tokenService);
+
+  const reopenForRescheduleUseCase = new ReopenForRescheduleUseCase(
+    appointmentRepo,
+    auditService,
+    authorizationService,
+    tenantPortalTokenRepo,
+  );
+
+  // Notification payload helpers — no constructor deps, safe to create here
+  const appointmentCodeFormatter = new AppointmentCodeFormatter();
+  const buildNotificationPayload = new BuildNotificationPayloadService();
+
+  // Notification handlers: depend on mintPortalTokenService + buildNotificationPayload
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
-    appointmentRepo, propertyRepo, createNotificationUseCase, logger, metrics,
+    appointmentRepo, propertyRepo, tenantRepo, notificationRepo,
+    mintPortalTokenService, buildNotificationPayload, appointmentCodeFormatter,
+    createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
   );
   const notifyOnTenantPortalActionHandler = new NotifyOnTenantPortalActionHandler(
-    appointmentRepo, propertyRepo, createNotificationUseCase, logger, metrics,
+    appointmentRepo, propertyRepo, tenantRepo, notificationRepo,
+    buildNotificationPayload, appointmentCodeFormatter,
+    createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
   );
 
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(
@@ -634,25 +693,34 @@ export function createContainer(logger: Logger): AppContainer {
     serviceTypeRepo,
     domainEventBus,
   );
-  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService);
-  const reopenForRescheduleUseCase = new ReopenForRescheduleUseCase(appointmentRepo, auditService, authorizationService);
 
-  // Tenant portal repositories and use cases
-  const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
-  const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
-  const tokenService = new TokenService();
   const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
   const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo);
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
-  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, tokenService, auditService, createNotificationUseCase);
+  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase);
   const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
+  const bulkResendReminderUseCase = new BulkResendReminderUseCase(generatePortalTokenUseCase, idempotencyService);
+
+  // 025 — bulk map-flow actions (cancel / reschedule / status-transition / assign-inspector).
+  // Each delegates to an existing single-item use case; the wrapper adds per-item idempotency
+  // and the typed result envelope. State machine sovereignty stays with the underlying use cases.
+  const bulkCancelAppointmentsUseCase = new BulkCancelAppointmentsUseCase(executeStatusTransitionUseCase, idempotencyService);
+  const bulkRescheduleAppointmentsUseCase = new BulkRescheduleAppointmentsUseCase(updateAppointmentUseCase, idempotencyService);
+  const bulkStatusTransitionUseCase = new BulkStatusTransitionUseCase(executeStatusTransitionUseCase, idempotencyService);
+  const bulkAssignInspectorUseCase = new BulkAssignInspectorUseCase(bulkEditAppointmentsUseCase, idempotencyService);
+
+  // 026 — bulk reopen for reschedule + add-to-group flow. The reopen wrapper
+  // delegates per-item to ReopenForRescheduleUseCase (which now also revokes
+  // active portal tokens — see container ordering above).
+  const bulkReopenForRescheduleUseCase = new BulkReopenForRescheduleUseCase(
+    reopenForRescheduleUseCase,
+    appointmentRepo,
+    idempotencyService,
+  );
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
   const inspectionAssetRepo = new PrismaInspectionAssetRepository(prisma);
-  const storageService = s3Client
-    ? new SupabaseStorageService(s3Client)
-    : new StubStorageService();
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
   const tenantSettingsReader = new PrismaTenantSettingsReader(prisma);
   const performCrossCheckUseCase = new PerformCrossCheckUseCase(
@@ -704,12 +772,19 @@ export function createContainer(logger: Logger): AppContainer {
   const reopenExecutionUseCase = new ReopenExecutionUseCase(
     inspectionExecutionRepo, appointmentRepo, auditService, authorizationService,
   );
+  const listAppointmentAssetsUseCase = new ListAppointmentAssetsUseCase(
+    inspectionAssetRepo, appointmentRepo, authorizationService,
+  );
+  const getAppointmentAssetDownloadUrlUseCase = new GetAppointmentAssetDownloadUrlUseCase(
+    inspectionAssetRepo, storageService, authorizationService,
+  );
 
   // Audit use cases
   const listAuditLogsUseCase = new ListAuditLogsUseCase(
     auditLogRepo,
     userManagementRepo,
     piiFieldMappingRepo,
+    tenantRepo,
   );
 
   // Feature 020: data subject erasure workflow (AM-only, LGPD compliance)
@@ -751,6 +826,24 @@ export function createContainer(logger: Logger): AppContainer {
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, tenantRepo);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
+
+  // 026 — Add appointments to existing group + read-only eligibility preview.
+  const addAppointmentsToGroupUseCase = new AddAppointmentsToGroupUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    auditService,
+    authorizationService,
+  );
+  const checkAppointmentsEligibilityForGroupUseCase = new CheckAppointmentsEligibilityForGroupUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    authorizationService,
+  );
+  const findAddableGroupsForAppointmentsUseCase = new FindAddableGroupsForAppointmentsUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    authorizationService,
+  );
 
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
@@ -923,11 +1016,22 @@ export function createContainer(logger: Logger): AppContainer {
   const upsertNotificationTemplateUseCase = new UpsertNotificationTemplateUseCase(
     notificationTemplateRepo, templateRenderer, auditService, authorizationService,
   );
+  const sendTestNotificationUseCase = new SendTestNotificationUseCase(
+    notificationTemplateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
+  );
   const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo, authorizationService);
   // createNotificationUseCase and notificationJobQueue created above (before appointments)
   const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue, logger);
-  const dispatchRemindersUseCase = new DispatchRemindersUseCase(appointmentRepo, notificationRepo, createNotificationUseCase);
-  const dispatchEscalationsUseCase = new DispatchEscalationsUseCase(appointmentRepo, branchRepo, notificationRepo, createNotificationUseCase);
+  const dispatchRemindersUseCase = new DispatchRemindersUseCase(
+    appointmentRepo, tenantRepo, notificationRepo,
+    buildNotificationPayload, appointmentCodeFormatter,
+    createNotificationUseCase, env.TENANT_PORTAL_BASE_URL,
+  );
+  const dispatchEscalationsUseCase = new DispatchEscalationsUseCase(
+    appointmentRepo, branchRepo, tenantRepo, notificationRepo,
+    buildNotificationPayload, appointmentCodeFormatter,
+    createNotificationUseCase, env.TENANT_PORTAL_BASE_URL,
+  );
   const unsubscribeTokenService = new UnsubscribeTokenService(env.NOTIFICATION_UNSUBSCRIBE_SECRET);
   const processUnsubscribeUseCase = new ProcessUnsubscribeUseCase(
     consentRepo,
@@ -986,7 +1090,6 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentImportRepo, reportStorageService, importJobQueue, idempotencyService, authorizationService,
   );
   const getImportStatusUseCase = new GetImportStatusUseCase(appointmentImportRepo, authorizationService);
-  const listAppointmentContactsUseCase = new ListAppointmentContactsUseCase(appointmentRepo, authorizationService);
 
   // Workers
   const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
@@ -1004,7 +1107,7 @@ export function createContainer(logger: Logger): AppContainer {
     inspectorInvoiceRepo, financialEntryRepo, xlsxGenerator, reportStorageService, logger,
   );
   const expireTokensWorker = new ExpireTokensWorker(tenantPortalTokenRepo, logger);
-  const expireAssetsWorker = new ExpireAssetsWorker(inspectionAssetRepo, logger);
+  const expireAssetsWorker = new ExpireAssetsWorker(inspectionAssetRepo, storageService, logger);
   const notifyStuckInspectionsWorker = new NotifyStuckInspectionsWorker(
     inspectionExecutionRepo, appointmentRepo, createNotificationUseCase, logger,
   );
@@ -1019,6 +1122,12 @@ export function createContainer(logger: Logger): AppContainer {
     logger,
     env.AUDIT_RETENTION_BATCH_SIZE,
   );
+
+  // Reject unconfirmed appointments cleanup worker
+  const rejectUnconfirmedAppointmentsUseCase = new RejectUnconfirmedAppointmentsUseCase(
+    appointmentRepo, serviceGroupRepo, auditService, logger,
+  );
+  const rejectUnconfirmedWorker = new RejectUnconfirmedWorker(rejectUnconfirmedAppointmentsUseCase);
 
   // Feature 020 US5: operator control use cases
   const upsertRetentionCategoryUseCase = new UpsertRetentionCategoryUseCase(
@@ -1150,6 +1259,12 @@ export function createContainer(logger: Logger): AppContainer {
       updateAvailabilitySlotUseCase,
       linkInspectorToUserUseCase,
       deactivateInspectorUseCase,
+      generateInspectorPhotoUploadUrlUseCase,
+      confirmInspectorPhotoUploadUseCase,
+      updateInspectorSelfProfileUseCase,
+      generateInspectorDocumentUploadUrlUseCase,
+      confirmInspectorDocumentUploadUseCase,
+      getInspectorDocumentDownloadUrlUseCase,
       jwtService,
       tenantRepo,
       slotRepo: availabilitySlotRepo,
@@ -1165,10 +1280,14 @@ export function createContainer(logger: Logger): AppContainer {
       reopenForRescheduleUseCase,
       importAppointmentsUseCase,
       getImportStatusUseCase,
-      listAppointmentContactsUseCase,
       deleteAppointmentUseCase,
       bulkEditAppointmentsUseCase,
-      appointmentRepo,
+      bulkResendReminderUseCase,
+      bulkCancelAppointmentsUseCase,
+      bulkRescheduleAppointmentsUseCase,
+      bulkStatusTransitionUseCase,
+      bulkAssignInspectorUseCase,
+      bulkReopenForRescheduleUseCase,
       jwtService,
       tenantRepo,
       idempotencyService,
@@ -1220,6 +1339,9 @@ export function createContainer(logger: Logger): AppContainer {
       rejectServiceGroupUseCase,
       updateServiceGroupUseCase,
       republishServiceGroupUseCase,
+      addAppointmentsToGroupUseCase,
+      checkAppointmentsEligibilityForGroupUseCase,
+      findAddableGroupsForAppointmentsUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1254,6 +1376,8 @@ export function createContainer(logger: Logger): AppContainer {
       confirmAssetUploadUseCase,
       getMarketplaceOffersUseCase,
       draftInspectorInvoiceUseCase,
+      listAppointmentAssetsUseCase,
+      getAppointmentAssetDownloadUrlUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1310,6 +1434,7 @@ export function createContainer(logger: Logger): AppContainer {
       listNotificationsUseCase,
       getNotificationUseCase,
       upsertNotificationTemplateUseCase,
+      sendTestNotificationUseCase,
       listNotificationTemplatesUseCase,
       createNotificationUseCase,
       pollRetryableNotificationsUseCase,
@@ -1363,5 +1488,6 @@ export function createContainer(logger: Logger): AppContainer {
     notifyStuckInspectionsWorker,
     expirePriorityWorker,
     auditRetentionWorker,
+    rejectUnconfirmedWorker,
   };
 }

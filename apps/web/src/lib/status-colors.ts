@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, type InspectorInvoiceStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, type InspectorInvoiceStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -43,6 +43,14 @@ export function getStatusStyle(status: AppointmentStatus): StatusStyle {
   return APPOINTMENT_STATUS_MAP[status];
 }
 
+export const CONTACT_TYPE_MAP: Record<ContactType, StatusStyle> = {
+  [ContactType.TENANT]:           { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Tenant' },
+  [ContactType.PROPERTY_MANAGER]: { bg: 'var(--color-type-commercial)',  text: 'var(--color-text-primary)', label: 'Property Manager' },
+  [ContactType.HOUSEKEEPER]:      { bg: 'var(--color-type-rural)',       text: 'var(--color-text-primary)', label: 'Housekeeper' },
+  [ContactType.BROKER]:           { bg: 'var(--color-type-industrial)',  text: 'var(--color-text-primary)', label: 'Broker' },
+  [ContactType.OTHER]:            { bg: 'var(--color-status-draft)',     text: 'var(--color-text-primary)', label: 'Other' },
+};
+
 export const PROPERTY_TYPE_MAP: Record<PropertyType, StatusStyle> = {
   [PropertyType.RESIDENTIAL]: { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Residential' },
   [PropertyType.COMMERCIAL]:  { bg: 'var(--color-type-commercial)',  text: 'var(--color-text-primary)', label: 'Commercial' },
@@ -56,10 +64,10 @@ export const INSPECTOR_STATUS_MAP: Record<InspectorStatus, StatusStyle> = {
 };
 
 export const SERVICE_GROUP_STATUS_MAP: Record<ServiceGroupStatus, StatusStyle> = {
-  [ServiceGroupStatus.DRAFT]:     { bg: 'var(--color-sg-draft)',     text: 'var(--color-text-primary)', label: 'Draft' },
-  [ServiceGroupStatus.PUBLISHED]: { bg: 'var(--color-sg-published)', text: 'var(--color-text-primary)', label: 'Published' },
+  [ServiceGroupStatus.DRAFT]:     { bg: 'var(--color-sg-draft)',     text: 'var(--color-text-primary)', label: 'Awaiting Host' },
+  [ServiceGroupStatus.PUBLISHED]: { bg: 'var(--color-sg-published)', text: 'var(--color-text-primary)', label: 'Awaiting Inspector' },
   [ServiceGroupStatus.ACCEPTED]:  { bg: 'var(--color-sg-accepted)',  text: 'var(--color-text-primary)', label: 'Accepted' },
-  [ServiceGroupStatus.CANCELLED]: { bg: 'var(--color-sg-cancelled)', text: 'var(--color-text-primary)', label: 'Cancelled' },
+  [ServiceGroupStatus.CANCELLED]: { bg: 'var(--color-sg-cancelled)', text: 'var(--color-text-primary)', label: 'Canceled' },
   [ServiceGroupStatus.REJECTED]:  { bg: 'var(--color-sg-cancelled)', text: 'var(--color-text-primary)', label: 'Rejected' },
 };
 
@@ -161,4 +169,28 @@ export const SLOT_STATUS_MAP: Record<AvailabilitySlotStatus, StatusStyle> = {
   [AvailabilitySlotStatus.AVAILABLE]: { bg: 'var(--color-slot-available)', text: 'var(--color-text-primary)', label: 'Available' },
   [AvailabilitySlotStatus.BOOKED]:    { bg: 'var(--color-slot-booked)',    text: 'var(--color-text-primary)', label: 'Booked' },
   [AvailabilitySlotStatus.CANCELLED]: { bg: 'var(--color-slot-cancelled)', text: 'var(--color-text-primary)', label: 'Cancelled' },
+};
+
+/**
+ * Notification dispatch status (per-row in the appointment notifications
+ * tab). Mirrors the full `NotificationStatus` enum from
+ * `@properfy/shared/enums/notification`:
+ *   - PENDING:          queued / in flight.
+ *   - SENT:             handed off to provider.
+ *   - DELIVERED:        provider acked end-to-end.
+ *   - FAILED:           provider rejected or transport error.
+ *   - SKIPPED:          dispatch deliberately suppressed (rule, quiet hours,
+ *                       missing recipient channel).
+ *   - SKIPPED_OPT_OUT:  recipient unsubscribed from this notification class.
+ * Reuses existing status-color tokens to stay aligned with the rest of
+ * the design system; the two SKIPPED states share the "cancelled"
+ * palette so they read as terminal-non-failure at a glance.
+ */
+export const NOTIFICATION_STATUS_MAP: Record<string, StatusStyle> = {
+  PENDING:         { bg: 'var(--color-status-draft)',     text: 'var(--color-text-primary)', label: 'Pending' },
+  SENT:            { bg: 'var(--color-status-scheduled)', text: 'var(--color-text-primary)', label: 'Sent' },
+  DELIVERED:       { bg: 'var(--color-status-done)',      text: 'var(--color-text-primary)', label: 'Delivered' },
+  FAILED:          { bg: 'var(--color-status-rejected)',  text: 'var(--color-text-primary)', label: 'Failed' },
+  SKIPPED:         { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Skipped' },
+  SKIPPED_OPT_OUT: { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Skipped (opt-out)' },
 };

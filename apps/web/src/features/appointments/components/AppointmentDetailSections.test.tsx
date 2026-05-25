@@ -31,11 +31,13 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     isOverdue: false,
+    hasTenantNote: false,
     createdAt: '2026-03-10T10:00:00Z',
     updatedAt: '2026-03-10T10:00:00Z',
     meetingLocation: 'Main entrance',
     keyLocation: 'With the caretaker',
     cancellationReason: null,
+    tenantNote: null,
     ...overrides,
   };
 }
@@ -110,6 +112,37 @@ describe('AppointmentDetailSections', () => {
 
     expect(screen.getByText('Operational Validation')).toBeInTheDocument();
     expect(screen.getByText('Pending operator cross-check')).toBeInTheDocument();
+  });
+
+  it('shows tenant note section when tenantNote is present', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({ tenantNote: 'I will be late by 10 minutes' })}
+      />,
+    );
+
+    expect(screen.getByText('Tenant Note')).toBeInTheDocument();
+    expect(screen.getByText('I will be late by 10 minutes')).toBeInTheDocument();
+  });
+
+  it('does not show tenant note section when tenantNote is null', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({ tenantNote: null })}
+      />,
+    );
+
+    expect(screen.queryByText('Tenant Note')).not.toBeInTheDocument();
+  });
+
+  it('does not show tenant note section when tenantNote is empty string', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({ tenantNote: '' })}
+      />,
+    );
+
+    expect(screen.queryByText('Tenant Note')).not.toBeInTheDocument();
   });
 
   it('shows validated state when DONE already has cross-check', () => {

@@ -31,14 +31,18 @@ export interface GetAppointmentOutput {
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
+  tenantNote: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
+  rejectionReasonCode: string | null;
   createdByUserId: string;
   doneCheckedByUserId: string | null;
   doneCheckedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   // Enriched flat fields
+  /** Formatted appointment code (e.g. "INS-0042"). */
+  appointmentCode: string;
   code: string;
   propertyAddress: string;
   contactName: string;
@@ -47,6 +51,8 @@ export interface GetAppointmentOutput {
   inspectorName: string | null;
   branchName: string;
   serviceTypeName: string;
+  /** Tenant (agency) display name — labelled "CLIENT" in the map detail panel (025 §FR-451). */
+  clientName: string;
   isOverdue: boolean;
   cancellationReason: string | null;
   latitude: number | null;
@@ -82,6 +88,9 @@ export interface GetAppointmentOutput {
 
 function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
   const { appointment, contact, restrictions } = found;
+  const prefix = found.tenantAppointmentCodePrefix ?? 'INS';
+  const padded = String(appointment.appointmentNumber).padStart(4, '0');
+  const appointmentCode = `${prefix}-${padded}`;
   return {
     id: appointment.id,
     appointmentNumber: appointment.appointmentNumber,
@@ -101,14 +110,17 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     payoutAmount: appointment.payoutAmount,
     pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,
     notes: appointment.notes,
+    tenantNote: appointment.tenantNote,
     customFieldsJson: appointment.customFieldsJson,
     reason: appointment.reason,
+    rejectionReasonCode: appointment.rejectionReasonCode ?? null,
     createdByUserId: appointment.createdByUserId,
     doneCheckedByUserId: appointment.doneCheckedByUserId,
     doneCheckedAt: appointment.doneCheckedAt,
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
     // Enriched fields from joins
+    appointmentCode,
     code: found.propertyCode ?? '',
     propertyAddress: found.propertyAddress ?? '',
     contactName: contact?.effectiveName ?? '',
@@ -117,6 +129,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     inspectorName: found.inspectorName ?? null,
     branchName: found.branchName ?? '',
     serviceTypeName: found.serviceTypeName ?? '',
+    clientName: found.tenantName ?? '',
     isOverdue: isAppointmentOverdue(appointment.status, appointment.scheduledDate),
     cancellationReason: appointment.reason,
     latitude: found.propertyLatitude ?? null,

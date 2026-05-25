@@ -43,3 +43,32 @@
     font-family: inherit;
   }
 }
+
+/*
+ * 025 round-2 fix — appointment map cursor states.
+ *
+ * The lasso-draw layer (mapbox-gl-draw) sets `cursor: crosshair` on the
+ * canvas while in `draw_polygon` mode, but React-rendered overlays
+ * (markers, labels, floating action buttons) re-introduce their own
+ * cursor styles and produce flicker as the pointer crosses overlay
+ * boundaries. The selectors below force a consistent crosshair while
+ * drawing and disable text selection on any element inside the map
+ * wrapper — selecting text was the root cause of the `cursor: text`
+ * flicker the user reported.
+ */
+.appt-map-lasso-drawing,
+.appt-map-lasso-drawing * {
+  cursor: crosshair !important;
+  user-select: none;
+}
+
+.appt-map-lasso-review,
+.appt-map-lasso-review .mapboxgl-canvas {
+  cursor: grab;
+}
+
+/* Disable all marker pointer events while a lasso is being drawn so
+ * the click that closes the polygon never lands on a marker. */
+.appt-map-lasso-drawing .mapboxgl-marker {
+  pointer-events: none;
+}

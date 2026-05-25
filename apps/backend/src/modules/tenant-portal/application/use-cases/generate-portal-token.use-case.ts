@@ -2,9 +2,8 @@ import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-to
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
-import type { TokenService } from '../../domain/token.service';
+import type { MintPortalTokenService } from '../../domain/mint-portal-token.service';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
-import { TenantPortalTokenEntity } from '../../domain/tenant-portal-token.entity';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 
 export interface AuthContext {
@@ -26,18 +25,16 @@ export class GeneratePortalTokenUseCase {
     private readonly tokenRepo: ITenantPortalTokenRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly tenantRepo: ITenantRepository,
-    private readonly tokenService: TokenService,
+    private readonly mintPortalTokenService: MintPortalTokenService,
     private readonly auditService: AuditService,
     private readonly createNotificationUseCase?: CreateNotificationUseCase,
   ) {}
 
   async execute(input: GeneratePortalTokenInput) {
-    // 1. Validate actor role
     if (!ALLOWED_ROLES.includes(input.actor.role as (typeof ALLOWED_ROLES)[number])) {
       throw new ForbiddenError('FORBIDDEN', 'Only AM or OP roles can generate portal tokens');
     }
 
-    // 2. Load appointment (AM passes null for tenantId to access any tenant)
     const tenantIdForQuery = input.actor.role === 'AM' ? null : input.actor.tenantId;
     const result = await this.appointmentRepo.findById(input.appointmentId, tenantIdForQuery);
     if (!result) {
@@ -46,48 +43,19 @@ export class GeneratePortalTokenUseCase {
 
     const { appointment } = result;
 
-    // 3. Load tenant to get timezone
     const tenant = await this.tenantRepo.findById(appointment.tenantId);
     if (!tenant) {
       throw new NotFoundError('TENANT_NOT_FOUND', 'Tenant not found');
     }
 
-    // 4. Revoke all existing tokens for this appointment
-    await this.tokenRepo.revokeAllForAppointment(input.appointmentId);
+    const { rawToken, expiresAt } = await this.mintPortalTokenService.mint(appointment, tenant);
 
-    // 5. Generate and hash token
-    const rawToken = this.tokenService.generateRawToken();
-    const tokenHash = this.tokenService.hashToken(rawToken);
-
-    // 6. Compute expiry based on scheduled date, tenant timezone and cutoff settings
-    const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0]!;
-    const settings = tenant.settingsJson ?? {};
-    const cutoffHour = typeof settings.portalCutoffHour === 'number' ? settings.portalCutoffHour : 19;
-    const cutoffDaysBefore = typeof settings.portalCutoffDaysBefore === 'number' ? settings.portalCutoffDaysBefore : 1;
-    const expiresAt = this.tokenService.computeExpiresAt(scheduledDateStr, tenant.timezone, cutoffHour, cutoffDaysBefore);
-
-    // 7. Create and save token entity
-    const now = new Date();
-    const tokenEntity = new TenantPortalTokenEntity({
-      id: crypto.randomUUID(),
-      appointmentId: input.appointmentId,
-      tokenHash,
-      expiresAt,
-      status: 'ACTIVE',
-      usedAt: null,
-      lastAccessedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await this.tokenRepo.save(tokenEntity);
-
-    // 8. Audit log
     this.auditService.log({
       action: 'tenant_portal.token_generated',
       actorType: 'USER',
       actorId: input.actor.userId,
       entityType: 'tenant_portal_token',
-      entityId: tokenEntity.id,
+      entityId: appointment.id,
       tenantId: appointment.tenantId,
       metadata: {
         appointmentId: input.appointmentId,
@@ -95,16 +63,39 @@ export class GeneratePortalTokenUseCase {
       },
     });
 
-    // 9. Send portal link notification — fire-and-forget. The token itself
-    // has already been persisted; a notification send failure (missing
-    // template row, provider hiccup, queue error, etc.) must not turn the
-    // endpoint into a 500. The same fire-and-forget pattern is used by
-    // RescheduleRequestUseCase when it auto-refreshes the token. Bug B-5
-    // (QA 2026-04-19) — the previous implementation `await`ed both sends
-    // unconditionally, and any downstream error bubbled up as 500.
-    if (this.createNotificationUseCase && result.contact) {
+    // 023 §FR-221 — primary-only dispatch. Without an `isPrimary === true`
+    // contact, the portal link has no canonical recipient. We still mint the
+    // token (the AM/OP request is auditable as a privileged action), but skip
+    // the notification dispatch and return `dispatched: false` so the bulk
+    // re-send use case can surface NO_PRIMARY_CONTACT to the operator.
+    if (!result.contact || result.contact.isPrimary !== true) {
+      this.auditService.log({
+        action: 'tenant_portal.dispatch_skipped',
+        actorType: 'USER',
+        actorId: input.actor.userId,
+        entityType: 'appointment',
+        entityId: appointment.id,
+        tenantId: appointment.tenantId,
+        metadata: {
+          appointmentId: input.appointmentId,
+          reason: 'NO_PRIMARY_CONTACT',
+        },
+      });
+      return {
+        token: rawToken,
+        expiresAt,
+        dispatched: false as const,
+        reason: 'NO_PRIMARY_CONTACT' as const,
+      };
+    }
+
+    // Send portal link notification — fire-and-forget. The token is already persisted;
+    // a notification failure must not turn the endpoint into a 500.
+    if (this.createNotificationUseCase) {
+      const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0] ?? '';
       const payloadJson = {
-        portalToken: rawToken,
+        confirmationLink: rawToken,
+        rescheduleLink: rawToken,
         scheduledDate: scheduledDateStr,
         tenantName: result.contact.effectiveName,
       };
@@ -142,14 +133,10 @@ export class GeneratePortalTokenUseCase {
       }
     }
 
-    // Return shape matches the wire contract (portalTokenResponseSchema):
-    // `token` is the unhashed value the client needs to deep-link; the DB
-    // holds `tokenHash` only. Bug B-5 (QA 2026-04-18) — this field used to be
-    // `rawToken`, which made the Fastify response serializer drop it and
-    // surface a 500 on /v1/appointments/:id/portal-token.
     return {
       token: rawToken,
       expiresAt,
+      dispatched: true as const,
     };
   }
 }

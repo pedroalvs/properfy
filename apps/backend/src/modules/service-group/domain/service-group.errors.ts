@@ -20,7 +20,7 @@ export class GroupSizeTooSmallError extends DomainError {
 
 export class GroupSizeTooLargeError extends DomainError {
   constructor(size: number) {
-    super('GROUP_SIZE_TOO_LARGE', `Group must have at most 25 appointments, got ${size}`, 422);
+    super('GROUP_SIZE_TOO_LARGE', `Group must have at most 30 appointments, got ${size}`, 422);
   }
 }
 
@@ -131,6 +131,18 @@ export class ServiceRegionRequiredError extends DomainError {
 export class ServiceRegionInactiveError extends DomainError {
   constructor() {
     super('SERVICE_REGION_INACTIVE', 'The assigned service region is no longer active', 422);
+  }
+}
+
+export class ServiceGroupDateInPastError extends DomainError {
+  constructor() {
+    super('SERVICE_GROUP_DATE_IN_PAST', 'Service group scheduled date cannot be in the past', 422);
+  }
+}
+
+export class ServiceGroupTimeInPastError extends DomainError {
+  constructor() {
+    super('SERVICE_GROUP_TIME_IN_PAST', 'Selected time window has already passed for today — please choose a later window', 422);
   }
 }
 

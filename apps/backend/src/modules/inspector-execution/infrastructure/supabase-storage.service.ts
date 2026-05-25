@@ -1,5 +1,5 @@
-import type { S3Client} from '@aws-sdk/client-s3';
-import { PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import type { S3Client } from '@aws-sdk/client-s3';
+import { PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type {
   IStorageService,
@@ -14,11 +14,10 @@ export class SupabaseStorageService implements IStorageService {
     bucket: string,
     key: string,
     ttlSeconds: number,
+    contentType: string,
   ): Promise<SignedUploadUrlResult> {
-    const command = new PutObjectCommand({ Bucket: bucket, Key: key });
-    const url = await getSignedUrl(this.s3Client, command, {
-      expiresIn: ttlSeconds,
-    });
+    const command = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
+    const url = await getSignedUrl(this.s3Client, command, { expiresIn: ttlSeconds });
     return { url, storageKey: key };
   }
 
@@ -33,5 +32,15 @@ export class SupabaseStorageService implements IStorageService {
       }
       throw error;
     }
+  }
+
+  async createSignedDownloadUrl(bucket: string, key: string, ttlSeconds: number): Promise<string> {
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+    return getSignedUrl(this.s3Client, command, { expiresIn: ttlSeconds });
+  }
+
+  async deleteObject(bucket: string, key: string): Promise<void> {
+    const command = new DeleteObjectCommand({ Bucket: bucket, Key: key });
+    await this.s3Client.send(command);
   }
 }

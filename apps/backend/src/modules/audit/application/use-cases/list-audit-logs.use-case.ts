@@ -25,9 +25,14 @@ interface UserReader {
   findById(id: string): Promise<{ id: string; name: string } | null>;
 }
 
+interface TenantReader {
+  findById(id: string): Promise<{ id: string; name: string } | null>;
+}
+
 export interface AuditLogOutput {
   id: string;
   tenantId: string | null;
+  tenantName: string | null;
   actorType: string;
   actorId: string | null;
   actorName: string | null;
@@ -55,6 +60,7 @@ export class ListAuditLogsUseCase {
     private readonly auditLogRepo: IAuditLogRepository,
     private readonly userReader?: UserReader,
     private readonly piiFieldMappingRepo?: IPiiFieldMappingRepository,
+    private readonly tenantReader?: TenantReader,
   ) {}
 
   async execute(input: ListAuditLogsInput): Promise<ListAuditLogsOutput> {
@@ -110,6 +116,20 @@ export class ListAuditLogsUseCase {
       );
     }
 
+    // Batch-fetch tenant names
+    const tenantIds = [
+      ...new Set(data.filter((e) => e.tenantId).map((e) => e.tenantId!)),
+    ];
+    const tenantMap = new Map<string, string>();
+    if (this.tenantReader && tenantIds.length > 0) {
+      await Promise.all(
+        tenantIds.map(async (tid) => {
+          const tenant = await this.tenantReader!.findById(tid);
+          if (tenant) tenantMap.set(tid, tenant.name);
+        }),
+      );
+    }
+
     // Feature 020 FR-025: role-based read-time masking.
     // - AM: raw PII (no masking applied)
     // - OP: partial masks via `pii-read-mask.ts` (email/phone/name)
@@ -136,6 +156,7 @@ export class ListAuditLogsUseCase {
         return {
           id: entry.id,
           tenantId: entry.tenantId,
+          tenantName: entry.tenantId ? tenantMap.get(entry.tenantId) ?? null : null,
           actorType: entry.actorType,
           actorId: entry.actorId,
           actorName:

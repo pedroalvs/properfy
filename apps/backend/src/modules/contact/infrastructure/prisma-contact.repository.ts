@@ -1,11 +1,13 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import type { ContactType } from '@properfy/shared';
 import { ContactEntity } from '../domain/contact.entity';
+import type { ContactScope } from '../domain/contact.scope';
 import type {
   IContactRepository,
   ContactFilters,
   ContactPagination,
   ContactAppointmentSummary,
+  ContactPropertyAggregate,
 } from '../domain/contact.repository';
 
 function toSnakeCase(str: string): string {
@@ -14,7 +16,8 @@ function toSnakeCase(str: string): string {
 
 function mapToEntity(row: {
   id: string;
-  tenant_id: string;
+  // 024 §FR-301 — nullable: standalone contacts (junction-less) carry null.
+  tenant_id: string | null;
   type: string;
   display_name: string;
   company: string | null;
@@ -63,6 +66,11 @@ export class PrismaContactRepository implements IContactRepository {
   }
 
   async findById(contactId: string, tenantId: string | null): Promise<ContactEntity | null> {
+    // 024 §FR-303 — `findById` no longer enforces a `tenant_id` row filter.
+    // Visibility for CL roles is checked at the use-case level via
+    // `existsLinkedToTenant` (operational junction). The legacy
+    // `tenantId` argument is preserved as an optional row-level filter for
+    // AM/OP callers that want to pin to a specific tenant explicitly.
     const where: Record<string, unknown> = { id: contactId };
     if (tenantId) where['tenant_id'] = tenantId;
 
@@ -70,8 +78,12 @@ export class PrismaContactRepository implements IContactRepository {
     return row ? mapToEntity(row) : null;
   }
 
-  async findAll(filters: ContactFilters, pagination: ContactPagination): Promise<ContactEntity[]> {
-    const where = this.buildWhere(filters);
+  async findAll(
+    filters: ContactFilters,
+    pagination: ContactPagination,
+    scope: ContactScope,
+  ): Promise<ContactEntity[]> {
+    const where = this.buildWhere(filters, scope);
     const rows = await this.prisma.contact.findMany({
       where,
       skip: (pagination.page - 1) * pagination.pageSize,
@@ -83,8 +95,8 @@ export class PrismaContactRepository implements IContactRepository {
     return rows.map(mapToEntity);
   }
 
-  async count(filters: ContactFilters): Promise<number> {
-    const where = this.buildWhere(filters);
+  async count(filters: ContactFilters, scope: ContactScope): Promise<number> {
+    const where = this.buildWhere(filters, scope);
     return this.prisma.contact.count({ where });
   }
 
@@ -175,7 +187,7 @@ export class PrismaContactRepository implements IContactRepository {
 
   async update(
     contactId: string,
-    tenantId: string,
+    tenantId: string | null,
     data: Partial<{
       type: ContactType;
       displayName: string;
@@ -197,15 +209,27 @@ export class PrismaContactRepository implements IContactRepository {
     if (data.notes !== undefined) updateData['notes'] = data.notes;
     if (data.isActive !== undefined) updateData['is_active'] = data.isActive;
 
+    // 024 §FR-303 — visibility for CL roles is checked at the use case
+    // level via `existsLinkedToTenant`. The optional `tenantId` here is a
+    // belt-and-suspenders row filter for callers that want to pin the
+    // mutation to a specific tenant_id. When `null`, no row filter is
+    // applied at the SQL level.
+    const where: Record<string, unknown> = { id: contactId };
+    if (tenantId) where['tenant_id'] = tenantId;
+
     await this.prisma.contact.updateMany({
-      where: { id: contactId, tenant_id: tenantId },
+      where: where as any,
       data: updateData,
     });
   }
 
-  async existsByEmail(tenantId: string, email: string, excludeContactId?: string): Promise<boolean> {
+  // 024 §FR-310 — global uniqueness. The `tenantId` parameter from 021 is
+  // ignored: the partial unique indexes `contacts_email_active_unique` and
+  // `contacts_phone_active_unique` enforce uniqueness across all tenants.
+  // The use-case-level check exists to surface a friendly error code before
+  // hitting the constraint.
+  async existsByEmail(_tenantId: string | null, email: string, excludeContactId?: string): Promise<boolean> {
     const where: Record<string, unknown> = {
-      tenant_id: tenantId,
       primary_email: email,
       is_active: true,
     };
@@ -216,28 +240,8 @@ export class PrismaContactRepository implements IContactRepository {
     return count > 0;
   }
 
-  async findActiveByEmailOrPhone(
-    tenantId: string,
-    email: string | null,
-    phone: string | null,
-  ): Promise<ContactEntity | null> {
-    if (!email && !phone) return null;
-    const or: Array<Record<string, unknown>> = [];
-    if (email) or.push({ primary_email: email });
-    if (phone) or.push({ primary_phone: phone });
-    const row = await this.prisma.contact.findFirst({
-      where: {
-        tenant_id: tenantId,
-        is_active: true,
-        OR: or,
-      } as any,
-    });
-    return row ? mapToEntity(row) : null;
-  }
-
-  async existsByPhone(tenantId: string, phone: string, excludeContactId?: string): Promise<boolean> {
+  async existsByPhone(_tenantId: string | null, phone: string, excludeContactId?: string): Promise<boolean> {
     const where: Record<string, unknown> = {
-      tenant_id: tenantId,
       primary_phone: phone,
       is_active: true,
     };
@@ -248,12 +252,66 @@ export class PrismaContactRepository implements IContactRepository {
     return count > 0;
   }
 
+  async findActiveByEmailOrPhone(
+    _tenantId: string | null,
+    email: string | null,
+    phone: string | null,
+  ): Promise<ContactEntity | null> {
+    if (!email && !phone) return null;
+    const or: Array<Record<string, unknown>> = [];
+    if (email) or.push({ primary_email: email });
+    if (phone) or.push({ primary_phone: phone });
+    // 024 §FR-310 — global lookup. The previous tenant_id filter is
+    // dropped: the registry row is shared across tenants now, so the
+    // appointment inline-create path should reuse any active row that
+    // matches, regardless of which tenant originally created it.
+    const row = await this.prisma.contact.findFirst({
+      where: {
+        is_active: true,
+        OR: or,
+      } as any,
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  /**
+   * 024 §FR-303 — visibility check for CL roles. Returns true iff the
+   * contact appears in at least one `appointment_contacts` row whose joined
+   * `appointments.tenant_id` matches `tenantId`. The OR-with-legacy
+   * `contacts.tenant_id` match in `buildWhere` covers backfill safety for
+   * pre-024 rows that have not yet been linked to an appointment.
+   */
+  async existsLinkedToTenant(contactId: string, tenantId: string): Promise<boolean> {
+    const rows = await this.prisma.$queryRaw<Array<{ exists: boolean }>>`
+      SELECT EXISTS (
+        SELECT 1 FROM appointment_contacts ac
+        JOIN appointments a ON a.id = ac.appointment_id
+        WHERE ac.contact_id = ${contactId}::text
+          AND a.tenant_id = ${tenantId}::text
+        LIMIT 1
+      ) AS exists
+    `;
+    if (rows[0]?.exists) return true;
+    // Backfill safety: legacy pre-024 contacts owned by this tenant via
+    // contacts.tenant_id even before they were linked to an appointment.
+    const legacy = await this.prisma.contact.findFirst({
+      where: { id: contactId, tenant_id: tenantId },
+      select: { id: true },
+    });
+    return !!legacy;
+  }
+
   async findAppointmentsByContactId(
     contactId: string,
     pagination: ContactPagination,
+    scopeTenantId?: string,
   ): Promise<ContactAppointmentSummary[]> {
+    const where: Record<string, unknown> = { contact_id: contactId };
+    // 024 §FR-303 — when called from a CL-pinned scope, surface only
+    // appointments visible to the actor's tenant.
+    if (scopeTenantId) where['appointment'] = { tenant_id: scopeTenantId };
     const rows = await this.prisma.appointmentContact.findMany({
-      where: { contact_id: contactId },
+      where: where as any,
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: { created_at: 'desc' },
@@ -264,6 +322,10 @@ export class PrismaContactRepository implements IContactRepository {
             appointment_number: true,
             status: true,
             scheduled_date: true,
+            property_id: true,
+            property: {
+              select: { property_code: true },
+            },
           },
         },
       },
@@ -275,22 +337,160 @@ export class PrismaContactRepository implements IContactRepository {
       status: row.appointment.status,
       scheduledDate: row.appointment.scheduled_date,
       role: row.role,
+      isPrimary: row.is_primary,
+      propertyId: row.appointment.property_id,
+      propertyCode: row.appointment.property.property_code,
     }));
   }
 
-  async countAppointmentsByContactId(contactId: string): Promise<number> {
-    return this.prisma.appointmentContact.count({
-      where: { contact_id: contactId },
-    });
+  async countAppointmentsByContactId(contactId: string, scopeTenantId?: string): Promise<number> {
+    const where: Record<string, unknown> = { contact_id: contactId };
+    if (scopeTenantId) where['appointment'] = { tenant_id: scopeTenantId };
+    return this.prisma.appointmentContact.count({ where: where as any });
   }
 
-  private buildWhere(filters: ContactFilters): Record<string, unknown> {
-    if (!filters.tenantId) {
-      throw new Error('tenantId is required for contact queries — never query without tenant scope');
-    }
+  async countDistinctPropertiesByContactIds(
+    contactIds: string[],
+    scopeTenantId?: string,
+  ): Promise<Map<string, number>> {
+    if (contactIds.length === 0) return new Map();
+
+    // BUG-001 (REV 4): the deployed schema stores `id` as Postgres `text`
+    // (Prisma `String` without `@db.Uuid`), so casting the bound array to
+    // `::uuid[]` raises an `invalid input syntax for type uuid` error against
+    // staging Supabase. Cast to `::text[]` to match the column type.
+    //
+    // 024 §FR-303 — when `scopeTenantId` is provided (CL roles), filter the
+    // join so the count only reflects properties visible to that tenant.
+    const tenantClause = scopeTenantId
+      ? Prisma.sql`AND a.tenant_id = ${scopeTenantId}::text`
+      : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<Array<{ contact_id: string; property_count: number }>>`
+      SELECT ac.contact_id, count(DISTINCT a.property_id)::int AS property_count
+      FROM appointment_contacts ac
+      JOIN appointments a ON a.id = ac.appointment_id
+      WHERE ac.contact_id = ANY(${contactIds}::text[])
+        ${tenantClause}
+      GROUP BY ac.contact_id
+    `;
+
+    const map = new Map<string, number>();
+    for (const id of contactIds) map.set(id, 0);
+    for (const row of rows) map.set(row.contact_id, row.property_count);
+    return map;
+  }
+
+  async countPrimaryDistinctPropertiesByContactIds(
+    contactIds: string[],
+    scopeTenantId?: string,
+  ): Promise<Map<string, number>> {
+    if (contactIds.length === 0) return new Map();
+
+    // 023 §FR-202: count distinct properties on which each contact is the
+    // primary recipient across non-CANCELLED/REJECTED appointments. The
+    // BUG-001 source-scan unit guard rejects `::uuid` casts in the three
+    // 022-era methods, so this new method also uses `::text[]`.
+    //
+    // 024 §FR-303 — apply the same tenant-scope filter as the sibling
+    // aggregation when called from a CL-pinned scope.
+    const tenantClause = scopeTenantId
+      ? Prisma.sql`AND a.tenant_id = ${scopeTenantId}::text`
+      : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<Array<{ contact_id: string; property_count: number }>>`
+      SELECT
+        ac.contact_id,
+        count(DISTINCT a.property_id) FILTER (
+          WHERE ac.is_primary = true AND a.status NOT IN ('CANCELLED', 'REJECTED')
+        )::int AS property_count
+      FROM appointment_contacts ac
+      JOIN appointments a ON a.id = ac.appointment_id
+      WHERE ac.contact_id = ANY(${contactIds}::text[])
+        ${tenantClause}
+      GROUP BY ac.contact_id
+    `;
+
+    const map = new Map<string, number>();
+    for (const id of contactIds) map.set(id, 0);
+    for (const row of rows) map.set(row.contact_id, row.property_count);
+    return map;
+  }
+
+  async findPropertiesByContactId(
+    contactId: string,
+    pagination: ContactPagination,
+    scopeTenantId?: string,
+  ): Promise<ContactPropertyAggregate[]> {
+    const limit = pagination.pageSize;
+    const offset = (pagination.page - 1) * pagination.pageSize;
+
+    // 024 §FR-303 — surface only the properties reachable from the actor
+    // tenant when called from a CL scope.
+    const tenantClause = scopeTenantId
+      ? Prisma.sql`AND a.tenant_id = ${scopeTenantId}::text`
+      : Prisma.empty;
+
+    const rows = await this.prisma.$queryRaw<Array<{
+      property_id: string;
+      property_code: string;
+      street: string;
+      suburb: string;
+      postcode: string;
+      state: string;
+      appointment_count: number;
+      is_primary_in_active_appointment: boolean;
+    }>>`
+      SELECT
+        p.id AS property_id,
+        p.property_code,
+        p.street,
+        p.suburb,
+        p.postcode,
+        p.state,
+        count(*)::int AS appointment_count,
+        bool_or(ac.is_primary AND a.status NOT IN ('CANCELLED', 'REJECTED')) AS is_primary_in_active_appointment
+      FROM appointment_contacts ac
+      JOIN appointments a ON a.id = ac.appointment_id
+      JOIN properties p ON p.id = a.property_id
+      WHERE ac.contact_id = ${contactId}::text
+        ${tenantClause}
+      GROUP BY p.id, p.property_code, p.street, p.suburb, p.postcode, p.state
+      ORDER BY MAX(a.scheduled_date) DESC NULLS LAST
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    return rows.map((r) => ({
+      propertyId: r.property_id,
+      propertyCode: r.property_code,
+      street: r.street,
+      suburb: r.suburb,
+      postcode: r.postcode,
+      state: r.state,
+      appointmentCount: r.appointment_count,
+      isPrimaryInActiveAppointment: r.is_primary_in_active_appointment,
+    }));
+  }
+
+  async countPropertiesByContactId(contactId: string, scopeTenantId?: string): Promise<number> {
+    const tenantClause = scopeTenantId
+      ? Prisma.sql`AND a.tenant_id = ${scopeTenantId}::text`
+      : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<Array<{ property_count: number }>>`
+      SELECT count(DISTINCT a.property_id)::int AS property_count
+      FROM appointment_contacts ac
+      JOIN appointments a ON a.id = ac.appointment_id
+      WHERE ac.contact_id = ${contactId}::text
+        ${tenantClause}
+    `;
+    return rows[0]?.property_count ?? 0;
+  }
+
+  private buildWhere(filters: ContactFilters, scope: ContactScope): Record<string, unknown> {
     const where: Record<string, unknown> = {};
-    where['tenant_id'] = filters.tenantId;
-    if (filters.type) where['type'] = filters.type;
+
+    // 023 §FR-204: `type` is multiselect.
+    if (filters.type && filters.type.length > 0) {
+      where['type'] = filters.type.length === 1 ? filters.type[0] : { in: filters.type };
+    }
     if (filters.isActive !== undefined) where['is_active'] = filters.isActive;
     if (filters.search) {
       where['OR'] = [
@@ -298,6 +498,67 @@ export class PrismaContactRepository implements IContactRepository {
         { primary_email: { contains: filters.search, mode: 'insensitive' } },
         { primary_phone: { contains: filters.search } },
       ];
+    }
+
+    // Each `appointment_contacts.some` clause emits an EXISTS subquery in the
+    // generated SQL. AND-combining several of them keeps each filter
+    // independently scoped.
+    const relationFilters: Array<Record<string, unknown>> = [];
+
+    // 023 §FR-204: branch filter.
+    if (filters.branchIds && filters.branchIds.length > 0) {
+      relationFilters.push({
+        appointment_contacts: {
+          some: {
+            appointment: {
+              property: { branch_id: { in: filters.branchIds } },
+            },
+          },
+        },
+      });
+    }
+
+    // 023 §FR-205: "primary" filter.
+    if (filters.primary === true) {
+      relationFilters.push({
+        appointment_contacts: {
+          some: {
+            is_primary: true,
+            appointment: { status: { notIn: ['CANCELLED', 'REJECTED'] } },
+          },
+        },
+      });
+    }
+
+    // 024 §FR-303 — visibility predicate.
+    //
+    // CL_ADMIN/CL_USER (`tenant_pinned`) and AM/OP-with-explicit-tenant share
+    // the same shape: OR of (a) operational reachability via the
+    // appointment_contacts → appointments junction and (b) legacy
+    // `contacts.tenant_id` match (backfill safety for pre-024 rows that
+    // have not yet been linked to an appointment). AM/OP `global` without an
+    // explicit tenant filter sees every row — no scope predicate.
+    const scopeTenantId =
+      scope.kind === 'tenant_pinned'
+        ? scope.tenantId
+        : scope.kind === 'global' && scope.explicitTenantId
+          ? scope.explicitTenantId
+          : null;
+    if (scopeTenantId) {
+      relationFilters.push({
+        OR: [
+          {
+            appointment_contacts: {
+              some: { appointment: { tenant_id: scopeTenantId } },
+            },
+          },
+          { tenant_id: scopeTenantId },
+        ],
+      });
+    }
+
+    if (relationFilters.length > 0) {
+      where['AND'] = relationFilters;
     }
     return where;
   }

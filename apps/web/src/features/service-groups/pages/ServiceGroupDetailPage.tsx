@@ -11,10 +11,15 @@ import { useServiceGroupDetail } from '../hooks/useServiceGroupDetail';
 import { usePublishServiceGroup } from '../hooks/usePublishServiceGroup';
 import { useAssignInspector } from '../hooks/useAssignInspector';
 import { useCancelServiceGroup } from '../hooks/useCancelServiceGroup';
+import { useRejectServiceGroup } from '../hooks/useRejectServiceGroup';
+import { useRepublishServiceGroup } from '../hooks/useRepublishServiceGroup';
 import { ServiceGroupStatusChip } from '../components/ServiceGroupStatusChip';
 import { ServiceGroupDetailSections } from '../components/ServiceGroupDetailSections';
 import { ManualAssignModal } from '../components/ManualAssignModal';
 import { CancelGroupModal } from '../components/CancelGroupModal';
+import { RejectGroupModal } from '../components/RejectGroupModal';
+import { RepublishGroupModal } from '../components/RepublishGroupModal';
+import { EditGroupModal } from '../components/EditGroupModal';
 
 export function ServiceGroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,9 +28,14 @@ export function ServiceGroupDetailPage() {
   const { publish, isPublishing } = usePublishServiceGroup(id ?? null, refetch);
   const { assign } = useAssignInspector(id ?? null, refetch);
   const { cancel } = useCancelServiceGroup(id ?? null, refetch);
+  const { reject } = useRejectServiceGroup(id ?? null, refetch);
+  const { republish } = useRepublishServiceGroup(id ?? null, refetch);
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [republishOpen, setRepublishOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const handleAssign = useCallback(
     (inspectorId: string) => {
@@ -41,6 +51,22 @@ export function ServiceGroupDetailPage() {
       setCancelOpen(false);
     },
     [cancel],
+  );
+
+  const handleReject = useCallback(
+    (reason: string) => {
+      reject(reason);
+      setRejectOpen(false);
+    },
+    [reject],
+  );
+
+  const handleRepublish = useCallback(
+    (reason?: string) => {
+      republish(reason);
+      setRepublishOpen(false);
+    },
+    [republish],
   );
 
   if (isLoading) {
@@ -83,6 +109,8 @@ export function ServiceGroupDetailPage() {
   const isAccepted = serviceGroup.status === ServiceGroupStatus.ACCEPTED;
   const isCancelled = serviceGroup.status === ServiceGroupStatus.CANCELLED;
   const canCancel = isDraft || isPublished || isAccepted;
+  const canReject = isPublished || isAccepted;
+  const canEdit = !isAccepted;
 
   return (
     <div>
@@ -100,12 +128,20 @@ export function ServiceGroupDetailPage() {
           </h1>
           <ServiceGroupStatusChip status={serviceGroup.status} />
         </div>
+        {canEdit && (
+          <button
+            onClick={() => setEditOpen(true)}
+            className="rounded p-2 text-text-secondary hover:bg-black/5"
+            aria-label="Edit service group"
+          >
+            <i className="mdi mdi-pencil-outline text-xl" aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       <div className="rounded bg-card-bg p-6 shadow-sm">
         <ServiceGroupDetailSections serviceGroup={serviceGroup} />
 
-        {/* Inspector panel for accepted groups */}
         {isAccepted && serviceGroup.inspectorName && (
           <div className="mt-6">
             <FormSection title="Assigned Inspector">
@@ -116,39 +152,56 @@ export function ServiceGroupDetailPage() {
       </div>
 
       {/* Action buttons */}
-      {!isCancelled && (
-        <div className="mt-4 flex flex-wrap gap-3">
-          {isDraft && (
-            <Button
-              variant="primary"
-              loading={isPublishing}
-              onClick={publish}
-            >
-              <i className="mdi mdi-publish text-base" aria-hidden="true" />
-              Publish
-            </Button>
-          )}
-          {isPublished && (
-            <Button
-              variant="outlined"
-              onClick={() => setAssignOpen(true)}
-            >
-              <i className="mdi mdi-account-arrow-right text-base" aria-hidden="true" />
-              Manual Assign
-            </Button>
-          )}
-          {canCancel && (
-            <Button
-              variant="secondary"
-              onClick={() => setCancelOpen(true)}
-              className="!text-error"
-            >
-              <i className="mdi mdi-cancel text-base" aria-hidden="true" />
-              Cancel Group
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="mt-4 flex flex-wrap gap-3">
+        {isDraft && (
+          <Button
+            variant="primary"
+            loading={isPublishing}
+            onClick={publish}
+          >
+            <i className="mdi mdi-publish text-base" aria-hidden="true" />
+            Publish
+          </Button>
+        )}
+        {isPublished && (
+          <Button
+            variant="outlined"
+            onClick={() => setAssignOpen(true)}
+          >
+            <i className="mdi mdi-account-arrow-right text-base" aria-hidden="true" />
+            Manual Assign
+          </Button>
+        )}
+        {canReject && (
+          <Button
+            variant="secondary"
+            onClick={() => setRejectOpen(true)}
+            className="!text-error"
+          >
+            <i className="mdi mdi-close-circle text-base" aria-hidden="true" />
+            Reject Group
+          </Button>
+        )}
+        {canCancel && (
+          <Button
+            variant="secondary"
+            onClick={() => setCancelOpen(true)}
+            className="!text-error"
+          >
+            <i className="mdi mdi-cancel text-base" aria-hidden="true" />
+            Cancel Group
+          </Button>
+        )}
+        {isCancelled && (
+          <Button
+            variant="primary"
+            onClick={() => setRepublishOpen(true)}
+          >
+            <i className="mdi mdi-refresh text-base" aria-hidden="true" />
+            Republish
+          </Button>
+        )}
+      </div>
 
       <ManualAssignModal
         open={assignOpen}
@@ -161,6 +214,24 @@ export function ServiceGroupDetailPage() {
         onClose={() => setCancelOpen(false)}
         onCancel={handleCancel}
         serviceGroupId={id ?? ''}
+      />
+      <RejectGroupModal
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        onReject={handleReject}
+        serviceGroupId={id ?? ''}
+      />
+      <RepublishGroupModal
+        open={republishOpen}
+        onClose={() => setRepublishOpen(false)}
+        onRepublish={handleRepublish}
+        serviceGroupId={id ?? ''}
+      />
+      <EditGroupModal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        serviceGroup={serviceGroup}
+        onSaved={refetch}
       />
     </div>
   );

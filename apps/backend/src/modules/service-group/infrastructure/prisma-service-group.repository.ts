@@ -580,7 +580,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   private buildWhere(filters: ServiceGroupFilters) {
     const where: Record<string, unknown> = {};
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
-    if (filters.status) where['status'] = filters.status;
+    if (filters.status && filters.status.length > 0) where['status'] = { in: filters.status };
     if (filters.serviceTypeId)
       where['service_type_id'] = filters.serviceTypeId;
     if (filters.priorityMode) where['priority_mode'] = filters.priorityMode;
@@ -591,6 +591,39 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       if (filters.scheduledDateTo)
         dateFilter['lte'] = new Date(filters.scheduledDateTo);
       where['scheduled_date'] = dateFilter;
+    }
+    if (filters.search) {
+      where['OR'] = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+    if (filters.branchId) {
+      where['appointments'] = {
+        some: { branch_id: filters.branchId, deleted_at: null },
+      };
+    }
+    if (filters.contactSearch) {
+      const contactOrConditions: Record<string, unknown>[] = [
+        { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { snapshot_phone: { contains: filters.contactSearch } },
+        { tenant_name: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { primary_email: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { primary_phone: { contains: filters.contactSearch } },
+      ];
+      // If branchId already set appointments.some, merge with AND
+      if (filters.branchId) {
+        const existingAnd = Array.isArray(where['AND']) ? (where['AND'] as Record<string, unknown>[]) : [];
+        where['AND'] = [
+          ...existingAnd,
+          { appointments: { some: { contacts: { some: { OR: contactOrConditions } }, deleted_at: null } } },
+        ];
+      } else {
+        where['appointments'] = {
+          some: { contacts: { some: { OR: contactOrConditions } }, deleted_at: null },
+        };
+      }
     }
     return where;
   }
@@ -604,5 +637,75 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       status: 'status',
     };
     return mapping[sortBy ?? ''] ?? 'created_at';
+  }
+
+  async findAddableForAppointments(params: {
+    tenantId: string;
+    serviceTypeId: string;
+    scheduledDate: Date;
+    timeSlot: string;
+    batchSize: number;
+  }): Promise<Array<{
+    id: string;
+    name: string | null;
+    status: string;
+    scheduledDate: Date;
+    timeWindow: string;
+    currentSize: number;
+    serviceTypeName: string | null;
+  }>> {
+    const capacity = 30;
+    const dateStr = params.scheduledDate.toISOString().slice(0, 10);
+
+    // Use $queryRaw to get appointment count and service type name in one round-trip.
+    type Row = {
+      id: string;
+      name: string | null;
+      status: string;
+      scheduled_date: Date;
+      time_window: string;
+      appt_count: bigint;
+      service_type_name: string | null;
+    };
+
+    const rows = await this.prisma.$queryRaw<Row[]>`
+      SELECT
+        sg.id,
+        sg.name,
+        sg.status::text,
+        sg.scheduled_date,
+        sg.time_window,
+        sg.service_type_id,
+        COUNT(a.id) AS appt_count,
+        st.name AS service_type_name
+      FROM service_groups sg
+      LEFT JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
+      LEFT JOIN service_types st ON st.id = sg.service_type_id
+      WHERE sg.tenant_id = ${params.tenantId}
+        AND sg.service_type_id = ${params.serviceTypeId}
+        AND sg.scheduled_date::date = ${dateStr}::date
+        AND sg.status IN ('DRAFT', 'PUBLISHED')
+      GROUP BY sg.id, sg.name, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
+      ORDER BY sg.created_at ASC
+    `;
+
+    const [slotStart, slotEnd] = params.timeSlot.split('-');
+
+    return rows
+      .filter((row) => {
+        const currentSize = Number(row.appt_count);
+        if (currentSize + params.batchSize > capacity) return false;
+        const [groupStart, groupEnd] = row.time_window.split('-');
+        return (slotStart ?? '') >= (groupStart ?? '') && (slotEnd ?? '') <= (groupEnd ?? '');
+      })
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        status: row.status,
+        scheduledDate: row.scheduled_date,
+        timeWindow: row.time_window,
+        currentSize: Number(row.appt_count),
+        serviceTypeName: row.service_type_name,
+      }));
   }
 }

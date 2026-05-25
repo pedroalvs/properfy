@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import mapboxgl from 'mapbox-gl';
 import { useMapInstance } from './MapContainer';
 
@@ -11,15 +12,36 @@ interface MapMarkerProps {
   active?: boolean;
   clustered?: boolean;
   clusterCount?: number;
+  /**
+   * Disables pointer interaction with the marker. Used by the appointments
+   * map flow while a lasso polygon is being drawn — without this, clicking
+   * near a marker to close the polygon lands on the marker's button and is
+   * swallowed by `stopPropagation`, leaving the lasso unclosed.
+   */
+  disabled?: boolean;
 }
 
 /**
- * Renders a marker at the given geographic coordinates on the enclosing MapContainer.
- * Uses `mapboxgl.Marker` internally so positioning is handled by Mapbox GL's projection.
- * The marker element is styled via React so we keep onClick, active state, and theming.
+ * Renders a marker at the given geographic coordinates on the enclosing
+ * `MapContainer`. The component creates a detached DOM node that
+ * `mapboxgl.Marker` owns, then renders the React UI INTO that node via
+ * `createPortal`. This is a deliberate workaround for the React+Mapbox
+ * reconciliation bug (https://github.com/mapbox/mapbox-gl-js/issues/12352
+ * style — surfaced here as "The object can not be found here." crashes
+ * on filter clicks): when Mapbox reparents a React-rendered element
+ * inside its own canvas DOM, React loses track of where the node lives
+ * and `removeChild` later throws on unmount.
  *
- * When rendered outside a MapContainer (e.g., in unit tests), the component still produces
- * a visible DOM element with data attributes so existing assertions continue to work.
+ * The portal pattern keeps React fully in charge of the marker's *content*
+ * but leaves the *position in the DOM tree* to Mapbox. React's commit
+ * phase only walks the portal target's children — never the canvas where
+ * Mapbox parked the node — so the unmount path is safe.
+ *
+ * When rendered outside a `MapContainer` (unit tests, design-system
+ * snapshots), `useMapInstance` resolves to a no-op map, so the effect
+ * skips Mapbox entirely and the UI renders inline within the wrapper —
+ * this preserves the public DOM contract (`data-testid="map-marker"` +
+ * data attributes) so existing assertions still work.
  */
 export function MapMarker({
   longitude,
@@ -30,30 +52,49 @@ export function MapMarker({
   active = false,
   clustered = false,
   clusterCount,
+  disabled = false,
 }: MapMarkerProps) {
   const { getMap } = useMapInstance();
-  const elementRef = useRef<HTMLDivElement>(null);
+  // Portal target is the detached DOM node owned by mapboxgl.Marker.
+  // `null` when no map context (tests) or when the map has not finished
+  // loading yet — in those cases we render the UI inline below.
+  const [portalNode, setPortalNode] = useState<HTMLDivElement | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
 
-  // Attach the element to mapboxgl.Marker when the map is available
   useEffect(() => {
     const map = getMap();
-    const element = elementRef.current;
-    if (!map || !element) return;
+    if (!map) {
+      // No map available (typically a unit-test environment). Skip the
+      // Mapbox handoff entirely — the JSX is rendered inline below.
+      return;
+    }
 
-    const marker = new mapboxgl.Marker({ element, anchor: 'bottom' })
+    // Create a fresh detached node FOR Mapbox to own. We never insert
+    // it into the React tree directly — only the portal renders into
+    // it. When `marker.remove()` runs in cleanup, Mapbox detaches the
+    // node from the canvas; React's portal cleanup then takes care of
+    // unmounting the React subtree it owned, and there is no
+    // parent-to-child mismatch to crash on.
+    const node = document.createElement('div');
+    node.className = 'inline-block';
+
+    const marker = new mapboxgl.Marker({ element: node, anchor: 'bottom' })
       .setLngLat([longitude, latitude])
       .addTo(map);
     markerRef.current = marker;
+    setPortalNode(node);
 
     return () => {
       marker.remove();
       markerRef.current = null;
+      setPortalNode(null);
     };
-    // Intentionally only depend on getMap so we create the marker once and update via setLngLat below.
+    // Intentionally only depend on `getMap` so the marker is created
+    // exactly once per mount; coordinate updates flow through the
+    // separate effect below via `marker.setLngLat`.
   }, [getMap]);
 
-  // Update marker position when coordinates change
+  // Update marker position when coordinates change without re-creating it.
   useEffect(() => {
     markerRef.current?.setLngLat([longitude, latitude]);
   }, [longitude, latitude]);
@@ -61,20 +102,24 @@ export function MapMarker({
   const size = clustered ? 'h-10 w-10 text-sm' : 'h-7 w-7 text-xs';
   const ringClass = active ? 'ring-2 ring-secondary ring-offset-2' : '';
 
-  return (
+  // Inner UI rendered both inline (no map / tests) and via portal (with map).
+  // Identical markup either way so `data-testid`/role assertions hold.
+  // `pointer-events: none` on the wrapper while disabled propagates to the
+  // button + label, so the canvas underneath receives the click (used by the
+  // lasso-draw close-polygon gesture). `cursor: pointer` on the label fixes
+  // the "cursor turns into text-cursor over the label" flicker.
+  const inner = (
     <div
-      ref={elementRef}
-      className="inline-block"
-      data-testid="map-marker"
-      data-longitude={longitude}
-      data-latitude={latitude}
-      data-color={color}
+      className={`inline-flex flex-col items-center ${disabled ? 'pointer-events-none' : 'cursor-pointer'}`}
+      style={disabled ? { pointerEvents: 'none' } : undefined}
     >
       <button
         type="button"
-        className={`flex items-center justify-center rounded-full shadow-md transition-transform hover:scale-110 ${size} ${ringClass}`}
+        disabled={disabled}
+        className={`flex items-center justify-center rounded-full shadow-md transition-transform hover:scale-110 ${size} ${ringClass} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
         style={{ backgroundColor: color }}
         onClick={(e) => {
+          if (disabled) return;
           e.stopPropagation();
           onClick?.();
         }}
@@ -87,10 +132,43 @@ export function MapMarker({
         )}
       </button>
       {label && !clustered && (
-        <div className="mt-1 whitespace-nowrap text-center text-xs font-medium text-text-primary">
+        <div className="mt-1 whitespace-nowrap text-center text-xs font-medium text-text-primary select-none">
           {label}
         </div>
       )}
+    </div>
+  );
+
+  if (portalNode) {
+    // Production / map-attached path. The wrapper carries the public
+    // data attributes for any downstream test or DOM query while React
+    // commits the actual UI into the Mapbox-owned node.
+    return (
+      <>
+        <div
+          className="hidden"
+          data-testid="map-marker"
+          data-longitude={longitude}
+          data-latitude={latitude}
+          data-color={color}
+        />
+        {createPortal(inner, portalNode)}
+      </>
+    );
+  }
+
+  // No-map fallback (unit tests / pre-load). React owns the entire tree
+  // — no Mapbox interference, no detached-node hazard.
+  return (
+    <div
+      className="inline-block"
+      data-testid="map-marker"
+      data-longitude={longitude}
+      data-latitude={latitude}
+      data-color={color}
+      data-disabled={disabled ? 'true' : undefined}
+    >
+      {inner}
     </div>
   );
 }

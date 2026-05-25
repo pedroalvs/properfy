@@ -34,8 +34,8 @@ describe('ServiceGroupValidator', () => {
       ).not.toThrow();
     });
 
-    it('accepts 25 valid appointments (maximum)', () => {
-      const appointments = makeAppointments(25);
+    it('accepts 30 valid appointments (maximum)', () => {
+      const appointments = makeAppointments(30);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1'),
       ).not.toThrow();
@@ -63,8 +63,8 @@ describe('ServiceGroupValidator', () => {
       ).toThrow(GroupSizeTooSmallError);
     });
 
-    it('rejects more than 25 appointments', () => {
-      const appointments = makeAppointments(26);
+    it('rejects more than 30 appointments', () => {
+      const appointments = makeAppointments(31);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1'),
       ).toThrow(GroupSizeTooLargeError);
@@ -82,13 +82,13 @@ describe('ServiceGroupValidator', () => {
     });
 
     it('includes actual size in error for too large', () => {
-      const appointments = makeAppointments(30);
+      const appointments = makeAppointments(35);
       try {
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1');
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(GroupSizeTooLargeError);
-        expect((err as GroupSizeTooLargeError).message).toContain('30');
+        expect((err as GroupSizeTooLargeError).message).toContain('35');
       }
     });
   });
@@ -170,15 +170,15 @@ describe('ServiceGroupValidator', () => {
       ).not.toThrow();
     });
 
-    it('LOW_DENSITY_REGION: accepts 25 appointments', () => {
-      const appointments = makeAppointments(25);
+    it('LOW_DENSITY_REGION: accepts 30 appointments', () => {
+      const appointments = makeAppointments(30);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'LOW_DENSITY_REGION'),
       ).not.toThrow();
     });
 
-    it('LOW_DENSITY_REGION: rejects 26 appointments', () => {
-      const appointments = makeAppointments(26);
+    it('LOW_DENSITY_REGION: rejects 31 appointments', () => {
+      const appointments = makeAppointments(31);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1', 'LOW_DENSITY_REGION'),
       ).toThrow(GroupSizeTooLargeError);
@@ -232,5 +232,105 @@ describe('ServiceGroupValidator', () => {
         ServiceGroupValidator.validate(appointments, 'st-1', 'tenant-1'),
       ).toThrow(GroupSizeTooSmallError);
     });
+  });
+});
+
+// 026 §FR-510 — predicate variant. Powers the per-item mixed-result
+// envelope for add + eligibility-check use cases; the original `validate`
+// keeps the create flow's all-or-nothing semantic.
+describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
+  const baseAppointment = {
+    id: 'apt-1',
+    appointmentNumber: 1,
+    status: 'DRAFT',
+    serviceTypeId: 'st-1',
+    tenantId: 'tenant-1',
+    serviceGroupId: null,
+    scheduledDate: new Date('2026-06-01T00:00:00Z'),
+    timeSlot: '09:00-12:00',
+  };
+  const baseGroup = {
+    status: 'DRAFT' as const,
+    tenantId: 'tenant-1',
+    serviceTypeId: 'st-1',
+    scheduledDate: new Date('2026-06-01T00:00:00Z'),
+    timeWindow: '09:00-12:00',
+    currentSize: 5,
+  };
+
+  it('accepts a fully matching DRAFT appointment', () => {
+    expect(ServiceGroupValidator.canAddToGroup(baseAppointment, baseGroup)).toEqual({ ok: true });
+  });
+
+  it('accepts AWAITING_INSPECTOR appointments', () => {
+    expect(ServiceGroupValidator.canAddToGroup(
+      { ...baseAppointment, status: 'AWAITING_INSPECTOR' },
+      baseGroup,
+    )).toEqual({ ok: true });
+  });
+
+  it('rejects when the group is in a terminal state', () => {
+    expect(ServiceGroupValidator.canAddToGroup(
+      baseAppointment, { ...baseGroup, status: 'ACCEPTED' },
+    )).toEqual({ ok: false, reasonCode: 'GROUP_IN_TERMINAL_STATE' });
+    expect(ServiceGroupValidator.canAddToGroup(
+      baseAppointment, { ...baseGroup, status: 'CANCELLED' },
+    )).toEqual({ ok: false, reasonCode: 'GROUP_IN_TERMINAL_STATE' });
+    expect(ServiceGroupValidator.canAddToGroup(
+      baseAppointment, { ...baseGroup, status: 'REJECTED' },
+    )).toEqual({ ok: false, reasonCode: 'GROUP_IN_TERMINAL_STATE' });
+  });
+
+  it('rejects when the group is at capacity (30)', () => {
+    expect(ServiceGroupValidator.canAddToGroup(
+      baseAppointment, { ...baseGroup, currentSize: 30 },
+    )).toEqual({ ok: false, reasonCode: 'GROUP_CAPACITY_EXCEEDED' });
+  });
+
+  it('rejects when appointment is on a different tenant', () => {
+    expect(ServiceGroupValidator.canAddToGroup(
+      { ...baseAppointment, tenantId: 'tenant-OTHER' }, baseGroup,
+    )).toEqual({ ok: false, reasonCode: 'INVALID_TENANT' });
+  });
+
+  it('rejects when service type mismatches', () => {
+    expect(ServiceGroupValidator.canAddToGroup(
+      { ...baseAppointment, serviceTypeId: 'st-OTHER' }, baseGroup,
+    )).toEqual({ ok: false, reasonCode: 'INVALID_SERVICE_TYPE' });
+  });
+
+  it('rejects DONE/CANCELLED/SCHEDULED statuses', () => {
+    for (const status of ['DONE', 'CANCELLED', 'SCHEDULED']) {
+      expect(ServiceGroupValidator.canAddToGroup(
+        { ...baseAppointment, status }, baseGroup,
+      )).toEqual({ ok: false, reasonCode: 'INVALID_STATUS' });
+    }
+  });
+
+  it('rejects appointments already in a group', () => {
+    expect(ServiceGroupValidator.canAddToGroup(
+      { ...baseAppointment, serviceGroupId: 'group-OTHER' }, baseGroup,
+    )).toEqual({ ok: false, reasonCode: 'ALREADY_GROUPED' });
+  });
+
+  it('rejects when scheduledDate doesn\'t match the group day', () => {
+    expect(ServiceGroupValidator.canAddToGroup(
+      { ...baseAppointment, scheduledDate: new Date('2026-06-02T00:00:00Z') },
+      baseGroup,
+    )).toEqual({ ok: false, reasonCode: 'INVALID_DATE' });
+  });
+
+  it('rejects when timeSlot doesn\'t match the group timeWindow', () => {
+    expect(ServiceGroupValidator.canAddToGroup(
+      { ...baseAppointment, timeSlot: '13:00-16:00' }, baseGroup,
+    )).toEqual({ ok: false, reasonCode: 'INVALID_TIME_WINDOW' });
+  });
+
+  it('isAddableStatus reflects the group lifecycle', () => {
+    expect(ServiceGroupValidator.isAddableStatus('DRAFT')).toBe(true);
+    expect(ServiceGroupValidator.isAddableStatus('PUBLISHED')).toBe(true);
+    expect(ServiceGroupValidator.isAddableStatus('ACCEPTED')).toBe(false);
+    expect(ServiceGroupValidator.isAddableStatus('CANCELLED')).toBe(false);
+    expect(ServiceGroupValidator.isAddableStatus('REJECTED')).toBe(false);
   });
 });

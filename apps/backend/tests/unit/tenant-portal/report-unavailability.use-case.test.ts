@@ -208,6 +208,7 @@ describe('ReportUnavailabilityUseCase', () => {
 
     expect(notificationHandler.execute).toHaveBeenCalledWith({
       appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
       action: 'UNAVAILABLE',
     });
   });

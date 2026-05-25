@@ -9,6 +9,10 @@ vi.mock('@properfy/shared', () => ({
   AppointmentStatus: { DRAFT: 'DRAFT', SCHEDULED: 'SCHEDULED', AWAITING_INSPECTOR: 'AWAITING_INSPECTOR', DONE: 'DONE', CANCELLED: 'CANCELLED', REJECTED: 'REJECTED' },
   AppointmentContactRole: { TENANT: 'TENANT', TENANT_REPRESENTATIVE: 'TENANT_REPRESENTATIVE', HOUSEKEEPER: 'HOUSEKEEPER', PROPERTY_MANAGER: 'PROPERTY_MANAGER', BROKER: 'BROKER', OTHER: 'OTHER' },
   TenantConfirmationStatus: { PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', UNAVAILABLE: 'UNAVAILABLE', NO_RESPONSE: 'NO_RESPONSE' },
+  // 023 §FR-251 — inline contact form needs ContactType + ContactChannelType
+  // when picking the registry-row type and adding additional channels.
+  ContactType: { TENANT: 'TENANT', PROPERTY_MANAGER: 'PROPERTY_MANAGER', HOUSEKEEPER: 'HOUSEKEEPER', BROKER: 'BROKER', OTHER: 'OTHER' },
+  ContactChannelType: { EMAIL: 'EMAIL', PHONE: 'PHONE' },
   todayLocalDateString: () => '2026-03-29',
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
@@ -182,7 +186,9 @@ describe('AppointmentFormDrawer', () => {
     expect(screen.getByText('Edit Appointment')).toBeInTheDocument();
     expect(screen.getByText('Save')).toBeInTheDocument();
     // Contact fields are now in the contacts array sub-form
-    expect(screen.getByLabelText('Contact 1 Name')).toHaveValue('John Doe');
+    // 023 §FR-252 — inline contact label was renamed Name → Display name to
+    // match the dedicated /contacts form (cross-form parity).
+    expect(screen.getByLabelText('Contact 1 Display name')).toHaveValue('John Doe');
     expect(screen.getByLabelText('Contact 1 Phone')).toHaveValue('11999999999');
     expect(screen.getByLabelText('Contact 1 Email')).toHaveValue('john@test.com');
   });

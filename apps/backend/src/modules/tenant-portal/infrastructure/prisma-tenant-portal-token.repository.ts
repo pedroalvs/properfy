@@ -67,6 +67,25 @@ export class PrismaTenantPortalTokenRepository implements ITenantPortalTokenRepo
     });
   }
 
+  async revokeAndSave(appointmentId: string, newToken: TenantPortalTokenEntity): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tenantPortalToken.updateMany({
+        where: { appointment_id: appointmentId, status: 'ACTIVE' },
+        data: { status: 'REVOKED' },
+      });
+      await tx.tenantPortalToken.create({
+        data: {
+          id: newToken.id,
+          appointment_id: newToken.appointmentId,
+          token_hash: newToken.tokenHash,
+          expires_at: newToken.expiresAt,
+          status: newToken.status as PrismaTenantPortalTokenStatus,
+          last_accessed_at: newToken.lastAccessedAt,
+        },
+      });
+    });
+  }
+
   async revokeAllForAppointment(appointmentId: string): Promise<void> {
     await this.prisma.tenantPortalToken.updateMany({
       where: { appointment_id: appointmentId, status: 'ACTIVE' },

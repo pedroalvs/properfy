@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
 import { DateInput } from '@/components/forms/DateInput';
+import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useRescheduleRequest } from '../hooks/usePortalData';
 import type { PortalAppointment } from '../types';
@@ -23,6 +24,7 @@ export function RescheduleForm({
 
   const [newDate, setNewDate] = useState('');
   const [newTimeSlot, setNewTimeSlot] = useState('');
+  const [tenantNote, setTenantNote] = useState('');
   const [errors, setErrors] = useState<{ date?: string; timeSlot?: string }>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -75,7 +77,11 @@ export function RescheduleForm({
     if (!validate()) return;
 
     try {
-      await rescheduleMutation.mutateAsync({ newDate, newTimeSlot: newTimeSlot.trim() });
+      await rescheduleMutation.mutateAsync({
+        newDate,
+        newTimeSlot: newTimeSlot.trim(),
+        ...(tenantNote.trim() ? { tenantNote: tenantNote.trim() } : {}),
+      });
       setSubmitted(true);
       showSuccess('Reschedule request submitted successfully.');
     } catch (err) {
@@ -111,6 +117,28 @@ export function RescheduleForm({
             disabled={isReadOnly}
           />
         </FormField>
+
+        <div>
+          <label
+            htmlFor="reschedule-tenant-note"
+            className="mb-1 block text-sm font-medium text-text-secondary"
+          >
+            Additional notes
+          </label>
+          <Textarea
+            id="reschedule-tenant-note"
+            value={tenantNote}
+            onChange={setTenantNote}
+            placeholder="Any additional information for the operator (optional)"
+            disabled={isReadOnly}
+            rows={3}
+            maxLength={2000}
+            aria-label="Additional notes"
+          />
+          <p className="mt-1 text-xs text-text-muted">
+            {tenantNote.length}/2000 characters
+          </p>
+        </div>
 
         <Button
           type="submit"

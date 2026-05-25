@@ -115,9 +115,21 @@ export function AppointmentTable({
     {
       key: 'status',
       label: 'Status',
-      width: '160px',
+      width: '180px',
       sortable: true,
-      render: (row) => <AppointmentStatusChip status={row.status} doneCheckedByUserId={row.doneCheckedByUserId} isOverdue={row.isOverdue} />,
+      render: (row) => (
+        <div className="flex items-center gap-1.5">
+          <AppointmentStatusChip status={row.status} doneCheckedByUserId={row.doneCheckedByUserId} isOverdue={row.isOverdue} />
+          {row.hasTenantNote && row.status === 'REJECTED' && (
+            <span title="Tenant left a note">
+              <i
+                className="mdi mdi-note-text-outline text-base text-text-secondary"
+                aria-label="Tenant left a note"
+              />
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'tenantConfirmationStatus',

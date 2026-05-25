@@ -36,8 +36,11 @@ function mapToEntity(row: {
   date_of_birth: Date | null;
   insurance_file_key: string | null;
   insurance_expires_at: Date | null;
+  insurance_meta_json: unknown;
   police_check_file_key: string | null;
   police_check_expires_at: Date | null;
+  police_check_meta_json: unknown;
+  photo_storage_key: string | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -60,8 +63,11 @@ function mapToEntity(row: {
     dateOfBirth: row.date_of_birth ?? null,
     insuranceFileKey: row.insurance_file_key ?? null,
     insuranceExpiresAt: row.insurance_expires_at ?? null,
+    insuranceMetaJson: row.insurance_meta_json as Record<string, unknown> | null ?? null,
     policeCheckFileKey: row.police_check_file_key ?? null,
     policeCheckExpiresAt: row.police_check_expires_at ?? null,
+    policeCheckMetaJson: row.police_check_meta_json as Record<string, unknown> | null ?? null,
+    photoStorageKey: row.photo_storage_key ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -195,6 +201,9 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       policeCheckFileKey: string | null;
       policeCheckExpiresAt: Date | null;
       deletedAt: Date | null;
+      photoStorageKey: string | null;
+      insuranceMetaJson: Record<string, unknown> | null;
+      policeCheckMetaJson: Record<string, unknown> | null;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
@@ -228,6 +237,12 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       updateData['police_check_expires_at'] = data.policeCheckExpiresAt;
     if (data.deletedAt !== undefined)
       updateData['deleted_at'] = data.deletedAt;
+    if (data.photoStorageKey !== undefined)
+      updateData['photo_storage_key'] = data.photoStorageKey;
+    if (data.insuranceMetaJson !== undefined)
+      updateData['insurance_meta_json'] = data.insuranceMetaJson;
+    if (data.policeCheckMetaJson !== undefined)
+      updateData['police_check_meta_json'] = data.policeCheckMetaJson;
     await this.prisma.inspector.update({ where: { id }, data: updateData });
   }
 

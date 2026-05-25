@@ -11,12 +11,9 @@ import { AppointmentRestrictionEntity } from '../domain/appointment-restriction.
 import type {
   IAppointmentRepository,
   AppointmentFilters,
-  ContactFilters,
   PaginationParams,
   AppointmentWithRelations,
   AppointmentListItem,
-  ContactListItem,
-  ContactDetail,
   VisibleForInspectorParams,
 } from '../domain/appointment.repository';
 import { T1VisibilityService } from '../../inspector-execution/domain/t1-visibility.service';
@@ -61,6 +58,7 @@ function mapToEntity(row: any): AppointmentEntity {
     payoutAmount: Number(row.payout_amount),
     pricingRuleSnapshotJson: (row.pricing_rule_snapshot_json as Record<string, unknown>) ?? {},
     notes: row.notes,
+    tenantNote: row.tenant_note ?? null,
     customFieldsJson: row.custom_fields_json as Record<string, unknown> | null,
     reason: row.reason,
     cancellationReasonCode: (row.cancellation_reason_code as CancellationReasonCode) ?? null,
@@ -126,6 +124,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         contacts: true,
         restrictions: true,
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
+        tenant: { select: { name: true, settings_json: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true } },
         inspector: { select: { name: true } },
@@ -149,6 +148,14 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
       : '';
 
+    const tenantSettings = (row as any).tenant?.settings_json as Record<string, unknown> | null;
+    const tenantAppointmentCodePrefix =
+      tenantSettings &&
+      typeof tenantSettings.appointmentCodePrefix === 'string' &&
+      tenantSettings.appointmentCodePrefix.length > 0
+        ? tenantSettings.appointmentCodePrefix
+        : null;
+
     return {
       appointment,
       contact,
@@ -162,6 +169,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       branchName: row.branch?.name ?? '',
       serviceTypeName: row.service_type?.name ?? '',
       inspectorName: row.inspector?.name ?? null,
+      tenantName: (row as any).tenant?.name ?? '',
+      tenantAppointmentCodePrefix,
     };
   }
 
@@ -180,7 +189,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       include: {
         contacts: { select: { id: true, appointment_id: true, contact_id: true, role: true, is_primary: true, snapshot_name: true, snapshot_email: true, snapshot_phone: true, tenant_name: true, primary_email: true, secondary_email: true, primary_phone: true, secondary_phone: true, created_at: true, updated_at: true } },
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
-        tenant: { select: { name: true } },
+        tenant: { select: { name: true, settings_json: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true } },
         inspector: { select: { name: true } },
@@ -192,6 +201,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       const propertyAddress = row.property
         ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
         : '';
+      const tenantSettings = row.tenant?.settings_json as Record<string, unknown> | null;
+      const tenantAppointmentCodePrefix =
+        tenantSettings &&
+        typeof tenantSettings.appointmentCodePrefix === 'string' &&
+        tenantSettings.appointmentCodePrefix.length > 0
+          ? tenantSettings.appointmentCodePrefix
+          : null;
       return {
         appointment,
         contact,
@@ -200,6 +216,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         propertyLatitude: row.property?.lat != null ? Number(row.property.lat) : null,
         propertyLongitude: row.property?.lng != null ? Number(row.property.lng) : null,
         tenantName: row.tenant?.name ?? '',
+        tenantAppointmentCodePrefix,
         branchName: row.branch?.name ?? '',
         serviceTypeName: row.service_type?.name ?? '',
         inspectorName: row.inspector?.name ?? null,
@@ -232,6 +249,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         payout_amount: appointment.payoutAmount,
         pricing_rule_snapshot_json: appointment.pricingRuleSnapshotJson as Prisma.InputJsonValue,
         notes: appointment.notes,
+        tenant_note: appointment.tenantNote,
         custom_fields_json: (appointment.customFieldsJson as Prisma.InputJsonValue) ?? undefined,
         reason: appointment.reason,
         created_by_user_id: appointment.createdByUserId,
@@ -255,6 +273,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       keyLocation: string | null;
       tenantConfirmationStatus: string;
       notes: string | null;
+      tenantNote: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
       cancellationReasonCode: CancellationReasonCode | null;
@@ -283,6 +302,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       updateData['tenant_confirmation_status'] = data.tenantConfirmationStatus;
     }
     if (data.notes !== undefined) updateData['notes'] = data.notes;
+    if (data.tenantNote !== undefined) updateData['tenant_note'] = data.tenantNote;
     if (data.customFieldsJson !== undefined) updateData['custom_fields_json'] = data.customFieldsJson;
     if (data.reason !== undefined) updateData['reason'] = data.reason;
     if (data.cancellationReasonCode !== undefined) updateData['cancellation_reason_code'] = data.cancellationReasonCode;
@@ -429,8 +449,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       todayUtc.setUTCHours(0, 0, 0, 0);
       where['scheduled_date'] = { lt: todayUtc };
     } else {
-      if (filters.status) {
-        where['status'] = filters.status;
+      if (filters.status && filters.status.length > 0) {
+        where['status'] = { in: filters.status };
       } else if (!filters.showCancelled) {
         where['status'] = { notIn: ['CANCELLED', 'REJECTED'] };
       }
@@ -449,7 +469,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where['tenant_confirmation_status'] = filters.tenantConfirmationStatus;
     }
     if (filters.search) {
-      where['OR'] = [
+      const orConditions: Record<string, unknown>[] = [
         { notes: { contains: filters.search, mode: 'insensitive' } },
         { property: { property_code: { contains: filters.search, mode: 'insensitive' } } },
         { property: { street: { contains: filters.search, mode: 'insensitive' } } },
@@ -460,6 +480,10 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         { contacts: { some: { snapshot_email: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { snapshot_phone: { contains: filters.search } } } },
       ];
+      if (filters.searchAppointmentNumber != null) {
+        orConditions.push({ appointment_number: filters.searchAppointmentNumber });
+      }
+      where['OR'] = orConditions;
     }
     if (filters.ungroupedOnly) {
       where['service_group_id'] = null;
@@ -467,112 +491,57 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         where['status'] = { in: ['DRAFT', 'AWAITING_INSPECTOR'] };
       }
     }
-    return where;
-  }
-
-  async findAllContacts(filters: ContactFilters, pagination: PaginationParams): Promise<ContactListItem[]> {
-    const where = this.buildContactWhere(filters);
-    const rows = await this.prisma.appointmentContact.findMany({
-      where,
-      include: {
-        appointment: {
-          include: {
-            property: true,
-            portal_activities: { orderBy: { created_at: 'desc' }, take: 1 },
-          },
-        },
-      },
-      skip: (pagination.page - 1) * pagination.pageSize,
-      take: pagination.pageSize,
-      orderBy: { appointment: { scheduled_date: pagination.sortOrder } },
-    });
-
-    return rows.map((row) => {
-      const appt = row.appointment;
-      const prop = appt.property;
-      const propertyAddress = [prop.street, prop.suburb, prop.state, prop.postcode]
-        .filter(Boolean)
-        .join(', ');
-      const lastActivity = appt.portal_activities[0]?.created_at ?? null;
-      return {
-        id: row.id,
-        appointmentId: appt.id,
-        name: row.tenant_name,
-        primaryEmail: row.primary_email,
-        primaryPhone: row.primary_phone,
-        confirmationStatus: appt.tenant_confirmation_status,
-        propertyAddress,
-        appointmentDate: appt.scheduled_date,
-        lastActivityAt: lastActivity,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
-    });
-  }
-
-  async countContacts(filters: ContactFilters): Promise<number> {
-    const where = this.buildContactWhere(filters);
-    return this.prisma.appointmentContact.count({ where });
-  }
-
-  async findContactById(id: string): Promise<ContactDetail | null> {
-    const row = await this.prisma.appointmentContact.findUnique({
-      where: { id },
-      include: {
-        appointment: {
-          include: {
-            property: true,
-            portal_activities: { orderBy: { created_at: 'desc' }, take: 1 },
-          },
-        },
-      },
-    });
-
-    if (!row) return null;
-
-    const appt = row.appointment;
-    const prop = appt.property;
-    const propertyAddress = [prop.street, prop.suburb, prop.state, prop.postcode]
-      .filter(Boolean)
-      .join(', ');
-    const lastActivity = appt.portal_activities[0]?.created_at ?? null;
-
-    return {
-      id: row.id,
-      appointmentId: appt.id,
-      name: row.tenant_name,
-      primaryEmail: row.primary_email,
-      primaryPhone: row.primary_phone,
-      alternativePhone: row.secondary_phone,
-      confirmationStatus: appt.tenant_confirmation_status,
-      propertyAddress,
-      appointmentDate: appt.scheduled_date,
-      lastActivityAt: lastActivity,
-      notes: appt.notes,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    };
-  }
-
-  private buildContactWhere(filters: ContactFilters) {
-    const where: Record<string, unknown> = { appointment: { deleted_at: null } };
-    if (filters.tenantId) {
-      (where['appointment'] as Record<string, unknown>)['tenant_id'] = filters.tenantId;
+    if (filters.timeSlot) {
+      where['time_slot'] = filters.timeSlot;
+    }
+    if (filters.contactSearch) {
+      const contactOrConditions: Record<string, unknown>[] = [
+        { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { snapshot_phone: { contains: filters.contactSearch } },
+        { tenant_name: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { primary_email: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { primary_phone: { contains: filters.contactSearch } },
+      ];
+      where['contacts'] = { some: { OR: contactOrConditions } };
+    }
+    if (filters.hasTenantNote === true) {
+      // tenant_note IS NOT NULL AND tenant_note != ''
+      // Use AND array to combine both conditions without overwriting existing keys
+      const existingAnd = Array.isArray(where['AND']) ? (where['AND'] as Record<string, unknown>[]) : [];
+      where['AND'] = [
+        ...existingAnd,
+        { tenant_note: { not: null } },
+        { NOT: { tenant_note: '' } },
+      ];
+    } else if (filters.hasTenantNote === false) {
+      // tenant_note IS NULL OR tenant_note = ''
+      // Wrap in AND to avoid conflicting with existing OR (from search)
+      const existingAnd = Array.isArray(where['AND']) ? (where['AND'] as Record<string, unknown>[]) : [];
+      where['AND'] = [
+        ...existingAnd,
+        { OR: [{ tenant_note: null }, { tenant_note: '' }] },
+      ];
     }
     if (filters.confirmationStatus) {
-      (where['appointment'] as Record<string, unknown>)['tenant_confirmation_status'] = filters.confirmationStatus;
-    }
-    if (filters.search) {
-      where['tenant_name'] = { contains: filters.search, mode: 'insensitive' };
+      where['tenant_confirmation_status'] = filters.confirmationStatus;
     }
     return where;
   }
+
+  // `findAllContacts`, `countContacts`, `findContactById`, and the
+  // `buildContactWhere` helper were retired together with the
+  // /v1/appointment-contacts routes — the legacy tenant-wide contacts
+  // board UI was retired in 023 and the AppointmentContactsListTab in
+  // the chore/ux-baseline-cleanup pass. The contact module owns the
+  // canonical Contact CRUD; this module no longer needs a parallel
+  // contact read path.
 
   async findVisibleForInspector(params: VisibleForInspectorParams): Promise<AppointmentListItem[]> {
     const { inspectorId, fromDate, toDate, today } = params;
 
     const items = await this.findAll(
-      { inspectorId, status: 'SCHEDULED', fromDate, toDate },
+      { inspectorId, status: ['SCHEDULED'], fromDate, toDate },
       { page: 1, pageSize: 1000, sortBy: 'time_slot', sortOrder: 'asc' },
     );
 
@@ -639,5 +608,21 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
 
     return row ? mapToEntity(row) : null;
+  }
+
+  async findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]> {
+    const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
+
+    const rows = await this.prisma.appointment.findMany({
+      where: {
+        scheduled_date: { gte: startOfDay, lt: endOfDay },
+        tenant_confirmation_status: { not: 'CONFIRMED' },
+        status: { notIn: ['DONE', 'CANCELLED', 'REJECTED'] },
+        deleted_at: null,
+      },
+    });
+
+    return rows.map(mapToEntity);
   }
 }

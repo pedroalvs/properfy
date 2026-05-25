@@ -7,10 +7,12 @@ import { ChangePasswordSection } from '../components/ChangePasswordSection';
 import { TwoFactorSection } from '../components/TwoFactorSection';
 import { SessionsSection } from '../components/SessionsSection';
 import { InstallAppCard } from '../components/InstallAppCard';
+import { AvatarUploader } from '../components/AvatarUploader';
+import { UserDataSection } from '../components/UserDataSection';
 import { Button } from '@/components/ui/Button';
 
 export function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const [totpEnabled, setTotpEnabled] = useState(user?.totpEnabled ?? false);
 
   if (!user) return null;
@@ -27,7 +29,7 @@ export function ProfilePage() {
           <p className="mt-1 text-sm text-white/80">{user.email}</p>
           {user.phone && <p className="mt-0.5 text-sm text-white/60">{user.phone}</p>}
           <p className="mt-3 max-w-[28rem] text-[11px] leading-relaxed text-white/55">
-            This is your account hub for security, device access and installation. Profile details are managed by your operations team.
+            This is your account hub for security, device access and installation.
           </p>
         </section>
 
@@ -39,9 +41,27 @@ export function ProfilePage() {
           phone={user.phone}
           totpEnabled={totpEnabled}
           lastLoginAt={user.lastLoginAt}
+          photoUrl={user.inspectorPhotoUrl}
+          avatarUploader={
+            user.inspectorId ? (
+              <AvatarUploader
+                inspectorId={user.inspectorId}
+                onUploaded={refreshUser}
+              />
+            ) : undefined
+          }
         />
 
-        {/* Inspector details */}
+        {/* Editable inspector details */}
+        {user.inspectorId && (
+          <UserDataSection
+            inspectorId={user.inspectorId}
+            phone={user.phone}
+            onSaved={refreshUser}
+          />
+        )}
+
+        {/* Inspector details (read-only) */}
         <InspectorDetailsCard />
 
         {/* Security section */}

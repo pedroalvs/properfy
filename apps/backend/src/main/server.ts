@@ -119,6 +119,7 @@ async function start() {
       container.notifyStuckInspectionsWorker,
       container.expirePriorityWorker,
       container.auditRetentionWorker,
+      container.rejectUnconfirmedWorker,
       app.log,
     );
   }

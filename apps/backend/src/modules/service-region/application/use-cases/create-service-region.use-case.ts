@@ -1,5 +1,4 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
@@ -35,9 +34,9 @@ export class CreateServiceRegionUseCase {
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_region.create', entityType: 'ServiceRegion' });
 
-    const tenantId = this.resolveTenantId(actor, input.tenantId);
+    const tenantId = actor.tenantId ?? input.tenantId ?? null;
 
-    // Check name uniqueness within tenant
+    // Check name uniqueness within tenant scope (or globally if no tenant)
     const existing = await this.regionRepo.findByName(tenantId, name);
     if (existing) {
       throw new ServiceRegionNameConflictError();
@@ -86,12 +85,4 @@ export class CreateServiceRegionUseCase {
     };
   }
 
-  private resolveTenantId(actor: AuthContext, explicitTenantId?: string): string {
-    // AM has null tenantId in JWT; fall back to explicitly supplied tenantId from request body
-    const resolved = actor.tenantId ?? explicitTenantId;
-    if (!resolved) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required for this operation');
-    }
-    return resolved;
-  }
 }

@@ -1,34 +1,40 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type mapboxgl from 'mapbox-gl';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
+import { createPortal } from 'react-dom';
+
+import mapboxgl from 'mapbox-gl';
 import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
 import { MapMarker } from '@/components/map/MapMarker';
 import { MapPopup } from '@/components/map/MapPopup';
-import { MapFiltersPanel } from '@/components/map/MapFiltersPanel';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
 import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
 import { formatDate } from '@/lib/format-date';
-import { FilterSelect } from '@/components/filters/FilterSelect';
-import { FilterInput } from '@/components/filters/FilterInput';
-import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { EmptyState } from '@/components/feedback/EmptyState';
-import { StatusChip } from '@/components/ui/StatusChip';
-import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
-import type { AppointmentStatus } from '@properfy/shared';
-import { useAppointmentMapData, type AppointmentMapItem } from '../hooks/useAppointmentMapData';
-
-const STATUS_OPTIONS = [
-  { label: 'All Statuses', value: '' },
-  { label: 'Draft', value: 'DRAFT' },
-  { label: 'Awaiting Inspector', value: 'AWAITING_INSPECTOR' },
-  { label: 'Scheduled', value: 'SCHEDULED' },
-  { label: 'Done', value: 'DONE' },
-  { label: 'Cancelled', value: 'CANCELLED' },
-  { label: 'Rejected', value: 'REJECTED' },
-];
+import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
+import { useFormOptions } from '@/hooks/useFormOptions';
+import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
+import type { ServiceGroupStatus } from '@properfy/shared';
+import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
+import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
+import {
+  AppointmentMapFilterPanel,
+  DEFAULT_APPOINTMENT_FILTERS,
+  DEFAULT_GROUP_FILTERS,
+  type FilterMode,
+  type AppointmentModeFilters,
+  type GroupModeFilters,
+} from '../components/AppointmentMapFilterPanel';
+import { MapLassoSelect, type LassoPoint, type LassoState, type MapLassoSelectHandle } from '@/components/map/MapLassoSelect';
+import { MapFilterToggleButton } from '@/components/map/MapFilterToggleButton';
+import { MapListViewToggleButton } from '@/components/map/MapListViewToggleButton';
+import { MapBulkActionModal } from '../components/MapBulkActionModal';
+import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
+import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
+import { MapGroupCreateModal } from '@/features/service-groups/components/MapGroupCreateModal';
+import { useQueryClient } from '@tanstack/react-query';
+import type { UserRole } from '@properfy/shared';
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: '#E1BEE7',
@@ -39,18 +45,262 @@ const STATUS_COLORS: Record<string, string> = {
   REJECTED: '#FF7043',
 };
 
+const GROUP_STATUS_COLORS: Record<string, string> = {
+  DRAFT: '#E1BEE7',
+  PUBLISHED: '#FFE0B2',
+  ACCEPTED: '#4CAF50',
+  CANCELLED: '#EF5350',
+  REJECTED: '#FF7043',
+};
+
+interface ServiceGroupMapAppointment {
+  id: string;
+  latitude: number;
+  longitude: number;
+}
+
+interface ServiceGroupMapItem {
+  id: string;
+  name: string | null;
+  status: string;
+  groupSize: number;
+  scheduledDate: string;
+  appointments: ServiceGroupMapAppointment[];
+}
+
+type ServiceGroupMapPin = ServiceGroupMapItem & { latitude: number; longitude: number };
+
+function computeGroupCentroid(
+  appointments: ServiceGroupMapAppointment[],
+): { latitude: number; longitude: number } | null {
+  const valid = appointments.filter((a) => a.latitude != null && a.longitude != null);
+  if (valid.length === 0) return null;
+  return {
+    latitude: valid.reduce((s, a) => s + a.latitude, 0) / valid.length,
+    longitude: valid.reduce((s, a) => s + a.longitude, 0) / valid.length,
+  };
+}
+
+/**
+ * Cycle 8 fix — "Show grouped" is an ADDITIVE toggle, not an exclusive switch:
+ *   - `showGrouped = true`  → return ALL appointments (individual + grouped).
+ *     The backend already returns all when ungroupedOnly is not set.
+ *   - `showGrouped = false` → return ONLY the individual (non-grouped)
+ *     appointments (backend also filters via ungroupedOnly=true for performance).
+ *
+ * Exported so `AppointmentMapPage.filter.test.ts` can pin the logic.
+ */
+export function filterAppointmentsByGrouping<T extends { serviceGroupId?: string | null }>(
+  items: T[],
+  showGrouped: boolean,
+): T[] {
+  if (showGrouped) {
+    return items; // ALL — "include grouped" means show everything
+  }
+  return items.filter((item) => !item.serviceGroupId);
+}
+
 export function AppointmentMapPage() {
-  const navigate = useNavigate();
-  const { data, isLoading, isError, errorMessage, refetch, filters, setFilters } =
-    useAppointmentMapData();
+
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { hasRole } = usePermissions();
+  const tenantId = user?.tenantId ?? null;
+  const isGlobalRole = hasRole('AM', 'OP');
+
+  const [mode, setMode] = useState<FilterMode>('appointments');
+  const [appointmentFilters, setAppointmentFilters] = useState<AppointmentModeFilters>(DEFAULT_APPOINTMENT_FILTERS);
+  const [groupFilters, setGroupFilters] = useState<GroupModeFilters>(DEFAULT_GROUP_FILTERS);
   const [selectedItem, setSelectedItem] = useState<AppointmentMapItem | null>(null);
+  const [selectedGroupItem, setSelectedGroupItem] = useState<ServiceGroupMapPin | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
+  // 025 §FR-401 — lasso state machine replaces the boolean active flag.
+  // 'idle' clears the polygon + draw control; 'drawing' enables the lasso;
+  // 'review' keeps the polygon visible while the bulk modal is open;
+  // 'applying' is the brief window during an in-flight bulk action.
+  const [lassoState, setLassoState] = useState<LassoState>('idle');
+  const [lassoSelectedIds, setLassoSelectedIds] = useState<string[]>([]);
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [groupModalSeedIds, setGroupModalSeedIds] = useState<string[]>([]);
+  // 026 §FR-510 — Add-to-group sub-modal seeded from the bulk modal footer.
+  const [addToGroupOpen, setAddToGroupOpen] = useState(false);
+  const [addToGroupSeedIds, setAddToGroupSeedIds] = useState<string[]>([]);
+  // T-C4-4 — tracks bulk modal width so flyTo can pad right by modalWidth+32
+  // to keep the focused marker visible beside the modal.
+  const [bulkModalWidth, setBulkModalWidth] = useState(() => Math.round(window.innerWidth * 0.6));
 
-  // Auto-fit map bounds to visible pins whenever data or map readiness changes (FR-004).
+  // 026 §FR-570 — Filter panel collapse + sessionStorage persistence.
+  // Default CLOSED on first load; the toggle button at top-left re-opens
+  // the panel. The state survives reload because the operator typically
+  // re-uses the same filter set for several lasso passes.
+  const FILTERS_STORAGE_KEY = 'appointments-map.filters.open';
+  const [filtersOpen, setFiltersOpen] = useState(() => {
+    try { return sessionStorage.getItem(FILTERS_STORAGE_KEY) === 'true'; } catch { return false; }
+  });
+  const toggleFilters = useCallback(() => {
+    setFiltersOpen((v) => {
+      const next = !v;
+      try { sessionStorage.setItem(FILTERS_STORAGE_KEY, String(next)); } catch { /* noop */ }
+      return next;
+    });
+  }, []);
+  // 025 cycle 2/2 — Mapbox-native Popup root for the appointment detail
+  // panel. The popup is created imperatively (setLngLat + setDOMContent +
+  // addTo) so Mapbox owns the screen-position update on every render
+  // frame; we just portal the React content into the popup's DOM node.
+  // Previous approach used React state + map.on('move') updates, which
+  // produced visible decoupling for markers near viewport edges.
+  const [appointmentPopupRoot, setAppointmentPopupRoot] = useState<HTMLDivElement | null>(null);
+  const appointmentPopupRef = useRef<mapboxgl.Popup | null>(null);
+  // 025 cycle 2/2 — imperative handle to MapLassoSelect so the page-level
+  // banner UI (Finish / Cancel buttons) can drive the close gesture without
+  // duplicating the polygon-completion logic.
+  const lassoRef = useRef<MapLassoSelectHandle | null>(null);
+  // Browser timezone — forwarded so the per-day idempotency bucket honours
+  // the operator's local "today" instead of the server clock.
+  const actorTimezone = useMemo(() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; }
+  }, []);
+
+  // Appointment data — fetched when mode is 'appointments'
+  const appointmentParams: ListParams = useMemo(() => ({
+    page: 1,
+    pageSize: 100,
+    // ungroupedOnly: when the toggle is OFF, ask the backend to pre-filter so
+    // only non-grouped appointments are returned (performance + semantic alignment).
+    // When the toggle is ON the backend returns all and the client shows all.
+    ...(appointmentFilters.showGrouped ? {} : { ungroupedOnly: true }),
+    ...(appointmentFilters.statuses.length > 0 ? { status: appointmentFilters.statuses.join(',') } : {}),
+    ...(appointmentFilters.search ? { search: appointmentFilters.search } : {}),
+    ...(appointmentFilters.serviceTypeId ? { serviceTypeId: appointmentFilters.serviceTypeId } : {}),
+    ...(appointmentFilters.branchId ? { branchId: appointmentFilters.branchId } : {}),
+    ...(appointmentFilters.dateFrom ? { fromDate: appointmentFilters.dateFrom } : {}),
+    ...(appointmentFilters.dateTo ? { toDate: appointmentFilters.dateTo } : {}),
+    ...(appointmentFilters.timeSlot ? { timeSlot: appointmentFilters.timeSlot } : {}),
+    ...(appointmentFilters.contactSearch ? { contactSearch: appointmentFilters.contactSearch } : {}),
+    ...(appointmentFilters.confirmationStatus ? { confirmationStatus: appointmentFilters.confirmationStatus } : {}),
+    ...(appointmentFilters.tenantId ? { tenantId: appointmentFilters.tenantId } : {}),
+  }), [appointmentFilters]);
+
+  const {
+    data: appointmentResponse,
+    isLoading: appointmentsLoading,
+    isFetching: appointmentsFetching,
+    isError: appointmentsError,
+    error: appointmentsErrorObj,
+    refetch: refetchAppointments,
+  } = usePaginatedQuery<AppointmentMapItem>(
+    ['appointments-map'],
+    '/v1/appointments',
+    appointmentParams,
+    { enabled: true, placeholderData: keepPreviousData },
+  );
+
+  const appointmentData = useMemo(
+    () => filterAppointmentsByGrouping(
+      (appointmentResponse?.data ?? []) as Array<AppointmentMapItem & { serviceGroupId?: string | null }>,
+      appointmentFilters.showGrouped,
+    ),
+    [appointmentResponse, appointmentFilters.showGrouped],
+  );
+
+  // Group data — fetched when mode is 'groups'
+  const groupParams: ListParams = useMemo(() => ({
+    page: 1,
+    pageSize: 100,
+    includeAppointments: 'true',
+    ...(groupFilters.statuses.length > 0 ? { status: groupFilters.statuses.join(',') } : {}),
+    ...(groupFilters.search ? { search: groupFilters.search } : {}),
+    ...(groupFilters.branchId ? { branchId: groupFilters.branchId } : {}),
+    ...(groupFilters.dateFrom ? { scheduledDateFrom: groupFilters.dateFrom } : {}),
+    ...(groupFilters.dateTo ? { scheduledDateTo: groupFilters.dateTo } : {}),
+    ...(groupFilters.contactSearch ? { contactSearch: groupFilters.contactSearch } : {}),
+  }), [groupFilters]);
+
+  const {
+    data: groupResponse,
+    isLoading: groupsLoading,
+    isFetching: groupsFetching,
+    isError: groupsError,
+    error: groupsErrorObj,
+    refetch: refetchGroups,
+  } = usePaginatedQuery<ServiceGroupMapItem>(
+    ['service-groups-map'],
+    '/v1/service-groups',
+    groupParams,
+    { enabled: true, placeholderData: keepPreviousData },
+  );
+
+  const groupData = groupResponse?.data ?? [];
+
+  // Shared loading/error states
+  const isLoading = mode === 'appointments' ? appointmentsLoading : groupsLoading;
+  const isFetching = mode === 'appointments' ? appointmentsFetching : groupsFetching;
+  const isError = mode === 'appointments' ? appointmentsError : groupsError;
+  const errorMessage = mode === 'appointments'
+    ? appointmentsErrorObj?.message ?? null
+    : groupsErrorObj?.message ?? null;
+  const refetch = mode === 'appointments' ? refetchAppointments : refetchGroups;
+
+  // Service type options
+  const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
+    ['service-types', 'map-filter'],
+    '/v1/service-types',
+    (item) => ({ value: item.id, label: item.name }),
+    { status: 'ACTIVE' },
+  );
+
+  // Tenant options — AM only (cross-tenant Customers filter).
+  const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
+    ['tenants', 'map-filter'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+    { status: 'ACTIVE' },
+    { enabled: user?.role === 'AM' },
+  );
+
+  // Branch options
+  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+    ['branches', 'map-filter', tenantId ?? ''],
+    '/v1/branches',
+    (item) => ({ value: item.id, label: item.name }),
+    { ...(tenantId ? { tenantId } : {}), status: 'ACTIVE' },
+    { enabled: !isGlobalRole && !!tenantId },
+  );
+
+  // Time slot options
+  const { options: timeSlotOptions } = useFormOptions<{ id: string; label: string }>(
+    ['time-slots', 'map-filter'],
+    '/v1/appointment-time-slots',
+    (item) => ({ value: item.id, label: item.label }),
+  );
+
+  // Clear stale map reference when mode changes (MapContainer is keyed by mode,
+  // so the old Mapbox instance is destroyed and a new one created).
+  useEffect(() => {
+    return () => setMapInstance(null);
+  }, [mode]);
+
+  // Auto-fit map bounds — fires ONCE per (mode, map-instance) pair after
+  // the first data load. 025 round-2 BUG-fix: the previous version fired
+  // every time `appointmentData` reference changed, so a marker click
+  // that triggered any react-query refetch (focus, invalidation, filter
+  // tweak) zoomed the map back out to fit ALL pins, undoing the per-marker
+  // `flyTo`. The Re-center floating action is the explicit way for the
+  // operator to ask for a refit; the auto behaviour stays out of the way.
+  const hasFittedRef = useRef<{ mode: FilterMode | null; map: mapboxgl.Map | null }>({ mode: null, map: null });
   useEffect(() => {
     if (!mapInstance) return;
-    const points = data.map((item) => ({ latitude: item.latitude, longitude: item.longitude }));
+    if (lassoState !== 'idle') return;
+    if (hasFittedRef.current.mode === mode && hasFittedRef.current.map === mapInstance) return;
+    const points = mode === 'appointments'
+      ? appointmentData.map((item) => ({ latitude: item.latitude, longitude: item.longitude }))
+      : groupData.flatMap((g) => {
+          const c = computeGroupCentroid(g.appointments);
+          return c ? [c] : [];
+        });
+    if (points.length === 0) return;
     const bounds = computeBounds(points);
     if (!bounds) return;
     if (isSinglePointBounds(bounds)) {
@@ -59,30 +309,102 @@ export function AppointmentMapPage() {
     } else {
       mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
     }
-  }, [data, mapInstance]);
+    hasFittedRef.current = { mode, map: mapInstance };
+  }, [appointmentData, groupData, mapInstance, mode, lassoState]);
 
-  // Keep popup screen position in sync with pin as the map pans/zooms.
+  // Reset the "has fitted" sentinel when the user switches modes so the
+  // first load of the new mode auto-fits exactly once.
   useEffect(() => {
-    if (!mapInstance || !selectedItem) {
+    hasFittedRef.current = { mode: null, map: null };
+  }, [mode]);
+
+  // Keep popup position in sync. Groups mode still uses the legacy
+  // screen-pixel MapPopup; appointments mode uses the Mapbox-native
+  // Popup wired below.
+  const activeCoords = selectedGroupItem
+      && 'latitude' in selectedGroupItem
+      && selectedGroupItem.latitude != null
+      && selectedGroupItem.longitude != null
+    ? { lat: selectedGroupItem.latitude, lng: selectedGroupItem.longitude }
+    : null;
+
+  useEffect(() => {
+    if (!mapInstance || !activeCoords || mode !== 'groups') {
       setPopupPosition(null);
       return;
     }
     const update = () => {
-      const { x, y } = mapInstance.project([selectedItem.longitude, selectedItem.latitude]);
+      const { x, y } = mapInstance.project([activeCoords.lng, activeCoords.lat]);
       setPopupPosition({ x, y });
     };
     update();
     mapInstance.on('move', update);
     return () => { mapInstance.off('move', update); };
-  }, [mapInstance, selectedItem]);
+  }, [mapInstance, activeCoords?.lat, activeCoords?.lng, mode]);
 
+  // 025 cycle 2/2 — Mapbox-native Popup for the appointment detail
+  // panel. Creates the popup imperatively when an appointment is
+  // selected; Mapbox handles the per-frame screen-position update via
+  // CSS transforms so the popup tracks the marker through pan / zoom /
+  // fitBounds without any React state change. `closeButton: false`
+  // because the panel renders its own; `closeOnClick: false` because
+  // the panel owns its own click-outside logic and we don't want a
+  // single map click to dismiss the popup while the user is reading.
+  useEffect(() => {
+    if (!mapInstance || mode !== 'appointments' || !selectedItem
+        || selectedItem.latitude == null || selectedItem.longitude == null) {
+      // Cleanup any existing popup if the selection cleared.
+      if (appointmentPopupRef.current) {
+        appointmentPopupRef.current.remove();
+        appointmentPopupRef.current = null;
+        setAppointmentPopupRoot(null);
+      }
+      return;
+    }
+    const root = document.createElement('div');
+    // 025 cycle 3/2 — anchor omitted so Mapbox auto-chooses the side with
+    // room around the marker. Pre-fix `anchor: 'bottom'` forced the popup
+    // ABOVE the marker (the bottom edge of the popup anchored at the
+    // lat/lng), which clipped at the top of the viewport for markers in
+    // the upper third. Auto-anchor with a `'bottom'` preference is
+    // Mapbox's default behaviour and what every native marker UI uses.
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      closeOnMove: false,
+      maxWidth: '380px',
+      offset: 16,
+      className: 'appt-map-detail-popup',
+    })
+      .setLngLat([selectedItem.longitude, selectedItem.latitude])
+      .setDOMContent(root)
+      .addTo(mapInstance);
+    appointmentPopupRef.current = popup;
+    setAppointmentPopupRoot(root);
+    return () => {
+      popup.remove();
+      appointmentPopupRef.current = null;
+      setAppointmentPopupRoot(null);
+    };
+  }, [mapInstance, mode, selectedItem?.id, selectedItem?.latitude, selectedItem?.longitude]);
+
+  // Clear selection on mode change
+  useEffect(() => {
+    setSelectedItem(null);
+    setSelectedGroupItem(null);
+  }, [mode]);
+
+  // Issue #3 (UX smoke): marker click on the map MUST focus the map on
+  // the clicked pin — same affordance as the sidebar list-item handler
+  // below. Pre-fix, the marker handler only updated selection state, so
+  // a click on a far-away pin felt like a no-op (or worse, the popup
+  // appeared off-screen and the user perceived a zoom-out). `flyTo`
+  // with `Math.max(getZoom(), 14)` focuses without ever reducing zoom
+  // — if the user is already zoomed in past 14, we keep their zoom.
   const handleMarkerClick = useCallback((item: AppointmentMapItem) => {
     setSelectedItem(item);
-  }, []);
-
-  const handleListItemClick = useCallback((item: AppointmentMapItem) => {
-    setSelectedItem(item);
-    if (mapInstance) {
+    setSelectedGroupItem(null);
+    if (mapInstance && item.longitude != null && item.latitude != null) {
       mapInstance.flyTo({
         center: [item.longitude, item.latitude],
         zoom: Math.max(mapInstance.getZoom(), 14),
@@ -91,108 +413,368 @@ export function AppointmentMapPage() {
     }
   }, [mapInstance]);
 
+  const handleGroupMarkerClick = useCallback((item: ServiceGroupMapPin) => {
+    setSelectedGroupItem(item);
+    setSelectedItem(null);
+    if (mapInstance && item.longitude != null && item.latitude != null) {
+      mapInstance.flyTo({
+        center: [item.longitude, item.latitude],
+        zoom: Math.max(mapInstance.getZoom(), 14),
+        duration: 700,
+      });
+    }
+  }, [mapInstance]);
+
+  // 026 cycle 1 devolução — sidePanel is filter-only now; the
+  // appointments/groups list was removed because it duplicated the
+  // post-lasso bulk modal's content. The handlers that powered the
+  // inline-list-item clicks are gone with it.
+
   const handleViewDetail = useCallback(
     (id: string) => {
-      navigate(`/appointments/${id}`);
+      window.open(`/appointments/${id}`, '_blank');
     },
-    [navigate],
+    [],
+  );
+
+  const handleViewGroupDetail = useCallback(
+    (id: string) => {
+      window.open(`/service-groups/${id}`, '_blank');
+    },
+    [],
   );
 
   const handleRecenter = useCallback(() => {
-    // Re-center would reset map view state
     setSelectedItem(null);
+    setSelectedGroupItem(null);
+    // Explicit operator ask: re-fit camera to current data. Clear the
+    // "has fitted" sentinel so the auto-fit useEffect runs again next tick.
+    hasFittedRef.current = { mode: null, map: null };
+    if (mapInstance) {
+      const points = mode === 'appointments'
+        ? appointmentData.map((item) => ({ latitude: item.latitude, longitude: item.longitude }))
+        : groupData.flatMap((g) => {
+            const c = computeGroupCentroid(g.appointments);
+            return c ? [c] : [];
+          });
+      if (points.length > 0) {
+        const bounds = computeBounds(points);
+        if (bounds) {
+          if (isSinglePointBounds(bounds)) {
+            const [[lng, lat]] = bounds as [[number, number], [number, number]];
+            mapInstance.flyTo({ center: [lng, lat], zoom: 14, duration: 600 });
+          } else {
+            mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
+          }
+          hasFittedRef.current = { mode, map: mapInstance };
+        }
+      }
+    }
+  }, [mapInstance, mode, appointmentData, groupData]);
+
+  // 025 §FR-403 — when the lasso polygon completes, only re-fit the camera
+  // if at least one selected pin is OUTSIDE the current viewport. Markers
+  // that are already visible should not trigger a zoom — that was the
+  // BUG-zoom-out behaviour the lasso state machine + this guard fixes.
+  const handleLassoSelectionChange = useCallback((ids: string[]) => {
+    setLassoSelectedIds(ids);
+    if (ids.length === 0) {
+      setLassoState('idle');
+      return;
+    }
+    if (mapInstance) {
+      const selectedPins = appointmentData
+        .filter((a) => ids.includes(a.id))
+        .filter((a): a is AppointmentMapItem & { latitude: number; longitude: number } =>
+          a.latitude != null && a.longitude != null,
+        );
+      const viewport = mapInstance.getBounds();
+      const anyOutside = viewport
+        ? selectedPins.some((p) => {
+            const lng = p.longitude;
+            const lat = p.latitude;
+            return (
+              lng < viewport.getWest()
+              || lng > viewport.getEast()
+              || lat < viewport.getSouth()
+              || lat > viewport.getNorth()
+            );
+          })
+        : true;
+      if (anyOutside) {
+        const bounds = computeBounds(selectedPins);
+        if (bounds) mapInstance.fitBounds(bounds, { padding: 100, maxZoom: 15, duration: 600 });
+      }
+    }
+    setLassoState('review');
+  }, [appointmentData, mapInstance]);
+
+  const handleLassoToggle = useCallback(() => {
+    setLassoState((prev) => {
+      if (prev === 'idle') return 'drawing';
+      // Any non-idle state → return to idle (cancels drawing or clears review).
+      setLassoSelectedIds([]);
+      return 'idle';
+    });
   }, []);
 
+  const handleLassoCleared = useCallback(() => {
+    setLassoSelectedIds([]);
+    setLassoState('idle');
+  }, []);
+
+  const handleBulkModalClose = useCallback(() => {
+    setLassoSelectedIds([]);
+    setLassoState('idle');
+  }, []);
+
+  // 026 §FR-510 — Add to existing group via the dedicated sub-modal.
+  // The sub-modal calls the eligibility-check endpoint and surfaces a
+  // per-appointment ineligibility banner before committing the add.
+  const handleOpenAddToGroup = useCallback((ids: string[]) => {
+    setAddToGroupSeedIds(ids);
+    setAddToGroupOpen(true);
+  }, []);
+
+  const handleOpenCreateGroup = useCallback((ids: string[]) => {
+    setGroupModalSeedIds(ids);
+    setGroupModalOpen(true);
+  }, []);
+
+  const handleGroupCreateSuccess = useCallback(() => {
+    setGroupModalOpen(false);
+    setGroupModalSeedIds([]);
+    setLassoSelectedIds([]);
+    setLassoState('idle');
+    queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
+    queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+  }, [queryClient]);
+
+  // ESC handler — escape clears the polygon + closes the bulk modal when
+  // the user is in 'review' state.
+  useEffect(() => {
+    if (lassoState !== 'review') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLassoSelectedIds([]);
+        setLassoState('idle');
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [lassoState]);
+
+  const selectedAppointmentsForPanel = useMemo(
+    () => appointmentData.filter((a) => lassoSelectedIds.includes(a.id)),
+    [appointmentData, lassoSelectedIds],
+  );
+
+  // CL_USER tenant flags aren't exposed on the frontend auth context yet,
+  // so the UI defaults to "no flags". Backend enforces the real check —
+  // any denied row surfaces as a per-item FORBIDDEN in the result envelope,
+  // and the user sees the row flagged in the modal summary.
+  const clUserFlags = useMemo(
+    () => ({ cancel_appointments: false, reject_appointments: false, reschedule_appointments: false }),
+    [],
+  );
+  const actorRole: UserRole = (user?.role ?? 'CL_USER') as UserRole;
+
+  // Side panel
+  // 026 cycle 1 devolução — sidePanel is now FILTER-ONLY.
+  //  - The appointments/groups list that lived at the bottom is removed
+  //    per user smoke: the canonical post-lasso list is the bulk-action
+  //    modal; surfacing it twice was redundant and consumed the entire
+  //    panel height blocking the filter inputs.
+  //  - The filter region scrolls internally via the `flex-1 min-h-0
+  //    overflow-y-auto` wrapper around `AppointmentMapFilterPanel`, so
+  //    operators can reach every filter even when the panel is short.
+  //  - `isLoading` / `isError` / refetch surface as a banner ABOVE the
+  //    filters so the operator is never silently stuck on a stale view.
   const sidePanel = (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-gray-200 px-4 py-3">
-        <h2 className="text-base font-bold text-secondary">Appointments</h2>
-        <p className="text-xs text-text-muted">{data.length} appointments on map</p>
+    <div className="flex h-full flex-col" data-testid="map-side-panel-content">
+      <div className="flex items-center justify-between border-b border-border-subtle px-3 py-2">
+        <h2 className="text-sm font-semibold text-text-primary">
+          Filters{' '}
+          <span className="font-normal text-text-muted">
+            · {mode === 'appointments'
+              ? `${appointmentData.length} appointments`
+              : `${groupData.length} groups`}
+          </span>
+        </h2>
+        <button
+          type="button"
+          onClick={toggleFilters}
+          aria-label="Close filters panel"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-text-secondary hover:bg-black/5"
+          data-testid="map-side-panel-close"
+        >
+          <i className="mdi mdi-close text-lg" />
+        </button>
       </div>
 
-      <MapFiltersPanel>
-        <div className="flex flex-col gap-3">
-          <FilterSelect
-            label="Status"
-            value={filters.status}
-            options={STATUS_OPTIONS}
-            onChange={(value) => setFilters({ ...filters, status: value })}
-          />
-          <FilterInput
-            label="From Date"
-            value={filters.dateFrom}
-            onChange={(value) => setFilters({ ...filters, dateFrom: value })}
-            placeholder="YYYY-MM-DD"
-          />
-          <FilterInput
-            label="To Date"
-            value={filters.dateTo}
-            onChange={(value) => setFilters({ ...filters, dateTo: value })}
-            placeholder="YYYY-MM-DD"
-          />
+      {isError && (
+        <div className="border-b border-border-subtle px-4 py-2">
+          <ErrorState message={errorMessage ?? 'Failed to load'} onRetry={refetch} />
         </div>
-      </MapFiltersPanel>
+      )}
+      {isFetching && !isLoading && (
+        <div className="flex items-center gap-1.5 border-b border-border-subtle px-3 py-1.5">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-border-subtle border-t-real-estate" aria-hidden="true" />
+          <span className="text-xs text-text-muted">Updating…</span>
+        </div>
+      )}
 
-      {/* Appointment list */}
-      <div className="flex-1 overflow-y-auto">
-        {isLoading && <LoadingState />}
-        {isError && <ErrorState message={errorMessage ?? 'Failed to load'} onRetry={refetch} />}
-        {!isLoading && !isError && data.length === 0 && (
-          <EmptyState title="No appointments with coordinates found" />
-        )}
-        {data.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 ${
-              selectedItem?.id === item.id ? 'bg-primary/5' : ''
-            }`}
-            onClick={() => handleListItemClick(item)}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-secondary">{item.code}</span>
-              <StatusChip
-                label={APPOINTMENT_STATUS_MAP[item.status as AppointmentStatus]?.label ?? item.status}
-                bg={APPOINTMENT_STATUS_MAP[item.status as AppointmentStatus]?.bg ?? '#E0E0E0'}
-              />
-            </div>
-            <p className="mt-1 text-xs text-text-secondary">{item.propertyAddress}</p>
-            <p className="text-xs text-text-muted">
-              {formatDate(item.scheduledDate)} {item.timeSlot}
-            </p>
-          </button>
-        ))}
+      {/* The scrollable filter region. `min-h-0` is the documented escape
+          hatch for flex children that need to scroll inside a flex parent —
+          without it, `flex-1` reserves the natural content height and
+          overflow-y-auto never engages. */}
+      <div className="flex-1 min-h-0 overflow-y-auto" data-testid="map-side-panel-scroll">
+        <AppointmentMapFilterPanel
+          mode={mode}
+          onModeChange={setMode}
+          appointmentFilters={appointmentFilters}
+          onAppointmentFiltersChange={setAppointmentFilters}
+          groupFilters={groupFilters}
+          onGroupFiltersChange={setGroupFilters}
+          serviceTypeOptions={serviceTypeOptions}
+          branchOptions={branchOptions}
+          timeSlotOptions={timeSlotOptions}
+          tenantOptions={tenantOptions}
+          actorRole={actorRole}
+        />
       </div>
     </div>
   );
 
-  const validPins = data.filter(
+  // Map markers
+  const validAppointmentPins = appointmentData.filter(
     (item): item is AppointmentMapItem & { latitude: number; longitude: number } =>
       item.latitude != null && item.longitude != null,
   );
 
+  const validGroupPins = useMemo(
+    (): ServiceGroupMapPin[] =>
+      groupData
+        .map((item) => {
+          const centroid = computeGroupCentroid(item.appointments);
+          if (!centroid) return null;
+          return { ...item, ...centroid };
+        })
+        .filter((item): item is ServiceGroupMapPin => item !== null),
+    [groupData],
+  );
+
+  const lassoPoints: LassoPoint[] = useMemo(
+    () =>
+      validAppointmentPins.map((item) => ({
+        id: item.id,
+        longitude: item.longitude,
+        latitude: item.latitude,
+      })),
+    [validAppointmentPins],
+  );
+
+  // Per-mode cursor class on the map wrapper. While drawing a lasso the
+  // cursor must be `crosshair` consistently — without an explicit class
+  // the default canvas cursor (`grab`) bleeds through when the pointer
+  // hovers React-rendered overlays (markers, labels, MapFloatingAction),
+  // producing the cursor flicker the user reported.
+  const mapWrapperClass = useMemo(() => {
+    const base = 'relative h-full';
+    if (lassoState === 'drawing') return `${base} appt-map-lasso-drawing`;
+    if (lassoState === 'review' || lassoState === 'applying') return `${base} appt-map-lasso-review`;
+    return base;
+  }, [lassoState]);
+
   const mapContent = (
-    <div className="relative h-full">
-      <MapContainer onMapReady={setMapInstance}>
-        {validPins.map((item) => (
-          <MapMarker
-            key={item.id}
-            longitude={item.longitude}
-            latitude={item.latitude}
-            color={STATUS_COLORS[item.status] ?? '#9E9E9E'}
-            label={item.code}
-            active={selectedItem?.id === item.id}
-            onClick={() => handleMarkerClick(item)}
-          />
-        ))}
+    <div className={mapWrapperClass} data-testid="appointment-map-wrapper">
+      <MapContainer key={mode} onMapReady={setMapInstance}>
+        {mode === 'appointments' &&
+          validAppointmentPins.map((item) => (
+            <MapMarker
+              key={item.id}
+              longitude={item.longitude}
+              latitude={item.latitude}
+              color={STATUS_COLORS[item.status] ?? '#9E9E9E'}
+              label={item.code}
+              active={selectedItem?.id === item.id}
+              // Disable marker interaction while the operator is sketching
+              // a lasso polygon. Without this, clicking near a marker to
+              // close the polygon would land on the marker button, swallow
+              // the click via stopPropagation, and leave the polygon
+              // unclosed — exactly the "lasso impossible to close" bug.
+              disabled={lassoState === 'drawing'}
+              onClick={() => handleMarkerClick(item)}
+            />
+          ))}
+        {mode === 'groups' &&
+          validGroupPins.map((item) => (
+            <MapMarker
+              key={item.id}
+              longitude={item.longitude}
+              latitude={item.latitude}
+              color={GROUP_STATUS_COLORS[item.status] ?? '#9E9E9E'}
+              label={item.name ?? ''}
+              active={selectedGroupItem?.id === item.id}
+              onClick={() => handleGroupMarkerClick(item)}
+            />
+          ))}
       </MapContainer>
 
-      {selectedItem && popupPosition && (
+      <MapLassoSelect
+        ref={lassoRef}
+        map={mapInstance}
+        points={lassoPoints}
+        lassoState={mode === 'appointments' ? lassoState : 'idle'}
+        onSelectionChange={handleLassoSelectionChange}
+        onPolygonCleared={handleLassoCleared}
+      />
+
+      {/* 025 cycle 2/2 — explicit close affordance overlay. mapbox-gl-draw's
+          default close gestures (click ~5px first vertex, dblclick, Enter)
+          are undiscoverable. This top-center banner gives the operator
+          visible Finish + Cancel buttons + a guidance line for the
+          keyboard shortcuts. */}
+      {mode === 'appointments' && lassoState === 'drawing' && (
+        <div
+          className="pointer-events-none absolute left-1/2 top-4 z-40 -translate-x-1/2 transform"
+          data-testid="lasso-draw-banner"
+        >
+          <div className="pointer-events-auto flex items-center gap-3 rounded-md border border-orange-200 bg-white px-4 py-2 shadow-lg">
+            <i className="mdi mdi-selection-drag text-base text-orange-500" />
+            <span className="text-xs text-text-secondary">
+              Click to add vertices · double-click or press <kbd className="rounded border border-gray-300 bg-gray-100 px-1 text-[10px]">Enter</kbd> to finish · <kbd className="rounded border border-gray-300 bg-gray-100 px-1 text-[10px]">Esc</kbd> to cancel
+            </span>
+            <div className="ml-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => lassoRef.current?.cancelDrawing()}
+                className="rounded border border-border-subtle px-3 py-1 text-xs text-text-secondary hover:bg-gray-50"
+                data-testid="lasso-banner-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => lassoRef.current?.finishDrawing()}
+                className="rounded bg-orange-500 px-3 py-1 text-xs font-semibold text-white hover:brightness-95"
+                data-testid="lasso-banner-finish"
+              >
+                Finish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Marker detail panel replaces the inline popup in appointments mode (025 §FR-451). */}
+
+      {mode === 'groups' && selectedGroupItem && popupPosition && (
         <MapPopup
-          title={selectedItem.code}
-          onClose={() => setSelectedItem(null)}
+          title={selectedGroupItem.name ?? '—'}
+          onClose={() => setSelectedGroupItem(null)}
           actions={[
-            { label: 'View Details', onClick: () => handleViewDetail(selectedItem.id) },
+            { label: 'View Details', onClick: () => handleViewGroupDetail(selectedGroupItem.id) },
           ]}
           style={{
             left: popupPosition.x,
@@ -205,26 +787,25 @@ export function AppointmentMapPage() {
           <div className="space-y-1">
             <p>
               <span className="text-text-muted">Status:</span>{' '}
-              {APPOINTMENT_STATUS_MAP[selectedItem.status as AppointmentStatus]?.label ?? selectedItem.status}
+              {SERVICE_GROUP_STATUS_MAP[selectedGroupItem.status as ServiceGroupStatus]?.label ?? selectedGroupItem.status}
             </p>
             <p>
-              <span className="text-text-muted">Address:</span> {selectedItem.propertyAddress}
+              <span className="text-text-muted">Appointments:</span>{' '}
+              {selectedGroupItem.appointments.length}
             </p>
             <p>
-              <span className="text-text-muted">Date:</span> {formatDate(selectedItem.scheduledDate)}
+              <span className="text-text-muted">Date:</span>{' '}
+              {formatDate(selectedGroupItem.scheduledDate)}
             </p>
-            {selectedItem.inspectorName && (
-              <p>
-                <span className="text-text-muted">Inspector:</span>{' '}
-                {selectedItem.inspectorName}
-              </p>
-            )}
           </div>
         </MapPopup>
       )}
 
       <MapFloatingAction
         actions={[
+          ...(mode === 'appointments'
+            ? [{ icon: 'mdi-selection-drag', label: 'Select Area', onClick: handleLassoToggle, active: lassoState !== 'idle' }]
+            : []),
           { icon: 'mdi-crosshairs-gps', label: 'Re-center', onClick: handleRecenter },
         ]}
       />
@@ -232,14 +813,96 @@ export function AppointmentMapPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        title="Appointment Map"
-        secondaryActions={[
-          { label: 'List View', icon: 'mdi-format-list-bulleted', onClick: () => navigate('/appointments') },
-        ]}
+    <div className="relative -mx-4 -mt-4 md:-mx-8 md:-mt-6">
+      <MapScreenLayout sidePanel={sidePanel} map={mapContent} sidePanelOpen={filtersOpen} />
+        {/* 026 cycle-1 devolução — render the top-left toggle ONLY while
+            the panel is closed. When open, the panel's own close `×`
+            button is the canonical affordance; the external toggle was
+            occluding the panel header text. */}
+        {!filtersOpen && (
+          <div className="pointer-events-none absolute left-4 top-4 z-30 md:left-6 md:top-6">
+            <div className="pointer-events-auto">
+              <MapFilterToggleButton open={filtersOpen} onToggle={toggleFilters} />
+            </div>
+          </div>
+        )}
+
+        {/* C10 — List view button: top-right, offset left of the Mapbox zoom controls */}
+        <div className="pointer-events-none absolute right-14 top-4 z-30">
+          <div className="pointer-events-auto">
+            <MapListViewToggleButton />
+          </div>
+        </div>
+
+      <MapBulkActionModal
+        appointments={selectedAppointmentsForPanel}
+        open={(lassoState === 'review' || lassoState === 'applying') && mode === 'appointments'}
+        onClose={handleBulkModalClose}
+        actorTimezone={actorTimezone}
+        actorRole={actorRole}
+        clUserFlags={clUserFlags}
+        onAddToGroup={handleOpenAddToGroup}
+        onCreateGroup={handleOpenCreateGroup}
+        // T-C4-4 — track modal width so flyTo right-padding stays in sync
+        onResize={setBulkModalWidth}
+        // 026 §FR-560 + T-C4-4 — clicking the code pill opens the detail popup
+        // and flies the map to the pin, padding right by the modal width.
+        onOpenDetailPanel={(id) => {
+          const item = appointmentData.find((a) => a.id === id) ?? null;
+          if (!item) return;
+          setSelectedItem(item);
+          if (mapInstance && item.longitude != null && item.latitude != null) {
+            mapInstance.flyTo({
+              center: [item.longitude, item.latitude],
+              zoom: 15,
+              duration: 600,
+              padding: { right: bulkModalWidth + 32 },
+            });
+          }
+        }}
+        onActionComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
+          queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+        }}
       />
-      <MapScreenLayout sidePanel={sidePanel} map={mapContent} />
+
+      {/* 026 §FR-510 — Add-to-group sub-modal. Seeded from the modal
+          footer button; runs eligibility-check on group pick, surfaces
+          per-item ineligibles, commits with the eligible subset only. */}
+      <MapAddToGroupSubModal
+        open={addToGroupOpen}
+        onClose={() => { setAddToGroupOpen(false); setAddToGroupSeedIds([]); }}
+        appointments={addToGroupSeedIds.map((id) => appointmentData.find((a) => a.id === id)).filter(Boolean) as AppointmentMapItem[]}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
+          queryClient.invalidateQueries({ queryKey: ['service-groups'] });
+          setLassoSelectedIds([]);
+          setLassoState('idle');
+        }}
+      />
+
+      {/* 025 cycle 2/2 — appointment detail rendered inside a Mapbox-native
+          Popup. The popup itself is created in the useEffect above and lives
+          inside the map canvas's DOM tree; we portal the React content into
+          the popup's root so Mapbox manages positioning per frame while
+          React owns the content lifecycle. */}
+      {mode === 'appointments' && selectedItem && appointmentPopupRoot && createPortal(
+        <AppointmentMapDetailPanel
+          appointment={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onMoreDetails={handleViewDetail}
+        />,
+        appointmentPopupRoot,
+      )}
+
+      <MapGroupCreateModal
+        open={groupModalOpen}
+        onClose={() => { setGroupModalOpen(false); setGroupModalSeedIds([]); }}
+        selectedAppointments={(groupModalSeedIds.length > 0 ? groupModalSeedIds : lassoSelectedIds)
+          .map((id) => appointmentData.find((a) => a.id === id))
+          .filter(Boolean) as AppointmentMapItem[]}
+        onSuccess={handleGroupCreateSuccess}
+      />
     </div>
   );
 }
