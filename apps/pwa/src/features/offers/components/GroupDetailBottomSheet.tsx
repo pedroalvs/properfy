@@ -4,9 +4,10 @@ import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
 interface Props {
   groupId: string | null;
   onClose: () => void;
+  onAccept?: () => void;
 }
 
-export function GroupDetailBottomSheet({ groupId, onClose }: Props) {
+export function GroupDetailBottomSheet({ groupId, onClose, onAccept }: Props) {
   const { data, isLoading, isError } = useMarketplaceOfferDetail(groupId);
 
   if (groupId === null) return null;
@@ -35,7 +36,7 @@ export function GroupDetailBottomSheet({ groupId, onClose }: Props) {
       </div>
 
       {/* Body */}
-      <div className="overflow-y-auto px-5 pb-8">
+      <div className="overflow-y-auto px-5 pb-4">
         {isLoading && (
           <div data-testid="detail-loading" className="py-8 text-center text-sm text-text-secondary">
             Loading…
@@ -55,32 +56,60 @@ export function GroupDetailBottomSheet({ groupId, onClose }: Props) {
         )}
 
         {data && data.appointments.length > 0 && (
-          <ul className="divide-y divide-gray-100">
-            {data.appointments.map((appt) => (
-              <li key={appt.id} className="flex items-center justify-between py-3">
-                <div className="text-sm">
-                  <p className="font-medium text-secondary">{appt.suburb}</p>
-                  {appt.keyRequired && (
-                    <p className="text-xs text-warning">Key required</p>
-                  )}
-                  {appt.notes && (
-                    <p className="text-xs text-text-secondary">{appt.notes}</p>
-                  )}
-                </div>
-                {appt.payoutAmount != null && (
-                  <span
-                    data-testid="appointment-payout"
-                    className="text-sm font-semibold text-success"
-                  >
-                    {formatCurrency(appt.payoutAmount)}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+          <>
+            {/* Group-level info */}
+            <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-gray-100 pb-3">
+              <span className="text-sm font-semibold text-text-primary">{data.serviceTypeName}</span>
+              <span className="text-sm text-text-secondary">{data.timeWindow}</span>
+              <span className="text-xs text-text-muted">{data.scheduledDate}</span>
+            </div>
 
+            <ul className="divide-y divide-gray-100">
+              {data.appointments.map((appt) => (
+                <li key={appt.id} className="py-3">
+                  <div className="flex items-start justify-between">
+                    <div className="text-sm">
+                      {appt.appointmentCode && (
+                        <span className="mb-1 inline-block rounded bg-secondary/10 px-1.5 py-0.5 text-[11px] font-bold text-secondary">
+                          {appt.appointmentCode}
+                        </span>
+                      )}
+                      <p className="font-medium text-secondary">{appt.suburb}</p>
+                      {appt.keyRequired && (
+                        <p className="text-xs text-warning">Key required</p>
+                      )}
+                      {appt.notes && (
+                        <p className="text-xs text-text-secondary">{appt.notes}</p>
+                      )}
+                    </div>
+                    {appt.payoutAmount != null && (
+                      <span
+                        data-testid="appointment-payout"
+                        className="text-sm font-semibold text-success"
+                      >
+                        {formatCurrency(appt.payoutAmount)}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
+
+      {/* Accept CTA */}
+      {onAccept && data && (
+        <div className="border-t border-gray-100 px-5 pb-8 pt-4">
+          <button
+            data-testid="accept-group-btn"
+            onClick={onAccept}
+            className="w-full rounded-2xl bg-primary py-3 text-sm font-bold text-white shadow-sm active:brightness-90"
+          >
+            Accept group
+          </button>
+        </div>
+      )}
     </div>
   );
 }

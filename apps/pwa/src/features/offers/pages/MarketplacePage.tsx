@@ -9,6 +9,7 @@ import { GroupDetailBottomSheet } from '../components/GroupDetailBottomSheet';
 import { OffersViewToggle } from '../components/OffersViewToggle';
 import { OffersMapView } from '../components/OffersMapView';
 import { useMarketplaceOffers } from '../hooks/useMarketplaceOffers';
+import { useAcceptOffer } from '../hooks/useAcceptOffer';
 import { useIsOnline } from '@/hooks/useIsOnline';
 
 function formatTimeAgo(timestamp: number): string {
@@ -23,6 +24,7 @@ function formatTimeAgo(timestamp: number): string {
 export function MarketplacePage() {
   const isOnline = useIsOnline();
   const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useMarketplaceOffers();
+  const { accept } = useAcceptOffer();
   const [detailGroupId, setDetailGroupId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
   const offers = data?.data ?? [];
@@ -83,6 +85,7 @@ export function MarketplacePage() {
       <GroupDetailBottomSheet
         groupId={detailGroupId}
         onClose={() => setDetailGroupId(null)}
+        onAccept={detailGroupId ? () => { accept(detailGroupId); setDetailGroupId(null); } : undefined}
       />
     </div>
   );

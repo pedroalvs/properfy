@@ -1,5 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ScheduleHistoryList } from '../ScheduleHistoryList';
+
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
 
 const makeItem = (overrides: Partial<(typeof items)[0]> = {}) => ({
   id: '00000000-0000-0000-0000-000000000001',
@@ -24,6 +29,8 @@ const items = [
 ];
 
 describe('ScheduleHistoryList', () => {
+  beforeEach(() => { mockNavigate.mockClear(); });
+
   it('renders all appointment rows', () => {
     render(<ScheduleHistoryList items={items} />);
     expect(screen.getByText('INS-0001')).toBeInTheDocument();
@@ -52,5 +59,11 @@ describe('ScheduleHistoryList', () => {
   it('renders empty state when items is empty', () => {
     render(<ScheduleHistoryList items={[]} />);
     expect(screen.getByTestId('history-empty')).toBeInTheDocument();
+  });
+
+  it('navigates to /schedule/:id when a history item is clicked', () => {
+    render(<ScheduleHistoryList items={[items[0]!]} />);
+    fireEvent.click(screen.getByTestId(`history-item-${items[0]!.id}`));
+    expect(mockNavigate).toHaveBeenCalledWith(`/schedule/${items[0]!.id}`);
   });
 });
