@@ -133,6 +133,7 @@ export class PrismaAvailabilitySlotRepository
         region_json: (slot.regionJson as Prisma.InputJsonValue) ?? undefined,
         capacity: slot.capacity,
         status: slot.status as PrismaAvailabilitySlotStatus,
+        is_operator_override: slot.isOperatorOverride,
       },
     });
   }
