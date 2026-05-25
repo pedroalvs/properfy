@@ -1,4 +1,4 @@
-import type { AppointmentStatus, AvailableSlot, TenantConfirmationStatus } from '@properfy/shared';
+import type { AppointmentStatus, AvailableGroup, AvailableSlot, TenantConfirmationStatus } from '@properfy/shared';
 
 export type { AvailableSlot };
 export type { AvailableGroup } from '@properfy/shared';
@@ -118,5 +118,5 @@ export interface JoinGroupInput {
 }
 
 export interface AvailableGroupsData {
-  groups: import('@properfy/shared').AvailableGroup[];
+  groups: AvailableGroup[];
 }
