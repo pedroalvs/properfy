@@ -275,13 +275,26 @@ describe('JoinGroupUseCase', () => {
     }));
   });
 
-  it('should call state transition with SYS actor', async () => {
+  it('should call state transition with SYS actor when appointment is AWAITING_INSPECTOR', async () => {
     await useCase.execute(makeInput());
     expect(statusTransition.execute).toHaveBeenCalledWith(expect.objectContaining({
       appointmentId: 'appt-1',
       targetStatus: 'SCHEDULED',
       actor: expect.objectContaining({ role: 'SYS' }),
     }));
+  });
+
+  // BUG-3 regression: SCHEDULED appointment switching group must NOT re-trigger the
+  // SCHEDULED→SCHEDULED transition (APPOINTMENT_INVALID_TRANSITION). Only
+  // AWAITING_INSPECTOR→SCHEDULED is a valid forward transition.
+  it('should NOT call state transition when appointment is already SCHEDULED', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ status: 'SCHEDULED', serviceGroupId: 'sg-old' }),
+      contact: null,
+      restrictions: [],
+    });
+    await useCase.execute(makeInput());
+    expect(statusTransition.execute).not.toHaveBeenCalled();
   });
 
   it('should swallow notification failures', async () => {

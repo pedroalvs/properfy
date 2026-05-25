@@ -110,19 +110,23 @@ export class JoinGroupUseCase {
       ...(input.tenantNote !== undefined ? { tenantNote: input.tenantNote } : {}),
     });
 
-    // 6. Transition status via state machine (AWAITING_INSPECTOR → SCHEDULED)
-    await this.statusTransition.execute({
-      appointmentId: input.appointmentId,
-      targetStatus: 'SCHEDULED',
-      reason: `Tenant joined service group ${group.id} via portal`,
-      actor: {
-        userId: 'system',
-        tenantId: appointment.tenantId,
-        role: UserRole.SYS,
-        branchId: null,
-        inspectorId: null,
-      },
-    });
+    // 6. Transition to SCHEDULED only when not already in that status
+    // (AWAITING_INSPECTOR → SCHEDULED is the normal path; SCHEDULED appointments
+    // switching groups must skip this transition to avoid APPOINTMENT_INVALID_TRANSITION)
+    if (appointment.status !== 'SCHEDULED') {
+      await this.statusTransition.execute({
+        appointmentId: input.appointmentId,
+        targetStatus: 'SCHEDULED',
+        reason: `Tenant joined service group ${group.id} via portal`,
+        actor: {
+          userId: 'system',
+          tenantId: appointment.tenantId,
+          role: UserRole.SYS,
+          branchId: null,
+          inspectorId: null,
+        },
+      });
+    }
 
     // 7. Increment confirmed_count of new group
     await this.serviceGroupRepo.incrementConfirmedCount(group.id);

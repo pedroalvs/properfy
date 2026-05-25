@@ -123,6 +123,7 @@ export async function registerTenantPortalRoutes(
               unavailableHoursJson: parsed.data.restrictions.unavailableHoursJson
                 ? parsed.data.restrictions.unavailableHoursJson.map((h) => `${h.start}-${h.end}`)
                 : null,
+              availableSlotsJson: parsed.data.restrictions.availableSlotsJson ?? null,
               notes: parsed.data.restrictions.notes ?? null,
             }
           : undefined,
@@ -165,6 +166,7 @@ export async function registerTenantPortalRoutes(
               unavailableHoursJson: parsed.data.restrictions.unavailableHoursJson
                 ? parsed.data.restrictions.unavailableHoursJson.map((h) => `${h.start}-${h.end}`)
                 : null,
+              availableSlotsJson: parsed.data.restrictions.availableSlotsJson ?? null,
               notes: parsed.data.restrictions.notes ?? null,
             }
           : undefined,
@@ -234,6 +236,7 @@ export async function registerTenantPortalRoutes(
               unavailableHoursJson: parsed.data.restrictions.unavailableHoursJson
                 ? parsed.data.restrictions.unavailableHoursJson.map((h) => `${h.start}-${h.end}`)
                 : null,
+              availableSlotsJson: parsed.data.restrictions.availableSlotsJson ?? null,
               notes: parsed.data.restrictions.notes ?? null,
             }
           : undefined,
