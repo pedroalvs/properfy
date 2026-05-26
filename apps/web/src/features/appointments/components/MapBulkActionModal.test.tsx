@@ -154,7 +154,7 @@ describe('MapBulkActionModal', () => {
     renderModal({ appointments: [withNote] });
     const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
     expect(icon).toBeInTheDocument();
-    expect(icon).toHaveAttribute('aria-label', 'Note: Will be home after 3pm');
+    expect(icon).toHaveAttribute('title', 'Will be home after 3pm');
   });
 
   it('shows fallback tooltip text when hasTenantNote=true but tenantNote is null', () => {
@@ -165,7 +165,7 @@ describe('MapBulkActionModal', () => {
     };
     renderModal({ appointments: [withNoteNoText] });
     const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
-    expect(icon).toHaveAttribute('aria-label', 'Tenant left a note via portal');
+    expect(icon).toHaveAttribute('title', 'Tenant left a note');
   });
 
   // group button blocking — new behaviors added in fix/group-creation
