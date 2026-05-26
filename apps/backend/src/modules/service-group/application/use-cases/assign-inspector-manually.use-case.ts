@@ -10,10 +10,6 @@ import type { IInspectorRepository } from '../../../inspector/domain/inspector.r
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import type { IAvailabilitySlotRepository } from '../../../inspector/domain/availability-slot.repository';
 import {
-  AvailabilitySlotCapacityExhaustedError,
-  AvailabilitySlotNotMatchedError,
-} from '../../../inspector/domain/inspector.errors';
-import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
   InspectorInactiveError,
@@ -112,28 +108,6 @@ export class AssignInspectorManuallyUseCase {
       }
     }
 
-    // Book availability slot: find matching slot and decrement capacity
-    let bookedSlotId: string | null = null;
-    if (this.availabilitySlotRepo) {
-      const parts = group.timeWindow.split('-');
-      const slotStart = parts[0] ?? '';
-      const slotEnd = parts[1] ?? '';
-      const slot = await this.availabilitySlotRepo.findMatchingSlot(
-        inspectorId,
-        group.scheduledDate,
-        slotStart,
-        slotEnd,
-      );
-      if (!slot) {
-        throw new AvailabilitySlotNotMatchedError();
-      }
-      const updatedCapacity = await this.availabilitySlotRepo.decrementCapacity(slot.id);
-      if (updatedCapacity === null) {
-        throw new AvailabilitySlotCapacityExhaustedError();
-      }
-      bookedSlotId = slot.id;
-    }
-
     const now = new Date();
 
     await this.serviceGroupRepo.update(groupId, {
@@ -160,7 +134,6 @@ export class AssignInspectorManuallyUseCase {
         status: 'ACCEPTED',
         assignedInspectorId: inspectorId,
         appointmentsScheduled: scheduledCount,
-        ...(bookedSlotId ? { bookedSlotId } : {}),
       },
       reason: `Manual assignment by ${actor.role}`,
     });
