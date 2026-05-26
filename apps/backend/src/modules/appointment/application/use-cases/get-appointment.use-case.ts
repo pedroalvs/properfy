@@ -84,6 +84,8 @@ export interface GetAppointmentOutput {
     notes: string | null;
     source: string;
   }>;
+  /** True when an active (non-superseded) confirmation cycle exists — enables "Copy Portal Link" button. */
+  hasActivePortalToken: boolean;
 }
 
 function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
@@ -161,6 +163,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
       notes: r.notes,
       source: r.source,
     })),
+    hasActivePortalToken: appointment.activeConfirmationCycleId !== null,
   };
 }
 

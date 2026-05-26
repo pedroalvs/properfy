@@ -18,6 +18,7 @@ export interface AppointmentProps {
   meetingLocation: string | null;
   keyLocation: string | null;
   tenantConfirmationStatus: TenantConfirmationStatus;
+  activeConfirmationCycleId?: string | null;
   priceAmount: number;
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
@@ -51,6 +52,7 @@ export class AppointmentEntity extends BaseEntity {
   readonly meetingLocation: string | null;
   readonly keyLocation: string | null;
   tenantConfirmationStatus: TenantConfirmationStatus;
+  readonly activeConfirmationCycleId: string | null;
   readonly priceAmount: number;
   readonly payoutAmount: number;
   readonly pricingRuleSnapshotJson: Record<string, unknown>;
@@ -82,6 +84,7 @@ export class AppointmentEntity extends BaseEntity {
     this.meetingLocation = props.meetingLocation;
     this.keyLocation = props.keyLocation;
     this.tenantConfirmationStatus = props.tenantConfirmationStatus;
+    this.activeConfirmationCycleId = props.activeConfirmationCycleId ?? null;
     this.priceAmount = props.priceAmount;
     this.payoutAmount = props.payoutAmount;
     this.pricingRuleSnapshotJson = props.pricingRuleSnapshotJson;

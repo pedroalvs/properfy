@@ -114,6 +114,7 @@ export interface IAppointmentRepository {
       meetingLocation: string | null;
       keyLocation: string | null;
       tenantConfirmationStatus: string;
+      activeConfirmationCycleId: string | null;
       notes: string | null;
       tenantNote: string | null;
       customFieldsJson: Record<string, unknown> | null;

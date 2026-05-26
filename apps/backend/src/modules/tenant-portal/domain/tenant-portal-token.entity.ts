@@ -9,6 +9,8 @@ export interface TenantPortalTokenProps {
   status: TenantPortalTokenStatus;
   usedAt: Date | null;
   lastAccessedAt: Date | null;
+  rawTokenEncrypted?: string | null;
+  confirmationCycleId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +22,8 @@ export class TenantPortalTokenEntity extends BaseEntity {
   status: TenantPortalTokenStatus;
   usedAt: Date | null;
   lastAccessedAt: Date | null;
+  readonly rawTokenEncrypted: string | null;
+  readonly confirmationCycleId: string | null;
 
   constructor(props: TenantPortalTokenProps) {
     super(props.id, props.createdAt, props.updatedAt);
@@ -29,6 +33,8 @@ export class TenantPortalTokenEntity extends BaseEntity {
     this.status = props.status;
     this.usedAt = props.usedAt;
     this.lastAccessedAt = props.lastAccessedAt;
+    this.rawTokenEncrypted = props.rawTokenEncrypted ?? null;
+    this.confirmationCycleId = props.confirmationCycleId ?? null;
   }
 
   isExpired(now: Date): boolean {
@@ -49,6 +55,10 @@ export class TenantPortalTokenEntity extends BaseEntity {
 
   isUsed(): boolean {
     return this.usedAt !== null;
+  }
+
+  isSuperseded(): boolean {
+    return this.status === 'SUPERSEDED';
   }
 
   markUsed(): void {

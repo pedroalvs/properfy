@@ -3,6 +3,7 @@ import type { IAppointmentRepository } from '../../domain/appointment.repository
 import { AppointmentNotFoundError } from '../../domain/appointment.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 
 export interface ForceManualConfirmationInput {
   appointmentId: string;
@@ -21,6 +22,7 @@ export class ForceManualTenantConfirmationUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly cycleService?: ConfirmationCycleService,
   ) {}
 
   async execute(input: ForceManualConfirmationInput): Promise<ForceManualConfirmationOutput> {
@@ -49,10 +51,22 @@ export class ForceManualTenantConfirmationUseCase {
       throw new AppointmentNotFoundError();
     }
 
-    // 3. Update tenant confirmation status
-    await this.appointmentRepo.update(appointmentId, result.appointment.tenantId, {
-      tenantConfirmationStatus,
-    });
+    // 3. Update tenant confirmation status via ConfirmationCycleService (if wired)
+    // or fall back to direct update for appointments created before this feature.
+    if (this.cycleService) {
+      try {
+        await this.cycleService.confirm(appointmentId, result.appointment.tenantId, 'OPERATOR_FORCED', null);
+      } catch {
+        // No active cycle (pre-feature appointment) — fall back to direct denorm write
+        await this.appointmentRepo.update(appointmentId, result.appointment.tenantId, {
+          tenantConfirmationStatus,
+        });
+      }
+    } else {
+      await this.appointmentRepo.update(appointmentId, result.appointment.tenantId, {
+        tenantConfirmationStatus,
+      });
+    }
 
     // 4. Audit
     this.auditService.log({

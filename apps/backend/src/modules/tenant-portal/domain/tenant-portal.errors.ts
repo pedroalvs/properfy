@@ -87,3 +87,16 @@ export class PortalGroupUnavailableError extends ConflictError {
     super('PORTAL_GROUP_UNAVAILABLE', 'Service group is no longer available for joining');
   }
 }
+
+export class PortalTokenSupersededError extends DomainError {
+  constructor() {
+    super('PORTAL_TOKEN_SUPERSEDED', 'This portal token has been superseded by a new confirmation cycle', 410);
+    this.name = 'PortalTokenSupersededError';
+  }
+}
+
+export class NoActivePortalTokenError extends NotFoundError {
+  constructor() {
+    super('NO_ACTIVE_PORTAL_TOKEN', 'No active portal token for this appointment');
+  }
+}

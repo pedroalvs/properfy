@@ -1,8 +1,10 @@
 import type { AuthContext } from '@properfy/shared';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ITenantPortalTokenRepository } from '../../../tenant-portal/domain/tenant-portal-token.repository';
+import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { DomainError } from '../../../../shared/domain/errors';
 import { AppointmentNotFoundError, AppointmentDateInPastError, AppointmentTimeInPastError } from '../../domain/appointment.errors';
 import { validateEditedSchedule } from '@properfy/shared';
@@ -53,6 +55,9 @@ export class ReopenForRescheduleUseCase {
      * the additive code path is gated by `if (this.tokenRepo)`.
      */
     private readonly tokenRepo?: ITenantPortalTokenRepository,
+    /** 028 — optional. When wired, supersedes the current confirmation cycle on reopen. */
+    private readonly cycleService?: ConfirmationCycleService,
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(input: ReopenForRescheduleInput): Promise<ReopenForRescheduleOutput> {
@@ -111,15 +116,36 @@ export class ReopenForRescheduleUseCase {
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
     };
 
-    // 5. Atomic update: revert to DRAFT, update date/time, clear inspector, reset confirmation
-    await this.appointmentRepo.update(appointmentId, appointment.tenantId, {
-      status: 'DRAFT',
-      scheduledDate: new Date(newScheduledDate),
-      timeSlot: newTimeSlot,
-      inspectorId: null,
-      tenantConfirmationStatus: 'PENDING',
-      reason: null,
-    });
+    // 5. Atomic update: revert to DRAFT, update date/time, clear inspector.
+    // When cycleService is wired, supersede the current cycle within the same transaction
+    // so the denorm status is driven exclusively by ConfirmationCycleService.
+    const doUpdate = async (tx?: Prisma.TransactionClient) => {
+      if (this.cycleService) {
+        await this.appointmentRepo.update(appointmentId, appointment.tenantId, {
+          status: 'DRAFT',
+          scheduledDate: new Date(newScheduledDate),
+          timeSlot: newTimeSlot,
+          inspectorId: null,
+          reason: null,
+        });
+        await this.cycleService.invalidateOnReopen(appointmentId, appointment.tenantId, tx);
+      } else {
+        await this.appointmentRepo.update(appointmentId, appointment.tenantId, {
+          status: 'DRAFT',
+          scheduledDate: new Date(newScheduledDate),
+          timeSlot: newTimeSlot,
+          inspectorId: null,
+          reason: null,
+          tenantConfirmationStatus: 'PENDING',
+        });
+      }
+    };
+
+    if (this.cycleService && this.prisma) {
+      await this.prisma.$transaction((tx) => doUpdate(tx));
+    } else {
+      await doUpdate();
+    }
 
     // 6. Audit log -- single composite entry for the entire reschedule operation
     const afterSnapshot = {
