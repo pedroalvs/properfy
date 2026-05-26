@@ -94,3 +94,9 @@ export class PortalTokenSupersededError extends DomainError {
     this.name = 'PortalTokenSupersededError';
   }
 }
+
+export class NoActivePortalTokenError extends NotFoundError {
+  constructor() {
+    super('NO_ACTIVE_PORTAL_TOKEN', 'No active portal token for this appointment');
+  }
+}

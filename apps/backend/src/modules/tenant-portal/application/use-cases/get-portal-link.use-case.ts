@@ -3,8 +3,10 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
 import type { ITokenEncrypter } from '../../domain/token-encrypter';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
-import { ConfirmationCycleNotFoundError, PortalTokenNotDecryptableError } from '../../../appointment/domain/confirmation-cycle.errors';
+import { PortalTokenNotDecryptableError } from '../../../appointment/domain/confirmation-cycle.errors';
+import { NoActivePortalTokenError } from '../../domain/tenant-portal.errors';
 
 export interface GetPortalLinkInput {
   appointmentId: string;
@@ -23,6 +25,7 @@ export class GetPortalLinkUseCase {
     private readonly tokenEncrypter: ITokenEncrypter,
     private readonly tenantPortalBaseUrl: string,
     private readonly authorizationService: AuthorizationService,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(input: GetPortalLinkInput): Promise<GetPortalLinkOutput> {
@@ -39,12 +42,16 @@ export class GetPortalLinkUseCase {
     const { appointment } = result;
 
     if (!appointment.activeConfirmationCycleId) {
-      throw new ConfirmationCycleNotFoundError();
+      throw new NoActivePortalTokenError();
     }
 
     const token = await this.tokenRepo.findActiveByAppointmentId(appointmentId);
-    if (!token || !token.rawTokenEncrypted) {
-      throw new ConfirmationCycleNotFoundError();
+    if (!token) {
+      throw new NoActivePortalTokenError();
+    }
+
+    if (!token.rawTokenEncrypted) {
+      throw new PortalTokenNotDecryptableError();
     }
 
     let rawToken: string;
@@ -54,7 +61,17 @@ export class GetPortalLinkUseCase {
       throw new PortalTokenNotDecryptableError();
     }
 
-    const portalUrl = new URL('/portal/' + encodeURIComponent(rawToken), this.tenantPortalBaseUrl).toString();
+    const portalUrl = new URL('/tenant-portal/' + encodeURIComponent(rawToken), this.tenantPortalBaseUrl).toString();
+
+    this.auditService.log({
+      action: 'tenant_portal.link_copied',
+      actorType: 'USER',
+      actorId: actor.userId,
+      entityType: 'Appointment',
+      entityId: appointmentId,
+      tenantId: appointment.tenantId,
+      metadata: { tokenId: token.id, expiresAt: token.expiresAt.toISOString() },
+    });
 
     return {
       portalUrl,
