@@ -331,6 +331,7 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   agencyName: z.string().nullable().optional(),
   payoutAmount: z.number().nullable().optional(),
   inspectionAppLink: z.string().nullable().optional(),
+  appointmentCode: z.string().optional(),
 });
 
 // ─── Service Group ─────────────────────────────────────────────────────────
