@@ -126,6 +126,7 @@ describe('MintPortalTokenService', () => {
         tokenHash: TOKEN_HASH,
         status: 'ACTIVE',
       }),
+      undefined,
     );
   });
 

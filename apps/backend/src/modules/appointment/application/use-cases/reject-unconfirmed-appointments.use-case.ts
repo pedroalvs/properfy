@@ -1,5 +1,7 @@
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
+import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { AppointmentStateMachine } from '../../domain/appointment-state-machine';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
@@ -21,6 +23,9 @@ export class RejectUnconfirmedAppointmentsUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
     private readonly logger: Logger,
+    /** 028 — optional. When wired, supersedes the confirmation cycle per rejected appointment. */
+    private readonly cycleService?: ConfirmationCycleService,
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(): Promise<RejectUnconfirmedAppointmentsOutput> {
@@ -62,14 +67,26 @@ export class RejectUnconfirmedAppointmentsUseCase {
 
         const previousStatus = appointment.status;
 
-        // Update appointment: reject, set reason code, update confirmation status, remove from group
-        await this.appointmentRepo.update(appointment.id, appointment.tenantId, {
-          status: 'REJECTED',
-          reason: REJECTION_REASON,
-          rejectionReasonCode: 'TENANT_NO_RESPONSE',
-          tenantConfirmationStatus: 'NO_RESPONSE',
-          serviceGroupId: null,
-        });
+        // Update appointment: reject, set reason code, update confirmation status, remove from group.
+        // When cycleService is wired, supersede the active cycle atomically.
+        const doReject = async (tx?: Prisma.TransactionClient) => {
+          await this.appointmentRepo.update(appointment.id, appointment.tenantId, {
+            status: 'REJECTED',
+            reason: REJECTION_REASON,
+            rejectionReasonCode: 'TENANT_NO_RESPONSE',
+            tenantConfirmationStatus: 'NO_RESPONSE',
+            serviceGroupId: null,
+          });
+          if (this.cycleService) {
+            await this.cycleService.invalidateOnReject(appointment.id, appointment.tenantId, tx);
+          }
+        };
+
+        if (this.cycleService && this.prisma) {
+          await this.prisma.$transaction((tx) => doReject(tx));
+        } else {
+          await doReject();
+        }
 
         // Track affected groups (before clearing the serviceGroupId)
         if (appointment.serviceGroupId) {

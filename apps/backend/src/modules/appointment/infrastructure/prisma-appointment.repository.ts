@@ -55,6 +55,7 @@ function mapToEntity(row: any): AppointmentEntity {
     meetingLocation: row.meeting_location,
     keyLocation: row.key_location,
     tenantConfirmationStatus: row.tenant_confirmation_status as TenantConfirmationStatus,
+    activeConfirmationCycleId: row.active_confirmation_cycle_id ?? null,
     priceAmount: Number(row.price_amount),
     payoutAmount: Number(row.payout_amount),
     pricingRuleSnapshotJson: (row.pricing_rule_snapshot_json as Record<string, unknown>) ?? {},
@@ -274,6 +275,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       meetingLocation: string | null;
       keyLocation: string | null;
       tenantConfirmationStatus: string;
+      activeConfirmationCycleId: string | null;
       notes: string | null;
       tenantNote: string | null;
       customFieldsJson: Record<string, unknown> | null;
@@ -302,6 +304,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.keyLocation !== undefined) updateData['key_location'] = data.keyLocation;
     if (data.tenantConfirmationStatus !== undefined) {
       updateData['tenant_confirmation_status'] = data.tenantConfirmationStatus;
+    }
+    if (data.activeConfirmationCycleId !== undefined) {
+      updateData['active_confirmation_cycle_id'] = data.activeConfirmationCycleId;
     }
     if (data.notes !== undefined) updateData['notes'] = data.notes;
     if (data.tenantNote !== undefined) updateData['tenant_note'] = data.tenantNote;
