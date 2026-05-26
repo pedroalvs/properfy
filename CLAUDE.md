@@ -392,6 +392,8 @@ When you (Claude Code) implement or modify code in this project:
 - PostgreSQL (Supabase) — new `contacts` table (per-tenant registry), revised `appointment_contacts` (junction + snapshot pattern), new enums `ContactType`, `ContactChannelType`, `AppointmentContactRole` (021-contacts)
 - TypeScript 5.x strict, ES2022 ESM, Node.js 20 (backend), React 18 (PWA). (027-pwa-improvements)
 - PostgreSQL via Prisma. New columns: `inspectors.availability_template_json` (JSONB), `inspector_availability_slots.is_operator_override` (BOOLEAN). No new tables. (027-pwa-improvements)
+- TypeScript 5.x on Node.js 20 (backend); TypeScript 5.6 + React 18.3 + Vite 5.4 (web). + Fastify 4, Prisma 5, Zod (backend); React Query 5, Tailwind 3, React Router 6 (web); `@properfy/shared` (Zod schemas + types). (027-dashboard-alerts)
+- PostgreSQL (Supabase). **No schema change.** Queries hit existing `appointments`, `inspectors` tables with existing indexes. (027-dashboard-alerts)
 
 ## Recent Changes
 - 002-tenants-branches: Added TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, domain port `IAppointmentChecker`

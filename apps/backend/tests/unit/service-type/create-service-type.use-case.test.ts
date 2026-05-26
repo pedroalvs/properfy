@@ -43,6 +43,7 @@ describe('CreateServiceTypeUseCase', () => {
     serviceTypeRepo = {
       findById: vi.fn(),
       findByCode: vi.fn(),
+      findByName: vi.fn().mockResolvedValue(null),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
