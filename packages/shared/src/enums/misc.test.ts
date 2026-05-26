@@ -21,14 +21,15 @@ describe('AssetKind', () => {
 });
 
 describe('TenantPortalTokenStatus', () => {
-  it('should have ACTIVE, EXPIRED, REVOKED values', () => {
+  it('should have ACTIVE, EXPIRED, REVOKED, SUPERSEDED values', () => {
     expect(TenantPortalTokenStatus.ACTIVE).toBe('ACTIVE');
     expect(TenantPortalTokenStatus.EXPIRED).toBe('EXPIRED');
     expect(TenantPortalTokenStatus.REVOKED).toBe('REVOKED');
+    expect(TenantPortalTokenStatus.SUPERSEDED).toBe('SUPERSEDED');
   });
 
-  it('should have exactly 3 statuses', () => {
-    expect(Object.keys(TenantPortalTokenStatus)).toHaveLength(3);
+  it('should have exactly 4 statuses', () => {
+    expect(Object.keys(TenantPortalTokenStatus)).toHaveLength(4);
   });
 
   it('should not have USED status', () => {

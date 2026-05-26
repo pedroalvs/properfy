@@ -1,10 +1,12 @@
 import type { AuthContext, AppointmentStatus, CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
+import type { PrismaClient } from '@prisma/client';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { AppointmentStateMachine } from '../../domain/appointment-state-machine';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
@@ -70,6 +72,9 @@ export class ExecuteStatusTransitionUseCase {
     private readonly onTransitionHandler?: OnTransitionHandler,
     private readonly serviceTypeRepo?: IServiceTypeRepository,
     private readonly domainEventBus?: DomainEventBus,
+    /** 028 — optional. When wired, supersedes the confirmation cycle on any → DRAFT transition. */
+    private readonly cycleService?: ConfirmationCycleService,
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
@@ -251,8 +256,15 @@ export class ExecuteStatusTransitionUseCase {
       updateData.doneCheckedAt = null;
     }
 
-    // 8. Update appointment
-    await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData);
+    // 8. Update appointment (+ invalidate confirmation cycle if reopening)
+    if (targetStatus === 'DRAFT' && this.cycleService && this.prisma) {
+      await this.prisma.$transaction(async (tx) => {
+        await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData);
+        await this.cycleService!.invalidateOnReopen(appointmentId, appointment.tenantId, tx);
+      });
+    } else {
+      await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData);
+    }
 
     // 9. Audit log — capture all fields that changed, resolve names for readability
     const beforeSnapshot: Record<string, unknown> = { status: appointment.status };

@@ -69,3 +69,10 @@ export class PortalTokenAlreadyUsedError extends ConflictError {
     super('PORTAL_TOKEN_ALREADY_USED', 'This portal token has already been used for a mutation');
   }
 }
+
+export class PortalTokenSupersededError extends DomainError {
+  constructor() {
+    super('PORTAL_TOKEN_SUPERSEDED', 'This portal token has been superseded by a new confirmation cycle', 410);
+    this.name = 'PortalTokenSupersededError';
+  }
+}

@@ -9,6 +9,7 @@ export const TenantPortalTokenStatus = {
   ACTIVE: 'ACTIVE',
   EXPIRED: 'EXPIRED',
   REVOKED: 'REVOKED',
+  SUPERSEDED: 'SUPERSEDED',
 } as const;
 export type TenantPortalTokenStatus = (typeof TenantPortalTokenStatus)[keyof typeof TenantPortalTokenStatus];
 
