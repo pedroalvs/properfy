@@ -1,8 +1,10 @@
+import type { PrismaClient } from '@prisma/client';
 import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { MintPortalTokenService } from '../../domain/mint-portal-token.service';
+import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 
@@ -28,6 +30,9 @@ export class GeneratePortalTokenUseCase {
     private readonly mintPortalTokenService: MintPortalTokenService,
     private readonly auditService: AuditService,
     private readonly createNotificationUseCase?: CreateNotificationUseCase,
+    /** 028 — optional. When wired, creates an initial confirmation cycle atomically with the token. */
+    private readonly cycleService?: ConfirmationCycleService,
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(input: GeneratePortalTokenInput) {
@@ -48,7 +53,28 @@ export class GeneratePortalTokenUseCase {
       throw new NotFoundError('TENANT_NOT_FOUND', 'Tenant not found');
     }
 
-    const { rawToken, expiresAt } = await this.mintPortalTokenService.mint(appointment, tenant);
+    let rawToken = '';
+    let expiresAt = new Date();
+
+    if (this.cycleService && this.prisma) {
+      await this.prisma.$transaction(async (tx) => {
+        const minted = await this.mintPortalTokenService.mint(appointment, tenant, tx);
+        rawToken = minted.rawToken;
+        expiresAt = minted.expiresAt;
+        await this.cycleService!.createInitial(
+          input.appointmentId,
+          appointment.tenantId,
+          appointment.scheduledDate,
+          appointment.timeSlot,
+          minted.tokenId,
+          tx,
+        );
+      });
+    } else {
+      const minted = await this.mintPortalTokenService.mint(appointment, tenant);
+      rawToken = minted.rawToken;
+      expiresAt = minted.expiresAt;
+    }
 
     this.auditService.log({
       action: 'tenant_portal.token_generated',

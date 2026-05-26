@@ -374,6 +374,11 @@ import { PrismaAppointmentImportRepository } from '../modules/appointment/infras
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
+import { GetPortalLinkUseCase } from '../modules/appointment/application/use-cases/get-portal-link.use-case';
+import { PrismaConfirmationCycleRepository } from '../modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
+import { ConfirmationCycleService } from '../modules/appointment/application/services/confirmation-cycle.service';
+import { Aes256GcmService } from '../shared/infrastructure/crypto/aes-256-gcm.service';
+import { AesTokenEncrypterAdapter } from '../modules/tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
 // Appointment time slot module
@@ -660,21 +665,33 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
     appointmentTimeSlotRepo, auditService, authorizationService,
   );
-  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService);
-
   // Tenant portal repositories — created BEFORE reopenForRescheduleUseCase
   // so 026 §FR-543 can inject the token repo (revoke active portal tokens
   // when the appointment is rescheduled).
   const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
   const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
   const tokenService = new TokenService();
-  const mintPortalTokenService = new MintPortalTokenService(tenantPortalTokenRepo, tokenService);
+
+  // 028 — confirmation cycle repository + service
+  const confirmationCycleRepo = new PrismaConfirmationCycleRepository(prisma);
+  const confirmationCycleService = new ConfirmationCycleService(confirmationCycleRepo, auditService, prisma);
+
+  // 028 — AES-256-GCM token encrypter (optional; skipped when PORTAL_TOKEN_ENC_KEY absent)
+  const portalTokenEncrypter = env.PORTAL_TOKEN_ENC_KEY
+    ? new AesTokenEncrypterAdapter(new Aes256GcmService(env.PORTAL_TOKEN_ENC_KEY))
+    : undefined;
+
+  const mintPortalTokenService = new MintPortalTokenService(tenantPortalTokenRepo, tokenService, portalTokenEncrypter);
+
+  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService, confirmationCycleService);
 
   const reopenForRescheduleUseCase = new ReopenForRescheduleUseCase(
     appointmentRepo,
     auditService,
     authorizationService,
     tenantPortalTokenRepo,
+    confirmationCycleService,
+    prisma,
   );
 
   // Notification payload helpers — no constructor deps, safe to create here
@@ -700,12 +717,17 @@ export function createContainer(logger: Logger): AppContainer {
     notifyOnStatusTransitionHandler,
     serviceTypeRepo,
     domainEventBus,
+    confirmationCycleService,
+    prisma,
   );
 
   const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
-  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo);
+  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo, confirmationCycleService);
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
-  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase);
+  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase, confirmationCycleService, prisma);
+  const getPortalLinkUseCase = portalTokenEncrypter
+    ? new GetPortalLinkUseCase(appointmentRepo, tenantPortalTokenRepo, portalTokenEncrypter, env.TENANT_PORTAL_BASE_URL, authorizationService)
+    : undefined;
   const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
   const bulkResendReminderUseCase = new BulkResendReminderUseCase(generatePortalTokenUseCase, idempotencyService);
 
@@ -749,6 +771,7 @@ export function createContainer(logger: Logger): AppContainer {
     inspectionExecutionRepo,
     domainEventBus,
     tenantPortalTokenRepo,
+    confirmationCycleService,
   );
 
   const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, tenantPortalTokenRepo, appointmentRepo, serviceTypeRepo, inspectionExecutionRepo, tenantRepo, auditService, reopenForRescheduleUseCase, notifyOnTenantPortalActionHandler, domainEventBus, generatePortalTokenUseCase);
@@ -1144,7 +1167,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Reject unconfirmed appointments cleanup worker
   const rejectUnconfirmedAppointmentsUseCase = new RejectUnconfirmedAppointmentsUseCase(
-    appointmentRepo, serviceGroupRepo, auditService, logger,
+    appointmentRepo, serviceGroupRepo, auditService, logger, confirmationCycleService, prisma,
   );
   const rejectUnconfirmedWorker = new RejectUnconfirmedWorker(rejectUnconfirmedAppointmentsUseCase);
 
@@ -1313,6 +1336,7 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
       idempotencyService,
+      getPortalLinkUseCase,
     },
     appointmentTimeSlot: {
       createAppointmentTimeSlotUseCase,

@@ -126,3 +126,17 @@ export const reportUnavailabilityPortalResponseSchema = z.object({
   urgentMode: z.boolean(),
 });
 export type ReportUnavailabilityPortalResponse = z.infer<typeof reportUnavailabilityPortalResponseSchema>;
+
+// GET /v1/appointments/:id/portal-link response
+export const GetPortalLinkResponse = z.object({
+  portalUrl: z.string().url(),
+  expiresAt: z.string().datetime(),
+});
+export type GetPortalLinkResponse = z.infer<typeof GetPortalLinkResponse>;
+
+export const PortalLinkErrorCode = z.enum([
+  'NO_ACTIVE_PORTAL_TOKEN',
+  'PORTAL_TOKEN_NOT_DECRYPTABLE',
+  'APPOINTMENT_NOT_FOUND',
+]);
+export type PortalLinkErrorCode = z.infer<typeof PortalLinkErrorCode>;
