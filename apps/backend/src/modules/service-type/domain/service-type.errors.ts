@@ -14,3 +14,12 @@ export class ServiceTypeCodeConflictError extends ConflictError {
     );
   }
 }
+
+export class ServiceTypeNameConflictError extends ConflictError {
+  constructor() {
+    super(
+      'SERVICE_TYPE_NAME_CONFLICT',
+      'A service type with this name already exists',
+    );
+  }
+}
