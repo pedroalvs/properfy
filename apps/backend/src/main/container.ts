@@ -718,7 +718,7 @@ export function createContainer(logger: Logger): AppContainer {
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase, confirmationCycleService, prisma);
   const getPortalLinkUseCase = portalTokenEncrypter
-    ? new GetPortalLinkUseCase(appointmentRepo, tenantPortalTokenRepo, portalTokenEncrypter, env.TENANT_PORTAL_BASE_URL, authorizationService)
+    ? new GetPortalLinkUseCase(appointmentRepo, tenantPortalTokenRepo, portalTokenEncrypter, env.TENANT_PORTAL_BASE_URL, authorizationService, auditService)
     : undefined;
   const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
   const bulkResendReminderUseCase = new BulkResendReminderUseCase(generatePortalTokenUseCase, idempotencyService);
