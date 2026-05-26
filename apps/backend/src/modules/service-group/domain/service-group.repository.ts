@@ -91,6 +91,16 @@ export interface ServiceGroupListItem {
   assignedInspectorName: string | null;
 }
 
+export interface PortalEligibleGroup {
+  id: string;
+  scheduledDate: Date;
+  timeWindow: string;
+  suburb: string;
+  inspectorName: string;
+  confirmedCount: number;
+  capacityMax: 10;
+}
+
 export interface IServiceGroupRepository {
   findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null>;
   findAll(
@@ -152,6 +162,10 @@ export interface IServiceGroupRepository {
     inspectorServiceTypes: string[],
     inspectorBlockedClients: string[],
   ): Promise<MarketplaceOfferDetail | null>;
+  /** Atomic decrement of confirmed_count (for detach flows). */
+  decrementConfirmedCount(groupId: string): Promise<void>;
+  /** Atomic increment of confirmed_count (for join flows). */
+  incrementConfirmedCount(groupId: string): Promise<void>;
   /** Set service_group_id on appointments */
   linkAppointments(appointmentIds: string[], groupId: string): Promise<void>;
   /** Clear service_group_id on appointments */
@@ -162,6 +176,17 @@ export interface IServiceGroupRepository {
   scheduleAppointments(groupId: string, inspectorId: string): Promise<number>;
   /** Find PUBLISHED groups whose priority window has expired */
   findExpiredPublished(): Promise<ServiceGroupEntity[]>;
+  /**
+   * Find ACCEPTED service groups eligible for a tenant to join via the portal.
+   * Criteria: same tenant + same service type, confirmed_count < 10, scheduled_date >= today+1,
+   * and at least one appointment in the group has a property within 2 km of `propertyId`.
+   */
+  findPortalEligibleGroups(params: {
+    tenantId: string;
+    serviceTypeId: string;
+    propertyId: string;
+    today: Date;
+  }): Promise<PortalEligibleGroup[]>;
   /** 026 B1 — find DRAFT/PUBLISHED groups that can absorb a batch of same-property appointments. */
   findAddableForAppointments(params: {
     tenantId: string;

@@ -1,3 +1,4 @@
+import type { AvailableSlot } from '@properfy/shared';
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
@@ -21,6 +22,7 @@ export interface ConfirmAppointmentInput {
     isHome: boolean;
     unavailableDaysJson: string[] | null;
     unavailableHoursJson: string[] | null;
+    availableSlotsJson?: AvailableSlot[] | null;
     notes: string | null;
   };
   tenantNote?: string;
@@ -93,6 +95,7 @@ export class ConfirmAppointmentUseCase {
         isHome: input.restrictions.isHome,
         unavailableDaysJson: input.restrictions.unavailableDaysJson,
         unavailableHoursJson: input.restrictions.unavailableHoursJson,
+        availableSlotsJson: input.restrictions.availableSlotsJson ?? null,
         notes: input.restrictions.notes,
         source: 'TENANT_PORTAL',
         createdAt: new Date(),

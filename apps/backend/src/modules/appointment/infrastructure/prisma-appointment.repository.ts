@@ -19,6 +19,7 @@ import type {
 import { T1VisibilityService } from '../../inspector-execution/domain/t1-visibility.service';
 import type {
   AppointmentStatus,
+  AvailableSlot,
   TenantConfirmationStatus,
   RestrictionSource,
   CancellationReasonCode,
@@ -101,6 +102,7 @@ function mapRestrictionToEntity(row: any): AppointmentRestrictionEntity {
     isHome: row.is_home,
     unavailableDaysJson: row.unavailable_days_json as string[] | null,
     unavailableHoursJson: row.unavailable_hours_json as string[] | null,
+    availableSlotsJson: row.available_slots_json as AvailableSlot[] | null,
     notes: row.notes,
     source: row.source as RestrictionSource,
     createdAt: row.created_at,
@@ -405,6 +407,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         is_home: restriction.isHome,
         unavailable_days_json: restriction.unavailableDaysJson ?? undefined,
         unavailable_hours_json: restriction.unavailableHoursJson ?? undefined,
+        available_slots_json: restriction.availableSlotsJson != null
+          ? (restriction.availableSlotsJson as unknown as Prisma.InputJsonValue)
+          : undefined,
         notes: restriction.notes,
         source: restriction.source as PrismaRestrictionSource,
       },

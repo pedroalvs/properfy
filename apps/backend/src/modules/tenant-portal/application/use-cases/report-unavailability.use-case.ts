@@ -7,6 +7,7 @@ import type { IInspectionExecutionRepository } from '../../../inspector-executio
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
 import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
+import type { AvailableSlot } from '@properfy/shared';
 import {
   PortalAppointmentInactiveError,
   PortalInspectionAlreadyStartedError,
@@ -23,6 +24,7 @@ export interface ReportUnavailabilityInput {
     isHome: boolean;
     unavailableDaysJson: string[] | null;
     unavailableHoursJson: string[] | null;
+    availableSlotsJson?: AvailableSlot[] | null;
     notes: string | null;
   };
   tenantNote?: string;
@@ -104,6 +106,7 @@ export class ReportUnavailabilityUseCase {
         isHome: input.restrictions.isHome,
         unavailableDaysJson: input.restrictions.unavailableDaysJson,
         unavailableHoursJson: input.restrictions.unavailableHoursJson,
+        availableSlotsJson: input.restrictions.availableSlotsJson ?? null,
         notes: input.restrictions.notes,
         source: 'TENANT_PORTAL',
         createdAt: new Date(),
@@ -112,14 +115,19 @@ export class ReportUnavailabilityUseCase {
       await this.appointmentRepo.saveRestriction(restriction);
     }
 
-    // 7. Record UNAVAILABLE_REPORTED activity
+    // 7. Record UNAVAILABLE_REPORTED activity — include availableSlotsJson when present (M6)
+    const newValuesJson: Record<string, unknown> = { tenantConfirmationStatus: 'UNAVAILABLE' };
+    if (input.restrictions?.availableSlotsJson) {
+      newValuesJson['availableSlotsJson'] = input.restrictions.availableSlotsJson;
+    }
+
     const activity = new TenantPortalActivityEntity({
       id: crypto.randomUUID(),
       appointmentId: input.appointmentId,
       tenantPortalTokenId: input.tokenId,
       action: 'UNAVAILABLE_REPORTED',
       previousValuesJson: previousValues,
-      newValuesJson: { tenantConfirmationStatus: 'UNAVAILABLE' },
+      newValuesJson,
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
       createdAt: new Date(),

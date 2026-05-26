@@ -121,13 +121,13 @@ describe('AppointmentTable', () => {
     expect(screen.getByLabelText('Tenant left a note')).toBeInTheDocument();
   });
 
-  it('does not show tenant note icon for non-REJECTED appointment with hasTenantNote', () => {
+  it('shows tenant note icon for SCHEDULED appointment with hasTenantNote (GROUP_JOIN stores notes)', () => {
     const apt = makeAppointment({
       status: AppointmentStatus.SCHEDULED,
       hasTenantNote: true,
     });
     render(<AppointmentTable data={[apt]} />);
-    expect(screen.queryByLabelText('Tenant left a note')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Tenant left a note')).toBeInTheDocument();
   });
 
   it('does not show tenant note icon for REJECTED appointment without hasTenantNote', () => {

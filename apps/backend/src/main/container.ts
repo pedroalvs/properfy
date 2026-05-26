@@ -185,6 +185,8 @@ import { UpdateContactUseCase } from '../modules/tenant-portal/application/use-c
 import { ReportUnavailabilityUseCase } from '../modules/tenant-portal/application/use-cases/report-unavailability.use-case';
 import { GeneratePortalTokenUseCase } from '../modules/tenant-portal/application/use-cases/generate-portal-token.use-case';
 import { ListPortalActivitiesUseCase } from '../modules/tenant-portal/application/use-cases/list-portal-activities.use-case';
+import { GetAvailableGroupsUseCase } from '../modules/tenant-portal/application/use-cases/get-available-groups.use-case';
+import { JoinGroupUseCase } from '../modules/tenant-portal/application/use-cases/join-group.use-case';
 import type { TenantPortalRouteContainer } from '../modules/tenant-portal/interfaces/tenant-portal.routes';
 
 // Inspector execution module
@@ -700,7 +702,7 @@ export function createContainer(logger: Logger): AppContainer {
     domainEventBus,
   );
 
-  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
+  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
   const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo);
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase);
@@ -832,6 +834,17 @@ export function createContainer(logger: Logger): AppContainer {
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, tenantRepo);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
+
+  const getAvailableGroupsUseCase = new GetAvailableGroupsUseCase(appointmentRepo, serviceGroupRepo);
+  const joinGroupUseCase = new JoinGroupUseCase(
+    appointmentRepo,
+    serviceGroupRepo,
+    tenantPortalActivityRepo,
+    tenantPortalTokenRepo,
+    auditService,
+    executeStatusTransitionUseCase,
+    notifyOnTenantPortalActionHandler,
+  );
 
   // 026 — Add appointments to existing group + read-only eligibility preview.
   const addAppointmentsToGroupUseCase = new AddAppointmentsToGroupUseCase(
@@ -1369,6 +1382,8 @@ export function createContainer(logger: Logger): AppContainer {
       reportUnavailabilityUseCase,
       generatePortalTokenUseCase,
       listPortalActivitiesUseCase,
+      getAvailableGroupsUseCase,
+      joinGroupUseCase,
       tokenRepo: tenantPortalTokenRepo,
       tokenService,
       jwtService,

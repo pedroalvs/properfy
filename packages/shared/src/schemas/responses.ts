@@ -452,6 +452,10 @@ export const portalDataResponseSchema = z.object({
     createdAt: dateStr(),
     summary: z.string().optional(),
   }).optional(),
+  agencyPhone: z.string().optional(),
+  deadline: dateStr().optional(),
+  rescheduleAllowed: z.boolean().optional(),
+  tenant: z.object({ name: z.string().nullable(), timezone: z.string() }).optional(),
 });
 
 /**

@@ -13,7 +13,16 @@ const ACTION_COLORS: Record<string, { bg: string; text: string; icon: string }> 
   RESCHEDULED: { bg: '#B3E5FC', text: '#0277BD', icon: 'mdi-calendar-clock' },
   CONTACT_UPDATED: { bg: '#FFE0B2', text: '#E65100', icon: 'mdi-account-edit' },
   UNAVAILABLE: { bg: '#FFCDD2', text: '#C62828', icon: 'mdi-calendar-remove' },
+  GROUP_JOIN: { bg: '#E8F5E9', text: '#388E3C', icon: 'mdi-account-group' },
 };
+
+function GroupJoinSummary({ values }: { values: Record<string, string> }) {
+  return (
+    <p className="mt-0.5 text-xs text-text-secondary">
+      {values.scheduledDate} {values.timeSlot}
+    </p>
+  );
+}
 
 function formatActionLabel(action: string): string {
   return action
@@ -66,6 +75,9 @@ export function AppointmentPortalActivityTab({ appointmentId }: AppointmentPorta
                 {formatDateTime(activity.createdAt)}
               </span>
             </div>
+            {activity.action === 'GROUP_JOIN' && !!activity.newValuesJson && (
+              <GroupJoinSummary values={activity.newValuesJson as Record<string, string>} />
+            )}
             {(activity.ipAddress || activity.userAgent) && (
               <p className="mt-1 truncate text-xs text-text-muted">
                 {activity.ipAddress && <span>IP: {activity.ipAddress}</span>}

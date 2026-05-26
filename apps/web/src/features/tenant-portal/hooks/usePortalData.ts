@@ -7,6 +7,8 @@ import type {
   RescheduleInput,
   UpdateContactInput,
   ReportUnavailabilityInput,
+  AvailableGroupsData,
+  JoinGroupInput,
 } from '../types';
 
 function portalQueryKey(token: string) {
@@ -88,6 +90,26 @@ export function useReportUnavailability(token: string) {
 
   return useMutation<unknown, ApiError, ReportUnavailabilityInput>({
     mutationFn: (data) => portalPost(`/v1/tenant-portal/${token}/unavailable`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: portalQueryKey(token) });
+    },
+  });
+}
+
+export function useAvailableGroups(token: string, enabled: boolean) {
+  return useQuery<AvailableGroupsData, ApiError>({
+    queryKey: [...portalQueryKey(token), 'available-groups'],
+    queryFn: () => portalGet<AvailableGroupsData>(`/v1/tenant-portal/${token}/available-groups`),
+    enabled: !!token && enabled,
+    retry: false,
+  });
+}
+
+export function useJoinGroup(token: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<unknown, ApiError, JoinGroupInput>({
+    mutationFn: (data) => portalPost(`/v1/tenant-portal/${token}/join-group`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: portalQueryKey(token) });
     },

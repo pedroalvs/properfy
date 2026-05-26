@@ -120,7 +120,7 @@ export function AppointmentTable({
       render: (row) => (
         <div className="flex items-center gap-1.5">
           <AppointmentStatusChip status={row.status} doneCheckedByUserId={row.doneCheckedByUserId} isOverdue={row.isOverdue} />
-          {row.hasTenantNote && row.status === 'REJECTED' && (
+          {row.hasTenantNote && (
             <span title="Tenant left a note">
               <i
                 className="mdi mdi-note-text-outline text-base text-text-secondary"

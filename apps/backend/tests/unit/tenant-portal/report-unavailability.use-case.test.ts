@@ -292,4 +292,47 @@ describe('ReportUnavailabilityUseCase', () => {
       PortalInspectionAlreadyStartedError,
     );
   });
+
+  it('should include availableSlotsJson in newValuesJson when restrictions contain slots (T021)', async () => {
+    const slots = [
+      { dayOfWeek: 'MON' as const, start: '09:00', end: '12:00' },
+      { dayOfWeek: 'WED' as const, start: '14:00', end: '17:00' },
+    ];
+    await useCase.execute(
+      makeInput({
+        restrictions: {
+          isHome: false,
+          unavailableDaysJson: null,
+          unavailableHoursJson: null,
+          availableSlotsJson: slots,
+          notes: null,
+        },
+      }),
+    );
+
+    const savedActivity = appointmentRepo.saveRestriction.mock.calls[0]?.[0];
+    expect(savedActivity?.availableSlotsJson).toEqual(slots);
+
+    const activityCall = activityRepo.save.mock.calls[0]?.[0];
+    expect(activityCall?.newValuesJson).toMatchObject({
+      tenantConfirmationStatus: 'UNAVAILABLE',
+      availableSlotsJson: slots,
+    });
+  });
+
+  it('should NOT include availableSlotsJson in newValuesJson when absent (T021)', async () => {
+    await useCase.execute(
+      makeInput({
+        restrictions: {
+          isHome: false,
+          unavailableDaysJson: null,
+          unavailableHoursJson: null,
+          notes: null,
+        },
+      }),
+    );
+
+    const activityCall = activityRepo.save.mock.calls[0]?.[0];
+    expect(activityCall?.newValuesJson).not.toHaveProperty('availableSlotsJson');
+  });
 });

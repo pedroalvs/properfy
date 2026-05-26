@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
@@ -114,7 +115,7 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getByText('Confirm Your Attendance')).toBeInTheDocument();
+      expect(screen.getByText('Do you confirm the inspection?')).toBeInTheDocument();
     });
   });
 
@@ -201,8 +202,9 @@ describe('PortalPage', () => {
     mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
     renderPortal();
 
+    // The RescheduleForm is now behind the "Propose new date" CTA button
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Request Reschedule' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Propose new date' })).toBeInTheDocument();
     });
   });
 
@@ -229,8 +231,8 @@ describe('PortalPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText(/restricted mode/i).length).toBeGreaterThan(0);
     });
-    // Unavailability section must remain accessible for urgent reports even when expired
-    expect(screen.getByRole('heading', { name: 'Report Unavailability' })).toBeInTheDocument();
+    // In the unified form, the No button (disabled when read-only) is the unavailability path
+    expect(screen.getByRole('button', { name: /no/i })).toBeInTheDocument();
   });
 
   it('keeps unavailability available after cutoff even when a previous response exists', async () => {
@@ -249,8 +251,10 @@ describe('PortalPage', () => {
     } });
     renderPortal();
 
+    // Urgent mode: even with CONFIRMED status + past cutoff, the unified form renders in read-only
+    // so the tenant can use the No button for urgent unavailability reporting
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Report Unavailability' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /no/i })).toBeInTheDocument();
     });
   });
 
@@ -258,8 +262,9 @@ describe('PortalPage', () => {
     mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
     renderPortal();
 
+    // The No button in the unified form is the unavailability path
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Report Unavailability' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /no/i })).toBeInTheDocument();
     });
   });
 
@@ -276,7 +281,8 @@ describe('PortalPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Attendance Confirmed')).toBeInTheDocument();
     });
-    expect(screen.queryByText('Confirm Your Attendance')).not.toBeInTheDocument();
+    // Unified form is not shown when already CONFIRMED and not in read-only mode
+    expect(screen.queryByText('Do you confirm the inspection?')).not.toBeInTheDocument();
   });
 
   it('shows ResponseConfirmationCard when existingResponse is present', async () => {
@@ -294,6 +300,41 @@ describe('PortalPage', () => {
       expect(screen.getByText('Confirmed')).toBeInTheDocument();
     });
     expect(screen.getByText('Confirmed by tenant')).toBeInTheDocument();
+  });
+
+  it('clicking "Propose new date" expands the reschedule form', async () => {
+    const user = userEvent.setup();
+    mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Propose new date' })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Propose new date' }));
+    expect(screen.getByRole('button', { name: '← Back' })).toBeInTheDocument();
+  });
+
+  it('clicking "← Back" in propose new date panel collapses the form', async () => {
+    const user = userEvent.setup();
+    mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Propose new date' })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Propose new date' }));
+    const backButton = screen.getByRole('button', { name: '← Back' });
+    await user.click(backButton);
+    expect(screen.getByRole('button', { name: 'Propose new date' })).toBeInTheDocument();
+  });
+
+  it('hides "Propose new date" when rescheduleAllowed is false', async () => {
+    mockGet.mockResolvedValue({ data: { ...MOCK_PORTAL_DATA, rescheduleAllowed: false } });
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Propose new date' })).not.toBeInTheDocument();
+    });
   });
 
   it('shows generic error state for unknown API errors', async () => {

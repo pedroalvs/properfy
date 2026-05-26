@@ -627,6 +627,7 @@ model AppointmentRestriction {
   is_home                Boolean
   unavailable_days_json  Json?
   unavailable_hours_json Json?
+  available_slots_json   Json?
   notes                  String?           @db.Text
   source                 RestrictionSource
   created_at             DateTime          @default(now())
@@ -837,6 +838,7 @@ enum TenantPortalAction {
   RESCHEDULE
   CONTACT_UPDATED
   UNAVAILABLE_REPORTED
+  GROUP_JOIN
 }
 
 enum InspectionAssetKind {
