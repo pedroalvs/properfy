@@ -1,3 +1,4 @@
--- Add unique constraint on service_type name (case-sensitive at DB level;
--- application layer enforces case-insensitive via findByName).
-CREATE UNIQUE INDEX "service_types_name_key" ON "service_types"("name");
+-- Case-insensitive unique index on service_type name.
+-- lower(name) ensures "Routine Inspection" and "routine inspection" conflict,
+-- consistent with the application-layer findByName(mode: 'insensitive') check.
+CREATE UNIQUE INDEX "service_types_name_ci_key" ON "service_types"(lower("name"));
