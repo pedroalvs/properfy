@@ -131,6 +131,36 @@ describe('GET /v1/inspector/appointments/:appointmentId — job details enrichme
     expect(res.body.data.payoutAmount).toBe(7500);
   });
 
+  it('should include jobDetails in the serialized response when present', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    const withJobDetails = {
+      ...baseDetail,
+      agencyName: 'Alpha Realty',
+      payoutAmount: 8500,
+      jobDetails: {
+        agency: { id: 'tenant-1', name: 'Alpha Realty' },
+        tenantContacts: [
+          { name: 'John Smith', email: 'john@example.com', phone: '+61400000000', role: 'TENANT', isPrimary: true },
+        ],
+        keys: { keyRequired: false, keyLocation: null },
+        propertyManager: null,
+        payment: { payoutAmount: 8500, currency: 'AUD' },
+      },
+    };
+    mockGetAppointmentDetailExecute.mockResolvedValueOnce(withJobDetails);
+
+    const res = await supertest(app.server)
+      .get(`/v1/inspector/appointments/${APPOINTMENT_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.jobDetails).toBeDefined();
+    expect(res.body.data.jobDetails.agency.name).toBe('Alpha Realty');
+    expect(res.body.data.jobDetails.tenantContacts).toHaveLength(1);
+    expect(res.body.data.jobDetails.payment.currency).toBe('AUD');
+    expect(res.body.data.jobDetails.propertyManager).toBeNull();
+  });
+
   it('should return snapshot-based tenant contact fields', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     const withSnapshot = {
