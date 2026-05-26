@@ -374,7 +374,7 @@ import { PrismaAppointmentImportRepository } from '../modules/appointment/infras
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
-import { GetPortalLinkUseCase } from '../modules/appointment/application/use-cases/get-portal-link.use-case';
+import { GetPortalLinkUseCase } from '../modules/tenant-portal/application/use-cases/get-portal-link.use-case';
 import { PrismaConfirmationCycleRepository } from '../modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
 import { ConfirmationCycleService } from '../modules/appointment/application/services/confirmation-cycle.service';
 import { Aes256GcmService } from '../shared/infrastructure/crypto/aes-256-gcm.service';

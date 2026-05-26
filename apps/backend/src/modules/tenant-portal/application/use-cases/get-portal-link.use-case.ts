@@ -1,10 +1,10 @@
 import type { AuthContext } from '@properfy/shared';
-import type { IAppointmentRepository } from '../../domain/appointment.repository';
-import type { ITenantPortalTokenRepository } from '../../../tenant-portal/domain/tenant-portal-token.repository';
-import type { ITokenEncrypter } from '../../../tenant-portal/domain/token-encrypter';
+import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
+import type { ITokenEncrypter } from '../../domain/token-encrypter';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
-import { AppointmentNotFoundError } from '../../domain/appointment.errors';
-import { ConfirmationCycleNotFoundError, PortalTokenNotDecryptableError } from '../../domain/confirmation-cycle.errors';
+import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
+import { ConfirmationCycleNotFoundError, PortalTokenNotDecryptableError } from '../../../appointment/domain/confirmation-cycle.errors';
 
 export interface GetPortalLinkInput {
   appointmentId: string;

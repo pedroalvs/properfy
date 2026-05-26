@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { GetPortalLinkUseCase } from './get-portal-link.use-case';
-import { AppointmentNotFoundError } from '../../domain/appointment.errors';
-import { ConfirmationCycleNotFoundError, PortalTokenNotDecryptableError } from '../../domain/confirmation-cycle.errors';
+import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
+import { ConfirmationCycleNotFoundError, PortalTokenNotDecryptableError } from '../../../appointment/domain/confirmation-cycle.errors';
 import { AuthorizationService } from '../../../../shared/domain/authorization.service';
-import { AppointmentEntity } from '../../domain/appointment.entity';
-import { TenantPortalTokenEntity } from '../../../tenant-portal/domain/tenant-portal-token.entity';
+import { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
+import { TenantPortalTokenEntity } from '../../domain/tenant-portal-token.entity';
 
 const AM_ACTOR = { userId: 'user-am', tenantId: null, branchId: null, role: 'AM' as const, inspectorId: null };
 const PORTAL_BASE = 'https://portal.properfy.test';
