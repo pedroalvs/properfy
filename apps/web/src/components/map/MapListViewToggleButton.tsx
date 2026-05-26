@@ -1,18 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 
-/**
- * 026 C10 — Pill-style navigation button that takes the operator from the
- * map view back to the full appointment list. Mirrors the MapFilterToggleButton
- * aesthetics so both controls feel like they belong to the same family.
- *
- * No active/pressed state — this is a navigation action, not a stateful toggle.
- */
-export function MapListViewToggleButton() {
+interface MapListViewToggleButtonProps {
+  mode?: 'appointments' | 'groups';
+}
+
+export function MapListViewToggleButton({ mode = 'appointments' }: MapListViewToggleButtonProps) {
   const navigate = useNavigate();
+  const path = mode === 'groups' ? '/service-groups' : '/appointments/list';
   return (
     <button
       type="button"
-      onClick={() => navigate('/appointments/list')}
+      onClick={() => navigate(path)}
       className="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-card-bg px-4 py-2 text-sm font-medium text-text-secondary shadow-md transition-colors hover:bg-gray-50"
       aria-label="Switch to list view"
       data-testid="map-list-view-toggle"

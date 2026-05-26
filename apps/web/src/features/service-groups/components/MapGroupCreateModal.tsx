@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createServiceGroupSchema, ServiceGroupExceptionType, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
@@ -43,13 +43,22 @@ export function MapGroupCreateModal({
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useSnackbar();
 
+  const inferredServiceTypeId = selectedAppointments[0]?.serviceTypeId ?? '';
+  const inferredServiceTypeName = selectedAppointments[0]?.serviceTypeName;
+
   const [name, setName] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
   const [serviceRegionId, setServiceRegionId] = useState('');
-  const [serviceTypeId, setServiceTypeId] = useState('');
+  const [serviceTypeId, setServiceTypeId] = useState(inferredServiceTypeId);
   const [priorityMode, setPriorityMode] = useState('STANDARD');
+
+  // Sync serviceTypeId if the modal is kept mounted and reopened with different appointments.
+  useEffect(() => {
+    if (inferredServiceTypeId) setServiceTypeId(inferredServiceTypeId);
+  }, [inferredServiceTypeId]);
+
   const [description, setDescription] = useState('');
   const [exceptionType, setExceptionType] = useState('');
   const [exceptionReason, setExceptionReason] = useState('');
@@ -90,9 +99,33 @@ export function MapGroupCreateModal({
       return;
     }
 
+    const count = selectedAppointmentIds.length;
+    const STANDARD_MIN = 5;
+    const EXCEPTION_LIMITS: Record<string, number> = {
+      LOW_DENSITY_REGION: 30,
+      ISOLATED_SERVICE: 3,
+      PRIORITY_CLIENT: 8,
+    };
+    if (!exceptionType && count < STANDARD_MIN) {
+      showError(`Standard groups require at least ${STANDARD_MIN} appointments (selected: ${count}). Use an exception type for smaller groups.`);
+      return;
+    }
+    if (exceptionType) {
+      const max = EXCEPTION_LIMITS[exceptionType] ?? 30;
+      if (count > max) {
+        showError(`${exceptionType} exception allows a maximum of ${max} appointments (selected: ${count}).`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      await api.POST('/v1/service-groups' as any, { body: result.data as any });
+      const { error: apiError } = await api.POST('/v1/service-groups' as any, { body: result.data as any });
+      if (apiError) {
+        const env = apiError as { error?: { message?: string; code?: string } };
+        showError(env?.error?.message ?? 'Failed to create service group');
+        return;
+      }
       showSuccess('Service group created successfully');
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
@@ -135,11 +168,22 @@ export function MapGroupCreateModal({
         </FormField>
 
         <FormField label="Service Type" required>
-          <SelectInput
-            value={serviceTypeId}
-            onChange={setServiceTypeId}
-            options={[{ label: 'Select...', value: '' }, ...serviceTypeOptions]}
-          />
+          {inferredServiceTypeId ? (
+            <div className="flex items-center gap-2 rounded border border-border-subtle bg-gray-50 px-3 py-2 text-sm">
+              <span className="font-medium text-text-primary">
+                {inferredServiceTypeName
+                  ?? serviceTypeOptions.find((o) => o.value === inferredServiceTypeId)?.label
+                  ?? inferredServiceTypeId}
+              </span>
+              <span className="text-xs text-text-tertiary">(from appointments)</span>
+            </div>
+          ) : (
+            <SelectInput
+              value={serviceTypeId}
+              onChange={setServiceTypeId}
+              options={[{ label: 'Select...', value: '' }, ...serviceTypeOptions]}
+            />
+          )}
         </FormField>
 
         <FormField label="Scheduled Date" required>
