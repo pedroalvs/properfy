@@ -66,6 +66,12 @@ describe('OfferCard', () => {
     expect(screen.getByTestId('offer-state-label')).toHaveTextContent('No longer available');
   });
 
+  it('shows Accept button for ERROR state so user can retry immediately', () => {
+    render(<OfferCard offer={baseOffer} state="ERROR" onAccept={onAccept} />);
+    expect(screen.getByTestId('accept-button')).toBeInTheDocument();
+    expect(screen.queryByTestId('offer-state-label')).not.toBeInTheDocument();
+  });
+
   it('shows day badge when date is today', () => {
     vi.useRealTimers();
     const today = toLocalISODate(new Date());

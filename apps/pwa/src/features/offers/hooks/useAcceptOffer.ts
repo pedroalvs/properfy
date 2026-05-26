@@ -66,9 +66,16 @@ export function useAcceptOffer() {
             showInfo('Offer no longer available');
             return;
           }
+          if (err.code === 'AVAILABILITY_SLOT_NOT_MATCHED') {
+            setState(groupId, 'ERROR');
+            showError('No availability slot for this time window — update your availability in Profile');
+            setTimeout(() => setState(groupId, 'IDLE'), 4000);
+            return;
+          }
         }
         setState(groupId, 'ERROR');
         showError('Failed to accept — try again');
+        setTimeout(() => setState(groupId, 'IDLE'), 4000);
       }
     },
     [setState, queryClient],
