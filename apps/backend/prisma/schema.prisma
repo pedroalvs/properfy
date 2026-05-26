@@ -362,6 +362,7 @@ model ServiceType {
   appointments   Appointment[]
   service_groups ServiceGroup[]
 
+  @@unique([name])
   @@index([status])
   @@map("service_types")
 }

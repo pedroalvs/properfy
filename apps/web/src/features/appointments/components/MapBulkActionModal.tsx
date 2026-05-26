@@ -333,6 +333,10 @@ export function MapBulkActionModal({
     }
     const tenantNames = new Set(checkedAppointments.map((c) => c.clientName).filter(Boolean));
     if (tenantNames.size > 1) return { disabled: true, reason: 'Selection spans multiple agencies — pick rows from a single agency' };
+    const serviceTypeIds = new Set(checkedAppointments.map((a) => a.serviceTypeId).filter(Boolean));
+    if (serviceTypeIds.size > 1) return { disabled: true, reason: 'All selected appointments must have the same service type to create a group' };
+    const alreadyGrouped = checkedAppointments.filter((a) => a.serviceGroupId);
+    if (alreadyGrouped.length > 0) return { disabled: true, reason: `${alreadyGrouped.length} selected appointment(s) already belong to a group — remove them from their current group first` };
     return { disabled: false };
   }, [canAddToGroup, checkedIds.size, checkedAppointments]);
 
@@ -469,7 +473,11 @@ export function MapBulkActionModal({
 
       {/* Footer state matrix */}
       {!results && (
-        <div className="mt-4 flex items-center justify-between border-t border-border-subtle pt-3" data-testid="bulk-modal-footer">
+        <div className="mt-4 border-t border-border-subtle pt-3" data-testid="bulk-modal-footer">
+        {groupButtonState.disabled && groupButtonState.reason && checkedIds.size > 0 && (
+          <p className="mb-2 text-xs text-amber-600" data-testid="group-button-reason">{groupButtonState.reason}</p>
+        )}
+        <div className="flex items-center justify-between">
           <span className="text-sm text-text-secondary">
             {checkedIds.size === 0
               ? 'Select rows to enable actions'
@@ -530,6 +538,7 @@ export function MapBulkActionModal({
               </button>
             )}
           </div>
+        </div>
         </div>
       )}
 

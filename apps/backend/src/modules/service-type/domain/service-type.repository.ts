@@ -15,6 +15,7 @@ export interface PaginationParams {
 export interface IServiceTypeRepository {
   findById(id: string): Promise<ServiceTypeEntity | null>;
   findByCode(code: string): Promise<ServiceTypeEntity | null>;
+  findByName(name: string): Promise<ServiceTypeEntity | null>;
   findAll(
     filters: ServiceTypeFilters,
     pagination: PaginationParams,
