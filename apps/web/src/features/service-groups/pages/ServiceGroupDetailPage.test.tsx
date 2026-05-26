@@ -148,8 +148,8 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         priorityMode: 'STANDARD',
         appointmentsCount: 12,
         appointments: [
-          { id: 'apt-01', appointmentNumber: 1001, status: 'DRAFT', scheduledDate: '2026-03-10', propertyAddress: '123 Main St', propertyCode: 'VST-001' },
-          { id: 'apt-02', appointmentNumber: 1002, status: 'DRAFT', scheduledDate: '2026-03-11', propertyAddress: '456 Oak Ave', propertyCode: 'VST-002' },
+          { id: 'apt-01', appointmentNumber: 1001, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-03-10', propertyAddress: '123 Main St', propertyCode: 'VST-001' },
+          { id: 'apt-02', appointmentNumber: 1002, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-03-11', propertyAddress: '456 Oak Ave', propertyCode: 'VST-002' },
         ],
         description: 'Some notes',
         createdAt: '2026-03-01T10:00:00Z',

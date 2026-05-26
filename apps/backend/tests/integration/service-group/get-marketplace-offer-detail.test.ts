@@ -64,6 +64,7 @@ const mockOfferDetail = {
   appointments: [
     {
       id: '00000000-0000-0000-0000-000000000011',
+      appointmentCode: 'INS-1001',
       appointmentNumber: 1001,
       suburb: 'Bondi NSW',
       keyRequired: false,
@@ -72,6 +73,7 @@ const mockOfferDetail = {
     },
     {
       id: '00000000-0000-0000-0000-000000000012',
+      appointmentCode: 'INS-1002',
       appointmentNumber: 1002,
       suburb: 'Manly NSW',
       keyRequired: false,

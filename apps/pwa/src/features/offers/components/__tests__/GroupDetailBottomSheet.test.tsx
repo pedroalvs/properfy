@@ -107,4 +107,40 @@ describe('GroupDetailBottomSheet', () => {
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     expect(screen.getByTestId('detail-error')).toBeInTheDocument();
   });
+
+  it('renders appointmentCode badge for each appointment', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.getByText('APT-1001')).toBeInTheDocument();
+    expect(screen.getByText('APT-1002')).toBeInTheDocument();
+  });
+
+  it('renders group-level service type and time window', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
+    expect(screen.getByText('08:00-13:00')).toBeInTheDocument();
+  });
+
+  it('does not render Accept button when onAccept is not provided', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.queryByTestId('accept-group-btn')).not.toBeInTheDocument();
+  });
+
+  it('renders Accept group button when onAccept prop is provided', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    const onAccept = vi.fn();
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} onAccept={onAccept} />);
+    expect(screen.getByTestId('accept-group-btn')).toBeInTheDocument();
+  });
+
+  it('calls onAccept when Accept group button is clicked', async () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    const onAccept = vi.fn();
+    const user = userEvent.setup();
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} onAccept={onAccept} />);
+    await user.click(screen.getByTestId('accept-group-btn'));
+    expect(onAccept).toHaveBeenCalledOnce();
+  });
 });

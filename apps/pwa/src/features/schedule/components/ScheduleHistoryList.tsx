@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface HistoryItem {
   id: string;
@@ -30,6 +31,7 @@ function formatDateHeader(dateStr: string): string {
 }
 
 export function ScheduleHistoryList({ items }: ScheduleHistoryListProps) {
+  const navigate = useNavigate();
   const grouped = useMemo(() => {
     const map = new Map<string, HistoryItem[]>();
     for (const item of items) {
@@ -60,7 +62,12 @@ export function ScheduleHistoryList({ items }: ScheduleHistoryListProps) {
           </div>
           <ul className="divide-y divide-border-subtle">
             {dateItems.map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-3 px-page-x py-3">
+              <li
+                key={item.id}
+                data-testid={`history-item-${item.id}`}
+                onClick={() => navigate(`/schedule/${item.id}`)}
+                className="flex cursor-pointer items-center justify-between gap-3 px-page-x py-3 active:bg-gray-50"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="shrink-0 rounded bg-secondary/10 px-1.5 py-0.5 text-[11px] font-bold text-secondary">
