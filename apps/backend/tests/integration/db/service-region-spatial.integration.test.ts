@@ -193,7 +193,7 @@ describe('resolveRegionsForAppointments — null coordinates handling', () => {
     const serviceType = await harness.prisma.serviceType.create({
       data: {
         code: `ST-${Math.random().toString(36).slice(2, 8)}`,
-        name: 'Routine Inspection',
+        name: `Routine Inspection ${Math.random().toString(36).slice(2, 8)}`,
         flow_type: 'ROUTINE',
         requires_tenant_confirmation: true,
         status: 'ACTIVE',
@@ -259,7 +259,7 @@ describe('resolveRegionsForAppointments — null coordinates handling', () => {
     const serviceType = await harness.prisma.serviceType.create({
       data: {
         code: `ST-${Math.random().toString(36).slice(2, 8)}`,
-        name: 'Routine Inspection',
+        name: `Routine Inspection ${Math.random().toString(36).slice(2, 8)}`,
         flow_type: 'ROUTINE',
         requires_tenant_confirmation: true,
         status: 'ACTIVE',
