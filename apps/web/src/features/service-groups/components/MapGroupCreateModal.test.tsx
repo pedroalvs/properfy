@@ -1,10 +1,16 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MapGroupCreateModal } from './MapGroupCreateModal';
+import { api } from '@/services/api';
+
+// Stable references so individual tests can assert on showError/showSuccess calls.
+// Vitest allows mock-prefixed variables to be referenced inside vi.mock() factories.
+const mockShowSuccess = vi.fn();
+const mockShowError = vi.fn();
 
 vi.mock('@/hooks/useSnackbar', () => ({
-  useSnackbar: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
+  useSnackbar: () => ({ showSuccess: mockShowSuccess, showError: mockShowError }),
 }));
 
 vi.mock('@/hooks/useFormOptions', () => ({
@@ -55,6 +61,12 @@ vi.mock('./PriorityModeSelect', () => ({
     </select>
   ),
 }));
+
+beforeEach(() => {
+  mockShowSuccess.mockReset();
+  mockShowError.mockReset();
+  vi.mocked(api.POST).mockResolvedValue({ data: {} } as any);
+});
 
 function renderModal(props: Partial<React.ComponentProps<typeof MapGroupCreateModal>> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -134,5 +146,112 @@ describe('MapGroupCreateModal', () => {
   it('does not render when open is false', () => {
     renderModal({ open: false });
     expect(screen.queryByText(/Create Service Group/)).not.toBeInTheDocument();
+  });
+
+  // --- Core fix coverage (fix/group-creation) ---
+
+  it('calls showError and does NOT call showSuccess when api.POST returns an error envelope', async () => {
+    vi.mocked(api.POST).mockResolvedValueOnce({
+      error: { error: { message: 'All appointments must have the same service type', code: 'SERVICE_TYPE_MISMATCH' } },
+    } as any);
+
+    // 5 appointments with same serviceTypeId (valid UUID) so the standard-size check passes.
+    // serviceTypeId must be a UUID — createServiceGroupSchema enforces z.string().uuid().
+    const ST_UUID = 'aaaaaaaa-0000-4000-8000-000000000099';
+    const five = Array.from({ length: 5 }, (_, i) => ({
+      id: `aaaaaaaa-0000-4000-8000-00000000000${i + 1}`,
+      code: `INS-000${i + 1}`,
+      status: 'DRAFT' as const,
+      propertyAddress: `${i + 1} Test St`,
+      latitude: 0,
+      longitude: 0,
+      scheduledDate: '2026-07-01',
+      timeSlot: '09:00-10:00',
+      inspectorName: null,
+      branchName: 'Br',
+      tenantId: 'tenant-1',
+      clientName: 'Acme',
+      serviceTypeId: ST_UUID,
+    }));
+
+    renderModal({ selectedAppointments: five });
+
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: '2026-07-15' } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Create Group'));
+    });
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith('All appointments must have the same service type');
+    });
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+  });
+
+  it('shows service type as read-only display (not a dropdown) when inferred from appointments', () => {
+    renderModal({
+      selectedAppointments: [
+        {
+          id: 'aaaaaaaa-0000-4000-8000-000000000010',
+          code: 'INS-0010',
+          status: 'DRAFT',
+          propertyAddress: '1 Test St',
+          latitude: 0,
+          longitude: 0,
+          scheduledDate: '2026-07-01',
+          timeSlot: '09:00-10:00',
+          inspectorName: null,
+          branchName: 'Br',
+          tenantId: 'tenant-1',
+          clientName: 'Acme',
+          serviceTypeId: 'st-1',
+          serviceTypeName: 'Routine Inspection',
+        },
+      ],
+    });
+
+    expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
+    expect(screen.getByText('(from appointments)')).toBeInTheDocument();
+    // The editable dropdown must not be rendered when the type is inferred.
+    expect(screen.queryByRole('button', { name: /select\.\.\./i })).toBeNull();
+  });
+
+  it('updates the service type label when appointments change (useEffect resync)', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    const makeAppt = (id: string, code: string, serviceTypeId: string, serviceTypeName: string) => ({
+      id,
+      code,
+      status: 'DRAFT' as const,
+      propertyAddress: '1 Test St',
+      latitude: 0,
+      longitude: 0,
+      scheduledDate: '2026-07-01',
+      timeSlot: '09:00-10:00',
+      inspectorName: null,
+      branchName: 'Br',
+      tenantId: 'tenant-1',
+      clientName: 'Acme',
+      serviceTypeId,
+      serviceTypeName,
+    });
+
+    type Appt = ReturnType<typeof makeAppt>;
+    const Wrapper = ({ appointments }: { appointments: Appt[] }) => (
+      <QueryClientProvider client={queryClient}>
+        <MapGroupCreateModal open selectedAppointments={appointments} onClose={vi.fn()} onSuccess={vi.fn()} />
+      </QueryClientProvider>
+    );
+
+    const appt1 = makeAppt('aaaaaaaa-0000-4000-8000-000000000020', 'INS-0020', 'st-1', 'Routine Inspection');
+    const appt2 = makeAppt('aaaaaaaa-0000-4000-8000-000000000021', 'INS-0021', 'st-2', 'Outgoing Inspection');
+
+    const { rerender } = render(<Wrapper appointments={[appt1]} />);
+    expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
+
+    rerender(<Wrapper appointments={[appt2]} />);
+    expect(screen.getByText('Outgoing Inspection')).toBeInTheDocument();
+    expect(screen.queryByText('Routine Inspection')).not.toBeInTheDocument();
   });
 });
