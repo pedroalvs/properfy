@@ -6,7 +6,7 @@ import type {
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceTypeRepository } from '../../domain/service-type.repository';
-import { ServiceTypeNotFoundError } from '../../domain/service-type.errors';
+import { ServiceTypeNotFoundError, ServiceTypeNameConflictError } from '../../domain/service-type.errors';
 
 export interface UpdateServiceTypeInput {
   serviceTypeId: string;
@@ -46,6 +46,13 @@ export class UpdateServiceTypeUseCase {
     const serviceType = await this.serviceTypeRepo.findById(serviceTypeId);
     if (!serviceType) {
       throw new ServiceTypeNotFoundError();
+    }
+
+    if (data.name !== undefined && data.name !== serviceType.name) {
+      const existingByName = await this.serviceTypeRepo.findByName(data.name);
+      if (existingByName && existingByName.id !== serviceTypeId) {
+        throw new ServiceTypeNameConflictError();
+      }
     }
 
     const before = {
