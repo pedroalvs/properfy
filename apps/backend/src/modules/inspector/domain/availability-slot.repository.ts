@@ -66,4 +66,29 @@ export interface IAvailabilitySlotRepository {
     startTime: string,
     endTime: string,
   ): Promise<AvailabilitySlotEntity | null>;
+  /** Fetch all slots for an inspector in a date range for regeneration (includes capacity + isOperatorOverride). */
+  findSlotsForRegeneration(
+    inspectorId: string,
+    from: Date,
+    to: Date,
+  ): Promise<Array<{
+    id: string;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    capacity: number;
+    isOperatorOverride: boolean;
+  }>>;
+  /** Hard-delete a slot by ID (used by regenerator when template turns OFF). */
+  deleteById(id: string): Promise<void>;
+  /** Create a new slot as part of regeneration (always is_operator_override = false). */
+  saveForRegeneration(data: {
+    inspectorId: string;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    capacity: number;
+    status: string;
+    isOperatorOverride: false;
+  }): Promise<void>;
 }

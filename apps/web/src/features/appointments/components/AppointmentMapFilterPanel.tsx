@@ -67,10 +67,10 @@ const GROUP_STATUS_OPTIONS = Object.entries(SERVICE_GROUP_STATUS_MAP).map(
   ([value, config]) => ({ label: config.label, value }),
 );
 
-const CONFIRMATION_OPTIONS = [
+const EMAIL_SENT_OPTIONS = [
   { label: 'All', value: '' },
-  { label: 'Sent', value: 'sent' },
-  { label: 'Not sent', value: 'not_sent' },
+  { label: 'Email sent', value: 'sent' },
+  { label: 'Email not sent', value: 'not_sent' },
 ];
 
 interface AppointmentMapFilterPanelProps {
@@ -266,9 +266,9 @@ function AppointmentModeFields({
       )}
 
       <FilterSelect
-        label="Confirmation"
+        label="Confirmation Email"
         value={filters.confirmationStatus}
-        options={CONFIRMATION_OPTIONS}
+        options={EMAIL_SENT_OPTIONS}
         onChange={(v) => onChange({ ...filters, confirmationStatus: v })}
       />
 

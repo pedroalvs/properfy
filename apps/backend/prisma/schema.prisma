@@ -99,6 +99,26 @@ enum TenantConfirmationStatus {
   NO_RESPONSE
 }
 
+enum CycleStatus {
+  PENDING
+  CONFIRMED
+  UNAVAILABLE
+  SUPERSEDED
+}
+
+enum CycleConfirmationSource {
+  TENANT_PORTAL
+  OPERATOR_FORCED
+  TENANT_RESCHEDULE
+}
+
+enum CycleInvalidatedReason {
+  DATE_CHANGED
+  TIME_CHANGED
+  APPOINTMENT_REOPENED
+  TENANT_RESCHEDULE
+}
+
 enum RestrictionSource {
   TENANT_PORTAL
   OPERATOR
@@ -362,6 +382,9 @@ model ServiceType {
   appointments   Appointment[]
   service_groups ServiceGroup[]
 
+  // Uniqueness enforced case-insensitively via migration index lower(name).
+  // Prisma does not support functional indexes in schema, so the constraint
+  // lives only in the migration SQL and the application-layer findByName check.
   @@index([status])
   @@map("service_types")
 }
@@ -414,11 +437,12 @@ model Inspector {
   insurance_meta_json     Json?
   police_check_file_key   String?
   police_check_expires_at DateTime?       @db.Date
-  police_check_meta_json  Json?
-  photo_storage_key       String?
-  created_at              DateTime        @default(now())
-  updated_at              DateTime        @updatedAt
-  deleted_at              DateTime?
+  police_check_meta_json     Json?
+  photo_storage_key          String?
+  availability_template_json Json            @default("{}")
+  created_at                 DateTime        @default(now())
+  updated_at                 DateTime        @updatedAt
+  deleted_at                 DateTime?
 
   user                    User?                       @relation(fields: [user_id], references: [id])
   availability_slots      InspectorAvailabilitySlot[]
@@ -438,16 +462,17 @@ model Inspector {
 }
 
 model InspectorAvailabilitySlot {
-  id           String                 @id @default(uuid())
-  inspector_id String
-  date         DateTime               @db.Date
-  start_time   String                 @db.VarChar(5)
-  end_time     String                 @db.VarChar(5)
-  region_json  Json?
-  capacity     Int                    @default(1)
-  status       AvailabilitySlotStatus @default(AVAILABLE)
-  created_at   DateTime               @default(now())
-  updated_at   DateTime               @updatedAt
+  id                   String                 @id @default(uuid())
+  inspector_id         String
+  date                 DateTime               @db.Date
+  start_time           String                 @db.VarChar(5)
+  end_time             String                 @db.VarChar(5)
+  region_json          Json?
+  capacity             Int                    @default(1)
+  status               AvailabilitySlotStatus @default(AVAILABLE)
+  is_operator_override Boolean                @default(false)
+  created_at           DateTime               @default(now())
+  updated_at           DateTime               @updatedAt
 
   inspector Inspector @relation(fields: [inspector_id], references: [id])
 
@@ -472,8 +497,9 @@ model Appointment {
   key_required               Boolean                  @default(false)
   meeting_location           String?                  @db.VarChar(500)
   key_location               String?                  @db.VarChar(500)
-  tenant_confirmation_status TenantConfirmationStatus @default(PENDING)
-  price_amount               Decimal                  @db.Decimal(12, 2)
+  tenant_confirmation_status       TenantConfirmationStatus          @default(PENDING)
+  active_confirmation_cycle_id     String?
+  price_amount                     Decimal                           @db.Decimal(12, 2)
   payout_amount              Decimal                  @db.Decimal(12, 2)
   pricing_rule_snapshot_json Json
   notes                      String?                  @db.Text
@@ -500,6 +526,9 @@ model Appointment {
   done_marked_by_user  User?         @relation("AppointmentDoneMarkedBy", fields: [done_marked_by_user_id], references: [id])
   done_checked_by_user User?         @relation("AppointmentDoneCheckedBy", fields: [done_checked_by_user_id], references: [id])
 
+  active_confirmation_cycle AppointmentConfirmationCycle? @relation("ActiveCycle", fields: [active_confirmation_cycle_id], references: [id], onDelete: SetNull)
+  confirmation_cycles       AppointmentConfirmationCycle[]
+
   contacts          AppointmentContact[]
   restrictions      AppointmentRestriction[]
   portal_tokens     TenantPortalToken[]
@@ -517,6 +546,30 @@ model Appointment {
   @@index([service_group_id])
   @@index([deleted_at])
   @@map("appointments")
+}
+
+model AppointmentConfirmationCycle {
+  id                  String                   @id @default(uuid())
+  appointment_id      String
+  cycle_number        Int
+  scheduled_date      DateTime                 @db.Date
+  time_slot           String?
+  status              CycleStatus              @default(PENDING)
+  confirmation_source CycleConfirmationSource?
+  confirmed_at        DateTime?
+  invalidated_at      DateTime?
+  invalidated_reason  CycleInvalidatedReason?
+  portal_token_id     String?                  @unique
+  created_at          DateTime                 @default(now())
+
+  appointment      Appointment         @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  portal_token     TenantPortalToken?  @relation("CycleMintedToken", fields: [portal_token_id], references: [id], onDelete: SetNull)
+  active_for       Appointment[]       @relation("ActiveCycle")
+  tokens_for_cycle TenantPortalToken[] @relation("TokenCycle")
+
+  @@unique([appointment_id, cycle_number])
+  @@index([appointment_id, status])
+  @@map("appointment_confirmation_cycles")
 }
 
 model ServiceGroup {
@@ -625,6 +678,7 @@ model AppointmentRestriction {
   is_home                Boolean
   unavailable_days_json  Json?
   unavailable_hours_json Json?
+  available_slots_json   Json?
   notes                  String?           @db.Text
   source                 RestrictionSource
   created_at             DateTime          @default(now())
@@ -827,6 +881,7 @@ enum TenantPortalTokenStatus {
   ACTIVE
   EXPIRED
   REVOKED
+  SUPERSEDED
 }
 
 enum TenantPortalAction {
@@ -835,6 +890,7 @@ enum TenantPortalAction {
   RESCHEDULE
   CONTACT_UPDATED
   UNAVAILABLE_REPORTED
+  GROUP_JOIN
 }
 
 enum InspectionAssetKind {
@@ -910,18 +966,22 @@ enum ConsentChangeSource {
 }
 
 model TenantPortalToken {
-  id               String                  @id @default(uuid())
-  appointment_id   String
-  token_hash       String                  @unique
-  expires_at       DateTime
-  status           TenantPortalTokenStatus @default(ACTIVE)
-  used_at          DateTime?
-  last_accessed_at DateTime?
-  created_at       DateTime                @default(now())
-  updated_at       DateTime                @updatedAt
+  id                    String                  @id @default(uuid())
+  appointment_id        String
+  token_hash            String                  @unique
+  expires_at            DateTime
+  status                TenantPortalTokenStatus @default(ACTIVE)
+  used_at               DateTime?
+  last_accessed_at      DateTime?
+  raw_token_encrypted   String?
+  confirmation_cycle_id String?
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
 
-  appointment Appointment            @relation(fields: [appointment_id], references: [id])
-  activities  TenantPortalActivity[]
+  appointment        Appointment                        @relation(fields: [appointment_id], references: [id])
+  confirmation_cycle AppointmentConfirmationCycle?      @relation("TokenCycle", fields: [confirmation_cycle_id], references: [id], onDelete: SetNull)
+  minted_for_cycle   AppointmentConfirmationCycle?      @relation("CycleMintedToken")
+  activities         TenantPortalActivity[]
 
   @@index([appointment_id])
   @@index([status])

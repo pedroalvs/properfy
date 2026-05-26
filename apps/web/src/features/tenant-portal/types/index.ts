@@ -1,4 +1,7 @@
-import type { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
+import type { AppointmentStatus, AvailableGroup, AvailableSlot, TenantConfirmationStatus } from '@properfy/shared';
+
+export type { AvailableSlot };
+export type { AvailableGroup } from '@properfy/shared';
 
 export interface PortalTokenInfo {
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
@@ -45,6 +48,7 @@ export interface PortalRestrictions {
   isHome: boolean | null;
   unavailableDaysJson: string[] | null;
   unavailableHoursJson: Array<{ start: string; end: string }> | null;
+  availableSlotsJson?: AvailableSlot[] | null;
   notes: string | null;
   source: string;
 }
@@ -53,6 +57,11 @@ export interface PortalExistingResponse {
   type: string;
   createdAt: string;
   summary?: string;
+}
+
+export interface PortalTenantInfo {
+  name: string | null;
+  timezone: string;
 }
 
 export interface PortalData {
@@ -64,6 +73,7 @@ export interface PortalData {
   agencyPhone?: string;
   deadline?: string;
   rescheduleAllowed?: boolean;
+  tenant?: PortalTenantInfo;
 }
 
 export interface ConfirmInput {
@@ -71,6 +81,7 @@ export interface ConfirmInput {
     isHome?: boolean | null;
     unavailableDaysJson?: string[] | null;
     unavailableHoursJson?: Array<{ start: string; end: string }> | null;
+    availableSlotsJson?: AvailableSlot[] | null;
     notes?: string | null;
   };
   tenantNote?: string;
@@ -91,6 +102,21 @@ export interface UpdateContactInput {
 }
 
 export interface ReportUnavailabilityInput {
-  restrictions?: ConfirmInput['restrictions'];
+  restrictions?: {
+    isHome?: boolean | null;
+    unavailableDaysJson?: string[] | null;
+    unavailableHoursJson?: Array<{ start: string; end: string }> | null;
+    availableSlotsJson?: AvailableSlot[] | null;
+    notes?: string | null;
+  };
   tenantNote?: string;
+}
+
+export interface JoinGroupInput {
+  groupId: string;
+  tenantNote?: string;
+}
+
+export interface AvailableGroupsData {
+  groups: AvailableGroup[];
 }

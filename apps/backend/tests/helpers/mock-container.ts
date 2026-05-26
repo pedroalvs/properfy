@@ -134,6 +134,8 @@ export function createMockContainer(
       generateInspectorDocumentUploadUrlUseCase: { execute: vi.fn() },
       confirmInspectorDocumentUploadUseCase: { execute: vi.fn() },
       getInspectorDocumentDownloadUrlUseCase: { execute: vi.fn() },
+      getInspectorAvailabilityTemplateUseCase: { execute: vi.fn() },
+      updateInspectorAvailabilityTemplateUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
       slotRepo: { findByIdAny: vi.fn() },
@@ -191,6 +193,9 @@ export function createMockContainer(
       updateContactUseCase: { execute: vi.fn() },
       reportUnavailabilityUseCase: { execute: vi.fn() },
       generatePortalTokenUseCase: { execute: vi.fn() },
+      listPortalActivitiesUseCase: { execute: vi.fn() },
+      getAvailableGroupsUseCase: { execute: vi.fn() },
+      joinGroupUseCase: { execute: vi.fn() },
       tokenRepo: {
         findByTokenHash: vi.fn(),
         findActiveByAppointmentId: vi.fn(),

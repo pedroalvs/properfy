@@ -23,6 +23,7 @@ export interface MarketplaceOfferOutput {
   suburbs: string[];
   payoutEstimate: number | null;
   appointmentCount: number;
+  centroid: { lat: number; lng: number } | null;
 }
 
 export interface GetMarketplaceOffersOutput {
@@ -83,6 +84,7 @@ export class GetMarketplaceOffersUseCase {
         suburbs: offer.suburbs,
         payoutEstimate: offer.payoutEstimate,
         appointmentCount: offer.appointmentCount,
+        centroid: offer.centroid,
       })),
       total,
     };

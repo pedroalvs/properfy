@@ -1,0 +1,190 @@
+import { UserRole } from '@properfy/shared';
+import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
+import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
+import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { ExecuteStatusTransitionInput, ExecuteStatusTransitionOutput } from '../../../appointment/application/use-cases/execute-status-transition.use-case';
+import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
+import {
+  PortalActionBlockedError,
+  PortalTokenAlreadyUsedError,
+  PortalGroupNotFoundError,
+  PortalGroupFullError,
+  PortalGroupUnavailableError,
+} from '../../domain/tenant-portal.errors';
+
+interface IStatusTransitionUseCase {
+  execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput>;
+}
+
+interface INotificationHandler {
+  execute(input: { appointmentId: string; tenantId?: string | null; action: string }): Promise<unknown>;
+}
+
+export interface JoinGroupInput {
+  tokenId: string;
+  appointmentId: string;
+  groupId: string;
+  isReadOnly: boolean;
+  isUsed: boolean;
+  tenantNote?: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+}
+
+export interface JoinGroupOutput {
+  scheduledDate: string;
+  timeWindow: string;
+  tenantConfirmationStatus: 'CONFIRMED';
+  appointmentStatus: 'SCHEDULED';
+  inspector: { id: string; name: string };
+}
+
+const ACTIVE_GROUP_STATUSES = new Set(['ACCEPTED']);
+
+export class JoinGroupUseCase {
+  constructor(
+    private readonly appointmentRepo: IAppointmentRepository,
+    private readonly serviceGroupRepo: IServiceGroupRepository,
+    private readonly activityRepo: ITenantPortalActivityRepository,
+    private readonly tokenRepo: ITenantPortalTokenRepository,
+    private readonly auditService: AuditService,
+    private readonly statusTransition: IStatusTransitionUseCase,
+    private readonly onNotificationHandler?: INotificationHandler,
+  ) {}
+
+  /**
+   * Tenant joins an available service group via the portal.
+   * Implements the 13-step side-effect sequence from spec §5.2.
+   */
+  async execute(input: JoinGroupInput): Promise<JoinGroupOutput> {
+    // 1-2. Validate token state
+    if (input.isReadOnly) throw new PortalActionBlockedError();
+    if (input.isUsed) throw new PortalTokenAlreadyUsedError();
+
+    // Load appointment
+    const apptResult = await this.appointmentRepo.findById(input.appointmentId, null);
+    if (!apptResult) throw new PortalGroupNotFoundError();
+    const { appointment } = apptResult;
+
+    // 3. Validate group
+    const groupResult = await this.serviceGroupRepo.findById(input.groupId, null);
+    if (!groupResult) throw new PortalGroupNotFoundError();
+
+    const { group, assignedInspectorName } = groupResult;
+
+    if (group.tenantId !== appointment.tenantId || group.serviceTypeId !== appointment.serviceTypeId) {
+      throw new PortalGroupNotFoundError();
+    }
+    if (!ACTIVE_GROUP_STATUSES.has(group.status)) {
+      throw new PortalGroupUnavailableError();
+    }
+    if (!group.assignedInspectorId || !assignedInspectorName) {
+      throw new PortalGroupUnavailableError();
+    }
+    if (group.confirmedCount >= 10) {
+      throw new PortalGroupFullError();
+    }
+
+    const previousGroupId = appointment.serviceGroupId;
+    const previousValues = {
+      serviceGroupId: previousGroupId,
+      scheduledDate: appointment.scheduledDate,
+      timeSlot: appointment.timeSlot,
+      status: appointment.status,
+    };
+
+    // 4. Detach from previous group
+    if (previousGroupId) {
+      await this.serviceGroupRepo.decrementConfirmedCount(previousGroupId);
+    }
+
+    // 5-8. Update appointment fields
+    await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
+      scheduledDate: group.scheduledDate,
+      timeSlot: group.timeWindow,
+      inspectorId: group.assignedInspectorId,
+      tenantConfirmationStatus: 'CONFIRMED',
+      serviceGroupId: group.id,
+      ...(input.tenantNote !== undefined ? { tenantNote: input.tenantNote } : {}),
+    });
+
+    // 6. Transition to SCHEDULED only when not already in that status
+    // (AWAITING_INSPECTOR → SCHEDULED is the normal path; SCHEDULED appointments
+    // switching groups must skip this transition to avoid APPOINTMENT_INVALID_TRANSITION)
+    if (appointment.status !== 'SCHEDULED') {
+      await this.statusTransition.execute({
+        appointmentId: input.appointmentId,
+        targetStatus: 'SCHEDULED',
+        reason: `Tenant joined service group ${group.id} via portal`,
+        actor: {
+          userId: 'system',
+          tenantId: appointment.tenantId,
+          role: UserRole.SYS,
+          branchId: null,
+          inspectorId: null,
+        },
+      });
+    }
+
+    // 7. Increment confirmed_count of new group
+    await this.serviceGroupRepo.incrementConfirmedCount(group.id);
+
+    // 10. Record GROUP_JOIN activity
+    const activity = new TenantPortalActivityEntity({
+      id: crypto.randomUUID(),
+      appointmentId: input.appointmentId,
+      tenantPortalTokenId: input.tokenId,
+      action: 'GROUP_JOIN',
+      previousValuesJson: previousValues as Record<string, unknown>,
+      newValuesJson: {
+        serviceGroupId: group.id,
+        scheduledDate: group.scheduledDate,
+        timeSlot: group.timeWindow,
+        tenantConfirmationStatus: 'CONFIRMED',
+      },
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+      createdAt: new Date(),
+    });
+    await this.activityRepo.save(activity);
+
+    // 11. Audit log
+    this.auditService.log({
+      action: 'tenant_portal.group_joined',
+      actorType: 'ANONYMOUS',
+      entityType: 'Appointment',
+      entityId: input.appointmentId,
+      tenantId: appointment.tenantId,
+      before: previousValues as Record<string, unknown>,
+      after: { serviceGroupId: group.id, tenantConfirmationStatus: 'CONFIRMED' },
+      metadata: { groupId: group.id, previousGroupId, urgentMode: false },
+      ipAddress: input.ipAddress ?? undefined,
+    });
+
+    // 12. Mark token as used (single-shot)
+    await this.tokenRepo.markUsed(input.tokenId);
+
+    // 13. Fire-and-forget notification
+    if (this.onNotificationHandler) {
+      try {
+        await this.onNotificationHandler.execute({
+          appointmentId: input.appointmentId,
+          tenantId: appointment.tenantId,
+          action: 'GROUP_JOIN',
+        });
+      } catch {
+        // notification failure must not affect the join
+      }
+    }
+
+    return {
+      scheduledDate: group.scheduledDate.toISOString().slice(0, 10),
+      timeWindow: group.timeWindow,
+      tenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: group.assignedInspectorId, name: assignedInspectorName },
+    };
+  }
+}

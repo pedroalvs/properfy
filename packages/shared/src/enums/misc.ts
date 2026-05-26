@@ -9,6 +9,7 @@ export const TenantPortalTokenStatus = {
   ACTIVE: 'ACTIVE',
   EXPIRED: 'EXPIRED',
   REVOKED: 'REVOKED',
+  SUPERSEDED: 'SUPERSEDED',
 } as const;
 export type TenantPortalTokenStatus = (typeof TenantPortalTokenStatus)[keyof typeof TenantPortalTokenStatus];
 
@@ -18,6 +19,7 @@ export const TenantPortalAction = {
   RESCHEDULE: 'RESCHEDULE',
   CONTACT_UPDATED: 'CONTACT_UPDATED',
   UNAVAILABLE_REPORTED: 'UNAVAILABLE_REPORTED',
+  GROUP_JOIN: 'GROUP_JOIN',
 } as const;
 export type TenantPortalAction = (typeof TenantPortalAction)[keyof typeof TenantPortalAction];
 

@@ -154,7 +154,7 @@ describe('MapBulkActionModal', () => {
     renderModal({ appointments: [withNote] });
     const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
     expect(icon).toBeInTheDocument();
-    expect(icon).toHaveAttribute('title', 'Will be home after 3pm');
+    expect(icon).toHaveAttribute('aria-label', 'Note: Will be home after 3pm');
   });
 
   it('shows fallback tooltip text when hasTenantNote=true but tenantNote is null', () => {
@@ -165,7 +165,35 @@ describe('MapBulkActionModal', () => {
     };
     renderModal({ appointments: [withNoteNoText] });
     const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
-    expect(icon).toHaveAttribute('title', 'Tenant left a note');
+    expect(icon).toHaveAttribute('aria-label', 'Tenant left a note via portal');
+  });
+
+  // group button blocking — new behaviors added in fix/group-creation
+  it('disables group buttons and shows inline warning when selection has mixed service types', () => {
+    const apptA: AppointmentMapItem = { ...sampleAppointments[0]!, serviceTypeId: 'aaaa0000-0000-4000-8000-000000000001' };
+    const apptB: AppointmentMapItem = { ...sampleAppointments[1]!, serviceTypeId: 'bbbb0000-0000-4000-8000-000000000002' };
+    renderModal({ appointments: [apptA, apptB] });
+
+    fireEvent.click(screen.getByTestId(`bulk-modal-row-${apptA.code}`));
+    fireEvent.click(screen.getByTestId(`bulk-modal-row-${apptB.code}`));
+
+    const createBtn = screen.getByTestId('bulk-modal-footer-create-group') as HTMLButtonElement;
+    expect(createBtn.disabled).toBe(true);
+    expect(screen.getByTestId('group-button-reason').textContent).toContain('same service type');
+  });
+
+  it('disables group buttons and shows inline warning when an appointment already belongs to a group', () => {
+    const alreadyGrouped: AppointmentMapItem = {
+      ...sampleAppointments[0]!,
+      serviceGroupId: 'gggg0000-0000-4000-8000-000000000099',
+    };
+    renderModal({ appointments: [alreadyGrouped] });
+
+    fireEvent.click(screen.getByTestId(`bulk-modal-row-${alreadyGrouped.code}`));
+
+    const createBtn = screen.getByTestId('bulk-modal-footer-create-group') as HTMLButtonElement;
+    expect(createBtn.disabled).toBe(true);
+    expect(screen.getByTestId('group-button-reason').textContent).toContain('already belong to a group');
   });
 
   it('does not show note icon when hasTenantNote is false or absent', () => {

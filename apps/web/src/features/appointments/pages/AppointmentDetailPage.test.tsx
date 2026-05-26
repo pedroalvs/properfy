@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
+import { Snackbar } from '@/components/feedback/Snackbar';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -57,6 +58,46 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     if (!id) return { appointment: null, isLoading: false, isError: false, refetch: mockRefetch };
     if (id === 'loading') return { appointment: null, isLoading: true, isError: false, refetch: mockRefetch };
     if (id === 'error') return { appointment: null, isLoading: false, isError: true, refetch: mockRefetch };
+    if (id === 'with-portal-token') {
+      return {
+        appointment: {
+          id: 'with-portal-token',
+          code: 'VST-005',
+          status: 'SCHEDULED',
+          branchName: 'Downtown Branch',
+          branchId: 'branch-1',
+          propertyId: 'prop-1',
+          propertyAddress: '123 Flower Street',
+          serviceTypeId: 'st-1',
+          serviceTypeName: 'Inspection',
+          tenantId: 'tenant-1',
+          tenantConfirmationStatus: 'PENDING',
+          contactName: 'John',
+          scheduledDate: '2026-04-01',
+          timeSlot: '09:00-12:00',
+          contactPhone: '11999',
+          contactEmail: 'john@test.com',
+          inspectorId: 'insp-1',
+          inspectorName: 'Jane Inspector',
+          keyRequired: false,
+          meetingLocation: null,
+          keyLocation: null,
+          cancellationReason: null,
+          notes: '',
+          doneCheckedByUserId: null,
+          doneCheckedAt: null,
+          hasActivePortalToken: true,
+          isOverdue: false,
+          hasTenantNote: false,
+          tenantNote: null,
+          createdAt: '2026-03-01T10:00:00Z',
+          updatedAt: '2026-03-01T10:00:00Z',
+        },
+        isLoading: false,
+        isError: false,
+        refetch: mockRefetch,
+      };
+    }
     if (id === 'awaiting') {
       return {
         appointment: {
@@ -216,6 +257,7 @@ function createWrapper(initialEntry: string = '/appointments/apt-01') {
               <Route path="/appointments" element={<div>appointment list</div>} />
             </Routes>
           </MemoryRouter>
+          <Snackbar />
         </SnackbarProvider>
       </QueryClientProvider>
     );
@@ -344,5 +386,65 @@ describe('AppointmentDetailPage', () => {
     renderPage('/appointments/awaiting');
     fireEvent.click(screen.getByTestId('assign-inspector-button'));
     expect(screen.getByTestId('assign-inspector-modal')).toBeInTheDocument();
+  });
+});
+
+// T39 — Copy Portal Link button behaviour
+
+import { api } from '@/services/api';
+
+describe('AppointmentDetailPage — Copy Portal Link (T39)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+  });
+
+  it('shows Copy Portal Link button for AM user', () => {
+    renderPage();
+    expect(screen.getByTestId('copy-portal-link-button')).toBeInTheDocument();
+  });
+
+  it('Copy Portal Link is disabled when hasActivePortalToken is false', () => {
+    renderPage();
+    const btn = screen.getByTestId('copy-portal-link-button');
+    expect(btn).toBeDisabled();
+  });
+
+  it('disabled button wrapper has tooltip text', () => {
+    renderPage();
+    const wrapper = screen.getByTestId('copy-portal-link-button').closest('[title]');
+    expect(wrapper).toHaveAttribute('title', 'No active portal link — send one first');
+  });
+
+  it('Copy Portal Link is enabled when hasActivePortalToken is true', () => {
+    renderPage('/appointments/with-portal-token');
+    const btn = screen.getByTestId('copy-portal-link-button');
+    expect(btn).not.toBeDisabled();
+  });
+
+  it('clicking Copy Portal Link calls GET portal-link and writes URL to clipboard', async () => {
+    vi.mocked(api.GET).mockResolvedValueOnce({
+      data: { data: { portalUrl: 'https://portal.test/portal/abc123', expiresAt: '2026-06-01T19:00:00Z' } },
+      error: undefined,
+      response: { status: 200 } as Response,
+    } as never);
+    renderPage('/appointments/with-portal-token');
+    fireEvent.click(screen.getByTestId('copy-portal-link-button'));
+    await screen.findByText('Portal link copied to clipboard');
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://portal.test/portal/abc123');
+  });
+
+  it('shows error toast on 409 PORTAL_TOKEN_NOT_DECRYPTABLE', async () => {
+    vi.mocked(api.GET).mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { message: 'Token not decryptable' } },
+      response: { status: 409 } as Response,
+    } as never);
+    renderPage('/appointments/with-portal-token');
+    fireEvent.click(screen.getByTestId('copy-portal-link-button'));
+    await screen.findByText('Send Portal Link to generate a fresh link');
   });
 });

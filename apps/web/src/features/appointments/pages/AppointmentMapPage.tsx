@@ -830,7 +830,7 @@ export function AppointmentMapPage() {
         {/* C10 — List view button: top-right, offset left of the Mapbox zoom controls */}
         <div className="pointer-events-none absolute right-14 top-4 z-30">
           <div className="pointer-events-auto">
-            <MapListViewToggleButton />
+            <MapListViewToggleButton mode={mode} />
           </div>
         </div>
 

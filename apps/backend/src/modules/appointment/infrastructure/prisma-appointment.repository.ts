@@ -19,6 +19,7 @@ import type {
 import { T1VisibilityService } from '../../inspector-execution/domain/t1-visibility.service';
 import type {
   AppointmentStatus,
+  AvailableSlot,
   TenantConfirmationStatus,
   RestrictionSource,
   CancellationReasonCode,
@@ -54,6 +55,7 @@ function mapToEntity(row: any): AppointmentEntity {
     meetingLocation: row.meeting_location,
     keyLocation: row.key_location,
     tenantConfirmationStatus: row.tenant_confirmation_status as TenantConfirmationStatus,
+    activeConfirmationCycleId: row.active_confirmation_cycle_id ?? null,
     priceAmount: Number(row.price_amount),
     payoutAmount: Number(row.payout_amount),
     pricingRuleSnapshotJson: (row.pricing_rule_snapshot_json as Record<string, unknown>) ?? {},
@@ -101,6 +103,7 @@ function mapRestrictionToEntity(row: any): AppointmentRestrictionEntity {
     isHome: row.is_home,
     unavailableDaysJson: row.unavailable_days_json as string[] | null,
     unavailableHoursJson: row.unavailable_hours_json as string[] | null,
+    availableSlotsJson: row.available_slots_json as AvailableSlot[] | null,
     notes: row.notes,
     source: row.source as RestrictionSource,
     createdAt: row.created_at,
@@ -272,6 +275,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       meetingLocation: string | null;
       keyLocation: string | null;
       tenantConfirmationStatus: string;
+      activeConfirmationCycleId: string | null;
       notes: string | null;
       tenantNote: string | null;
       customFieldsJson: Record<string, unknown> | null;
@@ -300,6 +304,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.keyLocation !== undefined) updateData['key_location'] = data.keyLocation;
     if (data.tenantConfirmationStatus !== undefined) {
       updateData['tenant_confirmation_status'] = data.tenantConfirmationStatus;
+    }
+    if (data.activeConfirmationCycleId !== undefined) {
+      updateData['active_confirmation_cycle_id'] = data.activeConfirmationCycleId;
     }
     if (data.notes !== undefined) updateData['notes'] = data.notes;
     if (data.tenantNote !== undefined) updateData['tenant_note'] = data.tenantNote;
@@ -405,6 +412,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         is_home: restriction.isHome,
         unavailable_days_json: restriction.unavailableDaysJson ?? undefined,
         unavailable_hours_json: restriction.unavailableHoursJson ?? undefined,
+        available_slots_json: restriction.availableSlotsJson != null
+          ? (restriction.availableSlotsJson as unknown as Prisma.InputJsonValue)
+          : undefined,
         notes: restriction.notes,
         source: restriction.source as PrismaRestrictionSource,
       },
@@ -523,8 +533,22 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         { OR: [{ tenant_note: null }, { tenant_note: '' }] },
       ];
     }
-    if (filters.confirmationStatus) {
-      where['tenant_confirmation_status'] = filters.confirmationStatus;
+    if (filters.confirmationStatus === 'sent') {
+      where['notifications'] = {
+        some: {
+          channel: 'EMAIL',
+          template_code: { startsWith: 'INSPECTION_NOTICE' },
+          status: { in: ['SENT', 'DELIVERED'] },
+        },
+      };
+    } else if (filters.confirmationStatus === 'not_sent') {
+      where['notifications'] = {
+        none: {
+          channel: 'EMAIL',
+          template_code: { startsWith: 'INSPECTION_NOTICE' },
+          status: { in: ['SENT', 'DELIVERED'] },
+        },
+      };
     }
     return where;
   }

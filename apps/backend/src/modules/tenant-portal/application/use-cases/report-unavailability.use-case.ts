@@ -1,5 +1,6 @@
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { TENANT_PORTAL_EVENTS } from '../../../../shared/application/events/domain-event-bus';
@@ -7,6 +8,7 @@ import type { IInspectionExecutionRepository } from '../../../inspector-executio
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
 import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
+import type { AvailableSlot } from '@properfy/shared';
 import {
   PortalAppointmentInactiveError,
   PortalInspectionAlreadyStartedError,
@@ -23,6 +25,7 @@ export interface ReportUnavailabilityInput {
     isHome: boolean;
     unavailableDaysJson: string[] | null;
     unavailableHoursJson: string[] | null;
+    availableSlotsJson?: AvailableSlot[] | null;
     notes: string | null;
   };
   tenantNote?: string;
@@ -41,6 +44,7 @@ export class ReportUnavailabilityUseCase {
     private readonly executionRepo?: IInspectionExecutionRepository,
     private readonly domainEventBus?: DomainEventBus,
     private readonly tokenRepo?: ITenantPortalTokenRepository,
+    private readonly cycleService?: ConfirmationCycleService,
   ) {}
 
   async execute(input: ReportUnavailabilityInput) {
@@ -83,11 +87,26 @@ export class ReportUnavailabilityUseCase {
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
     };
 
-    // 5. Update appointment confirmation status (and tenant note if provided)
-    await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
-      tenantConfirmationStatus: 'UNAVAILABLE',
-      ...(input.tenantNote !== undefined ? { tenantNote: input.tenantNote } : {}),
-    });
+    // 5. Update appointment confirmation status via cycle service (if wired)
+    if (this.cycleService) {
+      try {
+        await this.cycleService.markUnavailable(input.appointmentId, appointment.tenantId);
+      } catch {
+        // No active cycle (pre-feature appointment) — fall back to direct denorm write
+        await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
+          tenantConfirmationStatus: 'UNAVAILABLE',
+        });
+      }
+      if (input.tenantNote !== undefined) {
+        await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
+          tenantNote: input.tenantNote,
+        });
+      }
+    } else {
+      const payload: Record<string, unknown> = { tenantConfirmationStatus: 'UNAVAILABLE' };
+      if (input.tenantNote !== undefined) payload.tenantNote = input.tenantNote;
+      await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, payload);
+    }
 
     // 5b. Mark token as used (replay detection)
     if (this.tokenRepo) {
@@ -104,6 +123,7 @@ export class ReportUnavailabilityUseCase {
         isHome: input.restrictions.isHome,
         unavailableDaysJson: input.restrictions.unavailableDaysJson,
         unavailableHoursJson: input.restrictions.unavailableHoursJson,
+        availableSlotsJson: input.restrictions.availableSlotsJson ?? null,
         notes: input.restrictions.notes,
         source: 'TENANT_PORTAL',
         createdAt: new Date(),
@@ -112,14 +132,19 @@ export class ReportUnavailabilityUseCase {
       await this.appointmentRepo.saveRestriction(restriction);
     }
 
-    // 7. Record UNAVAILABLE_REPORTED activity
+    // 7. Record UNAVAILABLE_REPORTED activity — include availableSlotsJson when present (M6)
+    const newValuesJson: Record<string, unknown> = { tenantConfirmationStatus: 'UNAVAILABLE' };
+    if (input.restrictions?.availableSlotsJson) {
+      newValuesJson['availableSlotsJson'] = input.restrictions.availableSlotsJson;
+    }
+
     const activity = new TenantPortalActivityEntity({
       id: crypto.randomUUID(),
       appointmentId: input.appointmentId,
       tenantPortalTokenId: input.tokenId,
       action: 'UNAVAILABLE_REPORTED',
       previousValuesJson: previousValues,
-      newValuesJson: { tenantConfirmationStatus: 'UNAVAILABLE' },
+      newValuesJson,
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
       createdAt: new Date(),

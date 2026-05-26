@@ -41,8 +41,10 @@ import type { BulkStatusTransitionUseCase } from '../application/use-cases/bulk-
 import type { BulkAssignInspectorUseCase } from '../application/use-cases/bulk-assign-inspector.use-case';
 import type { BulkReopenForRescheduleUseCase } from '../application/use-cases/bulk-reopen-for-reschedule.use-case';
 import type { ReopenForRescheduleUseCase } from '../application/use-cases/reopen-for-reschedule.use-case';
+import type { GetPortalLinkUseCase } from '../../tenant-portal/application/use-cases/get-portal-link.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import type { IIdempotencyService } from '../../../shared/domain/idempotency.service';
+import { GetPortalLinkResponse } from '@properfy/shared';
 
 const importIdParam = z.object({ importId: z.string().uuid() });
 
@@ -68,6 +70,7 @@ export interface AppointmentRouteContainer {
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
   idempotencyService?: IIdempotencyService;
+  getPortalLinkUseCase?: GetPortalLinkUseCase;
 }
 
 const appointmentIdParam = z.object({ appointmentId: z.string().uuid() });
@@ -165,6 +168,32 @@ export async function registerAppointmentRoutes(
         throw new ValidationError('Invalid appointment ID', params.error.errors);
       }
       const result = await container.getAppointmentUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/appointments/:appointmentId/portal-link — 200 (AM/OP: Copy Portal Link)
+  app.get(
+    '/v1/appointments/:appointmentId/portal-link',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ appointmentId: z.string().uuid() }),
+        response: { 200: successResponseSchema(GetPortalLinkResponse) },
+      },
+    },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+      if (!container.getPortalLinkUseCase) {
+        throw new ValidationError('Portal link feature not available', []);
+      }
+      const result = await container.getPortalLinkUseCase.execute({
         appointmentId: params.data.appointmentId,
         actor: request.authContext!,
       });

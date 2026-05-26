@@ -24,6 +24,8 @@ export interface AppointmentMapItem {
   tenantConfirmationStatus?: string;
   /** Optional service type label surfaced in the detail panel header. */
   serviceTypeName?: string;
+  /** Service type id — used to validate homogeneous selection before group creation. */
+  serviceTypeId?: string;
   /** Populated when status = REJECTED — surfaces in the detail panel red banner (T-C5-5). */
   rejectionReasonCode?: string | null;
   reason?: string | null;

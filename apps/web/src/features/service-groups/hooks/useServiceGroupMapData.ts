@@ -14,7 +14,7 @@ export interface ServiceGroupMapItem {
     id: string;
     code: string;
     status: string;
-    address: string;
+    suburb: string;
     latitude: number;
     longitude: number;
     scheduledDate?: string;

@@ -48,6 +48,12 @@ const envSchema = z.object({
   // Optional TOTP encryption
   TOTP_ENCRYPTION_KEY: z.string().optional(),
 
+  // AES-256-GCM key for encrypting tenant portal raw tokens (key-per-purpose from TOTP_ENCRYPTION_KEY)
+  PORTAL_TOKEN_ENC_KEY: z
+    .string()
+    .min(44, 'PORTAL_TOKEN_ENC_KEY must be at least 44 chars (32 bytes base64) or 64 chars (32 bytes hex)')
+    .optional(),
+
   // Notification unsubscribe token secret (HMAC-SHA256)
   NOTIFICATION_UNSUBSCRIBE_SECRET: z.string().default('dev-unsubscribe-secret'),
 
@@ -91,6 +97,13 @@ export function validateEnv(source: Record<string, string | undefined> = process
   if (!result.data.TOTP_ENCRYPTION_KEY && result.data.NODE_ENV !== 'development' && result.data.NODE_ENV !== 'test') {
     throw new Error(
       'Environment validation failed:\n  - TOTP_ENCRYPTION_KEY: Required in non-development environments (32 bytes, hex or base64 encoded)',
+    );
+  }
+
+  // PORTAL_TOKEN_ENC_KEY is required in non-development/test environments
+  if (!result.data.PORTAL_TOKEN_ENC_KEY && result.data.NODE_ENV !== 'development' && result.data.NODE_ENV !== 'test') {
+    throw new Error(
+      'Environment validation failed:\n  - PORTAL_TOKEN_ENC_KEY: Required in non-development environments (32 bytes, hex or base64 encoded)',
     );
   }
 

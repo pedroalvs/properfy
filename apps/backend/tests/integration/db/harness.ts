@@ -211,10 +211,11 @@ export async function seedLegacyDoneAppointment(
       geocoding_status: 'SUCCESS',
     },
   });
+  const stSuffix = Math.random().toString(36).slice(2, 10);
   const serviceType = await prisma.serviceType.create({
     data: {
-      code: `T061-ST-${Math.random().toString(36).slice(2, 10)}`,
-      name: 'T061 Routine Inspection',
+      code: `T061-ST-${stSuffix}`,
+      name: `T061 Routine Inspection ${stSuffix}`,
       flow_type: 'ROUTINE',
       requires_tenant_confirmation: true,
       status: 'ACTIVE',

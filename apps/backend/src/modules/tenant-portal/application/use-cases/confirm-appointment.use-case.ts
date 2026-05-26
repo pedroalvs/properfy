@@ -1,3 +1,4 @@
+import type { AvailableSlot } from '@properfy/shared';
 import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal-activity.repository';
 import type { ITenantPortalTokenRepository } from '../../domain/tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
@@ -6,6 +7,7 @@ import type { DomainEventBus } from '../../../../shared/application/events/domai
 import { TENANT_PORTAL_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
+import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import {
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
@@ -21,6 +23,7 @@ export interface ConfirmAppointmentInput {
     isHome: boolean;
     unavailableDaysJson: string[] | null;
     unavailableHoursJson: string[] | null;
+    availableSlotsJson?: AvailableSlot[] | null;
     notes: string | null;
   };
   tenantNote?: string;
@@ -38,6 +41,7 @@ export class ConfirmAppointmentUseCase {
     private readonly onNotificationHandler?: { execute(input: { appointmentId: string; tenantId?: string | null; action: string }): Promise<unknown> },
     private readonly domainEventBus?: DomainEventBus,
     private readonly tokenRepo?: ITenantPortalTokenRepository,
+    private readonly cycleService?: ConfirmationCycleService,
   ) {}
 
   async execute(input: ConfirmAppointmentInput) {
@@ -77,11 +81,26 @@ export class ConfirmAppointmentUseCase {
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
     };
 
-    // 6. Update appointment confirmation status (and tenant note if provided)
-    await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
-      tenantConfirmationStatus: 'CONFIRMED',
-      ...(input.tenantNote !== undefined ? { tenantNote: input.tenantNote } : {}),
-    });
+    // 6. Update appointment confirmation status via cycle service (if wired)
+    if (this.cycleService) {
+      try {
+        await this.cycleService.confirm(input.appointmentId, appointment.tenantId, 'TENANT_PORTAL', input.tokenId ?? null);
+      } catch {
+        // No active cycle (pre-feature appointment) — fall back to direct denorm write
+        await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
+          tenantConfirmationStatus: 'CONFIRMED',
+        });
+      }
+      if (input.tenantNote !== undefined) {
+        await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
+          tenantNote: input.tenantNote,
+        });
+      }
+    } else {
+      const payload: Record<string, unknown> = { tenantConfirmationStatus: 'CONFIRMED' };
+      if (input.tenantNote !== undefined) payload.tenantNote = input.tenantNote;
+      await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, payload);
+    }
 
     // 7. Confirm resets stale tenant-portal restrictions from previous unavailability/reschedule cycles.
     await this.appointmentRepo.deleteRestrictionsByAppointmentId(input.appointmentId);
@@ -93,6 +112,7 @@ export class ConfirmAppointmentUseCase {
         isHome: input.restrictions.isHome,
         unavailableDaysJson: input.restrictions.unavailableDaysJson,
         unavailableHoursJson: input.restrictions.unavailableHoursJson,
+        availableSlotsJson: input.restrictions.availableSlotsJson ?? null,
         notes: input.restrictions.notes,
         source: 'TENANT_PORTAL',
         createdAt: new Date(),

@@ -30,11 +30,12 @@ const EXISTING_INSPECTORS = [
 ];
 
 // 4 new inspectors to reach ≥10
+// IDs use hex-only chars (fefe0270 prefix) so they pass z.string().uuid() validation.
 const NEW_INSPECTORS = [
-  { id: 'perf0270-0000-4000-8000-000000000001', name: 'Perf Inspector 07', email: 'perf.insp07@perf027.test' },
-  { id: 'perf0270-0000-4000-8000-000000000002', name: 'Perf Inspector 08', email: 'perf.insp08@perf027.test' },
-  { id: 'perf0270-0000-4000-8000-000000000003', name: 'Perf Inspector 09', email: 'perf.insp09@perf027.test' },
-  { id: 'perf0270-0000-4000-8000-000000000004', name: 'Perf Inspector 10', email: 'perf.insp10@perf027.test' },
+  { id: 'fefe0270-0000-4000-8000-000000000001', name: 'Perf Inspector 07', email: 'perf.insp07@perf027.test' },
+  { id: 'fefe0270-0000-4000-8000-000000000002', name: 'Perf Inspector 08', email: 'perf.insp08@perf027.test' },
+  { id: 'fefe0270-0000-4000-8000-000000000003', name: 'Perf Inspector 09', email: 'perf.insp09@perf027.test' },
+  { id: 'fefe0270-0000-4000-8000-000000000004', name: 'Perf Inspector 10', email: 'perf.insp10@perf027.test' },
 ];
 
 const ALL_INSPECTORS = [...EXISTING_INSPECTORS, ...NEW_INSPECTORS.map((i) => i.id)];
@@ -113,7 +114,7 @@ async function main() {
     confirmStatus: string,
     updatedAtOverride?: Date,
   ) => ({
-    id: `perf0270-0000-4000-8${String(i).padStart(3, '0')}-${String(i).padStart(12, '0')}`,
+    id: `fefe0270-0000-4000-8${String(i).padStart(3, '0')}-${String(i).padStart(12, '0')}`,
     tenant_id: TENANT_ID,
     branch_id: BRANCH_ID,
     property_id: pickRoundRobin(PROPERTIES, i),

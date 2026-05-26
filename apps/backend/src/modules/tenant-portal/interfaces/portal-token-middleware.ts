@@ -3,6 +3,7 @@ import type { ITenantPortalTokenRepository } from '../domain/tenant-portal-token
 import {
   PortalTokenInvalidError,
   PortalTokenRevokedError,
+  PortalTokenSupersededError,
 } from '../domain/tenant-portal.errors';
 
 export interface PortalContext {
@@ -44,6 +45,12 @@ export function createPortalTokenMiddleware(
 
     if (tokenEntity.isRevoked()) {
       throw new PortalTokenRevokedError();
+    }
+
+    // 028: tokens whose confirmation cycle was superseded (date changed, reopened, etc.)
+    // are no longer valid for any tenant portal action.
+    if (tokenEntity.status === 'SUPERSEDED') {
+      throw new PortalTokenSupersededError();
     }
 
     const now = new Date();

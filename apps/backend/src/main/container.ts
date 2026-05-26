@@ -121,6 +121,9 @@ import { UpdateInspectorSelfProfileUseCase } from '../modules/inspector/applicat
 import { GenerateInspectorDocumentUploadUrlUseCase } from '../modules/inspector/application/use-cases/generate-inspector-document-upload-url.use-case';
 import { ConfirmInspectorDocumentUploadUseCase } from '../modules/inspector/application/use-cases/confirm-inspector-document-upload.use-case';
 import { GetInspectorDocumentDownloadUrlUseCase } from '../modules/inspector/application/use-cases/get-inspector-document-download-url.use-case';
+import { GetInspectorAvailabilityTemplateUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template.use-case';
+import { UpdateInspectorAvailabilityTemplateUseCase } from '../modules/inspector/application/use-cases/update-inspector-availability-template.use-case';
+import { GetInspectorAvailabilityTemplateForOperatorUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template-for-operator.use-case';
 import { PrismaInspectorAppointmentChecker } from '../modules/inspector/infrastructure/prisma-inspector-appointment-checker';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
 
@@ -182,6 +185,8 @@ import { UpdateContactUseCase } from '../modules/tenant-portal/application/use-c
 import { ReportUnavailabilityUseCase } from '../modules/tenant-portal/application/use-cases/report-unavailability.use-case';
 import { GeneratePortalTokenUseCase } from '../modules/tenant-portal/application/use-cases/generate-portal-token.use-case';
 import { ListPortalActivitiesUseCase } from '../modules/tenant-portal/application/use-cases/list-portal-activities.use-case';
+import { GetAvailableGroupsUseCase } from '../modules/tenant-portal/application/use-cases/get-available-groups.use-case';
+import { JoinGroupUseCase } from '../modules/tenant-portal/application/use-cases/join-group.use-case';
 import type { TenantPortalRouteContainer } from '../modules/tenant-portal/interfaces/tenant-portal.routes';
 
 // Inspector execution module
@@ -369,6 +374,11 @@ import { PrismaAppointmentImportRepository } from '../modules/appointment/infras
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
+import { GetPortalLinkUseCase } from '../modules/tenant-portal/application/use-cases/get-portal-link.use-case';
+import { PrismaConfirmationCycleRepository } from '../modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
+import { ConfirmationCycleService } from '../modules/appointment/application/services/confirmation-cycle.service';
+import { Aes256GcmService } from '../shared/infrastructure/crypto/aes-256-gcm.service';
+import { AesTokenEncrypterAdapter } from '../modules/tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
 // Appointment time slot module
@@ -592,6 +602,9 @@ export function createContainer(logger: Logger): AppContainer {
   const generateInspectorDocumentUploadUrlUseCase = new GenerateInspectorDocumentUploadUrlUseCase(inspectorRepo, storageService, auditService);
   const confirmInspectorDocumentUploadUseCase = new ConfirmInspectorDocumentUploadUseCase(inspectorRepo, storageService, auditService);
   const getInspectorDocumentDownloadUrlUseCase = new GetInspectorDocumentDownloadUrlUseCase(inspectorRepo, storageService);
+  const getInspectorAvailabilityTemplateUseCase = new GetInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo);
+  const updateInspectorAvailabilityTemplateUseCase = new UpdateInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo, auditService);
+  const getInspectorAvailabilityTemplateForOperatorUseCase = new GetInspectorAvailabilityTemplateForOperatorUseCase(inspectorRepo, availabilitySlotRepo);
 
   // Notification repositories and create use case (needed before appointments for handler wiring)
   const notificationRepo = new PrismaNotificationRepository(prisma);
@@ -652,21 +665,33 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
     appointmentTimeSlotRepo, auditService, authorizationService,
   );
-  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService);
-
   // Tenant portal repositories — created BEFORE reopenForRescheduleUseCase
   // so 026 §FR-543 can inject the token repo (revoke active portal tokens
   // when the appointment is rescheduled).
   const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
   const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
   const tokenService = new TokenService();
-  const mintPortalTokenService = new MintPortalTokenService(tenantPortalTokenRepo, tokenService);
+
+  // 028 — confirmation cycle repository + service
+  const confirmationCycleRepo = new PrismaConfirmationCycleRepository(prisma);
+  const confirmationCycleService = new ConfirmationCycleService(confirmationCycleRepo, auditService, prisma);
+
+  // 028 — AES-256-GCM token encrypter (optional; skipped when PORTAL_TOKEN_ENC_KEY absent)
+  const portalTokenEncrypter = env.PORTAL_TOKEN_ENC_KEY
+    ? new AesTokenEncrypterAdapter(new Aes256GcmService(env.PORTAL_TOKEN_ENC_KEY))
+    : undefined;
+
+  const mintPortalTokenService = new MintPortalTokenService(tenantPortalTokenRepo, tokenService, portalTokenEncrypter);
+
+  const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService, confirmationCycleService);
 
   const reopenForRescheduleUseCase = new ReopenForRescheduleUseCase(
     appointmentRepo,
     auditService,
     authorizationService,
     tenantPortalTokenRepo,
+    confirmationCycleService,
+    prisma,
   );
 
   // Notification payload helpers — no constructor deps, safe to create here
@@ -692,12 +717,17 @@ export function createContainer(logger: Logger): AppContainer {
     notifyOnStatusTransitionHandler,
     serviceTypeRepo,
     domainEventBus,
+    confirmationCycleService,
+    prisma,
   );
 
-  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
-  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo);
+  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
+  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo, confirmationCycleService);
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
-  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase);
+  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase, confirmationCycleService, prisma);
+  const getPortalLinkUseCase = portalTokenEncrypter
+    ? new GetPortalLinkUseCase(appointmentRepo, tenantPortalTokenRepo, portalTokenEncrypter, env.TENANT_PORTAL_BASE_URL, authorizationService, auditService)
+    : undefined;
   const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
   const bulkResendReminderUseCase = new BulkResendReminderUseCase(generatePortalTokenUseCase, idempotencyService);
 
@@ -741,6 +771,7 @@ export function createContainer(logger: Logger): AppContainer {
     inspectionExecutionRepo,
     domainEventBus,
     tenantPortalTokenRepo,
+    confirmationCycleService,
   );
 
   const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, tenantPortalTokenRepo, appointmentRepo, serviceTypeRepo, inspectionExecutionRepo, tenantRepo, auditService, reopenForRescheduleUseCase, notifyOnTenantPortalActionHandler, domainEventBus, generatePortalTokenUseCase);
@@ -822,10 +853,21 @@ export function createContainer(logger: Logger): AppContainer {
   const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
   const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
-  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus, availabilitySlotRepo);
+  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, tenantRepo);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
+
+  const getAvailableGroupsUseCase = new GetAvailableGroupsUseCase(appointmentRepo, serviceGroupRepo);
+  const joinGroupUseCase = new JoinGroupUseCase(
+    appointmentRepo,
+    serviceGroupRepo,
+    tenantPortalActivityRepo,
+    tenantPortalTokenRepo,
+    auditService,
+    executeStatusTransitionUseCase,
+    notifyOnTenantPortalActionHandler,
+  );
 
   // 026 — Add appointments to existing group + read-only eligibility preview.
   const addAppointmentsToGroupUseCase = new AddAppointmentsToGroupUseCase(
@@ -1125,7 +1167,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Reject unconfirmed appointments cleanup worker
   const rejectUnconfirmedAppointmentsUseCase = new RejectUnconfirmedAppointmentsUseCase(
-    appointmentRepo, serviceGroupRepo, auditService, logger,
+    appointmentRepo, serviceGroupRepo, auditService, logger, confirmationCycleService, prisma,
   );
   const rejectUnconfirmedWorker = new RejectUnconfirmedWorker(rejectUnconfirmedAppointmentsUseCase);
 
@@ -1265,6 +1307,9 @@ export function createContainer(logger: Logger): AppContainer {
       generateInspectorDocumentUploadUrlUseCase,
       confirmInspectorDocumentUploadUseCase,
       getInspectorDocumentDownloadUrlUseCase,
+      getInspectorAvailabilityTemplateUseCase,
+      updateInspectorAvailabilityTemplateUseCase,
+      getInspectorAvailabilityTemplateForOperatorUseCase,
       jwtService,
       tenantRepo,
       slotRepo: availabilitySlotRepo,
@@ -1291,6 +1336,7 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
       idempotencyService,
+      getPortalLinkUseCase,
     },
     appointmentTimeSlot: {
       createAppointmentTimeSlotUseCase,
@@ -1360,6 +1406,8 @@ export function createContainer(logger: Logger): AppContainer {
       reportUnavailabilityUseCase,
       generatePortalTokenUseCase,
       listPortalActivitiesUseCase,
+      getAvailableGroupsUseCase,
+      joinGroupUseCase,
       tokenRepo: tenantPortalTokenRepo,
       tokenService,
       jwtService,

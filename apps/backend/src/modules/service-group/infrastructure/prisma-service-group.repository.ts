@@ -10,8 +10,10 @@ import type {
   ServiceGroupMapAppointment,
   MarketplaceOffer,
   MarketplaceOfferDetail,
+  PortalEligibleGroup,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus, PriorityMode, ServiceGroupExceptionType } from '@properfy/shared';
+import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
 
 function mapToEntity(row: any): ServiceGroupEntity {
   return new ServiceGroupEntity({
@@ -297,7 +299,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         appointments: {
           select: {
             payout_amount: true,
-            property: { select: { suburb: true } },
+            property: { select: { suburb: true, state: true } },
           },
         },
       },
@@ -309,6 +311,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       const suburbs = [
         ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
       ] as string[];
+      const suburbStatePairs = [
+        ...new Map(
+          appts
+            .filter((a) => a.property?.suburb)
+            .map((a) => [`${a.property.suburb}|${a.property.state ?? ''}`, { name: a.property.suburb as string, state: (a.property.state ?? '') as string }]),
+        ).values(),
+      ];
       const payoutTotal = appts.reduce((sum: number, a) => {
         const val = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : 0;
         return sum + val;
@@ -327,6 +336,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         suburbs,
         payoutEstimate,
         appointmentCount: appts.length,
+        centroid: resolveCentroid(suburbStatePairs),
       };
     });
   }
@@ -402,7 +412,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const row = await this.prisma.serviceGroup.findUnique({
       where: { id: groupId },
       include: {
-        tenant: { select: { name: true } },
+        tenant: { select: { name: true, settings_json: true } },
         service_type: { select: { name: true } },
         appointments: {
           select: {
@@ -411,7 +421,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             key_required: true,
             payout_amount: true,
             notes: true,
-            property: { select: { suburb: true, street: true } },
+            property: { select: { suburb: true, state: true, street: true } },
           },
         },
       },
@@ -423,6 +433,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const suburbs = [
       ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
     ] as string[];
+    const suburbStatePairsDetail = [
+      ...new Map(
+        appts
+          .filter((a) => a.property?.suburb)
+          .map((a) => [`${a.property.suburb}|${a.property.state ?? ''}`, { name: a.property.suburb as string, state: (a.property.state ?? '') as string }]),
+      ).values(),
+    ];
     const addresses = [
       ...new Set(
         appts
@@ -444,6 +461,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     // Collect group-level notes from appointments (first non-null)
     const groupNotes = appts.find((a) => a.notes != null)?.notes ?? null;
 
+    const tenantSettings = row.tenant?.settings_json as Record<string, unknown> | null;
+    const codePrefix =
+      typeof tenantSettings?.appointmentCodePrefix === 'string' &&
+      tenantSettings.appointmentCodePrefix.length > 0
+        ? tenantSettings.appointmentCodePrefix
+        : 'INS';
+
     return {
       groupId: row.id,
       tenantId: row.tenant_id,
@@ -460,14 +484,17 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       addresses,
       keyRequired,
       notes: groupNotes,
+      centroid: resolveCentroid(suburbStatePairsDetail),
       appointments: appts.map((a) => {
         const p = a.property;
-        const address = p ? [p.street, p.suburb].filter(Boolean).join(', ') : '';
+        const suburb = p ? [p.suburb, p.state].filter(Boolean).join(' ') : '';
         const payoutVal = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : null;
+        const padded = String(a.appointment_number).padStart(4, '0');
         return {
           id: a.id,
+          appointmentCode: `${codePrefix}-${padded}`,
           appointmentNumber: a.appointment_number,
-          address,
+          suburb,
           keyRequired: a.key_required === true,
           notes: a.notes ?? null,
           payoutAmount: payoutVal,
@@ -637,6 +664,72 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       status: 'status',
     };
     return mapping[sortBy ?? ''] ?? 'created_at';
+  }
+
+  async decrementConfirmedCount(groupId: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      UPDATE service_groups SET confirmed_count = GREATEST(0, confirmed_count - 1) WHERE id = ${groupId}
+    `;
+  }
+
+  async incrementConfirmedCount(groupId: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      UPDATE service_groups SET confirmed_count = confirmed_count + 1 WHERE id = ${groupId}
+    `;
+  }
+
+  async findPortalEligibleGroups(params: {
+    tenantId: string;
+    serviceTypeId: string;
+    propertyId: string;
+    today: Date;
+  }): Promise<PortalEligibleGroup[]> {
+    const todayStr = params.today.toISOString().slice(0, 10);
+
+    type Row = {
+      id: string;
+      scheduled_date: Date;
+      time_window: string;
+      suburb: string;
+      inspector_name: string;
+      confirmed_count: bigint;
+    };
+
+    const rows = await this.prisma.$queryRaw<Row[]>`
+      SELECT DISTINCT ON (sg.id)
+        sg.id,
+        sg.scheduled_date,
+        sg.time_window,
+        p.suburb,
+        i.name AS inspector_name,
+        sg.confirmed_count
+      FROM service_groups sg
+      JOIN inspectors i ON i.id = sg.assigned_inspector_id
+      JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
+      JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
+      WHERE sg.tenant_id = ${params.tenantId}
+        AND sg.service_type_id = ${params.serviceTypeId}
+        AND sg.status = 'ACCEPTED'
+        AND sg.confirmed_count < 10
+        AND sg.scheduled_date::date > ${todayStr}::date
+        AND p.coordinates IS NOT NULL
+        AND ST_DWithin(
+          p.coordinates::geography,
+          (SELECT coordinates::geography FROM properties WHERE id = ${params.propertyId} AND deleted_at IS NULL),
+          2000
+        )
+      ORDER BY sg.id, sg.scheduled_date ASC
+    `;
+
+    return rows.map((row) => ({
+      id: row.id,
+      scheduledDate: row.scheduled_date,
+      timeWindow: row.time_window,
+      suburb: row.suburb,
+      inspectorName: row.inspector_name,
+      confirmedCount: Number(row.confirmed_count),
+      capacityMax: 10 as const,
+    }));
   }
 
   async findAddableForAppointments(params: {

@@ -69,3 +69,34 @@ export class PortalTokenAlreadyUsedError extends ConflictError {
     super('PORTAL_TOKEN_ALREADY_USED', 'This portal token has already been used for a mutation');
   }
 }
+
+export class PortalGroupNotFoundError extends NotFoundError {
+  constructor() {
+    super('PORTAL_GROUP_NOT_FOUND', 'Service group not found or no longer eligible');
+  }
+}
+
+export class PortalGroupFullError extends ConflictError {
+  constructor() {
+    super('PORTAL_GROUP_FULL', 'Service group has reached maximum confirmed capacity');
+  }
+}
+
+export class PortalGroupUnavailableError extends ConflictError {
+  constructor() {
+    super('PORTAL_GROUP_UNAVAILABLE', 'Service group is no longer available for joining');
+  }
+}
+
+export class PortalTokenSupersededError extends DomainError {
+  constructor() {
+    super('PORTAL_TOKEN_SUPERSEDED', 'This portal token has been superseded by a new confirmation cycle', 410);
+    this.name = 'PortalTokenSupersededError';
+  }
+}
+
+export class NoActivePortalTokenError extends NotFoundError {
+  constructor() {
+    super('NO_ACTIVE_PORTAL_TOKEN', 'No active portal token for this appointment');
+  }
+}

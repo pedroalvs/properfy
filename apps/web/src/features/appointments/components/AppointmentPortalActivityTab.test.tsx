@@ -16,11 +16,29 @@ const mockActivities = [
   },
 ];
 
+const groupJoinActivity = {
+  id: 'pa-02',
+  appointmentId: 'apt-01',
+  tenantPortalTokenId: 'tok-1',
+  action: 'GROUP_JOIN',
+  previousValuesJson: null,
+  newValuesJson: {
+    serviceGroupId: 'sg-1',
+    scheduledDate: '2026-06-01',
+    timeSlot: '09:00-12:00',
+    tenantConfirmationStatus: 'CONFIRMED',
+  },
+  ipAddress: null,
+  userAgent: null,
+  createdAt: '2026-03-11T10:00:00Z',
+};
+
 vi.mock('../hooks/usePortalActivities', () => ({
   usePortalActivities: (id: string) => {
     if (id === 'loading') return { activities: [], isLoading: true, isError: false, refetch: vi.fn() };
     if (id === 'error') return { activities: [], isLoading: false, isError: true, refetch: vi.fn() };
     if (id === 'empty') return { activities: [], isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'group-join') return { activities: [groupJoinActivity], isLoading: false, isError: false, refetch: vi.fn() };
     return { activities: mockActivities, isLoading: false, isError: false, refetch: vi.fn() };
   },
 }));
@@ -47,5 +65,16 @@ describe('AppointmentPortalActivityTab', () => {
     render(<AppointmentPortalActivityTab appointmentId="empty" />);
     expect(screen.getByText('No portal activity')).toBeInTheDocument();
     expect(screen.getByText('No tenant portal interactions have been recorded yet.')).toBeInTheDocument();
+  });
+
+  it('renders GROUP_JOIN activity with a colour badge', () => {
+    render(<AppointmentPortalActivityTab appointmentId="group-join" />);
+    expect(screen.getByText('Group Join')).toBeInTheDocument();
+  });
+
+  it('renders GROUP_JOIN newValuesJson summary with date and time slot', () => {
+    render(<AppointmentPortalActivityTab appointmentId="group-join" />);
+    expect(screen.getByText(/2026-06-01/)).toBeInTheDocument();
+    expect(screen.getByText(/09:00-12:00/)).toBeInTheDocument();
   });
 });

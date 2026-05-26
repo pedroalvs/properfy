@@ -303,3 +303,91 @@ describe('POST /v1/appointments/:appointmentId/portal-token', () => {
     expect(res.status).toBe(401);
   });
 });
+
+// BUG-1 regression: rescheduleAllowed + tenant must survive Fastify serialisation
+// Without these fields declared in portalDataResponseSchema the whitelist serialiser
+// silently strips them, so rescheduleAllowed=undefined and tenant.timezone is missing.
+describe('GET /v1/tenant-portal/:token — BUG-1 regression: rescheduleAllowed + tenant', () => {
+  it('preserves rescheduleAllowed and tenant in the response', async () => {
+    setupPortalAuth();
+    const mockResult = {
+      token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      appointment: {},
+      contact: null,
+      restrictions: null,
+      rescheduleAllowed: false,
+      tenant: { name: 'Jane Tenant', timezone: 'Australia/Sydney' },
+    };
+    mockGetPortalDataExecute.mockResolvedValueOnce(mockResult);
+
+    const res = await supertest(app.server).get('/v1/tenant-portal/valid-raw-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.rescheduleAllowed).toBe(false);
+    expect(res.body.tenant).toEqual({ name: 'Jane Tenant', timezone: 'Australia/Sydney' });
+  });
+});
+
+// BUG-2 regression: availableSlotsJson must be forwarded from route body to use case
+// The route handler mapped restrictions but omitted availableSlotsJson, so
+// appointment_restrictions.available_slots_json was always written as NULL.
+describe('POST /v1/tenant-portal/:token/confirm — BUG-2 regression: availableSlotsJson forwarded', () => {
+  it('forwards availableSlotsJson to confirmAppointmentUseCase', async () => {
+    setupPortalAuth();
+    mockConfirmAppointmentExecute.mockResolvedValueOnce({
+      tenantConfirmationStatus: 'CONFIRMED',
+      confirmedAt: '2026-03-01T00:00:00.000Z',
+    });
+    const slots = [{ dayOfWeek: 'MON' as const, start: '09:00', end: '10:00' }];
+
+    await supertest(app.server)
+      .post('/v1/tenant-portal/valid-raw-token/confirm')
+      .send({ restrictions: { availableSlotsJson: slots } });
+
+    expect(mockConfirmAppointmentExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        restrictions: expect.objectContaining({ availableSlotsJson: slots }),
+      }),
+    );
+  });
+});
+
+describe('POST /v1/tenant-portal/:token/reschedule — BUG-2 regression: availableSlotsJson forwarded', () => {
+  it('forwards availableSlotsJson to rescheduleRequestUseCase', async () => {
+    setupPortalAuth();
+    mockRescheduleRequestExecute.mockResolvedValueOnce({
+      scheduledDate: '2026-05-01',
+      timeSlot: '09:00-10:00',
+      tenantConfirmationStatus: 'PENDING',
+    });
+    const slots = [{ dayOfWeek: 'FRI' as const, start: '14:00', end: '16:00' }];
+
+    await supertest(app.server)
+      .post('/v1/tenant-portal/valid-raw-token/reschedule')
+      .send({ newDate: '2026-05-01', newTimeSlot: '09:00-10:00', restrictions: { availableSlotsJson: slots } });
+
+    expect(mockRescheduleRequestExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        restrictions: expect.objectContaining({ availableSlotsJson: slots }),
+      }),
+    );
+  });
+});
+
+describe('POST /v1/tenant-portal/:token/unavailable — BUG-2 regression: availableSlotsJson forwarded', () => {
+  it('forwards availableSlotsJson to reportUnavailabilityUseCase', async () => {
+    setupPortalAuth();
+    mockReportUnavailabilityExecute.mockResolvedValueOnce({ tenantConfirmationStatus: 'UNAVAILABLE', urgentMode: false });
+    const slots = [{ dayOfWeek: 'WED' as const, start: '08:00', end: '12:00' }];
+
+    await supertest(app.server)
+      .post('/v1/tenant-portal/valid-raw-token/unavailable')
+      .send({ restrictions: { availableSlotsJson: slots } });
+
+    expect(mockReportUnavailabilityExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        restrictions: expect.objectContaining({ availableSlotsJson: slots }),
+      }),
+    );
+  });
+});

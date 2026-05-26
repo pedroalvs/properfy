@@ -233,6 +233,7 @@ export const appointmentResponseSchema = z.object({
   notes: z.string().nullable(),
   tenantNote: z.string().nullable().optional(),
   hasTenantNote: z.boolean().optional(),
+  hasActivePortalToken: z.boolean().optional(),
   customFieldsJson: z.unknown().nullable().optional(),
   reason: z.string().nullable().optional(),
   cancellationReasonCode: z.string().nullable().optional(),
@@ -331,6 +332,39 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   agencyName: z.string().nullable().optional(),
   payoutAmount: z.number().nullable().optional(),
   inspectionAppLink: z.string().nullable().optional(),
+  appointmentCode: z.string().optional(),
+  jobDetails: z.object({
+    agency: z.object({ id: z.string(), name: z.string() }),
+    tenantContacts: z.array(z.object({
+      name: z.string(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+      role: z.string(),
+      isPrimary: z.boolean(),
+    })),
+    keys: z.object({
+      keyRequired: z.boolean(),
+      keyLocation: z.string().nullable(),
+    }),
+    keyLocation: z.object({
+      address: z.string(),
+      mapLinkUrl: z.string(),
+    }).optional(),
+    propertyManager: z.object({
+      name: z.string(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+      company: z.string().nullable(),
+    }).nullable(),
+    payment: z.object({
+      payoutAmount: z.number(),
+      currency: z.string(),
+    }),
+    inspectionAppLink: z.object({
+      url: z.string(),
+      label: z.string(),
+    }).optional(),
+  }).nullable().optional(),
 });
 
 // ─── Service Group ─────────────────────────────────────────────────────────
@@ -364,6 +398,8 @@ export const serviceGroupResponseSchema = z.object({
 
 // ─── Marketplace Offer ─────────────────────────────────────────────────────
 
+const centroidSchema = z.object({ lat: z.number(), lng: z.number() }).nullable();
+
 export const marketplaceOfferResponseSchema = z.object({
   groupId: z.string().uuid(),
   tenantName: z.string(),
@@ -376,12 +412,14 @@ export const marketplaceOfferResponseSchema = z.object({
   suburbs: z.array(z.string()),
   payoutEstimate: z.number().nullable(),
   appointmentCount: z.number(),
+  centroid: centroidSchema,
 });
 
 export const marketplaceOfferDetailAppointmentSchema = z.object({
   id: z.string().uuid(),
+  appointmentCode: z.string(),
   appointmentNumber: z.number(),
-  address: z.string(),
+  suburb: z.string(),
   keyRequired: z.boolean(),
   notes: z.string().nullable(),
   payoutAmount: z.number().nullable(),
@@ -448,6 +486,10 @@ export const portalDataResponseSchema = z.object({
     createdAt: dateStr(),
     summary: z.string().optional(),
   }).optional(),
+  agencyPhone: z.string().optional(),
+  deadline: dateStr().optional(),
+  rescheduleAllowed: z.boolean().optional(),
+  tenant: z.object({ name: z.string().nullable(), timezone: z.string() }).optional(),
 });
 
 /**
@@ -489,7 +531,8 @@ export const portalActivitiesResponseSchema = z.object({
 // ─── Inspector Execution ───────────────────────────────────────────────────
 
 export const inspectorScheduleItemSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
+  appointmentCode: z.string().optional(),
   status: z.string(),
   scheduledDate: dateStr(),
   timeSlot: z.string(),

@@ -25,11 +25,25 @@ function getIsStandalone(): boolean {
 interface InstallPromptContextValue {
   isInstalled: boolean;
   canInstall: boolean;
+  isIosSafariEligible: boolean;
   manualInstructions: string | null;
   promptInstall: () => Promise<boolean>;
 }
 
 const InstallPromptContext = createContext<InstallPromptContextValue | null>(null);
+
+/** Returns true only for mobile Safari on iOS that has NOT been added to home screen. */
+export function getIsIosSafariEligible(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  const isIos = /iPhone|iPad|iPod/.test(ua);
+  const isNativeSafari = /Safari\//.test(ua) && !/CriOS\//.test(ua) && !/FxiOS\//.test(ua) && !/EdgiOS\//.test(ua);
+  const isStandalone =
+    typeof (navigator as Navigator & { standalone?: boolean }).standalone === 'boolean'
+      ? Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
+      : window.matchMedia?.('(display-mode: standalone)').matches ?? false;
+  return isIos && isNativeSafari && !isStandalone;
+}
 
 function getManualInstructions(): string | null {
   if (typeof navigator === 'undefined') return null;
@@ -83,6 +97,7 @@ export function InstallPromptProvider({ children }: { children: ReactNode }) {
     () => ({
       isInstalled,
       canInstall: !!deferredPrompt && !isInstalled,
+      isIosSafariEligible: getIsIosSafariEligible(),
       manualInstructions: !isInstalled ? getManualInstructions() : null,
       promptInstall,
     }),

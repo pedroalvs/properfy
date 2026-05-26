@@ -6,6 +6,20 @@ export const portalTokenParam = z.object({
 });
 export type PortalTokenParam = z.infer<typeof portalTokenParam>;
 
+// Weekly availability slot (used in "No" flow and in join-group tenantNote context)
+const HH_MM = /^\d{2}:\d{2}$/;
+const DAY_OF_WEEK = z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']);
+
+export const availableSlotSchema = z
+  .object({
+    dayOfWeek: DAY_OF_WEEK,
+    start: z.string().regex(HH_MM, 'Must be HH:mm'),
+    end: z.string().regex(HH_MM, 'Must be HH:mm'),
+  })
+  .refine((s) => s.start < s.end, { message: 'start must be before end' });
+
+export type AvailableSlotSchema = z.infer<typeof availableSlotSchema>;
+
 // Shared restrictions sub-schema
 const portalRestrictionsSchema = z
   .object({
@@ -21,8 +35,42 @@ const portalRestrictionsSchema = z
       .nullable()
       .optional(),
     notes: z.string().max(1000).nullable().optional(),
+    availableSlotsJson: z.array(availableSlotSchema).nullable().optional(),
   })
   .optional();
+
+// GET /available-groups response
+export const availableGroupsResponseSchema = z.object({
+  groups: z.array(
+    z.object({
+      id: z.string().uuid(),
+      scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      timeWindow: z.string().min(1),
+      suburb: z.string(),
+      inspectorName: z.string(),
+      confirmedCount: z.number().int().min(0),
+      capacityMax: z.number().int().positive(),
+    }),
+  ),
+});
+export type AvailableGroupsResponse = z.infer<typeof availableGroupsResponseSchema>;
+
+// POST /join-group request
+export const joinGroupRequestSchema = z.object({
+  groupId: z.string().uuid(),
+  tenantNote: z.string().max(2000).optional(),
+});
+export type JoinGroupRequestInput = z.infer<typeof joinGroupRequestSchema>;
+
+// POST /join-group response
+export const joinGroupResponseSchema = z.object({
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  timeWindow: z.string().min(1),
+  tenantConfirmationStatus: z.literal('CONFIRMED'),
+  appointmentStatus: z.literal('SCHEDULED'),
+  inspector: z.object({ id: z.string().uuid(), name: z.string() }),
+});
+export type JoinGroupResponse = z.infer<typeof joinGroupResponseSchema>;
 
 // POST /confirm body
 export const confirmAppointmentPortalSchema = z.object({
@@ -78,3 +126,17 @@ export const reportUnavailabilityPortalResponseSchema = z.object({
   urgentMode: z.boolean(),
 });
 export type ReportUnavailabilityPortalResponse = z.infer<typeof reportUnavailabilityPortalResponseSchema>;
+
+// GET /v1/appointments/:id/portal-link response
+export const GetPortalLinkResponse = z.object({
+  portalUrl: z.string().url(),
+  expiresAt: z.string().datetime(),
+});
+export type GetPortalLinkResponse = z.infer<typeof GetPortalLinkResponse>;
+
+export const PortalLinkErrorCode = z.enum([
+  'NO_ACTIVE_PORTAL_TOKEN',
+  'PORTAL_TOKEN_NOT_DECRYPTABLE',
+  'APPOINTMENT_NOT_FOUND',
+]);
+export type PortalLinkErrorCode = z.infer<typeof PortalLinkErrorCode>;

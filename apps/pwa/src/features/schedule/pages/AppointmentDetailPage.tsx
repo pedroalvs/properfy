@@ -85,6 +85,9 @@ export function AppointmentDetailPage() {
                   {flowStyle.label}
                 </span>
               </div>
+              {apt.agencyName && (
+                <p className="mt-0.5 text-xs text-white/60">{apt.agencyName}</p>
+              )}
               <p className="mt-2 text-sm font-semibold text-white/90">
                 {formatScheduleDate(apt.scheduledDate)}
               </p>

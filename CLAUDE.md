@@ -390,6 +390,8 @@ When you (Claude Code) implement or modify code in this project:
 - PostgreSQL (Supabase) — `tenants.settings_json` (JSONB) for permission flags; `audit_logs` for denial records (015-permissions-rbac-matrix)
 - TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, `pg_trgm` for trigram search (021-contacts)
 - PostgreSQL (Supabase) — new `contacts` table (per-tenant registry), revised `appointment_contacts` (junction + snapshot pattern), new enums `ContactType`, `ContactChannelType`, `AppointmentContactRole` (021-contacts)
+- TypeScript 5.x strict, ES2022 ESM, Node.js 20 (backend), React 18 (PWA). (027-pwa-improvements)
+- PostgreSQL via Prisma. New columns: `inspectors.availability_template_json` (JSONB), `inspector_availability_slots.is_operator_override` (BOOLEAN). No new tables. (027-pwa-improvements)
 
 ## Recent Changes
 - 002-tenants-branches: Added TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, domain port `IAppointmentChecker`
