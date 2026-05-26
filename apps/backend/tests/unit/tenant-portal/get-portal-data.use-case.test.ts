@@ -5,12 +5,14 @@ import type { ITenantPortalActivityRepository } from '../../../src/modules/tenan
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import { TenantPortalActivityEntity } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.entity';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { PortalAppointmentInactiveError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
 
 function makeAppointmentEntity(
@@ -138,12 +140,29 @@ function makeInput(overrides: Partial<Parameters<GetPortalDataUseCase['execute']
   };
 }
 
+function makeTenantEntity(overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {}): TenantEntity {
+  return new TenantEntity({
+    id: 'tenant-1',
+    name: 'Sunrise Property Group',
+    legalName: 'Sunrise Property Group Pty Ltd',
+    status: 'ACTIVE',
+    timezone: 'Australia/Sydney',
+    currency: 'AUD',
+    settingsJson: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    ...overrides,
+  });
+}
+
 describe('GetPortalDataUseCase', () => {
   let tokenRepo: ITenantPortalTokenRepository;
   let activityRepo: ITenantPortalActivityRepository;
   let appointmentRepo: IAppointmentRepository;
   let propertyRepo: IPropertyRepository;
   let serviceTypeRepo: IServiceTypeRepository;
+  let tenantRepo: ITenantRepository;
   let useCase: GetPortalDataUseCase;
 
   beforeEach(() => {
@@ -154,6 +173,7 @@ describe('GetPortalDataUseCase', () => {
       updateStatus: vi.fn(),
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn(),
+      markUsed: vi.fn(),
     };
     activityRepo = {
       save: vi.fn(),
@@ -186,7 +206,15 @@ describe('GetPortalDataUseCase', () => {
       save: vi.fn(),
       update: vi.fn(),
     };
-    useCase = new GetPortalDataUseCase(tokenRepo, activityRepo, appointmentRepo, propertyRepo, serviceTypeRepo);
+    tenantRepo = {
+      findById: vi.fn().mockResolvedValue(makeTenantEntity()),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    useCase = new GetPortalDataUseCase(tokenRepo, activityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
   });
 
   it('should return full portal data for valid token', async () => {
@@ -452,6 +480,35 @@ describe('GetPortalDataUseCase', () => {
       type: 'UNAVAILABLE',
       createdAt: '2026-03-21T12:30:00.000Z',
       summary: 'Tenant reported unavailability',
+    });
+  });
+
+  it('should return tenant.name and tenant.timezone in the response (T013)', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.tenant).toEqual({
+      name: 'Sunrise Property Group',
+      timezone: 'Australia/Sydney',
+    });
+  });
+
+  it('should return tenant block with null name when tenant not found (T013)', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(null);
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.tenant).toEqual({
+      name: null,
+      timezone: 'Australia/Sydney',
     });
   });
 });

@@ -11253,6 +11253,9 @@ export interface paths {
                                     awaitingInspector: number;
                                     scheduled: number;
                                     doneThisMonth: number;
+                                    doneThisWeek: number;
+                                    scheduledThisWeek: number;
+                                    rejectedTotal: number;
                                 };
                                 recentAppointments: {
                                     /** Format: uuid */
@@ -11277,6 +11280,32 @@ export interface paths {
                                     activeInspectors: number;
                                     activeServiceGroups: number;
                                 };
+                                inspectorBreakdowns: {
+                                    tomorrowByInspector: {
+                                        /** Format: uuid */
+                                        inspectorId: string;
+                                        inspectorName: string;
+                                        count: number;
+                                        /** @enum {string|null} */
+                                        alertLevel: "yellow" | "red" | null;
+                                    }[];
+                                    scheduledThisWeekByInspector: {
+                                        /** Format: uuid */
+                                        inspectorId: string;
+                                        inspectorName: string;
+                                        count: number;
+                                        /** @enum {string|null} */
+                                        alertLevel: "yellow" | "red" | null;
+                                    }[];
+                                    confirmedThisWeekByInspector: {
+                                        /** Format: uuid */
+                                        inspectorId: string;
+                                        inspectorName: string;
+                                        count: number;
+                                        /** @enum {string|null} */
+                                        alertLevel: "yellow" | "red" | null;
+                                    }[];
+                                } | null;
                             };
                         };
                     };

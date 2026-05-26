@@ -24729,13 +24729,25 @@
                             },
                             "doneThisMonth": {
                               "type": "number"
+                            },
+                            "doneThisWeek": {
+                              "type": "number"
+                            },
+                            "scheduledThisWeek": {
+                              "type": "number"
+                            },
+                            "rejectedTotal": {
+                              "type": "number"
                             }
                           },
                           "required": [
                             "draft",
                             "awaitingInspector",
                             "scheduled",
-                            "doneThisMonth"
+                            "doneThisMonth",
+                            "doneThisWeek",
+                            "scheduledThisWeek",
+                            "rejectedTotal"
                           ],
                           "additionalProperties": false
                         },
@@ -24832,13 +24844,128 @@
                             "activeServiceGroups"
                           ],
                           "additionalProperties": false
+                        },
+                        "inspectorBreakdowns": {
+                          "type": "object",
+                          "properties": {
+                            "tomorrowByInspector": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "inspectorId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "inspectorName": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "alertLevel": {
+                                    "type": "string",
+                                    "enum": [
+                                      "yellow",
+                                      "red"
+                                    ],
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "inspectorId",
+                                  "inspectorName",
+                                  "count",
+                                  "alertLevel"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "scheduledThisWeekByInspector": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "inspectorId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "inspectorName": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "alertLevel": {
+                                    "type": "string",
+                                    "enum": [
+                                      "yellow",
+                                      "red"
+                                    ],
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "inspectorId",
+                                  "inspectorName",
+                                  "count",
+                                  "alertLevel"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "confirmedThisWeekByInspector": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "inspectorId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "inspectorName": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "alertLevel": {
+                                    "type": "string",
+                                    "enum": [
+                                      "yellow",
+                                      "red"
+                                    ],
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "inspectorId",
+                                  "inspectorName",
+                                  "count",
+                                  "alertLevel"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "tomorrowByInspector",
+                            "scheduledThisWeekByInspector",
+                            "confirmedThisWeekByInspector"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
                         }
                       },
                       "required": [
                         "appointmentsByStatus",
                         "recentAppointments",
                         "pendingActions",
-                        "quickStats"
+                        "quickStats",
+                        "inspectorBreakdowns"
                       ],
                       "additionalProperties": false
                     }

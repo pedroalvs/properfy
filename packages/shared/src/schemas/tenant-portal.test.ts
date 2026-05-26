@@ -8,6 +8,9 @@ import {
   updateContactPortalSchema,
   reportUnavailabilityPortalSchema,
   reportUnavailabilityPortalResponseSchema,
+  availableSlotSchema,
+  joinGroupRequestSchema,
+  availableGroupsResponseSchema,
 } from './tenant-portal';
 
 describe('portalTokenParam', () => {
@@ -229,6 +232,139 @@ describe('reportUnavailabilityPortalResponseSchema', () => {
     const result = reportUnavailabilityPortalResponseSchema.safeParse({
       tenantConfirmationStatus: 'UNAVAILABLE',
       urgentMode: false,
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('availableSlotSchema', () => {
+  it('should accept a valid slot', () => {
+    const result = availableSlotSchema.safeParse({ dayOfWeek: 'MON', start: '09:00', end: '17:00' });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid time format', () => {
+    const result = availableSlotSchema.safeParse({ dayOfWeek: 'MON', start: '9:00', end: '17:00' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject invalid day enum', () => {
+    const result = availableSlotSchema.safeParse({ dayOfWeek: 'MONDAY', start: '09:00', end: '17:00' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject start equal to end', () => {
+    const result = availableSlotSchema.safeParse({ dayOfWeek: 'WED', start: '09:00', end: '09:00' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject start after end', () => {
+    const result = availableSlotSchema.safeParse({ dayOfWeek: 'FRI', start: '17:00', end: '09:00' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept all day values', () => {
+    for (const day of ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const) {
+      const result = availableSlotSchema.safeParse({ dayOfWeek: day, start: '08:00', end: '12:00' });
+      expect(result.success).toBe(true);
+    }
+  });
+});
+
+describe('joinGroupRequestSchema', () => {
+  it('should accept valid groupId', () => {
+    const result = joinGroupRequestSchema.safeParse({ groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept groupId with tenantNote', () => {
+    const result = joinGroupRequestSchema.safeParse({
+      groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      tenantNote: 'Please bring an extra key',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject non-uuid groupId', () => {
+    const result = joinGroupRequestSchema.safeParse({ groupId: 'not-a-uuid' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject tenantNote exceeding 2000 chars', () => {
+    const result = joinGroupRequestSchema.safeParse({
+      groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      tenantNote: 'x'.repeat(2001),
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('availableGroupsResponseSchema', () => {
+  it('should accept empty groups array', () => {
+    const result = availableGroupsResponseSchema.safeParse({ groups: [] });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept valid group list', () => {
+    const result = availableGroupsResponseSchema.safeParse({
+      groups: [
+        {
+          id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          scheduledDate: '2026-06-10',
+          timeWindow: '09:00-12:00',
+          suburb: 'Surry Hills',
+          inspectorName: 'John Smith',
+          confirmedCount: 3,
+          capacityMax: 10,
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject group with invalid scheduledDate format', () => {
+    const result = availableGroupsResponseSchema.safeParse({
+      groups: [
+        {
+          id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          scheduledDate: '10/06/2026',
+          timeWindow: '09:00-12:00',
+          suburb: 'Surry Hills',
+          inspectorName: 'John Smith',
+          confirmedCount: 3,
+          capacityMax: 10,
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('reportUnavailabilityPortalSchema with availableSlotsJson', () => {
+  it('should accept restrictions with availableSlotsJson', () => {
+    const result = reportUnavailabilityPortalSchema.safeParse({
+      restrictions: {
+        availableSlotsJson: [
+          { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+          { dayOfWeek: 'WED', start: '14:00', end: '17:00' },
+        ],
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject restrictions with invalid availableSlotsJson slot', () => {
+    const result = reportUnavailabilityPortalSchema.safeParse({
+      restrictions: {
+        availableSlotsJson: [{ dayOfWeek: 'MON', start: '17:00', end: '09:00' }],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept null availableSlotsJson', () => {
+    const result = reportUnavailabilityPortalSchema.safeParse({
+      restrictions: { availableSlotsJson: null },
     });
     expect(result.success).toBe(true);
   });

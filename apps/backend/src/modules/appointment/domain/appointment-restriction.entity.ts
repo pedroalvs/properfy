@@ -1,4 +1,4 @@
-import type { RestrictionSource } from '@properfy/shared';
+import type { AvailableSlot, RestrictionSource } from '@properfy/shared';
 
 export interface AppointmentRestrictionProps {
   id: string;
@@ -6,6 +6,7 @@ export interface AppointmentRestrictionProps {
   isHome: boolean;
   unavailableDaysJson: string[] | null;
   unavailableHoursJson: string[] | null;
+  availableSlotsJson?: AvailableSlot[] | null;
   notes: string | null;
   source: RestrictionSource;
   createdAt: Date;
@@ -18,6 +19,7 @@ export class AppointmentRestrictionEntity {
   readonly isHome: boolean;
   readonly unavailableDaysJson: string[] | null;
   readonly unavailableHoursJson: string[] | null;
+  readonly availableSlotsJson: AvailableSlot[] | null;
   readonly notes: string | null;
   readonly source: RestrictionSource;
   readonly createdAt: Date;
@@ -29,6 +31,7 @@ export class AppointmentRestrictionEntity {
     this.isHome = props.isHome;
     this.unavailableDaysJson = props.unavailableDaysJson;
     this.unavailableHoursJson = props.unavailableHoursJson;
+    this.availableSlotsJson = props.availableSlotsJson ?? null;
     this.notes = props.notes;
     this.source = props.source;
     this.createdAt = props.createdAt;

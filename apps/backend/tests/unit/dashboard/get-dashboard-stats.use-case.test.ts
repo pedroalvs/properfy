@@ -9,6 +9,9 @@ const mockStats: DashboardStatsOutput = {
     awaitingInspector: 3,
     scheduled: 5,
     doneThisMonth: 10,
+    doneThisWeek: 3,
+    scheduledThisWeek: 4,
+    rejectedTotal: 1,
   },
   recentAppointments: [
     {
@@ -16,8 +19,7 @@ const mockStats: DashboardStatsOutput = {
       code: 'SPS-001',
       propertyAddress: '1 Test St, Sydney NSW 2000',
       status: 'SCHEDULED',
-      doneMarkedByUserId: null,
-    doneCheckedByUserId: null,
+      doneCheckedByUserId: null,
       scheduledDate: '2026-03-17',
     },
   ],
@@ -32,6 +34,7 @@ const mockStats: DashboardStatsOutput = {
     activeInspectors: 5,
     activeServiceGroups: 2,
   },
+  inspectorBreakdowns: null,
 };
 
 describe('GetDashboardStatsUseCase', () => {
@@ -45,37 +48,37 @@ describe('GetDashboardStatsUseCase', () => {
     useCase = new GetDashboardStatsUseCase(repository);
   });
 
-  it('should delegate to repository without tenantId for AM role', async () => {
+  it('should delegate to repository without tenantId and with breakdowns=true for AM role', async () => {
     const result = await useCase.execute({
       actor: { userId: 'u1', tenantId: null, role: 'AM', branchId: null, inspectorId: null },
     });
 
-    expect(repository.getStats).toHaveBeenCalledWith(undefined);
+    expect(repository.getStats).toHaveBeenCalledWith(undefined, true);
     expect(result).toEqual(mockStats);
   });
 
-  it('should delegate to repository without tenantId for OP role', async () => {
+  it('should delegate to repository without tenantId and with breakdowns=true for OP role', async () => {
     await useCase.execute({
       actor: { userId: 'u2', tenantId: null, role: 'OP', branchId: null, inspectorId: null },
     });
 
-    expect(repository.getStats).toHaveBeenCalledWith(undefined);
+    expect(repository.getStats).toHaveBeenCalledWith(undefined, true);
   });
 
-  it('should delegate to repository with tenantId for CL_ADMIN role', async () => {
+  it('should delegate to repository with tenantId and breakdowns=false for CL_ADMIN role', async () => {
     await useCase.execute({
       actor: { userId: 'u3', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null },
     });
 
-    expect(repository.getStats).toHaveBeenCalledWith('tenant-1');
+    expect(repository.getStats).toHaveBeenCalledWith('tenant-1', false);
   });
 
-  it('should delegate to repository with tenantId for CL_USER role', async () => {
+  it('should delegate to repository with tenantId and breakdowns=false for CL_USER role', async () => {
     await useCase.execute({
       actor: { userId: 'u4', tenantId: 'tenant-2', role: 'CL_USER', branchId: 'b1', inspectorId: null },
     });
 
-    expect(repository.getStats).toHaveBeenCalledWith('tenant-2');
+    expect(repository.getStats).toHaveBeenCalledWith('tenant-2', false);
   });
 
   it('should throw ForbiddenError for INSP role', async () => {

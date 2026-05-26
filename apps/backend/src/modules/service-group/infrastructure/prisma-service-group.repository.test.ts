@@ -391,3 +391,71 @@ describe('PrismaServiceGroupRepository list filters', () => {
     );
   });
 });
+
+describe('PrismaServiceGroupRepository.findPortalEligibleGroups', () => {
+  const TODAY = new Date('2026-05-24');
+
+  function makeRepo(queryRawReturn: unknown[]) {
+    const queryRaw = vi.fn().mockResolvedValue(queryRawReturn);
+    const prisma = { $queryRaw: queryRaw };
+    return { repo: new PrismaServiceGroupRepository(prisma as any), queryRaw };
+  }
+
+  it('returns mapped groups when rows found', async () => {
+    const { repo } = makeRepo([
+      {
+        id: 'sg-1',
+        scheduled_date: new Date('2026-05-30'),
+        time_window: '09:00-12:00',
+        suburb: 'Surry Hills',
+        inspector_name: 'John Smith',
+        confirmed_count: BigInt(3),
+      },
+    ]);
+
+    const result = await repo.findPortalEligibleGroups({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'stype-1',
+      propertyId: 'prop-1',
+      today: TODAY,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: 'sg-1',
+      timeWindow: '09:00-12:00',
+      suburb: 'Surry Hills',
+      inspectorName: 'John Smith',
+      confirmedCount: 3,
+      capacityMax: 10,
+    });
+    expect(result[0]!.scheduledDate).toEqual(new Date('2026-05-30'));
+  });
+
+  it('returns empty array when no rows found', async () => {
+    const { repo } = makeRepo([]);
+    const result = await repo.findPortalEligibleGroups({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'stype-1',
+      propertyId: 'prop-1',
+      today: TODAY,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('uses ST_DWithin for proximity filter', async () => {
+    const { repo, queryRaw } = makeRepo([]);
+    await repo.findPortalEligibleGroups({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'stype-1',
+      propertyId: 'prop-1',
+      today: TODAY,
+    });
+
+    const rawCall = queryRaw.mock.calls[0][0];
+    const sqlText = rawCall.map((s: unknown) => String(s)).join('');
+    expect(sqlText).toContain('ST_DWithin');
+    expect(sqlText).toContain('ACCEPTED');
+    expect(sqlText).toContain('2000');
+  });
+});

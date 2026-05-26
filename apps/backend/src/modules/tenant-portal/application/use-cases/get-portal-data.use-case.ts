@@ -3,6 +3,7 @@ import type { ITenantPortalActivityRepository } from '../../domain/tenant-portal
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { TenantPortalActivityEntity } from '../../domain/tenant-portal-activity.entity';
 import { PortalAppointmentInactiveError } from '../../domain/tenant-portal.errors';
 
@@ -23,6 +24,7 @@ export class GetPortalDataUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly propertyRepo: IPropertyRepository,
     private readonly serviceTypeRepo: IServiceTypeRepository,
+    private readonly tenantRepo: ITenantRepository,
   ) {}
 
   async execute(input: GetPortalDataInput) {
@@ -46,6 +48,9 @@ export class GetPortalDataUseCase {
     const serviceType = appointment.serviceTypeId
       ? await this.serviceTypeRepo.findById(appointment.serviceTypeId)
       : null;
+
+    // Fetch tenant details for portal display (agency name + timezone)
+    const tenant = await this.tenantRepo.findById(appointment.tenantId);
 
     // 3. Load the latest tenant response recorded on the portal
     const existingResponse = await this.loadExistingResponse(input.tokenId);
@@ -124,6 +129,10 @@ export class GetPortalDataUseCase {
         : null,
       existingResponse,
       rescheduleAllowed: serviceType?.flowType === 'ROUTINE',
+      tenant: {
+        name: tenant?.name ?? null,
+        timezone: tenant?.timezone ?? 'Australia/Sydney',
+      },
     };
   }
 

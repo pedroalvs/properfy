@@ -10,6 +10,7 @@ import type {
   ServiceGroupMapAppointment,
   MarketplaceOffer,
   MarketplaceOfferDetail,
+  PortalEligibleGroup,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus, PriorityMode, ServiceGroupExceptionType } from '@properfy/shared';
 import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
@@ -663,6 +664,72 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       status: 'status',
     };
     return mapping[sortBy ?? ''] ?? 'created_at';
+  }
+
+  async decrementConfirmedCount(groupId: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      UPDATE service_groups SET confirmed_count = GREATEST(0, confirmed_count - 1) WHERE id = ${groupId}
+    `;
+  }
+
+  async incrementConfirmedCount(groupId: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      UPDATE service_groups SET confirmed_count = confirmed_count + 1 WHERE id = ${groupId}
+    `;
+  }
+
+  async findPortalEligibleGroups(params: {
+    tenantId: string;
+    serviceTypeId: string;
+    propertyId: string;
+    today: Date;
+  }): Promise<PortalEligibleGroup[]> {
+    const todayStr = params.today.toISOString().slice(0, 10);
+
+    type Row = {
+      id: string;
+      scheduled_date: Date;
+      time_window: string;
+      suburb: string;
+      inspector_name: string;
+      confirmed_count: bigint;
+    };
+
+    const rows = await this.prisma.$queryRaw<Row[]>`
+      SELECT DISTINCT ON (sg.id)
+        sg.id,
+        sg.scheduled_date,
+        sg.time_window,
+        p.suburb,
+        i.name AS inspector_name,
+        sg.confirmed_count
+      FROM service_groups sg
+      JOIN inspectors i ON i.id = sg.assigned_inspector_id
+      JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
+      JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
+      WHERE sg.tenant_id = ${params.tenantId}
+        AND sg.service_type_id = ${params.serviceTypeId}
+        AND sg.status = 'ACCEPTED'
+        AND sg.confirmed_count < 10
+        AND sg.scheduled_date::date > ${todayStr}::date
+        AND p.coordinates IS NOT NULL
+        AND ST_DWithin(
+          p.coordinates::geography,
+          (SELECT coordinates::geography FROM properties WHERE id = ${params.propertyId} AND deleted_at IS NULL),
+          2000
+        )
+      ORDER BY sg.id, sg.scheduled_date ASC
+    `;
+
+    return rows.map((row) => ({
+      id: row.id,
+      scheduledDate: row.scheduled_date,
+      timeWindow: row.time_window,
+      suburb: row.suburb,
+      inspectorName: row.inspector_name,
+      confirmedCount: Number(row.confirmed_count),
+      capacityMax: 10 as const,
+    }));
   }
 
   async findAddableForAppointments(params: {

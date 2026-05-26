@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
@@ -6,15 +6,22 @@ import { ApiError } from '@/lib/api-error';
 import { PortalLayout } from '../components/PortalLayout';
 import { PortalErrorState } from '../components/PortalErrorState';
 import { AppointmentInfoCard } from '../components/AppointmentInfoCard';
-import { ConfirmSection } from '../components/ConfirmSection';
+import { InspectionConfirmationForm } from '../components/InspectionConfirmationForm';
+import { AvailableGroupsList } from '../components/AvailableGroupsList';
 import { RescheduleForm } from '../components/RescheduleForm';
 import { ContactForm } from '../components/ContactForm';
-import { UnavailableSection } from '../components/UnavailableSection';
 import { TenantPortalExpiredView } from '../components/TenantPortalExpiredView';
 import { TenantPortalInvalidView } from '../components/TenantPortalInvalidView';
 import { TenantPortalCancelledView } from '../components/TenantPortalCancelledView';
 import { ResponseConfirmationCard } from '../components/ResponseConfirmationCard';
-import { usePortalData } from '../hooks/usePortalData';
+import {
+  usePortalData,
+  useConfirmAppointment,
+  useReportUnavailability,
+  useAvailableGroups,
+  useJoinGroup,
+} from '../hooks/usePortalData';
+import type { AvailableSlot } from '../types';
 
 const EXPIRED_CODES = new Set(['PORTAL_TOKEN_EXPIRED']);
 const INVALID_CODES = new Set(['PORTAL_TOKEN_INVALID', 'PORTAL_TOKEN_NOT_FOUND']);
@@ -22,7 +29,48 @@ const INVALID_CODES = new Set(['PORTAL_TOKEN_INVALID', 'PORTAL_TOKEN_NOT_FOUND']
 export function PortalPage() {
   const { token } = useParams<{ token: string }>();
   const { data, isLoading, isError, error, refetch } = usePortalData(token ?? '');
+
+  const confirmMutation = useConfirmAppointment(token ?? '');
+  const unavailableMutation = useReportUnavailability(token ?? '');
+
+  const [changeTimeOpen, setChangeTimeOpen] = useState(false);
+  const [proposeNewDateOpen, setProposeNewDateOpen] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+
+  const availableGroupsQuery = useAvailableGroups(token ?? '', changeTimeOpen);
+  const joinGroupMutation = useJoinGroup(token ?? '');
+
   const handleDeadlineExpire = useCallback(() => { refetch(); }, [refetch]);
+
+  const handleJoinGroup = useCallback(async () => {
+    if (!selectedGroupId) return;
+    await joinGroupMutation.mutateAsync({ groupId: selectedGroupId });
+    setChangeTimeOpen(false);
+    setSelectedGroupId(null);
+  }, [joinGroupMutation, selectedGroupId]);
+
+  const handleConfirm = useCallback(
+    async (tenantNote?: string) => {
+      await confirmMutation.mutateAsync({ ...(tenantNote ? { tenantNote } : {}) });
+    },
+    [confirmMutation],
+  );
+
+  const handleUnavailable = useCallback(
+    async (input: { tenantNote: string; availableSlotsJson: AvailableSlot[] }) => {
+      await unavailableMutation.mutateAsync({
+        tenantNote: input.tenantNote,
+        restrictions: {
+          isHome: false,
+          unavailableDaysJson: null,
+          unavailableHoursJson: null,
+          availableSlotsJson: input.availableSlotsJson,
+          notes: null,
+        },
+      });
+    },
+    [unavailableMutation],
+  );
 
   if (!token) {
     return (
@@ -40,10 +88,7 @@ export function PortalPage() {
       <PortalLayout>
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded bg-card-bg shadow-sm"
-            />
+            <div key={i} className="h-32 animate-pulse rounded bg-card-bg shadow-sm" />
           ))}
         </div>
       </PortalLayout>
@@ -94,7 +139,6 @@ export function PortalPage() {
 
   const { appointment, contact } = data;
 
-  // Appointment is cancelled
   if (appointment.status === AppointmentStatus.CANCELLED) {
     return (
       <PortalLayout>
@@ -104,20 +148,23 @@ export function PortalPage() {
   }
 
   const isReadOnly = data.token.isReadOnly;
-  const isTerminal = appointment.status === AppointmentStatus.DONE ||
+  const isTerminal =
+    appointment.status === AppointmentStatus.DONE ||
     appointment.status === AppointmentStatus.REJECTED;
   const hasResponse = !!data.existingResponse;
 
-  const showConfirm =
+  const alreadyConfirmed =
+    appointment.tenantConfirmationStatus === TenantConfirmationStatus.CONFIRMED;
+  const alreadyUnavailable =
+    appointment.tenantConfirmationStatus === TenantConfirmationStatus.UNAVAILABLE;
+
+  // Show unified form when appointment is actionable. For the urgent-mode case
+  // (already CONFIRMED + past cutoff), the form renders in read-only so the tenant
+  // can only use the No (urgent unavailability) path.
+  const showForm =
     !isTerminal &&
-    !isReadOnly &&
-    !hasResponse &&
-    appointment.tenantConfirmationStatus !== TenantConfirmationStatus.UNAVAILABLE;
-  const showReschedule = !isTerminal && !isReadOnly && !hasResponse && data.rescheduleAllowed !== false;
-  const showUnavailable =
-    !isTerminal &&
-    appointment.tenantConfirmationStatus !== TenantConfirmationStatus.UNAVAILABLE &&
-    (isReadOnly || (!hasResponse && appointment.tenantConfirmationStatus !== TenantConfirmationStatus.CONFIRMED));
+    !alreadyUnavailable &&
+    (!alreadyConfirmed || isReadOnly);
 
   return (
     <PortalLayout>
@@ -139,44 +186,137 @@ export function PortalPage() {
 
         {hasResponse && !isReadOnly && !isTerminal && (
           <InfoBanner>
-            Your response has been recorded. If you need to make further changes, please contact the agency directly.
+            Your response has been recorded. If you need to make further changes, please
+            contact the agency directly.
           </InfoBanner>
         )}
 
-        <AppointmentInfoCard appointment={appointment} deadline={data.deadline} onDeadlineExpire={handleDeadlineExpire} />
+        <AppointmentInfoCard
+          appointment={appointment}
+          deadline={data.deadline}
+          onDeadlineExpire={handleDeadlineExpire}
+        />
 
         {data.existingResponse && (
-          <ResponseConfirmationCard
-            response={data.existingResponse}
-            isExpired={isReadOnly}
-          />
+          <ResponseConfirmationCard response={data.existingResponse} isExpired={isReadOnly} />
         )}
 
-        {showConfirm && (
-          <ConfirmSection
-            appointment={appointment}
-            token={token}
+        {alreadyConfirmed && !isReadOnly && !isTerminal && (
+          <div className="rounded bg-card-bg p-6 shadow-sm">
+            <div className="flex items-center gap-3 text-success">
+              <i className="mdi mdi-check-circle text-2xl" />
+              <div>
+                <h2 className="text-base font-bold">Attendance Confirmed</h2>
+                <p className="text-sm text-text-secondary">
+                  Your attendance has been confirmed for this inspection.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {alreadyUnavailable && !isTerminal && (
+          <div className="rounded bg-card-bg p-6 shadow-sm">
+            <div className="flex items-center gap-3 text-warning">
+              <i className="mdi mdi-calendar-remove text-2xl" />
+              <div>
+                <h2 className="text-base font-bold">Unavailability Reported</h2>
+                <p className="text-sm text-text-secondary">
+                  Your unavailability has been recorded. The team will follow up.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showForm && (
+          <InspectionConfirmationForm
+            onConfirm={handleConfirm}
+            onUnavailable={handleUnavailable}
+            isSubmitting={confirmMutation.isPending || unavailableMutation.isPending}
             isReadOnly={isReadOnly}
           />
         )}
 
-        {showReschedule && (
-          <RescheduleForm
-            appointment={appointment}
-            token={token}
-            isReadOnly={isReadOnly}
-          />
+        {/* Change time CTA (US2 / §3.5) */}
+        {!isTerminal && !isReadOnly && (
+          <div className="rounded bg-card-bg p-4 shadow-sm">
+            {!changeTimeOpen ? (
+              <button
+                type="button"
+                onClick={() => setChangeTimeOpen(true)}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Change time
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setChangeTimeOpen(false); setSelectedGroupId(null); }}
+                    className="text-sm text-text-muted hover:text-text-primary"
+                  >
+                    ← Back
+                  </button>
+                  <span className="text-sm font-medium text-text-primary">
+                    Select an available time
+                  </span>
+                </div>
+                <AvailableGroupsList
+                  groups={availableGroupsQuery.data?.groups ?? []}
+                  isLoading={availableGroupsQuery.isLoading}
+                  isError={availableGroupsQuery.isError}
+                  selectedGroupId={selectedGroupId ?? undefined}
+                  onSelect={setSelectedGroupId}
+                  onRetry={() => availableGroupsQuery.refetch()}
+                />
+                {selectedGroupId && (
+                  <button
+                    type="button"
+                    onClick={handleJoinGroup}
+                    disabled={joinGroupMutation.isPending}
+                    className="w-full rounded bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {joinGroupMutation.isPending ? 'Joining…' : 'Join this time slot'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Propose new date CTA (US3 / §3.6) */}
+        {!isTerminal && data.rescheduleAllowed !== false && (
+          <div className="rounded bg-card-bg p-4 shadow-sm">
+            {!proposeNewDateOpen ? (
+              <button
+                type="button"
+                onClick={() => setProposeNewDateOpen(true)}
+                className="text-sm font-medium text-text-secondary hover:text-text-primary hover:underline"
+              >
+                Propose new date
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setProposeNewDateOpen(false)}
+                  className="text-sm text-text-muted hover:text-text-primary"
+                >
+                  ← Back
+                </button>
+                <RescheduleForm
+                  appointment={appointment}
+                  token={token}
+                  isReadOnly={isReadOnly}
+                />
+              </div>
+            )}
+          </div>
         )}
 
         <ContactForm contact={contact} token={token} isReadOnly={isReadOnly || isTerminal} />
-
-        {showUnavailable && (
-          <UnavailableSection
-            appointment={appointment}
-            token={token}
-            isReadOnly={isReadOnly}
-          />
-        )}
       </div>
     </PortalLayout>
   );
