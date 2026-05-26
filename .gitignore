@@ -53,3 +53,5 @@ temp/
 *.PROMPT.md
 *.CLAUDE.md
 
+.superpowers/
+.maestri/
