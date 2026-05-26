@@ -31,7 +31,7 @@ export class ConfirmationCycleService {
     tokenId: string | null,
     tx?: Tx,
   ): Promise<ConfirmationCycleEntity> {
-    const exec = async (client: Tx): Promise<ConfirmationCycleEntity> => {
+    const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
       const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
 
       if (active) {
@@ -91,8 +91,8 @@ export class ConfirmationCycleService {
     };
 
     try {
-      if (tx) return await exec(tx);
-      return await this.prisma.$transaction(exec);
+      if (tx) return await run(tx);
+      return await this.prisma.$transaction(run);
     } catch (err: unknown) {
       if (!this.isUniqueViolation(err)) throw err;
       // P2002: concurrent createInitial race — retry once via link-to-existing
@@ -121,7 +121,7 @@ export class ConfirmationCycleService {
     reason: 'DATE_CHANGED' | 'TIME_CHANGED',
     tx?: Tx,
   ): Promise<ConfirmationCycleEntity> {
-    const exec = async (client: Tx): Promise<ConfirmationCycleEntity> => {
+    const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
       await this.supersedeCurrent(appointmentId, tenantId, reason, client);
 
       const maxCycleNumber = await this.cycleRepo.findMaxCycleNumber(appointmentId, client);
@@ -153,8 +153,8 @@ export class ConfirmationCycleService {
 
       return cycle;
     };
-    if (tx) return await exec(tx);
-    return await this.prisma.$transaction(exec);
+    if (tx) return await run(tx);
+    return await this.prisma.$transaction(run);
   }
 
   /**
@@ -168,7 +168,7 @@ export class ConfirmationCycleService {
     newTimeSlot: string | null,
     tx?: Tx,
   ): Promise<ConfirmationCycleEntity> {
-    const exec = async (client: Tx): Promise<ConfirmationCycleEntity> => {
+    const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
       await this.supersedeCurrent(appointmentId, tenantId, 'TENANT_RESCHEDULE', client);
 
       const maxCycleNumber = await this.cycleRepo.findMaxCycleNumber(appointmentId, client);
@@ -201,8 +201,8 @@ export class ConfirmationCycleService {
 
       return cycle;
     };
-    if (tx) return await exec(tx);
-    return await this.prisma.$transaction(exec);
+    if (tx) return await run(tx);
+    return await this.prisma.$transaction(run);
   }
 
   /**
@@ -216,7 +216,7 @@ export class ConfirmationCycleService {
     tokenId: string | null,
     tx?: Tx,
   ): Promise<ConfirmationCycleEntity> {
-    const exec = async (client: Tx): Promise<ConfirmationCycleEntity> => {
+    const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
       const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
       if (!active) throw new ConfirmationCycleNotFoundError();
       if (active.status === 'CONFIRMED') return active;
@@ -228,8 +228,8 @@ export class ConfirmationCycleService {
       this.emitCycleAudit(tenantId, active, updated);
       return updated;
     };
-    if (tx) return await exec(tx);
-    return await this.prisma.$transaction(exec);
+    if (tx) return await run(tx);
+    return await this.prisma.$transaction(run);
   }
 
   /**
@@ -237,7 +237,7 @@ export class ConfirmationCycleService {
    * Idempotent if cycle is already UNAVAILABLE.
    */
   async markUnavailable(appointmentId: string, tenantId: string, tx?: Tx): Promise<ConfirmationCycleEntity> {
-    const exec = async (client: Tx): Promise<ConfirmationCycleEntity> => {
+    const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
       const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
       if (!active) throw new ConfirmationCycleNotFoundError();
       if (active.status === 'UNAVAILABLE') return active;
@@ -249,8 +249,8 @@ export class ConfirmationCycleService {
       this.emitCycleAudit(tenantId, active, updated);
       return updated;
     };
-    if (tx) return await exec(tx);
-    return await this.prisma.$transaction(exec);
+    if (tx) return await run(tx);
+    return await this.prisma.$transaction(run);
   }
 
   /**
@@ -259,16 +259,12 @@ export class ConfirmationCycleService {
    * Used when appointment returns to DRAFT via any path.
    */
   async invalidateOnReopen(appointmentId: string, tenantId: string, tx?: Tx): Promise<void> {
-    const exec = async (client: Tx): Promise<void> => {
-      const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
-      if (!active) return;
-      const superseded = active.markSuperseded('APPOINTMENT_REOPENED');
-      await this.cycleRepo.update(superseded, client);
+    const run = async (client: Tx): Promise<void> => {
+      await this.supersedeCurrent(appointmentId, tenantId, 'APPOINTMENT_REOPENED', client);
       await this.clearAppointmentActiveCycle(appointmentId, tenantId, 'PENDING', client);
-      this.emitCycleAudit(tenantId, active, superseded);
     };
-    if (tx) return await exec(tx);
-    return await this.prisma.$transaction(exec);
+    if (tx) return await run(tx);
+    return await this.prisma.$transaction(run);
   }
 
   /**
@@ -277,16 +273,12 @@ export class ConfirmationCycleService {
    * Called by reject-unconfirmed worker inside its outer per-appointment tx.
    */
   async invalidateOnReject(appointmentId: string, tenantId: string, tx?: Tx): Promise<void> {
-    const exec = async (client: Tx): Promise<void> => {
-      const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
-      if (!active) return;
-      const superseded = active.markSuperseded('APPOINTMENT_REOPENED');
-      await this.cycleRepo.update(superseded, client);
+    const run = async (client: Tx): Promise<void> => {
+      await this.supersedeCurrent(appointmentId, tenantId, 'APPOINTMENT_REOPENED', client);
       await this.clearAppointmentActiveCycle(appointmentId, tenantId, 'NO_RESPONSE', client);
-      this.emitCycleAudit(tenantId, active, superseded);
     };
-    if (tx) return await exec(tx);
-    return await this.prisma.$transaction(exec);
+    if (tx) return await run(tx);
+    return await this.prisma.$transaction(run);
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────

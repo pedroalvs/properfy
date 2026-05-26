@@ -150,6 +150,10 @@ describe('ConfirmationCycleService', () => {
       const updatedCycle = vi.mocked(repo.update).mock.calls[0]![0];
       expect(updatedCycle.status).toBe('SUPERSEDED');
       expect(updatedCycle.invalidatedReason).toBe('APPOINTMENT_REOPENED');
+      expect(vi.mocked(prisma.tenantPortalToken.update)).toHaveBeenCalledWith({
+        where: { id: 'token-old' },
+        data: { status: 'SUPERSEDED' },
+      });
     });
 
     it('should be a no-op when no active cycle exists', async () => {
@@ -163,17 +167,22 @@ describe('ConfirmationCycleService', () => {
   });
 
   describe('invalidateOnReject', () => {
-    it('should supersede the active cycle with APPOINTMENT_REOPENED reason', async () => {
-      const cycle = makeCycle({ status: 'PENDING' });
+    it('should supersede the active cycle and mark associated token as SUPERSEDED', async () => {
+      const cycle = makeCycle({ status: 'PENDING', portalTokenId: 'token-old' });
       const repo = makeRepo();
       vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(cycle);
-      const svc = new ConfirmationCycleService(repo, makeAudit(), makePrisma());
+      const prisma = makePrisma();
+      const svc = new ConfirmationCycleService(repo, makeAudit(), prisma);
 
       await svc.invalidateOnReject('appt-1', 'tenant-1');
 
       expect(repo.update).toHaveBeenCalledOnce();
       const updatedCycle = vi.mocked(repo.update).mock.calls[0]![0];
       expect(updatedCycle.status).toBe('SUPERSEDED');
+      expect(vi.mocked(prisma.tenantPortalToken.update)).toHaveBeenCalledWith({
+        where: { id: 'token-old' },
+        data: { status: 'SUPERSEDED' },
+      });
     });
   });
 });
