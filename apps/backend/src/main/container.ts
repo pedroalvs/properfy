@@ -830,7 +830,7 @@ export function createContainer(logger: Logger): AppContainer {
   const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
   const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
-  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus, availabilitySlotRepo);
+  const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, tenantRepo);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);

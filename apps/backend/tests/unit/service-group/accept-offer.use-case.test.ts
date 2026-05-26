@@ -17,10 +17,6 @@ import {
   InspectorInactiveError,
   PriorityExpiredError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
-import {
-  AvailabilitySlotNotMatchedError,
-  AvailabilitySlotCapacityExhaustedError,
-} from '../../../src/modules/inspector/domain/inspector.errors';
 import type { IAvailabilitySlotRepository } from '../../../src/modules/inspector/domain/availability-slot.repository';
 
 function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {}): ServiceGroupEntity {
@@ -465,145 +461,38 @@ describe('AcceptOfferUseCase', () => {
     );
   });
 
-  // ── Saga: pre-check + compensation when availability-slot repo is wired ─────
-  describe('availability-slot saga', () => {
-    function buildSlotRepo(overrides: Partial<IAvailabilitySlotRepository> = {}): IAvailabilitySlotRepository {
-      return {
-        findById: vi.fn(),
-        findByInspectorAndWindow: vi.fn(),
-        findMatchingSlot: vi.fn(),
-        decrementCapacity: vi.fn(),
-        incrementCapacity: vi.fn(),
-        save: vi.fn(),
-        update: vi.fn(),
-        findAllByInspector: vi.fn(),
-        countByInspector: vi.fn(),
-        findExpiringForInspector: vi.fn(),
-        ...overrides,
-      } as IAvailabilitySlotRepository;
-    }
+  // ── Availability slots are informational — they MUST NOT block accept ────────
+  it('should accept successfully even when slot repo finds no matching slot (slots are informational)', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+    vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
+    const slotRepo: IAvailabilitySlotRepository = {
+      findById: vi.fn(),
+      findByInspectorAndWindow: vi.fn(),
+      findMatchingSlot: vi.fn().mockResolvedValue(null),
+      decrementCapacity: vi.fn(),
+      incrementCapacity: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+      findAllByInspector: vi.fn(),
+      countByInspector: vi.fn(),
+      findExpiringForInspector: vi.fn(),
+    } as IAvailabilitySlotRepository;
+    const authorizationService = new AuthorizationService(auditService);
+    const ucWithSlot = new AcceptOfferUseCase(
+      serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, undefined, slotRepo,
+    );
 
-    function buildUseCaseWithSlotRepo(slotRepo: IAvailabilitySlotRepository): AcceptOfferUseCase {
-      const authorizationService = new AuthorizationService(auditService);
-      return new AcceptOfferUseCase(
-        serviceGroupRepo,
-        inspectorRepo,
-        auditService,
-        idempotencyService,
-        authorizationService,
-        undefined,
-        slotRepo,
-      );
-    }
-
-    it('throws AvailabilitySlotNotMatchedError BEFORE the optimistic accept commits', async () => {
-      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
-      const slotRepo = buildSlotRepo({ findMatchingSlot: vi.fn().mockResolvedValue(null) });
-      const ucWithSlot = buildUseCaseWithSlotRepo(slotRepo);
-
-      await expect(
-        ucWithSlot.execute({
-          groupId: 'group-1',
-          inspectorId: 'inspector-1',
-          actor: makeActor(),
-        }),
-      ).rejects.toThrow(AvailabilitySlotNotMatchedError);
-
-      // Regression: before this fix, acceptOptimistic ran first and the group
-      // was left in ACCEPTED state. Now the slot pre-check runs first.
-      expect(serviceGroupRepo.acceptOptimistic).not.toHaveBeenCalled();
-      expect(slotRepo.decrementCapacity).not.toHaveBeenCalled();
-      expect(serviceGroupRepo.scheduleAppointments).not.toHaveBeenCalled();
+    const result = await ucWithSlot.execute({
+      groupId: 'group-1',
+      inspectorId: 'inspector-1',
+      actor: makeActor(),
     });
 
-    it('reverts the group to PUBLISHED when capacity is exhausted between pre-check and decrement', async () => {
-      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
-      vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
-      const slotRepo = buildSlotRepo({
-        findMatchingSlot: vi.fn().mockResolvedValue({ id: 'slot-1', capacity: 1 }),
-        decrementCapacity: vi.fn().mockResolvedValue(null), // exhausted in race
-      });
-      const ucWithSlot = buildUseCaseWithSlotRepo(slotRepo);
-
-      await expect(
-        ucWithSlot.execute({
-          groupId: 'group-1',
-          inspectorId: 'inspector-1',
-          actor: makeActor(),
-        }),
-      ).rejects.toThrow(AvailabilitySlotCapacityExhaustedError);
-
-      // Compensation: group must be reverted to PUBLISHED, no slot increment
-      // (decrement returned null = nothing to undo), no appointments scheduled.
-      expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
-        status: 'PUBLISHED',
-        assignedInspectorId: null,
-        assignedAt: null,
-        confirmedCount: 0,
-      });
-      expect(slotRepo.incrementCapacity).not.toHaveBeenCalled();
-      expect(serviceGroupRepo.scheduleAppointments).not.toHaveBeenCalled();
-    });
-
-    it('reverts group + increments slot when scheduleAppointments fails after a successful decrement', async () => {
-      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
-      vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
-      vi.mocked(serviceGroupRepo.scheduleAppointments).mockRejectedValue(new Error('schedule blew up'));
-      const slotRepo = buildSlotRepo({
-        findMatchingSlot: vi.fn().mockResolvedValue({ id: 'slot-1', capacity: 5 }),
-        decrementCapacity: vi.fn().mockResolvedValue(4),
-      });
-      const ucWithSlot = buildUseCaseWithSlotRepo(slotRepo);
-
-      await expect(
-        ucWithSlot.execute({
-          groupId: 'group-1',
-          inspectorId: 'inspector-1',
-          actor: makeActor(),
-        }),
-      ).rejects.toThrow('schedule blew up');
-
-      // Slot decrement must be undone, group reverted, appointments untouched
-      // (scheduleAppointments threw before mutating).
-      expect(slotRepo.incrementCapacity).toHaveBeenCalledWith('slot-1');
-      expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
-        status: 'PUBLISHED',
-        assignedInspectorId: null,
-        assignedAt: null,
-        confirmedCount: 0,
-      });
-      expect(serviceGroupRepo.revertScheduledAppointments).not.toHaveBeenCalled();
-    });
-
-    it('happy path: pre-check passes, group accepted, slot decremented', async () => {
-      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
-      vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
-      vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
-      const slotRepo = buildSlotRepo({
-        findMatchingSlot: vi.fn().mockResolvedValue({ id: 'slot-1', capacity: 3 }),
-        decrementCapacity: vi.fn().mockResolvedValue(2),
-      });
-      const ucWithSlot = buildUseCaseWithSlotRepo(slotRepo);
-
-      const result = await ucWithSlot.execute({
-        groupId: 'group-1',
-        inspectorId: 'inspector-1',
-        actor: makeActor(),
-      });
-
-      expect(result.status).toBe('ACCEPTED');
-      expect(slotRepo.decrementCapacity).toHaveBeenCalledWith('slot-1');
-      // Audit reflects the booked slot.
-      expect(auditService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'service_group.accepted',
-          after: expect.objectContaining({ bookedSlotId: 'slot-1' }),
-        }),
-      );
-    });
+    expect(result.status).toBe('ACCEPTED');
+    expect(slotRepo.decrementCapacity).not.toHaveBeenCalled();
   });
+
 });
+

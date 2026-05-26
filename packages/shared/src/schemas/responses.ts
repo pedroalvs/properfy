@@ -332,6 +332,38 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   payoutAmount: z.number().nullable().optional(),
   inspectionAppLink: z.string().nullable().optional(),
   appointmentCode: z.string().optional(),
+  jobDetails: z.object({
+    agency: z.object({ id: z.string(), name: z.string() }),
+    tenantContacts: z.array(z.object({
+      name: z.string(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+      role: z.string(),
+      isPrimary: z.boolean(),
+    })),
+    keys: z.object({
+      keyRequired: z.boolean(),
+      keyLocation: z.string().nullable(),
+    }),
+    keyLocation: z.object({
+      address: z.string(),
+      mapLinkUrl: z.string(),
+    }).optional(),
+    propertyManager: z.object({
+      name: z.string(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+      company: z.string().nullable(),
+    }).nullable(),
+    payment: z.object({
+      payoutAmount: z.number(),
+      currency: z.string(),
+    }),
+    inspectionAppLink: z.object({
+      url: z.string(),
+      label: z.string(),
+    }).optional(),
+  }).nullable().optional(),
 });
 
 // ─── Service Group ─────────────────────────────────────────────────────────

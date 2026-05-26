@@ -37,27 +37,29 @@ export interface JobDetailsTenantContact {
   name: string;
   email: string | null;
   phone: string | null;
+  role: string;
+  isPrimary: boolean;
 }
 
 export interface JobDetails {
-  agency: string | null;
+  agency: { id: string; name: string };
   tenantContacts: JobDetailsTenantContact[];
-  keys: boolean;
-  keyLocation: string | null;
-  keyLocationMapUrl: string | null;
+  keys: { keyRequired: boolean; keyLocation: string | null };
+  keyLocation?: { address: string; mapLinkUrl: string };
   propertyManager: {
     name: string | null;
     email: string | null;
     phone: string | null;
+    company: string | null;
   } | null;
   payment: {
-    amount: number;
+    payoutAmount: number;
     currency: string;
-  } | null;
-  inspectionAppLink: {
+  };
+  inspectionAppLink?: {
     label: string;
     url: string;
-  } | null;
+  };
 }
 
 export interface InspectorAppointmentDetailResponse {

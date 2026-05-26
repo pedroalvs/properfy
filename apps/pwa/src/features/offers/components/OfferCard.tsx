@@ -50,7 +50,6 @@ const stateLabels: Partial<Record<OfferAcceptState, { label: string; className: 
   ACCEPTED: { label: 'Accepted', className: 'bg-success/10 text-success' },
   CONFLICT: { label: 'Already taken', className: 'bg-warning/10 text-warning' },
   GONE: { label: 'No longer available', className: 'bg-text-muted/10 text-text-muted' },
-  ERROR: { label: 'Try again', className: 'bg-error/10 text-error' },
 };
 
 export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onViewDetail }: OfferCardProps) {

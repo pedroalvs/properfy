@@ -1,6 +1,6 @@
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import { mapInspectorAppointmentDetail } from '../lib/adapters';
-import type { InspectorAppointment, InspectorAppointmentDetailResponse, JobDetails } from '../types';
+import type { InspectorAppointment, InspectorAppointmentDetailResponse } from '../types';
 
 export function useInspectorAppointment(appointmentId: string) {
   const query = useDetailQuery<InspectorAppointmentDetailResponse['data']>(
@@ -19,6 +19,6 @@ export function useInspectorAppointment(appointmentId: string) {
     data: raw
       ? { data: mapInspectorAppointmentDetail({ data: raw }) as InspectorAppointment }
       : undefined,
-    jobDetails: raw?.jobDetails as JobDetails | undefined,
+    jobDetails: raw?.jobDetails,
   };
 }

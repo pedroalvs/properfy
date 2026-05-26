@@ -9,10 +9,6 @@ import type { IServiceGroupRepository } from '../../domain/service-group.reposit
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IAvailabilitySlotRepository } from '../../../inspector/domain/availability-slot.repository';
 import {
-  AvailabilitySlotCapacityExhaustedError,
-  AvailabilitySlotNotMatchedError,
-} from '../../../inspector/domain/inspector.errors';
-import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
   GroupAlreadyAcceptedError,
@@ -100,27 +96,6 @@ export class AcceptOfferUseCase {
       throw new PriorityExpiredError();
     }
 
-    // Pre-check the availability slot BEFORE the optimistic accept commits.
-    // The accept used to mutate the group first and only then check the slot,
-    // which left the group in a half-accepted state when no slot matched —
-    // user saw the error response but the group was already ACCEPTED in DB.
-    let candidateSlotId: string | null = null;
-    if (this.availabilitySlotRepo) {
-      const parts = group.timeWindow.split('-');
-      const slotStart = parts[0] ?? '';
-      const slotEnd = parts[1] ?? '';
-      const slot = await this.availabilitySlotRepo.findMatchingSlot(
-        inspectorId,
-        group.scheduledDate,
-        slotStart,
-        slotEnd,
-      );
-      if (!slot) {
-        throw new AvailabilitySlotNotMatchedError();
-      }
-      candidateSlotId = slot.id;
-    }
-
     const now = new Date();
     const updatedCount = await this.serviceGroupRepo.acceptOptimistic(groupId, inspectorId, now);
     if (updatedCount === 0) {
@@ -128,13 +103,11 @@ export class AcceptOfferUseCase {
     }
 
     // Saga compensation: any failure in the post-accept steps must roll back
-    // the group (and any slot/appointment side-effects) so the system isn't
-    // left in a half-accepted state. Best-effort — compensation errors are
-    // audited but do not mask the original error.
-    let slotDecremented = false;
+    // the group and appointment side-effects so the system isn't left in a
+    // half-accepted state. Best-effort — compensation errors are audited but
+    // do not mask the original error.
     let appointmentsScheduled = false;
     let scheduledCount = 0;
-    let bookedSlotId: string | null = null;
 
     try {
       // Re-verify all linked appointments are still AWAITING_INSPECTOR after optimistic lock
@@ -149,15 +122,6 @@ export class AcceptOfferUseCase {
         }
       }
 
-      if (candidateSlotId && this.availabilitySlotRepo) {
-        const updatedCapacity = await this.availabilitySlotRepo.decrementCapacity(candidateSlotId);
-        if (updatedCapacity === null) {
-          throw new AvailabilitySlotCapacityExhaustedError();
-        }
-        bookedSlotId = candidateSlotId;
-        slotDecremented = true;
-      }
-
       scheduledCount = await this.serviceGroupRepo.scheduleAppointments(groupId, inspectorId);
       appointmentsScheduled = true;
 
@@ -169,9 +133,6 @@ export class AcceptOfferUseCase {
       try {
         if (appointmentsScheduled) {
           await this.serviceGroupRepo.revertScheduledAppointments(groupId);
-        }
-        if (slotDecremented && candidateSlotId && this.availabilitySlotRepo) {
-          await this.availabilitySlotRepo.incrementCapacity(candidateSlotId);
         }
         await this.serviceGroupRepo.update(groupId, {
           status: 'PUBLISHED',
@@ -208,7 +169,6 @@ export class AcceptOfferUseCase {
         status: 'ACCEPTED',
         assignedInspectorId: inspectorId,
         appointmentsScheduled: scheduledCount,
-        ...(bookedSlotId ? { bookedSlotId } : {}),
       },
     });
 
