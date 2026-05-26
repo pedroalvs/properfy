@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '@/hooks/useApiQuery';
 import { ApiError } from '@/lib/api-error';
@@ -102,6 +102,13 @@ export function useAcceptOffer() {
     },
     [setState, clearResetTimer, scheduleReset, queryClient],
   );
+
+  useEffect(() => {
+    return () => {
+      resetTimers.current.forEach((id) => clearTimeout(id));
+      resetTimers.current.clear();
+    };
+  }, []);
 
   return { getState, startConfirm, cancelConfirm, accept };
 }

@@ -165,4 +165,25 @@ describe('useAcceptOffer', () => {
 
     vi.useRealTimers();
   });
+
+  it('cancels all pending timers on unmount — clearTimeout called for each pending timer', async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    const { result, unmount } = renderHook(() => useAcceptOffer());
+
+    await act(async () => {
+      await result.current.accept('group-1');
+    });
+    expect(result.current.getState('group-1')).toBe('ERROR');
+
+    // Unmount with a pending 4s reset timer — expect clearTimeout to be called
+    act(() => unmount());
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+
+    clearTimeoutSpy.mockRestore();
+    vi.useRealTimers();
+  });
 });
