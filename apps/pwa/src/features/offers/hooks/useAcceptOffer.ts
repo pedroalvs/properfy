@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '@/hooks/useApiQuery';
 import { ApiError } from '@/lib/api-error';
@@ -18,6 +18,7 @@ export function useAcceptOffer() {
   const queryClient = useQueryClient();
   const { showSuccess, showError, showInfo } = useSnackbar();
   const [states, setStates] = useState<Record<string, OfferAcceptState>>({});
+  const resetTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const getState = useCallback(
     (groupId: string): OfferAcceptState => states[groupId] ?? 'IDLE',
@@ -27,6 +28,26 @@ export function useAcceptOffer() {
   const setState = useCallback((groupId: string, state: OfferAcceptState) => {
     setStates((prev) => ({ ...prev, [groupId]: state }));
   }, []);
+
+  const clearResetTimer = useCallback((groupId: string) => {
+    const existing = resetTimers.current.get(groupId);
+    if (existing !== undefined) {
+      clearTimeout(existing);
+      resetTimers.current.delete(groupId);
+    }
+  }, []);
+
+  const scheduleReset = useCallback(
+    (groupId: string) => {
+      clearResetTimer(groupId);
+      const id = setTimeout(() => {
+        resetTimers.current.delete(groupId);
+        setState(groupId, 'IDLE');
+      }, 4000);
+      resetTimers.current.set(groupId, id);
+    },
+    [clearResetTimer, setState],
+  );
 
   const startConfirm = useCallback(
     (groupId: string) => setState(groupId, 'CONFIRMING'),
@@ -40,6 +61,7 @@ export function useAcceptOffer() {
 
   const accept = useCallback(
     async (groupId: string) => {
+      clearResetTimer(groupId);
       setState(groupId, 'ACCEPTING');
 
       const idempotencyKey = generateIdempotencyKey();
@@ -69,17 +91,24 @@ export function useAcceptOffer() {
           if (err.code === 'AVAILABILITY_SLOT_NOT_MATCHED') {
             setState(groupId, 'ERROR');
             showError('No availability slot for this time window — update your availability in Profile');
-            setTimeout(() => setState(groupId, 'IDLE'), 4000);
+            scheduleReset(groupId);
             return;
           }
         }
         setState(groupId, 'ERROR');
         showError('Failed to accept — try again');
-        setTimeout(() => setState(groupId, 'IDLE'), 4000);
+        scheduleReset(groupId);
       }
     },
-    [setState, queryClient],
+    [setState, clearResetTimer, scheduleReset, queryClient],
   );
+
+  useEffect(() => {
+    return () => {
+      resetTimers.current.forEach((id) => clearTimeout(id));
+      resetTimers.current.clear();
+    };
+  }, []);
 
   return { getState, startConfirm, cancelConfirm, accept };
 }

@@ -362,6 +362,9 @@ model ServiceType {
   appointments   Appointment[]
   service_groups ServiceGroup[]
 
+  // Uniqueness enforced case-insensitively via migration index lower(name).
+  // Prisma does not support functional indexes in schema, so the constraint
+  // lives only in the migration SQL and the application-layer findByName check.
   @@index([status])
   @@map("service_types")
 }

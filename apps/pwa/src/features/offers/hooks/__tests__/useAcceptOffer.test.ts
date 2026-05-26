@@ -130,4 +130,60 @@ describe('useAcceptOffer', () => {
 
     vi.useRealTimers();
   });
+
+  it('cancels the previous reset timer when accept is retried within 4s', async () => {
+    vi.useFakeTimers();
+
+    // First call fails → schedules 4s reset timer
+    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+    const { result } = renderHook(() => useAcceptOffer());
+
+    await act(async () => {
+      await result.current.accept('group-1');
+    });
+    expect(result.current.getState('group-1')).toBe('ERROR');
+
+    // Advance 2s (first timer not yet fired)
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.getState('group-1')).toBe('ERROR');
+
+    // Retry within 4s — second call also fails, schedules new 4s timer
+    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+    await act(async () => {
+      await result.current.accept('group-1');
+    });
+    expect(result.current.getState('group-1')).toBe('ERROR');
+
+    // Advance 2s more — original timer would have fired at t=4s but should be cancelled
+    act(() => vi.advanceTimersByTime(2000));
+    // State is still ERROR — old timer was cancelled, new 4s timer hasn't fired yet
+    expect(result.current.getState('group-1')).toBe('ERROR');
+
+    // Advance the remaining 2s for the new timer → now resets
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.getState('group-1')).toBe('IDLE');
+
+    vi.useRealTimers();
+  });
+
+  it('cancels all pending timers on unmount — clearTimeout called for each pending timer', async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    const { result, unmount } = renderHook(() => useAcceptOffer());
+
+    await act(async () => {
+      await result.current.accept('group-1');
+    });
+    expect(result.current.getState('group-1')).toBe('ERROR');
+
+    // Unmount with a pending 4s reset timer — expect clearTimeout to be called
+    act(() => unmount());
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+
+    clearTimeoutSpy.mockRestore();
+    vi.useRealTimers();
+  });
 });

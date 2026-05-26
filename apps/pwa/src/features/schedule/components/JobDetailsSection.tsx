@@ -17,7 +17,6 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
     tenantContacts,
     keys,
     keyLocation,
-    keyLocationMapUrl,
     propertyManager,
     payment,
     inspectionAppLink,
@@ -29,7 +28,7 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
       {agency && (
         <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Agency</p>
-          <p className="mt-1 text-sm font-semibold text-text-primary">{agency}</p>
+          <p className="mt-1 text-sm font-semibold text-text-primary">{agency.name}</p>
         </section>
       )}
 
@@ -75,7 +74,7 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
       )}
 
       {/* Keys */}
-      {keys && (
+      {keys.keyRequired && (
         <section
           className="overflow-hidden rounded-[20px] border border-warning/20 bg-warning/8 shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
           data-testid="job-keys-section"
@@ -86,14 +85,14 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
               <span className="inline-flex items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
                 Key required
               </span>
-              {keyLocation && (
-                <p className="mt-1 text-sm text-text-primary">{keyLocation}</p>
+              {keys.keyLocation && (
+                <p className="mt-1 text-sm text-text-primary">{keys.keyLocation}</p>
               )}
             </div>
           </div>
-          {keyLocationMapUrl && (
+          {keyLocation?.mapLinkUrl && (
             <a
-              href={keyLocationMapUrl}
+              href={keyLocation.mapLinkUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 border-t border-warning/20 bg-warning/5 px-4 py-3 text-sm font-bold text-warning"
@@ -151,7 +150,7 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
         >
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Payment</p>
           <p className="mt-1 text-lg font-bold text-text-primary">
-            {formatCurrency(payment.amount, payment.currency)}
+            {formatCurrency(payment.payoutAmount, payment.currency)}
           </p>
         </section>
       )}

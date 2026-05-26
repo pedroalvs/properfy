@@ -49,6 +49,13 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
     return row ? mapToEntity(row) : null;
   }
 
+  async findByName(name: string): Promise<ServiceTypeEntity | null> {
+    const row = await this.prisma.serviceType.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
   async findAll(
     filters: ServiceTypeFilters,
     pagination: PaginationParams,

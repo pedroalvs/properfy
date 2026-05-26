@@ -10,10 +10,6 @@ import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { AvailabilitySlotEntity } from '../../../src/modules/inspector/domain/availability-slot.entity';
-import {
-  AvailabilitySlotCapacityExhaustedError,
-  AvailabilitySlotNotMatchedError,
-} from '../../../src/modules/inspector/domain/inspector.errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 // --- Helpers ---
@@ -207,7 +203,7 @@ describe('GAP-003: Availability slot booking integration', () => {
       slotRepo = makeAvailabilitySlotRepo();
     });
 
-    it('should decrement slot capacity on manual assign', async () => {
+    it('should assign successfully even when no matching slot exists (slots are informational)', async () => {
       const useCase = new AssignInspectorManuallyUseCase(
         serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo,
         idempotencyService, new AuthorizationService(auditService), undefined, slotRepo,
@@ -216,8 +212,6 @@ describe('GAP-003: Availability slot booking integration', () => {
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
       vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
       vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
-      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(makeSlot());
-      vi.mocked(slotRepo.decrementCapacity).mockResolvedValue(2);
 
       const result = await useCase.execute({
         groupId: 'group-1',
@@ -226,69 +220,23 @@ describe('GAP-003: Availability slot booking integration', () => {
       });
 
       expect(result.status).toBe('ACCEPTED');
-      expect(slotRepo.findMatchingSlot).toHaveBeenCalledWith(
-        'inspector-1',
-        new Date('2026-04-01'),
-        '08:00',
-        '12:00',
-      );
-      expect(slotRepo.decrementCapacity).toHaveBeenCalledWith('slot-1');
-    });
-
-    it('should throw AvailabilitySlotNotMatchedError when no slot exists', async () => {
-      const useCase = new AssignInspectorManuallyUseCase(
-        serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo,
-        idempotencyService, new AuthorizationService(auditService), undefined, slotRepo,
-      );
-
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
-      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
-      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(null);
-
-      await expect(
-        useCase.execute({
-          groupId: 'group-1',
-          inspectorId: 'inspector-1',
-          actor: makeAmActor(),
-        }),
-      ).rejects.toThrow(AvailabilitySlotNotMatchedError);
-    });
-
-    it('should throw AvailabilitySlotCapacityExhaustedError when capacity is 0', async () => {
-      const useCase = new AssignInspectorManuallyUseCase(
-        serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo,
-        idempotencyService, new AuthorizationService(auditService), undefined, slotRepo,
-      );
-
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
-      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
-      vi.mocked(slotRepo.findMatchingSlot).mockResolvedValue(makeSlot({ capacity: 1 }));
-      vi.mocked(slotRepo.decrementCapacity).mockResolvedValue(null);
-
-      await expect(
-        useCase.execute({
-          groupId: 'group-1',
-          inspectorId: 'inspector-1',
-          actor: makeAmActor(),
-        }),
-      ).rejects.toThrow(AvailabilitySlotCapacityExhaustedError);
+      expect(slotRepo.findMatchingSlot).not.toHaveBeenCalled();
+      expect(slotRepo.decrementCapacity).not.toHaveBeenCalled();
     });
   });
 
-  describe('CancelServiceGroupUseCase – slot restoration', () => {
+  describe('CancelServiceGroupUseCase – cancellation behavior', () => {
     let serviceGroupRepo: IServiceGroupRepository;
     let auditService: AuditService;
-    let slotRepo: IAvailabilitySlotRepository;
 
     beforeEach(() => {
       serviceGroupRepo = makeServiceGroupRepo();
       auditService = { log: vi.fn() } as unknown as AuditService;
-      slotRepo = makeAvailabilitySlotRepo();
     });
 
-    it('should restore slot capacity when cancelling an ACCEPTED group', async () => {
+    it('should cancel ACCEPTED group and revert appointments without touching slot capacity', async () => {
       const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, new AuthorizationService(auditService), undefined, slotRepo,
+        serviceGroupRepo, auditService, new AuthorizationService(auditService),
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
@@ -298,84 +246,53 @@ describe('GAP-003: Availability slot booking integration', () => {
         }),
       );
       vi.mocked(serviceGroupRepo.revertScheduledAppointments).mockResolvedValue(5);
-      vi.mocked(slotRepo.findSlotForRestore).mockResolvedValue(makeSlot({ capacity: 0 }));
 
-      await useCase.execute({
+      const result = await useCase.execute({
         groupId: 'group-1',
         reason: 'Inspector unavailable',
         actor: makeAmActor(),
       });
 
-      expect(slotRepo.findSlotForRestore).toHaveBeenCalledWith(
-        'inspector-1',
-        new Date('2026-04-01'),
-        '08:00',
-        '12:00',
-      );
-      expect(slotRepo.incrementCapacity).toHaveBeenCalledWith('slot-1');
+      expect(result.status).toBe('CANCELLED');
+      expect(serviceGroupRepo.revertScheduledAppointments).toHaveBeenCalledWith('group-1');
     });
 
-    it('should not attempt slot restoration when cancelling a DRAFT group', async () => {
+    it('should cancel DRAFT group without reverting appointments', async () => {
       const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, new AuthorizationService(auditService), undefined, slotRepo,
+        serviceGroupRepo, auditService, new AuthorizationService(auditService),
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
         makeGroupWithAppointments({ status: 'DRAFT' }),
       );
 
-      await useCase.execute({
+      const result = await useCase.execute({
         groupId: 'group-1',
         reason: 'No longer needed',
         actor: makeAmActor(),
       });
 
-      expect(slotRepo.findSlotForRestore).not.toHaveBeenCalled();
-      expect(slotRepo.incrementCapacity).not.toHaveBeenCalled();
+      expect(result.status).toBe('CANCELLED');
+      expect(serviceGroupRepo.revertScheduledAppointments).not.toHaveBeenCalled();
     });
 
-    it('should not attempt slot restoration when cancelling a PUBLISHED group', async () => {
+    it('should cancel PUBLISHED group without reverting appointments', async () => {
       const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, new AuthorizationService(auditService), undefined, slotRepo,
+        serviceGroupRepo, auditService, new AuthorizationService(auditService),
       );
 
       vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
         makeGroupWithAppointments({ status: 'PUBLISHED' }),
       );
 
-      await useCase.execute({
+      const result = await useCase.execute({
         groupId: 'group-1',
         reason: 'Cancelled before acceptance',
         actor: makeAmActor(),
       });
 
-      expect(slotRepo.findSlotForRestore).not.toHaveBeenCalled();
-      expect(slotRepo.incrementCapacity).not.toHaveBeenCalled();
-    });
-
-    it('should gracefully handle missing slot on restoration (no error)', async () => {
-      const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, new AuthorizationService(auditService), undefined, slotRepo,
-      );
-
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-        makeGroupWithAppointments({
-          status: 'ACCEPTED',
-          assignedInspectorId: 'inspector-1',
-        }),
-      );
-      vi.mocked(serviceGroupRepo.revertScheduledAppointments).mockResolvedValue(5);
-      vi.mocked(slotRepo.findSlotForRestore).mockResolvedValue(null);
-
-      // Should not throw even when no matching slot is found
-      const result = await useCase.execute({
-        groupId: 'group-1',
-        reason: 'Inspector slot was deleted',
-        actor: makeAmActor(),
-      });
-
       expect(result.status).toBe('CANCELLED');
-      expect(slotRepo.incrementCapacity).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.revertScheduledAppointments).not.toHaveBeenCalled();
     });
   });
 });

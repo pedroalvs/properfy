@@ -3,7 +3,7 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceTypeRepository } from '../../domain/service-type.repository';
 import { ServiceTypeEntity } from '../../domain/service-type.entity';
-import { ServiceTypeCodeConflictError } from '../../domain/service-type.errors';
+import { ServiceTypeCodeConflictError, ServiceTypeNameConflictError } from '../../domain/service-type.errors';
 
 export interface CreateServiceTypeInput {
   code: string;
@@ -40,6 +40,11 @@ export class CreateServiceTypeUseCase {
     const existing = await this.serviceTypeRepo.findByCode(code);
     if (existing) {
       throw new ServiceTypeCodeConflictError();
+    }
+
+    const existingByName = await this.serviceTypeRepo.findByName(name);
+    if (existingByName) {
+      throw new ServiceTypeNameConflictError();
     }
 
     const now = new Date();
