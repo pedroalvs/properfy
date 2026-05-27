@@ -181,8 +181,13 @@ describe('POST /v1/appointments', () => {
 describe('GET /v1/appointments', () => {
   it('should return 200 with paginated results', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    // The real ListAppointmentsUseCase does NOT include hasActivePortalToken in list items.
+    // This mock intentionally omits the field to verify the schema default (z.boolean().default(false))
+    // fills it in during Fastify serialization. If the default is ever removed, this test will catch
+    // the 500 ResponseValidationError that QA found.
+    const { hasActivePortalToken: _omit, ...listItemResult } = appointmentResult;
     mockListAppointmentsExecute.mockResolvedValueOnce({
-      data: [appointmentResult],
+      data: [listItemResult],
       total: 1,
     });
 
@@ -195,6 +200,8 @@ describe('GET /v1/appointments', () => {
     expect(res.body).toHaveProperty('pagination');
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].id).toBe(APPOINTMENT_ID);
+    // Schema default must supply hasActivePortalToken:false when the use case omits the field.
+    expect(res.body.data[0].hasActivePortalToken).toBe(false);
   });
 
   it('should return 400 with invalid query params (invalid status)', async () => {
