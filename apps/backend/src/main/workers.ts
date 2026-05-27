@@ -80,6 +80,7 @@ export async function registerWorkers(
     logger.info({ notificationId, jobId: job.id }, 'Processing notification.send job');
     await sendNotificationUseCase.execute({ notificationId });
   }));
+  logger.info({}, 'worker.notification_send.registered');
 
   await boss.schedule('notification.retry-poll', '*/5 * * * *', {});
   await boss.work('notification.retry-poll', withJobMetrics('notification.retry-poll', async (job) => {

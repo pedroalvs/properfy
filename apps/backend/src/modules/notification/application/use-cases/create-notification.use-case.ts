@@ -3,6 +3,7 @@ import type { NotificationChannel, NotificationClass } from '@properfy/shared';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import { NotificationEntity } from '../../domain/notification.entity';
 import { ValidationError } from '../../../../shared/domain/errors';
 import { MarketingDispatchDisabledError } from '../../domain/notification.errors';
@@ -25,6 +26,7 @@ export class CreateNotificationUseCase {
     private readonly notificationRepo: INotificationRepository,
     private readonly templateRepo: INotificationTemplateRepository,
     private readonly jobQueue: IJobQueue,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: CreateNotificationInput): Promise<CreateNotificationOutput> {
@@ -83,7 +85,15 @@ export class CreateNotificationUseCase {
       updatedAt: now,
     });
     await this.notificationRepo.save(notification);
-    await this.jobQueue.enqueue('notification.send', { notificationId }, { retryLimit: 0 });
+    const jobName = 'notification.send';
+    this.logger?.info({ notificationId, jobName, channel: input.channel, templateCode: input.templateCode }, 'notification.enqueue_start');
+    try {
+      await this.jobQueue.enqueue(jobName, { notificationId }, { retryLimit: 0 });
+      this.logger?.info({ notificationId, jobName }, 'notification.enqueue_success');
+    } catch (enqueueError) {
+      this.logger?.error({ notificationId, jobName, channel: input.channel, templateCode: input.templateCode, error: enqueueError }, 'notification.enqueue_failed');
+      throw enqueueError;
+    }
     return { notificationId };
   }
 }
