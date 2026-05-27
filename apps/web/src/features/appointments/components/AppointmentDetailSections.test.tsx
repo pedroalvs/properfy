@@ -38,6 +38,7 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
     keyLocation: 'With the caretaker',
     cancellationReason: null,
     tenantNote: null,
+    hasActivePortalToken: false,
     ...overrides,
   };
 }

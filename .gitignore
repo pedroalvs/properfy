@@ -53,3 +53,14 @@ temp/
 *.PROMPT.md
 *.CLAUDE.md
 
+# Local AI agent tooling (Maestri, Claude Code worktrees, Superpowers brainstorm artifacts)
+.maestri/
+.superpowers/
+.claude/worktrees/
+
+# Temp files
+*.tmp
+
+# Local task trackers
+tasks/todo.md
+

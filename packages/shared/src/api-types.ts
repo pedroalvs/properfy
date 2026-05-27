@@ -4984,7 +4984,7 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
-                                hasActivePortalToken?: boolean;
+                                hasActivePortalToken: boolean;
                             };
                         };
                     };

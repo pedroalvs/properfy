@@ -1,8 +1,0 @@
-  /** 026 B1 — find groups that can accept a batch of appointments. */
-  findAddableForAppointments(params: {
-    tenantId: string;
-    serviceTypeId: string;
-    scheduledDate: Date;
-    timeSlot: string;
-    batchSize: number;
-  }): Promise<import('../application/use-cases/find-addable-groups-for-appointments.use-case').AddableGroupSummary[]>;
