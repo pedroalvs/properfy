@@ -231,9 +231,8 @@ Templates are configurable per agency (logo, custom text, signature, dynamic var
 
 ## 12. CI/CD pipeline
 
-1. **PR to `develop`:** lint → typecheck → tests → Prisma migration dry-run → build (all green to merge)
-2. **After merge to `develop`:** deploy to `staging` (VPS/Portainer) → smoke test
-3. **Promote `develop` → `main`:** deploy to `prod` (Fly.io)
+1. **PR to `main`:** lint → typecheck → tests → Prisma migration dry-run → build (all green to merge)
+2. **After merge:** deploy to `staging` (VPS/Portainer) → smoke test → deploy to `prod` (Fly.io)
 3. Migrations: always in `staging` first, then `prod`. Pattern: expand/contract.
 4. Rollback: automatic by health check in prod; manual by release/tag.
 5. Deploy window: from 09:00 Brazil (23:00 Sydney reference).

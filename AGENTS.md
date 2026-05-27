@@ -1,6 +1,6 @@
-# Properfy – Project-level guidance for AI agents
+# Properfy – Project-level guidance for Claude Code
 
-This file gives you high-level guidance about the Properfy system when working from the repository root.
+This file gives you (Claude Code) high-level guidance about the Properfy system when working from the repository root.
 
 The repository is a **monorepo** composed of:
 
@@ -230,9 +230,8 @@ Templates are configurable per agency (logo, custom text, signature, dynamic var
 
 ## 12. CI/CD pipeline
 
-1. **PR to `develop`:** lint → typecheck → tests → Prisma migration dry-run → build (all green to merge)
-2. **After merge to `develop`:** deploy to `staging` (VPS/Portainer) → smoke test
-3. **Promote `develop` → `main`:** deploy to `prod` (Fly.io)
+1. **PR to `main`:** lint → typecheck → tests → Prisma migration dry-run → build (all green to merge)
+2. **After merge:** deploy to `staging` (VPS/Portainer) → smoke test → deploy to `prod` (Fly.io)
 3. Migrations: always in `staging` first, then `prod`. Pattern: expand/contract.
 4. Rollback: automatic by health check in prod; manual by release/tag.
 5. Deploy window: from 09:00 Brazil (23:00 Sydney reference).
@@ -240,11 +239,11 @@ Templates are configurable per agency (logo, custom text, signature, dynamic var
 
 ---
 
-## 13. Conventions for AI agents
+## 13. Conventions for Claude Code
 
-When you implement or modify code in this project:
+When you (Claude Code) implement or modify code in this project:
 
-1. **Read the relevant workspace documentation** (CLAUDE.md, AGENTS.md) before touching workspace code.
+1. **Read the relevant workspace CLAUDE.md** before touching workspace code.
 2. **Respect the state machine** – transitions, actors and side effects are formally defined.
 3. **Maintain multi-tenant safety** – always include `tenant_id` in queries and validate scope.
 4. **Follow Clean Architecture** – domain has no dependencies; application orchestrates; infrastructure implements ports.
@@ -276,7 +275,7 @@ When you implement or modify code in this project:
 
 ## 15. External dependencies
 
-1. SMS: MobileMessage (mobilemessage.com.au)
+1. SMS: Twilio or Zenvia
 2. Transactional email: Resend
 3. Maps and geocoding: Mapbox
 4. Database and storage: Supabase (PostgreSQL + S3-compatible storage)
@@ -300,7 +299,7 @@ When you implement or modify code in this project:
 ### Self-improvement
 
 - After completing a task, reflect on what went well and what could improve.
-- If you discover a recurring pattern or convention not yet documented, propose adding it to the relevant project documentation.
+- If you discover a recurring pattern or convention not yet documented, propose adding it to the relevant CLAUDE.md.
 - Capture reusable lessons in memory so future conversations benefit.
 
 ### Verification
