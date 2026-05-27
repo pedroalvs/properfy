@@ -58,7 +58,7 @@ describe('CreateNotificationUseCase — enqueue instrumentation', () => {
 
     // The start log must have fired BEFORE enqueue
     const startCallOrder = logger.info.mock.invocationCallOrder.find((_, i) => {
-      const [ctx, msg] = logger.info.mock.calls[i] as [any, string];
+      const [_ctx, msg] = logger.info.mock.calls[i] as [any, string];
       return msg === 'notification.enqueue_start';
     });
     const enqueueCallOrder = jobQueue.enqueue.mock.invocationCallOrder[0];
