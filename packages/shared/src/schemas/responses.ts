@@ -233,7 +233,7 @@ export const appointmentResponseSchema = z.object({
   notes: z.string().nullable(),
   tenantNote: z.string().nullable().optional(),
   hasTenantNote: z.boolean().optional(),
-  hasActivePortalToken: z.boolean().optional(),
+  hasActivePortalToken: z.boolean(),
   customFieldsJson: z.unknown().nullable().optional(),
   reason: z.string().nullable().optional(),
   cancellationReasonCode: z.string().nullable().optional(),

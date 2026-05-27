@@ -1,0 +1,90 @@
+<h2>Offers — Toggle Lista / Mapa</h2>
+<p class="subtitle">Como deve ser o seletor de visualização no topo? Veja duas opções de posicionamento e estilo.</p>
+
+<div class="split">
+  <div class="mockup" data-choice="a" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="mockup-header">A — Pill toggle integrado ao header</div>
+    <div class="mockup-body" style="font-family:sans-serif;font-size:12px">
+      <!-- TopBar -->
+      <div style="background:white;border-bottom:1px solid #f1f5f9;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:14px">Marketplace</span>
+        <!-- Pill toggle right side of topbar -->
+        <div style="display:flex;background:#f1f5f9;border-radius:20px;padding:2px;gap:1px">
+          <div style="background:#1e40af;color:white;border-radius:18px;padding:4px 12px;font-size:11px;font-weight:700">Lista</div>
+          <div style="color:#64748b;border-radius:18px;padding:4px 12px;font-size:11px;font-weight:600">Mapa</div>
+        </div>
+      </div>
+      <!-- Summary card -->
+      <div style="background:linear-gradient(135deg,rgba(239,246,255,0.96),rgba(224,231,255,0.92));border-radius:16px;margin:8px;padding:10px">
+        <div style="font-size:10px;font-weight:700;color:#2563eb;letter-spacing:0.1em">OPEN WORK</div>
+        <div style="font-size:16px;font-weight:700;margin-top:3px">3 available offers</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px">Review grouped inspections</div>
+      </div>
+      <!-- Offer card -->
+      <div style="border:1px solid #e2e8f0;border-radius:12px;margin:0 8px 6px;padding:8px;background:white">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;border-bottom:1px solid #f8fafc;padding-bottom:4px">
+          <span style="font-size:10px;color:#64748b">10 May · 8:00AM – 12:00PM</span>
+          <span style="font-size:11px;font-weight:700">A$525.98</span>
+        </div>
+        <div style="font-weight:600;font-size:12px">Routine Inspection</div>
+        <div style="font-size:10px;color:#64748b;margin-top:2px">📍 Parramatta · Westmead · Wentworthville</div>
+        <div style="font-size:10px;color:#2563eb;margin-top:2px">🏠 27 inspections</div>
+      </div>
+      <div style="border:1px solid #e2e8f0;border-radius:12px;margin:0 8px;padding:8px;background:white">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;border-bottom:1px solid #f8fafc;padding-bottom:4px">
+          <span style="font-size:10px;color:#64748b">11 May · 8:00AM – 12:00PM</span>
+          <span style="font-size:11px;font-weight:700">A$320.00</span>
+        </div>
+        <div style="font-weight:600;font-size:12px">Routine Inspection</div>
+        <div style="font-size:10px;color:#64748b;margin-top:2px">📍 Harris Park · Rosehill</div>
+        <div style="font-size:10px;color:#2563eb;margin-top:2px">🏠 18 inspections</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup" data-choice="b" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="mockup-header">B — Barra full-width abaixo do header</div>
+    <div class="mockup-body" style="font-family:sans-serif;font-size:12px">
+      <!-- TopBar -->
+      <div style="background:white;border-bottom:1px solid #f1f5f9;padding:10px 12px">
+        <span style="font-weight:700;font-size:14px">Marketplace</span>
+      </div>
+      <!-- Full-width segmented control -->
+      <div style="display:flex;background:#f1f5f9;margin:8px;border-radius:10px;padding:3px">
+        <div style="flex:1;background:white;border-radius:8px;padding:7px;text-align:center;font-size:12px;font-weight:700;color:#1e293b;box-shadow:0 1px 3px rgba(0,0,0,0.08)">
+          ☰ Lista
+        </div>
+        <div style="flex:1;border-radius:8px;padding:7px;text-align:center;font-size:12px;font-weight:600;color:#64748b">
+          🗺 Mapa
+        </div>
+      </div>
+      <!-- Summary card -->
+      <div style="background:linear-gradient(135deg,rgba(239,246,255,0.96),rgba(224,231,255,0.92));border-radius:16px;margin:0 8px 8px;padding:10px">
+        <div style="font-size:10px;font-weight:700;color:#2563eb;letter-spacing:0.1em">OPEN WORK</div>
+        <div style="font-size:16px;font-weight:700;margin-top:3px">3 available offers</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px">Review grouped inspections</div>
+      </div>
+      <!-- Offer card -->
+      <div style="border:1px solid #e2e8f0;border-radius:12px;margin:0 8px 6px;padding:8px;background:white">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;border-bottom:1px solid #f8fafc;padding-bottom:4px">
+          <span style="font-size:10px;color:#64748b">10 May · 8:00AM – 12:00PM</span>
+          <span style="font-size:11px;font-weight:700">A$525.98</span>
+        </div>
+        <div style="font-weight:600;font-size:12px">Routine Inspection</div>
+        <div style="font-size:10px;color:#64748b;margin-top:2px">📍 Parramatta · Westmead · Wentworthville</div>
+        <div style="font-size:10px;color:#2563eb;margin-top:2px">🏠 27 inspections</div>
+      </div>
+      <div style="border:1px solid #e2e8f0;border-radius:12px;margin:0 8px;padding:8px;background:white">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;border-bottom:1px solid #f8fafc;padding-bottom:4px">
+          <span style="font-size:10px;color:#64748b">11 May · 8:00AM – 12:00PM</span>
+          <span style="font-size:11px;font-weight:700">A$320.00</span>
+        </div>
+        <div style="font-weight:600;font-size:12px">Routine Inspection</div>
+        <div style="font-size:10px;color:#64748b;margin-top:2px">📍 Harris Park · Rosehill</div>
+        <div style="font-size:10px;color:#2563eb;margin-top:2px">🏠 18 inspections</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px;font-size:12px">Em ambos, ao mudar para Mapa o conteúdo abaixo troca para o mapa com pins. Qual posicionamento do toggle prefere?</p>

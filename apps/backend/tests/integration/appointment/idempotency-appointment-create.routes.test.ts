@@ -72,6 +72,7 @@ function makeAppointmentResult(id: string) {
     updatedAt: new Date().toISOString(),
     contacts: [],
     restrictions: [],
+    hasActivePortalToken: false,
   };
 }
 

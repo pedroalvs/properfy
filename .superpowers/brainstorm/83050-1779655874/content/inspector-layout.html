@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inspector Breakdown Layout</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', 'Segoe UI', sans-serif; background: #F5F5F5; color: rgba(0,0,0,0.87); padding: 24px; }
+
+  h1 { font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700; color: #21566E; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: rgba(0,0,0,0.6); margin-bottom: 24px; }
+  .question { font-size: 14px; font-weight: 700; color: #21566E; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .options-grid { display: flex; flex-direction: column; gap: 24px; }
+
+  .option-block {
+    border: 2.5px solid transparent;
+    border-radius: 8px;
+    background: #fff;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+  .option-block:hover { border-color: #009DD9; box-shadow: 0 2px 12px rgba(0,157,217,0.15); }
+  .option-block.selected { border-color: #009DD9; box-shadow: 0 0 0 3px rgba(0,157,217,0.18); }
+  .option-block.selected::after {
+    content: '✓ Selecionado';
+    position: absolute;
+    top: 12px; right: 14px;
+    background: #009DD9; color: #fff;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 12px;
+  }
+
+  .option-label {
+    font-size: 13px; font-weight: 800; color: #21566E;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .option-label span { font-size: 11px; color: rgba(0,0,0,0.5); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+  .mock-wrap { background: #F5F5F5; border-radius: 6px; padding: 12px; }
+
+  .pros-cons { display: flex; gap: 16px; margin-top: 12px; font-size: 12px; }
+  .pro { color: #2E7D32; }
+  .con { color: #C62828; }
+  .pro::before { content: '✓ '; }
+  .con::before { content: '✗ '; }
+
+  /* ─── OPÇÃO A: Três cards lado a lado ─── */
+  .three-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .insp-card { background: #fff; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+  .insp-card-header { padding: 8px 12px; font-size: 11px; font-weight: 800; color: #21566E; border-bottom: 1px solid #E0E0E0; display: flex; align-items: center; gap: 6px; }
+  .insp-card-header .icon { font-size: 13px; }
+  .insp-row { display: flex; align-items: center; padding: 6px 12px; border-bottom: 1px solid #F5F5F5; gap: 8px; }
+  .insp-row:last-child { border-bottom: none; }
+  .insp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .insp-name { font-size: 12px; flex: 1; color: rgba(0,0,0,0.87); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .insp-count { font-size: 13px; font-weight: 800; color: #21566E; min-width: 28px; text-align: right; }
+  .dot-ok { background: #9E9E9E; }
+  .dot-yellow { background: #FB8C00; }
+  .dot-red { background: #FF5252; }
+  .count-red { color: #FF5252; }
+  .count-yellow { color: #FB8C00; }
+
+  /* ─── OPÇÃO B: Card único com tabs ─── */
+  .tab-bar { display: flex; border-bottom: 2px solid #E0E0E0; margin-bottom: 0; }
+  .tab { padding: 7px 12px; font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.5); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .tab.active { color: #009DD9; border-bottom-color: #009DD9; }
+  .tab-content { background: #fff; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+  .tab-panel { padding: 4px 0; }
+
+  /* ─── OPÇÃO C: Barras horizontais ─── */
+  .bar-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .bar-card { background: #fff; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+  .bar-header { padding: 8px 12px; font-size: 11px; font-weight: 800; color: #21566E; border-bottom: 1px solid #E0E0E0; }
+  .bar-row { padding: 6px 12px; border-bottom: 1px solid #F5F5F5; }
+  .bar-row:last-child { border-bottom: none; }
+  .bar-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+  .bar-name { font-size: 11px; color: rgba(0,0,0,0.7); }
+  .bar-num { font-size: 11px; font-weight: 800; }
+  .bar-track { height: 5px; background: #E0E0E0; border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .ok-fill { background: #41A69D; }
+  .yellow-fill { background: #FB8C00; }
+  .red-fill { background: #FF5252; }
+</style>
+</head>
+<body>
+
+<h1>Seção de Inspetores (AM/OP)</h1>
+<p class="subtitle">Três breakdowns por inspetor: amanhã com alertas · agendados esta semana · confirmados esta semana</p>
+<p class="question">Como exibir os dados por inspetor?</p>
+
+<div class="options-grid">
+
+  <!-- OPÇÃO A: Três cards separados com lista -->
+  <div class="option-block" onclick="select(this, 'a')">
+    <div class="option-label">A — Três cards com lista + ponto de alerta <span>Consistente com PendingActionsCard</span></div>
+    <div class="mock-wrap">
+      <div class="three-cards">
+        <!-- Tomorrow -->
+        <div class="insp-card">
+          <div class="insp-card-header"><span class="icon">📅</span> Tomorrow's Load</div>
+          <div class="insp-row">
+            <div class="insp-dot dot-red"></div>
+            <div class="insp-name">John Smith</div>
+            <div class="insp-count count-red">19</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-yellow"></div>
+            <div class="insp-name">Maria Lima</div>
+            <div class="insp-count count-yellow">15</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Carlos Perez</div>
+            <div class="insp-count">8</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Ana Torres</div>
+            <div class="insp-count">5</div>
+          </div>
+        </div>
+        <!-- Scheduled Week -->
+        <div class="insp-card">
+          <div class="insp-card-header"><span class="icon">📆</span> Scheduled This Week</div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">John Smith</div>
+            <div class="insp-count">32</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Maria Lima</div>
+            <div class="insp-count">28</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Carlos Perez</div>
+            <div class="insp-count">12</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Ana Torres</div>
+            <div class="insp-count">9</div>
+          </div>
+        </div>
+        <!-- Confirmed Week -->
+        <div class="insp-card">
+          <div class="insp-card-header"><span class="icon">✅</span> Confirmed This Week</div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">John Smith</div>
+            <div class="insp-count">25</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Maria Lima</div>
+            <div class="insp-count">19</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Carlos Perez</div>
+            <div class="insp-count">10</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Ana Torres</div>
+            <div class="insp-count">7</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <span class="pro">Scan rápido · alertas visíveis de imediato</span>
+      <span class="con">Muito espaço horizontal — pode ficar estreito</span>
+    </div>
+  </div>
+
+  <!-- OPÇÃO B: Card único com tabs -->
+  <div class="option-block" onclick="select(this, 'b')">
+    <div class="option-label">B — Card único com tabs <span>Uma visão por vez</span></div>
+    <div class="mock-wrap">
+      <div class="tab-content">
+        <div class="tab-bar">
+          <div class="tab active">📅 Tomorrow</div>
+          <div class="tab">📆 Sched. Week</div>
+          <div class="tab">✅ Confirmed Week</div>
+        </div>
+        <div class="tab-panel">
+          <div class="insp-row">
+            <div class="insp-dot dot-red"></div>
+            <div class="insp-name">John Smith</div>
+            <div class="insp-count count-red">19 <span style="font-size:9px;color:#FF5252;font-weight:400">⚠ sobrecarga</span></div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-yellow"></div>
+            <div class="insp-name">Maria Lima</div>
+            <div class="insp-count count-yellow">15 <span style="font-size:9px;color:#FB8C00;font-weight:400">⚠ atenção</span></div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Carlos Perez</div>
+            <div class="insp-count">8</div>
+          </div>
+          <div class="insp-row">
+            <div class="insp-dot dot-ok"></div>
+            <div class="insp-name">Ana Torres</div>
+            <div class="insp-count">5</div>
+          </div>
+          <div style="padding: 6px 12px; font-size: 10px; color: rgba(0,0,0,0.4); border-top: 1px solid #F0F0F0;">
+            ⚠ Amarelo ≥15 · Vermelho ≥18 inspeções/dia
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <span class="pro">Compacto · economiza espaço</span>
+      <span class="con">Requer clique para ver outras views · alertas menos imediatos</span>
+    </div>
+  </div>
+
+  <!-- OPÇÃO C: Barras horizontais nos três cards -->
+  <div class="option-block" onclick="select(this, 'c')">
+    <div class="option-label">C — Três cards com barras de progresso <span>Visualização da carga relativa</span></div>
+    <div class="mock-wrap">
+      <div class="bar-cards">
+        <!-- Tomorrow -->
+        <div class="bar-card">
+          <div class="bar-header">📅 Tomorrow's Load</div>
+          <div class="bar-row">
+            <div class="bar-top">
+              <span class="bar-name">John Smith</span>
+              <span class="bar-num" style="color:#FF5252">19</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill red-fill" style="width:100%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-top">
+              <span class="bar-name">Maria Lima</span>
+              <span class="bar-num" style="color:#FB8C00">15</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill yellow-fill" style="width:79%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-top">
+              <span class="bar-name">Carlos Perez</span>
+              <span class="bar-num">8</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:42%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-top">
+              <span class="bar-name">Ana Torres</span>
+              <span class="bar-num">5</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:26%"></div></div>
+          </div>
+        </div>
+        <!-- Scheduled Week -->
+        <div class="bar-card">
+          <div class="bar-header">📆 Scheduled Week</div>
+          <div class="bar-row">
+            <div class="bar-top"><span class="bar-name">John Smith</span><span class="bar-num">32</span></div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:100%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-top"><span class="bar-name">Maria Lima</span><span class="bar-num">28</span></div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:87%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-top"><span class="bar-name">Carlos Perez</span><span class="bar-num">12</span></div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:37%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-top"><span class="bar-name">Ana Torres</span><span class="bar-num">9</span></div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:28%"></div></div>
+          </div>
+        </div>
+        <!-- Confirmed Week -->
+        <div class="bar-card">
+          <div class="bar-header">✅ Confirmed Week</div>
+          <div class="bar-row">
+            <div class="bar-top"><span class="bar-name">John Smith</span><span class="bar-num">25</span></div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:100%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-top"><span class="bar-name">Maria Lima</span><span class="bar-num">19</span></div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:76%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-top"><span class="bar-name">Carlos Perez</span><span class="bar-num">10</span></div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:40%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-top"><span class="bar-name">Ana Torres</span><span class="bar-num">7</span></div>
+            <div class="bar-track"><div class="bar-fill ok-fill" style="width:28%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:rgba(0,0,0,0.4);padding:0 2px;">
+        ⚠ Barra vermelha = sobrecarga (≥18/dia) · amarela = atenção (≥15/dia) · barra relativa ao maior valor do grupo
+      </div>
+    </div>
+    <div class="pros-cons">
+      <span class="pro">Distribuição de carga visual imediata · destaque natural dos outliers</span>
+      <span class="con">Barra relativa pode enganar (100% = maior, não = máximo absoluto)</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function select(el, choice) {
+  document.querySelectorAll('.option-block').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  if (window.__companion_select) window.__companion_select(choice, el.querySelector('.option-label').textContent.trim());
+}
+</script>
+</body>
+</html>

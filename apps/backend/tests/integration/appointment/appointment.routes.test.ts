@@ -95,6 +95,7 @@ const appointmentResult = {
     secondaryPhone: null,
   },
   restrictions: [],
+  hasActivePortalToken: false,
 };
 
 const statusTransitionResult = {

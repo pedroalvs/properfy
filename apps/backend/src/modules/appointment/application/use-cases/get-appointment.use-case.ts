@@ -163,7 +163,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
       notes: r.notes,
       source: r.source,
     })),
-    hasActivePortalToken: appointment.activeConfirmationCycleId !== null,
+    hasActivePortalToken: found.hasActivePortalToken,
   };
 }
 

@@ -1,0 +1,96 @@
+<h2>Schedule — UX da Lista</h2>
+<p class="subtitle">O design atual tem um strip de dias no topo (selector horizontal). Você quer substituir ou manter as duas vistas?</p>
+
+<div class="split">
+  <div class="mockup" data-choice="a" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="mockup-header">A — Substituir: lista contínua newest→oldest</div>
+    <div class="mockup-body" style="font-family:sans-serif;font-size:12px">
+      <!-- TopBar -->
+      <div style="background:white;border-bottom:1px solid #f1f5f9;padding:10px 12px;font-weight:700;font-size:14px">Schedule</div>
+      <!-- Date group: hoje -->
+      <div style="padding:6px 12px;background:#f8fafc;font-size:10px;font-weight:700;color:#475569;letter-spacing:0.08em">24 MAY — TODAY</div>
+      <div style="border-bottom:1px solid #f1f5f9;padding:8px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:2px">8:00AM – 12:00PM · Code: 474772</div>
+            <div style="font-weight:600;font-size:12px;color:#1e293b">Routine Inspection — Stone Real Estate</div>
+            <div style="font-size:10px;color:#64748b;margin-top:1px">5 Roman St, North Parramatta NSW 2151</div>
+            <div style="font-size:10px;color:#64748b">GEN-c3c44be7</div>
+          </div>
+        </div>
+      </div>
+      <div style="border-bottom:1px solid #f1f5f9;padding:8px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:2px">8:00AM – 12:00PM · Code: 471698</div>
+            <div style="font-weight:600;font-size:12px;color:#1e293b">Routine Inspection — OMG Properties</div>
+            <div style="font-size:10px;color:#64748b">Unit 714 Albert St, North Parramatta</div>
+            <div style="font-size:10px;color:#64748b">GEN-169dbdf5</div>
+          </div>
+          <span style="font-size:9px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;font-weight:600;white-space:nowrap">Pending conf.</span>
+        </div>
+      </div>
+      <!-- Date group: ontem -->
+      <div style="padding:6px 12px;background:#f8fafc;font-size:10px;font-weight:700;color:#475569;letter-spacing:0.08em">23 MAY</div>
+      <div style="border-bottom:1px solid #f1f5f9;padding:8px 12px">
+        <div style="font-size:11px;color:#64748b;margin-bottom:2px">8:00AM – 12:00PM · Code: 471646</div>
+        <div style="font-weight:600;font-size:12px;color:#1e293b">Routine Inspection — Vogue PM</div>
+        <div style="font-size:10px;color:#64748b">GEN-4891e21f</div>
+      </div>
+      <div style="padding:6px 12px;background:#f8fafc;font-size:10px;font-weight:700;color:#475569;letter-spacing:0.08em">30 APR</div>
+      <div style="padding:8px 12px">
+        <div style="font-size:11px;color:#64748b;margin-bottom:2px">8:00AM – 12:00PM · Code: 469476</div>
+        <div style="font-weight:600;font-size:12px;color:#1e293b">Routine Inspection — Stone Real Estate</div>
+        <div style="font-size:10px;color:#64748b">GEN-1da8c4e0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup" data-choice="b" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="mockup-header">B — Manter strip de dias + adicionar aba "History"</div>
+    <div class="mockup-body" style="font-family:sans-serif;font-size:12px">
+      <!-- TopBar -->
+      <div style="background:white;border-bottom:1px solid #f1f5f9;padding:10px 12px;font-weight:700;font-size:14px">Schedule</div>
+      <!-- Tab bar -->
+      <div style="display:flex;border-bottom:2px solid #f1f5f9">
+        <div style="flex:1;text-align:center;padding:8px;font-weight:700;font-size:12px;color:#1e40af;border-bottom:2px solid #1e40af;margin-bottom:-2px">Upcoming</div>
+        <div style="flex:1;text-align:center;padding:8px;font-weight:600;font-size:12px;color:#94a3b8">History</div>
+      </div>
+      <!-- Day strip (existing) -->
+      <div style="display:flex;gap:6px;overflow:hidden;padding:8px 12px;background:#f8fafc">
+        <div style="background:#1e40af;color:white;border-radius:12px;padding:4px 8px;font-size:10px;font-weight:700;min-width:36px;text-align:center">
+          <div>24</div><div style="font-size:8px">SAT</div>
+        </div>
+        <div style="border:1px solid #e2e8f0;border-radius:12px;padding:4px 8px;font-size:10px;min-width:36px;text-align:center;background:white">
+          <div>25</div><div style="font-size:8px;color:#94a3b8">SUN</div>
+        </div>
+        <div style="border:1px solid #e2e8f0;border-radius:12px;padding:4px 8px;font-size:10px;min-width:36px;text-align:center;background:white;position:relative">
+          <div>26</div><div style="font-size:8px;color:#94a3b8">MON</div>
+          <div style="position:absolute;top:2px;right:2px;width:5px;height:5px;background:#f59e0b;border-radius:50%"></div>
+        </div>
+        <div style="border:1px solid #e2e8f0;border-radius:12px;padding:4px 8px;font-size:10px;min-width:36px;text-align:center;background:white">
+          <div>27</div><div style="font-size:8px;color:#94a3b8">TUE</div>
+        </div>
+        <div style="color:#94a3b8;padding:4px 4px;font-size:10px;display:flex;align-items:center">→</div>
+      </div>
+      <!-- Day content -->
+      <div style="padding:6px 12px;background:#f8fafc;font-size:10px;font-weight:700;color:#1e40af">TODAY · 2 appointments</div>
+      <div style="border-bottom:1px solid #f1f5f9;padding:8px 12px">
+        <div style="font-size:11px;color:#64748b;margin-bottom:2px">8:00AM – 12:00PM · Code: 474772</div>
+        <div style="font-weight:600;font-size:12px;color:#1e293b">Routine Inspection — Stone Real Estate</div>
+        <div style="font-size:10px;color:#64748b">5 Roman St, North Parramatta NSW 2151</div>
+      </div>
+      <div style="padding:8px 12px">
+        <div style="font-size:11px;color:#64748b;margin-bottom:2px">8:00AM – 12:00PM · Code: 471698</div>
+        <div style="font-weight:600;font-size:12px;color:#1e293b">Routine Inspection — OMG Properties</div>
+        <div style="font-size:10px;color:#64748b">Unit 714 Albert St, North Parramatta</div>
+        <span style="font-size:9px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;font-weight:600">Pending confirmation</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px;font-size:12px">
+  <strong>A</strong> — UX mais simples, scroll único, sem strip de dias. Histórico incluído naturalmente na scroll.<br>
+  <strong>B</strong> — Mantém o comportamento atual + adiciona aba "History" separada para o passado.
+</p>

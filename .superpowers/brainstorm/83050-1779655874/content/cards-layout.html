@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Cards Layout</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', 'Segoe UI', sans-serif; background: #F5F5F5; color: rgba(0,0,0,0.87); padding: 24px; }
+
+  h1 { font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700; color: #21566E; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: rgba(0,0,0,0.6); margin-bottom: 24px; }
+  .question { font-size: 14px; font-weight: 700; color: #21566E; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .options-grid { display: flex; flex-direction: column; gap: 20px; }
+
+  .option-block {
+    border: 2.5px solid transparent;
+    border-radius: 8px;
+    background: #fff;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+  .option-block:hover { border-color: #009DD9; box-shadow: 0 2px 12px rgba(0,157,217,0.15); }
+  .option-block.selected { border-color: #009DD9; box-shadow: 0 0 0 3px rgba(0,157,217,0.18); }
+  .option-block.selected::after {
+    content: '✓ Selecionado';
+    position: absolute;
+    top: 12px; right: 14px;
+    background: #009DD9; color: #fff;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 12px;
+  }
+
+  .option-label {
+    font-size: 13px; font-weight: 800; color: #21566E;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .option-label span { font-size: 11px; color: rgba(0,0,0,0.5); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+  /* MOCK CARDS */
+  .mock-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .stat { background: #fff; border-left: 4px solid; border-radius: 4px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; flex: 1; min-width: 100px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .stat-icon { font-size: 18px; width: 22px; text-align: center; }
+  .stat-text { }
+  .stat-num { font-size: 15px; font-weight: 800; }
+  .stat-label { font-size: 10px; color: rgba(0,0,0,0.5); white-space: nowrap; }
+
+  .section-label {
+    font-size: 10px; font-weight: 700; color: rgba(0,0,0,0.4);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin: 10px 0 6px;
+    border-top: 1px solid #E0E0E0; padding-top: 8px;
+  }
+
+  .badge { display: inline-block; background: #E0E0E0; border-radius: 3px; font-size: 9px; padding: 1px 5px; font-weight: 700; color: #555; margin-left: 4px; }
+  .badge.new { background: #E3F2FD; color: #1565C0; }
+
+  .pros-cons { display: flex; gap: 12px; margin-top: 12px; font-size: 12px; }
+  .pros { color: #2E7D32; }
+  .cons { color: #C62828; }
+  .pros::before { content: '✓ '; }
+  .cons::before { content: '✗ '; }
+
+  /* Mock wrapper bg */
+  .mock-wrap { background: #F5F5F5; border-radius: 6px; padding: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Dashboard — Novos Summary Cards</h1>
+<p class="subtitle">Hoje: 4 cards. Com os 3 novos (Rejected, Done This Week, Scheduled This Week) ficamos com 7. Como organizar?</p>
+<p class="question">Qual layout de summary cards você prefere?</p>
+
+<div class="options-grid">
+
+  <!-- OPÇÃO A: Duas linhas temáticas -->
+  <div class="option-block" onclick="select(this, 'a')">
+    <div class="option-label">A — Duas linhas temáticas <span>Status na linha 1 · Temporal na linha 2</span></div>
+    <div class="mock-wrap">
+      <div class="section-label">Status atual</div>
+      <div class="mock-row">
+        <div class="stat" style="border-color:#CE93D8">
+          <div class="stat-icon" style="color:#CE93D8">📝</div>
+          <div class="stat-text"><div class="stat-num">12</div><div class="stat-label">Draft</div></div>
+        </div>
+        <div class="stat" style="border-color:#FFB74D">
+          <div class="stat-icon" style="color:#FFB74D">⏳</div>
+          <div class="stat-text"><div class="stat-num">8</div><div class="stat-label">Awaiting Inspector</div></div>
+        </div>
+        <div class="stat" style="border-color:#4FC3F7">
+          <div class="stat-icon" style="color:#4FC3F7">📅</div>
+          <div class="stat-text"><div class="stat-num">34</div><div class="stat-label">Scheduled</div></div>
+        </div>
+        <div class="stat" style="border-color:#EF9A9A">
+          <div class="stat-icon" style="color:#EF9A9A">🚫</div>
+          <div class="stat-text"><div class="stat-num">21</div><div class="stat-label">Rejected <span class="badge new">NEW</span></div></div>
+        </div>
+      </div>
+      <div class="section-label">Performance temporal</div>
+      <div class="mock-row">
+        <div class="stat" style="border-color:#A5D6A7">
+          <div class="stat-icon" style="color:#A5D6A7">✅</div>
+          <div class="stat-text"><div class="stat-num">18</div><div class="stat-label">Done This Week <span class="badge new">NEW</span></div></div>
+        </div>
+        <div class="stat" style="border-color:#66BB6A">
+          <div class="stat-icon" style="color:#66BB6A">✅</div>
+          <div class="stat-text"><div class="stat-num">67</div><div class="stat-label">Done This Month</div></div>
+        </div>
+        <div class="stat" style="border-color:#4FC3F7">
+          <div class="stat-icon" style="color:#4FC3F7">📆</div>
+          <div class="stat-text"><div class="stat-num">47</div><div class="stat-label">Scheduled Week <span class="badge new">NEW</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <span class="pros">Semântica clara — status vs tempo</span>
+      <span class="cons">Mais espaço vertical</span>
+    </div>
+  </div>
+
+  <!-- OPÇÃO B: Grid único 4+3 sem separação -->
+  <div class="option-block" onclick="select(this, 'b')">
+    <div class="option-label">B — Grid único fluído <span>4+3 sem separador visual</span></div>
+    <div class="mock-wrap">
+      <div class="mock-row">
+        <div class="stat" style="border-color:#CE93D8">
+          <div class="stat-icon" style="color:#CE93D8">📝</div>
+          <div class="stat-text"><div class="stat-num">12</div><div class="stat-label">Draft</div></div>
+        </div>
+        <div class="stat" style="border-color:#FFB74D">
+          <div class="stat-icon" style="color:#FFB74D">⏳</div>
+          <div class="stat-text"><div class="stat-num">8</div><div class="stat-label">Awaiting Inspector</div></div>
+        </div>
+        <div class="stat" style="border-color:#4FC3F7">
+          <div class="stat-icon" style="color:#4FC3F7">📅</div>
+          <div class="stat-text"><div class="stat-num">34</div><div class="stat-label">Scheduled</div></div>
+        </div>
+        <div class="stat" style="border-color:#EF9A9A">
+          <div class="stat-icon" style="color:#EF9A9A">🚫</div>
+          <div class="stat-text"><div class="stat-num">21</div><div class="stat-label">Rejected Total <span class="badge new">NEW</span></div></div>
+        </div>
+      </div>
+      <div class="mock-row">
+        <div class="stat" style="border-color:#A5D6A7">
+          <div class="stat-icon" style="color:#A5D6A7">✅</div>
+          <div class="stat-text"><div class="stat-num">18</div><div class="stat-label">Done This Week <span class="badge new">NEW</span></div></div>
+        </div>
+        <div class="stat" style="border-color:#66BB6A">
+          <div class="stat-icon" style="color:#66BB6A">✅</div>
+          <div class="stat-text"><div class="stat-num">67</div><div class="stat-label">Done This Month</div></div>
+        </div>
+        <div class="stat" style="border-color:#4FC3F7">
+          <div class="stat-icon" style="color:#4FC3F7">📆</div>
+          <div class="stat-text"><div class="stat-num">47</div><div class="stat-label">Scheduled Week <span class="badge new">NEW</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <span class="pros">Mais simples, mesmo componente</span>
+      <span class="cons">Sem agrupamento semântico</span>
+    </div>
+  </div>
+
+  <!-- OPÇÃO C: 7 cards em grid único com ícone de calendário diferente -->
+  <div class="option-block" onclick="select(this, 'c')">
+    <div class="option-label">C — Linha única com destaque <span>Rejected em vermelho mais forte, semana em faixa contrastada</span></div>
+    <div class="mock-wrap">
+      <div class="mock-row">
+        <div class="stat" style="border-color:#CE93D8">
+          <div class="stat-icon" style="color:#CE93D8">📝</div>
+          <div class="stat-text"><div class="stat-num">12</div><div class="stat-label">Draft</div></div>
+        </div>
+        <div class="stat" style="border-color:#FFB74D">
+          <div class="stat-icon" style="color:#FFB74D">⏳</div>
+          <div class="stat-text"><div class="stat-num">8</div><div class="stat-label">Awaiting</div></div>
+        </div>
+        <div class="stat" style="border-color:#4FC3F7">
+          <div class="stat-icon" style="color:#4FC3F7">📅</div>
+          <div class="stat-text"><div class="stat-num">34</div><div class="stat-label">Scheduled</div></div>
+        </div>
+        <div class="stat" style="border-color:#FF5252; background: #FFF5F5;">
+          <div class="stat-icon" style="color:#FF5252">⛔</div>
+          <div class="stat-text"><div class="stat-num" style="color:#FF5252">21</div><div class="stat-label">Rejected <span class="badge new">NEW</span></div></div>
+        </div>
+      </div>
+      <!-- Faixa "Esta Semana" -->
+      <div style="background: #E3F2FD; border-radius: 6px; padding: 8px 10px; margin-top: 4px;">
+        <div style="font-size:9px;font-weight:800;color:#1565C0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">Esta Semana</div>
+        <div class="mock-row" style="margin:0">
+          <div class="stat" style="border-color:#A5D6A7; background:#fff">
+            <div class="stat-icon" style="color:#A5D6A7">✅</div>
+            <div class="stat-text"><div class="stat-num">18</div><div class="stat-label">Done This Week</div></div>
+          </div>
+          <div class="stat" style="border-color:#66BB6A; background:#fff">
+            <div class="stat-icon" style="color:#66BB6A">✅</div>
+            <div class="stat-text"><div class="stat-num">67</div><div class="stat-label">Done This Month</div></div>
+          </div>
+          <div class="stat" style="border-color:#4FC3F7; background:#fff">
+            <div class="stat-icon" style="color:#4FC3F7">📆</div>
+            <div class="stat-text"><div class="stat-num">47</div><div class="stat-label">Sched. Week</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <span class="pros">Rejected se destaca visualmente; semana agrupada</span>
+      <span class="cons">Background azul pode conflitar com o design</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function select(el, choice) {
+  document.querySelectorAll('.option-block').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  if (window.__companion_select) window.__companion_select(choice, el.querySelector('.option-label').textContent.trim());
+}
+</script>
+</body>
+</html>
