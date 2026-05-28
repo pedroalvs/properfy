@@ -18,6 +18,8 @@ export async function getQueue(): Promise<PgBoss> {
         retryLimit: 6,
         retryBackoff: true,
         deleteAfterDays: 30,
+        // Supabase session-mode pooler caps at 15 total connections across all instances.
+        max: 2,
       });
       await b.start();
       return b;
