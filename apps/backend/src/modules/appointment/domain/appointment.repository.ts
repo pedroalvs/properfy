@@ -56,6 +56,13 @@ export interface AppointmentWithRelations {
   tenantName?: string;
   /** Tenant's appointment code prefix (e.g. "INS"), used to format appointment codes. */
   tenantAppointmentCodePrefix?: string | null;
+  /**
+   * True when at least one tenant_portal_token row satisfies:
+   * status = 'ACTIVE' AND expires_at > NOW (Node-clock).
+   * Populated by PrismaAppointmentRepository via a filtered include.
+   * Used by GetAppointmentUseCase to surface the "Copy Portal Link" button state.
+   */
+  hasActivePortalToken: boolean;
 }
 
 export interface AppointmentListItem {

@@ -31,8 +31,10 @@ export class PrismaTenantPortalTokenRepository implements ITenantPortalTokenRepo
   }
 
   async findActiveByAppointmentId(appointmentId: string): Promise<TenantPortalTokenEntity | null> {
+    // CQ-2: include expires_at > now() so ACTIVE-but-expired tokens are treated as inactive.
+    // Node clock is the authority (AC-2.5) — matches the expire-tokens worker convention.
     const row = await this.prisma.tenantPortalToken.findFirst({
-      where: { appointment_id: appointmentId, status: 'ACTIVE' },
+      where: { appointment_id: appointmentId, status: 'ACTIVE', expires_at: { gt: new Date() } },
     });
     return row ? mapToEntity(row) : null;
   }

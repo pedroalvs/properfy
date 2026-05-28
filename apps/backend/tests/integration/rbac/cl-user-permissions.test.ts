@@ -84,6 +84,7 @@ const apptStub = {
   createdByUserId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+  hasActivePortalToken: false,
 };
 
 const propertyStub = {
