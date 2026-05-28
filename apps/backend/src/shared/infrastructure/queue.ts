@@ -6,9 +6,12 @@ let bossPromise: Promise<PgBoss> | null = null;
 export async function getQueue(): Promise<PgBoss> {
   if (!bossPromise) {
     bossPromise = (async () => {
-      const connectionString = process.env['DATABASE_URL'];
+      // pg-boss requires a direct (non-pooled) connection: it uses advisory locks
+      // and LISTEN/NOTIFY which are incompatible with PgBouncer transaction mode.
+      // PG_BOSS_URL should point to the direct Supabase connection (port 5432).
+      const connectionString = process.env['PG_BOSS_URL'] ?? process.env['DATABASE_URL'];
       if (!connectionString) {
-        throw new Error('DATABASE_URL environment variable is required');
+        throw new Error('PG_BOSS_URL or DATABASE_URL environment variable is required');
       }
       const b = new PgBoss({
         connectionString,
