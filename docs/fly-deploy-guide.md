@@ -43,6 +43,12 @@ fly secrets set CORS_ORIGIN="https://app.properfy.com.br"
 # TOTP encryption key (32 bytes, hex encoded)
 # Generate with: openssl rand -hex 32
 fly secrets set TOTP_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+
+# Portal token AES-256-GCM key (32 bytes, hex encoded)
+# Used by tenant-portal to encrypt raw portal tokens at rest (feature 028).
+# Required in non-development environments — absence causes Fastify boot failure.
+# Generate with: openssl rand -hex 32
+fly secrets set PORTAL_TOKEN_ENC_KEY="$(openssl rand -hex 32)" -a properfy-api
 ```
 
 ### Optional (enable as needed)

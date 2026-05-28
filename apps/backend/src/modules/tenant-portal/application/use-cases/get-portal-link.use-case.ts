@@ -41,10 +41,9 @@ export class GetPortalLinkUseCase {
 
     const { appointment } = result;
 
-    if (!appointment.activeConfirmationCycleId) {
-      throw new NoActivePortalTokenError();
-    }
-
+    // AC-2.6: findActiveByAppointmentId is the sole authority.
+    // The previous cycle-proxy early-reject was removed — a null activeConfirmationCycleId
+    // does not mean there is no active token (legacy / bypassed paths may mint tokens directly).
     const token = await this.tokenRepo.findActiveByAppointmentId(appointmentId);
     if (!token) {
       throw new NoActivePortalTokenError();

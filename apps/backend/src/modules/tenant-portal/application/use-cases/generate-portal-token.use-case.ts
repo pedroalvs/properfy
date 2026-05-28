@@ -6,6 +6,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { MintPortalTokenService } from '../../domain/mint-portal-token.service';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 
 export interface AuthContext {
@@ -33,6 +34,7 @@ export class GeneratePortalTokenUseCase {
     /** 028 — optional. When wired, creates an initial confirmation cycle atomically with the token. */
     private readonly cycleService?: ConfirmationCycleService,
     private readonly prisma?: PrismaClient,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: GeneratePortalTokenInput) {
@@ -137,8 +139,13 @@ export class GeneratePortalTokenUseCase {
             templateCode: 'TENANT_PORTAL_LINK',
             payloadJson,
           });
-        } catch {
-          // fire-and-forget; token is already saved
+        } catch (notificationDispatchError) {
+          // fire-and-forget; token is already saved — failure must not turn the endpoint into a 500.
+          // Log the error so dispatch failures are observable (Regras invariant A.2).
+          this.logger?.error(
+            { notificationDispatchError, appointmentId: input.appointmentId, tenantId: appointment.tenantId, channel: 'EMAIL', recipient: recipientEmail },
+            'tenant_portal.notification_dispatch_failed',
+          );
         }
       }
 
@@ -153,8 +160,13 @@ export class GeneratePortalTokenUseCase {
             templateCode: 'TENANT_PORTAL_LINK',
             payloadJson,
           });
-        } catch {
-          // fire-and-forget; token is already saved
+        } catch (notificationDispatchError) {
+          // fire-and-forget; token is already saved — failure must not turn the endpoint into a 500.
+          // Log the error so dispatch failures are observable (Regras invariant A.2).
+          this.logger?.error(
+            { notificationDispatchError, appointmentId: input.appointmentId, tenantId: appointment.tenantId, channel: 'SMS', recipient: recipientPhone },
+            'tenant_portal.notification_dispatch_failed',
+          );
         }
       }
     }

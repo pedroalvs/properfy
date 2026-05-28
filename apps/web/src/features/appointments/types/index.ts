@@ -67,8 +67,8 @@ export interface AppointmentDetail extends Appointment {
   keyLocation: string | null;
   cancellationReason: string | null;
   tenantNote: string | null;
-  /** True when there is an active, non-superseded confirmation cycle with a valid portal token. */
-  hasActivePortalToken?: boolean;
+  /** True when a tenant_portal_tokens row satisfies status='ACTIVE' AND expires_at > NOW. */
+  hasActivePortalToken: boolean;
   /** Tenant (agency) display name — surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
   clientName?: string;
   /** T-C5-5 — populated when status = REJECTED; surfaced in the map detail panel red banner. */

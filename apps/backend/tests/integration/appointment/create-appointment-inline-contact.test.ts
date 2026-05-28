@@ -82,6 +82,7 @@ function makeAppointmentResult(contactOverrides: Record<string, unknown>[] = [])
     updatedAt: new Date().toISOString(),
     contacts: contactOverrides,
     restrictions: [],
+    hasActivePortalToken: false,
   };
 }
 
