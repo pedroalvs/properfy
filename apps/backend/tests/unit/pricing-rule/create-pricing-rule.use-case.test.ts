@@ -13,7 +13,7 @@ import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pric
 import { PricingRuleDuplicateError } from '../../../src/modules/pricing-rule/domain/pricing-rule.errors';
 import { ServiceTypeNotFoundError } from '../../../src/modules/service-type/domain/service-type.errors';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 
 function makeServiceType(
   overrides: Partial<ConstructorParameters<typeof ServiceTypeEntity>[0]> = {},
@@ -192,6 +192,35 @@ describe('CreatePricingRuleUseCase', () => {
     expect(result.currency).toBe('USD');
     expect(result.priceAmount).toBe(12000);
     expect(pricingRuleRepo.save).toHaveBeenCalled();
+  });
+
+  it('should create pricing rule for OP using explicit tenantId (cross-tenant)', async () => {
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findByUnique).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'st-1',
+      priceAmount: 15000,
+      payoutType: 'FIXED',
+      payoutValue: 8000,
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    expect(result.tenantId).toBe('tenant-1');
+    expect(pricingRuleRepo.save).toHaveBeenCalled();
+  });
+
+  it('should throw VALIDATION_ERROR when OP omits tenantId', async () => {
+    await expect(
+      useCase.execute({
+        serviceTypeId: 'st-1',
+        priceAmount: 15000,
+        payoutType: 'FIXED',
+        payoutValue: 8000,
+        actor: makeActor({ role: 'OP', tenantId: null }),
+      }),
+    ).rejects.toThrow(ValidationError);
   });
 
   it('should reject CL_USER', async () => {

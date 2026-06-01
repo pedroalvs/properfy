@@ -109,6 +109,21 @@ describe('UpdatePricingRuleUseCase', () => {
     );
   });
 
+  it('should scope lookup by explicit tenantId for OP (cross-tenant)', async () => {
+    vi.mocked(pricingRuleRepo.findById).mockResolvedValue(makePricingRule());
+
+    await useCase.execute({
+      pricingRuleId: 'pr-1',
+      tenantId: 'tenant-1',
+      data: { priceAmount: 20000 },
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    // OP has no own tenant; it must scope by the explicit tenantId from the
+    // request, never the null JWT tenant (which would never match a rule).
+    expect(pricingRuleRepo.findById).toHaveBeenCalledWith('pr-1', 'tenant-1');
+  });
+
   it('should throw PRICING_RULE_NOT_FOUND when not found', async () => {
     vi.mocked(pricingRuleRepo.findById).mockResolvedValue(null);
 

@@ -62,15 +62,15 @@ export class CreatePropertyUseCase {
   async execute(input: CreatePropertyInput): Promise<CreatePropertyOutput> {
     const { actor } = input;
 
-    // RBAC: only AM can create for any tenant. OP / CL_ADMIN / CL_USER are
-    // tenant-scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
+    // RBAC: AM/OP are cross-tenant and supply the target tenantId explicitly
+    // (they have no own tenant scope). CL_ADMIN / CL_USER are tenant-scoped.
     let tenantId: string;
-    if (actor.role === 'AM') {
+    if (actor.role === 'AM' || actor.role === 'OP') {
       if (!input.tenantId) {
-        throw new ValidationError('tenantId is required for AM');
+        throw new ValidationError('tenantId is required');
       }
       tenantId = input.tenantId;
-    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+    } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       tenantId = actor.tenantId!;
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');

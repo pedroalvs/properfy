@@ -51,10 +51,10 @@ export class UpdatePricingRuleUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Resolve tenantId for scoped lookup. Only AM is cross-tenant per
-    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
+    // Resolve tenantId for scoped lookup. AM/OP are cross-tenant and supply the
+    // target tenantId explicitly; CL_ADMIN is scoped to its own tenant.
     const resolvedTenantId =
-      actor.role === 'AM'
+      actor.role === 'AM' || actor.role === 'OP'
         ? input.tenantId!
         : actor.tenantId!;
 
