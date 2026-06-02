@@ -10,6 +10,9 @@ export {
   TEMPLATE_VARIABLES,
   type TemplateVariableSpec,
   type MandatoryTemplateCode,
+  IMAGE_PLACEHOLDER_REGEX,
+  isValidImagePlaceholderKey,
+  extractImagePlaceholderKeys,
 } from '@properfy/shared';
 
 export interface NotificationTemplate {
@@ -18,6 +21,7 @@ export interface NotificationTemplate {
   code: string;
   channel: NotificationChannel;
   subject: string;
+  /** Raw HTML body — source of truth for the template editor (FR-001). */
   body: string;
   active: boolean;
   /** Feature 018: classification — TRANSACTIONAL templates cannot be reclassified. */

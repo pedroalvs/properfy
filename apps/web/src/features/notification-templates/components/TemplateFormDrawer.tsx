@@ -10,6 +10,7 @@ import { TextInput } from '@/components/forms/TextInput';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateSave } from '../hooks/useTemplateSave';
+import { useTemplatePreview } from '../hooks/useTemplatePreview';
 import { SendTestEmailDialog } from './SendTestEmailDialog';
 import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
@@ -89,6 +90,14 @@ export function TemplateFormDrawer({
       updateField('body', form.body + variable);
     }
   }, [form.body, updateField]);
+
+  const { preview: livePreview, isLoading: previewLoading } = useTemplatePreview(
+    template?.code ?? '',
+    template?.channel ?? '',
+    form.body,
+    form.subject,
+    template?.tenantId,
+  );
 
   const templateVarSpec = template ? TEMPLATE_VARIABLES[template.code as keyof typeof TEMPLATE_VARIABLES] : undefined;
   const canonicalRequired: string[] = templateVarSpec ? [...templateVarSpec.required] : template?.requiredVariables ?? [];
@@ -190,10 +199,11 @@ export function TemplateFormDrawer({
                         ref={bodyRef}
                         value={form.body}
                         onChange={(e) => updateField('body', e.target.value)}
-                        className="w-full resize-none bg-transparent px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
-                        placeholder="Template body content with {{variables}}"
-                        rows={10}
+                        className="w-full resize-none bg-transparent px-3 py-2 font-mono text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+                        placeholder="<table>...</table>  Use {{variable}} for dynamic values"
+                        rows={12}
                         aria-label="Body"
+                        spellCheck={false}
                       />
                     </div>
                   </FormField>
@@ -210,9 +220,10 @@ export function TemplateFormDrawer({
 
               {template && (
                 <TemplatePreview
-                  subject={form.subject}
-                  body={form.body}
+                  subject={livePreview?.subjectRendered ?? form.subject}
+                  htmlRendered={livePreview?.htmlRendered ?? ''}
                   channel={template.channel}
+                  isLoading={previewLoading}
                 />
               )}
             </div>

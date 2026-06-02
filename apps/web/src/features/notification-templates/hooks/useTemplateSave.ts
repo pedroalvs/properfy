@@ -2,11 +2,12 @@ import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NotificationChannel } from '@properfy/shared';
-import { ALLOWED_VARIABLES, type TemplateFormData, type TemplateFormErrors } from '../types';
+import { ALLOWED_VARIABLES, IMAGE_PLACEHOLDER_REGEX, type TemplateFormData, type TemplateFormErrors } from '../types';
 
 export interface SaveResult {
   success: boolean;
   error?: string;
+  details?: Array<{ field: string; message: string }>;
 }
 
 export interface UseTemplateSaveReturn {
@@ -17,11 +18,6 @@ export interface UseTemplateSaveReturn {
 }
 
 const VARIABLE_PATTERN = /\{\{(\w+)\}\}/g;
-const HTML_TAG_PATTERN = /<[^>]+>/g;
-
-function stripHtml(html: string): string {
-  return html.replace(HTML_TAG_PATTERN, '').replace(/&nbsp;/g, ' ').trim();
-}
 
 function extractVariables(text: string): string[] {
   const matches: string[] = [];
@@ -52,33 +48,26 @@ function validateTemplate(
     errors.subject = 'HTML is not allowed in the subject line';
   }
 
-  const allText = `${data.subject} ${stripHtml(data.body)}`;
+  // Extract only Handlebars data variables (not image placeholders)
+  const bodyWithoutImagePlaceholders = data.body.replace(new RegExp(IMAGE_PLACEHOLDER_REGEX.source, 'g'), '');
+  const allText = `${data.subject} ${bodyWithoutImagePlaceholders}`;
   const usedVariables = extractVariables(allText);
-  // H7: Use per-template allowed list when available; fall back to global list
   const allowedSet = new Set<string>(allowedVariables ?? ALLOWED_VARIABLES);
   const disallowed = usedVariables.filter((v) => !allowedSet.has(v));
 
   if (disallowed.length > 0) {
     const errorMsg = `Invalid variables: ${disallowed.join(', ')}`;
-    if (!errors.body) {
-      errors.body = errorMsg;
-    } else {
-      errors.body = `${errors.body}. ${errorMsg}`;
-    }
+    errors.body = errors.body ? `${errors.body}. ${errorMsg}` : errorMsg;
   }
 
-  const bodyVariables = extractVariables(data.body);
+  const bodyVariables = extractVariables(bodyWithoutImagePlaceholders);
   const subjectVariables = extractVariables(data.subject);
   const allUsed = new Set([...bodyVariables, ...subjectVariables]);
   const missing = requiredVariables.filter((v) => !allUsed.has(v));
 
   if (missing.length > 0) {
     const missingMsg = `Missing required variables: ${missing.join(', ')}`;
-    if (!errors.body) {
-      errors.body = missingMsg;
-    } else {
-      errors.body = `${errors.body}. ${missingMsg}`;
-    }
+    errors.body = errors.body ? `${errors.body}. ${missingMsg}` : missingMsg;
   }
 
   return errors;
@@ -100,21 +89,23 @@ export function useTemplateSave(): UseTemplateSaveReturn {
   ): Promise<SaveResult> => {
     setIsSaving(true);
     try {
-      const isHtml = /<[^>]+>/.test(data.body);
-      const bodyPayload = isHtml
-        ? { bodyHtml: data.body, bodyText: stripHtml(data.body) || data.body }
-        : { bodyText: data.body };
-      const { error } = await api.PUT(
-        `/v1/notification-templates/${code}/${channel}` as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (api as any).PUT(
+        `/v1/notification-templates/${code}/${channel}`,
         {
           body: {
             subject: data.subject || undefined,
-            ...bodyPayload,
+            bodyHtml: data.body,
             isActive: data.active,
-          } as any,
+          },
         },
       );
-      if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+      if (error) {
+        const errObj = error as { error?: { message?: string; details?: Array<{ field: string; message: string }> } };
+        const message = errObj.error?.message ?? 'Request failed';
+        const details = errObj.error?.details;
+        return { success: false, error: message, details };
+      }
       setValidationErrors({});
       queryClient.invalidateQueries({ queryKey: ['notification-templates'] });
       return { success: true };

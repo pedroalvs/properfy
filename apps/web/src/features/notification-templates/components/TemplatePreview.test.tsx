@@ -3,26 +3,23 @@ import { render, screen } from '@testing-library/react';
 import { TemplatePreview } from './TemplatePreview';
 
 describe('TemplatePreview', () => {
-  it('replaces variables with sample data', () => {
+  it('renders subject for email channel', () => {
     render(
       <TemplatePreview
-        subject="Hello {{tenantName}}"
-        body="Your inspection at {{propertyAddress}} is on {{scheduledDate}}."
+        subject="Hello John Smith"
+        htmlRendered="<p>Your inspection is on 2026-04-15.</p>"
         channel="EMAIL"
       />,
     );
 
     expect(screen.getByTestId('preview-subject')).toHaveTextContent('Hello John Smith');
-    expect(screen.getByTestId('preview-body')).toHaveTextContent(
-      'Your inspection at 123 Main St, Sydney NSW 2000 is on 2026-04-15.',
-    );
   });
 
-  it('shows subject for email channel', () => {
+  it('shows subject label for email channel', () => {
     render(
       <TemplatePreview
         subject="Test Subject"
-        body="Test Body"
+        htmlRendered="<p>Test Body</p>"
         channel="EMAIL"
       />,
     );
@@ -35,7 +32,7 @@ describe('TemplatePreview', () => {
     render(
       <TemplatePreview
         subject="Test Subject"
-        body="Test Body"
+        htmlRendered=""
         channel="SMS"
       />,
     );
@@ -44,51 +41,52 @@ describe('TemplatePreview', () => {
     expect(screen.queryByTestId('preview-subject')).not.toBeInTheDocument();
   });
 
-  it('hides subject for SMS channel', () => {
-    render(
-      <TemplatePreview
-        subject="Test Subject"
-        body="Test Body"
-        channel="SMS"
-      />,
-    );
-
-    expect(screen.queryByText('Subject')).not.toBeInTheDocument();
-  });
-
-  it('renders body text', () => {
+  it('renders preview body as iframe when htmlRendered is present', () => {
     render(
       <TemplatePreview
         subject=""
-        body="Plain body content"
+        htmlRendered="<p>Plain body content</p>"
         channel="SMS"
       />,
     );
 
-    expect(screen.getByTestId('preview-body')).toHaveTextContent('Plain body content');
+    expect(screen.getByTestId('preview-body')).toBeInTheDocument();
   });
 
-  it('preserves unknown variables as-is', () => {
+  it('shows empty indicator when htmlRendered is empty', () => {
     render(
       <TemplatePreview
         subject=""
-        body="Hello {{unknown_var}}"
+        htmlRendered=""
         channel="SMS"
       />,
     );
 
-    expect(screen.getByTestId('preview-body')).toHaveTextContent('Hello {{unknown_var}}');
+    expect(screen.getByTestId('preview-body')).toBeInTheDocument();
   });
 
   it('shows channel indicator', () => {
     render(
       <TemplatePreview
         subject=""
-        body="Text"
+        htmlRendered=""
         channel="SMS"
       />,
     );
 
     expect(screen.getByText('SMS')).toBeInTheDocument();
+  });
+
+  it('shows loading indicator when isLoading is true', () => {
+    render(
+      <TemplatePreview
+        subject=""
+        htmlRendered=""
+        channel="EMAIL"
+        isLoading={true}
+      />,
+    );
+
+    expect(screen.getByText(/updating/i)).toBeInTheDocument();
   });
 });

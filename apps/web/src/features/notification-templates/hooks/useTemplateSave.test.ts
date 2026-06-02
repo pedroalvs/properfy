@@ -55,7 +55,7 @@ describe('useTemplateSave', () => {
     expect(saveResult?.success).toBe(true);
     expect(mockPut).toHaveBeenCalledWith(
       '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
-      { body: { subject: VALID_DATA.subject, bodyText: VALID_DATA.body, isActive: VALID_DATA.active } },
+      { body: { subject: VALID_DATA.subject, bodyHtml: VALID_DATA.body, isActive: VALID_DATA.active } },
     );
   });
 
@@ -102,7 +102,7 @@ describe('useTemplateSave', () => {
     expect(errors.body).toBeUndefined();
   });
 
-  it('sends bodyHtml and bodyText when body contains HTML', async () => {
+  it('sends bodyHtml verbatim (no auto-detection or bifurcation)', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateSave(), { wrapper });
 
@@ -118,7 +118,7 @@ describe('useTemplateSave', () => {
 
     expect(mockPut).toHaveBeenCalledWith(
       '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
-      { body: { subject: 'Test', bodyHtml: '<p>Hello {{tenantName}}</p>', bodyText: 'Hello {{tenantName}}', isActive: true } },
+      { body: { subject: 'Test', bodyHtml: '<p>Hello {{tenantName}}</p>', isActive: true } },
     );
   });
 
