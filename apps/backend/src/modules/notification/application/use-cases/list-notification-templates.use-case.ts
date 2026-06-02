@@ -19,7 +19,9 @@ export interface NotificationTemplateOutputItem {
   templateCode: string;
   channel: string;
   subject: string | null;
+  bodyHtml: string;
   bodyText: string;
+  imageBindings: Array<{ id: string; placeholderKey: string; assetId: string; publicUrl: string; altText: string | null; width: number | null; height: number | null }>;
   isActive: boolean;
   variables: string[];
   createdAt: string;
@@ -77,7 +79,9 @@ export class ListNotificationTemplatesUseCase {
         templateCode: t.templateCode,
         channel: t.channel,
         subject: t.subject,
+        bodyHtml: t.bodyHtml ?? '',
         bodyText: t.bodyText,
+        imageBindings: [],
         isActive: t.active,
         variables: t.variablesJson,
         createdAt: t.createdAt.toISOString(),

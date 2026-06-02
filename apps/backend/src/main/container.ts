@@ -304,6 +304,7 @@ import type { NotificationRouteContainer } from '../modules/notification/interfa
 import { createWebhookSignatureValidator } from '../modules/notification/infrastructure/webhook-signature-validator';
 import { SanitizeHtmlService } from '../modules/notification/infrastructure/sanitize-html.service';
 import { HtmlToTextService } from '../modules/notification/infrastructure/html-to-text.service';
+import { RenderTemplatePreviewUseCase } from '../modules/notification/application/use-cases/render-template-preview.use-case';
 
 // Notification handlers
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
@@ -1062,6 +1063,11 @@ export function createContainer(logger: Logger): AppContainer {
   const getNotificationUseCase = new GetNotificationUseCase(notificationRepo, authorizationService);
   const upsertNotificationTemplateUseCase = new UpsertNotificationTemplateUseCase(
     notificationTemplateRepo, templateRenderer, auditService, authorizationService,
+    htmlSanitizer, htmlToText,
+  );
+  const renderTemplatePreviewUseCase = new RenderTemplatePreviewUseCase(
+    templateRenderer, htmlSanitizer, authorizationService,
+    undefined, env.EMAIL_ASSETS_PUBLIC_URL_BASE,
   );
   const sendTestNotificationUseCase = new SendTestNotificationUseCase(
     notificationTemplateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
@@ -1487,6 +1493,7 @@ export function createContainer(logger: Logger): AppContainer {
       listNotificationsUseCase,
       getNotificationUseCase,
       upsertNotificationTemplateUseCase,
+      renderTemplatePreviewUseCase,
       sendTestNotificationUseCase,
       listNotificationTemplatesUseCase,
       createNotificationUseCase,

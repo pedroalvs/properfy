@@ -12,6 +12,8 @@ import {
   listConsentsQuerySchema,
   overrideConsentSchema,
   AU_E164_REGEX,
+  templatePreviewRequestSchema,
+  templatePreviewResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -29,6 +31,7 @@ import type { HandleProviderWebhookUseCase } from '../application/use-cases/hand
 import type { ListNotificationsUseCase } from '../application/use-cases/list-notifications.use-case';
 import type { GetNotificationUseCase } from '../application/use-cases/get-notification.use-case';
 import type { UpsertNotificationTemplateUseCase } from '../application/use-cases/upsert-notification-template.use-case';
+import type { RenderTemplatePreviewUseCase } from '../application/use-cases/render-template-preview.use-case';
 import type { SendTestNotificationUseCase } from '../application/use-cases/send-test-notification.use-case';
 import type { ListNotificationTemplatesUseCase } from '../application/use-cases/list-notification-templates.use-case';
 import type { CreateNotificationUseCase } from '../application/use-cases/create-notification.use-case';
@@ -58,6 +61,7 @@ export interface NotificationRouteContainer {
   listNotificationsUseCase: ListNotificationsUseCase;
   getNotificationUseCase: GetNotificationUseCase;
   upsertNotificationTemplateUseCase: UpsertNotificationTemplateUseCase;
+  renderTemplatePreviewUseCase: RenderTemplatePreviewUseCase;
   sendTestNotificationUseCase: SendTestNotificationUseCase;
   listNotificationTemplatesUseCase: ListNotificationTemplatesUseCase;
   createNotificationUseCase: CreateNotificationUseCase;
@@ -513,6 +517,27 @@ export async function registerNotificationRoutes(
       const result = await container.upsertNotificationTemplateUseCase.execute({
         templateCode: params.data.templateCode,
         channel: params.data.channel,
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/notification-templates/:templateCode/:channel/preview
+  app.post(
+    '/v1/notification-templates/:templateCode/:channel/preview',
+    { preHandler: authenticate, schema: { params: z.object({ templateCode: z.string(), channel: z.string() }), body: templatePreviewRequestSchema, response: { 200: successResponseSchema(templatePreviewResponseSchema) } } },
+    async (request, reply) => {
+      const params = templateParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid template parameters', params.error.errors);
+      }
+      const parsed = templatePreviewRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.renderTemplatePreviewUseCase.execute({
         ...parsed.data,
         actor: request.authContext!,
       });

@@ -91,9 +91,10 @@ const fullTemplate = {
   templateCode: 'INSPECTION_NOTICE',
   channel: 'EMAIL',
   subject: 'Inspection Notice',
-  bodyHtml: null,
-  bodyText: 'Hello {{tenantName}}',
+  bodyHtml: '<p>Hello {{tenantName}}</p>',
+  bodyText: 'Hello tenantName',
   variablesJson: ['tenantName'],
+  imageBindings: [],
   isActive: true,
   createdAt: '2026-03-16T00:00:00.000Z',
   updatedAt: '2026-03-16T00:00:00.000Z',
@@ -237,7 +238,7 @@ describe('PUT /v1/notification-templates/:templateCode/:channel', () => {
   it('should return 401 without auth', async () => {
     const res = await supertest(app.server)
       .put('/v1/notification-templates/INSPECTION_NOTICE/EMAIL')
-      .send({ bodyText: 'Hello {{tenantName}}', isActive: true });
+      .send({ bodyHtml: '<p>Hello {{tenantName}}</p>', isActive: true });
     expect(res.status).toBe(401);
   });
 
@@ -248,7 +249,7 @@ describe('PUT /v1/notification-templates/:templateCode/:channel', () => {
     const res = await supertest(app.server)
       .put('/v1/notification-templates/INSPECTION_NOTICE/EMAIL')
       .set('Authorization', 'Bearer valid-token')
-      .send({ bodyText: 'Hello {{tenantName}}', isActive: true });
+      .send({ bodyHtml: '<p>Hello {{tenantName}}</p>', isActive: true });
 
     expect(res.status).toBe(200);
     expect(res.body.data.templateCode).toBe('INSPECTION_NOTICE');

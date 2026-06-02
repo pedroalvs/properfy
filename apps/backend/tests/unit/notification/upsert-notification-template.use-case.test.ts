@@ -65,10 +65,11 @@ describe('UpsertNotificationTemplateUseCase', () => {
     useCase = new UpsertNotificationTemplateUseCase(templateRepo, templateRenderer, auditService, authorizationService);
   });
 
-  it('should throw NotificationForbiddenError for OP with null tenantId (platform default)', async () => {
-    await expect(
-      useCase.execute(makeInput({ actor: makeActor({ role: 'OP', tenantId: null }) })),
-    ).rejects.toThrow(NotificationForbiddenError);
+  it('should allow OP with null tenantId to write platform default (constitution §II)', async () => {
+    vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+    const result = await useCase.execute(makeInput({ actor: makeActor({ role: 'OP', tenantId: null }) }));
+    expect(result.tenantId).toBeNull();
+    expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
   });
 
   it('should allow OP to upsert template with own tenantId', async () => {
@@ -134,7 +135,7 @@ describe('UpsertNotificationTemplateUseCase', () => {
     expect(upsertCall.variablesJson).toContain('propertyAddress');
   });
 
-  it('should call repo.upsert with correct entity', async () => {
+  it('should call repo.upsert with correct entity (bodyText derived from bodyHtml)', async () => {
     vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
 
     await useCase.execute(makeInput());
@@ -143,7 +144,8 @@ describe('UpsertNotificationTemplateUseCase', () => {
     const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
     expect(entity.templateCode).toBe('INSPECTION_NOTICE');
     expect(entity.channel).toBe('EMAIL');
-    expect(entity.bodyText).toBe('Hello {{tenantName}}, your inspection at {{propertyAddress}} is scheduled.');
+    // bodyText is now derived from bodyHtml (htmlToText not injected → fallback to bodyHtml)
+    expect(entity.bodyText).toBe('<p>Hello {{tenantName}}</p>');
     expect(entity.active).toBe(true);
     expect(entity.tenantId).toBeNull();
   });

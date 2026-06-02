@@ -689,13 +689,21 @@ export const notificationTemplateResponseSchema = z.object({
   templateCode: z.string(),
   channel: z.string(),
   subject: z.string().nullable(),
-  bodyHtml: z.string().nullable().optional(),
+  bodyHtml: z.string(),
   bodyText: z.string(),
   variablesJson: z.unknown().optional(),
   variables: z.unknown().optional(),
   isActive: z.boolean(),
-  // Feature 018: declared classification
   notificationClass: z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']).optional(),
+  imageBindings: z.array(z.object({
+    id: z.string().uuid(),
+    placeholderKey: z.string(),
+    assetId: z.string().uuid(),
+    publicUrl: z.string(),
+    altText: z.string().nullable(),
+    width: z.number().int().nullable(),
+    height: z.number().int().nullable(),
+  })).optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });

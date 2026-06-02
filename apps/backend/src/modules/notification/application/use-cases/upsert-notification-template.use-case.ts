@@ -1,9 +1,13 @@
 import type { AuthContext, NotificationChannel, NotificationClass } from '@properfy/shared';
-import { ValidationError } from '../../../../shared/domain/errors';
+import { extractImagePlaceholderKeys } from '@properfy/shared';
+import { ValidationError, UnprocessableEntityError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
+import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service';
+import type { IHtmlToTextService } from '../../domain/html-to-text.service';
+import type { IEmailAssetRepository } from '../../domain/email-asset.repository';
 import { NotificationForbiddenError, ProtectedTemplateClassificationError } from '../../domain/notification.errors';
 import {
   MANDATORY_TEMPLATE_CODES,
@@ -18,9 +22,7 @@ export interface UpsertNotificationTemplateInput {
   templateCode: string;
   channel: string;
   subject?: string;
-  bodyHtml?: string;
-  /** @deprecated Will be removed in T015; use bodyHtml + auto-derive. */
-  bodyText?: string;
+  bodyHtml: string;
   isActive: boolean;
   notificationClass?: NotificationClass;
   actor: AuthContext;
@@ -34,7 +36,9 @@ export interface UpsertNotificationTemplateOutput {
   templateCode: string;
   channel: string;
   subject: string | null;
+  bodyHtml: string;
   bodyText: string;
+  imageBindings: Array<{ id: string; placeholderKey: string; assetId: string; publicUrl: string; altText: string | null; width: number | null; height: number | null }>;
   isActive: boolean;
   notificationClass: NotificationClass;
   createdAt: string;
@@ -47,6 +51,9 @@ export class UpsertNotificationTemplateUseCase {
     private readonly templateRenderer: TemplateRendererService,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly htmlSanitizer?: IHtmlSanitizerService,
+    private readonly htmlToText?: IHtmlToTextService,
+    private readonly emailAssetRepo?: IEmailAssetRepository,
   ) {}
 
   async execute(input: UpsertNotificationTemplateInput): Promise<UpsertNotificationTemplateOutput> {
@@ -58,55 +65,94 @@ export class UpsertNotificationTemplateUseCase {
       entityType: 'NotificationTemplate',
     });
 
-    // Tenant-scoping logic per role
+    // 2. Tenant resolution — constitution §II: AM/OP resolve from input; CL_ADMIN is pinned
     let tenantId: string | null;
     if (actor.role === 'AM') {
-      tenantId = null;
+      tenantId = input.tenantId ?? null;
     } else if (actor.role === 'OP') {
-      // OP may edit tenant-specific overrides but never platform defaults.
-      // OP is cross-tenant (tenantId is null in JWT), so platform-default writes are forbidden.
-      if (!actor.tenantId) {
-        throw new NotificationForbiddenError();
-      }
-      tenantId = actor.tenantId;
+      tenantId = input.tenantId ?? actor.tenantId ?? null;
     } else {
-      // CL_ADMIN
+      // CL_ADMIN: always pinned to actor's tenant
       tenantId = actor.tenantId;
     }
 
-    // 2. Validate templateCode
+    // 3. Validate templateCode
     if (!MANDATORY_TEMPLATE_CODES.includes(input.templateCode as typeof MANDATORY_TEMPLATE_CODES[number])) {
       throw new ValidationError('Invalid template code');
     }
 
-    // 3. Validate channel
+    // 4. Validate channel
     if (!VALID_CHANNELS.includes(input.channel as NotificationChannel)) {
       throw new ValidationError('Invalid notification channel');
     }
 
-    // 4. Feature 018: resolve and validate notification classification (FR-004, FR-005)
+    // 5. Resolve notification classification (FR-004, FR-005)
     const protectedClass = getProtectedClass(input.templateCode);
     let resolvedClass: NotificationClass;
     if (protectedClass) {
-      // Protected template codes are immutable — reject reclassification attempts
       if (input.notificationClass && input.notificationClass !== protectedClass) {
         throw new ProtectedTemplateClassificationError(input.templateCode, protectedClass);
       }
       resolvedClass = protectedClass;
     } else {
-      // Non-protected: use provided class or fall back to the default map (OPERATIONAL for most)
       resolvedClass = input.notificationClass ?? getDefaultClass(input.templateCode);
     }
 
-    // 5. Extract variables
-    const allVariables = new Set<string>();
-    for (const variable of this.templateRenderer.extractVariables(input.bodyText ?? '')) {
-      allVariables.add(variable);
-    }
-    if (input.bodyHtml) {
-      for (const variable of this.templateRenderer.extractVariables(input.bodyHtml)) {
-        allVariables.add(variable);
+    // 6. Sanitizer save-profile validation (EMAIL channel only — SMS uses plain text)
+    if (input.channel.toUpperCase() === 'EMAIL' && this.htmlSanitizer) {
+      const sanitizeResult = this.htmlSanitizer.validateForSave(input.bodyHtml);
+      if (!sanitizeResult.safe) {
+        throw new UnprocessableEntityError(
+          sanitizeResult.rejectedReason ?? 'Body contains disallowed HTML constructs',
+          [{ code: 'custom', message: sanitizeResult.rejectedReason ?? 'Unsafe HTML', path: 'bodyHtml' }],
+        );
       }
+    }
+
+    // 7. Validate {{image:key}} placeholders — reject unknown keys
+    const imagePlaceholderKeys = extractImagePlaceholderKeys(input.bodyHtml);
+    if (imagePlaceholderKeys.length > 0) {
+      if (!this.emailAssetRepo) {
+        // No asset repo available (US2 not yet wired) — reject any image placeholders
+        throw new ValidationError(
+          `Unknown image placeholder keys: ${imagePlaceholderKeys.join(', ')}`,
+          imagePlaceholderKeys.map((k) => ({
+            code: 'custom' as const,
+            message: `Unknown image key: ${k}`,
+            path: ['bodyHtml'],
+          })),
+        );
+      }
+      // Validate each key against the asset repository
+      const unknownKeys: string[] = [];
+      for (const key of imagePlaceholderKeys) {
+        const asset = await this.emailAssetRepo.findByPlaceholderKey(tenantId, key);
+        if (!asset || asset.status !== 'VERIFIED') {
+          unknownKeys.push(key);
+        }
+      }
+      if (unknownKeys.length > 0) {
+        throw new ValidationError(
+          `Unknown image placeholder keys: ${unknownKeys.join(', ')}`,
+          unknownKeys.map((k) => ({
+            code: 'custom' as const,
+            message: `Unknown or unverified image key: ${k}`,
+            path: ['bodyHtml'],
+          })),
+        );
+      }
+    }
+
+    // 8. Derive bodyText from HTML (EMAIL channel)
+    const bodyText =
+      input.channel.toUpperCase() === 'EMAIL' && this.htmlToText
+        ? this.htmlToText.convert(input.bodyHtml)
+        : input.bodyHtml;
+
+    // 9. Extract Handlebars variables (from bodyHtml + subject)
+    const allVariables = new Set<string>();
+    for (const variable of this.templateRenderer.extractVariables(input.bodyHtml)) {
+      allVariables.add(variable);
     }
     if (input.subject) {
       for (const variable of this.templateRenderer.extractVariables(input.subject)) {
@@ -115,27 +161,33 @@ export class UpsertNotificationTemplateUseCase {
     }
     const variablesJson = [...allVariables];
 
-    // 6. Create entity
+    // 10. Load existing template for audit before-state
+    const existing = await this.templateRepo.findByTenantCodeChannel(
+      tenantId,
+      input.templateCode,
+      input.channel as NotificationChannel,
+    );
+
+    // 11. Build entity
     const now = new Date();
     const template = new NotificationTemplateEntity({
-      id: crypto.randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       tenantId,
       templateCode: input.templateCode,
       channel: input.channel as NotificationChannel,
       subject: input.subject ?? null,
-      bodyHtml: input.bodyHtml ?? null,
-      bodyText: input.bodyText ?? '',
+      bodyHtml: input.bodyHtml,
+      bodyText,
       variablesJson,
       isActive: input.isActive,
       notificationClass: resolvedClass,
-      createdAt: now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     });
 
-    // 6. Upsert
     await this.templateRepo.upsert(template);
 
-    // 7. Audit
+    // 12. Audit with before/after body (FR-011)
     this.auditService.log({
       action: 'NOTIFICATION_TEMPLATE_UPSERTED',
       actorType: 'USER',
@@ -143,21 +195,26 @@ export class UpsertNotificationTemplateUseCase {
       entityType: 'NOTIFICATION_TEMPLATE',
       entityId: template.id,
       tenantId: tenantId ?? undefined,
+      before: existing
+        ? { templateCode: existing.templateCode, channel: existing.channel, bodyHtml: existing.bodyHtml }
+        : null,
       after: {
         templateCode: template.templateCode,
         channel: template.channel,
         isActive: template.active,
+        bodyHtml: template.bodyHtml,
       },
     });
 
-    // 8. Return output
     return {
       id: template.id,
       tenantId: template.tenantId,
       templateCode: template.templateCode,
       channel: template.channel,
       subject: template.subject,
+      bodyHtml: template.bodyHtml ?? '',
       bodyText: template.bodyText,
+      imageBindings: [],
       isActive: template.active,
       notificationClass: template.notificationClass,
       createdAt: template.createdAt.toISOString(),
