@@ -305,6 +305,15 @@ import { createWebhookSignatureValidator } from '../modules/notification/infrast
 import { SanitizeHtmlService } from '../modules/notification/infrastructure/sanitize-html.service';
 import { HtmlToTextService } from '../modules/notification/infrastructure/html-to-text.service';
 import { RenderTemplatePreviewUseCase } from '../modules/notification/application/use-cases/render-template-preview.use-case';
+import { PrismaEmailAssetRepository } from '../modules/notification/infrastructure/prisma-email-asset.repository';
+import { PrismaTemplateImageBindingRepository } from '../modules/notification/infrastructure/prisma-template-image-binding.repository';
+import { SupabaseEmailAssetStorageService } from '../modules/notification/infrastructure/supabase-email-asset-storage.service';
+import { ImageContentVerifier } from '../modules/notification/infrastructure/image-content-verifier';
+import { RequestImageUploadUseCase } from '../modules/notification/application/use-cases/request-image-upload.use-case';
+import { ConfirmImageUploadUseCase } from '../modules/notification/application/use-cases/confirm-image-upload.use-case';
+import { ListEmailAssetsUseCase } from '../modules/notification/application/use-cases/list-email-assets.use-case';
+import { EditImageBindingUseCase } from '../modules/notification/application/use-cases/edit-image-binding.use-case';
+import { DeleteEmailAssetUseCase } from '../modules/notification/application/use-cases/delete-email-asset.use-case';
 
 // Notification handlers
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
@@ -1033,6 +1042,26 @@ export function createContainer(logger: Logger): AppContainer {
   const htmlSanitizer = new SanitizeHtmlService();
   const htmlToText = new HtmlToTextService();
 
+  // Email assets (US2)
+  const emailAssetRepo = new PrismaEmailAssetRepository(prisma);
+  const templateImageBindingRepo = new PrismaTemplateImageBindingRepository(prisma);
+  const imageContentVerifier = new ImageContentVerifier();
+  const emailAssetStorage = env.SUPABASE_S3_ENDPOINT && env.EMAIL_ASSETS_PUBLIC_URL_BASE
+    ? new SupabaseEmailAssetStorageService(
+        new S3Client({
+          endpoint: env.SUPABASE_S3_ENDPOINT,
+          region: 'us-east-1',
+          credentials: {
+            accessKeyId: env.SUPABASE_S3_ACCESS_KEY_ID ?? '',
+            secretAccessKey: env.SUPABASE_S3_SECRET_ACCESS_KEY ?? '',
+          },
+          forcePathStyle: true,
+        }),
+        env.EMAIL_ASSETS_BUCKET,
+        env.EMAIL_ASSETS_PUBLIC_URL_BASE,
+      )
+    : null;
+
   // Notification use cases
   const consentRepo = new PrismaNotificationConsentRepository(prisma);
   const getTenantSettings = async (tenantId: string): Promise<Record<string, unknown>> => {
@@ -1063,12 +1092,26 @@ export function createContainer(logger: Logger): AppContainer {
   const getNotificationUseCase = new GetNotificationUseCase(notificationRepo, authorizationService);
   const upsertNotificationTemplateUseCase = new UpsertNotificationTemplateUseCase(
     notificationTemplateRepo, templateRenderer, auditService, authorizationService,
-    htmlSanitizer, htmlToText,
+    htmlSanitizer, htmlToText, emailAssetRepo, templateImageBindingRepo,
   );
   const renderTemplatePreviewUseCase = new RenderTemplatePreviewUseCase(
     templateRenderer, htmlSanitizer, authorizationService,
-    undefined, env.EMAIL_ASSETS_PUBLIC_URL_BASE,
+    emailAssetRepo, env.EMAIL_ASSETS_PUBLIC_URL_BASE,
   );
+
+  // Email asset use cases (US2)
+  const requestImageUploadUseCase = emailAssetStorage
+    ? new RequestImageUploadUseCase(emailAssetRepo, emailAssetStorage, auditService, authorizationService)
+    : null;
+  const confirmImageUploadUseCase = emailAssetStorage
+    ? new ConfirmImageUploadUseCase(emailAssetRepo, emailAssetStorage, imageContentVerifier, auditService, authorizationService)
+    : null;
+  const listEmailAssetsUseCase = new ListEmailAssetsUseCase(emailAssetRepo, authorizationService);
+  const editImageBindingUseCase = new EditImageBindingUseCase(templateImageBindingRepo, emailAssetRepo, authorizationService);
+  const deleteEmailAssetUseCase = emailAssetStorage
+    ? new DeleteEmailAssetUseCase(emailAssetRepo, templateImageBindingRepo, emailAssetStorage, auditService, authorizationService)
+    : null;
+
   const sendTestNotificationUseCase = new SendTestNotificationUseCase(
     notificationTemplateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
   );
@@ -1494,6 +1537,11 @@ export function createContainer(logger: Logger): AppContainer {
       getNotificationUseCase,
       upsertNotificationTemplateUseCase,
       renderTemplatePreviewUseCase,
+      requestImageUploadUseCase: requestImageUploadUseCase as NonNullable<typeof requestImageUploadUseCase>,
+      confirmImageUploadUseCase: confirmImageUploadUseCase as NonNullable<typeof confirmImageUploadUseCase>,
+      listEmailAssetsUseCase,
+      editImageBindingUseCase,
+      deleteEmailAssetUseCase: deleteEmailAssetUseCase as NonNullable<typeof deleteEmailAssetUseCase>,
       sendTestNotificationUseCase,
       listNotificationTemplatesUseCase,
       createNotificationUseCase,

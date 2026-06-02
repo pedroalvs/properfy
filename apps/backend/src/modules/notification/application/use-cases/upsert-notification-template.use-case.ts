@@ -8,6 +8,7 @@ import type { TemplateRendererService } from '../../domain/template-renderer.ser
 import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service';
 import type { IHtmlToTextService } from '../../domain/html-to-text.service';
 import type { IEmailAssetRepository } from '../../domain/email-asset.repository';
+import type { ITemplateImageBindingRepository } from '../../domain/template-image-binding.repository';
 import { NotificationForbiddenError, ProtectedTemplateClassificationError } from '../../domain/notification.errors';
 import {
   MANDATORY_TEMPLATE_CODES,
@@ -54,6 +55,7 @@ export class UpsertNotificationTemplateUseCase {
     private readonly htmlSanitizer?: IHtmlSanitizerService,
     private readonly htmlToText?: IHtmlToTextService,
     private readonly emailAssetRepo?: IEmailAssetRepository,
+    private readonly imageBindingRepo?: ITemplateImageBindingRepository,
   ) {}
 
   async execute(input: UpsertNotificationTemplateInput): Promise<UpsertNotificationTemplateOutput> {
@@ -187,7 +189,39 @@ export class UpsertNotificationTemplateUseCase {
 
     await this.templateRepo.upsert(template);
 
-    // 12. Audit with before/after body (FR-011)
+    // 12. Reconcile image bindings (upsert/remove per placeholder keys)
+    const reconciledBindings: Array<{ id: string; placeholderKey: string; assetId: string; publicUrl: string; altText: string | null; width: number | null; height: number | null }> = [];
+    if (imagePlaceholderKeys.length > 0 && this.emailAssetRepo && this.imageBindingRepo) {
+      const inputBindingsByKey = new Map(
+        (input.imageBindings ?? []).map((b) => [b.placeholderKey, b]),
+      );
+      for (const key of imagePlaceholderKeys) {
+        const asset = await this.emailAssetRepo.findByPlaceholderKey(tenantId, key);
+        if (!asset) continue;
+        const meta = inputBindingsByKey.get(key);
+        const binding = await this.imageBindingRepo.upsert({
+          templateId: template.id,
+          assetId: asset.id,
+          placeholderKey: key,
+          altText: meta?.altText ?? asset.placeholderKey,
+          width: meta?.width ?? asset.width,
+          height: meta?.height ?? asset.height,
+        });
+        reconciledBindings.push({
+          id: binding.id, placeholderKey: binding.placeholderKey, assetId: binding.assetId,
+          publicUrl: asset.publicUrl, altText: binding.altText, width: binding.width, height: binding.height,
+        });
+      }
+      // Remove stale bindings no longer referenced
+      const existingBindings = await this.imageBindingRepo.findByTemplate(template.id);
+      for (const b of existingBindings) {
+        if (!imagePlaceholderKeys.includes(b.placeholderKey)) {
+          await this.imageBindingRepo.deleteByTemplateAndKey(template.id, b.placeholderKey);
+        }
+      }
+    }
+
+    // 13. Audit with before/after body (FR-011)
     this.auditService.log({
       action: 'NOTIFICATION_TEMPLATE_UPSERTED',
       actorType: 'USER',
@@ -214,7 +248,7 @@ export class UpsertNotificationTemplateUseCase {
       subject: template.subject,
       bodyHtml: template.bodyHtml ?? '',
       bodyText: template.bodyText,
-      imageBindings: [],
+      imageBindings: reconciledBindings,
       isActive: template.active,
       notificationClass: template.notificationClass,
       createdAt: template.createdAt.toISOString(),
