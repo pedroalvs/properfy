@@ -302,6 +302,8 @@ import { BuildNotificationPayloadService } from '../modules/notification/domain/
 import { AppointmentCodeFormatter } from '../modules/appointment/domain/appointment-code.formatter';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
 import { createWebhookSignatureValidator } from '../modules/notification/infrastructure/webhook-signature-validator';
+import { SanitizeHtmlService } from '../modules/notification/infrastructure/sanitize-html.service';
+import { HtmlToTextService } from '../modules/notification/infrastructure/html-to-text.service';
 
 // Notification handlers
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
@@ -1027,6 +1029,8 @@ export function createContainer(logger: Logger): AppContainer {
     ? new MobileMessageSmsProvider(env.MOBILE_MESSAGE_API_KEY, env.MOBILE_MESSAGE_PASSWORD, env.MOBILE_MESSAGE_SENDER_ID)
     : new StubSmsProvider();
   const templateRenderer = new TemplateRendererService();
+  const htmlSanitizer = new SanitizeHtmlService();
+  const htmlToText = new HtmlToTextService();
 
   // Notification use cases
   const consentRepo = new PrismaNotificationConsentRepository(prisma);

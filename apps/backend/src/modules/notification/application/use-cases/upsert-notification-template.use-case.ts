@@ -19,10 +19,13 @@ export interface UpsertNotificationTemplateInput {
   channel: string;
   subject?: string;
   bodyHtml?: string;
-  bodyText: string;
+  /** @deprecated Will be removed in T015; use bodyHtml + auto-derive. */
+  bodyText?: string;
   isActive: boolean;
   notificationClass?: NotificationClass;
   actor: AuthContext;
+  tenantId?: string;
+  imageBindings?: Array<{ placeholderKey: string; altText?: string; width?: number; height?: number }>;
 }
 
 export interface UpsertNotificationTemplateOutput {
@@ -97,7 +100,7 @@ export class UpsertNotificationTemplateUseCase {
 
     // 5. Extract variables
     const allVariables = new Set<string>();
-    for (const variable of this.templateRenderer.extractVariables(input.bodyText)) {
+    for (const variable of this.templateRenderer.extractVariables(input.bodyText ?? '')) {
       allVariables.add(variable);
     }
     if (input.bodyHtml) {
@@ -121,7 +124,7 @@ export class UpsertNotificationTemplateUseCase {
       channel: input.channel as NotificationChannel,
       subject: input.subject ?? null,
       bodyHtml: input.bodyHtml ?? null,
-      bodyText: input.bodyText,
+      bodyText: input.bodyText ?? '',
       variablesJson,
       isActive: input.isActive,
       notificationClass: resolvedClass,
