@@ -71,7 +71,7 @@ export function useEmailAssets(tenantId?: string | null): UseEmailAssetsReturn {
     }
   }, [tenantId, getApi]);
 
-  const confirmUpload = useCallback(async (assetId: string, file: File): Promise<EmailAsset | null> => {
+  const confirmUpload = useCallback(async (assetId: string, _file: File): Promise<EmailAsset | null> => {
     try {
       // 1. Upload the file to the presigned URL (done by caller before this)
       // 2. Confirm with the backend

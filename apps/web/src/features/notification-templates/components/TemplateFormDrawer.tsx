@@ -100,11 +100,17 @@ export function TemplateFormDrawer({
     insertAtCursor(`{{image:${placeholderKey}}}`);
   }, [insertAtCursor]);
 
+  // Single source of truth for channel-based conditions — Images, Preview, Send Test all
+  // depend on this. Avoids divergence if code is later refactored.
+  const isEmailChannel = template?.channel === 'EMAIL';
+
+  // Fall back to template.body until the useEffect syncs form state, so the preview
+  // starts fetching on the first render when the drawer opens.
   const { preview: livePreview, isLoading: previewLoading } = useTemplatePreview(
     template?.code ?? '',
     template?.channel ?? '',
-    form.body,
-    form.subject,
+    form.body || template?.body || '',
+    form.subject || template?.subject || '',
     template?.tenantId,
   );
 
@@ -199,7 +205,7 @@ export function TemplateFormDrawer({
                 <div className="flex flex-col gap-2">
                   <VariableInsertToolbar
                     onInsert={handleInsertVariable}
-                    onOpenImages={template?.channel === 'EMAIL' ? () => setShowImageLibrary(true) : undefined}
+                    onOpenImages={isEmailChannel ? () => setShowImageLibrary(true) : undefined}
                     disabled={isSaving}
                     variables={canonicalAllowed}
                   />
@@ -244,7 +250,7 @@ export function TemplateFormDrawer({
               <Button variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
-              {template?.channel === 'EMAIL' && (
+              {isEmailChannel && (
                 <Button variant="secondary" onClick={() => setShowTestDialog(true)} disabled={isSaving}>
                   Send Test Email
                 </Button>
@@ -262,7 +268,7 @@ export function TemplateFormDrawer({
         </div>
       </DrawerPanel>
 
-      {template?.channel === 'EMAIL' && (
+      {isEmailChannel && template && (
         <SendTestEmailDialog
           open={showTestDialog}
           onClose={() => setShowTestDialog(false)}
