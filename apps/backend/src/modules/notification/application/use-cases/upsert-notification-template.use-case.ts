@@ -9,7 +9,7 @@ import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service'
 import type { IHtmlToTextService } from '../../domain/html-to-text.service';
 import type { IEmailAssetRepository } from '../../domain/email-asset.repository';
 import type { ITemplateImageBindingRepository } from '../../domain/template-image-binding.repository';
-import { NotificationForbiddenError, ProtectedTemplateClassificationError } from '../../domain/notification.errors';
+import { ProtectedTemplateClassificationError } from '../../domain/notification.errors';
 import {
   MANDATORY_TEMPLATE_CODES,
   getProtectedClass,

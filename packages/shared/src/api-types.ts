@@ -4643,7 +4643,7 @@ export interface paths {
                     timeSlot?: string;
                     contactSearch?: string;
                     hasTenantNote?: boolean;
-                    confirmationStatus?: "PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE";
+                    confirmationStatus?: "sent" | "not_sent";
                 };
                 header?: never;
                 path?: never;
@@ -4686,6 +4686,8 @@ export interface paths {
                                 notes: string | null;
                                 tenantNote?: string | null;
                                 hasTenantNote?: boolean;
+                                /** @default false */
+                                hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4857,6 +4859,8 @@ export interface paths {
                                 notes: string | null;
                                 tenantNote?: string | null;
                                 hasTenantNote?: boolean;
+                                /** @default false */
+                                hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4953,6 +4957,8 @@ export interface paths {
                                 notes: string | null;
                                 tenantNote?: string | null;
                                 hasTenantNote?: boolean;
+                                /** @default false */
+                                hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4984,7 +4990,6 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
-                                hasActivePortalToken: boolean;
                             };
                         };
                     };
@@ -5124,6 +5129,8 @@ export interface paths {
                                 notes: string | null;
                                 tenantNote?: string | null;
                                 hasTenantNote?: boolean;
+                                /** @default false */
+                                hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -5161,6 +5168,50 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/appointments/{appointmentId}/portal-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uri */
+                                portalUrl: string;
+                                /** Format: date-time */
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/appointments/{appointmentId}/status-transitions": {
@@ -6658,6 +6709,7 @@ export interface paths {
                                 appointments: {
                                     /** Format: uuid */
                                     id: string;
+                                    appointmentCode: string;
                                     appointmentNumber: number;
                                     suburb: string;
                                     keyRequired: boolean;
@@ -7321,6 +7373,13 @@ export interface paths {
                                 createdAt: string;
                                 summary?: string;
                             };
+                            agencyPhone?: string;
+                            deadline?: string;
+                            rescheduleAllowed?: boolean;
+                            tenant?: {
+                                name: string | null;
+                                timezone: string;
+                            };
                         };
                     };
                 };
@@ -7363,6 +7422,12 @@ export interface paths {
                                 end: string;
                             }[] | null;
                             notes?: string | null;
+                            availableSlotsJson?: {
+                                /** @enum {string} */
+                                dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                start: string;
+                                end: string;
+                            }[] | null;
                         };
                         tenantNote?: string;
                     };
@@ -7422,6 +7487,12 @@ export interface paths {
                                 end: string;
                             }[] | null;
                             notes?: string | null;
+                            availableSlotsJson?: {
+                                /** @enum {string} */
+                                dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                start: string;
+                                end: string;
+                            }[] | null;
                         };
                         tenantNote?: string;
                     };
@@ -7529,6 +7600,12 @@ export interface paths {
                                 end: string;
                             }[] | null;
                             notes?: string | null;
+                            availableSlotsJson?: {
+                                /** @enum {string} */
+                                dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                start: string;
+                                end: string;
+                            }[] | null;
                         };
                         tenantNote?: string;
                     };
@@ -7545,6 +7622,111 @@ export interface paths {
                             /** @enum {string} */
                             tenantConfirmationStatus: "UNAVAILABLE";
                             urgentMode: boolean;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant-portal/{token}/available-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            groups: {
+                                /** Format: uuid */
+                                id: string;
+                                scheduledDate: string;
+                                timeWindow: string;
+                                suburb: string;
+                                inspectorName: string;
+                                confirmedCount: number;
+                                capacityMax: number;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant-portal/{token}/join-group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        groupId: string;
+                        tenantNote?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            scheduledDate: string;
+                            timeWindow: string;
+                            /** @enum {string} */
+                            tenantConfirmationStatus: "CONFIRMED";
+                            /** @enum {string} */
+                            appointmentStatus: "SCHEDULED";
+                            inspector: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                            };
                         };
                     };
                 };
@@ -7595,48 +7777,6 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/appointments/{appointmentId}/portal-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                portalUrl: string;
-                                expiresAt: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7880,6 +8020,42 @@ export interface paths {
                                 agencyName?: string | null;
                                 payoutAmount?: number | null;
                                 inspectionAppLink?: string | null;
+                                appointmentCode?: string;
+                                jobDetails?: {
+                                    agency: {
+                                        id: string;
+                                        name: string;
+                                    };
+                                    tenantContacts: {
+                                        name: string;
+                                        email: string | null;
+                                        phone: string | null;
+                                        role: string;
+                                        isPrimary: boolean;
+                                    }[];
+                                    keys: {
+                                        keyRequired: boolean;
+                                        keyLocation: string | null;
+                                    };
+                                    keyLocation?: {
+                                        address: string;
+                                        mapLinkUrl: string;
+                                    };
+                                    propertyManager: {
+                                        name: string;
+                                        email: string | null;
+                                        phone: string | null;
+                                        company: string | null;
+                                    } | null;
+                                    payment: {
+                                        payoutAmount: number;
+                                        currency: string;
+                                    };
+                                    inspectionAppLink?: {
+                                        url: string;
+                                        label: string;
+                                    };
+                                } | null;
                             };
                         };
                     };
@@ -10983,13 +11159,24 @@ export interface paths {
                                 templateCode: string;
                                 channel: string;
                                 subject: string | null;
-                                bodyHtml?: string | null;
+                                bodyHtml: string;
                                 bodyText: string;
                                 variablesJson?: unknown;
                                 variables?: unknown;
                                 isActive: boolean;
                                 /** @enum {string} */
                                 notificationClass?: "TRANSACTIONAL" | "OPERATIONAL" | "MARKETING";
+                                imageBindings?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    placeholderKey: string;
+                                    /** Format: uuid */
+                                    assetId: string;
+                                    publicUrl: string;
+                                    altText: string | null;
+                                    width: number | null;
+                                    height: number | null;
+                                }[];
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -11221,11 +11408,18 @@ export interface paths {
                 content: {
                     "application/json": {
                         subject?: string;
-                        bodyHtml?: string;
-                        bodyText: string;
+                        bodyHtml: string;
                         isActive: boolean;
                         /** @enum {string} */
                         notificationClass?: "TRANSACTIONAL" | "OPERATIONAL" | "MARKETING";
+                        /** Format: uuid */
+                        tenantId?: string;
+                        imageBindings?: {
+                            placeholderKey: string;
+                            altText?: string;
+                            width?: number;
+                            height?: number;
+                        }[];
                     };
                 };
             };
@@ -11245,13 +11439,24 @@ export interface paths {
                                 templateCode: string;
                                 channel: string;
                                 subject: string | null;
-                                bodyHtml?: string | null;
+                                bodyHtml: string;
                                 bodyText: string;
                                 variablesJson?: unknown;
                                 variables?: unknown;
                                 isActive: boolean;
                                 /** @enum {string} */
                                 notificationClass?: "TRANSACTIONAL" | "OPERATIONAL" | "MARKETING";
+                                imageBindings?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    placeholderKey: string;
+                                    /** Format: uuid */
+                                    assetId: string;
+                                    publicUrl: string;
+                                    altText: string | null;
+                                    width: number | null;
+                                    height: number | null;
+                                }[];
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -11261,6 +11466,255 @@ export interface paths {
             };
         };
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/email-assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/email-assets/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/email-assets/{id}/usages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/email-assets/{id}/bindings/{bindingId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    bindingId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/email-assets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notification-templates/{templateCode}/{channel}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    templateCode: string;
+                    channel: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        subject?: string;
+                        bodyHtml: string;
+                        /** Format: uuid */
+                        tenantId?: string;
+                        imageBindings?: {
+                            placeholderKey: string;
+                            altText?: string;
+                            width?: number;
+                            height?: number;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                subjectRendered: string;
+                                htmlRendered: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;

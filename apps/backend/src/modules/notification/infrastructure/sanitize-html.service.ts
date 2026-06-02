@@ -40,8 +40,6 @@ function buildRenderOptions(assetHostOrigin?: string): sanitizeHtml.IOptions {
     img: ['src', 'alt', 'width', 'height', 'style'],
   };
 
-  const filterFn: sanitizeHtml.IOptions['allowedIframeHostnames'] = undefined;
-
   return {
     allowedTags: tags,
     allowedAttributes: attrs,

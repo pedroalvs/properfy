@@ -4,7 +4,7 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 import type { IEmailAssetRepository } from '../../domain/email-asset.repository';
 import type { ITemplateImageBindingRepository } from '../../domain/template-image-binding.repository';
 import type { IEmailAssetStorageService } from '../../domain/email-asset-storage.service';
-import { ConflictError, NotFoundError, ValidationError } from '../../../../shared/domain/errors';
+import { ConflictError, NotFoundError } from '../../../../shared/domain/errors';
 
 export interface DeleteEmailAssetInput {
   assetId: string;

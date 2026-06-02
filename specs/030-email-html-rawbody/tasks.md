@@ -119,10 +119,10 @@ TDD is mandatory (constitution §III): each implementation task is preceded by i
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T051 Regenerate OpenAPI from Fastify routes + regenerate the web API client; verify no drift (constitution §IV).
-- [ ] T052 [P] Run quickstart.md end-to-end incl. a real guarded Resend test-send to the safe inbox (SC-002/003/015) and capture evidence.
-- [ ] T053 [P] Verify coverage ≥80% for the notification module; fill gaps.
-- [ ] T054 Final gate: `pnpm lint && pnpm typecheck && pnpm test && pnpm --filter backend prisma migrate diff` all green.
+- [X] T051 Regenerate OpenAPI from Fastify routes + regenerate the web API client; verify no drift (constitution §IV).
+- [X] T052 [P] Run quickstart.md end-to-end incl. a real guarded Resend test-send to the safe inbox (SC-002/003/015) and capture evidence.
+- [X] T053 [P] Verify coverage ≥80% for the notification module; fill gaps.
+- [X] T054 Final gate: `pnpm lint && pnpm typecheck && pnpm test && pnpm --filter backend prisma migrate diff` all green.
 
 ---
 
