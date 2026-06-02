@@ -88,7 +88,11 @@ export class CreateNotificationUseCase {
     const jobName = 'notification.send';
     this.logger?.info({ notificationId, jobName, channel: input.channel, templateCode: input.templateCode }, 'notification.enqueue_start');
     try {
-      await this.jobQueue.enqueue(jobName, { notificationId }, { retryLimit: 0 });
+      await this.jobQueue.enqueue(jobName, { notificationId }, {
+        retryLimit: 0,          // pg-boss auto-retry disabled; worker self-reschedules (T047)
+        singletonKey: notificationId, // dedup: only one job per Notification row at a time
+        expireInMinutes: 5,     // stalled jobs are reclaimed after 5 minutes
+      });
       this.logger?.info({ notificationId, jobName }, 'notification.enqueue_success');
     } catch (enqueueError) {
       this.logger?.error({ notificationId, jobName, channel: input.channel, templateCode: input.templateCode, error: enqueueError }, 'notification.enqueue_failed');

@@ -105,15 +105,15 @@ describe('CreateNotificationUseCase', () => {
     expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
       'notification.send',
       { notificationId: result.notificationId },
-      { retryLimit: 0 },
+      expect.objectContaining({ retryLimit: 0, singletonKey: result.notificationId }),
     );
   });
 
-  it('passes retryLimit: 0 to job queue', async () => {
-    await useCase.execute(baseInput);
+  it('passes retryLimit: 0 and singletonKey to job queue', async () => {
+    const result = await useCase.execute(baseInput);
 
     const options = mockJobQueue.enqueue.mock.calls[0][2];
-    expect(options).toEqual({ retryLimit: 0 });
+    expect(options).toMatchObject({ retryLimit: 0, singletonKey: result.notificationId, expireInMinutes: 5 });
   });
 
   it('sets appointmentId to null when not provided', async () => {

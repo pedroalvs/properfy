@@ -314,6 +314,7 @@ import { ConfirmImageUploadUseCase } from '../modules/notification/application/u
 import { ListEmailAssetsUseCase } from '../modules/notification/application/use-cases/list-email-assets.use-case';
 import { EditImageBindingUseCase } from '../modules/notification/application/use-cases/edit-image-binding.use-case';
 import { DeleteEmailAssetUseCase } from '../modules/notification/application/use-cases/delete-email-asset.use-case';
+import { ImagePlaceholderResolver } from '../modules/notification/domain/image-placeholder-resolver.service';
 
 // Notification handlers
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
@@ -1068,6 +1069,8 @@ export function createContainer(logger: Logger): AppContainer {
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings_json: true } });
     return (tenant?.settings_json as Record<string, unknown>) ?? {};
   };
+  const imagePlaceholderResolver = new ImagePlaceholderResolver();
+
   const sendNotificationUseCase = new SendNotificationUseCase({
     notificationRepo,
     templateRepo: notificationTemplateRepo,
@@ -1082,6 +1085,13 @@ export function createContainer(logger: Logger): AppContainer {
     // Feature 018: unsubscribe URL injection for operational notifications
     publicBaseUrl: env.PUBLIC_BASE_URL,
     unsubscribeTokenSecret: env.NOTIFICATION_UNSUBSCRIBE_SECRET,
+    // Feature 030: image-resolve → render → sanitize pipeline
+    htmlSanitizer,
+    htmlToText,
+    imagePlaceholderResolver,
+    emailAssetRepo,
+    templateImageBindingRepo,
+    emailAssetsPublicUrlBase: env.EMAIL_ASSETS_PUBLIC_URL_BASE,
   });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo);
@@ -1114,6 +1124,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   const sendTestNotificationUseCase = new SendTestNotificationUseCase(
     notificationTemplateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
+    env.EMAIL_TEST_RECIPIENT_ALLOWLIST,
   );
   const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo, authorizationService);
   // createNotificationUseCase and notificationJobQueue created above (before appointments)

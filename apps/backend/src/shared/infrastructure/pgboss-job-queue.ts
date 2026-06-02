@@ -7,6 +7,9 @@ export class PgBossJobQueue implements IJobQueue {
       retryLimit: options.retryLimit,
       retryBackoff: options.retryBackoff,
       expireInHours: options.retentionHours,
+      singletonKey: options.singletonKey,
+      expireInMinutes: options.expireInMinutes,
+      startAfter: options.startAfter,
     } : undefined);
   }
 }

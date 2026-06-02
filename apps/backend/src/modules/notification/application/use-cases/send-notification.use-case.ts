@@ -6,6 +6,11 @@ import type { INotificationConsentRepository } from '../../domain/notification-c
 import type { INotificationAttemptRepository } from '../../domain/notification-attempt.repository';
 import type { IEmailProvider, ISmsProvider } from '../../domain/providers';
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
+import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service';
+import type { IHtmlToTextService } from '../../domain/html-to-text.service';
+import type { IImagePlaceholderResolver } from '../../domain/image-placeholder-resolver.service';
+import type { IEmailAssetRepository } from '../../domain/email-asset.repository';
+import type { ITemplateImageBindingRepository } from '../../domain/template-image-binding.repository';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { MetricsCollector } from '../../../../shared/infrastructure/metrics';
 import { NotificationAttemptEntity } from '../../domain/notification-attempt.entity';
@@ -36,6 +41,18 @@ export interface SendNotificationDeps {
   publicBaseUrl: string;
   /** Feature 018: HMAC secret for unsubscribe token generation */
   unsubscribeTokenSecret: string;
+  /** Feature 030: render-profile HTML sanitizer (defense-in-depth) */
+  htmlSanitizer?: IHtmlSanitizerService;
+  /** Feature 030: HTML → plain text derivation */
+  htmlToText?: IHtmlToTextService;
+  /** Feature 030: {{image:key}} placeholder resolver */
+  imagePlaceholderResolver?: IImagePlaceholderResolver;
+  /** Feature 030: email asset repository (marks ever_sent, resolves bindings) */
+  emailAssetRepo?: IEmailAssetRepository;
+  /** Feature 030: template image binding repository */
+  templateImageBindingRepo?: ITemplateImageBindingRepository;
+  /** Feature 030: public URL base for the email-assets bucket */
+  emailAssetsPublicUrlBase?: string;
 }
 
 export class SendNotificationUseCase {
@@ -51,6 +68,12 @@ export class SendNotificationUseCase {
   private readonly getTenantSettings: (tenantId: string) => Promise<Record<string, unknown>>;
   private readonly publicBaseUrl: string;
   private readonly unsubscribeTokenSecret: string;
+  private readonly htmlSanitizer?: IHtmlSanitizerService;
+  private readonly htmlToText?: IHtmlToTextService;
+  private readonly imagePlaceholderResolver?: IImagePlaceholderResolver;
+  private readonly emailAssetRepo?: IEmailAssetRepository;
+  private readonly templateImageBindingRepo?: ITemplateImageBindingRepository;
+  private readonly emailAssetsPublicUrlBase?: string;
 
   constructor(deps: SendNotificationDeps) {
     this.notificationRepo = deps.notificationRepo;
@@ -65,6 +88,12 @@ export class SendNotificationUseCase {
     this.getTenantSettings = deps.getTenantSettings;
     this.publicBaseUrl = deps.publicBaseUrl;
     this.unsubscribeTokenSecret = deps.unsubscribeTokenSecret;
+    this.htmlSanitizer = deps.htmlSanitizer;
+    this.htmlToText = deps.htmlToText;
+    this.imagePlaceholderResolver = deps.imagePlaceholderResolver;
+    this.emailAssetRepo = deps.emailAssetRepo;
+    this.templateImageBindingRepo = deps.templateImageBindingRepo;
+    this.emailAssetsPublicUrlBase = deps.emailAssetsPublicUrlBase;
   }
 
   async execute(input: SendNotificationInput): Promise<void> {
@@ -210,14 +239,57 @@ export class SendNotificationUseCase {
       this.metrics.incrementMissingVariableCount(missingVars.length);
     }
 
-    // Render template
+    // Feature 030: Resolve {{image:key}} placeholders → <img> tags BEFORE Handlebars
+    let bodyHtmlSource = template.bodyHtml ?? '';
+    const resolvedAssetIds: string[] = [];
+
+    if (bodyHtmlSource && this.imagePlaceholderResolver && this.templateImageBindingRepo && this.emailAssetRepo) {
+      const bindings = await this.templateImageBindingRepo.findByTemplate(template.id);
+      const resolvedBindings = await Promise.all(
+        bindings.map(async (b) => {
+          const asset = await this.emailAssetRepo!.findById(b.assetId);
+          if (!asset || asset.status !== 'VERIFIED') return null;
+          resolvedAssetIds.push(asset.id);
+          return {
+            placeholderKey: b.placeholderKey,
+            src: asset.publicUrl,
+            alt: b.altText ?? asset.placeholderKey,
+            width: b.width ?? asset.width ?? undefined,
+            height: b.height ?? asset.height ?? undefined,
+          };
+        }),
+      );
+      bodyHtmlSource = this.imagePlaceholderResolver.resolve(
+        bodyHtmlSource,
+        resolvedBindings.filter(Boolean) as Parameters<typeof this.imagePlaceholderResolver.resolve>[1],
+      );
+    }
+
+    // Render template (Handlebars variables)
     const renderedSubject = template.subject
       ? this.templateRenderer.render(template.subject, variables)
       : '';
-    const renderedBodyHtml = template.bodyHtml
-      ? this.templateRenderer.render(template.bodyHtml, variables)
+    let renderedBodyHtml = bodyHtmlSource
+      ? this.templateRenderer.render(bodyHtmlSource, variables)
       : '';
-    const renderedBodyText = this.templateRenderer.render(template.bodyText, variables);
+
+    // Feature 030: apply render-profile sanitizer (defense-in-depth)
+    if (renderedBodyHtml && this.htmlSanitizer) {
+      renderedBodyHtml = this.htmlSanitizer.sanitizeForRender(renderedBodyHtml, this.emailAssetsPublicUrlBase);
+    }
+
+    // Feature 030: derive plain-text from HTML (bodyText from html-to-text)
+    let renderedBodyText: string;
+    if (renderedBodyHtml && this.htmlToText) {
+      renderedBodyText = this.htmlToText.convert(renderedBodyHtml);
+    } else {
+      renderedBodyText = this.templateRenderer.render(template.bodyText, variables);
+    }
+
+    // Feature 030: mark resolved assets as ever_sent
+    if (resolvedAssetIds.length > 0 && this.emailAssetRepo) {
+      await this.emailAssetRepo.markEverSent(resolvedAssetIds);
+    }
 
     // GAP-009: Create attempt record at the start
     const attemptNumber = notification.retryCount + 1;

@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateSave } from '../hooks/useTemplateSave';
 import { useTemplatePreview } from '../hooks/useTemplatePreview';
+import { ImageLibraryModal } from './ImageLibraryModal';
 import { SendTestEmailDialog } from './SendTestEmailDialog';
 import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
@@ -41,6 +42,7 @@ export function TemplateFormDrawer({
   const [showConfirm, setShowConfirm] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [showTestSmsDialog, setShowTestSmsDialog] = useState(false);
+  const [showImageLibrary, setShowImageLibrary] = useState(false);
 
   useEffect(() => {
     if (template && open) {
@@ -72,24 +74,31 @@ export function TemplateFormDrawer({
     [],
   );
 
-  const handleInsertVariable = useCallback((variable: string) => {
+  const insertAtCursor = useCallback((text: string) => {
     const textarea = bodyRef.current;
     if (textarea) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const currentBody = form.body;
-      const newBody = currentBody.substring(0, start) + variable + currentBody.substring(end);
+      const newBody = form.body.substring(0, start) + text + form.body.substring(end);
       updateField('body', newBody);
 
       requestAnimationFrame(() => {
-        const cursorPos = start + variable.length;
+        const cursorPos = start + text.length;
         textarea.focus();
         textarea.setSelectionRange(cursorPos, cursorPos);
       });
     } else {
-      updateField('body', form.body + variable);
+      updateField('body', form.body + text);
     }
   }, [form.body, updateField]);
+
+  const handleInsertVariable = useCallback((variable: string) => {
+    insertAtCursor(variable);
+  }, [insertAtCursor]);
+
+  const handleInsertImage = useCallback((placeholderKey: string) => {
+    insertAtCursor(`{{image:${placeholderKey}}}`);
+  }, [insertAtCursor]);
 
   const { preview: livePreview, isLoading: previewLoading } = useTemplatePreview(
     template?.code ?? '',
@@ -190,6 +199,7 @@ export function TemplateFormDrawer({
                 <div className="flex flex-col gap-2">
                   <VariableInsertToolbar
                     onInsert={handleInsertVariable}
+                    onOpenImages={template?.channel === 'EMAIL' ? () => setShowImageLibrary(true) : undefined}
                     disabled={isSaving}
                     variables={canonicalAllowed}
                   />
@@ -266,6 +276,15 @@ export function TemplateFormDrawer({
           onClose={() => setShowTestSmsDialog(false)}
           templateCode={template.code}
           channel={template.channel}
+        />
+      )}
+
+      {showImageLibrary && (
+        <ImageLibraryModal
+          open={showImageLibrary}
+          onClose={() => setShowImageLibrary(false)}
+          onInsert={handleInsertImage}
+          tenantId={template?.tenantId}
         />
       )}
 

@@ -32,7 +32,11 @@ export class PollRetryableNotificationsUseCase {
     }
 
     for (const notification of batch) {
-      await this.jobQueue.enqueue('notification.send', { notificationId: notification.id }, { retryLimit: 0 });
+      await this.jobQueue.enqueue('notification.send', { notificationId: notification.id }, {
+        retryLimit: 0,
+        singletonKey: notification.id,
+        expireInMinutes: 5,
+      });
     }
     return { enqueuedCount: batch.length, hasMore };
   }

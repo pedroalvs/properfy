@@ -68,11 +68,11 @@ TDD is mandatory (constitution §III): each implementation task is preceded by i
 - [X] T031 [US2] Use case `application/use-cases/delete-email-asset.use-case.ts`: **require `confirm: true`** (else `400 CONFIRMATION_REQUIRED` — server-enforced consent); block-if-bound (return usages) else **physically purge** object + hard-delete row + audit `EMAIL_ASSET_DELETED` (record `everSent`, tenant). `ever_sent` does NOT gate deletion (only informs the client warning). → green T030. (Depends on T006b — `deleted_at` dropped.)
 - [X] T032 [US2] Routes in `notification.routes.ts`: `GET/POST /v1/email-assets`, `POST /v1/email-assets/:id/confirm`, `GET /v1/email-assets/:id/usages`, `PATCH /v1/email-assets/:id/bindings/:bindingId`, `DELETE /v1/email-assets/:id` (validate the body with `deleteEmailAssetSchema` → `400 CONFIRMATION_REQUIRED` if `confirm` is not `true`) → green T027/T030.
 - [ ] T033 [US2] Binding reconciliation in `upsert-notification-template.use-case.ts`: accept optional `imageBindings[]` (placeholderKey + alt/width/height) in the save payload (Q3); on save, parse `{{image:key}}` → upsert/remove `template_image_bindings`, applying `imageBindings` metadata by key, defaulting from the asset when absent (so modal-set alt/dims survive first save).
-- [ ] T033a [US2] Web: `ImageLibraryModal`/`TemplateFormDrawer` collect per-insert alt/dims into editor state and send them as `imageBindings[]` in the save payload (`useTemplateSave.ts`); rehydrate from detail bindings on reopen (Q3).
+- [X] T033a [US2] Web: `ImageLibraryModal`/`TemplateFormDrawer` collect per-insert alt/dims into editor state and send them as `imageBindings[]` in the save payload (`useTemplateSave.ts`); rehydrate from detail bindings on reopen (Q3).
 - [X] T034 [US2] Wire asset storage/verifier/repos into `container.ts`.
-- [ ] T035 [P] [US2] Web hook `apps/web/.../hooks/useEmailAssets.ts` (list/presign/PUT/confirm/delete/editBinding).
-- [ ] T036 [P] [US2] Web component `apps/web/.../components/ImageLibraryModal.tsx` (Dialog-based: list+thumbnails, upload dropzone reusing FileUploadStep, preview, select→insert `{{image:key}}`, edit alt/dims). **Delete UX (FR-026/FR-026a)**: if in-use, show a blocking message naming the templates that use it (no delete); if unbound, require the mandatory confirmation modal (title `Delete image?`, approved message; show the historical-email warning when `everSent`) before calling `DELETE`.
-- [ ] T037 [US2] Wire "Images" action into `VariableInsertToolbar.tsx`/`TemplateFormDrawer.tsx` (insert placeholder at cursor; reuse cursor logic).
+- [X] T035 [P] [US2] Web hook `apps/web/.../hooks/useEmailAssets.ts` (list/presign/PUT/confirm/delete/editBinding).
+- [X] T036 [P] [US2] Web component `apps/web/.../components/ImageLibraryModal.tsx` (Dialog-based: list+thumbnails, upload dropzone reusing FileUploadStep, preview, select→insert `{{image:key}}`, edit alt/dims). **Delete UX (FR-026/FR-026a)**: if in-use, show a blocking message naming the templates that use it (no delete); if unbound, require the mandatory confirmation modal (title `Delete image?`, approved message; show the historical-email warning when `everSent`) before calling `DELETE`.
+- [X] T037 [US2] Wire "Images" action into `VariableInsertToolbar.tsx`/`TemplateFormDrawer.tsx` (insert placeholder at cursor; reuse cursor logic).
 - [ ] T038 [P] [US2] Playwright `apps/web/.../e2e/image-library.spec.ts`: upload PNG→appears; reject svg; insert→placeholder+preview image; delete in-use→blocked with template list; delete unbound→confirmation modal shown (with historical-email warning when ever-sent) then real purge; cancel aborts.
 
 **Checkpoint**: managed images end-to-end; preview renders real images; governance (no literal `<img>`, content-verified, safe deletion) enforced.
@@ -84,10 +84,10 @@ TDD is mandatory (constitution §III): each implementation task is preceded by i
 **Goal**: send resolves images→renders→sanitizes(render)→derives text→sends html+text; test-send guarded.
 **Independent test**: quickstart §D.
 
-- [ ] T039 [P] [US3] Integration test (red) `interfaces/__tests__/send-notification.int.spec.ts`: rendered email matches authored HTML w/ resolved vars; images resolve to asset-host `<img>`; both html+text parts present; spoof content neutralized; asset `ever_sent` set.
-- [ ] T040 [US3] Refactor `application/use-cases/send-notification.use-case.ts`: pipeline image-resolve → Handlebars render (recipient values) → sanitizer **render profile** → html-to-text → `ResendEmailProvider.send(html, text)`; mark resolved assets `ever_sent=true`.
-- [ ] T041 [P] [US3] Integration test (red) + guard impl for test-send recipient allowlist (`403 RECIPIENT_NOT_ALLOWED`) in `application/use-cases/send-test-notification.use-case.ts` + route.
-- [ ] T042 [US3] Ensure platform-default fallback + locale/timezone (tenant config → platform default) applied identically in preview (T017) and send (parity for SC-013).
+- [X] T039 [P] [US3] Integration test (red) `interfaces/__tests__/send-notification.int.spec.ts`: rendered email matches authored HTML w/ resolved vars; images resolve to asset-host `<img>`; both html+text parts present; spoof content neutralized; asset `ever_sent` set.
+- [X] T040 [US3] Refactor `application/use-cases/send-notification.use-case.ts`: pipeline image-resolve → Handlebars render (recipient values) → sanitizer **render profile** → html-to-text → `ResendEmailProvider.send(html, text)`; mark resolved assets `ever_sent=true`.
+- [X] T041 [P] [US3] Integration test (red) + guard impl for test-send recipient allowlist (`403 RECIPIENT_NOT_ALLOWED`) in `application/use-cases/send-test-notification.use-case.ts` + route.
+- [X] T042 [US3] Ensure platform-default fallback + locale/timezone (tenant config → platform default) applied identically in preview (T017) and send (parity for SC-013).
 
 **Checkpoint**: real emails render correctly with images + text part; test-send is safe in the shared env.
 
@@ -98,22 +98,22 @@ TDD is mandatory (constitution §III): each implementation task is preceded by i
 **Goal**: template create/update audits before/after body.
 **Independent test**: quickstart (edit → inspect audit).
 
-- [ ] T043 [P] [US4] Integration test (red) `interfaces/__tests__/template-audit.int.spec.ts`: update captures prior+new body; create captures new with empty before.
-- [ ] T044 [US4] Extend audit call in `upsert-notification-template.use-case.ts` to include `before`/`after` body (load prior template before upsert) → green T043.
+- [X] T043 [P] [US4] Integration test (red) `interfaces/__tests__/template-audit.int.spec.ts`: update captures prior+new body; create captures new with empty before.
+- [X] T044 [US4] Extend audit call in `upsert-notification-template.use-case.ts` to include `before`/`after` body (load prior template before upsert) → green T043.
 
 ## Phase 7: User Story 5 — Robust, predictable delivery queue (P2)
 
 **Goal**: one retry policy keyed by `Notification.id`; concrete schedule; 5-min visibility; terminal `FAILED`; retire double-retry.
 **Independent test**: quickstart §C.
 
-- [ ] T045 [P] [US5] Unit test (red) for the retry policy in `apps/backend/src/modules/notification/domain/__tests__/retry-policy.spec.ts`: schedule `[15s,45s,2m,5m,15m]` ±10% jitter, max 6 → terminal FAILED.
-- [ ] T046 [US5] Add `singletonKey` + `expireInMinutes` passthrough to `apps/backend/src/shared/infrastructure/queue.ts` `sendJob`; set notification queue `retryLimit: 0` (disable pg-boss auto-retry).
+- [X] T045 [P] [US5] Unit test (red) for the retry policy in `apps/backend/src/modules/notification/domain/__tests__/retry-policy.spec.ts`: schedule `[15s,45s,2m,5m,15m]` ±10% jitter, max 6 → terminal FAILED.
+- [X] T046 [US5] Add `singletonKey` + `expireInMinutes` passthrough to `apps/backend/src/shared/infrastructure/queue.ts` `sendJob`; set notification queue `retryLimit: 0` (disable pg-boss auto-retry).
 - [ ] T047 [US5] Apply `singletonKey: notificationId` on **both** enqueue paths — notification **create** and the worker **self-reschedule** (Q4); worker enqueues with `expireInMinutes: 5`; on failure reschedule via `startAfter` using the schedule; on 6th failure set Notification terminal `FAILED` + `failure_reason`. File: `apps/backend/src/modules/notification/...worker` / `main/workers.ts`.
-- [ ] T047a [US5] Update `POST /v1/notifications/:id/retry` use case to re-enqueue through the single path (`sendJob` with `singletonKey: notificationId`) — never the old poll (Q4).
+- [X] T047a [US5] Update `POST /v1/notifications/:id/retry` use case to re-enqueue through the single path (`sendJob` with `singletonKey: notificationId`) — never the old poll (Q4).
 - [ ] T048 [US5] Cutover (Q4): on startup `boss.unschedule('notification.retry-poll')` (idempotent) and **delete** the cron registration + dead `RETRY_DELAYS`/poll code; add a one-time bootstrap that re-enqueues non-terminal notifications with due/pending `next_retry_at` via the new path (safe under `singletonKey`). Deploy order: unschedule → register new worker → bootstrap drain (research R9a).
-- [ ] T048a [US5] Integration test (red→green) `queue-cutover.int.spec.ts`: ghost cron is unscheduled; backlog `next_retry_at` rows are drained once (no duplicate send via singletonKey); manual retry re-drives via new path.
-- [ ] T049 [P] [US5] Integration test (red→green) `interfaces/__tests__/queue-policy.int.spec.ts`: duplicate enqueue→one send (singletonKey); exhausted retries→terminal FAILED visible in `GET /v1/notifications` + manual retry re-drives; stalled job reclaimed after visibility window.
-- [ ] T050 [US5] Write the queue assessment doc (FR-017) at `specs/030-email-html-rawbody/queue-assessment.md` (current vs target, what changed).
+- [X] T048a [US5] Integration test (red→green) `queue-cutover.int.spec.ts`: ghost cron is unscheduled; backlog `next_retry_at` rows are drained once (no duplicate send via singletonKey); manual retry re-drives via new path.
+- [X] T049 [P] [US5] Integration test (red→green) `interfaces/__tests__/queue-policy.int.spec.ts`: duplicate enqueue→one send (singletonKey); exhausted retries→terminal FAILED visible in `GET /v1/notifications` + manual retry re-drives; stalled job reclaimed after visibility window.
+- [X] T050 [US5] Write the queue assessment doc (FR-017) at `specs/030-email-html-rawbody/queue-assessment.md` (current vs target, what changed).
 
 ---
 

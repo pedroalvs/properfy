@@ -7,6 +7,7 @@ import type { INotificationTemplateRepository } from '../../domain/notification-
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
 import type { IEmailProvider, ISmsProvider } from '../../domain/providers';
 import { NotificationForbiddenError, TemplateNotFoundError } from '../../domain/notification.errors';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 
 export interface SendTestNotificationInput {
   templateCode: string;
@@ -29,6 +30,8 @@ export class SendTestNotificationUseCase {
     private readonly smsProvider: ISmsProvider,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    /** Comma-separated list of allowed test-send recipients. Empty = no restriction (dev). */
+    private readonly recipientAllowlist?: string,
   ) {}
 
   async execute(input: SendTestNotificationInput): Promise<SendTestNotificationOutput> {
@@ -38,6 +41,20 @@ export class SendTestNotificationUseCase {
       action: 'config.notification_templates',
       entityType: 'NotificationTemplate',
     });
+
+    // Feature 030: enforce recipient allowlist for test-send in shared environments (FR-027a)
+    if (this.recipientAllowlist && input.channel === 'EMAIL') {
+      const allowedAddresses = this.recipientAllowlist
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      if (allowedAddresses.length > 0 && !allowedAddresses.includes(input.recipient.toLowerCase())) {
+        throw new ForbiddenError(
+          'RECIPIENT_NOT_ALLOWED',
+          `Recipient '${input.recipient}' is not in the test-send allowlist. Use a safe test inbox.`,
+        );
+      }
+    }
 
     let tenantId: string | null;
     if (actor.role === 'AM') {
