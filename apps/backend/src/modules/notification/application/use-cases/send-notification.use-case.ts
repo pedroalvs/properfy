@@ -21,6 +21,7 @@ import {
 } from '../../domain/notification.errors';
 import { MAX_RETRY_COUNT, RETRY_DELAYS, JITTER_FACTOR } from '../../domain/notification.constants';
 import { buildUnsubscribeUrl } from './process-unsubscribe.use-case';
+import { renderEmailBody } from '../render-email-body';
 
 export interface SendNotificationInput {
   notificationId: string;
@@ -239,52 +240,25 @@ export class SendNotificationUseCase {
       this.metrics.incrementMissingVariableCount(missingVars.length);
     }
 
-    // Feature 030: Resolve {{image:key}} placeholders → <img> tags BEFORE Handlebars
-    let bodyHtmlSource = template.bodyHtml ?? '';
-    const resolvedAssetIds: string[] = [];
-
-    if (bodyHtmlSource && this.imagePlaceholderResolver && this.templateImageBindingRepo && this.emailAssetRepo) {
-      const bindings = await this.templateImageBindingRepo.findByTemplate(template.id);
-      const resolvedBindings = await Promise.all(
-        bindings.map(async (b) => {
-          const asset = await this.emailAssetRepo!.findById(b.assetId);
-          if (!asset || asset.status !== 'VERIFIED') return null;
-          resolvedAssetIds.push(asset.id);
-          return {
-            placeholderKey: b.placeholderKey,
-            src: asset.publicUrl,
-            alt: b.altText ?? asset.placeholderKey,
-            width: b.width ?? asset.width ?? undefined,
-            height: b.height ?? asset.height ?? undefined,
-          };
-        }),
-      );
-      bodyHtmlSource = this.imagePlaceholderResolver.resolve(
-        bodyHtmlSource,
-        resolvedBindings.filter(Boolean) as Parameters<typeof this.imagePlaceholderResolver.resolve>[1],
-      );
-    }
-
-    // Render template (Handlebars variables)
-    const renderedSubject = template.subject
-      ? this.templateRenderer.render(template.subject, variables)
-      : '';
-    let renderedBodyHtml = bodyHtmlSource
-      ? this.templateRenderer.render(bodyHtmlSource, variables)
-      : '';
-
-    // Feature 030: apply render-profile sanitizer (defense-in-depth)
-    if (renderedBodyHtml && this.htmlSanitizer) {
-      renderedBodyHtml = this.htmlSanitizer.sanitizeForRender(renderedBodyHtml, this.emailAssetsPublicUrlBase);
-    }
-
-    // Feature 030: derive plain-text from HTML (bodyText from html-to-text)
-    let renderedBodyText: string;
-    if (renderedBodyHtml && this.htmlToText) {
-      renderedBodyText = this.htmlToText.convert(renderedBodyHtml);
-    } else {
-      renderedBodyText = this.templateRenderer.render(template.bodyText, variables);
-    }
+    // Feature 030: shared render pipeline (image-resolve → Handlebars → sanitize → html-to-text)
+    const { renderedSubject, renderedBodyHtml, renderedBodyText, resolvedAssetIds } = await renderEmailBody(
+      {
+        templateId: template.id,
+        bodyHtmlSource: template.bodyHtml ?? '',
+        bodyTextSource: template.bodyText,
+        subject: template.subject,
+        variables,
+      },
+      {
+        templateRenderer: this.templateRenderer,
+        htmlSanitizer: this.htmlSanitizer,
+        htmlToText: this.htmlToText,
+        imagePlaceholderResolver: this.imagePlaceholderResolver,
+        emailAssetRepo: this.emailAssetRepo,
+        templateImageBindingRepo: this.templateImageBindingRepo,
+        emailAssetsPublicUrlBase: this.emailAssetsPublicUrlBase,
+      },
+    );
 
     // Feature 030: mark resolved assets as ever_sent
     if (resolvedAssetIds.length > 0 && this.emailAssetRepo) {

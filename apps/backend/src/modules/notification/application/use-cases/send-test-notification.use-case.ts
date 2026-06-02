@@ -5,9 +5,15 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
+import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service';
+import type { IHtmlToTextService } from '../../domain/html-to-text.service';
+import type { IImagePlaceholderResolver } from '../../domain/image-placeholder-resolver.service';
+import type { IEmailAssetRepository } from '../../domain/email-asset.repository';
+import type { ITemplateImageBindingRepository } from '../../domain/template-image-binding.repository';
 import type { IEmailProvider, ISmsProvider } from '../../domain/providers';
 import { NotificationForbiddenError, TemplateNotFoundError } from '../../domain/notification.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { renderEmailBody } from '../render-email-body';
 
 export interface SendTestNotificationInput {
   templateCode: string;
@@ -32,6 +38,15 @@ export class SendTestNotificationUseCase {
     private readonly authorizationService: AuthorizationService,
     /** Comma-separated list of allowed test-send recipients. Empty = no restriction (dev). */
     private readonly recipientAllowlist?: string,
+    /** Feature 030: render pipeline deps (image-resolve → sanitize → html-to-text) */
+    private readonly renderDeps?: {
+      htmlSanitizer?: IHtmlSanitizerService;
+      htmlToText?: IHtmlToTextService;
+      imagePlaceholderResolver?: IImagePlaceholderResolver;
+      emailAssetRepo?: IEmailAssetRepository;
+      templateImageBindingRepo?: ITemplateImageBindingRepository;
+      emailAssetsPublicUrlBase?: string;
+    },
   ) {}
 
   async execute(input: SendTestNotificationInput): Promise<SendTestNotificationOutput> {
@@ -90,17 +105,23 @@ export class SendTestNotificationUseCase {
     let messageId: string;
 
     if (input.channel === 'EMAIL') {
-      const renderedSubject = template.subject
-        ? this.templateRenderer.render(template.subject, vars)
-        : '';
-      const renderedBodyHtml = template.bodyHtml
-        ? this.templateRenderer.render(template.bodyHtml, vars)
-        : undefined;
-      const renderedBodyText = this.templateRenderer.render(template.bodyText, vars);
+      const { renderedSubject, renderedBodyHtml, renderedBodyText } = await renderEmailBody(
+        {
+          templateId: template.id,
+          bodyHtmlSource: template.bodyHtml ?? '',
+          bodyTextSource: template.bodyText,
+          subject: template.subject,
+          variables: vars,
+        },
+        {
+          templateRenderer: this.templateRenderer,
+          ...this.renderDeps,
+        },
+      );
       ({ messageId } = await this.emailProvider.send(
         input.recipient,
         renderedSubject,
-        renderedBodyHtml ?? renderedBodyText,
+        renderedBodyHtml || renderedBodyText,
         renderedBodyText,
       ));
     } else {

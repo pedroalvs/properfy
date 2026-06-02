@@ -1125,8 +1125,18 @@ export function createContainer(logger: Logger): AppContainer {
   const sendTestNotificationUseCase = new SendTestNotificationUseCase(
     notificationTemplateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
     env.EMAIL_TEST_RECIPIENT_ALLOWLIST,
+    {
+      htmlSanitizer,
+      htmlToText,
+      imagePlaceholderResolver,
+      emailAssetRepo,
+      templateImageBindingRepo,
+      emailAssetsPublicUrlBase: env.EMAIL_ASSETS_PUBLIC_URL_BASE,
+    },
   );
-  const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(notificationTemplateRepo, authorizationService);
+  const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(
+    notificationTemplateRepo, authorizationService, templateImageBindingRepo, emailAssetRepo,
+  );
   // createNotificationUseCase and notificationJobQueue created above (before appointments)
   const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue, logger);
   const dispatchRemindersUseCase = new DispatchRemindersUseCase(

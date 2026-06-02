@@ -33,8 +33,8 @@ export class UnauthorizedError extends DomainError {
 }
 
 export class ConflictError extends DomainError {
-  constructor(code: string, message: string) {
-    super(code, message, 409);
+  constructor(code: string, message: string, details?: unknown) {
+    super(code, message, 409, details);
     this.name = 'ConflictError';
   }
 }

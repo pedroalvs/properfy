@@ -52,8 +52,8 @@ export class PrismaEmailAssetRepository implements IEmailAssetRepository {
   }
 
   async findByPlaceholderKey(tenantId: string | null, placeholderKey: string): Promise<EmailAssetData | null> {
-    const row = await this.prisma.emailAsset.findUnique({
-      where: { tenant_id_placeholder_key: { tenant_id: tenantId as string, placeholder_key: placeholderKey } },
+    const row = await this.prisma.emailAsset.findFirst({
+      where: { tenant_id: tenantId, placeholder_key: placeholderKey },
     });
     return row ? toData(row as Parameters<typeof toData>[0]) : null;
   }

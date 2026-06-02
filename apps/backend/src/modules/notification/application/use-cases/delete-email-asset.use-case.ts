@@ -50,6 +50,7 @@ export class DeleteEmailAssetUseCase {
       throw new ConflictError(
         'ASSET_IN_USE',
         `Asset is used in ${templateIds.length} template(s) — remove bindings first`,
+        { usages: templateIds },
       );
     }
 
