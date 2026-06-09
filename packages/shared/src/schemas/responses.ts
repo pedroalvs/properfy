@@ -369,12 +369,17 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
 
 // ─── Service Group ─────────────────────────────────────────────────────────
 
+// Single source of truth for the agency reference shape (cross-agency groups
+// derive their agencies from the linked appointments' tenants).
+export const agencyRefSchema = z.object({ id: z.string().uuid(), name: z.string() });
+export type Agency = z.infer<typeof agencyRefSchema>;
+
 export const serviceGroupResponseSchema = z.object({
   id: z.string().uuid(),
   // Null when the group spans multiple agencies (cross-agency group).
   tenantId: z.string().uuid().nullable(),
   // Distinct agencies of the group's appointments (one entry for single-agency groups).
-  agencies: z.array(z.object({ id: z.string().uuid(), name: z.string() })).optional(),
+  agencies: z.array(agencyRefSchema).optional(),
   serviceTypeId: z.string().uuid(),
   status: z.string(),
   groupSize: z.number(),
@@ -436,6 +441,9 @@ export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSche
   notes: z.string().nullable(),
   appointments: z.array(marketplaceOfferDetailAppointmentSchema),
 });
+
+export type MarketplaceOfferDetailAppointment = z.infer<typeof marketplaceOfferDetailAppointmentSchema>;
+export type MarketplaceOfferDetail = z.infer<typeof marketplaceOfferDetailResponseSchema>;
 
 export const marketplaceOfferAcceptResponseSchema = z.object({
   groupId: z.string().uuid(),

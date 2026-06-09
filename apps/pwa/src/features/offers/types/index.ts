@@ -15,21 +15,9 @@ export interface MarketplaceOffer {
   centroid: { lat: number; lng: number } | null;
 }
 
-export interface MarketplaceOfferDetailAppointment {
-  id: string;
-  appointmentCode: string;
-  appointmentNumber: number;
-  suburb: string;
-  keyRequired: boolean;
-  notes: string | null;
-  payoutAmount: number | null;
-  /** Agency (tenant) name of this appointment — groups may be cross-agency. */
-  tenantName: string;
-}
-
-export interface MarketplaceOfferDetail extends MarketplaceOffer {
-  addresses: string[];
-  keyRequired: boolean;
-  notes: string | null;
-  appointments: MarketplaceOfferDetailAppointment[];
-}
+// Offer-detail shapes derive from the shared Zod response schema (single source
+// of truth); the per-appointment `tenantName` supports cross-agency groups.
+export type {
+  MarketplaceOfferDetail,
+  MarketplaceOfferDetailAppointment,
+} from '@properfy/shared';

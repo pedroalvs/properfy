@@ -1,16 +1,14 @@
-import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
+import type { ServiceGroupStatus, PriorityMode, Agency } from '@properfy/shared';
 
-export interface AgencyRef {
-  id: string;
-  name: string;
-}
+// Re-exported so feature-local imports keep a single path; shape lives in @properfy/shared.
+export type { Agency } from '@properfy/shared';
 
 export interface ServiceGroup {
   id: string;
   /** Null when the group spans multiple agencies (cross-agency group). */
   tenantId: string | null;
   /** Distinct agencies of the group's appointments (populated by the list/detail hooks). */
-  agencies?: AgencyRef[];
+  agencies?: Agency[];
   name: string | null;
   regionName: string | null;
   inspectorId: string | null;
