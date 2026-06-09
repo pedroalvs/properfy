@@ -189,7 +189,6 @@ model Tenant {
   properties             Property[]
   price_rules            ServicePriceRule[]
   appointments           Appointment[]
-  service_groups         ServiceGroup[]
   financial_entries      FinancialEntry[]
   tenant_invoices        TenantInvoice[]
   notifications          Notification[]
@@ -575,7 +574,6 @@ model AppointmentConfirmationCycle {
 
 model ServiceGroup {
   id                    String                     @id @default(uuid())
-  tenant_id             String
   service_type_id       String
   status                ServiceGroupStatus         @default(DRAFT)
   group_size            Int
@@ -598,19 +596,16 @@ model ServiceGroup {
   created_at            DateTime                   @default(now())
   updated_at            DateTime                   @updatedAt
 
-  tenant             Tenant         @relation(fields: [tenant_id], references: [id])
   service_type       ServiceType    @relation(fields: [service_type_id], references: [id])
   assigned_inspector Inspector?     @relation(fields: [assigned_inspector_id], references: [id])
   service_region     ServiceRegion? @relation(fields: [service_region_id], references: [id], onDelete: Restrict)
   created_by         User           @relation("ServiceGroupCreatedBy", fields: [created_by_user_id], references: [id])
   appointments       Appointment[]
 
-  @@index([tenant_id])
   @@index([status])
   @@index([scheduled_date])
   @@index([assigned_inspector_id])
   @@index([service_region_id])
-  @@index([tenant_id, status])
   @@map("service_groups")
 }
 

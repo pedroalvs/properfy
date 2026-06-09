@@ -22,9 +22,20 @@ export interface PaginationParams {
   sortOrder: 'asc' | 'desc';
 }
 
+export interface AgencyRef {
+  id: string;
+  name: string;
+}
+
 export interface ServiceGroupWithAppointments {
   group: ServiceGroupEntity;
   assignedInspectorName?: string | null;
+  /** Distinct tenant IDs of the linked appointments. A group is "mixed" when length > 1. */
+  tenantIds: string[];
+  /** The single tenant id when all appointments share one agency, else null (mixed/cross-agency group). */
+  primaryTenantId: string | null;
+  /** Distinct agencies (id + name) of the linked appointments — exposed to the UI. */
+  agencies: AgencyRef[];
   appointments: Array<{
     id: string;
     appointmentNumber: number;
@@ -58,7 +69,9 @@ export interface ServiceGroupMapAppointment {
 
 export interface MarketplaceOffer {
   groupId: string;
-  tenantId: string;
+  /** Single agency id when the group is single-agency, else null (mixed/cross-agency group). */
+  tenantId: string | null;
+  /** Agency display name; "Multiple agencies" when the group spans more than one tenant. */
   tenantName: string;
   serviceTypeName: string;
   groupSize: number;
@@ -83,12 +96,18 @@ export interface MarketplaceOfferDetail extends MarketplaceOffer {
     keyRequired: boolean;
     notes: string | null;
     payoutAmount: number | null;
+    /** Agency (tenant) name of this appointment — shown per-job in the offer detail. */
+    tenantName: string;
   }>;
 }
 
 export interface ServiceGroupListItem {
   group: ServiceGroupEntity;
   assignedInspectorName: string | null;
+  /** Derived from linked appointments: single agency id, or null when mixed. */
+  primaryTenantId: string | null;
+  /** Distinct agencies (id + name) of the linked appointments — exposed to the UI. */
+  agencies: AgencyRef[];
 }
 
 export interface PortalEligibleGroup {
@@ -187,9 +206,12 @@ export interface IServiceGroupRepository {
     propertyId: string;
     today: Date;
   }): Promise<PortalEligibleGroup[]>;
-  /** 026 B1 — find DRAFT/PUBLISHED groups that can absorb a batch of same-property appointments. */
+  /**
+   * 026 B1 — find DRAFT/PUBLISHED groups that can absorb a batch of appointments.
+   * Groups are tenant-agnostic, so addability is service-type/date/time-window/
+   * status/capacity only (no tenant scoping).
+   */
   findAddableForAppointments(params: {
-    tenantId: string;
     serviceTypeId: string;
     scheduledDate: Date;
     timeSlot: string;

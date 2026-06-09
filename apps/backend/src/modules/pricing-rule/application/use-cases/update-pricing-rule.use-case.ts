@@ -51,11 +51,13 @@ export class UpdatePricingRuleUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Resolve tenantId for scoped lookup. Only AM is cross-tenant per
-    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
+    // Resolve tenantId for scoped lookup. AM/OP are cross-tenant (no own tenant):
+    // resolve to null so the rule is found by id, then its own tenant governs the
+    // update. CL_ADMIN is scoped to its own JWT tenant. The update route never
+    // sends a body tenantId, so AM/OP must not depend on input.tenantId here.
     const resolvedTenantId =
-      actor.role === 'AM'
-        ? input.tenantId!
+      actor.role === 'AM' || actor.role === 'OP'
+        ? null
         : actor.tenantId!;
 
     const rule = await this.pricingRuleRepo.findById(pricingRuleId, resolvedTenantId);

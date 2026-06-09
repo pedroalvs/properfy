@@ -38,6 +38,7 @@ const mockDetail: MarketplaceOfferDetail = {
       keyRequired: false,
       notes: null,
       payoutAmount: 150,
+      tenantName: 'Acme Realty',
     },
     {
       id: '00000000-0000-0000-0000-000000000012',
@@ -47,6 +48,7 @@ const mockDetail: MarketplaceOfferDetail = {
       keyRequired: false,
       notes: null,
       payoutAmount: 150,
+      tenantName: 'Globex Property',
     },
   ],
 };
@@ -77,6 +79,13 @@ describe('GroupDetailBottomSheet', () => {
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     expect(screen.getByText('Bondi NSW')).toBeInTheDocument();
     expect(screen.getByText('Manly NSW')).toBeInTheDocument();
+  });
+
+  it('shows each appointment\'s agency (groups may span agencies)', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    const agencies = screen.getAllByTestId('appointment-agency').map((el) => el.textContent);
+    expect(agencies).toEqual(['Acme Realty', 'Globex Property']);
   });
 
   it('formats payout as A$ currency', () => {

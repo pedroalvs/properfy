@@ -75,7 +75,7 @@ export class AcceptOfferUseCase {
     if (!findResult) {
       throw new ServiceGroupNotFoundError();
     }
-    const { group } = findResult;
+    const { group, tenantIds, primaryTenantId } = findResult;
 
     if (!group.canAccept()) {
       if (group.status === 'ACCEPTED') {
@@ -88,7 +88,10 @@ export class AcceptOfferUseCase {
       throw new InspectorServiceTypeIneligibleError();
     }
 
-    if (!inspector.isEligibleForTenant(group.tenantId)) {
+    // Eligible only when the inspector can serve EVERY agency in the group.
+    // An empty tenant set (no live appointments) must NOT pass — `[].every()`
+    // is true, which would otherwise grant access to an empty group.
+    if (tenantIds.length === 0 || !tenantIds.every((t) => inspector.isEligibleForTenant(t))) {
       throw new InspectorIneligibleError();
     }
 
@@ -147,7 +150,7 @@ export class AcceptOfferUseCase {
           actorId: actor.userId,
           entityType: 'ServiceGroup',
           entityId: groupId,
-          tenantId: group.tenantId,
+          tenantId: primaryTenantId,
           metadata: {
             originalError: err instanceof Error ? err.message : String(err),
             compensationError: compensationErr instanceof Error ? compensationErr.message : String(compensationErr),
@@ -163,7 +166,7 @@ export class AcceptOfferUseCase {
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
-      tenantId: group.tenantId,
+      tenantId: primaryTenantId,
       before: { status: 'PUBLISHED' },
       after: {
         status: 'ACCEPTED',
@@ -184,7 +187,7 @@ export class AcceptOfferUseCase {
 
     this.eventBus?.emit({
       type: SERVICE_GROUP_EVENTS.ACCEPTED,
-      payload: { groupId, tenantId: group.tenantId, inspectorId },
+      payload: { groupId, tenantId: primaryTenantId, inspectorId },
       occurredAt: new Date(),
     });
 

@@ -7,18 +7,18 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     const findMany = vi.fn().mockResolvedValue([
       {
         id: 'sg-1',
-        tenant_id: 'tenant-1',
         group_size: 3,
         scheduled_date: new Date('2026-05-01'),
         time_window: '08:00-12:00',
         priority_mode: 'STANDARD',
         priority_expires_at: null,
-        tenant: { name: 'Agency A' },
         service_type: { name: 'Routine' },
         appointments: [
           {
             key_required: false,
             payout_amount: 50,
+            tenant_id: 'tenant-1',
+            tenant: { name: 'Agency A' },
             property: { suburb: 'Bondi', street: '10 Main St' },
           },
         ],
@@ -198,7 +198,10 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     // Tagged template strings array is the first arg; assert the SQL contains the denylist clause.
     const sqlParts = queryRaw.mock.calls[0][0] as string[];
     const sqlText = sqlParts.join('');
-    expect(sqlText).toMatch(/NOT \(\s*sg\.tenant_id = ANY/);
+    // Groups are tenant-agnostic: the denylist is appointment-based (exclude the
+    // group if it contains an appointment of any blocked agency).
+    expect(sqlText).toMatch(/NOT EXISTS\s*\(\s*SELECT 1 FROM appointments ga/);
+    expect(sqlText).toMatch(/ga\.tenant_id = ANY/);
     // The blocked array must be among the interpolated params.
     const params = queryRaw.mock.calls[0].slice(1);
     expect(params).toContainEqual(['blocked-tenant-1', 'blocked-tenant-2']);
@@ -349,13 +352,16 @@ describe('PrismaServiceGroupRepository list filters', () => {
     );
 
     const call = findMany.mock.calls[0][0];
-    // branchId uses appointments.some directly
-    expect(call.where.appointments).toEqual({
-      some: { branch_id: 'branch-abc', deleted_at: null },
-    });
-    // contactSearch uses AND to avoid overwriting appointments filter
+    // Multiple appointment predicates (branch + contact) are each their own
+    // `appointments.some` clause combined under AND — neither overwrites the other.
+    expect(call.where.appointments).toBeUndefined();
     expect(call.where.AND).toEqual(
       expect.arrayContaining([
+        {
+          appointments: {
+            some: { branch_id: 'branch-abc', deleted_at: null },
+          },
+        },
         {
           appointments: {
             some: {

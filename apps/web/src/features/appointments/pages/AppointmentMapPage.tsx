@@ -36,13 +36,15 @@ import { MapGroupCreateModal } from '@/features/service-groups/components/MapGro
 import { useQueryClient } from '@tanstack/react-query';
 import type { UserRole } from '@properfy/shared';
 
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#E1BEE7',
-  AWAITING_INSPECTOR: '#FFE0B2',
-  SCHEDULED: '#2196F3',
-  DONE: '#4CAF50',
-  CANCELLED: '#EF5350',
-  REJECTED: '#FF7043',
+// Appointment pins are black teardrops; the status is encoded by the icon
+// inside the pin (not by color). One MDI glyph per appointment status.
+const STATUS_ICONS: Record<string, string> = {
+  DRAFT: 'mdi-pencil',
+  AWAITING_INSPECTOR: 'mdi-account-clock',
+  SCHEDULED: 'mdi-calendar-check',
+  DONE: 'mdi-check-bold',
+  CANCELLED: 'mdi-cancel',
+  REJECTED: 'mdi-close-octagon',
 };
 
 const GROUP_STATUS_COLORS: Record<string, string> = {
@@ -695,7 +697,7 @@ export function AppointmentMapPage() {
               key={item.id}
               longitude={item.longitude}
               latitude={item.latitude}
-              color={STATUS_COLORS[item.status] ?? '#9E9E9E'}
+              icon={STATUS_ICONS[item.status] ?? 'mdi-map-marker'}
               label={item.code}
               active={selectedItem?.id === item.id}
               // Disable marker interaction while the operator is sketching

@@ -13569,7 +13569,28 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "agencies": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "serviceTypeId": {
                           "type": "string",
@@ -13910,7 +13931,28 @@
                           },
                           "tenantId": {
                             "type": "string",
-                            "format": "uuid"
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "agencies": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
                           },
                           "serviceTypeId": {
                             "type": "string",
@@ -14126,7 +14168,28 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "agencies": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "serviceTypeId": {
                           "type": "string",
@@ -14373,7 +14436,28 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "agencies": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "serviceTypeId": {
                           "type": "string",
@@ -14563,7 +14647,28 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "agencies": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "serviceTypeId": {
                           "type": "string",
@@ -14773,7 +14878,28 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "agencies": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "serviceTypeId": {
                           "type": "string",
@@ -15792,6 +15918,9 @@
                               "payoutAmount": {
                                 "type": "number",
                                 "nullable": true
+                              },
+                              "tenantName": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -15801,7 +15930,8 @@
                               "suburb",
                               "keyRequired",
                               "notes",
-                              "payoutAmount"
+                              "payoutAmount",
+                              "tenantName"
                             ],
                             "additionalProperties": false
                           }

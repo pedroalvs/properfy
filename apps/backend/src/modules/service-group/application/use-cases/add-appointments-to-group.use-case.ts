@@ -91,7 +91,6 @@ export class AddAppointmentsToGroupUseCase {
         },
         {
           status: group.status,
-          tenantId: group.tenantId,
           serviceTypeId: group.serviceTypeId,
           scheduledDate: group.scheduledDate,
           timeWindow: group.timeWindow,
@@ -172,7 +171,6 @@ function reasonMessage(code: AddToGroupReason): string {
   switch (code) {
     case 'INVALID_STATUS': return 'Appointment must be in DRAFT or AWAITING_INSPECTOR status';
     case 'ALREADY_GROUPED': return 'Appointment is already linked to another service group';
-    case 'INVALID_TENANT': return 'Appointment belongs to a different tenant than the group';
     case 'INVALID_SERVICE_TYPE': return 'Appointment service type does not match the group';
     case 'INVALID_DATE': return 'Appointment scheduled date does not match the group';
     case 'INVALID_TIME_WINDOW': return 'Appointment time slot does not match the group time window';

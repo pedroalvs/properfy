@@ -64,4 +64,52 @@ describe('MapMarker', () => {
     const label = screen.getByText('VST-001');
     expect(label.className).toContain('select-none');
   });
+
+  // Appointments status map — black teardrop pins whose inner icon encodes
+  // the appointment status (color no longer differentiates statuses).
+  describe('icon variant (status pins)', () => {
+    it('renders a solid circular head with the status icon centered inside', () => {
+      const { container } = render(
+        <MapMarker longitude={0} latitude={0} icon="mdi-check-bold" label="VST-001" />,
+      );
+      // Solid round head (no mdi-map-marker glyph → no hollow centre / "white ball").
+      expect(container.querySelector('.mdi-map-marker')).not.toBeInTheDocument();
+      // Status icon centered in the head.
+      expect(container.querySelector('.mdi-check-bold')).toBeInTheDocument();
+    });
+
+    it('surfaces the icon on the marker wrapper via data-icon', () => {
+      render(<MapMarker longitude={0} latitude={0} icon="mdi-calendar-check" />);
+      expect(screen.getByTestId('map-marker')).toHaveAttribute(
+        'data-icon',
+        'mdi-calendar-check',
+      );
+    });
+
+    it('keeps the button accessible and clickable in the icon variant', () => {
+      const handleClick = vi.fn();
+      render(
+        <MapMarker
+          longitude={0}
+          latitude={0}
+          icon="mdi-cancel"
+          label="VST-002"
+          onClick={handleClick}
+        />,
+      );
+      const button = screen.getByRole('button', { name: 'VST-002' });
+      fireEvent.click(button);
+      expect(handleClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to the colored circle when no icon is provided', () => {
+      const { container } = render(
+        <MapMarker longitude={0} latitude={0} color="#FF0000" />,
+      );
+      // Default path keeps the single map-marker glyph and no data-icon —
+      // protects the property / service-group / marketplace maps.
+      expect(container.querySelector('.mdi-map-marker')).toBeInTheDocument();
+      expect(screen.getByTestId('map-marker')).not.toHaveAttribute('data-icon');
+    });
+  });
 });

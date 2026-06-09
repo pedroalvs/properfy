@@ -16,7 +16,7 @@ export interface PaginationParams {
 }
 
 export interface IPricingRuleRepository {
-  findById(id: string, tenantId: string): Promise<PricingRuleEntity | null>;
+  findById(id: string, tenantId: string | null): Promise<PricingRuleEntity | null>;
   findByUnique(
     tenantId: string,
     serviceTypeId: string,

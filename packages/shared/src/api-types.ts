@@ -5873,7 +5873,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -5956,7 +5961,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -6024,7 +6034,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -6101,7 +6116,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -6167,7 +6187,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -6244,7 +6269,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -6715,6 +6745,7 @@ export interface paths {
                                     keyRequired: boolean;
                                     notes: string | null;
                                     payoutAmount: number | null;
+                                    tenantName: string;
                                 }[];
                             };
                         };
