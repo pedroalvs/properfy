@@ -183,11 +183,10 @@ export class CreateAppointmentUseCase {
       }
     }
 
-    // 2. Resolve tenantId and validate branch. Only AM is cross-tenant.
-    // OP is tenant-scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
+    // 2. Resolve tenantId and validate branch. AM/OP are cross-tenant.
     let tenantId: string;
-    if (actor.role === 'AM') {
-      // AM: lookup branch without tenant scope to infer tenantId
+    if (actor.role === 'AM' || actor.role === 'OP') {
+      // AM/OP have no own tenant scope: infer tenantId from the branch.
       const branch = await this.branchRepo.findById(input.branchId, '');
       if (!branch) {
         throw new AppointmentBranchNotFoundError();
@@ -197,7 +196,7 @@ export class CreateAppointmentUseCase {
       }
       tenantId = branch.tenantId;
     } else {
-      // OP / CL_ADMIN / CL_USER: use tenantId from JWT, validate branch in scope
+      // CL_ADMIN / CL_USER: use tenantId from JWT, validate branch in scope
       tenantId = actor.tenantId!;
       const branch = await this.branchRepo.findById(input.branchId, tenantId);
       if (!branch) {

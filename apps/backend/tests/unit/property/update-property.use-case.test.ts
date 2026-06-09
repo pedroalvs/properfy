@@ -133,6 +133,22 @@ describe('UpdatePropertyUseCase', () => {
     );
   });
 
+  it('should update property for OP cross-tenant (lookup not scoped to null JWT tenant)', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+
+    const result = await useCase.execute({
+      propertyId: 'prop-1',
+      data: { notes: 'Updated by operator' },
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    expect(result.id).toBe('prop-1');
+    // OP has no own tenant: the property lookup must be cross-tenant (null/no
+    // scope), never filtered by a null tenant_id which would match nothing.
+    expect(propertyRepo.findById).toHaveBeenCalledWith('prop-1', null);
+    expect(propertyRepo.update).toHaveBeenCalled();
+  });
+
   it('should throw PROPERTY_NOT_FOUND when property does not exist', async () => {
     vi.mocked(propertyRepo.findById).mockResolvedValue(null);
 

@@ -138,6 +138,40 @@ describe('CreatePropertyUseCase', () => {
     expect(propertyRepo.save).toHaveBeenCalled();
   });
 
+  it('should create property for OP using explicit tenantId (cross-tenant)', async () => {
+    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      propertyCode: 'PROP-OP',
+      type: 'RESIDENTIAL',
+      street: '123 Main St',
+      suburb: 'Sydney',
+      postcode: '2000',
+      state: 'NSW',
+      country: 'AU',
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    expect(result.tenantId).toBe('tenant-1');
+    expect(propertyRepo.save).toHaveBeenCalled();
+  });
+
+  it('should throw VALIDATION_ERROR when OP omits tenantId', async () => {
+    await expect(
+      useCase.execute({
+        propertyCode: 'PROP-OP-2',
+        type: 'RESIDENTIAL',
+        street: '123 Main St',
+        suburb: 'Sydney',
+        postcode: '2000',
+        state: 'NSW',
+        country: 'AU',
+        actor: makeActor({ role: 'OP', tenantId: null }),
+      }),
+    ).rejects.toThrow(ValidationError);
+  });
+
   it('should reject INSP role', async () => {
     await expect(
       useCase.execute({
