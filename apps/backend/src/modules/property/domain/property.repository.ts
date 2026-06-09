@@ -42,6 +42,11 @@ export interface IPropertyRepository {
   count(filters: PropertyFilters): Promise<number>;
   /** Find properties with FAILED geocoding status that were last updated before the given date. */
   findFailedGeocoding(updatedBefore: Date): Promise<Array<{ id: string; tenantId: string }>>;
+  /**
+   * Find properties stuck in PENDING geocoding with no coordinates, last updated before the
+   * given date — these are "lost enqueue" cases (the geocode job never landed in the queue).
+   */
+  findStalePendingGeocoding(updatedBefore: Date): Promise<Array<{ id: string; tenantId: string }>>;
   /** Count properties currently in FAILED geocoding status. */
   countFailedGeocoding(): Promise<number>;
   save(property: PropertyEntity): Promise<void>;

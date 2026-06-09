@@ -144,7 +144,7 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('auth.check-key-expiry', '0 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('report.process-schedules', expect.any(String), {});
-    expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '0 */6 * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '*/15 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('tenant-portal.expire-tokens', '*/15 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {});

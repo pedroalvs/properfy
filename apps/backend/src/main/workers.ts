@@ -141,11 +141,13 @@ export async function registerWorkers(
     await geocodeWorker.execute({ propertyId });
   }));
 
-  await boss.schedule('property.geocode-retry', '0 */6 * * *', {});
+  // Every 15 min: re-enqueues FAILED (24h cool-off) AND self-heals stale PENDING properties
+  // whose enqueue was lost. The frequent cadence keeps a lost-enqueue property's wait bounded.
+  await boss.schedule('property.geocode-retry', '*/15 * * * *', {});
   await boss.work('property.geocode-retry', withJobMetrics('property.geocode-retry', async (job) => {
     logger.info({ jobId: job.id }, 'Processing property.geocode-retry job');
     const result = await geocodeRetryWorker.execute();
-    logger.info({ jobId: job.id, reenqueuedCount: result.reenqueuedCount, failedGeocodingCount: result.failedGeocodingCount }, 'Geocode retry sweep completed');
+    logger.info({ jobId: job.id, reenqueuedCount: result.reenqueuedCount, pendingReenqueuedCount: result.pendingReenqueuedCount, failedGeocodingCount: result.failedGeocodingCount }, 'Geocode retry sweep completed');
   }));
 
   await boss.work('appointment.import', withJobMetrics('appointment.import', async (job) => {

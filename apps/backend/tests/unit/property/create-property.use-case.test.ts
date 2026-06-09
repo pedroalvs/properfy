@@ -262,6 +262,42 @@ describe('CreatePropertyUseCase', () => {
     }, { retryLimit: 6, retryBackoff: true });
   });
 
+  it('logs the geocoding enqueue failure instead of swallowing it silently', async () => {
+    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+    vi.mocked(sendJob).mockRejectedValueOnce(new Error('queue down'));
+    const logger = {
+      info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(),
+      fatal: vi.fn(), trace: vi.fn(), child: vi.fn(),
+    } as any;
+    const useCaseWithLogger = new CreatePropertyUseCase(
+      propertyRepo, branchRepo, auditService, undefined, undefined, logger,
+    );
+
+    const result = await useCaseWithLogger.execute({
+      tenantId: 'tenant-1',
+      propertyCode: 'PROP-GEO-FAIL',
+      type: 'RESIDENTIAL',
+      street: '1 Fail St',
+      suburb: 'Sydney',
+      postcode: '2000',
+      state: 'NSW',
+      country: 'AU',
+      actor: makeActor(),
+    });
+
+    // Creation must still succeed — a queue failure does not fail the request
+    expect(result.id).toBeTruthy();
+    expect(result.geocodingStatus).toBe('PENDING');
+
+    // Flush the fire-and-forget .catch() microtask
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(logger.error).toHaveBeenCalledWith(
+      { propertyId: result.id, err: expect.any(Error) },
+      'property.geocode_enqueue_failed',
+    );
+  });
+
   it('should validate branch and create property with branchId', async () => {
     vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
     vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
