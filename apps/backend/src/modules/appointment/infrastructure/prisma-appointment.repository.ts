@@ -61,6 +61,7 @@ function mapToEntity(row: any): AppointmentEntity {
     pricingRuleSnapshotJson: (row.pricing_rule_snapshot_json as Record<string, unknown>) ?? {},
     notes: row.notes,
     tenantNote: row.tenant_note ?? null,
+    observation: row.observation ?? null,
     customFieldsJson: row.custom_fields_json as Record<string, unknown> | null,
     reason: row.reason,
     cancellationReasonCode: (row.cancellation_reason_code as CancellationReasonCode) ?? null,
@@ -262,6 +263,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         pricing_rule_snapshot_json: appointment.pricingRuleSnapshotJson as Prisma.InputJsonValue,
         notes: appointment.notes,
         tenant_note: appointment.tenantNote,
+        observation: appointment.observation,
         custom_fields_json: (appointment.customFieldsJson as Prisma.InputJsonValue) ?? undefined,
         reason: appointment.reason,
         created_by_user_id: appointment.createdByUserId,
@@ -287,6 +289,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       activeConfirmationCycleId: string | null;
       notes: string | null;
       tenantNote: string | null;
+      observation: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
       cancellationReasonCode: CancellationReasonCode | null;
@@ -319,6 +322,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     }
     if (data.notes !== undefined) updateData['notes'] = data.notes;
     if (data.tenantNote !== undefined) updateData['tenant_note'] = data.tenantNote;
+    if (data.observation !== undefined) updateData['observation'] = data.observation;
     if (data.customFieldsJson !== undefined) updateData['custom_fields_json'] = data.customFieldsJson;
     if (data.reason !== undefined) updateData['reason'] = data.reason;
     if (data.cancellationReasonCode !== undefined) updateData['cancellation_reason_code'] = data.cancellationReasonCode;

@@ -38,7 +38,7 @@ export class CancelServiceGroupUseCase {
       throw new ServiceGroupNotFoundError();
     }
 
-    const { group } = result;
+    const { group, primaryTenantId } = result;
 
     if (!group.canCancel()) {
       throw new ServiceGroupInvalidStatusError('DRAFT, PUBLISHED, or ACCEPTED', group.status);
@@ -63,7 +63,7 @@ export class CancelServiceGroupUseCase {
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
-      tenantId: group.tenantId,
+      tenantId: primaryTenantId,
       before: { status: group.status },
       after: { status: 'CANCELLED' },
       reason,
@@ -71,7 +71,7 @@ export class CancelServiceGroupUseCase {
 
     this.eventBus?.emit({
       type: SERVICE_GROUP_EVENTS.CANCELLED,
-      payload: { groupId, tenantId: group.tenantId },
+      payload: { groupId, tenantId: primaryTenantId },
       occurredAt: new Date(),
     });
 

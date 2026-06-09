@@ -167,7 +167,7 @@ async function countPlannedDeletes(scope: RefreshScope) {
     inspectorInvoices: await prisma.inspectorInvoice.count({ where: { inspector_id: { in: inspectorIds } } }),
     availabilitySlots: await prisma.inspectorAvailabilitySlot.count({ where: { inspector_id: { in: inspectorIds } } }),
     appointments: await prisma.appointment.count({ where: { id: { in: appointmentIds } } }),
-    serviceGroups: await prisma.serviceGroup.count({ where: { tenant_id: { in: tenantIds } } }),
+    serviceGroups: await prisma.serviceGroup.count({ where: { created_by_user_id: { in: userIds.length > 0 ? userIds : ['__none__'] } } }),
     properties: await prisma.property.count({ where: { tenant_id: { in: tenantIds } } }),
     pricingRules: await prisma.servicePriceRule.count({ where: { tenant_id: { in: tenantIds } } }),
     sessions: await prisma.session.count({ where: { user_id: { in: userIds } } }),
@@ -238,7 +238,7 @@ async function executeRefresh(scope: RefreshScope) {
   await prisma.inspectorInvoice.deleteMany({ where: { inspector_id: { in: inspectorIds } } });
   await prisma.inspectorAvailabilitySlot.deleteMany({ where: { inspector_id: { in: inspectorIds } } });
   await prisma.appointment.deleteMany({ where: { id: { in: appointmentIds } } });
-  await prisma.serviceGroup.deleteMany({ where: { tenant_id: { in: tenantIds } } });
+  await prisma.serviceGroup.deleteMany({ where: { created_by_user_id: { in: userIds.length > 0 ? userIds : ['__none__'] } } });
   await prisma.property.deleteMany({ where: { tenant_id: { in: tenantIds } } });
   await prisma.servicePriceRule.deleteMany({ where: { tenant_id: { in: tenantIds } } });
   await prisma.session.deleteMany({ where: { user_id: { in: userIds } } });

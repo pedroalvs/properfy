@@ -52,10 +52,12 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   contactPhone: '11999999999',
   contactEmail: 'joao@email.com',
   contacts: [],
+  appCredentialIds: [],
   keyRequired: false,
   meetingLocation: '',
   keyLocation: '',
   notes: '',
+  observation: '',
   hasRestriction: false,
   restrictionIsHome: false,
   restrictionNotes: '',
@@ -159,13 +161,45 @@ describe('useAppointmentSave', () => {
         meetingLocation: null,
         keyLocation: null,
         notes: null,
+        observation: null,
         contact: {
           tenantName: VALID_CREATE_DATA.contactName,
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
+        appCredentialIds: [],
         actorTimezone: expect.any(String),
       },
+    });
+  });
+
+  it('includes trimmed observation on create when set, omits it when empty', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_CREATE_DATA, observation: '  Gate code 4321  ' });
+    });
+    expect(mockPost).toHaveBeenCalledWith('/v1/appointments', {
+      body: expect.objectContaining({ observation: 'Gate code 4321' }),
+    });
+
+    mockPost.mockClear();
+    await act(async () => {
+      await result.current.save(VALID_CREATE_DATA);
+    });
+    expect((mockPost.mock.calls[0]![1] as any).body).not.toHaveProperty('observation');
+  });
+
+  it('sends observation as null on edit when cleared', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_CREATE_DATA, observation: '' }, 'apt-01');
+    });
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+      body: expect.objectContaining({ observation: null }),
     });
   });
 

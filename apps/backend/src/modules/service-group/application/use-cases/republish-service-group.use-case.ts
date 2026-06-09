@@ -35,7 +35,7 @@ export class RepublishServiceGroupUseCase {
       throw new ServiceGroupNotFoundError();
     }
 
-    const { group } = result;
+    const { group, primaryTenantId } = result;
 
     if (!group.canBeRepublished()) {
       throw new ServiceGroupInvalidStatusError('CANCELLED', group.status);
@@ -56,7 +56,7 @@ export class RepublishServiceGroupUseCase {
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
-      tenantId: group.tenantId,
+      tenantId: primaryTenantId,
       before: {
         status: 'CANCELLED',
         assignedInspectorId: group.assignedInspectorId,

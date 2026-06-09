@@ -70,9 +70,18 @@ describe('ExpirePriorityWorker', () => {
   });
 
   it('should cancel expired published groups with system audit', async () => {
-    const group1 = makeGroup({ id: 'group-1', tenantId: 'tenant-1' });
-    const group2 = makeGroup({ id: 'group-2', tenantId: 'tenant-2' });
+    const group1 = makeGroup({ id: 'group-1' });
+    const group2 = makeGroup({ id: 'group-2' });
     vi.mocked(serviceGroupRepo.findExpiredPublished).mockResolvedValue([group1, group2]);
+    // The worker derives the tenant tag from the group's appointments via findById.
+    vi.mocked(serviceGroupRepo.findById).mockImplementation(async (id) => ({
+      group: makeGroup({ id }),
+      assignedInspectorName: null,
+      tenantIds: [id === 'group-1' ? 'tenant-1' : 'tenant-2'],
+      primaryTenantId: id === 'group-1' ? 'tenant-1' : 'tenant-2',
+      agencies: [{ id: id === 'group-1' ? 'tenant-1' : 'tenant-2', name: 'Agency' }],
+      appointments: [],
+    }));
 
     const result = await worker.execute();
 

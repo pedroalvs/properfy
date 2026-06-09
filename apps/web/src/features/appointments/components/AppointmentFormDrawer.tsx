@@ -25,6 +25,7 @@ import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
 import { ContactAutocomplete } from './ContactAutocomplete';
+import { AppCredentialMultiSelect } from './AppCredentialMultiSelect';
 import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
 import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
@@ -174,10 +175,12 @@ export function AppointmentFormDrawer({
         contactPhone: appointment.contactPhone ?? '',
         contactEmail: appointment.contactEmail ?? '',
         contacts,
+        appCredentialIds: (appointment.apps ?? []).map((a) => a.id),
         keyRequired: appointment.keyRequired,
         meetingLocation: appointment.meetingLocation ?? '',
         keyLocation: appointment.keyLocation ?? '',
         notes: appointment.notes ?? '',
+        observation: appointment.observation ?? '',
         hasRestriction: (appointment.restrictions?.length ?? 0) > 0,
         restrictionIsHome: appointment.restrictions?.[0]?.isHome ?? false,
         restrictionNotes: appointment.restrictions?.[0]?.notes ?? '',
@@ -808,6 +811,20 @@ export function AppointmentFormDrawer({
                     </Button>
                   </FormSection>
 
+                  <FormSection title="Apps">
+                    <FormField label="Linked apps">
+                      <AppCredentialMultiSelect
+                        value={form.appCredentialIds}
+                        onChange={(ids) => setForm((prev) => ({ ...prev, appCredentialIds: ids }))}
+                        tenantId={effectiveTenantId || user?.tenantId || undefined}
+                        disabled={!!(isGlobalRole && !effectiveTenantId)}
+                      />
+                    </FormField>
+                    <p className="mt-1 text-xs text-text-muted">
+                      App logins the inspector will need on site. Only this agency's active apps are listed.
+                    </p>
+                  </FormSection>
+
                   <FormSection title="Access & Key" columns={2}>
                     <div className="flex items-center">
                       <Checkbox
@@ -865,6 +882,18 @@ export function AppointmentFormDrawer({
                         rows={4}
                         placeholder="Additional information"
                         aria-label="Notes"
+                      />
+                    </FormField>
+                  </FormSection>
+
+                  <FormSection title="Observation">
+                    <FormField label="Observation" error={errors.observation}>
+                      <Textarea
+                        value={form.observation}
+                        onChange={(v) => updateField('observation', v)}
+                        rows={4}
+                        placeholder="Operational observation"
+                        aria-label="Observation"
                       />
                     </FormField>
                   </FormSection>

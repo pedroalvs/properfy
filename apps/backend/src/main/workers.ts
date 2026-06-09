@@ -82,6 +82,10 @@ export async function registerWorkers(
   }));
   logger.info({}, 'worker.notification_send.registered');
 
+  // notification.retry-poll is the SOLE retry motor for failed/pending notifications.
+  // SendNotificationUseCase sets notification.nextRetryAt in the DB on transient failure;
+  // this cron (every 5 min) polls for due rows and re-enqueues them as notification.send jobs.
+  // There is NO competing self-reschedule mechanism — this cron is authoritative.
   await boss.schedule('notification.retry-poll', '*/5 * * * *', {});
   await boss.work('notification.retry-poll', withJobMetrics('notification.retry-poll', async (job) => {
     logger.info({ jobId: job.id }, 'Processing notification.retry-poll job');

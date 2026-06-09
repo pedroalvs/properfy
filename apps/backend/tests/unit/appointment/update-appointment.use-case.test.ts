@@ -296,6 +296,134 @@ describe('UpdateAppointmentUseCase', () => {
     );
   });
 
+  describe('observation field', () => {
+    it('persists observation via the repository update payload', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { observation: 'On-site key under the mat' },
+        actor: makeActor(),
+      });
+
+      expect(result.observation).toBe('On-site key under the mat');
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ observation: 'On-site key under the mat' }),
+      );
+    });
+
+    it('emits a dedicated appointment.observation_updated audit entry on change', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ observation: 'old value' }),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { observation: 'new value' },
+        actor: makeActor(),
+      });
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'appointment.observation_updated',
+          entityType: 'Appointment',
+          entityId: 'appt-1',
+          before: { observation: 'old value' },
+          after: { observation: 'new value' },
+        }),
+      );
+    });
+
+    it('emits the dedicated audit entry when clearing observation to null', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ observation: 'something' }),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { observation: null },
+        actor: makeActor(),
+      });
+
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ observation: null }),
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'appointment.observation_updated',
+          before: { observation: 'something' },
+          after: { observation: null },
+        }),
+      );
+    });
+
+    it('does NOT emit the dedicated audit entry when observation is unchanged', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ observation: 'same' }),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { observation: 'same' },
+        actor: makeActor(),
+      });
+
+      expect(auditService.log).not.toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'appointment.observation_updated' }),
+      );
+    });
+
+    it('does NOT emit the dedicated audit entry when observation is absent from the payload', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ observation: 'kept' }),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { notes: 'only notes changed' },
+        actor: makeActor(),
+      });
+
+      expect(auditService.log).not.toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'appointment.observation_updated' }),
+      );
+    });
+  });
+
+  it('reflects clearing a nullable field to null in both the audit after-state and the response', async () => {
+    // Regression: the old `updateData.X ?? appointment.X` pattern resurrected the
+    // previous value on clear-to-null, so the audit claimed "unchanged" and the
+    // PATCH response returned the stale value despite the DB storing null.
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ notes: 'old note', meetingLocation: 'Front gate' }),
+    );
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      data: { notes: null, meetingLocation: null },
+      actor: makeActor(),
+    });
+
+    expect(result.notes).toBeNull();
+    expect(result.meetingLocation).toBeNull();
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({ notes: null, meetingLocation: null }),
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'appointment.updated',
+        before: expect.objectContaining({ notes: 'old note', meetingLocation: 'Front gate' }),
+        after: expect.objectContaining({ notes: null, meetingLocation: null }),
+      }),
+    );
+  });
+
   it('should throw AppointmentNotFoundError when appointment does not exist', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(null);
 

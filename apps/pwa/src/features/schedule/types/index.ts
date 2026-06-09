@@ -22,8 +22,11 @@ export interface InspectorAppointment {
   propertyLatitude: number | null;
   propertyLongitude: number | null;
   notes: string | null;
+  observation: string | null;
   isOverdue?: boolean;
   agencyName?: string;
+  /** App credentials linked to this appointment (live reference). */
+  apps: Array<{ id: string; name: string; username: string; password: string }>;
 }
 
 export interface InspectorScheduleDayResponse {
@@ -85,8 +88,10 @@ export interface InspectorAppointmentDetailResponse {
     propertyLatitude: number | null;
     propertyLongitude: number | null;
     notes: string | null;
+    observation: string | null;
     isOverdue?: boolean;
     agencyName?: string;
+    apps?: Array<{ id: string; name: string; username: string; password: string }>;
     jobDetails?: JobDetails;
   };
 }

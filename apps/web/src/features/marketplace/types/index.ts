@@ -10,6 +10,14 @@ export interface MarketplaceOffer {
   suburbs: string[];
 }
 
+// Offer-detail shapes derive from the shared Zod response schema (single source
+// of truth); each appointment carries its own `tenantName` so cross-agency
+// groups can show which agency every inspection belongs to.
+export type {
+  MarketplaceOfferDetail,
+  MarketplaceOfferDetailAppointment,
+} from '@properfy/shared';
+
 export interface MarketplaceAppointment {
   id: string;
   code: string;

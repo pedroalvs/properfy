@@ -7,6 +7,7 @@ const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const REQUIRED_FIELDS: (keyof TenantAdminFormData)[] = [
   'name',
+  'legalName',
   'timezone',
   'currency',
 ];

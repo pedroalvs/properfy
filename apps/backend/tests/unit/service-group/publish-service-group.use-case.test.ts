@@ -5,6 +5,7 @@ import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { DomainEventBus, SERVICE_GROUP_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
+import { deriveTenantFixture } from '../../helpers/service-group-fixtures';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
@@ -50,12 +51,14 @@ function makeGroupWithAppointments(
   groupOverrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {},
   appointments?: ServiceGroupWithAppointments['appointments'],
 ): ServiceGroupWithAppointments {
+  const appts = appointments ?? [
+    { id: 'appt-1', status: 'AWAITING_INSPECTOR', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-1', serviceGroupId: 'group-1' },
+    { id: 'appt-2', status: 'AWAITING_INSPECTOR', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-2', serviceGroupId: 'group-1' },
+  ];
   return {
     group: makeGroup(groupOverrides),
-    appointments: appointments ?? [
-      { id: 'appt-1', status: 'AWAITING_INSPECTOR', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-1', serviceGroupId: 'group-1' },
-      { id: 'appt-2', status: 'AWAITING_INSPECTOR', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-2', serviceGroupId: 'group-1' },
-    ],
+    appointments: appts,
+    ...deriveTenantFixture(appts),
   };
 }
 

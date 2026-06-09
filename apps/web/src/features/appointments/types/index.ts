@@ -67,6 +67,8 @@ export interface AppointmentDetail extends Appointment {
   keyLocation: string | null;
   cancellationReason: string | null;
   tenantNote: string | null;
+  /** Operational free-text note set on direct create/edit (distinct from tenant-portal `notes`/`tenantNote`). */
+  observation: string | null;
   /** True when a tenant_portal_tokens row satisfies status='ACTIVE' AND expires_at > NOW. */
   hasActivePortalToken: boolean;
   /** Tenant (agency) display name — surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
@@ -75,6 +77,8 @@ export interface AppointmentDetail extends Appointment {
   rejectionReasonCode?: string | null;
   reason?: string | null;
   contacts?: AppointmentContactEntry[];
+  /** App credentials linked to this appointment (live reference). */
+  apps?: Array<{ id: string; name: string; username: string; password: string }>;
   restrictions?: Array<{
     id: string;
     isHome: boolean;
@@ -147,10 +151,13 @@ export interface AppointmentFormData {
   /** @deprecated */
   contactEmail: string;
   contacts: ContactFormEntry[];
+  /** App credential ids linked to this appointment (live reference, many-to-many). */
+  appCredentialIds: string[];
   keyRequired: boolean;
   meetingLocation: string;
   keyLocation: string;
   notes: string;
+  observation: string;
   hasRestriction: boolean;
   restrictionIsHome: boolean;
   restrictionNotes: string;
@@ -188,10 +195,12 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
   contactPhone: '',
   contactEmail: '',
   contacts: [{ ...createEmptyContact(), isPrimary: true }],
+  appCredentialIds: [],
   keyRequired: false,
   meetingLocation: '',
   keyLocation: '',
   notes: '',
+  observation: '',
   hasRestriction: false,
   restrictionIsHome: false,
   restrictionNotes: '',

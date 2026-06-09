@@ -221,6 +221,59 @@ describe('CreateAppointmentUseCase', () => {
     );
   });
 
+  it('should accept and persist the observation field on create', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+
+    const result = await useCase.execute({
+      ...baseInput,
+      observation: 'Gate code is 4321',
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.observation).toBe('Gate code is 4321');
+    expect(appointmentRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ observation: 'Gate code is 4321' }),
+    );
+  });
+
+  it('should default observation to null when omitted on create', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+
+    const result = await useCase.execute({
+      ...baseInput,
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.observation).toBeNull();
+  });
+
+  it('should create appointment for OP resolving tenant from the branch (cross-tenant)', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+
+    const result = await useCase.execute({
+      ...baseInput,
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    // OP has no own tenant; it must resolve the branch's tenant, never null.
+    expect(result.tenantId).toBe('tenant-1');
+    // Pricing rule lookup must be scoped to the resolved tenant, not the null JWT tenant.
+    expect(pricingRuleRepo.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      expect.anything(),
+    );
+    expect(appointmentRepo.save).toHaveBeenCalled();
+  });
+
   it('should create appointment with inline property', async () => {
     vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());

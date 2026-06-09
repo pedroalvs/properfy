@@ -111,12 +111,12 @@ describe('PollRetryableNotificationsUseCase', () => {
     expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
       'notification.send',
       { notificationId: 'notif-1' },
-      { retryLimit: 0 },
+      expect.objectContaining({ retryLimit: 0, singletonKey: 'notif-1' }),
     );
     expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
       'notification.send',
       { notificationId: 'notif-2' },
-      { retryLimit: 0 },
+      expect.objectContaining({ retryLimit: 0, singletonKey: 'notif-2' }),
     );
   });
 
@@ -133,14 +133,14 @@ describe('PollRetryableNotificationsUseCase', () => {
     expect(result.enqueuedCount).toBe(3);
   });
 
-  it('enqueues with retryLimit: 0', async () => {
+  it('enqueues with retryLimit: 0 and singletonKey', async () => {
     const useCase = createUseCase();
     mockRepo.findRetryable.mockResolvedValueOnce([makeNotification('notif-1')]);
 
     await useCase.execute();
 
     const options = mockJobQueue.enqueue.mock.calls[0][2];
-    expect(options).toEqual({ retryLimit: 0 });
+    expect(options).toMatchObject({ retryLimit: 0, singletonKey: 'notif-1', expireInMinutes: 5 });
   });
 
   it('handles single retryable notification correctly', async () => {
@@ -154,7 +154,7 @@ describe('PollRetryableNotificationsUseCase', () => {
     expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
       'notification.send',
       { notificationId: 'notif-solo' },
-      { retryLimit: 0 },
+      expect.objectContaining({ retryLimit: 0, singletonKey: 'notif-solo' }),
     );
   });
 
@@ -219,12 +219,12 @@ describe('PollRetryableNotificationsUseCase', () => {
       expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
         'notification.send',
         { notificationId: 'notif-1' },
-        { retryLimit: 0 },
+        expect.objectContaining({ retryLimit: 0, singletonKey: 'notif-1' }),
       );
       expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
         'notification.send',
         { notificationId: 'notif-2' },
-        { retryLimit: 0 },
+        expect.objectContaining({ retryLimit: 0, singletonKey: 'notif-2' }),
       );
     });
   });

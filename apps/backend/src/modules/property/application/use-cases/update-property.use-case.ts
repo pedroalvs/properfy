@@ -72,11 +72,12 @@ export class UpdatePropertyUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Resolve tenantId for lookup. Only AM is cross-tenant per Sprint 1
-    // W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
+    // Resolve tenantId for lookup. AM/OP are cross-tenant (no own tenant): both
+    // resolve to no scope so the property is found by id, then its own tenant
+    // governs branch/update. CL_ADMIN / CL_USER are scoped to their JWT tenant.
     const tenantId =
-      actor.role === 'AM'
-        ? null // AM: we need to find the property first to know its tenant
+      actor.role === 'AM' || actor.role === 'OP'
+        ? null
         : actor.tenantId!;
 
     // For OP/CL roles, scope by tenantId; for AM, find property to get its tenantId

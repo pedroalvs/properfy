@@ -38,6 +38,7 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
     keyLocation: 'With the caretaker',
     cancellationReason: null,
     tenantNote: null,
+    observation: null,
     hasActivePortalToken: false,
     ...overrides,
   };
@@ -77,6 +78,22 @@ describe('AppointmentDetailSections', () => {
   it('shows notes when present', () => {
     render(<AppointmentDetailSections appointment={makeAppointment()} />);
     expect(screen.getByText('Test observation')).toBeInTheDocument();
+  });
+
+  it('shows observation section when present, hides when null', () => {
+    const { rerender } = render(
+      <AppointmentDetailSections appointment={makeAppointment({ observation: null })} />,
+    );
+    expect(screen.queryByText('Observation')).not.toBeInTheDocument();
+
+    rerender(
+      <AppointmentDetailSections
+        appointment={makeAppointment({ observation: 'Gate code is 4321' })}
+      />,
+    );
+    // Both the FormSection title and the DetailRow label render "Observation".
+    expect(screen.getAllByText('Observation').length).toBeGreaterThan(0);
+    expect(screen.getByText('Gate code is 4321')).toBeInTheDocument();
   });
 
   it('shows em-dash for null inspector', () => {

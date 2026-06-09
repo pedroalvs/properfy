@@ -131,6 +131,7 @@ describe('GET /v1/inspector/appointments/:appointmentId', () => {
       tenantPhone: '+61400000000',
       tenantEmail: 'john@example.com',
       notes: null,
+      observation: null,
       restrictionsSummary: null,
       contact: null,
       restrictions: [],
@@ -172,6 +173,7 @@ describe('POST /v1/inspector/appointments/:appointmentId/start', () => {
       geolocationDistanceMeters: 120,
       checklistJson: null,
       notes: null,
+      observation: null,
       createdAt: '2026-03-16T10:00:00.000Z',
       updatedAt: '2026-03-16T10:00:00.000Z',
     };
@@ -239,6 +241,7 @@ describe('POST /v1/inspector/appointments/:appointmentId/finish', () => {
       geolocationDistanceMeters: 50,
       checklistJson: null,
       notes: null,
+      observation: null,
       createdAt: '2026-03-16T10:00:00.000Z',
       updatedAt: '2026-03-16T11:00:00.000Z',
     };

@@ -3,7 +3,6 @@ import type { ServiceGroupStatus, PriorityMode, ServiceGroupExceptionType } from
 
 export interface ServiceGroupProps {
   id: string;
-  tenantId: string;
   serviceTypeId: string;
   status: ServiceGroupStatus;
   groupSize: number;
@@ -28,7 +27,6 @@ export interface ServiceGroupProps {
 }
 
 export class ServiceGroupEntity extends BaseEntity {
-  readonly tenantId: string;
   readonly serviceTypeId: string;
   status: ServiceGroupStatus;
   readonly groupSize: number;
@@ -51,7 +49,6 @@ export class ServiceGroupEntity extends BaseEntity {
 
   constructor(props: ServiceGroupProps) {
     super(props.id, props.createdAt, props.updatedAt);
-    this.tenantId = props.tenantId;
     this.serviceTypeId = props.serviceTypeId;
     this.status = props.status;
     this.groupSize = props.groupSize;

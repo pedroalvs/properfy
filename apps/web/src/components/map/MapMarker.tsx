@@ -13,6 +13,13 @@ interface MapMarkerProps {
   clustered?: boolean;
   clusterCount?: number;
   /**
+   * When set, renders a black teardrop pin with this MDI icon class
+   * (e.g. `mdi-check-bold`) overlaid on the pin head, instead of the
+   * default colored circle. Used by the appointments status map, where the
+   * inner icon — not the color — encodes the appointment status.
+   */
+  icon?: string;
+  /**
    * Disables pointer interaction with the marker. Used by the appointments
    * map flow while a lasso polygon is being drawn — without this, clicking
    * near a marker to close the polygon lands on the marker's button and is
@@ -53,6 +60,7 @@ export function MapMarker({
   clustered = false,
   clusterCount,
   disabled = false,
+  icon,
 }: MapMarkerProps) {
   const { getMap } = useMapInstance();
   // Portal target is the detached DOM node owned by mapboxgl.Marker.
@@ -102,6 +110,65 @@ export function MapMarker({
   const size = clustered ? 'h-10 w-10 text-sm' : 'h-7 w-7 text-xs';
   const ringClass = active ? 'ring-2 ring-secondary ring-offset-2' : '';
 
+  // The black teardrop variant (appointments status map) is opt-in via `icon`
+  // and never applies to cluster bubbles, which keep the count circle.
+  const isIconPin = Boolean(icon) && !clustered;
+
+  // Status-pin button: a solid near-black teardrop built from a circular head
+  // (icon flex-centered inside — no hole/"white ball") plus a triangular tail
+  // tucked under it. The tail tip lands on the Mapbox `anchor: 'bottom'`
+  // coordinate, so no rotate/clip hacks are needed.
+  const iconPinButton = (
+    <button
+      type="button"
+      disabled={disabled}
+      className={`inline-flex flex-col items-center transition-transform hover:scale-110 ${
+        active ? 'scale-110 drop-shadow-[0_0_4px_rgba(0,157,217,0.95)]' : 'drop-shadow-md'
+      } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      onClick={(e) => {
+        if (disabled) return;
+        e.stopPropagation();
+        onClick?.();
+      }}
+      aria-label={label ?? `Appointment marker at ${latitude}, ${longitude}`}
+    >
+      <span
+        className="flex h-7 w-7 items-center justify-center rounded-full"
+        style={{ backgroundColor: '#1A1A1A' }}
+      >
+        <i className={`mdi ${icon} text-base leading-none text-white`} aria-hidden="true" />
+      </span>
+      <span
+        className="-mt-1 h-0 w-0 border-x-[6px] border-t-[10px] border-x-transparent"
+        style={{ borderTopColor: '#1A1A1A' }}
+        aria-hidden="true"
+      />
+    </button>
+  );
+
+  // Default circle button — unchanged behaviour for the property, service-group
+  // and marketplace maps, plus the cluster count bubble.
+  const circleButton = (
+    <button
+      type="button"
+      disabled={disabled}
+      className={`flex items-center justify-center rounded-full shadow-md transition-transform hover:scale-110 ${size} ${ringClass} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      style={{ backgroundColor: color }}
+      onClick={(e) => {
+        if (disabled) return;
+        e.stopPropagation();
+        onClick?.();
+      }}
+      aria-label={label ?? `Map marker at ${latitude}, ${longitude}`}
+    >
+      {clustered && clusterCount ? (
+        <span className="font-bold text-white">{clusterCount}</span>
+      ) : (
+        <i className="mdi mdi-map-marker text-white text-base" aria-hidden="true" />
+      )}
+    </button>
+  );
+
   // Inner UI rendered both inline (no map / tests) and via portal (with map).
   // Identical markup either way so `data-testid`/role assertions hold.
   // `pointer-events: none` on the wrapper while disabled propagates to the
@@ -113,24 +180,7 @@ export function MapMarker({
       className={`inline-flex flex-col items-center ${disabled ? 'pointer-events-none' : 'cursor-pointer'}`}
       style={disabled ? { pointerEvents: 'none' } : undefined}
     >
-      <button
-        type="button"
-        disabled={disabled}
-        className={`flex items-center justify-center rounded-full shadow-md transition-transform hover:scale-110 ${size} ${ringClass} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
-        style={{ backgroundColor: color }}
-        onClick={(e) => {
-          if (disabled) return;
-          e.stopPropagation();
-          onClick?.();
-        }}
-        aria-label={label ?? `Map marker at ${latitude}, ${longitude}`}
-      >
-        {clustered && clusterCount ? (
-          <span className="font-bold text-white">{clusterCount}</span>
-        ) : (
-          <i className="mdi mdi-map-marker text-white text-base" aria-hidden="true" />
-        )}
-      </button>
+      {isIconPin ? iconPinButton : circleButton}
       {label && !clustered && (
         <div className="mt-1 whitespace-nowrap text-center text-xs font-medium text-text-primary select-none">
           {label}
@@ -151,6 +201,7 @@ export function MapMarker({
           data-longitude={longitude}
           data-latitude={latitude}
           data-color={color}
+          data-icon={icon}
         />
         {createPortal(inner, portalNode)}
       </>
@@ -166,6 +217,7 @@ export function MapMarker({
       data-longitude={longitude}
       data-latitude={latitude}
       data-color={color}
+      data-icon={icon}
       data-disabled={disabled ? 'true' : undefined}
     >
       {inner}

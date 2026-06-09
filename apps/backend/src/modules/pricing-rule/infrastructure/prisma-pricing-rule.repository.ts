@@ -47,11 +47,13 @@ export class PrismaPricingRuleRepository implements IPricingRuleRepository {
 
   async findById(
     id: string,
-    tenantId: string,
+    tenantId: string | null,
   ): Promise<PricingRuleEntity | null> {
-    const row = await this.prisma.servicePriceRule.findFirst({
-      where: { id, tenant_id: tenantId },
-    });
+    // tenantId is null for cross-tenant roles (AM/OP): find by id alone.
+    // CL_ADMIN passes its own tenant, scoping the lookup.
+    const where: Record<string, unknown> = { id };
+    if (tenantId) where['tenant_id'] = tenantId;
+    const row = await this.prisma.servicePriceRule.findFirst({ where });
     return row ? mapToEntity(row) : null;
   }
 

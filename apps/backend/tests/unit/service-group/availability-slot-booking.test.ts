@@ -8,6 +8,7 @@ import type { IAvailabilitySlotRepository } from '../../../src/modules/inspector
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
+import { deriveTenantFixture } from '../../helpers/service-group-fixtures';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { AvailabilitySlotEntity } from '../../../src/modules/inspector/domain/availability-slot.entity';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -97,7 +98,7 @@ function makeGroupWithAppointments(
     propertyId: `prop-${i + 1}`,
     serviceGroupId: group.id,
   }));
-  return { group, appointments };
+  return { group, appointments, ...deriveTenantFixture(appointments) };
 }
 
 function makeAmActor(): AuthContext {

@@ -70,6 +70,7 @@ const mockOfferDetail = {
       keyRequired: false,
       notes: null,
       payoutAmount: 150,
+      tenantName: 'Properfy Realty',
     },
     {
       id: '00000000-0000-0000-0000-000000000012',
@@ -79,6 +80,7 @@ const mockOfferDetail = {
       keyRequired: false,
       notes: null,
       payoutAmount: 150,
+      tenantName: 'Properfy Realty',
     },
   ],
 };

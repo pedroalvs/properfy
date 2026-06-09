@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { propertyRulesSchema } from './property';
 import { bonusRuleSchema } from './pricing-rule';
+import { appointmentAppSchema } from './app-credential';
 
 /** Accepts Date objects or ISO strings, coerces to string */
 const dateStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
@@ -232,6 +233,7 @@ export const appointmentResponseSchema = z.object({
   pricingRuleSnapshotJson: z.unknown().optional(),
   notes: z.string().nullable(),
   tenantNote: z.string().nullable().optional(),
+  observation: z.string().nullable().optional(),
   hasTenantNote: z.boolean().optional(),
   hasActivePortalToken: z.boolean().default(false),
   customFieldsJson: z.unknown().nullable().optional(),
@@ -261,6 +263,8 @@ export const appointmentResponseSchema = z.object({
   longitude: z.number().nullable().optional(),
   contact: z.unknown().nullable().optional(),
   contacts: z.array(z.unknown()).optional(),
+  /** App credentials linked to this appointment (live reference). */
+  apps: z.array(appointmentAppSchema).optional(),
   restrictions: z.array(z.unknown()).optional(),
   property: z.unknown().optional(),
   serviceType: z.unknown().optional(),
@@ -297,6 +301,7 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   tenantPhone: z.string().nullable(),
   tenantEmail: z.string().nullable(),
   notes: z.string().nullable(),
+  observation: z.string().nullable(),
   restrictionsSummary: z.string().nullable(),
   contact: z.object({
     tenantName: z.string(),
@@ -329,6 +334,8 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
     kind: z.string(),
     status: z.string(),
   })),
+  /** App credentials linked to this appointment (live reference). */
+  apps: z.array(appointmentAppSchema).default([]),
   agencyName: z.string().nullable().optional(),
   payoutAmount: z.number().nullable().optional(),
   inspectionAppLink: z.string().nullable().optional(),
@@ -369,9 +376,17 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
 
 // ─── Service Group ─────────────────────────────────────────────────────────
 
+// Single source of truth for the agency reference shape (cross-agency groups
+// derive their agencies from the linked appointments' tenants).
+export const agencyRefSchema = z.object({ id: z.string().uuid(), name: z.string() });
+export type Agency = z.infer<typeof agencyRefSchema>;
+
 export const serviceGroupResponseSchema = z.object({
   id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  // Null when the group spans multiple agencies (cross-agency group).
+  tenantId: z.string().uuid().nullable(),
+  // Distinct agencies of the group's appointments (one entry for single-agency groups).
+  agencies: z.array(agencyRefSchema).optional(),
   serviceTypeId: z.string().uuid(),
   status: z.string(),
   groupSize: z.number(),
@@ -423,6 +438,8 @@ export const marketplaceOfferDetailAppointmentSchema = z.object({
   keyRequired: z.boolean(),
   notes: z.string().nullable(),
   payoutAmount: z.number().nullable(),
+  // Agency (tenant) name of this appointment — shown per-job (groups may be cross-agency).
+  tenantName: z.string(),
 });
 
 export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSchema.extend({
@@ -431,6 +448,9 @@ export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSche
   notes: z.string().nullable(),
   appointments: z.array(marketplaceOfferDetailAppointmentSchema),
 });
+
+export type MarketplaceOfferDetailAppointment = z.infer<typeof marketplaceOfferDetailAppointmentSchema>;
+export type MarketplaceOfferDetail = z.infer<typeof marketplaceOfferDetailResponseSchema>;
 
 export const marketplaceOfferAcceptResponseSchema = z.object({
   groupId: z.string().uuid(),
@@ -689,13 +709,21 @@ export const notificationTemplateResponseSchema = z.object({
   templateCode: z.string(),
   channel: z.string(),
   subject: z.string().nullable(),
-  bodyHtml: z.string().nullable().optional(),
+  bodyHtml: z.string(),
   bodyText: z.string(),
   variablesJson: z.unknown().optional(),
   variables: z.unknown().optional(),
   isActive: z.boolean(),
-  // Feature 018: declared classification
   notificationClass: z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']).optional(),
+  imageBindings: z.array(z.object({
+    id: z.string().uuid(),
+    placeholderKey: z.string(),
+    assetId: z.string().uuid(),
+    publicUrl: z.string(),
+    altText: z.string().nullable(),
+    width: z.number().int().nullable(),
+    height: z.number().int().nullable(),
+  })).optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });

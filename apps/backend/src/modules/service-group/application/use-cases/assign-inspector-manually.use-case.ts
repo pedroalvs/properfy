@@ -59,7 +59,7 @@ export class AssignInspectorManuallyUseCase {
     if (!findResult) {
       throw new ServiceGroupNotFoundError();
     }
-    const { group } = findResult;
+    const { group, tenantIds, primaryTenantId } = findResult;
 
     // Idempotency: if already ACCEPTED with the same inspector, return current state
     if (group.status === 'ACCEPTED' && group.assignedInspectorId === inspectorId) {
@@ -93,7 +93,9 @@ export class AssignInspectorManuallyUseCase {
       throw new InspectorServiceTypeIneligibleError();
     }
 
-    if (!inspector.isEligibleForTenant(group.tenantId)) {
+    // Eligible only when the inspector can serve EVERY agency in the group;
+    // an empty tenant set must not pass (see accept-offer for rationale).
+    if (tenantIds.length === 0 || !tenantIds.every((t) => inspector.isEligibleForTenant(t))) {
       throw new InspectorIneligibleError();
     }
 
@@ -128,7 +130,7 @@ export class AssignInspectorManuallyUseCase {
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
-      tenantId: group.tenantId,
+      tenantId: primaryTenantId,
       before: { status: group.status },
       after: {
         status: 'ACCEPTED',
@@ -149,7 +151,7 @@ export class AssignInspectorManuallyUseCase {
 
     this.eventBus?.emit({
       type: SERVICE_GROUP_EVENTS.MANUALLY_ASSIGNED,
-      payload: { groupId, tenantId: group.tenantId, inspectorId },
+      payload: { groupId, tenantId: primaryTenantId, inspectorId },
       occurredAt: new Date(),
     });
 

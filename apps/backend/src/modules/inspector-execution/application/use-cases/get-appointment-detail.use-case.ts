@@ -1,5 +1,6 @@
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, AppointmentApp } from '@properfy/shared';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
+import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IInspectionAssetRepository } from '../../domain/inspection-asset.repository';
@@ -93,6 +94,7 @@ export interface AppointmentDetailOutput {
   tenantPhone: string | null;
   tenantEmail: string | null;
   notes: string | null;
+  observation: string | null;
   restrictionsSummary: string | null;
   contact: {
     tenantName: string;
@@ -127,6 +129,8 @@ export interface AppointmentDetailOutput {
     status: string;
   }>;
   jobDetails: JobDetails | null;
+  /** App credentials linked to this appointment (live reference). */
+  apps: AppointmentApp[];
 }
 
 export class GetAppointmentDetailUseCase {
@@ -139,6 +143,7 @@ export class GetAppointmentDetailUseCase {
     private readonly serviceTypeReader: IServiceTypeReader,
     private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo: ITenantRepository,
+    private readonly appCredentialRepo?: IAppCredentialRepository,
   ) {}
 
   async execute(input: GetAppointmentDetailInput): Promise<AppointmentDetailOutput> {
@@ -208,6 +213,16 @@ export class GetAppointmentDetailUseCase {
     // Build jobDetails payload
     const jobDetails = await this.buildJobDetails(appointment, contacts);
 
+    // App credentials linked to this appointment (live reference — current values).
+    const apps: AppointmentApp[] = this.appCredentialRepo
+      ? (await this.appCredentialRepo.findByAppointmentId(appointment.id)).map((a) => ({
+          id: a.id,
+          name: a.name,
+          username: a.username,
+          password: a.password,
+        }))
+      : [];
+
     const codePrefix = result.tenantAppointmentCodePrefix ?? 'INS';
     const codePadded = String(appointment.appointmentNumber).padStart(4, '0');
     const appointmentCode = `${codePrefix}-${codePadded}`;
@@ -237,6 +252,7 @@ export class GetAppointmentDetailUseCase {
       tenantPhone: contact?.primaryPhone ?? null,
       tenantEmail: contact?.effectiveEmail ?? null,
       notes: appointment.notes,
+      observation: appointment.observation,
       restrictionsSummary,
       contact: contact
         ? {
@@ -275,6 +291,7 @@ export class GetAppointmentDetailUseCase {
         status: a.status,
       })),
       jobDetails,
+      apps,
     };
   }
 

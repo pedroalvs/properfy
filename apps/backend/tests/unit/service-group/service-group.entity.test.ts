@@ -34,7 +34,6 @@ describe('ServiceGroupEntity', () => {
       const now = new Date();
       const group = makeServiceGroup({
         id: 'sg-99',
-        tenantId: 'tenant-99',
         serviceTypeId: 'st-99',
         status: 'PUBLISHED',
         groupSize: 15,
@@ -53,7 +52,6 @@ describe('ServiceGroupEntity', () => {
       });
 
       expect(group.id).toBe('sg-99');
-      expect(group.tenantId).toBe('tenant-99');
       expect(group.serviceTypeId).toBe('st-99');
       expect(group.status).toBe('PUBLISHED');
       expect(group.groupSize).toBe(15);

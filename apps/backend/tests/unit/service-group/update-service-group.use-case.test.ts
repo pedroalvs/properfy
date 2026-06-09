@@ -15,6 +15,7 @@ import {
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { futureDateStr } from '../../helpers/date-fixtures';
+import { deriveTenantFixture } from '../../helpers/service-group-fixtures';
 
 // `FUTURE_DATE` is used both as input and as the expected repo-call date.
 // Keeping them in a single constant means we can't get them out of sync when
@@ -55,10 +56,16 @@ function makeGroupProps(overrides: Partial<ServiceGroupProps> = {}): ServiceGrou
 function makeGroupWithAppointments(
   overrides: Partial<ServiceGroupProps> = {},
 ): ServiceGroupWithAppointments {
+  // Single-agency group fixture: one appointment so the group's primaryTenantId
+  // resolves to 'tenant-1' (drives the per-agency priority-hours lookup).
+  const appointments = [
+    { id: 'appt-1', status: 'AWAITING_INSPECTOR', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-1', serviceGroupId: 'group-1' },
+  ];
   return {
     group: new ServiceGroupEntity(makeGroupProps(overrides)),
     assignedInspectorName: null,
-    appointments: [],
+    appointments,
+    ...deriveTenantFixture(appointments),
   };
 }
 
@@ -169,7 +176,7 @@ describe('UpdateServiceGroupUseCase', () => {
   it('should update priorityMode to PRIORITY_24H and recalculate priorityExpiresAt', async () => {
     const groupData = makeGroupWithAppointments({
       status: 'DRAFT',
-      scheduledDate: new Date('2026-06-01'),
+      scheduledDate: new Date(FAR_FUTURE_DATE),
     });
     vi.mocked(serviceGroupRepo.findById)
       .mockResolvedValueOnce(groupData)
@@ -186,7 +193,7 @@ describe('UpdateServiceGroupUseCase', () => {
     const updatePayload = updateCall[1];
     expect(updatePayload.priorityMode).toBe('PRIORITY_24H');
     expect(updatePayload.priorityExpiresAt).toEqual(
-      new Date(new Date('2026-06-01').getTime() - 24 * 60 * 60 * 1000),
+      new Date(new Date(FAR_FUTURE_DATE).getTime() - 24 * 60 * 60 * 1000),
     );
   });
 
@@ -395,7 +402,7 @@ describe('UpdateServiceGroupUseCase', () => {
       const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, new AuthorizationService(auditService), tenantRepo);
       const groupData = makeGroupWithAppointments({
         status: 'DRAFT',
-        scheduledDate: new Date('2026-06-01'),
+        scheduledDate: new Date(FAR_FUTURE_DATE),
       });
       vi.mocked(serviceGroupRepo.findById)
         .mockResolvedValueOnce(groupData)
@@ -410,7 +417,7 @@ describe('UpdateServiceGroupUseCase', () => {
       const updateCall = vi.mocked(serviceGroupRepo.update).mock.calls[0]!;
       const updatePayload = updateCall[1];
       expect(updatePayload.priorityExpiresAt).toEqual(
-        new Date(new Date('2026-06-01').getTime() - 48 * 60 * 60 * 1000),
+        new Date(new Date(FAR_FUTURE_DATE).getTime() - 48 * 60 * 60 * 1000),
       );
     });
 
@@ -422,7 +429,7 @@ describe('UpdateServiceGroupUseCase', () => {
       const useCaseWithTenant = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, new AuthorizationService(auditService), tenantRepo);
       const groupData = makeGroupWithAppointments({
         status: 'DRAFT',
-        scheduledDate: new Date('2026-06-01'),
+        scheduledDate: new Date(FAR_FUTURE_DATE),
       });
       vi.mocked(serviceGroupRepo.findById)
         .mockResolvedValueOnce(groupData)
@@ -437,7 +444,7 @@ describe('UpdateServiceGroupUseCase', () => {
       const updateCall = vi.mocked(serviceGroupRepo.update).mock.calls[0]!;
       const updatePayload = updateCall[1];
       expect(updatePayload.priorityExpiresAt).toEqual(
-        new Date(new Date('2026-06-01').getTime() - 24 * 60 * 60 * 1000),
+        new Date(new Date(FAR_FUTURE_DATE).getTime() - 24 * 60 * 60 * 1000),
       );
     });
 

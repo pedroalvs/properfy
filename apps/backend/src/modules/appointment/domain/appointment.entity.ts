@@ -24,6 +24,8 @@ export interface AppointmentProps {
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
   tenantNote?: string | null;
+  /** Operational free-text note set on direct create/edit (distinct from tenant-portal `notes`/`tenantNote`). */
+  observation?: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
   cancellationReasonCode: CancellationReasonCode | null;
@@ -58,6 +60,7 @@ export class AppointmentEntity extends BaseEntity {
   readonly pricingRuleSnapshotJson: Record<string, unknown>;
   readonly notes: string | null;
   readonly tenantNote: string | null;
+  readonly observation: string | null;
   readonly customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
   cancellationReasonCode: CancellationReasonCode | null;
@@ -90,6 +93,7 @@ export class AppointmentEntity extends BaseEntity {
     this.pricingRuleSnapshotJson = props.pricingRuleSnapshotJson;
     this.notes = props.notes;
     this.tenantNote = props.tenantNote ?? null;
+    this.observation = props.observation ?? null;
     this.customFieldsJson = props.customFieldsJson;
     this.reason = props.reason;
     this.cancellationReasonCode = props.cancellationReasonCode;

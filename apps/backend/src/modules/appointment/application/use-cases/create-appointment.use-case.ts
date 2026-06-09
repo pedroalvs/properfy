@@ -1,5 +1,5 @@
 import { type AuthContext, type PropertyType } from '@properfy/shared';
-import type { AppointmentContactRole } from '@properfy/shared';
+import type { AppointmentContactRole, AppointmentApp } from '@properfy/shared';
 import {
   NotFoundError,
   ValidationError,
@@ -15,6 +15,7 @@ import type { CreatePropertyUseCase } from '../../../property/application/use-ca
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
+import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../domain/appointment-restriction.entity';
@@ -88,10 +89,13 @@ export interface CreateAppointmentInput {
     notes?: string;
     source: RestrictionSource;
   };
+  /** App credentials to link (live reference, many-to-many). Each must belong to the appointment's tenant. */
+  appCredentialIds?: string[];
   keyRequired: boolean;
   meetingLocation?: string;
   keyLocation?: string;
   notes?: string;
+  observation?: string;
   customFields?: Record<string, unknown>;
   idempotencyKey?: string;
   actorTimezone?: string;
@@ -116,6 +120,7 @@ export interface CreateAppointmentOutput {
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
+  observation: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
   createdByUserId: string;
@@ -137,6 +142,7 @@ export interface CreateAppointmentOutput {
     notes: string | null;
     source: string;
   } | null;
+  apps: AppointmentApp[];
 }
 
 export class CreateAppointmentUseCase {
@@ -156,6 +162,7 @@ export class CreateAppointmentUseCase {
     // deterministic past/today/future behaviour pass a FakeClock.
     private readonly clock: Clock = new SystemClock(),
     private readonly idempotencyService?: IIdempotencyService,
+    private readonly appCredentialRepo?: IAppCredentialRepository,
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<CreateAppointmentOutput> {
@@ -183,11 +190,10 @@ export class CreateAppointmentUseCase {
       }
     }
 
-    // 2. Resolve tenantId and validate branch. Only AM is cross-tenant.
-    // OP is tenant-scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
+    // 2. Resolve tenantId and validate branch. AM/OP are cross-tenant.
     let tenantId: string;
-    if (actor.role === 'AM') {
-      // AM: lookup branch without tenant scope to infer tenantId
+    if (actor.role === 'AM' || actor.role === 'OP') {
+      // AM/OP have no own tenant scope: infer tenantId from the branch.
       const branch = await this.branchRepo.findById(input.branchId, '');
       if (!branch) {
         throw new AppointmentBranchNotFoundError();
@@ -197,7 +203,7 @@ export class CreateAppointmentUseCase {
       }
       tenantId = branch.tenantId;
     } else {
-      // OP / CL_ADMIN / CL_USER: use tenantId from JWT, validate branch in scope
+      // CL_ADMIN / CL_USER: use tenantId from JWT, validate branch in scope
       tenantId = actor.tenantId!;
       const branch = await this.branchRepo.findById(input.branchId, tenantId);
       if (!branch) {
@@ -302,6 +308,7 @@ export class CreateAppointmentUseCase {
       payoutAmount,
       pricingRuleSnapshotJson: snapshot as unknown as Record<string, unknown>,
       notes: input.notes ?? null,
+      observation: input.observation ?? null,
       customFieldsJson: input.customFields ?? null,
       reason: null,
       cancellationReasonCode: null,
@@ -468,6 +475,11 @@ export class CreateAppointmentUseCase {
       await this.appointmentRepo.saveContact(contact);
     }
 
+    // 10b. Link app credentials (live reference). Each must belong to this
+    // appointment's tenant and be active. Missing-or-other-tenant collapse to
+    // the same 404 to avoid leaking another agency's credential existence.
+    const linkedApps = await this.linkAppCredentials(appointmentId, tenantId, input.appCredentialIds);
+
     // 11. Create restriction if provided
     let restriction: AppointmentRestrictionEntity | null = null;
     if (input.restriction) {
@@ -524,6 +536,7 @@ export class CreateAppointmentUseCase {
       payoutAmount: appointment.payoutAmount,
       pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,
       notes: appointment.notes,
+      observation: appointment.observation,
       customFieldsJson: appointment.customFieldsJson,
       reason: appointment.reason,
       createdByUserId: appointment.createdByUserId,
@@ -556,6 +569,7 @@ export class CreateAppointmentUseCase {
             source: restriction.source,
           }
         : null,
+      apps: linkedApps,
     };
 
     // Store idempotency result for future duplicate requests
@@ -564,5 +578,38 @@ export class CreateAppointmentUseCase {
     }
 
     return result;
+  }
+
+  /**
+   * Validate and persist appointment ↔ app-credential links (live reference).
+   * Returns the linked credentials as a flat payload for the response. A
+   * `undefined` id list means "no app linkage requested" → returns [].
+   */
+  private async linkAppCredentials(
+    appointmentId: string,
+    tenantId: string,
+    appCredentialIds: string[] | undefined,
+  ): Promise<AppointmentApp[]> {
+    if (appCredentialIds === undefined || !this.appCredentialRepo) return [];
+    const ids = [...new Set(appCredentialIds)];
+    if (ids.length === 0) return [];
+
+    const found = await this.appCredentialRepo.findByIds(ids);
+    const byId = new Map(found.map((a) => [a.id, a]));
+    for (const id of ids) {
+      const cred = byId.get(id);
+      if (!cred || cred.tenantId !== tenantId) {
+        throw new NotFoundError('APPOINTMENT_APP_CREDENTIAL_NOT_FOUND', `App credential ${id} not found`);
+      }
+      if (!cred.isActive) {
+        throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
+      }
+    }
+
+    await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
+    return ids.map((id) => {
+      const cred = byId.get(id)!;
+      return { id: cred.id, name: cred.name, username: cred.username, password: cred.password };
+    });
   }
 }

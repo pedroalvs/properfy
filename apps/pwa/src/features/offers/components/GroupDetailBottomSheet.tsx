@@ -75,6 +75,9 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept }: Props) {
                         </span>
                       )}
                       <p className="font-medium text-secondary">{appt.suburb}</p>
+                      {appt.tenantName && (
+                        <p data-testid="appointment-agency" className="text-xs text-text-muted">{appt.tenantName}</p>
+                      )}
                       {appt.keyRequired && (
                         <p className="text-xs text-warning">Key required</p>
                       )}

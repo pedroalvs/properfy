@@ -7,6 +7,7 @@ import { StatusChip } from '@/components/ui/StatusChip';
 import { TenantConfirmationBanner } from '../components/TenantConfirmationBanner';
 import { PropertyAddressSection } from '../components/PropertyAddressSection';
 import { TenantContactSection } from '../components/TenantContactSection';
+import { AppsSection } from '../components/AppsSection';
 import { KeyDetailsSection } from '../components/KeyDetailsSection';
 import { JobDetailsSection } from '../components/JobDetailsSection';
 import { StartInspectionButton } from '../components/StartInspectionButton';
@@ -126,6 +127,9 @@ export function AppointmentDetailPage() {
           email={apt.tenantEmail}
         />
 
+        {/* Linked apps (credentials the inspector needs on site) */}
+        <AppsSection apps={apt.apps} />
+
         {/* On-site details (meeting location + restrictions, no key duplication) */}
         {(apt.meetingLocation || apt.restrictions) && (
           <KeyDetailsSection
@@ -140,6 +144,14 @@ export function AppointmentDetailPage() {
           <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Notes</p>
             <p className="mt-1 text-sm text-text-primary">{apt.notes}</p>
+          </section>
+        )}
+
+        {/* Observation */}
+        {apt.observation && (
+          <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Observation</p>
+            <p className="mt-1 text-sm text-text-primary">{apt.observation}</p>
           </section>
         )}
 

@@ -3,6 +3,7 @@ import { CreateServiceGroupUseCase } from '../../../src/modules/service-group/ap
 import type { IServiceGroupRepository } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
+import { futureDateStr } from '../../helpers/date-fixtures';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
@@ -117,8 +118,9 @@ function createMockRegionRepo(regionEntity?: ServiceRegionEntity | null): IServi
   };
 }
 
-// Future date far enough for PRIORITY_24H
-const farFutureDate = '2026-06-01';
+// Future date far enough for PRIORITY_24H. Use a relative helper — a hardcoded
+// literal drifts into the past and breaks the schedule guard (see date-fixtures).
+const farFutureDate = futureDateStr(60);
 
 describe('CreateServiceGroupUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
@@ -328,7 +330,32 @@ describe('CreateServiceGroupUseCase', () => {
     ).rejects.toThrow(AppointmentInvalidStatusError);
   });
 
-  it('should reject mixed-tenant appointment groups', async () => {
+  it('should allow mixed-agency (cross-tenant) groups without a region', async () => {
+    const appointmentIds = makeAppointmentIds(5);
+    for (let i = 0; i < 4; i++) {
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: `appt-${i + 1}`, tenantId: 'tenant-1' }),
+      );
+    }
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-5', tenantId: 'tenant-2' }),
+    );
+
+    const result = await useCase.execute({
+      appointmentIds,
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      actor: makeActor(),
+    });
+
+    // Mixed agency → no single tenant on the group.
+    expect(result.tenantId).toBeNull();
+    expect(serviceGroupRepo.save).toHaveBeenCalled();
+  });
+
+  it('should reject assigning a region to a mixed-agency group', async () => {
     const appointmentIds = makeAppointmentIds(5);
     for (let i = 0; i < 4; i++) {
       vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
@@ -449,6 +476,28 @@ describe('CreateServiceGroupUseCase', () => {
 
     expect(result.id).toBeDefined();
     expect(result.status).toBe('DRAFT');
+  });
+
+  it('looks up appointments cross-tenant so a cross-agency group is not scoped to the actor tenant', async () => {
+    // Groups are tenant-agnostic and only AM/OP (cross-tenant) reach here. Even if an
+    // OP token carried a stray tenantId, appointment lookup must stay cross-tenant —
+    // otherwise other agencies' appointments would silently 404 during create.
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', tenantId: 'tenant-2' }),
+    );
+
+    await useCase.execute({
+      appointmentIds: ['appt-1'],
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      exceptionType: 'ISOLATED_SERVICE',
+      exceptionReason: 'This property is geographically isolated from other appointments.',
+      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+    });
+
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
   });
 
   it('should allow ISOLATED_SERVICE exception with 1 appointment', async () => {

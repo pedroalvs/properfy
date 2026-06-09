@@ -6,6 +6,7 @@ import type { IServiceRegionRepository } from '../../../src/modules/service-regi
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
+import { deriveTenantFixture } from '../../helpers/service-group-fixtures';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -83,7 +84,7 @@ function makeGroupWithAppointments(
     propertyId: `prop-${i + 1}`,
     serviceGroupId: group.id,
   }));
-  return { group, appointments };
+  return { group, appointments, ...deriveTenantFixture(appointments) };
 }
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {

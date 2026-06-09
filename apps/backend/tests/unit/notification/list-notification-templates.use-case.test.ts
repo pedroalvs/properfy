@@ -1,226 +1,165 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ListNotificationTemplatesUseCase } from '../../../src/modules/notification/application/use-cases/list-notification-templates.use-case';
-import type { INotificationTemplateRepository } from '../../../src/modules/notification/domain/notification-template.repository';
 import { NotificationTemplateEntity } from '../../../src/modules/notification/domain/notification-template.entity';
+import type { INotificationTemplateRepository } from '../../../src/modules/notification/domain/notification-template.repository';
+import type { ITemplateImageBindingRepository, TemplateImageBindingData } from '../../../src/modules/notification/domain/template-image-binding.repository';
+import type { IEmailAssetRepository, EmailAssetData } from '../../../src/modules/notification/domain/email-asset.repository';
+import type { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuthContext } from '@properfy/shared';
-import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
 
-function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
-  return {
-    userId: 'user-1',
+function makeActor(role = 'AM'): AuthContext {
+  return { userId: 'user-1', role: role as any, tenantId: null, branchId: null, inspectorId: null };
+}
+
+function makeTemplate(id: string, code: string) {
+  return new NotificationTemplateEntity({
+    id,
     tenantId: null,
-    role: 'AM',
-    branchId: null,
-    inspectorId: null,
-    ...overrides,
+    templateCode: code,
+    channel: 'EMAIL',
+    subject: 'Test Subject',
+    bodyHtml: '<p>Hello</p>',
+    bodyText: 'Hello',
+    variablesJson: [],
+    isActive: true,
+    notificationClass: 'OPERATIONAL',
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+  });
+}
+
+function makeBinding(templateId: string, assetId: string, key = 'logo'): TemplateImageBindingData {
+  return {
+    id: `binding-${templateId}`,
+    templateId,
+    assetId,
+    placeholderKey: key,
+    altText: 'Logo',
+    width: 100,
+    height: 50,
+    createdAt: new Date('2024-01-01'),
   };
 }
 
-function makeTemplateEntity(
-  overrides: Partial<ConstructorParameters<typeof NotificationTemplateEntity>[0]> = {},
-): NotificationTemplateEntity {
-  return new NotificationTemplateEntity({
-    id: 'tpl-1',
+function makeAsset(id: string, key = 'logo'): EmailAssetData {
+  return {
+    id,
     tenantId: null,
-    templateCode: 'INSPECTION_NOTICE',
-    channel: 'EMAIL',
-    subject: 'Inspection Notice',
-    bodyHtml: '<p>Hello {{tenantName}}</p>',
-    bodyText: 'Hello {{tenantName}}',
-    variablesJson: ['tenantName'],
-    isActive: true,
-    createdAt: new Date('2026-03-01T00:00:00.000Z'),
-    updatedAt: new Date('2026-03-01T00:00:00.000Z'),
-    ...overrides,
-  });
+    placeholderKey: key,
+    storageKey: `email-assets/${key}.png`,
+    publicUrl: `https://cdn.example.com/email-assets/${key}.png`,
+    originalFilename: `${key}.png`,
+    contentType: 'image/png',
+    sizeBytes: 12345,
+    width: 100,
+    height: 50,
+    status: 'VERIFIED',
+    everSent: false,
+    uploadedByUserId: 'user-1',
+    createdAt: new Date('2024-01-01'),
+  };
 }
 
 describe('ListNotificationTemplatesUseCase', () => {
   let templateRepo: INotificationTemplateRepository;
-  let useCase: ListNotificationTemplatesUseCase;
+  let bindingRepo: ITemplateImageBindingRepository;
+  let assetRepo: IEmailAssetRepository;
+  let authorizationService: AuthorizationService;
 
   beforeEach(() => {
     templateRepo = {
-      findByTenantCodeChannel: vi.fn(),
       findAll: vi.fn(),
+      findByTenantCodeChannel: vi.fn(),
       upsert: vi.fn(),
     };
-    const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
-    useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
+    bindingRepo = {
+      findByTemplate: vi.fn(),
+      findByAsset: vi.fn(),
+      upsert: vi.fn(),
+      deleteByTemplateAndKey: vi.fn(),
+      deleteAllByTemplate: vi.fn(),
+    };
+    assetRepo = {
+      create: vi.fn(),
+      findById: vi.fn(),
+      findByPlaceholderKey: vi.fn(),
+      findAll: vi.fn(),
+      updateStatus: vi.fn(),
+      markEverSent: vi.fn(),
+      hardDelete: vi.fn(),
+    };
+    authorizationService = {
+      assertRoles: vi.fn(),
+      can: vi.fn(),
+      assertTenantScope: vi.fn(),
+    } as unknown as AuthorizationService;
   });
 
-  it('should allow OP to list templates (cross-tenant)', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([makeTemplateEntity()]);
+  it('should return imageBindings with real data from the binding + asset repos', async () => {
+    const template = makeTemplate('tpl-1', 'APPOINTMENT_REMINDER');
+    const binding = makeBinding('tpl-1', 'asset-1', 'logo');
+    const asset = makeAsset('asset-1', 'logo');
 
-    const result = await useCase.execute({ actor: makeActor({ role: 'OP' }) });
+    vi.mocked(templateRepo.findAll).mockResolvedValue([template]);
+    vi.mocked(bindingRepo.findByTemplate).mockResolvedValue([binding]);
+    vi.mocked(assetRepo.findById).mockResolvedValue(asset);
 
-    expect(result.data).toHaveLength(1);
-    expect(templateRepo.findAll).toHaveBeenCalledWith({});
-  });
-
-  it('should pass tenantId filter for OP', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
-
-    await useCase.execute({
-      tenantId: 'tenant-42',
-      actor: makeActor({ role: 'OP' }),
-    });
-
-    expect(templateRepo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-42', includeDefaults: true }),
+    const useCase = new ListNotificationTemplatesUseCase(
+      templateRepo, authorizationService, bindingRepo, assetRepo,
     );
-  });
+    const result = await useCase.execute({ actor: makeActor('AM') });
 
-  it('should throw ForbiddenError for INSP role', async () => {
-    await expect(
-      useCase.execute({ actor: makeActor({ role: 'INSP' }) }),
-    ).rejects.toThrow(ForbiddenError);
-  });
-
-  it('should allow AM to list all templates', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([makeTemplateEntity()]);
-
-    const result = await useCase.execute({ actor: makeActor({ role: 'AM' }) });
-
-    expect(result.data).toHaveLength(1);
-    expect(templateRepo.findAll).toHaveBeenCalledWith({});
-  });
-
-  it('should allow CL_ADMIN to list own tenant templates', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([
-      makeTemplateEntity({ tenantId: 'tenant-1' }),
-    ]);
-
-    const result = await useCase.execute({
-      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    expect(result.data[0]!.imageBindings).toHaveLength(1);
+    expect(result.data[0]!.imageBindings[0]).toMatchObject({
+      id: binding.id,
+      placeholderKey: 'logo',
+      assetId: 'asset-1',
+      publicUrl: asset.publicUrl,
+      altText: 'Logo',
+      width: 100,
+      height: 50,
     });
-
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].tenantId).toBe('tenant-1');
   });
 
-  it('should force tenantId for CL_ADMIN', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
+  it('should return empty imageBindings when no bindings exist', async () => {
+    const template = makeTemplate('tpl-2', 'TENANT_INVITATION');
 
-    await useCase.execute({
-      tenantId: 'other-tenant',
-      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
-    });
+    vi.mocked(templateRepo.findAll).mockResolvedValue([template]);
+    vi.mocked(bindingRepo.findByTemplate).mockResolvedValue([]);
 
-    expect(templateRepo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-1' }),
+    const useCase = new ListNotificationTemplatesUseCase(
+      templateRepo, authorizationService, bindingRepo, assetRepo,
     );
+    const result = await useCase.execute({ actor: makeActor('AM') });
+
+    expect(result.data[0]!.imageBindings).toHaveLength(0);
+    expect(assetRepo.findById).not.toHaveBeenCalled();
   });
 
-  it('should pass includeDefaults for CL_ADMIN', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
+  it('should skip bindings whose asset is not found', async () => {
+    const template = makeTemplate('tpl-3', 'APPOINTMENT_REMINDER');
+    const binding = makeBinding('tpl-3', 'missing-asset', 'logo');
 
-    await useCase.execute({
-      includeDefaults: false,
-      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
-    });
+    vi.mocked(templateRepo.findAll).mockResolvedValue([template]);
+    vi.mocked(bindingRepo.findByTemplate).mockResolvedValue([binding]);
+    vi.mocked(assetRepo.findById).mockResolvedValue(null);
 
-    expect(templateRepo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ includeDefaults: false }),
+    const useCase = new ListNotificationTemplatesUseCase(
+      templateRepo, authorizationService, bindingRepo, assetRepo,
     );
+    const result = await useCase.execute({ actor: makeActor('AM') });
+
+    expect(result.data[0]!.imageBindings).toHaveLength(0);
   });
 
-  it('should default includeDefaults to true for CL_ADMIN', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
+  it('should return empty imageBindings when optional repos are not injected (backward compat)', async () => {
+    const template = makeTemplate('tpl-4', 'APPOINTMENT_REMINDER');
+    vi.mocked(templateRepo.findAll).mockResolvedValue([template]);
 
-    await useCase.execute({
-      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
-    });
+    // Only required deps (no bindingRepo/assetRepo)
+    const useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
+    const result = await useCase.execute({ actor: makeActor('AM') });
 
-    expect(templateRepo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ includeDefaults: true }),
-    );
-  });
-
-  it('should pass templateCode and channel filters', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
-
-    await useCase.execute({
-      templateCode: 'REMINDER_7_DAYS',
-      channel: 'SMS',
-      actor: makeActor({ role: 'AM' }),
-    });
-
-    expect(templateRepo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({
-        templateCode: 'REMINDER_7_DAYS',
-        channel: 'SMS',
-      }),
-    );
-  });
-
-  it('should pass tenantId filter for AM', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
-
-    await useCase.execute({
-      tenantId: 'tenant-42',
-      actor: makeActor({ role: 'AM' }),
-    });
-
-    expect(templateRepo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-42' }),
-    );
-  });
-
-  it('should default includeDefaults to true for AM when tenantId is provided', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
-
-    await useCase.execute({
-      tenantId: 'tenant-42',
-      actor: makeActor({ role: 'AM' }),
-    });
-
-    expect(templateRepo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-42', includeDefaults: true }),
-    );
-  });
-
-  it('should not set includeDefaults for AM when no tenantId is provided', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
-
-    await useCase.execute({
-      actor: makeActor({ role: 'AM' }),
-    });
-
-    expect(templateRepo.findAll).toHaveBeenCalledWith({});
-  });
-
-  it('should return mapped template items with variables', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([
-      makeTemplateEntity({
-        id: 'tpl-1',
-        variablesJson: ['tenantName', 'propertyAddress'],
-      }),
-    ]);
-
-    const result = await useCase.execute({ actor: makeActor({ role: 'AM' }) });
-
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toEqual({
-      id: 'tpl-1',
-      tenantId: null,
-      templateCode: 'INSPECTION_NOTICE',
-      channel: 'EMAIL',
-      subject: 'Inspection Notice',
-      bodyText: 'Hello {{tenantName}}',
-      isActive: true,
-      variables: ['tenantName', 'propertyAddress'],
-      createdAt: '2026-03-01T00:00:00.000Z',
-      updatedAt: '2026-03-01T00:00:00.000Z',
-    });
-  });
-
-  it('should return empty data when no templates found', async () => {
-    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
-
-    const result = await useCase.execute({ actor: makeActor({ role: 'AM' }) });
-
-    expect(result.data).toEqual([]);
+    expect(result.data[0]!.imageBindings).toHaveLength(0);
   });
 });

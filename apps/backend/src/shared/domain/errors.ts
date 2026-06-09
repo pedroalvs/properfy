@@ -33,8 +33,8 @@ export class UnauthorizedError extends DomainError {
 }
 
 export class ConflictError extends DomainError {
-  constructor(code: string, message: string) {
-    super(code, message, 409);
+  constructor(code: string, message: string, details?: unknown) {
+    super(code, message, 409, details);
     this.name = 'ConflictError';
   }
 }
@@ -50,5 +50,13 @@ export class TooManyRequestsError extends DomainError {
   constructor(code: string, message: string, public readonly retryAfter?: string) {
     super(code, message, 429);
     this.name = 'TooManyRequestsError';
+  }
+}
+
+/** 422 Unprocessable Entity — body is syntactically valid but semantically rejected (e.g. unsafe HTML). */
+export class UnprocessableEntityError extends DomainError {
+  constructor(message: string, details?: unknown) {
+    super('UNPROCESSABLE_ENTITY', message, 422, details);
+    this.name = 'UnprocessableEntityError';
   }
 }

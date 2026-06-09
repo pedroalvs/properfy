@@ -10,6 +10,8 @@ import { TextInput } from '@/components/forms/TextInput';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateSave } from '../hooks/useTemplateSave';
+import { useTemplatePreview } from '../hooks/useTemplatePreview';
+import { ImageLibraryModal } from './ImageLibraryModal';
 import { SendTestEmailDialog } from './SendTestEmailDialog';
 import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
@@ -40,6 +42,7 @@ export function TemplateFormDrawer({
   const [showConfirm, setShowConfirm] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [showTestSmsDialog, setShowTestSmsDialog] = useState(false);
+  const [showImageLibrary, setShowImageLibrary] = useState(false);
 
   useEffect(() => {
     if (template && open) {
@@ -71,24 +74,45 @@ export function TemplateFormDrawer({
     [],
   );
 
-  const handleInsertVariable = useCallback((variable: string) => {
+  const insertAtCursor = useCallback((text: string) => {
     const textarea = bodyRef.current;
     if (textarea) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const currentBody = form.body;
-      const newBody = currentBody.substring(0, start) + variable + currentBody.substring(end);
+      const newBody = form.body.substring(0, start) + text + form.body.substring(end);
       updateField('body', newBody);
 
       requestAnimationFrame(() => {
-        const cursorPos = start + variable.length;
+        const cursorPos = start + text.length;
         textarea.focus();
         textarea.setSelectionRange(cursorPos, cursorPos);
       });
     } else {
-      updateField('body', form.body + variable);
+      updateField('body', form.body + text);
     }
   }, [form.body, updateField]);
+
+  const handleInsertVariable = useCallback((variable: string) => {
+    insertAtCursor(variable);
+  }, [insertAtCursor]);
+
+  const handleInsertImage = useCallback((placeholderKey: string) => {
+    insertAtCursor(`{{image:${placeholderKey}}}`);
+  }, [insertAtCursor]);
+
+  // Single source of truth for channel-based conditions — Images, Preview, Send Test all
+  // depend on this. Avoids divergence if code is later refactored.
+  const isEmailChannel = template?.channel === 'EMAIL';
+
+  // Fall back to template.body until the useEffect syncs form state, so the preview
+  // starts fetching on the first render when the drawer opens.
+  const { preview: livePreview, isLoading: previewLoading } = useTemplatePreview(
+    template?.code ?? '',
+    template?.channel ?? '',
+    form.body || template?.body || '',
+    form.subject || template?.subject || '',
+    template?.tenantId,
+  );
 
   const templateVarSpec = template ? TEMPLATE_VARIABLES[template.code as keyof typeof TEMPLATE_VARIABLES] : undefined;
   const canonicalRequired: string[] = templateVarSpec ? [...templateVarSpec.required] : template?.requiredVariables ?? [];
@@ -144,7 +168,7 @@ export function TemplateFormDrawer({
             onClose={handleClose}
           />
 
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
             <div className="flex flex-col gap-6">
               {template && (
                 <div className="flex items-center gap-4 rounded bg-[#F5F5F5] px-4 py-3">
@@ -181,6 +205,7 @@ export function TemplateFormDrawer({
                 <div className="flex flex-col gap-2">
                   <VariableInsertToolbar
                     onInsert={handleInsertVariable}
+                    onOpenImages={isEmailChannel ? () => setShowImageLibrary(true) : undefined}
                     disabled={isSaving}
                     variables={canonicalAllowed}
                   />
@@ -190,10 +215,11 @@ export function TemplateFormDrawer({
                         ref={bodyRef}
                         value={form.body}
                         onChange={(e) => updateField('body', e.target.value)}
-                        className="w-full resize-none bg-transparent px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
-                        placeholder="Template body content with {{variables}}"
-                        rows={10}
+                        className="w-full resize-none bg-transparent px-3 py-2 font-mono text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+                        placeholder="<table>...</table>  Use {{variable}} for dynamic values"
+                        rows={12}
                         aria-label="Body"
+                        spellCheck={false}
                       />
                     </div>
                   </FormField>
@@ -210,9 +236,10 @@ export function TemplateFormDrawer({
 
               {template && (
                 <TemplatePreview
-                  subject={form.subject}
-                  body={form.body}
+                  subject={livePreview?.subjectRendered ?? form.subject}
+                  htmlRendered={livePreview?.htmlRendered ?? ''}
                   channel={template.channel}
+                  isLoading={previewLoading}
                 />
               )}
             </div>
@@ -223,7 +250,7 @@ export function TemplateFormDrawer({
               <Button variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
-              {template?.channel === 'EMAIL' && (
+              {isEmailChannel && (
                 <Button variant="secondary" onClick={() => setShowTestDialog(true)} disabled={isSaving}>
                   Send Test Email
                 </Button>
@@ -241,7 +268,7 @@ export function TemplateFormDrawer({
         </div>
       </DrawerPanel>
 
-      {template?.channel === 'EMAIL' && (
+      {isEmailChannel && template && (
         <SendTestEmailDialog
           open={showTestDialog}
           onClose={() => setShowTestDialog(false)}
@@ -255,6 +282,15 @@ export function TemplateFormDrawer({
           onClose={() => setShowTestSmsDialog(false)}
           templateCode={template.code}
           channel={template.channel}
+        />
+      )}
+
+      {showImageLibrary && (
+        <ImageLibraryModal
+          open={showImageLibrary}
+          onClose={() => setShowImageLibrary(false)}
+          onInsert={handleInsertImage}
+          tenantId={template?.tenantId}
         />
       )}
 

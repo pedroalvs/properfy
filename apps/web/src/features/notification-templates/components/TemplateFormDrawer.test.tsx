@@ -186,4 +186,86 @@ describe('TemplateFormDrawer', () => {
     renderDrawer();
     expect(screen.getByLabelText('Template active')).toBeInTheDocument();
   });
+
+  it('shows Images button in toolbar for EMAIL template', () => {
+    renderDrawer(MOCK_TEMPLATE);
+    expect(screen.getByRole('button', { name: 'Open image library' })).toBeInTheDocument();
+  });
+
+  it('does not show Images button in toolbar for SMS template', () => {
+    renderDrawer({ ...MOCK_TEMPLATE, channel: 'SMS' });
+    expect(screen.queryByRole('button', { name: 'Open image library' })).not.toBeInTheDocument();
+  });
+
+  it('shows Send Test Email button for EMAIL template', () => {
+    renderDrawer(MOCK_TEMPLATE);
+    expect(screen.getByRole('button', { name: 'Send Test Email' })).toBeInTheDocument();
+  });
+
+  it('does not show Send Test Email for SMS template', () => {
+    renderDrawer({ ...MOCK_TEMPLATE, channel: 'SMS' });
+    expect(screen.queryByRole('button', { name: 'Send Test Email' })).not.toBeInTheDocument();
+  });
+
+  it('renders preview section when EMAIL template is open', () => {
+    renderDrawer(MOCK_TEMPLATE);
+    expect(screen.getByText('Preview')).toBeInTheDocument();
+    expect(screen.getByTestId('preview-body')).toBeInTheDocument();
+  });
+
+  it('does not render Images button when template is null', () => {
+    renderDrawer(null);
+    expect(screen.queryByRole('button', { name: 'Open image library' })).not.toBeInTheDocument();
+  });
+
+  it('shows Images button after template prop changes from null to EMAIL (open drawer transition)', () => {
+    // Simulates the real-browser scenario: drawer is always mounted (DrawerPanel keeps children),
+    // initially template=null (page load), then template is set when the user clicks Edit.
+    const Wrapper = createWrapper();
+    const { rerender } = render(
+      <Wrapper>
+        <TemplateFormDrawer open={false} onClose={vi.fn()} template={null} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    // Images must not appear while drawer is closed and template is null
+    expect(screen.queryByRole('button', { name: 'Open image library' })).not.toBeInTheDocument();
+
+    // Simulate handleEdit: open=true + template=<EMAIL template> (React batches these)
+    rerender(
+      <Wrapper>
+        <TemplateFormDrawer open={true} onClose={vi.fn()} template={MOCK_TEMPLATE} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    // After opening with EMAIL template, Images button MUST appear
+    expect(screen.getByRole('button', { name: 'Open image library' })).toBeInTheDocument();
+  });
+
+  it('preview section renders for EMAIL template even before form state syncs body', async () => {
+    // Regression: useTemplatePreview must be called with a non-empty body from the very
+    // first render so the preview iframe is available immediately when the drawer opens,
+    // not only after the useEffect syncs form state on a second render cycle.
+    const mockPost = api.POST as ReturnType<typeof vi.fn>;
+    mockPost.mockResolvedValue({
+      data: { data: { subjectRendered: 'Test Subject', htmlRendered: '<p>Hello</p>' } },
+      error: undefined,
+    });
+
+    vi.useFakeTimers();
+    try {
+      renderDrawer(MOCK_TEMPLATE);
+      // Advance past the 400 ms debounce in useTemplatePreview
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(mockPost).toHaveBeenCalledWith(
+        expect.stringContaining('/preview'),
+        expect.objectContaining({
+          body: expect.objectContaining({ bodyHtml: expect.any(String) }),
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

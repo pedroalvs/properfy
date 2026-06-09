@@ -33,7 +33,7 @@ export function useTemplateList(): UseTemplateListReturn {
     code: (raw['templateCode'] ?? raw['code']) as string,
     channel: raw['channel'] as NotificationTemplate['channel'],
     subject: (raw['subject'] as string) ?? '',
-    body: (raw['bodyText'] ?? raw['body']) as string,
+    body: (raw['bodyHtml'] ?? raw['bodyText'] ?? raw['body'] ?? '') as string,
     active: (raw['isActive'] ?? raw['active']) as boolean,
     // Feature 018: default to OPERATIONAL if the backend omits the field (legacy rows)
     notificationClass: (raw['notificationClass'] as NotificationTemplate['notificationClass']) ?? 'OPERATIONAL',

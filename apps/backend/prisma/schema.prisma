@@ -189,7 +189,6 @@ model Tenant {
   properties             Property[]
   price_rules            ServicePriceRule[]
   appointments           Appointment[]
-  service_groups         ServiceGroup[]
   financial_entries      FinancialEntry[]
   tenant_invoices        TenantInvoice[]
   notifications          Notification[]
@@ -201,6 +200,7 @@ model Tenant {
   service_regions        ServiceRegion[]
   scheduled_reports      ScheduledReport[]
   contacts               Contact[]
+  app_credentials        AppCredential[]
 
   @@index([status])
   @@index([deleted_at])
@@ -274,6 +274,7 @@ model User {
   created_property_imports  PropertyImport[]      @relation("propertyImportCreatedBy")
   created_service_regions   ServiceRegion[]       @relation("ServiceRegionCreatedBy")
   created_scheduled_reports ScheduledReport[]     @relation("scheduledReportCreatedBy")
+  uploaded_email_assets      EmailAsset[]          @relation("EmailAssetUploadedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -415,28 +416,28 @@ model ServicePriceRule {
 }
 
 model Inspector {
-  id                      String          @id @default(uuid())
-  user_id                 String?         @unique
-  name                    String          @db.VarChar(200)
-  email                   String          @unique @db.VarChar(254)
-  phone                   String?         @db.VarChar(20)
-  status                  InspectorStatus @default(ACTIVE)
-  payment_settings_json   Json            @default("{}")
-  regions_json            Json            @default("[]")
-  service_types_json      Json            @default("[]")
-  client_eligibility_json Json            @default("[]")
+  id                         String          @id @default(uuid())
+  user_id                    String?         @unique
+  name                       String          @db.VarChar(200)
+  email                      String          @unique @db.VarChar(254)
+  phone                      String?         @db.VarChar(20)
+  status                     InspectorStatus @default(ACTIVE)
+  payment_settings_json      Json            @default("{}")
+  regions_json               Json            @default("[]")
+  service_types_json         Json            @default("[]")
+  client_eligibility_json    Json            @default("[]")
   // Feedback Round item 1: blocked-clients model (replaces allow-list)
-  blocked_clients_json    Json            @default("[]")
+  blocked_clients_json       Json            @default("[]")
   // Feedback Round item 6: profile extension fields
-  full_name               String?         @db.VarChar(300)
-  address                 Json?
-  abn                     String?         @db.VarChar(20)
-  date_of_birth           DateTime?       @db.Date
-  insurance_file_key      String?
-  insurance_expires_at    DateTime?       @db.Date
-  insurance_meta_json     Json?
-  police_check_file_key   String?
-  police_check_expires_at DateTime?       @db.Date
+  full_name                  String?         @db.VarChar(300)
+  address                    Json?
+  abn                        String?         @db.VarChar(20)
+  date_of_birth              DateTime?       @db.Date
+  insurance_file_key         String?
+  insurance_expires_at       DateTime?       @db.Date
+  insurance_meta_json        Json?
+  police_check_file_key      String?
+  police_check_expires_at    DateTime?       @db.Date
   police_check_meta_json     Json?
   photo_storage_key          String?
   availability_template_json Json            @default("{}")
@@ -483,38 +484,39 @@ model InspectorAvailabilitySlot {
 }
 
 model Appointment {
-  id                         String                   @id @default(uuid())
-  appointment_number         Int                      @unique @default(autoincrement())
-  tenant_id                  String
-  branch_id                  String
-  property_id                String
-  service_type_id            String
-  inspector_id               String?
-  service_group_id           String?
-  status                     AppointmentStatus        @default(DRAFT)
-  scheduled_date             DateTime                 @db.Date
-  time_slot                  String                   @db.VarChar(50)
-  key_required               Boolean                  @default(false)
-  meeting_location           String?                  @db.VarChar(500)
-  key_location               String?                  @db.VarChar(500)
-  tenant_confirmation_status       TenantConfirmationStatus          @default(PENDING)
-  active_confirmation_cycle_id     String?
-  price_amount                     Decimal                           @db.Decimal(12, 2)
-  payout_amount              Decimal                  @db.Decimal(12, 2)
-  pricing_rule_snapshot_json Json
-  notes                      String?                  @db.Text
-  tenant_note                String?                  @db.Text
-  custom_fields_json         Json?
-  reason                     String?                  @db.Text
-  cancellation_reason_code   String?                  @db.VarChar(50)
-  rejection_reason_code      String?                  @db.VarChar(50)
-  created_by_user_id         String
-  done_marked_by_user_id     String?
-  done_checked_by_user_id    String?
-  done_checked_at            DateTime?
-  created_at                 DateTime                 @default(now())
-  updated_at                 DateTime                 @updatedAt
-  deleted_at                 DateTime?
+  id                           String                   @id @default(uuid())
+  appointment_number           Int                      @unique @default(autoincrement())
+  tenant_id                    String
+  branch_id                    String
+  property_id                  String
+  service_type_id              String
+  inspector_id                 String?
+  service_group_id             String?
+  status                       AppointmentStatus        @default(DRAFT)
+  scheduled_date               DateTime                 @db.Date
+  time_slot                    String                   @db.VarChar(50)
+  key_required                 Boolean                  @default(false)
+  meeting_location             String?                  @db.VarChar(500)
+  key_location                 String?                  @db.VarChar(500)
+  tenant_confirmation_status   TenantConfirmationStatus @default(PENDING)
+  active_confirmation_cycle_id String?
+  price_amount                 Decimal                  @db.Decimal(12, 2)
+  payout_amount                Decimal                  @db.Decimal(12, 2)
+  pricing_rule_snapshot_json   Json
+  notes                        String?                  @db.Text
+  tenant_note                  String?                  @db.Text
+  observation                  String?                  @db.Text
+  custom_fields_json           Json?
+  reason                       String?                  @db.Text
+  cancellation_reason_code     String?                  @db.VarChar(50)
+  rejection_reason_code        String?                  @db.VarChar(50)
+  created_by_user_id           String
+  done_marked_by_user_id       String?
+  done_checked_by_user_id      String?
+  done_checked_at              DateTime?
+  created_at                   DateTime                 @default(now())
+  updated_at                   DateTime                 @updatedAt
+  deleted_at                   DateTime?
 
   tenant               Tenant        @relation(fields: [tenant_id], references: [id])
   branch               Branch        @relation(fields: [branch_id], references: [id])
@@ -526,10 +528,11 @@ model Appointment {
   done_marked_by_user  User?         @relation("AppointmentDoneMarkedBy", fields: [done_marked_by_user_id], references: [id])
   done_checked_by_user User?         @relation("AppointmentDoneCheckedBy", fields: [done_checked_by_user_id], references: [id])
 
-  active_confirmation_cycle AppointmentConfirmationCycle? @relation("ActiveCycle", fields: [active_confirmation_cycle_id], references: [id], onDelete: SetNull)
+  active_confirmation_cycle AppointmentConfirmationCycle?  @relation("ActiveCycle", fields: [active_confirmation_cycle_id], references: [id], onDelete: SetNull)
   confirmation_cycles       AppointmentConfirmationCycle[]
 
   contacts          AppointmentContact[]
+  app_credentials   AppointmentAppCredential[]
   restrictions      AppointmentRestriction[]
   portal_tokens     TenantPortalToken[]
   portal_activities TenantPortalActivity[]
@@ -574,7 +577,6 @@ model AppointmentConfirmationCycle {
 
 model ServiceGroup {
   id                    String                     @id @default(uuid())
-  tenant_id             String
   service_type_id       String
   status                ServiceGroupStatus         @default(DRAFT)
   group_size            Int
@@ -597,39 +599,36 @@ model ServiceGroup {
   created_at            DateTime                   @default(now())
   updated_at            DateTime                   @updatedAt
 
-  tenant             Tenant         @relation(fields: [tenant_id], references: [id])
   service_type       ServiceType    @relation(fields: [service_type_id], references: [id])
   assigned_inspector Inspector?     @relation(fields: [assigned_inspector_id], references: [id])
   service_region     ServiceRegion? @relation(fields: [service_region_id], references: [id], onDelete: Restrict)
   created_by         User           @relation("ServiceGroupCreatedBy", fields: [created_by_user_id], references: [id])
   appointments       Appointment[]
 
-  @@index([tenant_id])
   @@index([status])
   @@index([scheduled_date])
   @@index([assigned_inspector_id])
   @@index([service_region_id])
-  @@index([tenant_id, status])
   @@map("service_groups")
 }
 
 model Contact {
-  id                       String            @id @default(uuid())
+  id                       String      @id @default(uuid())
   // 024 §FR-301 — `tenant_id` is nullable. Contact is a cross-tenant entity;
   // visibility for CL_ADMIN/CL_USER is derived via the operational junction
   // (`appointment_contacts → appointments.tenant_id`). Standalone contacts
   // (created by AM/OP without an appointment context) carry `tenant_id = null`.
   tenant_id                String?
   type                     ContactType
-  display_name             String            @db.VarChar(200)
-  company                  String?           @db.VarChar(200)
-  primary_email            String?           @db.VarChar(254)
-  primary_phone            String?           @db.VarChar(30)
-  additional_channels_json Json              @default("[]")
+  display_name             String      @db.VarChar(200)
+  company                  String?     @db.VarChar(200)
+  primary_email            String?     @db.VarChar(254)
+  primary_phone            String?     @db.VarChar(30)
+  additional_channels_json Json        @default("[]")
   notes                    String?
-  is_active                Boolean           @default(true)
-  created_at               DateTime          @default(now())
-  updated_at               DateTime          @updatedAt
+  is_active                Boolean     @default(true)
+  created_at               DateTime    @default(now())
+  updated_at               DateTime    @updatedAt
 
   tenant               Tenant?              @relation(fields: [tenant_id], references: [id])
   appointment_contacts AppointmentContact[]
@@ -648,21 +647,21 @@ model Contact {
 }
 
 model AppointmentContact {
-  id              String                  @id @default(uuid())
+  id              String                 @id @default(uuid())
   appointment_id  String
   contact_id      String?
-  tenant_name     String                  @db.VarChar(200)
-  primary_email   String?                 @db.VarChar(254)
-  secondary_email String?                 @db.VarChar(254)
-  primary_phone   String?                 @db.VarChar(30)
-  secondary_phone String?                 @db.VarChar(30)
-  role            AppointmentContactRole  @default(TENANT)
-  is_primary      Boolean                 @default(true)
-  snapshot_name   String?                 @db.VarChar(200)
-  snapshot_email  String?                 @db.VarChar(254)
-  snapshot_phone  String?                 @db.VarChar(30)
-  created_at      DateTime                @default(now())
-  updated_at      DateTime                @updatedAt
+  tenant_name     String                 @db.VarChar(200)
+  primary_email   String?                @db.VarChar(254)
+  secondary_email String?                @db.VarChar(254)
+  primary_phone   String?                @db.VarChar(30)
+  secondary_phone String?                @db.VarChar(30)
+  role            AppointmentContactRole @default(TENANT)
+  is_primary      Boolean                @default(true)
+  snapshot_name   String?                @db.VarChar(200)
+  snapshot_email  String?                @db.VarChar(254)
+  snapshot_phone  String?                @db.VarChar(30)
+  created_at      DateTime               @default(now())
+  updated_at      DateTime               @updatedAt
 
   appointment Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
   contact     Contact?    @relation(fields: [contact_id], references: [id])
@@ -670,6 +669,45 @@ model AppointmentContact {
   @@index([appointment_id])
   @@index([contact_id])
   @@map("appointment_contacts")
+}
+
+// Per-agency (tenant) registry of third-party app/account logins an inspector
+// needs on site. Managed by AM/OP only. `password_encrypted` holds the
+// base64(iv‖authTag‖ciphertext) produced by Aes256GcmService; the plaintext
+// password is shown in the UI but never stored in clear.
+model AppCredential {
+  id                 String   @id @default(uuid())
+  tenant_id          String
+  name               String   @db.VarChar(200)
+  username           String   @db.VarChar(200)
+  password_encrypted String
+  is_active          Boolean  @default(true)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  tenant       Tenant                     @relation(fields: [tenant_id], references: [id])
+  appointments AppointmentAppCredential[]
+
+  @@index([tenant_id, is_active])
+  @@index([tenant_id, name])
+  @@map("app_credentials")
+}
+
+// Junction linking an appointment to an app credential. Live reference (no
+// snapshot): the inspector/web detail always read the current registry values.
+model AppointmentAppCredential {
+  id                String   @id @default(uuid())
+  appointment_id    String
+  app_credential_id String
+  created_at        DateTime @default(now())
+
+  appointment    Appointment   @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  app_credential AppCredential @relation(fields: [app_credential_id], references: [id], onDelete: Cascade)
+
+  @@unique([appointment_id, app_credential_id])
+  @@index([appointment_id])
+  @@index([app_credential_id])
+  @@map("appointment_app_credentials")
 }
 
 model AppointmentRestriction {
@@ -965,6 +1003,13 @@ enum ConsentChangeSource {
   re_opt_in
 }
 
+enum EmailAssetStatus {
+  PENDING
+  UPLOADED
+  VERIFIED
+  UPLOAD_FAILED
+}
+
 model TenantPortalToken {
   id                    String                  @id @default(uuid())
   appointment_id        String
@@ -978,9 +1023,9 @@ model TenantPortalToken {
   created_at            DateTime                @default(now())
   updated_at            DateTime                @updatedAt
 
-  appointment        Appointment                        @relation(fields: [appointment_id], references: [id])
-  confirmation_cycle AppointmentConfirmationCycle?      @relation("TokenCycle", fields: [confirmation_cycle_id], references: [id], onDelete: SetNull)
-  minted_for_cycle   AppointmentConfirmationCycle?      @relation("CycleMintedToken")
+  appointment        Appointment                   @relation(fields: [appointment_id], references: [id])
+  confirmation_cycle AppointmentConfirmationCycle? @relation("TokenCycle", fields: [confirmation_cycle_id], references: [id], onDelete: SetNull)
+  minted_for_cycle   AppointmentConfirmationCycle? @relation("CycleMintedToken")
   activities         TenantPortalActivity[]
 
   @@index([appointment_id])
@@ -1146,24 +1191,24 @@ model FinancialEntry {
 }
 
 model InspectorInvoice {
-  id                   String                 @id @default(uuid())
-  inspector_id         String
-  period_start         DateTime               @db.Date
-  period_end           DateTime               @db.Date
-  period_type          BillingPeriodType
-  status               InspectorInvoiceStatus @default(OPEN)
-  total_amount         Decimal                @default(0) @db.Decimal(12, 2)
-  currency             String                 @db.Char(3)
-  file_key             String?
-  generated_by_user_id String?
-  generated_at         DateTime?
-  paid_at              DateTime?
-  paid_by_user_id      String?
-  payment_reference    String?                @db.VarChar(255)
-  notes                    String?
-  drafted_by_inspector_id  String?
-  created_at               DateTime               @default(now())
-  updated_at               DateTime               @updatedAt
+  id                      String                 @id @default(uuid())
+  inspector_id            String
+  period_start            DateTime               @db.Date
+  period_end              DateTime               @db.Date
+  period_type             BillingPeriodType
+  status                  InspectorInvoiceStatus @default(OPEN)
+  total_amount            Decimal                @default(0) @db.Decimal(12, 2)
+  currency                String                 @db.Char(3)
+  file_key                String?
+  generated_by_user_id    String?
+  generated_at            DateTime?
+  paid_at                 DateTime?
+  paid_by_user_id         String?
+  payment_reference       String?                @db.VarChar(255)
+  notes                   String?
+  drafted_by_inspector_id String?
+  created_at              DateTime               @default(now())
+  updated_at              DateTime               @updatedAt
 
   inspector   Inspector @relation(fields: [inspector_id], references: [id])
   generatedBy User?     @relation("InspectorInvoiceGeneratedBy", fields: [generated_by_user_id], references: [id])
@@ -1251,20 +1296,21 @@ model Notification {
 }
 
 model NotificationTemplate {
-  id                          String                 @id @default(uuid())
-  tenant_id                   String?
-  template_code               String                 @db.VarChar(100)
-  channel                     NotificationChannel
-  subject                     String?                @db.VarChar(255)
-  body_html                   String?                @db.Text
-  body_text                   String                 @db.Text
-  variables_json              Json
-  is_active                   Boolean                @default(true)
-  notification_class          NotificationClass      @default(OPERATIONAL)
-  created_at                  DateTime               @default(now())
-  updated_at                  DateTime               @updatedAt
+  id                 String              @id @default(uuid())
+  tenant_id          String?
+  template_code      String              @db.VarChar(100)
+  channel            NotificationChannel
+  subject            String?             @db.VarChar(255)
+  body_html          String?             @db.Text
+  body_text          String              @db.Text
+  variables_json     Json
+  is_active          Boolean             @default(true)
+  notification_class NotificationClass   @default(OPERATIONAL)
+  created_at         DateTime            @default(now())
+  updated_at         DateTime            @updatedAt
 
-  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+  tenant         Tenant?                @relation(fields: [tenant_id], references: [id])
+  image_bindings TemplateImageBinding[]
 
   @@unique([tenant_id, template_code, channel])
   @@index([template_code, channel])
@@ -1563,4 +1609,49 @@ model NotificationConsent {
   @@unique([recipient, channel, tenant_id, notification_class])
   @@index([tenant_id])
   @@map("notification_consents")
+}
+
+model EmailAsset {
+  id                   String           @id @default(uuid())
+  tenant_id            String?
+  placeholder_key      String           @db.VarChar(64)
+  storage_key          String           @unique @db.Text
+  public_url           String           @db.Text
+  original_filename    String           @db.VarChar(255)
+  content_type         String           @db.VarChar(50)
+  size_bytes           Int
+  width                Int?
+  height               Int?
+  status               EmailAssetStatus @default(PENDING)
+  ever_sent            Boolean          @default(false)
+  uploaded_by_user_id  String
+
+  created_at DateTime @default(now())
+
+  uploadedBy     User                   @relation("EmailAssetUploadedBy", fields: [uploaded_by_user_id], references: [id])
+  image_bindings TemplateImageBinding[]
+
+  @@unique([tenant_id, placeholder_key])
+  @@index([tenant_id])
+  @@index([status])
+  @@map("email_assets")
+}
+
+model TemplateImageBinding {
+  id              String  @id @default(uuid())
+  template_id     String
+  asset_id        String
+  placeholder_key String  @db.VarChar(64)
+  alt_text        String? @db.VarChar(255)
+  width           Int?
+  height          Int?
+
+  created_at DateTime @default(now())
+
+  template NotificationTemplate @relation(fields: [template_id], references: [id])
+  asset    EmailAsset            @relation(fields: [asset_id], references: [id])
+
+  @@unique([template_id, placeholder_key])
+  @@index([asset_id])
+  @@map("template_image_bindings")
 }

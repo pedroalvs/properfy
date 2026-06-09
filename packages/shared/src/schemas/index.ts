@@ -1,6 +1,7 @@
 export * from './pagination';
 export * from './address';
 export * from './contact';
+export * from './app-credential';
 export * from './restriction';
 export * from './auth';
 export * from './appointment';

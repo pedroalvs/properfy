@@ -55,14 +55,14 @@ export class CreatePricingRuleUseCase {
     const { serviceTypeId, priceAmount, payoutType, payoutValue, bonusRuleJson, status, actor } =
       input;
 
-    // RBAC: AM any tenant (tenantId required). OP/CL_ADMIN scoped to own
-    // tenant per Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13).
+    // RBAC: AM/OP are cross-tenant and supply the target tenantId explicitly
+    // (they have no own tenant scope). CL_ADMIN is scoped to its own tenant.
     if (actor.role !== 'AM' && actor.role !== 'OP' && actor.role !== 'CL_ADMIN') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
     const resolvedTenantId =
-      actor.role === 'AM'
+      actor.role === 'AM' || actor.role === 'OP'
         ? input.tenantId
         : actor.tenantId;
 
