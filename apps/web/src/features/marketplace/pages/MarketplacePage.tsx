@@ -6,6 +6,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { useMarketplaceOffers } from '../hooks/useMarketplaceOffers';
+import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
 import { useOfferAccept } from '../hooks/useOfferAccept';
 import { OfferCard } from '../components/OfferCard';
 import { OfferDetailPanel } from '../components/OfferDetailPanel';
@@ -27,6 +28,7 @@ export function MarketplacePage() {
   });
 
   const selectedOffer = offers.find((o) => o.groupId === selectedOfferId) ?? null;
+  const { detail: selectedDetail, isLoading: isDetailLoading } = useMarketplaceOfferDetail(selectedOfferId);
 
   const handleAcceptClick = (groupId: string) => {
     setConfirmGroupId(groupId);
@@ -81,6 +83,8 @@ export function MarketplacePage() {
         <div className="flex-shrink-0">
           <OfferDetailPanel
             offer={selectedOffer}
+            detail={selectedDetail}
+            detailLoading={isDetailLoading}
             onAccept={handleAcceptClick}
             isAccepting={isAccepting}
           />
