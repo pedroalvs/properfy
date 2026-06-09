@@ -4685,6 +4685,7 @@ export interface paths {
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 tenantNote?: string | null;
+                                observation?: string | null;
                                 hasTenantNote?: boolean;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
@@ -4714,6 +4715,13 @@ export interface paths {
                                 longitude?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
+                                apps?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    username: string;
+                                    password: string;
+                                }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
                                 serviceType?: unknown;
@@ -4803,6 +4811,7 @@ export interface paths {
                             role: "TENANT" | "TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
                             isPrimary: boolean;
                         })[];
+                        appCredentialIds?: string[];
                         restriction?: {
                             isHome: boolean;
                             unavailableDays?: string[];
@@ -4816,6 +4825,7 @@ export interface paths {
                         meetingLocation?: string;
                         keyLocation?: string;
                         notes?: string;
+                        observation?: string;
                         customFields?: {
                             [key: string]: unknown;
                         };
@@ -4858,6 +4868,7 @@ export interface paths {
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 tenantNote?: string | null;
+                                observation?: string | null;
                                 hasTenantNote?: boolean;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
@@ -4887,6 +4898,13 @@ export interface paths {
                                 longitude?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
+                                apps?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    username: string;
+                                    password: string;
+                                }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
                                 serviceType?: unknown;
@@ -4956,6 +4974,7 @@ export interface paths {
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 tenantNote?: string | null;
+                                observation?: string | null;
                                 hasTenantNote?: boolean;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
@@ -4985,6 +5004,13 @@ export interface paths {
                                 longitude?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
+                                apps?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    username: string;
+                                    password: string;
+                                }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
                                 serviceType?: unknown;
@@ -5039,6 +5065,7 @@ export interface paths {
                         meetingLocation?: string | null;
                         keyLocation?: string | null;
                         notes?: string | null;
+                        observation?: string | null;
                         contact?: {
                             tenantName: string;
                             /** Format: email */
@@ -5078,6 +5105,7 @@ export interface paths {
                             role: "TENANT" | "TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
                             isPrimary: boolean;
                         })[];
+                        appCredentialIds?: string[];
                         restriction?: {
                             isHome: boolean;
                             unavailableDays?: string[];
@@ -5128,6 +5156,7 @@ export interface paths {
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
                                 tenantNote?: string | null;
+                                observation?: string | null;
                                 hasTenantNote?: boolean;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
@@ -5157,6 +5186,13 @@ export interface paths {
                                 longitude?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
+                                apps?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    username: string;
+                                    password: string;
+                                }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
                                 serviceType?: unknown;
@@ -8013,6 +8049,7 @@ export interface paths {
                                 tenantPhone: string | null;
                                 tenantEmail: string | null;
                                 notes: string | null;
+                                observation: string | null;
                                 restrictionsSummary: string | null;
                                 contact: {
                                     tenantName: string;
@@ -8047,6 +8084,14 @@ export interface paths {
                                     sizeBytes: number | null;
                                     kind: string;
                                     status: string;
+                                }[];
+                                /** @default [] */
+                                apps: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    username: string;
+                                    password: string;
                                 }[];
                                 agencyName?: string | null;
                                 payoutAmount?: number | null;
@@ -12633,6 +12678,264 @@ export interface paths {
                                     label?: string;
                                 }[];
                                 notes: string | null;
+                                isActive: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/app-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    search?: string;
+                    tenantId?: string;
+                    isActive?: "true" | "false";
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: "name" | "username" | "createdAt";
+                    sortOrder?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                name: string;
+                                username: string;
+                                password: string;
+                                isActive: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                                tenantName: string | null;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        tenantId: string;
+                        name: string;
+                        username: string;
+                        password: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                name: string;
+                                username: string;
+                                password: string;
+                                isActive: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/app-credentials/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                name: string;
+                                username: string;
+                                password: string;
+                                isActive: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        username?: string;
+                        password?: string;
+                        isActive?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                name: string;
+                                username: string;
+                                password: string;
+                                isActive: boolean;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/app-credentials/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                name: string;
+                                username: string;
+                                password: string;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;

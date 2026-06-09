@@ -83,6 +83,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
       scheduledDate: data.scheduledDate || undefined,
       timeSlot: data.timeSlot || undefined,
       ...(contacts ? { contacts } : { contact }),
+      ...(data.appCredentialIds.length > 0 ? { appCredentialIds: data.appCredentialIds } : {}),
       ...(data.hasRestriction ? { restriction } : {}),
       keyRequired: data.keyRequired,
       ...(data.meetingLocation.trim() ? { meetingLocation: data.meetingLocation.trim() } : {}),
@@ -102,6 +103,8 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
     notes: data.notes.trim() || null,
     observation: data.observation.trim() || null,
     ...(contacts ? { contacts } : { contact }),
+    // Always send the array on edit so clearing all links persists.
+    appCredentialIds: data.appCredentialIds,
     ...(data.restrictionTouched ? { restriction } : {}),
     actorTimezone,
   };

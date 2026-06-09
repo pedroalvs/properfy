@@ -7,6 +7,7 @@ import { StatusChip } from '@/components/ui/StatusChip';
 import { TenantConfirmationBanner } from '../components/TenantConfirmationBanner';
 import { PropertyAddressSection } from '../components/PropertyAddressSection';
 import { TenantContactSection } from '../components/TenantContactSection';
+import { AppsSection } from '../components/AppsSection';
 import { KeyDetailsSection } from '../components/KeyDetailsSection';
 import { JobDetailsSection } from '../components/JobDetailsSection';
 import { StartInspectionButton } from '../components/StartInspectionButton';
@@ -125,6 +126,9 @@ export function AppointmentDetailPage() {
           phone={apt.tenantPhone}
           email={apt.tenantEmail}
         />
+
+        {/* Linked apps (credentials the inspector needs on site) */}
+        <AppsSection apps={apt.apps} />
 
         {/* On-site details (meeting location + restrictions, no key duplication) */}
         {(apt.meetingLocation || apt.restrictions) && (

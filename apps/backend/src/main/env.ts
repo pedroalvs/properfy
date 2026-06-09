@@ -60,6 +60,12 @@ const envSchema = z.object({
     .min(44, 'PORTAL_TOKEN_ENC_KEY must be at least 44 chars (32 bytes base64) or 64 chars (32 bytes hex)')
     .optional(),
 
+  // AES-256-GCM key for encrypting app-credential passwords at rest (key-per-purpose)
+  APP_CREDENTIAL_ENC_KEY: z
+    .string()
+    .min(44, 'APP_CREDENTIAL_ENC_KEY must be at least 44 chars (32 bytes base64) or 64 chars (32 bytes hex)')
+    .optional(),
+
   // Notification unsubscribe token secret (HMAC-SHA256)
   NOTIFICATION_UNSUBSCRIBE_SECRET: z.string().default('dev-unsubscribe-secret'),
 
@@ -110,6 +116,13 @@ export function validateEnv(source: Record<string, string | undefined> = process
   if (!result.data.PORTAL_TOKEN_ENC_KEY && result.data.NODE_ENV !== 'development' && result.data.NODE_ENV !== 'test') {
     throw new Error(
       'Environment validation failed:\n  - PORTAL_TOKEN_ENC_KEY: Required in non-development environments (32 bytes, hex or base64 encoded)',
+    );
+  }
+
+  // APP_CREDENTIAL_ENC_KEY is required in non-development/test environments
+  if (!result.data.APP_CREDENTIAL_ENC_KEY && result.data.NODE_ENV !== 'development' && result.data.NODE_ENV !== 'test') {
+    throw new Error(
+      'Environment validation failed:\n  - APP_CREDENTIAL_ENC_KEY: Required in non-development environments (32 bytes, hex or base64 encoded)',
     );
   }
 

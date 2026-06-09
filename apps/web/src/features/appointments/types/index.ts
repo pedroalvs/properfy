@@ -77,6 +77,8 @@ export interface AppointmentDetail extends Appointment {
   rejectionReasonCode?: string | null;
   reason?: string | null;
   contacts?: AppointmentContactEntry[];
+  /** App credentials linked to this appointment (live reference). */
+  apps?: Array<{ id: string; name: string; username: string; password: string }>;
   restrictions?: Array<{
     id: string;
     isHome: boolean;
@@ -149,6 +151,8 @@ export interface AppointmentFormData {
   /** @deprecated */
   contactEmail: string;
   contacts: ContactFormEntry[];
+  /** App credential ids linked to this appointment (live reference, many-to-many). */
+  appCredentialIds: string[];
   keyRequired: boolean;
   meetingLocation: string;
   keyLocation: string;
@@ -191,6 +195,7 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
   contactPhone: '',
   contactEmail: '',
   contacts: [{ ...createEmptyContact(), isPrimary: true }],
+  appCredentialIds: [],
   keyRequired: false,
   meetingLocation: '',
   keyLocation: '',

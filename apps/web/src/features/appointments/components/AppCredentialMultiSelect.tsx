@@ -1,0 +1,42 @@
+import { useMemo } from 'react';
+import { FilterMultiSelect } from '@/components/filters/FilterMultiSelect';
+import { usePaginatedQuery } from '@/hooks/useApiQuery';
+import type { AppCredentialListItem } from '@properfy/shared';
+
+interface AppCredentialMultiSelectProps {
+  value: string[];
+  onChange: (ids: string[]) => void;
+  /** Apps are tenant-scoped — only this agency's active apps are selectable. */
+  tenantId?: string;
+  disabled?: boolean;
+}
+
+/**
+ * Multi-select of the appointment agency's active app credentials. Mirrors the
+ * contact autocomplete pattern (search/select from the registry); apps are a
+ * small per-agency set, so a single multi-select dropdown is enough.
+ */
+export function AppCredentialMultiSelect({ value, onChange, tenantId, disabled }: AppCredentialMultiSelectProps) {
+  const { data } = usePaginatedQuery<AppCredentialListItem>(
+    ['app-credentials', 'form-options', tenantId ?? ''],
+    '/v1/app-credentials',
+    { page: 1, pageSize: 100, tenantId, isActive: 'true', sortBy: 'name', sortOrder: 'asc' },
+    { enabled: !!tenantId },
+  );
+
+  const options = useMemo(
+    () => (data?.data ?? []).map((a) => ({ value: a.id, label: `${a.name} · ${a.username}` })),
+    [data],
+  );
+
+  return (
+    <FilterMultiSelect
+      label="Apps"
+      value={value}
+      onChange={onChange}
+      options={options}
+      placeholder={disabled ? 'Select an agency first' : 'Select apps (optional)'}
+      disabled={disabled}
+    />
+  );
+}

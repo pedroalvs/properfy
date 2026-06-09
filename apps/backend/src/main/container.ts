@@ -357,6 +357,14 @@ import { GetContactUseCase } from '../modules/contact/application/use-cases/get-
 import { ListContactsUseCase } from '../modules/contact/application/use-cases/list-contacts.use-case';
 import type { ContactRouteContainer } from '../modules/contact/interfaces/http/contact.routes';
 
+// App-credential module
+import { PrismaAppCredentialRepository } from '../modules/app-credential/infrastructure/prisma-app-credential.repository';
+import { CreateAppCredentialUseCase } from '../modules/app-credential/application/use-cases/create-app-credential.use-case';
+import { UpdateAppCredentialUseCase } from '../modules/app-credential/application/use-cases/update-app-credential.use-case';
+import { GetAppCredentialUseCase } from '../modules/app-credential/application/use-cases/get-app-credential.use-case';
+import { ListAppCredentialsUseCase } from '../modules/app-credential/application/use-cases/list-app-credentials.use-case';
+import type { AppCredentialRouteContainer } from '../modules/app-credential/interfaces/http/app-credential.routes';
+
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
@@ -429,6 +437,7 @@ export interface AppContainer {
   dashboard: DashboardRouteContainer;
   serviceRegion: ServiceRegionRouteContainer;
   contact: ContactRouteContainer;
+  appCredential: AppCredentialRouteContainer;
   geocodeWorker: GeocodeWorker;
   geocodeRetryWorker: GeocodeRetryWorker;
   propertyImportWorker: ImportPropertyWorker;
@@ -594,6 +603,21 @@ export function createContainer(logger: Logger): AppContainer {
   const getContactUseCase = new GetContactUseCase(contactRepo);
   const listContactsUseCase = new ListContactsUseCase(contactRepo);
 
+  // App-credential repository + use cases. Passwords are encrypted at rest via
+  // AES-256-GCM (key-per-purpose). A fixed dev/test key is used when the env
+  // var is absent — APP_CREDENTIAL_ENC_KEY is required in staging/production
+  // (enforced in env.ts), so production never falls back to the dev key.
+  const appCredentialEncKey =
+    env.APP_CREDENTIAL_ENC_KEY ?? '0000000000000000000000000000000000000000000000000000000000000000';
+  const appCredentialRepo = new PrismaAppCredentialRepository(
+    prisma,
+    new Aes256GcmService(appCredentialEncKey),
+  );
+  const createAppCredentialUseCase = new CreateAppCredentialUseCase(appCredentialRepo, auditService);
+  const updateAppCredentialUseCase = new UpdateAppCredentialUseCase(appCredentialRepo, auditService);
+  const getAppCredentialUseCase = new GetAppCredentialUseCase(appCredentialRepo);
+  const listAppCredentialsUseCase = new ListAppCredentialsUseCase(appCredentialRepo);
+
   // Service region repository (instantiated early for inspector and marketplace use)
   const serviceRegionRepo = new PrismaServiceRegionRepository(prisma);
 
@@ -669,11 +693,11 @@ export function createContainer(logger: Logger): AppContainer {
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
     createPropertyUseCase, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo, contactRepo,
-    undefined, idempotencyService,
+    undefined, idempotencyService, appCredentialRepo,
   );
-  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService);
+  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
-  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo, contactRepo);
+  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo, contactRepo, undefined, appCredentialRepo);
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
   const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
     appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
@@ -795,7 +819,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, inspectionExecutionRepo, authorizationService,
   );
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
-    appointmentRepo, inspectionExecutionRepo, inspectionAssetRepo, serviceTypeReaderForExec, authorizationService, tenantRepo,
+    appointmentRepo, inspectionExecutionRepo, inspectionAssetRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, tenantSettingsReader, authorizationService,
@@ -1600,6 +1624,14 @@ export function createContainer(logger: Logger): AppContainer {
       updateContactUseCase: updateContactRegistryUseCase,
       getContactUseCase,
       listContactsUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    appCredential: {
+      createAppCredentialUseCase,
+      updateAppCredentialUseCase,
+      getAppCredentialUseCase,
+      listAppCredentialsUseCase,
       jwtService,
       tenantRepo,
     },

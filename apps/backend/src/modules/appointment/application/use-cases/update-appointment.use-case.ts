@@ -5,6 +5,7 @@ import type { IAppointmentRepository } from '../../domain/appointment.repository
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
+import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
@@ -67,6 +68,8 @@ export interface UpdateAppointmentInput {
       role: string;
       isPrimary: boolean;
     }>;
+    /** App credentials to link (live reference). When present, replaces all links (empty array clears). */
+    appCredentialIds?: string[];
     restriction?: {
       isHome: boolean;
       unavailableDays?: string[] | null;
@@ -114,6 +117,7 @@ export class UpdateAppointmentUseCase {
     private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
     private readonly contactRepo?: IContactRepository,
     private readonly clock: Clock = new SystemClock(),
+    private readonly appCredentialRepo?: IAppCredentialRepository,
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
@@ -323,6 +327,27 @@ export class UpdateAppointmentUseCase {
         });
         await this.appointmentRepo.saveContact(contact);
       }
+    }
+
+    // Replace app-credential links (live reference). When the key is present
+    // we replace the full set; an empty array clears all links. Each id must
+    // belong to this appointment's tenant and be active.
+    if (data.appCredentialIds !== undefined && this.appCredentialRepo) {
+      const ids = [...new Set(data.appCredentialIds)];
+      if (ids.length > 0) {
+        const found = await this.appCredentialRepo.findByIds(ids);
+        const byId = new Map(found.map((a) => [a.id, a]));
+        for (const id of ids) {
+          const cred = byId.get(id);
+          if (!cred || cred.tenantId !== appointment.tenantId) {
+            throw new NotFoundError('APPOINTMENT_APP_CREDENTIAL_NOT_FOUND', `App credential ${id} not found`);
+          }
+          if (!cred.isActive) {
+            throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
+          }
+        }
+      }
+      await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
     }
 
     // Upsert restriction: delete existing, create new if provided

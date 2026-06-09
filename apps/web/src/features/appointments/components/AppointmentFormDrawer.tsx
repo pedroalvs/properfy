@@ -25,6 +25,7 @@ import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
 import { ContactAutocomplete } from './ContactAutocomplete';
+import { AppCredentialMultiSelect } from './AppCredentialMultiSelect';
 import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
 import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
@@ -174,6 +175,7 @@ export function AppointmentFormDrawer({
         contactPhone: appointment.contactPhone ?? '',
         contactEmail: appointment.contactEmail ?? '',
         contacts,
+        appCredentialIds: (appointment.apps ?? []).map((a) => a.id),
         keyRequired: appointment.keyRequired,
         meetingLocation: appointment.meetingLocation ?? '',
         keyLocation: appointment.keyLocation ?? '',
@@ -807,6 +809,20 @@ export function AppointmentFormDrawer({
                       <i className="mdi mdi-plus" aria-hidden="true" />
                       Add Contact
                     </Button>
+                  </FormSection>
+
+                  <FormSection title="Apps">
+                    <FormField label="Linked apps">
+                      <AppCredentialMultiSelect
+                        value={form.appCredentialIds}
+                        onChange={(ids) => setForm((prev) => ({ ...prev, appCredentialIds: ids }))}
+                        tenantId={effectiveTenantId || user?.tenantId || undefined}
+                        disabled={!!(isGlobalRole && !effectiveTenantId)}
+                      />
+                    </FormField>
+                    <p className="mt-1 text-xs text-text-muted">
+                      App logins the inspector will need on site. Only this agency's active apps are listed.
+                    </p>
                   </FormSection>
 
                   <FormSection title="Access & Key" columns={2}>

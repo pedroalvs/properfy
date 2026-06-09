@@ -52,6 +52,7 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   contactPhone: '11999999999',
   contactEmail: 'joao@email.com',
   contacts: [],
+  appCredentialIds: [],
   keyRequired: false,
   meetingLocation: '',
   keyLocation: '',
@@ -166,6 +167,7 @@ describe('useAppointmentSave', () => {
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
+        appCredentialIds: [],
         actorTimezone: expect.any(String),
       },
     });

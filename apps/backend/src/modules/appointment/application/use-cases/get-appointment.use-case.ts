@@ -1,7 +1,8 @@
-import { type AuthContext, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AppointmentApp, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
+import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import {
   AppointmentNotFoundError,
   AppointmentAccessDeniedError,
@@ -87,9 +88,11 @@ export interface GetAppointmentOutput {
   }>;
   /** True when an active (non-superseded) confirmation cycle exists — enables "Copy Portal Link" button. */
   hasActivePortalToken: boolean;
+  /** App credentials linked to this appointment (live reference). */
+  apps: AppointmentApp[];
 }
 
-function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
+function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): GetAppointmentOutput {
   const { appointment, contact, restrictions } = found;
   const prefix = found.tenantAppointmentCodePrefix ?? 'INS';
   const padded = String(appointment.appointmentNumber).padStart(4, '0');
@@ -166,6 +169,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
       source: r.source,
     })),
     hasActivePortalToken: found.hasActivePortalToken,
+    apps,
   };
 }
 
@@ -173,6 +177,7 @@ export class GetAppointmentUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly authorizationService: AuthorizationService,
+    private readonly appCredentialRepo?: IAppCredentialRepository,
   ) {}
 
   async execute(input: GetAppointmentInput): Promise<GetAppointmentOutput> {
@@ -214,6 +219,15 @@ export class GetAppointmentUseCase {
       }
     }
 
-    return mapToOutput(found);
+    const apps: AppointmentApp[] = this.appCredentialRepo
+      ? (await this.appCredentialRepo.findByAppointmentId(found.appointment.id)).map((a) => ({
+          id: a.id,
+          name: a.name,
+          username: a.username,
+          password: a.password,
+        }))
+      : [];
+
+    return mapToOutput(found, apps);
   }
 }

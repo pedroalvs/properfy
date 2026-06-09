@@ -38,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
     submenu: [
       { icon: 'mdi-domain', label: 'Agencies', to: '/tenants', roles: [UserRole.AM, UserRole.OP] },
       { icon: 'mdi-badge-account-outline', label: 'Inspectors', to: '/inspectors', roles: [UserRole.AM, UserRole.OP] },
+      { icon: 'mdi-apps', label: 'Apps', to: '/apps', roles: [UserRole.AM, UserRole.OP] },
       { icon: 'mdi-shield-account-outline', label: 'Users', to: '/users', roles: [UserRole.AM, UserRole.OP] },
     ],
   },

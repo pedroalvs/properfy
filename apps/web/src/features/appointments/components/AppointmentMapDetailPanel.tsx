@@ -20,6 +20,7 @@ type SectionKey =
   | 'confirmation'
   | 'meeting'
   | 'contacts'
+  | 'apps'
   | 'service'
   | 'restrictions'
   | 'notes'
@@ -37,6 +38,7 @@ const SECTIONS: SectionConfig[] = [
   { key: 'confirmation', icon: 'mdi-cellphone-message', label: 'Tenant confirmation' },
   { key: 'meeting', icon: 'mdi-map-marker-radius', label: 'Meeting location' },
   { key: 'contacts', icon: 'mdi-account-multiple', label: 'Contacts' },
+  { key: 'apps', icon: 'mdi-apps', label: 'Apps' },
   { key: 'service', icon: 'mdi-clipboard-text', label: 'Service type' },
   { key: 'restrictions', icon: 'mdi-alert-octagon-outline', label: 'Restrictions' },
   { key: 'notes', icon: 'mdi-note-text-outline', label: 'Notes' },
@@ -295,6 +297,25 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
             <li key={c.id ?? c.contactId ?? c.snapshotName}>
               <span className="text-text-muted">{c.role}:</span> {c.snapshotName}
               {c.snapshotPhone && ` · ${c.snapshotPhone}`}
+            </li>
+          ))}
+        </ul>
+      );
+    case 'apps':
+      if (!detail) return <p className="text-text-muted">No apps loaded.</p>;
+      if ((detail.apps ?? []).length === 0) {
+        return <p className="text-text-muted">No apps linked.</p>;
+      }
+      return (
+        <ul className="space-y-1.5">
+          {detail.apps!.map((a) => (
+            <li key={a.id}>
+              <span className="font-semibold">{a.name}</span>
+              <div className="text-text-muted">
+                <span className="font-mono">{a.username}</span>
+                {' · '}
+                <span className="font-mono">{a.password}</span>
+              </div>
             </li>
           ))}
         </ul>

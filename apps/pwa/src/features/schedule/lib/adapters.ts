@@ -49,5 +49,6 @@ export function mapInspectorAppointmentDetail(
     observation: detail.observation,
     isOverdue: detail.isOverdue ?? false,
     agencyName: detail.agencyName,
+    apps: detail.apps ?? [],
   };
 }

@@ -54,6 +54,8 @@ export const createAppointmentSchema = z.object({
   contact: contactSchema.optional(),
   /** New contacts array (feature 021). Each entry is { contactId } or { inline } with role + isPrimary. */
   contacts: appointmentContactsArraySchema.optional(),
+  /** App credentials linked to this appointment (live reference, many-to-many). */
+  appCredentialIds: z.array(z.string().uuid()).max(50).optional(),
   restriction: restrictionSchema.optional(),
   keyRequired: z.boolean().default(false),
   meetingLocation: z.string().max(500).optional(),
@@ -88,6 +90,8 @@ export const updateAppointmentSchema = z.object({
   contact: contactSchema.optional(),
   /** New contacts array (feature 021). When present, replaces all junction rows. */
   contacts: appointmentContactsArraySchema.optional(),
+  /** App credentials linked to this appointment. When present, replaces all links (empty array clears). */
+  appCredentialIds: z.array(z.string().uuid()).max(50).optional(),
   restriction: restrictionSchema.optional(),
   customFields: z.record(z.unknown()).nullable().optional(),
   actorTimezone: z.string().optional(),

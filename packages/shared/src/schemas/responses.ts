@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { propertyRulesSchema } from './property';
 import { bonusRuleSchema } from './pricing-rule';
+import { appointmentAppSchema } from './app-credential';
 
 /** Accepts Date objects or ISO strings, coerces to string */
 const dateStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
@@ -262,6 +263,8 @@ export const appointmentResponseSchema = z.object({
   longitude: z.number().nullable().optional(),
   contact: z.unknown().nullable().optional(),
   contacts: z.array(z.unknown()).optional(),
+  /** App credentials linked to this appointment (live reference). */
+  apps: z.array(appointmentAppSchema).optional(),
   restrictions: z.array(z.unknown()).optional(),
   property: z.unknown().optional(),
   serviceType: z.unknown().optional(),
@@ -331,6 +334,8 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
     kind: z.string(),
     status: z.string(),
   })),
+  /** App credentials linked to this appointment (live reference). */
+  apps: z.array(appointmentAppSchema).default([]),
   agencyName: z.string().nullable().optional(),
   payoutAmount: z.number().nullable().optional(),
   inspectionAppLink: z.string().nullable().optional(),
