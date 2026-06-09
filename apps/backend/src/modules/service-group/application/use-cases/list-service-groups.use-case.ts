@@ -39,7 +39,8 @@ export interface ServiceGroupSummaryAppointment {
 
 export interface ServiceGroupSummary {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
+  agencies: Array<{ id: string; name: string }>;
   serviceTypeId: string;
   status: string;
   groupSize: number;
@@ -105,11 +106,12 @@ export class ListServiceGroupsUseCase {
     }
 
     return {
-      data: data.map(({ group: g, assignedInspectorName }) => {
+      data: data.map(({ group: g, assignedInspectorName, primaryTenantId, agencies }) => {
         const appointments = appointmentsByGroup.get(g.id);
         return {
           id: g.id,
-          tenantId: g.tenantId,
+          tenantId: primaryTenantId,
+          agencies,
           serviceTypeId: g.serviceTypeId,
           status: g.status,
           groupSize: g.groupSize,

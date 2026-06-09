@@ -72,9 +72,11 @@ export class JoinGroupUseCase {
     const groupResult = await this.serviceGroupRepo.findById(input.groupId, null);
     if (!groupResult) throw new PortalGroupNotFoundError();
 
-    const { group, assignedInspectorName } = groupResult;
+    const { group, assignedInspectorName, tenantIds } = groupResult;
 
-    if (group.tenantId !== appointment.tenantId || group.serviceTypeId !== appointment.serviceTypeId) {
+    // Tenant isolation: the appointment's agency must be one of the agencies
+    // present in the group (groups may now span multiple agencies).
+    if (!tenantIds.includes(appointment.tenantId) || group.serviceTypeId !== appointment.serviceTypeId) {
       throw new PortalGroupNotFoundError();
     }
     if (!ACTIVE_GROUP_STATUSES.has(group.status)) {

@@ -148,7 +148,7 @@ export class RejectUnconfirmedAppointmentsUseCase {
             actorType: 'SYSTEM',
             entityType: 'ServiceGroup',
             entityId: groupId,
-            tenantId: groupData.group.tenantId,
+            tenantId: groupData.primaryTenantId,
             before: { status: groupData.group.status },
             after: { status: 'CANCELLED' },
             reason: GROUP_CANCEL_REASON,

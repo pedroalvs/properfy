@@ -23,6 +23,11 @@ export class ExpirePriorityWorker {
 
     for (const group of expiredGroups) {
       try {
+        // Derive the group's tenant tag (single agency, or null when mixed)
+        // before unlinking its appointments.
+        const detail = await this.serviceGroupRepo.findById(group.id, null);
+        const primaryTenantId = detail?.primaryTenantId ?? null;
+
         await this.serviceGroupRepo.update(group.id, {
           status: 'CANCELLED',
         });
@@ -34,7 +39,7 @@ export class ExpirePriorityWorker {
           actorType: 'SYSTEM',
           entityType: 'ServiceGroup',
           entityId: group.id,
-          tenantId: group.tenantId,
+          tenantId: primaryTenantId,
           before: { status: group.status },
           after: { status: 'CANCELLED' },
           reason: SYSTEM_CANCEL_REASON,

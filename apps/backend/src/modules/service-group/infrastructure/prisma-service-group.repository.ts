@@ -15,10 +15,48 @@ import type {
 import type { ServiceGroupStatus, PriorityMode, ServiceGroupExceptionType } from '@properfy/shared';
 import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
 
+/**
+ * A service group is tenant-agnostic — its tenant set is derived from the
+ * linked appointments. `primaryTenantId` is the single agency when the group
+ * is single-agency, else null (mixed/cross-agency group).
+ */
+function deriveTenants(tenantIds: Array<string | null | undefined>): {
+  tenantIds: string[];
+  primaryTenantId: string | null;
+} {
+  const distinct = [...new Set(tenantIds.filter((t): t is string => !!t))];
+  return { tenantIds: distinct, primaryTenantId: distinct.length === 1 ? distinct[0]! : null };
+}
+
+/** Distinct agencies (id + name) from a group's appointments, in first-seen order. */
+function deriveAgencies(
+  appointments: Array<{ tenant_id?: string | null; tenant?: { name?: string | null } | null }>,
+): Array<{ id: string; name: string }> {
+  const byId = new Map<string, string>();
+  for (const a of appointments) {
+    if (a.tenant_id && !byId.has(a.tenant_id)) byId.set(a.tenant_id, a.tenant?.name ?? '');
+  }
+  return [...byId].map(([id, name]) => ({ id, name }));
+}
+
+/**
+ * Marketplace offer tenant label, derived from the group's appointments:
+ * a single agency → its id + name; multiple → null id + "Multiple agencies".
+ */
+function deriveOfferTenant(
+  appointments: Array<{ tenant_id?: string | null; tenant?: { name?: string | null } | null }>,
+): { tenantId: string | null; tenantName: string } {
+  const { primaryTenantId } = deriveTenants(appointments.map((a) => a.tenant_id));
+  if (primaryTenantId) {
+    const name = appointments.find((a) => a.tenant_id === primaryTenantId)?.tenant?.name ?? '';
+    return { tenantId: primaryTenantId, tenantName: name };
+  }
+  return { tenantId: null, tenantName: 'Multiple agencies' };
+}
+
 function mapToEntity(row: any): ServiceGroupEntity {
   return new ServiceGroupEntity({
     id: row.id,
-    tenantId: row.tenant_id,
     serviceTypeId: row.service_type_id,
     status: row.status as ServiceGroupStatus,
     groupSize: row.group_size,
@@ -50,13 +88,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
   async findById(
     id: string,
-    tenantId: string | null,
+    _tenantId: string | null,
   ): Promise<ServiceGroupWithAppointments | null> {
-    const where: Record<string, unknown> = { id };
-    if (tenantId) where['tenant_id'] = tenantId;
-
+    // Groups are tenant-agnostic; AM/OP are cross-tenant and CL roles have no
+    // group access, so the legacy tenant scope is a no-op (kept for the port).
     const row = await this.prisma.serviceGroup.findFirst({
-      where,
+      where: { id },
       include: {
         assigned_inspector: {
           select: { id: true, name: true },
@@ -69,6 +106,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             scheduled_date: true,
             service_type_id: true,
             tenant_id: true,
+            tenant: { select: { name: true } },
             property_id: true,
             service_group_id: true,
             property: {
@@ -81,9 +119,17 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
     if (!row) return null;
 
+    const { tenantIds, primaryTenantId } = deriveTenants(
+      row.appointments.map((a: any) => a.tenant_id),
+    );
+    const agencies = deriveAgencies(row.appointments);
+
     return {
       group: mapToEntity(row),
       assignedInspectorName: row.assigned_inspector?.name ?? null,
+      tenantIds,
+      primaryTenantId,
+      agencies,
       appointments: row.appointments.map((a: any) => ({
         id: a.id,
         appointmentNumber: a.appointment_number,
@@ -117,10 +163,49 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         [this.mapSortBy(pagination.sortBy)]: pagination.sortOrder,
       },
     });
-    return rows.map((row: any) => ({
-      group: mapToEntity(row),
-      assignedInspectorName: row.assigned_inspector?.name ?? null,
-    }));
+    const tenantByGroup = await this.deriveTenantInfoByGroup(rows.map((r: any) => r.id));
+    return rows.map((row: any) => {
+      const info = tenantByGroup.get(row.id);
+      return {
+        group: mapToEntity(row),
+        assignedInspectorName: row.assigned_inspector?.name ?? null,
+        primaryTenantId: info?.primaryTenantId ?? null,
+        agencies: info?.agencies ?? [],
+      };
+    });
+  }
+
+  /**
+   * Batch-derive each group's tenant info from its linked appointments — one
+   * query, no N+1: the distinct agencies, and the primary tenant (single agency
+   * id, or null when the group spans multiple agencies).
+   */
+  private async deriveTenantInfoByGroup(
+    groupIds: string[],
+  ): Promise<Map<string, { primaryTenantId: string | null; agencies: Array<{ id: string; name: string }> }>> {
+    const result = new Map<string, { primaryTenantId: string | null; agencies: Array<{ id: string; name: string }> }>();
+    if (groupIds.length === 0) return result;
+    const rows = await this.prisma.appointment.findMany({
+      where: { service_group_id: { in: groupIds }, deleted_at: null },
+      select: { service_group_id: true, tenant_id: true, tenant: { select: { name: true } } },
+      distinct: ['service_group_id', 'tenant_id'],
+    });
+    const byGroup = new Map<string, Map<string, string>>();
+    for (const r of rows) {
+      if (!r.service_group_id) continue;
+      const agencyMap = byGroup.get(r.service_group_id) ?? new Map<string, string>();
+      if (!agencyMap.has(r.tenant_id)) agencyMap.set(r.tenant_id, r.tenant?.name ?? '');
+      byGroup.set(r.service_group_id, agencyMap);
+    }
+    for (const id of groupIds) {
+      const agencyMap = byGroup.get(id) ?? new Map<string, string>();
+      const agencies = [...agencyMap].map(([aid, name]) => ({ id: aid, name }));
+      result.set(id, {
+        primaryTenantId: agencies.length === 1 ? agencies[0]!.id : null,
+        agencies,
+      });
+    }
+    return result;
   }
 
   async findAppointmentsForMapByGroupIds(
@@ -176,7 +261,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     await this.prisma.serviceGroup.create({
       data: {
         id: group.id,
-        tenant_id: group.tenantId,
         service_type_id: group.serviceTypeId,
         status: group.status as PrismaServiceGroupStatus,
         group_size: group.groupSize,
@@ -294,11 +378,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const rows = await this.prisma.serviceGroup.findMany({
       where: { id: { in: eligibleIds } },
       include: {
-        tenant: { select: { name: true } },
         service_type: { select: { name: true } },
         appointments: {
           select: {
             payout_amount: true,
+            tenant_id: true,
+            tenant: { select: { name: true } },
             property: { select: { suburb: true, state: true } },
           },
         },
@@ -308,6 +393,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
     return rows.map((row: any) => {
       const appts = row.appointments as any[];
+      const { tenantId, tenantName } = deriveOfferTenant(appts);
       const suburbs = [
         ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
       ] as string[];
@@ -325,8 +411,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       const payoutEstimate = payoutTotal > 0 ? payoutTotal : null;
       return {
         groupId: row.id,
-        tenantId: row.tenant_id,
-        tenantName: row.tenant?.name ?? '',
+        tenantId,
+        tenantName,
         serviceTypeName: row.service_type?.name ?? '',
         groupSize: row.group_size,
         scheduledDate: row.scheduled_date,
@@ -367,7 +453,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       WHERE sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
         AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND NOT (sg.tenant_id = ANY(${inspectorBlockedClients}::text[]))
+        AND NOT EXISTS (
+          SELECT 1 FROM appointments ga
+          WHERE ga.service_group_id = sg.id
+            AND ga.deleted_at IS NULL
+            AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
+        )
         AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
     `;
 
@@ -403,7 +494,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         AND sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
         AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND NOT (sg.tenant_id = ANY(${inspectorBlockedClients}::text[]))
+        AND NOT EXISTS (
+          SELECT 1 FROM appointments ga
+          WHERE ga.service_group_id = sg.id
+            AND ga.deleted_at IS NULL
+            AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
+        )
         AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
     `;
 
@@ -412,7 +508,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const row = await this.prisma.serviceGroup.findUnique({
       where: { id: groupId },
       include: {
-        tenant: { select: { name: true, settings_json: true } },
         service_type: { select: { name: true } },
         appointments: {
           select: {
@@ -421,6 +516,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             key_required: true,
             payout_amount: true,
             notes: true,
+            tenant_id: true,
+            tenant: { select: { name: true, settings_json: true } },
             property: { select: { suburb: true, state: true, street: true } },
           },
         },
@@ -461,17 +558,21 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     // Collect group-level notes from appointments (first non-null)
     const groupNotes = appts.find((a) => a.notes != null)?.notes ?? null;
 
-    const tenantSettings = row.tenant?.settings_json as Record<string, unknown> | null;
-    const codePrefix =
-      typeof tenantSettings?.appointmentCodePrefix === 'string' &&
-      tenantSettings.appointmentCodePrefix.length > 0
-        ? tenantSettings.appointmentCodePrefix
+    const { tenantId, tenantName } = deriveOfferTenant(appts);
+
+    // Appointment code prefix is per-tenant; a mixed group has appointments from
+    // several agencies, so resolve the prefix from each appointment's own tenant.
+    const prefixFor = (appt: any): string => {
+      const settings = appt.tenant?.settings_json as Record<string, unknown> | null;
+      return typeof settings?.appointmentCodePrefix === 'string' && settings.appointmentCodePrefix.length > 0
+        ? settings.appointmentCodePrefix
         : 'INS';
+    };
 
     return {
       groupId: row.id,
-      tenantId: row.tenant_id,
-      tenantName: row.tenant?.name ?? '',
+      tenantId,
+      tenantName,
       serviceTypeName: row.service_type?.name ?? '',
       groupSize: row.group_size,
       scheduledDate: row.scheduled_date,
@@ -492,12 +593,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         const padded = String(a.appointment_number).padStart(4, '0');
         return {
           id: a.id,
-          appointmentCode: `${codePrefix}-${padded}`,
+          appointmentCode: `${prefixFor(a)}-${padded}`,
           appointmentNumber: a.appointment_number,
           suburb,
           keyRequired: a.key_required === true,
           notes: a.notes ?? null,
           payoutAmount: payoutVal,
+          tenantName: a.tenant?.name ?? '',
         };
       }),
     };
@@ -535,7 +637,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       WHERE sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
         AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND NOT (sg.tenant_id = ANY(${inspectorBlockedClients}::text[]))
+        AND NOT EXISTS (
+          SELECT 1 FROM appointments ga
+          WHERE ga.service_group_id = sg.id
+            AND ga.deleted_at IS NULL
+            AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
+        )
         AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
       GROUP BY sg.id, sg.scheduled_date
       ORDER BY sg.scheduled_date ASC, sg.id ASC
@@ -606,7 +713,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
   private buildWhere(filters: ServiceGroupFilters) {
     const where: Record<string, unknown> = {};
-    if (filters.tenantId) where['tenant_id'] = filters.tenantId;
     if (filters.status && filters.status.length > 0) where['status'] = { in: filters.status };
     if (filters.serviceTypeId)
       where['service_type_id'] = filters.serviceTypeId;
@@ -625,10 +731,17 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         { description: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
+
+    // Tenant/branch/contact all scope by the group's linked appointments. The
+    // group itself is tenant-agnostic, so `tenantId` becomes "has an appointment
+    // of this tenant". Each predicate must match at least one appointment, so
+    // multiple predicates are combined with AND of separate `some` clauses.
+    const appointmentPredicates: Record<string, unknown>[] = [];
+    if (filters.tenantId) {
+      appointmentPredicates.push({ tenant_id: filters.tenantId, deleted_at: null });
+    }
     if (filters.branchId) {
-      where['appointments'] = {
-        some: { branch_id: filters.branchId, deleted_at: null },
-      };
+      appointmentPredicates.push({ branch_id: filters.branchId, deleted_at: null });
     }
     if (filters.contactSearch) {
       const contactOrConditions: Record<string, unknown>[] = [
@@ -639,18 +752,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         { primary_email: { contains: filters.contactSearch, mode: 'insensitive' } },
         { primary_phone: { contains: filters.contactSearch } },
       ];
-      // If branchId already set appointments.some, merge with AND
-      if (filters.branchId) {
-        const existingAnd = Array.isArray(where['AND']) ? (where['AND'] as Record<string, unknown>[]) : [];
-        where['AND'] = [
-          ...existingAnd,
-          { appointments: { some: { contacts: { some: { OR: contactOrConditions } }, deleted_at: null } } },
-        ];
-      } else {
-        where['appointments'] = {
-          some: { contacts: { some: { OR: contactOrConditions } }, deleted_at: null },
-        };
-      }
+      appointmentPredicates.push({ contacts: { some: { OR: contactOrConditions } }, deleted_at: null });
+    }
+    if (appointmentPredicates.length === 1) {
+      where['appointments'] = { some: appointmentPredicates[0] };
+    } else if (appointmentPredicates.length > 1) {
+      where['AND'] = appointmentPredicates.map((p) => ({ appointments: { some: p } }));
     }
     return where;
   }
@@ -707,7 +814,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       JOIN inspectors i ON i.id = sg.assigned_inspector_id
       JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
       JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
-      WHERE sg.tenant_id = ${params.tenantId}
+      WHERE a.tenant_id = ${params.tenantId}
         AND sg.service_type_id = ${params.serviceTypeId}
         AND sg.status = 'ACCEPTED'
         AND sg.confirmed_count < 10
@@ -733,7 +840,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   }
 
   async findAddableForAppointments(params: {
-    tenantId: string;
     serviceTypeId: string;
     scheduledDate: Date;
     timeSlot: string;
@@ -774,8 +880,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       FROM service_groups sg
       LEFT JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
       LEFT JOIN service_types st ON st.id = sg.service_type_id
-      WHERE sg.tenant_id = ${params.tenantId}
-        AND sg.service_type_id = ${params.serviceTypeId}
+      WHERE sg.service_type_id = ${params.serviceTypeId}
         AND sg.scheduled_date::date = ${dateStr}::date
         AND sg.status IN ('DRAFT', 'PUBLISHED')
       GROUP BY sg.id, sg.name, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name

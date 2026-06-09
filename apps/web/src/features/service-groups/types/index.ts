@@ -1,8 +1,16 @@
 import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
 
+export interface AgencyRef {
+  id: string;
+  name: string;
+}
+
 export interface ServiceGroup {
   id: string;
-  tenantId: string;
+  /** Null when the group spans multiple agencies (cross-agency group). */
+  tenantId: string | null;
+  /** Distinct agencies of the group's appointments (populated by the list/detail hooks). */
+  agencies?: AgencyRef[];
   name: string | null;
   regionName: string | null;
   inspectorId: string | null;

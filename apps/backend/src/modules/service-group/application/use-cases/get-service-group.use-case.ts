@@ -10,7 +10,8 @@ export interface GetServiceGroupInput {
 
 export interface GetServiceGroupOutput {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
+  agencies: Array<{ id: string; name: string }>;
   serviceTypeId: string;
   status: string;
   groupSize: number;
@@ -57,11 +58,12 @@ export class GetServiceGroupUseCase {
       throw new ServiceGroupNotFoundError();
     }
 
-    const { group, assignedInspectorName, appointments } = result;
+    const { group, assignedInspectorName, appointments, primaryTenantId, agencies } = result;
 
     return {
       id: group.id,
-      tenantId: group.tenantId,
+      tenantId: primaryTenantId,
+      agencies,
       serviceTypeId: group.serviceTypeId,
       status: group.status,
       groupSize: group.groupSize,

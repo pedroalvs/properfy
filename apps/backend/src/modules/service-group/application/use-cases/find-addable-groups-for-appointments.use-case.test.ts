@@ -91,8 +91,10 @@ describe('FindAddableGroupsForAppointmentsUseCase', () => {
   });
 
   it('should return MIXED_APPOINTMENT_PROPERTIES before status check when properties differ', async () => {
+    // Tenant may differ (groups are tenant-agnostic); a different service type
+    // is still a mixed-property rejection.
     const apptA = makeAppointment('id-6', 'DRAFT');
-    const apptB = { ...makeAppointment('id-7', 'DRAFT'), tenantId: 'other-tenant' } as unknown as AppointmentEntity;
+    const apptB = { ...makeAppointment('id-7', 'DRAFT'), serviceTypeId: 'other-service-type' } as unknown as AppointmentEntity;
     const { useCase } = makeUseCase([apptA, apptB]);
 
     const result = await useCase.execute({

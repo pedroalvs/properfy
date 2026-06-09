@@ -371,7 +371,10 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
 
 export const serviceGroupResponseSchema = z.object({
   id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  // Null when the group spans multiple agencies (cross-agency group).
+  tenantId: z.string().uuid().nullable(),
+  // Distinct agencies of the group's appointments (one entry for single-agency groups).
+  agencies: z.array(z.object({ id: z.string().uuid(), name: z.string() })).optional(),
   serviceTypeId: z.string().uuid(),
   status: z.string(),
   groupSize: z.number(),
@@ -423,6 +426,8 @@ export const marketplaceOfferDetailAppointmentSchema = z.object({
   keyRequired: z.boolean(),
   notes: z.string().nullable(),
   payoutAmount: z.number().nullable(),
+  // Agency (tenant) name of this appointment — shown per-job (groups may be cross-agency).
+  tenantName: z.string(),
 });
 
 export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSchema.extend({

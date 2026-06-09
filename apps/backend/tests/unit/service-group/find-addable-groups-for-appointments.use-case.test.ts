@@ -78,13 +78,15 @@ describe('FindAddableGroupsForAppointmentsUseCase', () => {
     expect(groupRepo.findAddableForAppointments).not.toHaveBeenCalled();
   });
 
-  it('returns MIXED_APPOINTMENT_PROPERTIES when appointments have different tenantId', async () => {
+  it('allows appointments from different agencies (groups are tenant-agnostic)', async () => {
     (appointmentRepo.findById as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(makeApptResult({ tenantId: 'tenant-1' }))
       .mockResolvedValueOnce(makeApptResult({ tenantId: 'tenant-2' }));
+    (groupRepo.findAddableForAppointments as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
     const result = await useCase.execute({ appointmentIds: ['appt-1', 'appt-2'], actor: makeAuth('AM') });
-    expect(result.reason).toBe('MIXED_APPOINTMENT_PROPERTIES');
+    // Different tenant is no longer a mixed-property rejection.
+    expect(result.reason).toBeUndefined();
   });
 
   it('throws ForbiddenError for non-AM/OP roles', async () => {

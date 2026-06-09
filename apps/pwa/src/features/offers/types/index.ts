@@ -23,6 +23,8 @@ export interface MarketplaceOfferDetailAppointment {
   keyRequired: boolean;
   notes: string | null;
   payoutAmount: number | null;
+  /** Agency (tenant) name of this appointment — groups may be cross-agency. */
+  tenantName: string;
 }
 
 export interface MarketplaceOfferDetail extends MarketplaceOffer {

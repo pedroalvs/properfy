@@ -78,7 +78,6 @@ export class CheckAppointmentsEligibilityForGroupUseCase {
         },
         {
           status: group.status,
-          tenantId: group.tenantId,
           serviceTypeId: group.serviceTypeId,
           scheduledDate: group.scheduledDate,
           timeWindow: group.timeWindow,
