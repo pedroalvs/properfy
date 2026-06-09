@@ -164,7 +164,7 @@ export function TenantFormDrawer({
                         aria-label="Name"
                       />
                     </FormField>
-                    <FormField label="Legal Name" error={errors.legalName}>
+                    <FormField label="Legal Name" required error={errors.legalName}>
                       <TextInput
                         value={form.legalName}
                         onChange={(v) => updateField('legalName', v)}

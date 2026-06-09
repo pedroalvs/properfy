@@ -54,6 +54,7 @@ describe('useTenantAdminSave', () => {
     const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
     const errors = result.current.validate(EMPTY_TENANT_ADMIN_FORM);
     expect(errors.name).toBeDefined();
+    expect(errors.legalName).toBeDefined();
     expect(errors.timezone).toBeDefined();
     expect(errors.currency).toBeDefined();
   });
@@ -65,11 +66,11 @@ describe('useTenantAdminSave', () => {
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
-  it('validate does not require legalName', () => {
+  it('validate requires legalName', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
     const errors = result.current.validate({ ...VALID_DATA, legalName: '' });
-    expect(errors.legalName).toBeUndefined();
+    expect(errors.legalName).toBeDefined();
   });
 
   it('save returns success on create', async () => {
