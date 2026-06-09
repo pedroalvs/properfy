@@ -109,19 +109,27 @@ describe('UpdatePricingRuleUseCase', () => {
     );
   });
 
-  it('should scope lookup by explicit tenantId for OP (cross-tenant)', async () => {
+  it('should find rule cross-tenant by id for OP (no own tenant scope)', async () => {
     vi.mocked(pricingRuleRepo.findById).mockResolvedValue(makePricingRule());
 
+    // Mirrors the real flow: the update route never sends a body tenantId, so
+    // OP reaches the use-case with tenantId omitted.
     await useCase.execute({
       pricingRuleId: 'pr-1',
-      tenantId: 'tenant-1',
       data: { priceAmount: 20000 },
       actor: makeActor({ role: 'OP', tenantId: null }),
     });
 
-    // OP has no own tenant; it must scope by the explicit tenantId from the
-    // request, never the null JWT tenant (which would never match a rule).
-    expect(pricingRuleRepo.findById).toHaveBeenCalledWith('pr-1', 'tenant-1');
+    // OP has no own tenant: the lookup must be unscoped (null) so the rule is
+    // found by id regardless of tenant — never the null JWT tenant (which would
+    // never match) nor a client-supplied tenantId (which the route never sends).
+    expect(pricingRuleRepo.findById).toHaveBeenCalledWith('pr-1', null);
+    // The write is still governed by the record's own tenant, not the actor.
+    expect(pricingRuleRepo.update).toHaveBeenCalledWith(
+      'pr-1',
+      'tenant-1',
+      expect.objectContaining({ priceAmount: 20000 }),
+    );
   });
 
   it('should throw PRICING_RULE_NOT_FOUND when not found', async () => {
