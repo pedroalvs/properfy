@@ -201,6 +201,36 @@ export const ALLOWED_VARIABLES = [
 
 export type AllowedVariable = (typeof ALLOWED_VARIABLES)[number];
 
+// ---------------------------------------------------------------------------
+// Image placeholder — {{image:key}} syntax
+// ---------------------------------------------------------------------------
+
+/** Matches every {{image:key}} placeholder in a template body. */
+export const IMAGE_PLACEHOLDER_REGEX = /\{\{image:(?<key>[a-zA-Z0-9_-]{1,64})\}\}/g;
+
+/** Placeholder key validation: 1–64 chars, letters/digits/underscore/hyphen. */
+export const IMAGE_PLACEHOLDER_KEY_REGEX = /^[a-zA-Z0-9_-]{1,64}$/;
+
+/**
+ * Returns true when the key is a valid image placeholder key.
+ * Distinct from Handlebars variable names — image keys are alphanumeric + _-.
+ */
+export function isValidImagePlaceholderKey(key: string): boolean {
+  return IMAGE_PLACEHOLDER_KEY_REGEX.test(key);
+}
+
+/**
+ * Extracts all unique image placeholder keys from a template body.
+ * Returns an empty array if the body contains no {{image:key}} tokens.
+ */
+export function extractImagePlaceholderKeys(body: string): string[] {
+  const keys = new Set<string>();
+  for (const match of body.matchAll(IMAGE_PLACEHOLDER_REGEX)) {
+    if (match.groups?.key) keys.add(match.groups.key);
+  }
+  return Array.from(keys);
+}
+
 export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   tenantName: 'John Smith',
   propertyAddress: '123 Main St, Sydney NSW 2000',

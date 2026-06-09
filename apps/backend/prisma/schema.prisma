@@ -273,6 +273,7 @@ model User {
   created_property_imports  PropertyImport[]      @relation("propertyImportCreatedBy")
   created_service_regions   ServiceRegion[]       @relation("ServiceRegionCreatedBy")
   created_scheduled_reports ScheduledReport[]     @relation("scheduledReportCreatedBy")
+  uploaded_email_assets      EmailAsset[]          @relation("EmailAssetUploadedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -961,6 +962,13 @@ enum ConsentChangeSource {
   re_opt_in
 }
 
+enum EmailAssetStatus {
+  PENDING
+  UPLOADED
+  VERIFIED
+  UPLOAD_FAILED
+}
+
 model TenantPortalToken {
   id                    String                  @id @default(uuid())
   appointment_id        String
@@ -1260,7 +1268,8 @@ model NotificationTemplate {
   created_at                  DateTime               @default(now())
   updated_at                  DateTime               @updatedAt
 
-  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+  tenant         Tenant?                @relation(fields: [tenant_id], references: [id])
+  image_bindings TemplateImageBinding[]
 
   @@unique([tenant_id, template_code, channel])
   @@index([template_code, channel])
@@ -1559,4 +1568,49 @@ model NotificationConsent {
   @@unique([recipient, channel, tenant_id, notification_class])
   @@index([tenant_id])
   @@map("notification_consents")
+}
+
+model EmailAsset {
+  id                   String           @id @default(uuid())
+  tenant_id            String?
+  placeholder_key      String           @db.VarChar(64)
+  storage_key          String           @unique @db.Text
+  public_url           String           @db.Text
+  original_filename    String           @db.VarChar(255)
+  content_type         String           @db.VarChar(50)
+  size_bytes           Int
+  width                Int?
+  height               Int?
+  status               EmailAssetStatus @default(PENDING)
+  ever_sent            Boolean          @default(false)
+  uploaded_by_user_id  String
+
+  created_at DateTime @default(now())
+
+  uploadedBy     User                   @relation("EmailAssetUploadedBy", fields: [uploaded_by_user_id], references: [id])
+  image_bindings TemplateImageBinding[]
+
+  @@unique([tenant_id, placeholder_key])
+  @@index([tenant_id])
+  @@index([status])
+  @@map("email_assets")
+}
+
+model TemplateImageBinding {
+  id              String  @id @default(uuid())
+  template_id     String
+  asset_id        String
+  placeholder_key String  @db.VarChar(64)
+  alt_text        String? @db.VarChar(255)
+  width           Int?
+  height          Int?
+
+  created_at DateTime @default(now())
+
+  template NotificationTemplate @relation(fields: [template_id], references: [id])
+  asset    EmailAsset            @relation(fields: [asset_id], references: [id])
+
+  @@unique([template_id, placeholder_key])
+  @@index([asset_id])
+  @@map("template_image_bindings")
 }

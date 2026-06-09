@@ -393,8 +393,8 @@ describe('Matrix: inspector.create (POST /v1/inspectors) — AM, OP only', () =>
 // ── config.notification_templates: AM, OP only ───────────────────────────────
 
 describe('Matrix: config.notification_templates (PUT /v1/notification-templates) — AM, OP only', () => {
-  const templatePayload = { subject: 'Test', bodyHtml: '<p>Hi</p>', bodyText: 'Hi', isActive: true };
-  const templateStub = { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', tenantId: null, templateCode: 'appointment_created', channel: 'EMAIL', subject: 'Test', bodyText: 'Hi', isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  const templatePayload = { subject: 'Test', bodyHtml: '<p>Hi</p>', isActive: true };
+  const templateStub = { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', tenantId: null, templateCode: 'appointment_created', channel: 'EMAIL', subject: 'Test', bodyHtml: '<p>Hi</p>', bodyText: 'Hi', imageBindings: [], isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 
   it('AM → 200', async () => {
     mockJwtVerify.mockResolvedValue(makeAmContext());

@@ -105,6 +105,12 @@ const WITHIN_30_DAYS = new Date(SCHEDULED_DATE.getTime() + 25 * 24 * 3600 * 1000
   .toISOString()
   .split('T')[0]!;
 
+// Date 35 days after scheduledDate (always exceeds the default 30-day window,
+// regardless of when the test runs)
+const BEYOND_30_DAYS = new Date(SCHEDULED_DATE.getTime() + 35 * 24 * 3600 * 1000)
+  .toISOString()
+  .split('T')[0]!;
+
 function makeInput(overrides: Partial<RescheduleRequestInput> = {}): RescheduleRequestInput {
   return {
     tokenId: 'token-1',
@@ -291,7 +297,7 @@ describe('RescheduleRequestUseCase', () => {
 
   it('should throw PortalRescheduleWindowExceededError when newDate is more than 30 days from original', async () => {
     await expect(
-      useCase.execute(makeInput({ newDate: '2026-06-15' })),
+      useCase.execute(makeInput({ newDate: BEYOND_30_DAYS })),
     ).rejects.toThrow(PortalRescheduleWindowExceededError);
   });
 

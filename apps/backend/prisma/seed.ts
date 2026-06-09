@@ -96,6 +96,36 @@ const IDS = {
   apptScheduledT2: stableSeedUuid('apptScheduledT2'),
   apptDoneT2: stableSeedUuid('apptDoneT2'),
   apptCancelledT2: stableSeedUuid('apptCancelledT2'),
+  // Contacts (one per appointment)
+  contact1: stableSeedUuid('contact1'),
+  contact2: stableSeedUuid('contact2'),
+  contact3: stableSeedUuid('contact3'),
+  contact4: stableSeedUuid('contact4'),
+  contact5: stableSeedUuid('contact5'),
+  contact6: stableSeedUuid('contact6'),
+  contact7: stableSeedUuid('contact7'),
+  contact8: stableSeedUuid('contact8'),
+  contact9: stableSeedUuid('contact9'),
+  contact10: stableSeedUuid('contact10'),
+  contact11: stableSeedUuid('contact11'),
+  contact12: stableSeedUuid('contact12'),
+  contact13: stableSeedUuid('contact13'),
+  contact14: stableSeedUuid('contact14'),
+  // AppointmentContacts (junction)
+  ac1: stableSeedUuid('ac1'),
+  ac2: stableSeedUuid('ac2'),
+  ac3: stableSeedUuid('ac3'),
+  ac4: stableSeedUuid('ac4'),
+  ac5: stableSeedUuid('ac5'),
+  ac6: stableSeedUuid('ac6'),
+  ac7: stableSeedUuid('ac7'),
+  ac8: stableSeedUuid('ac8'),
+  ac9: stableSeedUuid('ac9'),
+  ac10: stableSeedUuid('ac10'),
+  ac11: stableSeedUuid('ac11'),
+  ac12: stableSeedUuid('ac12'),
+  ac13: stableSeedUuid('ac13'),
+  ac14: stableSeedUuid('ac14'),
   // Service groups (tenant1)
   serviceGroup: stableSeedUuid('serviceGroup'),
   sgDraft: stableSeedUuid('sgDraft'),
@@ -218,7 +248,7 @@ async function main() {
   // ─── BRANCHES ─────────────────────────────────────────────────────────────
 
   const branchCity = await prisma.branch.upsert({
-    where: { tenant_id_name: { tenant_id: IDS.tenant, name: 'City Office' } },
+    where: { id: IDS.branchCity },
     update: {},
     create: {
       id: IDS.branchCity,
@@ -230,7 +260,7 @@ async function main() {
   });
 
   const branchNorth = await prisma.branch.upsert({
-    where: { tenant_id_name: { tenant_id: IDS.tenant, name: 'North Shore Office' } },
+    where: { id: IDS.branchNorth },
     update: {},
     create: {
       id: IDS.branchNorth,
@@ -242,7 +272,7 @@ async function main() {
   });
 
   await prisma.branch.upsert({
-    where: { tenant_id_name: { tenant_id: IDS.tenant, name: 'Inactive Branch' } },
+    where: { id: IDS.branchInactive },
     update: {},
     create: {
       id: IDS.branchInactive,
@@ -254,7 +284,7 @@ async function main() {
   });
 
   await prisma.branch.upsert({
-    where: { tenant_id_name: { tenant_id: IDS.tenant2, name: 'Melbourne CBD Office' } },
+    where: { id: IDS.branchMelb },
     update: {},
     create: {
       id: IDS.branchMelb,
@@ -506,13 +536,13 @@ async function main() {
       await prisma.servicePriceRule.upsert({
         where: { tenant_id_service_type_id_branch_id: { tenant_id: pr.tenant_id, service_type_id: pr.service_type_id, branch_id: pr.branch_id } },
         update: {},
-        create: pr,
+        create: { ...pr, currency: 'AUD' },
       });
     } else {
       await prisma.servicePriceRule.upsert({
         where: { id: pr.id },
         update: {},
-        create: pr,
+        create: { ...pr, currency: 'AUD' },
       });
     }
   }
@@ -728,33 +758,73 @@ async function main() {
   }
   console.log(`Appointments: ${appointments.length} created (all statuses, 2 tenants)`);
 
-  // ─── APPOINTMENT CONTACTS ─────────────────────────────────────────────────
+  // ─── CONTACTS + APPOINTMENT CONTACTS ─────────────────────────────────────
+  // Two-step: create Contact registry entries first, then create the
+  // AppointmentContact junction rows (snapshot pattern from 021-contacts).
 
-  const contacts = [
-    { appointment_id: IDS.apptDraft, tenant_name: 'John Smith', primary_email: 'john.smith@gmail.com', primary_phone: '+61400555001' },
-    { appointment_id: IDS.apptAwaiting, tenant_name: 'Maria Garcia', primary_email: 'maria.garcia@gmail.com', primary_phone: '+61400555002' },
-    { appointment_id: IDS.apptScheduled, tenant_name: 'David Lee', primary_email: 'david.lee@gmail.com', primary_phone: '+61400555003' },
-    { appointment_id: IDS.apptDone, tenant_name: 'Sophie Brown', primary_email: 'sophie.brown@gmail.com', primary_phone: '+61400555004' },
-    { appointment_id: IDS.apptCancelled, tenant_name: 'Alex Kim', primary_email: 'alex.kim@gmail.com', primary_phone: '+61400555005' },
-    { appointment_id: IDS.apptRejected, tenant_name: 'Tony Nguyen', primary_email: 'tony.nguyen@gmail.com', primary_phone: '+61400555006' },
-    { appointment_id: IDS.apptScheduled2, tenant_name: 'Rachel White', primary_email: 'rachel.white@gmail.com', primary_phone: '+61400555007' },
-    { appointment_id: IDS.apptDone2, tenant_name: 'Oliver Chen', primary_email: 'oliver.chen@gmail.com', primary_phone: '+61400555008' },
-    { appointment_id: IDS.apptCancelled2, tenant_name: 'Priya Patel', primary_email: 'priya.patel@gmail.com', primary_phone: '+61400555009' },
-    { appointment_id: IDS.apptAwaiting2, tenant_name: 'James Wilson', primary_email: 'james.wilson@gmail.com', primary_phone: '+61400555010' },
-    { appointment_id: IDS.apptDraftT2, tenant_name: 'Anne Clarke', primary_email: 'anne.clarke@gmail.com', primary_phone: '+61400666001' },
-    { appointment_id: IDS.apptScheduledT2, tenant_name: 'Ben Rogers', primary_email: 'ben.rogers@gmail.com', primary_phone: '+61400666002' },
-    { appointment_id: IDS.apptDoneT2, tenant_name: 'Cathy Evans', primary_email: 'cathy.evans@gmail.com', primary_phone: '+61400666003' },
-    { appointment_id: IDS.apptCancelledT2, tenant_name: 'Dan Morrison', primary_email: 'dan.morrison@gmail.com', primary_phone: '+61400666004' },
+  const contactDefs = [
+    { id: IDS.contact1,  tenant_id: IDS.tenant,  display_name: 'John Smith',    primary_email: 'john.smith@gmail.com',    primary_phone: '+61400555001' },
+    { id: IDS.contact2,  tenant_id: IDS.tenant,  display_name: 'Maria Garcia',  primary_email: 'maria.garcia@gmail.com',  primary_phone: '+61400555002' },
+    { id: IDS.contact3,  tenant_id: IDS.tenant,  display_name: 'David Lee',     primary_email: 'david.lee@gmail.com',     primary_phone: '+61400555003' },
+    { id: IDS.contact4,  tenant_id: IDS.tenant,  display_name: 'Sophie Brown',  primary_email: 'sophie.brown@gmail.com',  primary_phone: '+61400555004' },
+    { id: IDS.contact5,  tenant_id: IDS.tenant,  display_name: 'Alex Kim',      primary_email: 'alex.kim@gmail.com',      primary_phone: '+61400555005' },
+    { id: IDS.contact6,  tenant_id: IDS.tenant,  display_name: 'Tony Nguyen',   primary_email: 'tony.nguyen@gmail.com',   primary_phone: '+61400555006' },
+    { id: IDS.contact7,  tenant_id: IDS.tenant,  display_name: 'Rachel White',  primary_email: 'rachel.white@gmail.com',  primary_phone: '+61400555007' },
+    { id: IDS.contact8,  tenant_id: IDS.tenant,  display_name: 'Oliver Chen',   primary_email: 'oliver.chen@gmail.com',   primary_phone: '+61400555008' },
+    { id: IDS.contact9,  tenant_id: IDS.tenant,  display_name: 'Priya Patel',   primary_email: 'priya.patel@gmail.com',   primary_phone: '+61400555009' },
+    { id: IDS.contact10, tenant_id: IDS.tenant,  display_name: 'James Wilson',  primary_email: 'james.wilson@gmail.com',  primary_phone: '+61400555010' },
+    { id: IDS.contact11, tenant_id: IDS.tenant2, display_name: 'Anne Clarke',   primary_email: 'anne.clarke@gmail.com',   primary_phone: '+61400666001' },
+    { id: IDS.contact12, tenant_id: IDS.tenant2, display_name: 'Ben Rogers',    primary_email: 'ben.rogers@gmail.com',    primary_phone: '+61400666002' },
+    { id: IDS.contact13, tenant_id: IDS.tenant2, display_name: 'Cathy Evans',   primary_email: 'cathy.evans@gmail.com',   primary_phone: '+61400666003' },
+    { id: IDS.contact14, tenant_id: IDS.tenant2, display_name: 'Dan Morrison',  primary_email: 'dan.morrison@gmail.com',  primary_phone: '+61400666004' },
   ];
 
-  for (const c of contacts) {
-    await prisma.appointmentContact.upsert({
-      where: { appointment_id: c.appointment_id },
+  for (const c of contactDefs) {
+    await prisma.contact.upsert({
+      where: { id: c.id },
       update: {},
-      create: c,
+      create: { id: c.id, tenant_id: c.tenant_id, type: 'TENANT', display_name: c.display_name, primary_email: c.primary_email, primary_phone: c.primary_phone },
     });
   }
-  console.log(`Contacts: ${contacts.length} created`);
+
+  const appointmentContactDefs = [
+    { id: IDS.ac1,  appointment_id: IDS.apptDraft,       contact_id: IDS.contact1  },
+    { id: IDS.ac2,  appointment_id: IDS.apptAwaiting,    contact_id: IDS.contact2  },
+    { id: IDS.ac3,  appointment_id: IDS.apptScheduled,   contact_id: IDS.contact3  },
+    { id: IDS.ac4,  appointment_id: IDS.apptDone,        contact_id: IDS.contact4  },
+    { id: IDS.ac5,  appointment_id: IDS.apptCancelled,   contact_id: IDS.contact5  },
+    { id: IDS.ac6,  appointment_id: IDS.apptRejected,    contact_id: IDS.contact6  },
+    { id: IDS.ac7,  appointment_id: IDS.apptScheduled2,  contact_id: IDS.contact7  },
+    { id: IDS.ac8,  appointment_id: IDS.apptDone2,       contact_id: IDS.contact8  },
+    { id: IDS.ac9,  appointment_id: IDS.apptCancelled2,  contact_id: IDS.contact9  },
+    { id: IDS.ac10, appointment_id: IDS.apptAwaiting2,   contact_id: IDS.contact10 },
+    { id: IDS.ac11, appointment_id: IDS.apptDraftT2,     contact_id: IDS.contact11 },
+    { id: IDS.ac12, appointment_id: IDS.apptScheduledT2, contact_id: IDS.contact12 },
+    { id: IDS.ac13, appointment_id: IDS.apptDoneT2,      contact_id: IDS.contact13 },
+    { id: IDS.ac14, appointment_id: IDS.apptCancelledT2, contact_id: IDS.contact14 },
+  ];
+
+  for (const ac of appointmentContactDefs) {
+    const c = contactDefs.find((x) => x.id === ac.contact_id)!;
+    await prisma.appointmentContact.upsert({
+      where: { id: ac.id },
+      update: {},
+      create: {
+        id: ac.id,
+        appointment_id: ac.appointment_id,
+        contact_id: ac.contact_id,
+        tenant_name: c.display_name,
+        primary_email: c.primary_email,
+        primary_phone: c.primary_phone,
+        role: 'TENANT',
+        is_primary: true,
+        snapshot_name: c.display_name,
+        snapshot_email: c.primary_email,
+        snapshot_phone: c.primary_phone,
+      },
+    });
+  }
+  console.log(`Contacts: ${contactDefs.length} created, AppointmentContacts: ${appointmentContactDefs.length} linked`);
 
   // ─── SERVICE GROUPS ───────────────────────────────────────────────────────
 
@@ -763,7 +833,6 @@ async function main() {
     update: { status: 'PUBLISHED', scheduled_date: futureDate(10), published_at: new Date() },
     create: {
       id: IDS.serviceGroup,
-      tenant_id: IDS.tenant,
       service_type_id: serviceTypeIds.routine,
       status: 'PUBLISHED',
       group_size: 3,
@@ -785,7 +854,6 @@ async function main() {
     update: {},
     create: {
       id: IDS.sgDraft,
-      tenant_id: IDS.tenant,
       service_type_id: serviceTypeIds.ingoing,
       status: 'DRAFT',
       group_size: 2,
@@ -806,7 +874,6 @@ async function main() {
     update: {},
     create: {
       id: IDS.sgAccepted,
-      tenant_id: IDS.tenant,
       service_type_id: serviceTypeIds.routine,
       status: 'ACCEPTED',
       group_size: 2,
@@ -831,7 +898,6 @@ async function main() {
     update: {},
     create: {
       id: IDS.sgCancelled,
-      tenant_id: IDS.tenant,
       service_type_id: serviceTypeIds.routine,
       status: 'CANCELLED',
       group_size: 2,
@@ -854,7 +920,6 @@ async function main() {
     update: { status: 'PUBLISHED', scheduled_date: futureDate(12), published_at: new Date() },
     create: {
       id: IDS.sgPublishedT2,
-      tenant_id: IDS.tenant2,
       service_type_id: serviceTypeIds.routine,
       status: 'PUBLISHED',
       group_size: 2,
@@ -876,7 +941,6 @@ async function main() {
     update: {},
     create: {
       id: IDS.sgAcceptedT2,
-      tenant_id: IDS.tenant2,
       service_type_id: serviceTypeIds.routine,
       status: 'ACCEPTED',
       group_size: 2,
