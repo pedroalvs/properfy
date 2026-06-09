@@ -15,7 +15,6 @@ interface StartResponse {
   appointmentId: string;
   status: string;
   startedAt: string;
-  checklistTemplate: unknown[];
 }
 
 export function useStartInspection() {
@@ -48,7 +47,6 @@ export function useStartInspection() {
             appointmentId,
             status: 'SCHEDULED',
             startedAt: location.capturedAt,
-            checklistTemplate: [],
           },
         };
       }

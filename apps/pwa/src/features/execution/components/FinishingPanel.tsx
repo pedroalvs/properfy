@@ -9,6 +9,8 @@ interface FinishingPanelProps {
   notes: string;
   onSubmit: (location: CapturedLocation) => void;
   isSubmitting: boolean;
+  propertyLatitude?: number | null;
+  propertyLongitude?: number | null;
 }
 
 export function FinishingPanel({
@@ -17,8 +19,10 @@ export function FinishingPanel({
   notes,
   onSubmit,
   isSubmitting,
+  propertyLatitude,
+  propertyLongitude,
 }: FinishingPanelProps) {
-  const { location, status, error, requestLocation } = useGeolocation();
+  const { location, status, error, requestLocation } = useGeolocation({ autoCapture: true });
 
   return (
     <div className="flex flex-col gap-4 px-page-x py-4" data-testid="finishing-panel">
@@ -47,6 +51,8 @@ export function FinishingPanel({
         location={location}
         error={error}
         onRequest={requestLocation}
+        propertyLatitude={propertyLatitude}
+        propertyLongitude={propertyLongitude}
       />
 
       <Button

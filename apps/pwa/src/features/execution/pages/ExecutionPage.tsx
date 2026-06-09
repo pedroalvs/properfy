@@ -81,12 +81,11 @@ export function ExecutionPage() {
     if (!canTransition(state.phase, 'IN_PROGRESS')) return;
 
     try {
-      const result = await startMutation.mutateAsync({ appointmentId, location });
+      await startMutation.mutateAsync({ appointmentId, location });
       updateState({
         phase: 'IN_PROGRESS',
         startLocation: location,
         startedAt: location.capturedAt,
-        checklistTemplate: (result.data.checklistTemplate ?? []) as any,
       });
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Unable to start inspection');
@@ -208,7 +207,9 @@ export function ExecutionPage() {
           assetCount={assets.length}
           notes={state.notes}
           onSubmit={handleSubmit}
-          isSubmitting={false}
+          isSubmitting={finishMutation.isPending}
+          propertyLatitude={appointment?.propertyLatitude}
+          propertyLongitude={appointment?.propertyLongitude}
         />
       )}
 
