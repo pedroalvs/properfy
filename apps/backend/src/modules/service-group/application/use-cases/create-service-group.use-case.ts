@@ -79,11 +79,14 @@ export class CreateServiceGroupUseCase {
     }
 
     // 2. Load appointments. Groups are tenant-agnostic — a group may span
-    //    multiple agencies; the tenant lives on each appointment.
+    //    multiple agencies; the tenant lives on each appointment. Only AM/OP
+    //    (cross-tenant, asserted above) reach here, so look up appointments
+    //    cross-tenant: scoping to actor.tenantId would silently exclude other
+    //    agencies' appointments and break cross-agency group creation.
     const appointments = [];
 
     for (const id of input.appointmentIds) {
-      const result = await this.appointmentRepo.findById(id, actor.tenantId);
+      const result = await this.appointmentRepo.findById(id, null);
       if (!result) {
         throw new AppointmentNotFoundError();
       }

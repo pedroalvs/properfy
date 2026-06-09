@@ -478,6 +478,28 @@ describe('CreateServiceGroupUseCase', () => {
     expect(result.status).toBe('DRAFT');
   });
 
+  it('looks up appointments cross-tenant so a cross-agency group is not scoped to the actor tenant', async () => {
+    // Groups are tenant-agnostic and only AM/OP (cross-tenant) reach here. Even if an
+    // OP token carried a stray tenantId, appointment lookup must stay cross-tenant —
+    // otherwise other agencies' appointments would silently 404 during create.
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', tenantId: 'tenant-2' }),
+    );
+
+    await useCase.execute({
+      appointmentIds: ['appt-1'],
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      exceptionType: 'ISOLATED_SERVICE',
+      exceptionReason: 'This property is geographically isolated from other appointments.',
+      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+    });
+
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
+  });
+
   it('should allow ISOLATED_SERVICE exception with 1 appointment', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
       makeAppointmentWithRelations({ id: 'appt-1' }),
