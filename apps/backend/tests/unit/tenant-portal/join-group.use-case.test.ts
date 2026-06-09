@@ -118,6 +118,7 @@ describe('JoinGroupUseCase', () => {
       findById: vi.fn().mockResolvedValue({
         group: makeGroup(),
         assignedInspectorName: 'John Smith',
+        tenantIds: ['tenant-1'],
         appointments: [],
       }),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
@@ -164,10 +165,11 @@ describe('JoinGroupUseCase', () => {
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupNotFoundError);
   });
 
-  it('should throw PortalGroupNotFoundError when group belongs to different tenant', async () => {
+  it('should throw PortalGroupNotFoundError when the appointment agency is not in the group', async () => {
     serviceGroupRepo.findById.mockResolvedValue({
-      group: makeGroup({ tenantId: 'other-tenant' }),
+      group: makeGroup(),
       assignedInspectorName: 'John',
+      tenantIds: ['other-tenant'],
       appointments: [],
     });
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupNotFoundError);
@@ -177,6 +179,7 @@ describe('JoinGroupUseCase', () => {
     serviceGroupRepo.findById.mockResolvedValue({
       group: makeGroup({ serviceTypeId: 'other-stype' }),
       assignedInspectorName: 'John',
+      tenantIds: ['tenant-1'],
       appointments: [],
     });
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupNotFoundError);
@@ -186,6 +189,7 @@ describe('JoinGroupUseCase', () => {
     serviceGroupRepo.findById.mockResolvedValue({
       group: makeGroup({ confirmedCount: 10 }),
       assignedInspectorName: 'John',
+      tenantIds: ['tenant-1'],
       appointments: [],
     });
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
@@ -195,6 +199,7 @@ describe('JoinGroupUseCase', () => {
     serviceGroupRepo.findById.mockResolvedValue({
       group: makeGroup({ status: 'CANCELLED' }),
       assignedInspectorName: 'John',
+      tenantIds: ['tenant-1'],
       appointments: [],
     });
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupUnavailableError);
@@ -204,6 +209,7 @@ describe('JoinGroupUseCase', () => {
     serviceGroupRepo.findById.mockResolvedValue({
       group: makeGroup({ assignedInspectorId: null }),
       assignedInspectorName: null,
+      tenantIds: ['tenant-1'],
       appointments: [],
     });
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupUnavailableError);

@@ -38,7 +38,7 @@ export class RejectServiceGroupUseCase {
       throw new ServiceGroupNotFoundError();
     }
 
-    const { group } = result;
+    const { group, primaryTenantId } = result;
 
     if (!group.canReject()) {
       throw new ServiceGroupInvalidStatusError('PUBLISHED or ACCEPTED', group.status);
@@ -63,7 +63,7 @@ export class RejectServiceGroupUseCase {
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
-      tenantId: group.tenantId,
+      tenantId: primaryTenantId,
       before: { status: group.status },
       after: { status: 'REJECTED' },
       reason,
@@ -71,7 +71,7 @@ export class RejectServiceGroupUseCase {
 
     this.eventBus?.emit({
       type: SERVICE_GROUP_EVENTS.REJECTED,
-      payload: { groupId, tenantId: group.tenantId },
+      payload: { groupId, tenantId: primaryTenantId },
       occurredAt: new Date(),
     });
 

@@ -38,8 +38,12 @@ export function MapGroupCreateModal({
   onSuccess,
 }: MapGroupCreateModalProps) {
   const selectedAppointmentIds = selectedAppointments.map((a) => a.id);
-  // Lasso guarantees same-tenant, so the first item's tenantId is representative.
-  const tenantId = selectedAppointments[0]?.tenantId;
+  // Groups may span agencies. A single group-level region only applies to a
+  // single-agency group; mixed-agency groups rely on per-appointment region
+  // matching in the marketplace, so the region selector is hidden for them.
+  const distinctTenantIds = [...new Set(selectedAppointments.map((a) => a.tenantId).filter(Boolean))];
+  const isMixedAgency = distinctTenantIds.length > 1;
+  const tenantId = isMixedAgency ? undefined : distinctTenantIds[0];
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useSnackbar();
 
@@ -82,7 +86,7 @@ export function MapGroupCreateModal({
       serviceTypeId,
       scheduledDate,
       timeWindow,
-      ...(serviceRegionId ? { serviceRegionId } : {}),
+      ...(serviceRegionId && !isMixedAgency ? { serviceRegionId } : {}),
       priorityMode,
       ...(name ? { name } : {}),
       ...(description ? { description } : {}),
@@ -137,7 +141,7 @@ export function MapGroupCreateModal({
     }
   }, [
     selectedAppointmentIds, serviceTypeId, scheduledDate, startTime, endTime,
-    serviceRegionId, priorityMode, name, description, exceptionType,
+    serviceRegionId, isMixedAgency, priorityMode, name, description, exceptionType,
     exceptionReason, showSuccess, showError, queryClient, onSuccess,
   ]);
 
@@ -201,12 +205,19 @@ export function MapGroupCreateModal({
         </FormField>
 
         <FormField label="Service Region">
-          <RegionSelector
-            appointmentIds={selectedAppointmentIds}
-            selectedRegionId={serviceRegionId}
-            onRegionChange={setServiceRegionId}
-            tenantId={tenantId}
-          />
+          {isMixedAgency ? (
+            <div className="rounded border border-border-subtle bg-gray-50 px-3 py-2 text-sm text-text-secondary">
+              This group spans {distinctTenantIds.length} agencies — no group region is set;
+              inspectors are matched per property.
+            </div>
+          ) : (
+            <RegionSelector
+              appointmentIds={selectedAppointmentIds}
+              selectedRegionId={serviceRegionId}
+              onRegionChange={setServiceRegionId}
+              tenantId={tenantId}
+            />
+          )}
         </FormField>
 
         <FormField label="Priority">

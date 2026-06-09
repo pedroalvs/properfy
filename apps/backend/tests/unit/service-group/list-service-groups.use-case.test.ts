@@ -77,7 +77,7 @@ describe('ListServiceGroupsUseCase', () => {
   });
 
   it('should return paginated results for AM', async () => {
-    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([{ group: makeGroup(), assignedInspectorName: null }]);
+    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([{ group: makeGroup(), assignedInspectorName: null, primaryTenantId: 'tenant-1', agencies: [{ id: 'tenant-1', name: 'Agency tenant-1' }] }]);
     vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
 
     const result = await useCase.execute({
@@ -94,7 +94,7 @@ describe('ListServiceGroupsUseCase', () => {
   });
 
   it('should scope OP to their tenant', async () => {
-    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([{ group: makeGroup(), assignedInspectorName: null }]);
+    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([{ group: makeGroup(), assignedInspectorName: null, primaryTenantId: 'tenant-1', agencies: [{ id: 'tenant-1', name: 'Agency tenant-1' }] }]);
     vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
 
     await useCase.execute({

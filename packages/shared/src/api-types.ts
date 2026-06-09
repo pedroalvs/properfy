@@ -4643,7 +4643,7 @@ export interface paths {
                     timeSlot?: string;
                     contactSearch?: string;
                     hasTenantNote?: boolean;
-                    confirmationStatus?: "PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE";
+                    confirmationStatus?: "sent" | "not_sent";
                 };
                 header?: never;
                 path?: never;
@@ -4686,6 +4686,8 @@ export interface paths {
                                 notes: string | null;
                                 tenantNote?: string | null;
                                 hasTenantNote?: boolean;
+                                /** @default false */
+                                hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4857,6 +4859,8 @@ export interface paths {
                                 notes: string | null;
                                 tenantNote?: string | null;
                                 hasTenantNote?: boolean;
+                                /** @default false */
+                                hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4953,6 +4957,8 @@ export interface paths {
                                 notes: string | null;
                                 tenantNote?: string | null;
                                 hasTenantNote?: boolean;
+                                /** @default false */
+                                hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -4984,7 +4990,6 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
-                                hasActivePortalToken: boolean;
                             };
                         };
                     };
@@ -5124,6 +5129,8 @@ export interface paths {
                                 notes: string | null;
                                 tenantNote?: string | null;
                                 hasTenantNote?: boolean;
+                                /** @default false */
+                                hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
@@ -5161,6 +5168,50 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/appointments/{appointmentId}/portal-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uri */
+                                portalUrl: string;
+                                /** Format: date-time */
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/appointments/{appointmentId}/status-transitions": {
@@ -5822,7 +5873,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -5905,7 +5961,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -5973,7 +6034,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -6050,7 +6116,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -6116,7 +6187,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -6193,7 +6269,12 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
+                                agencies?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                }[];
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 status: string;
@@ -6658,11 +6739,13 @@ export interface paths {
                                 appointments: {
                                     /** Format: uuid */
                                     id: string;
+                                    appointmentCode: string;
                                     appointmentNumber: number;
                                     suburb: string;
                                     keyRequired: boolean;
                                     notes: string | null;
                                     payoutAmount: number | null;
+                                    tenantName: string;
                                 }[];
                             };
                         };
@@ -7321,6 +7404,13 @@ export interface paths {
                                 createdAt: string;
                                 summary?: string;
                             };
+                            agencyPhone?: string;
+                            deadline?: string;
+                            rescheduleAllowed?: boolean;
+                            tenant?: {
+                                name: string | null;
+                                timezone: string;
+                            };
                         };
                     };
                 };
@@ -7363,6 +7453,12 @@ export interface paths {
                                 end: string;
                             }[] | null;
                             notes?: string | null;
+                            availableSlotsJson?: {
+                                /** @enum {string} */
+                                dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                start: string;
+                                end: string;
+                            }[] | null;
                         };
                         tenantNote?: string;
                     };
@@ -7422,6 +7518,12 @@ export interface paths {
                                 end: string;
                             }[] | null;
                             notes?: string | null;
+                            availableSlotsJson?: {
+                                /** @enum {string} */
+                                dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                start: string;
+                                end: string;
+                            }[] | null;
                         };
                         tenantNote?: string;
                     };
@@ -7529,6 +7631,12 @@ export interface paths {
                                 end: string;
                             }[] | null;
                             notes?: string | null;
+                            availableSlotsJson?: {
+                                /** @enum {string} */
+                                dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                start: string;
+                                end: string;
+                            }[] | null;
                         };
                         tenantNote?: string;
                     };
@@ -7545,6 +7653,111 @@ export interface paths {
                             /** @enum {string} */
                             tenantConfirmationStatus: "UNAVAILABLE";
                             urgentMode: boolean;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant-portal/{token}/available-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            groups: {
+                                /** Format: uuid */
+                                id: string;
+                                scheduledDate: string;
+                                timeWindow: string;
+                                suburb: string;
+                                inspectorName: string;
+                                confirmedCount: number;
+                                capacityMax: number;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant-portal/{token}/join-group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        groupId: string;
+                        tenantNote?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            scheduledDate: string;
+                            timeWindow: string;
+                            /** @enum {string} */
+                            tenantConfirmationStatus: "CONFIRMED";
+                            /** @enum {string} */
+                            appointmentStatus: "SCHEDULED";
+                            inspector: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                            };
                         };
                     };
                 };
@@ -7595,48 +7808,6 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/appointments/{appointmentId}/portal-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                portalUrl: string;
-                                expiresAt: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7880,6 +8051,42 @@ export interface paths {
                                 agencyName?: string | null;
                                 payoutAmount?: number | null;
                                 inspectionAppLink?: string | null;
+                                appointmentCode?: string;
+                                jobDetails?: {
+                                    agency: {
+                                        id: string;
+                                        name: string;
+                                    };
+                                    tenantContacts: {
+                                        name: string;
+                                        email: string | null;
+                                        phone: string | null;
+                                        role: string;
+                                        isPrimary: boolean;
+                                    }[];
+                                    keys: {
+                                        keyRequired: boolean;
+                                        keyLocation: string | null;
+                                    };
+                                    keyLocation?: {
+                                        address: string;
+                                        mapLinkUrl: string;
+                                    };
+                                    propertyManager: {
+                                        name: string;
+                                        email: string | null;
+                                        phone: string | null;
+                                        company: string | null;
+                                    } | null;
+                                    payment: {
+                                        payoutAmount: number;
+                                        currency: string;
+                                    };
+                                    inspectionAppLink?: {
+                                        url: string;
+                                        label: string;
+                                    };
+                                } | null;
                             };
                         };
                     };

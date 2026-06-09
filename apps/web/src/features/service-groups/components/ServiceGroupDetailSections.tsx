@@ -21,6 +21,14 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
     <div className="flex flex-col gap-6">
       <FormSection title="Information">
         <DetailRow label="Name" value={serviceGroup.name} />
+        <DetailRow
+          label={serviceGroup.agencies && serviceGroup.agencies.length > 1 ? 'Agencies' : 'Agency'}
+          value={
+            serviceGroup.agencies && serviceGroup.agencies.length > 0
+              ? serviceGroup.agencies.map((a) => a.name).join(', ')
+              : '—'
+          }
+        />
         <DetailRow label="Region" value={serviceGroup.regionName} />
         <DetailRow label="Status" value={<ServiceGroupStatusChip status={serviceGroup.status} />} />
         <DetailRow

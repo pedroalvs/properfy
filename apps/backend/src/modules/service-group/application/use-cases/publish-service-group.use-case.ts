@@ -22,7 +22,7 @@ export interface PublishServiceGroupInput {
 
 export interface PublishServiceGroupOutput {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   serviceTypeId: string;
   status: string;
   groupSize: number;
@@ -63,28 +63,32 @@ export class PublishServiceGroupUseCase {
       throw new ServiceGroupNotFoundError();
     }
 
-    const { group, appointments } = result;
+    const { group, appointments, primaryTenantId } = result;
 
     // Idempotency: if already PUBLISHED, return current state without side effects
     if (group.status === 'PUBLISHED') {
-      return mapGroupToOutput(group);
+      return mapGroupToOutput(group, primaryTenantId);
     }
 
     if (!group.canPublish()) {
       throw new ServiceGroupInvalidStatusError('DRAFT', group.status);
     }
 
-    // Validate service region is assigned and active
-    if (!group.serviceRegionId) {
-      throw new ServiceRegionRequiredError();
-    }
-
-    const region = await this.serviceRegionRepo.findById(group.serviceRegionId, group.tenantId);
-    if (!region) {
-      throw new ServiceRegionInactiveError();
-    }
-    if (region.status !== 'ACTIVE') {
-      throw new ServiceRegionInactiveError();
+    // Region is per-agency. Single-agency groups must carry an active region to
+    // publish (spec 005 FR-007); mixed-agency groups have no single region and
+    // rely on per-appointment region matching in the marketplace, so the
+    // requirement is skipped for them.
+    if (primaryTenantId) {
+      if (!group.serviceRegionId) {
+        throw new ServiceRegionRequiredError();
+      }
+      const region = await this.serviceRegionRepo.findById(group.serviceRegionId, primaryTenantId);
+      if (!region) {
+        throw new ServiceRegionInactiveError();
+      }
+      if (region.status !== 'ACTIVE') {
+        throw new ServiceRegionInactiveError();
+      }
     }
 
     // Verify all appointments are still AWAITING_INSPECTOR
@@ -114,14 +118,14 @@ export class PublishServiceGroupUseCase {
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
-      tenantId: group.tenantId,
+      tenantId: primaryTenantId,
       before: { status: 'DRAFT', offeredCount: group.offeredCount },
       after: { status: 'PUBLISHED', offeredCount: newOfferedCount },
     });
 
     this.eventBus?.emit({
       type: SERVICE_GROUP_EVENTS.PUBLISHED,
-      payload: { groupId, tenantId: group.tenantId },
+      payload: { groupId, tenantId: primaryTenantId },
       occurredAt: new Date(),
     });
 
@@ -130,14 +134,14 @@ export class PublishServiceGroupUseCase {
     group.offeredCount = newOfferedCount;
     group.publishedAt = now;
 
-    return mapGroupToOutput(group);
+    return mapGroupToOutput(group, primaryTenantId);
   }
 }
 
-function mapGroupToOutput(group: ServiceGroupEntity): PublishServiceGroupOutput {
+function mapGroupToOutput(group: ServiceGroupEntity, primaryTenantId: string | null): PublishServiceGroupOutput {
   return {
     id: group.id,
-    tenantId: group.tenantId,
+    tenantId: primaryTenantId,
     serviceTypeId: group.serviceTypeId,
     status: group.status,
     groupSize: group.groupSize,

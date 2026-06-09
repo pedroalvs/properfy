@@ -32,7 +32,7 @@ export interface CreateServiceGroupInput {
 
 export interface CreateServiceGroupOutput {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   serviceTypeId: string;
   status: string;
   groupSize: number;
@@ -78,25 +78,19 @@ export class CreateServiceGroupUseCase {
       throw scheduleCheck.code === 'TIME_IN_PAST' ? new ServiceGroupTimeInPastError() : new ServiceGroupDateInPastError();
     }
 
-    // 2. Load and validate appointments
+    // 2. Load appointments. Groups are tenant-agnostic — a group may span
+    //    multiple agencies; the tenant lives on each appointment. Only AM/OP
+    //    (cross-tenant, asserted above) reach here, so look up appointments
+    //    cross-tenant: scoping to actor.tenantId would silently exclude other
+    //    agencies' appointments and break cross-agency group creation.
     const appointments = [];
-    let tenantId: string | null = null;
 
     for (const id of input.appointmentIds) {
-      const result = await this.appointmentRepo.findById(id, actor.tenantId);
+      const result = await this.appointmentRepo.findById(id, null);
       if (!result) {
         throw new AppointmentNotFoundError();
       }
       const appt = result.appointment;
-
-      // Determine tenantId from first appointment
-      if (tenantId === null) {
-        tenantId = appt.tenantId;
-      }
-
-      if (appt.tenantId !== tenantId) {
-        throw new ValidationError('Appointments must belong to the same tenant');
-      }
 
       appointments.push({
         id: appt.id,
@@ -108,16 +102,21 @@ export class CreateServiceGroupUseCase {
       });
     }
 
-    // 3. Validate via domain validator
-    ServiceGroupValidator.validate(appointments, input.serviceTypeId, tenantId!, input.exceptionType);
+    // Derive the group's tenant set: a single agency, or null when mixed.
+    const tenantIds = [...new Set(appointments.map((a) => a.tenantId))];
+    const primaryTenantId = tenantIds.length === 1 ? tenantIds[0]! : null;
+
+    // 3. Validate via domain validator (size / status / service type)
+    ServiceGroupValidator.validate(appointments, input.serviceTypeId, input.exceptionType);
 
     // 4. Calculate priority expiry
     let priorityExpiresAt: Date | null = null;
     if (input.priorityMode === 'PRIORITY_24H') {
-      // Read configurable priority hours from tenant settings, fallback to 24
+      // Read configurable priority hours from the agency's settings (single-agency
+      // groups only); mixed-agency groups fall back to the platform default of 24h.
       let priorityOfferHours = 24;
-      if (this.tenantRepo) {
-        const tenant = await this.tenantRepo.findById(tenantId!);
+      if (this.tenantRepo && primaryTenantId) {
+        const tenant = await this.tenantRepo.findById(primaryTenantId);
         if (tenant?.settingsJson && typeof tenant.settingsJson.priorityOfferHours === 'number') {
           priorityOfferHours = tenant.settingsJson.priorityOfferHours;
         }
@@ -133,11 +132,17 @@ export class CreateServiceGroupUseCase {
       }
     }
 
-    // 5. Resolve service region — optional at create, required at publish (spec 005 FR-007).
+    // 5. Resolve service region — optional at create, required at publish for
+    //    single-agency groups (spec 005 FR-007). Regions are per-agency, so a
+    //    mixed-agency group cannot carry a single group-level region; it relies
+    //    on per-appointment region matching in the marketplace.
     let serviceRegionId: string | null = null;
     let regionName: string | null = null;
     if (input.serviceRegionId) {
-      const region = await this.serviceRegionRepo.findById(input.serviceRegionId, tenantId!);
+      if (!primaryTenantId) {
+        throw new ValidationError('A service region cannot be assigned to a group spanning multiple agencies');
+      }
+      const region = await this.serviceRegionRepo.findById(input.serviceRegionId, primaryTenantId);
       if (!region) {
         throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
       }
@@ -154,7 +159,6 @@ export class CreateServiceGroupUseCase {
 
     const group = new ServiceGroupEntity({
       id: groupId,
-      tenantId: tenantId!,
       serviceTypeId: input.serviceTypeId,
       status: 'DRAFT',
       groupSize: input.appointmentIds.length,
@@ -212,7 +216,7 @@ export class CreateServiceGroupUseCase {
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
-      tenantId: tenantId!,
+      tenantId: primaryTenantId,
       after: {
         id: groupId,
         status: 'DRAFT',
@@ -225,7 +229,7 @@ export class CreateServiceGroupUseCase {
 
     return {
       id: group.id,
-      tenantId: group.tenantId,
+      tenantId: primaryTenantId,
       serviceTypeId: group.serviceTypeId,
       status: group.status,
       groupSize: group.groupSize,

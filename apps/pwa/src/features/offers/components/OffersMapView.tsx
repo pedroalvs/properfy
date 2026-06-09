@@ -104,7 +104,6 @@ export function OffersMapView({ offers, onSelectOffer }: OffersMapViewProps) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryKey]);
 
   // Update markers when offers change after map is already loaded.

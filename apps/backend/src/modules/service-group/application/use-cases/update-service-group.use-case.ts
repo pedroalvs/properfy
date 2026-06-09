@@ -40,7 +40,7 @@ export interface UpdateServiceGroupInput {
 
 export interface UpdateServiceGroupOutput {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   serviceTypeId: string;
   status: string;
   groupSize: number;
@@ -83,7 +83,7 @@ export class UpdateServiceGroupUseCase {
       throw new ServiceGroupNotFoundError();
     }
 
-    const { group } = result;
+    const { group, primaryTenantId } = result;
 
     // Guard: ACCEPTED groups are immutable
     if (group.status === 'ACCEPTED') {
@@ -143,7 +143,7 @@ export class UpdateServiceGroupUseCase {
     // Recalculate priorityExpiresAt when priorityMode changes
     if (input.priorityMode !== undefined) {
       if (input.priorityMode === 'PRIORITY_24H') {
-        const priorityOfferHours = await this.resolvePriorityOfferHours(group.tenantId);
+        const priorityOfferHours = await this.resolvePriorityOfferHours(primaryTenantId);
         const scheduledDateStr = input.scheduledDate ?? group.scheduledDate.toISOString().slice(0, 10);
         const scheduledDate = new Date(scheduledDateStr);
         const priorityExpiresAt = new Date(scheduledDate.getTime() - priorityOfferHours * 60 * 60 * 1000);
@@ -161,7 +161,7 @@ export class UpdateServiceGroupUseCase {
       }
     } else if (input.scheduledDate !== undefined && group.priorityMode === 'PRIORITY_24H') {
       // scheduledDate changed but priorityMode stays PRIORITY_24H: recalculate
-      const priorityOfferHours = await this.resolvePriorityOfferHours(group.tenantId);
+      const priorityOfferHours = await this.resolvePriorityOfferHours(primaryTenantId);
       const scheduledDate = new Date(input.scheduledDate);
       const priorityExpiresAt = new Date(scheduledDate.getTime() - priorityOfferHours * 60 * 60 * 1000);
 
@@ -181,7 +181,7 @@ export class UpdateServiceGroupUseCase {
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
-      tenantId: group.tenantId,
+      tenantId: primaryTenantId,
       after: updateData,
     });
 
@@ -191,7 +191,7 @@ export class UpdateServiceGroupUseCase {
 
     return {
       id: g.id,
-      tenantId: g.tenantId,
+      tenantId: updated!.primaryTenantId,
       serviceTypeId: g.serviceTypeId,
       status: g.status,
       groupSize: g.groupSize,
@@ -216,9 +216,10 @@ export class UpdateServiceGroupUseCase {
     };
   }
 
-  private async resolvePriorityOfferHours(tenantId: string): Promise<number> {
+  private async resolvePriorityOfferHours(tenantId: string | null): Promise<number> {
     const DEFAULT_PRIORITY_HOURS = 24;
-    if (!this.tenantRepo) return DEFAULT_PRIORITY_HOURS;
+    // Mixed-agency groups have no single agency config → platform default.
+    if (!this.tenantRepo || !tenantId) return DEFAULT_PRIORITY_HOURS;
     const tenant = await this.tenantRepo.findById(tenantId);
     if (tenant?.settingsJson && typeof tenant.settingsJson.priorityOfferHours === 'number') {
       return tenant.settingsJson.priorityOfferHours;

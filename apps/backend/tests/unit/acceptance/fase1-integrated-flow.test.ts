@@ -365,21 +365,31 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
     private readonly inspectors?: Map<string, InspectorEntity>,
   ) {}
 
-  async findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null> {
-    const group = this.groups.get(id);
+  async findById(_id: string, _tenantId: string | null): Promise<ServiceGroupWithAppointments | null> {
+    const group = this.groups.get(_id);
     if (!group) return null;
-    if (tenantId && group.tenantId !== tenantId) return null;
     const appointments = [...this.appointments.values()]
-      .filter((appointment) => appointment.serviceGroupId === id)
+      .filter((appointment) => appointment.serviceGroupId === _id)
       .map((appointment) => ({
         id: appointment.id,
+        appointmentNumber: 0,
         status: appointment.status,
         serviceTypeId: appointment.serviceTypeId,
         tenantId: appointment.tenantId,
         propertyId: appointment.propertyId,
         serviceGroupId: appointment.serviceGroupId,
+        scheduledDate: appointment.scheduledDate ?? new Date(),
+        propertyAddress: null,
+        propertyCode: null,
       }));
-    return { group, appointments };
+    const tenantIds = [...new Set(appointments.map((a) => a.tenantId))];
+    return {
+      group,
+      appointments,
+      tenantIds,
+      primaryTenantId: tenantIds.length === 1 ? tenantIds[0]! : null,
+      agencies: tenantIds.map((tid) => ({ id: tid, name: `Agency ${tid}` })),
+    };
   }
 
   async findAll(
@@ -388,7 +398,8 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
   ): Promise<ServiceGroupEntity[]> {
     return [...this.groups.values()]
       .filter((group) => {
-        if (filters.tenantId && group.tenantId !== filters.tenantId) return false;
+        // Groups are tenant-agnostic; tenant filtering is derived from appointments
+        // in the real repo and is not exercised by this flow.
         if (filters.status && group.status !== filters.status) return false;
         if (filters.serviceTypeId && group.serviceTypeId !== filters.serviceTypeId) return false;
         return true;

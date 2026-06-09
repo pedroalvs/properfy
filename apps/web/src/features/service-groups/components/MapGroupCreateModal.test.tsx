@@ -106,6 +106,17 @@ describe('MapGroupCreateModal', () => {
     expect(screen.getByText('Create Group')).toBeInTheDocument();
   });
 
+  it('hides the region selector and shows a note for a mixed-agency selection', () => {
+    renderModal({
+      selectedAppointments: [
+        { id: 'apt-1', code: 'INS-0001', status: 'DRAFT', propertyAddress: '1 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
+        { id: 'apt-2', code: 'INS-0002', status: 'DRAFT', propertyAddress: '2 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-2', clientName: 'Globex' },
+      ] as any,
+    });
+    expect(screen.queryByTestId('region-selector')).not.toBeInTheDocument();
+    expect(screen.getByText(/spans 2 agencies/i)).toBeInTheDocument();
+  });
+
   it('create button is disabled when required fields (service type, date) are empty', () => {
     renderModal();
     const createBtn = screen.getByText('Create Group').closest('button');

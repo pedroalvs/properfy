@@ -2,7 +2,14 @@ import { DataTable, type DataTableColumn, type DataTablePagination } from '@/com
 import { RowActions } from '@/components/data/RowActions';
 import { PRIORITY_MODE_MAP } from '@/lib/status-colors';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
-import type { ServiceGroup } from '../types';
+import type { Agency, ServiceGroup } from '../types';
+
+/** Compact agency label: "—" | "Acme" | "Acme, Globex" | "Acme, Globex +2". */
+export function formatAgencies(agencies: Agency[] | undefined): string {
+  if (!agencies || agencies.length === 0) return '—';
+  if (agencies.length <= 2) return agencies.map((a) => a.name).join(', ');
+  return `${agencies[0]!.name}, ${agencies[1]!.name} +${agencies.length - 2}`;
+}
 
 interface ServiceGroupTableProps {
   data: ServiceGroup[];
@@ -27,6 +34,14 @@ export function ServiceGroupTable({
       label: 'Name',
       sortable: true,
       render: (row) => <>{row.name ?? '—'}</>,
+    },
+    {
+      key: 'agencies',
+      label: 'Agency',
+      width: '200px',
+      render: (row) => (
+        <span title={row.agencies?.map((a) => a.name).join(', ')}>{formatAgencies(row.agencies)}</span>
+      ),
     },
     {
       key: 'regionName',

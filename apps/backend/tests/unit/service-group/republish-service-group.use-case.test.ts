@@ -4,6 +4,7 @@ import type { IServiceGroupRepository, ServiceGroupWithAppointments } from '../.
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
+import { deriveTenantFixture } from '../../helpers/service-group-fixtures';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
@@ -45,9 +46,13 @@ function makeGroup(
 function makeGroupWithAppointments(
   groupOverrides: Partial<ConstructorParameters<typeof ServiceGroupEntity>[0]> = {},
 ): ServiceGroupWithAppointments {
+  const appointments = [
+    { id: 'appt-1', status: 'AWAITING_INSPECTOR', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-1', serviceGroupId: 'group-1' },
+  ];
   return {
     group: makeGroup(groupOverrides),
-    appointments: [],
+    appointments,
+    ...deriveTenantFixture(appointments),
   };
 }
 

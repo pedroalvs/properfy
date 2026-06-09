@@ -33,7 +33,6 @@ export interface AppointmentForValidation {
 export type AddToGroupReason =
   | 'INVALID_STATUS'
   | 'ALREADY_GROUPED'
-  | 'INVALID_TENANT'
   | 'INVALID_SERVICE_TYPE'
   | 'INVALID_DATE'
   | 'INVALID_TIME_WINDOW'
@@ -46,7 +45,6 @@ export type AddToGroupValidation =
 
 export interface GroupForValidation {
   status: ServiceGroupStatus;
-  tenantId: string;
   serviceTypeId: string;
   scheduledDate: Date;
   timeWindow: string;
@@ -93,7 +91,6 @@ export class ServiceGroupValidator {
   static validate(
     appointments: AppointmentForValidation[],
     expectedServiceTypeId: string,
-    expectedTenantId: string,
     exceptionType?: ServiceGroupExceptionType | null,
   ): void {
     const limits = exceptionType ? EXCEPTION_LIMITS[exceptionType] : DEFAULT_LIMITS;
@@ -142,9 +139,7 @@ export class ServiceGroupValidator {
     if (group.currentSize >= GROUP_CAPACITY_DEFAULT) {
       return { ok: false, reasonCode: 'GROUP_CAPACITY_EXCEEDED' };
     }
-    if (appointment.tenantId !== group.tenantId) {
-      return { ok: false, reasonCode: 'INVALID_TENANT' };
-    }
+    // Groups are tenant-agnostic — appointments of any agency may join.
     if (appointment.serviceTypeId !== group.serviceTypeId) {
       return { ok: false, reasonCode: 'INVALID_SERVICE_TYPE' };
     }

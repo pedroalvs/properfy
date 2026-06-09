@@ -314,8 +314,9 @@ export function MapBulkActionModal({
   // 026 §FR-510 — Add-to-group / Create-group are SEPARATE footer
   // buttons (not in the dropdown). Both AM/OP only; disabled when:
   //   - no rows checked
-  //   - selection spans tenants (cross-tenant grouping is impossible per Regras)
   //   - any checked row has an ungroupable status (must be DRAFT, AWAITING_INSPECTOR, or REJECTED)
+  //   - selection mixes service types
+  // Groups are tenant-agnostic — a selection MAY span multiple agencies.
   const canAddToGroup = actorRole === 'AM' || actorRole === 'OP';
   // T-C4-1 L1 / T-C5-1 L4 — REJECTED is now groupable (auto-transitions to AWAITING_INSPECTOR on join).
   const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR', 'REJECTED']);
@@ -329,8 +330,6 @@ export function MapBulkActionModal({
         reason: `${invalidStatusRows.length} selected appointment(s) cannot be grouped (status must be Draft, Awaiting Inspector, or Rejected)`,
       };
     }
-    const tenantNames = new Set(checkedAppointments.map((c) => c.clientName).filter(Boolean));
-    if (tenantNames.size > 1) return { disabled: true, reason: 'Selection spans multiple agencies — pick rows from a single agency' };
     const serviceTypeIds = new Set(checkedAppointments.map((a) => a.serviceTypeId).filter(Boolean));
     if (serviceTypeIds.size > 1) return { disabled: true, reason: 'All selected appointments must have the same service type to create a group' };
     const alreadyGrouped = checkedAppointments.filter((a) => a.serviceGroupId);
