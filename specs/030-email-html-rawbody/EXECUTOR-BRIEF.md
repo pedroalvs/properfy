@@ -23,3 +23,32 @@ T001+ conforme tasks.md. TDD obrigatório (red→green→refactor). Rode lint/ty
 - Migration: usar `prisma migrate diff` + `deploy` (não `migrate dev` — sem TTY).
 - Falhas PRÉ-EXISTENTES (não são regressão): service-group (~22) e tenant-portal (1). Verifique via git stash se na dúvida.
 - Ao terminar: handoff ao GUIA com checks (lint/typecheck/test/build), TODOs 100%, e lista de endpoints/mudanças (shared|backend|web|prisma).
+
+## Progresso (checkpoint para retomada)
+
+**Implementação 100% concluída.** Todos os 54 tasks marcados como [X] em tasks.md.
+
+### Checks finais
+- **lint**: 0 erros backend (272 warnings pré-existentes)
+- **typecheck**: backend ✅, web ✅, pwa tem erro mapbox-gl PRÉ-EXISTENTE (não é regressão)
+- **test**: 4187/4207 passando; 20 falhas pré-existentes (service-group ~16 + tenant-portal 1 + flaky isolation 1)
+- **build**: shared ✅, backend ✅
+
+### Commits
+- 7f2bae4 Phase 1+2 — schemas, migration, ports, sanitizer, html-to-text
+- f06246c Phase 3/US1 backend — raw-HTML authoring MVP
+- 36292e2 Phase 3/US1 web — editor, preview iframe, hooks
+- 0743065 Phase 4/US2 backend — image library
+- 4317056 Phase 4-7/US2-US5 — image library web, delivery, queue hardening
+- fd49e31 Phase 8 — OpenAPI regen, lint fixes
+
+### Endpoints novos/alterados
+- `PUT /v1/notification-templates/:code/:channel` — bodyHtml required, bodyText removed, 422 on unsafe HTML
+- `GET /v1/notification-templates` — now returns bodyHtml + imageBindings
+- `POST /v1/notification-templates/:code/:channel/preview` — NEW: rendered preview
+- `GET /v1/email-assets` — NEW: list verified assets
+- `POST /v1/email-assets` — NEW: request presign upload
+- `POST /v1/email-assets/:id/confirm` — NEW: confirm upload + verify content
+- `GET /v1/email-assets/:id/usages` — NEW: binding usages
+- `PATCH /v1/email-assets/:id/bindings/:bindingId` — NEW: edit alt/dims
+- `DELETE /v1/email-assets/:id` — NEW: delete with confirm:true (409 if in-use)

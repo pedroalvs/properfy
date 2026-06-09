@@ -392,6 +392,8 @@ When you (Claude Code) implement or modify code in this project:
 - PostgreSQL (Supabase) — new `contacts` table (per-tenant registry), revised `appointment_contacts` (junction + snapshot pattern), new enums `ContactType`, `ContactChannelType`, `AppointmentContactRole` (021-contacts)
 - TypeScript 5.x strict, ES2022 ESM, Node.js 20 (backend), React 18 (PWA). (027-pwa-improvements)
 - PostgreSQL via Prisma. New columns: `inspectors.availability_template_json` (JSONB), `inspector_availability_slots.is_operator_override` (BOOLEAN). No new tables. (027-pwa-improvements)
+- TypeScript 5.x strict, ES2022 ESM. Node.js 20 (backend); React 18 + Vite 5 + Tailwind 3 (web). + Fastify 4, Prisma 5, Zod, Handlebars (existing renderer), Resend SDK, pg-boss, `@aws-sdk/client-s3` + `s3-request-presigner` (existing storage). New: `sanitize-html` (allowlist sanitizer), `html-to-text` (text derivation), `file-type` (magic-byte sniff) + `image-size` (decode dimensions). See research.md for choices. (030-email-html-rawbody)
+- PostgreSQL (Supabase) via Prisma — new tables `email_assets`, `template_image_bindings`; extended `notification_templates` usage (body_html becomes the operator's raw HTML / placeholder-bearing source). New **public** Supabase Storage bucket `email-assets`. (030-email-html-rawbody)
 
 ## Recent Changes
 - 002-tenants-branches: Added TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, domain port `IAppointmentChecker`
