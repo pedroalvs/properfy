@@ -74,6 +74,7 @@ const baseDetail = {
   tenantPhone: '+61400000000',
   tenantEmail: 'john@example.com',
   notes: null,
+  observation: null,
   restrictionsSummary: null,
   contact: null,
   restrictions: [],

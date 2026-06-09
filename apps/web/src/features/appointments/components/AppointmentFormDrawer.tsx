@@ -178,6 +178,7 @@ export function AppointmentFormDrawer({
         meetingLocation: appointment.meetingLocation ?? '',
         keyLocation: appointment.keyLocation ?? '',
         notes: appointment.notes ?? '',
+        observation: appointment.observation ?? '',
         hasRestriction: (appointment.restrictions?.length ?? 0) > 0,
         restrictionIsHome: appointment.restrictions?.[0]?.isHome ?? false,
         restrictionNotes: appointment.restrictions?.[0]?.notes ?? '',
@@ -865,6 +866,18 @@ export function AppointmentFormDrawer({
                         rows={4}
                         placeholder="Additional information"
                         aria-label="Notes"
+                      />
+                    </FormField>
+                  </FormSection>
+
+                  <FormSection title="Observation">
+                    <FormField label="Observation" error={errors.observation}>
+                      <Textarea
+                        value={form.observation}
+                        onChange={(v) => updateField('observation', v)}
+                        rows={4}
+                        placeholder="Operational observation"
+                        aria-label="Observation"
                       />
                     </FormField>
                   </FormSection>

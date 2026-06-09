@@ -22,6 +22,7 @@ export interface InspectorAppointment {
   propertyLatitude: number | null;
   propertyLongitude: number | null;
   notes: string | null;
+  observation: string | null;
   isOverdue?: boolean;
   agencyName?: string;
 }
@@ -85,6 +86,7 @@ export interface InspectorAppointmentDetailResponse {
     propertyLatitude: number | null;
     propertyLongitude: number | null;
     notes: string | null;
+    observation: string | null;
     isOverdue?: boolean;
     agencyName?: string;
     jobDetails?: JobDetails;

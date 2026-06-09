@@ -32,6 +32,7 @@ export interface GetAppointmentOutput {
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
   tenantNote: string | null;
+  observation: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
   rejectionReasonCode: string | null;
@@ -113,6 +114,7 @@ function mapToOutput(found: AppointmentWithRelations): GetAppointmentOutput {
     pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,
     notes: appointment.notes,
     tenantNote: appointment.tenantNote,
+    observation: appointment.observation,
     customFieldsJson: appointment.customFieldsJson,
     reason: appointment.reason,
     rejectionReasonCode: appointment.rejectionReasonCode ?? null,

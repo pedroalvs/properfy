@@ -503,6 +503,7 @@ model Appointment {
   pricing_rule_snapshot_json Json
   notes                      String?                  @db.Text
   tenant_note                String?                  @db.Text
+  observation                String?                  @db.Text
   custom_fields_json         Json?
   reason                     String?                  @db.Text
   cancellation_reason_code   String?                  @db.VarChar(50)

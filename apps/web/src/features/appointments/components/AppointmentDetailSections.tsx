@@ -106,6 +106,12 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
         </FormSection>
       )}
 
+      {appointment.observation && (
+        <FormSection title="Observation">
+          <DetailRow label="Observation" value={appointment.observation} />
+        </FormSection>
+      )}
+
       <FormSection title="Record">
         <DetailRow label="Created At" value={formatDateTime(appointment.createdAt)} />
         <DetailRow label="Updated At" value={formatDateTime(appointment.updatedAt)} />

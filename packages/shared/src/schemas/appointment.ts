@@ -20,6 +20,28 @@ const inlinePropertySchema = z.object({
 
 const timeSlotRegex = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
 
+/**
+ * Operational free-text observation set on direct create/edit (distinct from
+ * tenant-portal `notes`/`tenantNote`). Empty/whitespace-only input is normalized
+ * to "no value" at the contract boundary — a single source of truth so the
+ * dedicated `appointment.observation_updated` audit stays honest regardless of
+ * which client writes (web, PWA, direct API), instead of relying on each client
+ * to trim. On create absent/blank collapses to `undefined`; on update to `null`
+ * (explicit clear), while a truly absent key stays `undefined` (no-op).
+ */
+const observationCreateField = z
+  .string()
+  .max(2000)
+  .optional()
+  .transform((v) => (v == null || v.trim() === '' ? undefined : v));
+
+const observationUpdateField = z
+  .string()
+  .max(2000)
+  .nullable()
+  .optional()
+  .transform((v) => (v == null ? v : v.trim() === '' ? null : v));
+
 export const createAppointmentSchema = z.object({
   branchId: z.string().uuid(),
   propertyId: z.string().uuid().optional(),
@@ -37,6 +59,7 @@ export const createAppointmentSchema = z.object({
   meetingLocation: z.string().max(500).optional(),
   keyLocation: z.string().max(500).optional(),
   notes: z.string().max(2000).optional(),
+  observation: observationCreateField,
   customFields: z.record(z.unknown()).optional(),
   actorTimezone: z.string().optional(),
 }).refine(
@@ -60,6 +83,7 @@ export const updateAppointmentSchema = z.object({
   meetingLocation: z.string().max(500).nullable().optional(),
   keyLocation: z.string().max(500).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
+  observation: observationUpdateField,
   /** @deprecated Use `contacts` array instead. */
   contact: contactSchema.optional(),
   /** New contacts array (feature 021). When present, replaces all junction rows. */

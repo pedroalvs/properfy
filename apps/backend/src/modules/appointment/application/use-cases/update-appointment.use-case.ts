@@ -20,6 +20,19 @@ import type { RestrictionSource } from '@properfy/shared';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
+/**
+ * Resolves a patchable nullable field's post-update value for the audit `after`
+ * snapshot and the response payload. A value present in the patch — including an
+ * explicit `null` (clear) — wins; an absent key keeps the entity's current value.
+ *
+ * Using `?? current` here (the old approach) silently resurrects the previous
+ * value when the field is cleared to `null`, so the audit log claims "unchanged"
+ * and the PATCH response returns the stale value even though the DB stored `null`.
+ */
+function resolvePatchedField<T>(provided: T | null | undefined, current: T | null): T | null {
+  return provided !== undefined ? provided ?? null : current;
+}
+
 export interface UpdateAppointmentInput {
   appointmentId: string;
   data: {
@@ -29,6 +42,7 @@ export interface UpdateAppointmentInput {
     meetingLocation?: string | null;
     keyLocation?: string | null;
     notes?: string | null;
+    observation?: string | null;
     customFields?: Record<string, unknown> | null;
     /** @deprecated Use contacts array */
     contact?: {
@@ -83,6 +97,7 @@ export interface UpdateAppointmentOutput {
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
+  observation: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
   createdByUserId: string;
@@ -144,6 +159,7 @@ export class UpdateAppointmentUseCase {
       meetingLocation: appointment.meetingLocation,
       keyLocation: appointment.keyLocation,
       notes: appointment.notes,
+      observation: appointment.observation,
       customFieldsJson: appointment.customFieldsJson,
     };
 
@@ -191,6 +207,8 @@ export class UpdateAppointmentUseCase {
     if (data.keyLocation !== undefined)
       updateData.keyLocation = data.keyLocation ?? null;
     if (data.notes !== undefined) updateData.notes = data.notes ?? null;
+    if (data.observation !== undefined)
+      updateData.observation = data.observation ?? null;
     if (data.customFields !== undefined)
       updateData.customFieldsJson = data.customFields ?? null;
 
@@ -327,15 +345,19 @@ export class UpdateAppointmentUseCase {
       }
     }
 
-    // Capture after state
+    // Capture after state. scheduledDate/timeSlot/keyRequired never become null,
+    // so `??` is safe for them; the nullable fields below must resolve precisely
+    // (see resolvePatchedField) so clearing-to-null is reflected accurately in
+    // both the audit snapshot and the response.
     const after = {
       scheduledDate: updateData.scheduledDate ?? appointment.scheduledDate,
       timeSlot: updateData.timeSlot ?? appointment.timeSlot,
       keyRequired: updateData.keyRequired ?? appointment.keyRequired,
-      meetingLocation: updateData.meetingLocation ?? appointment.meetingLocation,
-      keyLocation: updateData.keyLocation ?? appointment.keyLocation,
-      notes: updateData.notes ?? appointment.notes,
-      customFieldsJson: updateData.customFieldsJson ?? appointment.customFieldsJson,
+      meetingLocation: resolvePatchedField(data.meetingLocation, appointment.meetingLocation),
+      keyLocation: resolvePatchedField(data.keyLocation, appointment.keyLocation),
+      notes: resolvePatchedField(data.notes, appointment.notes),
+      observation: resolvePatchedField(data.observation, appointment.observation),
+      customFieldsJson: resolvePatchedField(data.customFields, appointment.customFieldsJson),
     };
 
     this.auditService.log({
@@ -349,6 +371,21 @@ export class UpdateAppointmentUseCase {
       after,
     });
 
+    // Dedicated audit entry for observation edits — only when the value actually changed,
+    // so the observation history stays clean and filterable (independent of appointment.updated).
+    if (before.observation !== after.observation) {
+      this.auditService.log({
+        action: 'appointment.observation_updated',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'Appointment',
+        entityId: appointmentId,
+        tenantId: appointment.tenantId,
+        before: { observation: before.observation },
+        after: { observation: after.observation },
+      });
+    }
+
     return {
       id: appointment.id,
       tenantId: appointment.tenantId,
@@ -357,17 +394,18 @@ export class UpdateAppointmentUseCase {
       serviceTypeId: appointment.serviceTypeId,
       inspectorId: appointment.inspectorId,
       status: appointment.status,
-      scheduledDate: (updateData.scheduledDate ?? appointment.scheduledDate) as Date,
-      timeSlot: (updateData.timeSlot ?? appointment.timeSlot) as string,
-      keyRequired: (updateData.keyRequired ?? appointment.keyRequired) as boolean,
-      meetingLocation: (updateData.meetingLocation ?? appointment.meetingLocation) as string | null,
-      keyLocation: (updateData.keyLocation ?? appointment.keyLocation) as string | null,
+      scheduledDate: after.scheduledDate as Date,
+      timeSlot: after.timeSlot as string,
+      keyRequired: after.keyRequired as boolean,
+      meetingLocation: after.meetingLocation,
+      keyLocation: after.keyLocation,
       tenantConfirmationStatus: appointment.tenantConfirmationStatus,
       priceAmount: appointment.priceAmount,
       payoutAmount: appointment.payoutAmount,
       pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,
-      notes: (updateData.notes ?? appointment.notes) as string | null,
-      customFieldsJson: (updateData.customFieldsJson ?? appointment.customFieldsJson) as Record<string, unknown> | null,
+      notes: after.notes,
+      observation: after.observation,
+      customFieldsJson: after.customFieldsJson,
       reason: appointment.reason,
       createdByUserId: appointment.createdByUserId,
       createdAt: appointment.createdAt,

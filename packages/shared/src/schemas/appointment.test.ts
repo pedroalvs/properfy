@@ -175,6 +175,38 @@ describe('createAppointmentSchema', () => {
       expect(result.data.keyRequired).toBe(false);
     }
   });
+
+  it('should keep a non-empty observation as-is', () => {
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: '2027-04-01',
+      timeSlot: '09:00-10:00',
+      contact: validContact,
+      observation: 'Gate code 4321',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.observation).toBe('Gate code 4321');
+    }
+  });
+
+  it('should normalize an empty/whitespace observation to undefined on create', () => {
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: '2027-04-01',
+      timeSlot: '09:00-10:00',
+      contact: validContact,
+      observation: '   ',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.observation).toBeUndefined();
+    }
+  });
 });
 
 describe('updateAppointmentSchema', () => {
@@ -239,6 +271,38 @@ describe('updateAppointmentSchema', () => {
       notes: null,
     });
     expect(result.success).toBe(true);
+  });
+
+  it('should keep a non-empty observation as-is', () => {
+    const result = updateAppointmentSchema.safeParse({ observation: 'Key under the mat' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.observation).toBe('Key under the mat');
+    }
+  });
+
+  it('should normalize an empty/whitespace observation to null (explicit clear)', () => {
+    const result = updateAppointmentSchema.safeParse({ observation: '   ' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.observation).toBeNull();
+    }
+  });
+
+  it('should keep an absent observation as undefined (no-op)', () => {
+    const result = updateAppointmentSchema.safeParse({ notes: 'x' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.observation).toBeUndefined();
+    }
+  });
+
+  it('should pass through an explicit null observation', () => {
+    const result = updateAppointmentSchema.safeParse({ observation: null });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.observation).toBeNull();
+    }
   });
 });
 

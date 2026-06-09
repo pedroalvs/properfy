@@ -88,6 +88,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
       ...(data.meetingLocation.trim() ? { meetingLocation: data.meetingLocation.trim() } : {}),
       ...(data.keyLocation.trim() ? { keyLocation: data.keyLocation.trim() } : {}),
       ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
+      ...(data.observation.trim() ? { observation: data.observation.trim() } : {}),
       actorTimezone,
     };
   }
@@ -99,6 +100,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
     meetingLocation: data.meetingLocation.trim() || null,
     keyLocation: data.keyLocation.trim() || null,
     notes: data.notes.trim() || null,
+    observation: data.observation.trim() || null,
     ...(contacts ? { contacts } : { contact }),
     ...(data.restrictionTouched ? { restriction } : {}),
     actorTimezone,

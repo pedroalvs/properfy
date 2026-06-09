@@ -93,6 +93,7 @@ export interface AppointmentDetailOutput {
   tenantPhone: string | null;
   tenantEmail: string | null;
   notes: string | null;
+  observation: string | null;
   restrictionsSummary: string | null;
   contact: {
     tenantName: string;
@@ -237,6 +238,7 @@ export class GetAppointmentDetailUseCase {
       tenantPhone: contact?.primaryPhone ?? null,
       tenantEmail: contact?.effectiveEmail ?? null,
       notes: appointment.notes,
+      observation: appointment.observation,
       restrictionsSummary,
       contact: contact
         ? {

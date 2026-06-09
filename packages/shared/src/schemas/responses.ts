@@ -232,6 +232,7 @@ export const appointmentResponseSchema = z.object({
   pricingRuleSnapshotJson: z.unknown().optional(),
   notes: z.string().nullable(),
   tenantNote: z.string().nullable().optional(),
+  observation: z.string().nullable().optional(),
   hasTenantNote: z.boolean().optional(),
   hasActivePortalToken: z.boolean().default(false),
   customFieldsJson: z.unknown().nullable().optional(),
@@ -297,6 +298,7 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   tenantPhone: z.string().nullable(),
   tenantEmail: z.string().nullable(),
   notes: z.string().nullable(),
+  observation: z.string().nullable(),
   restrictionsSummary: z.string().nullable(),
   contact: z.object({
     tenantName: z.string(),

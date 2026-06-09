@@ -86,6 +86,7 @@ const appointmentData = {
     propertyLatitude: null,
     propertyLongitude: null,
     notes: null,
+    observation: null,
   },
 };
 
@@ -148,5 +149,27 @@ describe('AppointmentDetailPage', () => {
     renderPage();
 
     expect(screen.queryByTestId('overdue-banner')).not.toBeInTheDocument();
+  });
+
+  it('renders the Observation section when an observation is present', () => {
+    mockUseInspectorAppointment.mockReturnValue({
+      data: {
+        data: { ...appointmentData.data, observation: 'Gate code is 4321' },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Observation')).toBeInTheDocument();
+    expect(screen.getByText('Gate code is 4321')).toBeInTheDocument();
+  });
+
+  it('hides the Observation section when observation is empty', () => {
+    renderPage();
+
+    expect(screen.queryByText('Observation')).not.toBeInTheDocument();
   });
 });

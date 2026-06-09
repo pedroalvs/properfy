@@ -270,6 +270,27 @@ describe('PATCH /v1/appointments/:appointmentId', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
+
+  it('accepts observation in the body and serializes it in the response', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockUpdateAppointmentExecute.mockResolvedValueOnce({
+      ...appointmentResult,
+      observation: 'Gate code is 4321',
+    });
+
+    const res = await supertest(app.server)
+      .patch(`/v1/appointments/${APPOINTMENT_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ observation: 'Gate code is 4321' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.observation).toBe('Gate code is 4321');
+    expect(mockUpdateAppointmentExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ observation: 'Gate code is 4321' }),
+      }),
+    );
+  });
 });
 
 describe('POST /v1/appointments/:appointmentId/status-transitions', () => {

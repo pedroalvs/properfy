@@ -67,6 +67,8 @@ export interface AppointmentDetail extends Appointment {
   keyLocation: string | null;
   cancellationReason: string | null;
   tenantNote: string | null;
+  /** Operational free-text note set on direct create/edit (distinct from tenant-portal `notes`/`tenantNote`). */
+  observation: string | null;
   /** True when a tenant_portal_tokens row satisfies status='ACTIVE' AND expires_at > NOW. */
   hasActivePortalToken: boolean;
   /** Tenant (agency) display name — surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
@@ -151,6 +153,7 @@ export interface AppointmentFormData {
   meetingLocation: string;
   keyLocation: string;
   notes: string;
+  observation: string;
   hasRestriction: boolean;
   restrictionIsHome: boolean;
   restrictionNotes: string;
@@ -192,6 +195,7 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
   meetingLocation: '',
   keyLocation: '',
   notes: '',
+  observation: '',
   hasRestriction: false,
   restrictionIsHome: false,
   restrictionNotes: '',

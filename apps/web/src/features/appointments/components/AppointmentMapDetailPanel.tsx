@@ -23,6 +23,7 @@ type SectionKey =
   | 'service'
   | 'restrictions'
   | 'notes'
+  | 'observation'
   | 'history'
   | 'financials';
 
@@ -39,6 +40,7 @@ const SECTIONS: SectionConfig[] = [
   { key: 'service', icon: 'mdi-clipboard-text', label: 'Service type' },
   { key: 'restrictions', icon: 'mdi-alert-octagon-outline', label: 'Restrictions' },
   { key: 'notes', icon: 'mdi-note-text-outline', label: 'Notes' },
+  { key: 'observation', icon: 'mdi-text-box-outline', label: 'Observation' },
   { key: 'history', icon: 'mdi-history', label: 'History' },
   { key: 'financials', icon: 'mdi-cash', label: 'Financials' },
 ];
@@ -317,6 +319,10 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
       return detail?.notes
         ? <p className="whitespace-pre-wrap">{detail.notes}</p>
         : <p className="text-text-muted">No notes.</p>;
+    case 'observation':
+      return detail?.observation
+        ? <p className="whitespace-pre-wrap">{detail.observation}</p>
+        : <p className="text-text-muted">No observation.</p>;
     case 'history':
       return (
         <p>

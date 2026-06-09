@@ -124,6 +124,7 @@ export interface IAppointmentRepository {
       activeConfirmationCycleId: string | null;
       notes: string | null;
       tenantNote: string | null;
+      observation: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
       cancellationReasonCode: CancellationReasonCode | null;

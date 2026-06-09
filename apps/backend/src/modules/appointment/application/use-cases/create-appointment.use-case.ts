@@ -92,6 +92,7 @@ export interface CreateAppointmentInput {
   meetingLocation?: string;
   keyLocation?: string;
   notes?: string;
+  observation?: string;
   customFields?: Record<string, unknown>;
   idempotencyKey?: string;
   actorTimezone?: string;
@@ -116,6 +117,7 @@ export interface CreateAppointmentOutput {
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
+  observation: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
   createdByUserId: string;
@@ -301,6 +303,7 @@ export class CreateAppointmentUseCase {
       payoutAmount,
       pricingRuleSnapshotJson: snapshot as unknown as Record<string, unknown>,
       notes: input.notes ?? null,
+      observation: input.observation ?? null,
       customFieldsJson: input.customFields ?? null,
       reason: null,
       cancellationReasonCode: null,
@@ -523,6 +526,7 @@ export class CreateAppointmentUseCase {
       payoutAmount: appointment.payoutAmount,
       pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,
       notes: appointment.notes,
+      observation: appointment.observation,
       customFieldsJson: appointment.customFieldsJson,
       reason: appointment.reason,
       createdByUserId: appointment.createdByUserId,

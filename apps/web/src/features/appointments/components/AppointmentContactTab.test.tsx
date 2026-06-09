@@ -34,6 +34,7 @@ const MOCK_APPOINTMENT: AppointmentDetail = {
   cancellationReason: null,
   hasTenantNote: false,
   tenantNote: null,
+  observation: null,
   hasActivePortalToken: false,
   restrictions: [
     {
