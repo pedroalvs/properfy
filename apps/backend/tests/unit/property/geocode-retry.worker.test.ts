@@ -17,6 +17,7 @@ import { metrics } from '../../../src/shared/infrastructure/metrics';
 describe('GeocodeRetryWorker', () => {
   const mockPropertyRepo = {
     findFailedGeocoding: vi.fn(),
+    findStalePendingGeocoding: vi.fn(),
     countFailedGeocoding: vi.fn(),
     update: vi.fn(),
     findById: vi.fn(),
@@ -42,6 +43,7 @@ describe('GeocodeRetryWorker', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPropertyRepo.findStalePendingGeocoding.mockResolvedValue([]);
     worker = new GeocodeRetryWorker(mockPropertyRepo as any, mockLogger);
   });
 
@@ -123,6 +125,56 @@ describe('GeocodeRetryWorker', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       { propertyId: 'prop-2', error: expect.any(Error) },
       'Failed to re-enqueue geocoding job',
+    );
+  });
+
+  it('re-enqueues stale PENDING properties whose enqueue was lost (no coordinates)', async () => {
+    mockPropertyRepo.findFailedGeocoding.mockResolvedValue([]);
+    mockPropertyRepo.findStalePendingGeocoding.mockResolvedValue([
+      { id: 'pend-1', tenantId: 'tenant-1' },
+      { id: 'pend-2', tenantId: 'tenant-2' },
+    ]);
+    mockPropertyRepo.countFailedGeocoding.mockResolvedValue(0);
+
+    const result = await worker.execute();
+
+    expect(result.pendingReenqueuedCount).toBe(2);
+    expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'pend-1' }, { retryLimit: 6, retryBackoff: true });
+    expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'pend-2' }, { retryLimit: 6, retryBackoff: true });
+    // Stale PENDING are already PENDING — no status flip needed
+    expect(mockPropertyRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('passes a cutoff a few minutes in the past to findStalePendingGeocoding', async () => {
+    mockPropertyRepo.findFailedGeocoding.mockResolvedValue([]);
+    mockPropertyRepo.findStalePendingGeocoding.mockResolvedValue([]);
+    mockPropertyRepo.countFailedGeocoding.mockResolvedValue(0);
+
+    const before = Date.now();
+    await worker.execute();
+    const after = Date.now();
+
+    const cutoffArg = mockPropertyRepo.findStalePendingGeocoding.mock.calls[0][0] as Date;
+    const tenMin = 10 * 60 * 1000;
+    expect(cutoffArg.getTime()).toBeGreaterThanOrEqual(before - tenMin);
+    expect(cutoffArg.getTime()).toBeLessThanOrEqual(after - tenMin);
+  });
+
+  it('continues processing when a single stale PENDING property fails to re-enqueue', async () => {
+    mockPropertyRepo.findFailedGeocoding.mockResolvedValue([]);
+    mockPropertyRepo.findStalePendingGeocoding.mockResolvedValue([
+      { id: 'pend-1', tenantId: 'tenant-1' },
+      { id: 'pend-2', tenantId: 'tenant-2' },
+    ]);
+    mockPropertyRepo.countFailedGeocoding.mockResolvedValue(0);
+    vi.mocked(sendJob).mockResolvedValueOnce('job-id').mockRejectedValueOnce(new Error('queue down'));
+
+    const result = await worker.execute();
+
+    expect(result.pendingReenqueuedCount).toBe(1);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      { propertyId: 'pend-2', error: expect.any(Error) },
+      'Failed to re-enqueue stale pending geocoding job',
     );
   });
 });

@@ -235,6 +235,19 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     return rows.map((r) => ({ id: r.id, tenantId: r.tenant_id }));
   }
 
+  async findStalePendingGeocoding(updatedBefore: Date): Promise<Array<{ id: string; tenantId: string }>> {
+    const rows = await this.prisma.property.findMany({
+      where: {
+        geocoding_status: 'PENDING',
+        lat: null,
+        updated_at: { lt: updatedBefore },
+        deleted_at: null,
+      },
+      select: { id: true, tenant_id: true },
+    });
+    return rows.map((r) => ({ id: r.id, tenantId: r.tenant_id }));
+  }
+
   async countFailedGeocoding(): Promise<number> {
     return this.prisma.property.count({
       where: {

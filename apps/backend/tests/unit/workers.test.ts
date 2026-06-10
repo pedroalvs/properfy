@@ -39,7 +39,7 @@ describe('registerWorkers', () => {
   const mockCleanupSessionsExecute = vi.fn().mockResolvedValue({ deletedCount: 0 });
   const mockExpireFilesExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
   const mockGeocodeExecute = vi.fn().mockResolvedValue(undefined);
-  const mockGeocodeRetryExecute = vi.fn().mockResolvedValue({ reenqueuedCount: 0, failedGeocodingCount: 0 });
+  const mockGeocodeRetryExecute = vi.fn().mockResolvedValue({ reenqueuedCount: 0, pendingReenqueuedCount: 0, failedGeocodingCount: 0 });
   const mockImportExecute = vi.fn().mockResolvedValue(undefined);
   const mockPropertyImportExecute = vi.fn().mockResolvedValue(undefined);
   const mockGenerateInvoiceFileExecute = vi.fn().mockResolvedValue(undefined);
@@ -144,7 +144,7 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('auth.check-key-expiry', '0 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('report.process-schedules', expect.any(String), {});
-    expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '0 */6 * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '*/15 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('tenant-portal.expire-tokens', '*/15 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {});
@@ -166,6 +166,20 @@ describe('registerWorkers', () => {
     expect(mockLogger.info).toHaveBeenCalledWith(
       { reportId: 'report-123', jobId: 'job-456' },
       'Processing report.generate job',
+    );
+  });
+
+  it('property.geocode-retry handler logs the sweep result including pendingReenqueuedCount', async () => {
+    mockGeocodeRetryExecute.mockResolvedValueOnce({ reenqueuedCount: 2, pendingReenqueuedCount: 3, failedGeocodingCount: 1 });
+    await callRegister();
+
+    const handler = mockWork.mock.calls.find((c: any) => c[0] === 'property.geocode-retry')![1];
+    await handler({ id: 'job-geo', data: {} });
+
+    expect(mockGeocodeRetryExecute).toHaveBeenCalledOnce();
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      { jobId: 'job-geo', reenqueuedCount: 2, pendingReenqueuedCount: 3, failedGeocodingCount: 1 },
+      'Geocode retry sweep completed',
     );
   });
 

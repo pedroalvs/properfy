@@ -4,6 +4,7 @@ import {
   ValidationError,
 } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { IPropertyRepository } from '../../domain/property.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
@@ -57,6 +58,7 @@ export class CreatePropertyUseCase {
     private readonly auditService: AuditService,
     private readonly tenantRepo?: ITenantRepository,
     private readonly authorizationService?: AuthorizationService,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: CreatePropertyInput): Promise<CreatePropertyOutput> {
@@ -139,9 +141,11 @@ export class CreatePropertyUseCase {
 
     await this.propertyRepo.save(property);
 
-    sendJob('property.geocode', { propertyId: id }, { retryLimit: 6, retryBackoff: true }).catch(() => {
-      // Geocoding is async — queue failure does not fail property creation.
-      // The property stays PENDING and can be re-queued later.
+    sendJob('property.geocode', { propertyId: id }, { retryLimit: 6, retryBackoff: true }).catch((err) => {
+      // Geocoding is async — a queue failure must NOT fail property creation. But don't swallow it
+      // silently: log so a lost enqueue is diagnosable. The geocode-retry sweep re-enqueues stale
+      // PENDING properties (no coordinates) as the safety net that eventually heals this.
+      this.logger?.error({ propertyId: id, err }, 'property.geocode_enqueue_failed');
     });
 
     this.auditService.log({
