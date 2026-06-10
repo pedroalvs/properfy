@@ -66,17 +66,11 @@ const envSchema = z.object({
     .min(44, 'APP_CREDENTIAL_ENC_KEY must be at least 44 chars (32 bytes base64) or 64 chars (32 bytes hex)')
     .optional(),
 
-  // Notification unsubscribe token secret (HMAC-SHA256)
-  NOTIFICATION_UNSUBSCRIBE_SECRET: z.string().default('dev-unsubscribe-secret'),
-
   // Feature 020: retention worker batch size (FR-003)
   AUDIT_RETENTION_BATCH_SIZE: z.coerce.number().int().positive().default(1000),
 
-  // Feature 018: public base URL used to build unsubscribe links (e.g., https://api.properfy.com)
-  PUBLIC_BASE_URL: z.string().default('http://localhost:3000'),
-
   // Tenant portal SPA base URL used to build confirmationLink / rescheduleLink in templates
-  // (e.g., https://app.properfy.com). Distinct from PUBLIC_BASE_URL which points to the API host.
+  // (e.g., https://app.properfy.com).
   TENANT_PORTAL_BASE_URL: z.string().default('http://localhost:5173'),
 
   // Optional direct DB URL (migrations)
@@ -154,7 +148,6 @@ export function validateEnv(source: Record<string, string | undefined> = process
 
     for (const [key, value] of [
       ['TENANT_PORTAL_BASE_URL', result.data.TENANT_PORTAL_BASE_URL],
-      ['PUBLIC_BASE_URL', result.data.PUBLIC_BASE_URL],
     ] as [string, string][]) {
       let parsed: URL;
       try {

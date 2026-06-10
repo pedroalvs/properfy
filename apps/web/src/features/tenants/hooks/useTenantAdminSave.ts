@@ -45,11 +45,15 @@ export function useTenantAdminSave(): UseTenantAdminSaveReturn {
   const save = useCallback(async (data: TenantAdminFormData, tenantId?: string): Promise<SaveResult> => {
     setIsSaving(true);
     try {
+      // Settings flags are nested under `settings` (deep-merged server-side into
+      // settings_json); scalar fields stay top-level.
+      const { emailSendingEnabled, ...rest } = data;
+      const body = { ...rest, settings: { emailSendingEnabled } };
       if (tenantId) {
-        const { error } = await api.PATCH(`/v1/tenants/${tenantId}` as any, { body: data as any });
+        const { error } = await api.PATCH(`/v1/tenants/${tenantId}` as any, { body: body as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       } else {
-        const { error } = await api.POST('/v1/tenants' as any, { body: data as any });
+        const { error } = await api.POST('/v1/tenants' as any, { body: body as any });
         if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       }
       queryClient.invalidateQueries({ queryKey: ['tenant-admins'] });

@@ -1,7 +1,7 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { NotificationClassChip } from './NotificationClassChip';
 import { TemplateRowActions } from './TemplateRowActions';
-import type { NotificationTemplate } from '../types';
+import { TEMPLATE_CODE_LABELS, type MandatoryTemplateCode, type NotificationTemplate } from '../types';
 
 const CHANNEL_COLORS: Record<string, string> = {
   EMAIL: 'bg-[#B3E5FC] text-[#01579B]',
@@ -31,7 +31,12 @@ export function TemplateTable({
   const columns: DataTableColumn<NotificationTemplate>[] = [
     {
       key: 'code',
-      label: 'Code',
+      label: 'Type',
+      render: (row) => (
+        <span className="text-sm font-medium text-text-primary">
+          {TEMPLATE_CODE_LABELS[row.code as MandatoryTemplateCode] ?? row.code}
+        </span>
+      ),
     },
     {
       key: 'scope',

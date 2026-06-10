@@ -19,7 +19,7 @@ const mockConsent: ConsentRecord = {
   notificationClass: 'OPERATIONAL',
   optedOut: true,
   optedOutAt: '2026-04-01T00:00:00Z',
-  changeSource: 'unsubscribe_link',
+  changeSource: 'operator_override',
   changedAt: '2026-04-01T00:00:00Z',
   changedByUserId: null,
   reason: null,

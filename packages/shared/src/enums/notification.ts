@@ -22,7 +22,6 @@ export const NotificationClass = {
 export type NotificationClass = (typeof NotificationClass)[keyof typeof NotificationClass];
 
 export const ConsentChangeSource = {
-  unsubscribe_link: 'unsubscribe_link',
   operator_override: 'operator_override',
   re_opt_in: 're_opt_in',
 } as const;

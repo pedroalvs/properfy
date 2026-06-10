@@ -135,8 +135,6 @@ function makeSut() {
     logger,
     metrics: metricsObj,
     getTenantSettings,
-    publicBaseUrl: 'http://test.properfy.local',
-    unsubscribeTokenSecret: 'test-unsubscribe-secret',
   });
 
   return {
@@ -427,7 +425,7 @@ describe('SendNotificationUseCase', () => {
         notificationClass: 'OPERATIONAL',
         optedOut: true,
         optedOutAt: now,
-        changeSource: 'unsubscribe_link',
+        changeSource: 'operator_override',
         changedAt: now,
         changedByUserId: null,
         reason: null,
@@ -506,7 +504,7 @@ describe('SendNotificationUseCase', () => {
         notificationClass,
         optedOut: true,
         optedOutAt: now,
-        changeSource: 'unsubscribe_link',
+        changeSource: 'operator_override',
         changedAt: now,
         changedByUserId: null,
         reason: null,
@@ -604,63 +602,47 @@ describe('SendNotificationUseCase', () => {
       expect(sut.emailProvider.send).toHaveBeenCalled();
     });
 
-    it('OPERATIONAL email renders with an unsubscribeUrl variable injected', async () => {
+    it('skips EMAIL sends when the agency has email sending disabled', async () => {
       const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-        makeNotification({
-          notificationClass: 'OPERATIONAL',
-          payloadJson: { tenantName: 'John', date: '2026-03-20' },
-        }),
-      );
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
-        makeTemplate({
-          subject: 'Reminder for {{tenantName}}',
-          bodyHtml: '<p>Hi {{tenantName}}. Unsubscribe: {{unsubscribeUrl}}</p>',
-          bodyText: 'Hi {{tenantName}}. Unsubscribe: {{unsubscribeUrl}}',
-        }),
-      );
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(null);
-      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+      const notification = makeNotification({ channel: 'EMAIL' });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.getTenantSettings).mockResolvedValue({ emailSendingEnabled: false });
 
       await sut.useCase.execute({ notificationId: 'notif-1' });
 
-      const sendCall = vi.mocked(sut.emailProvider.send).mock.calls[0];
-      // Signature: recipient, subject, bodyHtml, bodyText
-      const bodyHtml = sendCall[2] as string;
-      const bodyText = sendCall[3] as string;
-      // The template renderer HTML-escapes `=` as `&#x3D;` when interpolating URL values.
-      // What matters is that the URL's path prefix survives the render — it's stripped only
-      // if the variable is missing altogether.
-      expect(bodyHtml).toContain('http://test.properfy.local/v1/notifications/unsubscribe');
-      expect(bodyText).toContain('http://test.properfy.local/v1/notifications/unsubscribe');
+      expect(sut.emailProvider.send).not.toHaveBeenCalled();
+      expect(notification.status).toBe('SKIPPED_OPT_OUT');
+      expect(notification.failureReason).toBe('AGENCY_EMAIL_DISABLED');
+      expect(sut.notificationRepo.update).toHaveBeenCalled();
     });
 
-    it('TRANSACTIONAL email does NOT get unsubscribeUrl injected', async () => {
+    it('still sends EMAIL when emailSendingEnabled is absent (default on)', async () => {
       const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-        makeNotification({
-          notificationClass: 'TRANSACTIONAL',
-          templateCode: 'INSPECTION_CONFIRMED',
-          payloadJson: { tenantName: 'John', date: '2026-03-20' },
-        }),
-      );
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
-        makeTemplate({
-          templateCode: 'INSPECTION_CONFIRMED',
-          notificationClass: 'TRANSACTIONAL',
-          subject: 'Confirmed for {{tenantName}}',
-          bodyHtml: '<p>Confirmed {{tenantName}} {{unsubscribeUrl}}</p>',
-          bodyText: 'Confirmed {{tenantName}} {{unsubscribeUrl}}',
-        }),
-      );
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification({ channel: 'EMAIL' }));
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.getTenantSettings).mockResolvedValue({});
       vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
 
       await sut.useCase.execute({ notificationId: 'notif-1' });
 
-      const sendCall = vi.mocked(sut.emailProvider.send).mock.calls[0];
-      const bodyText = sendCall[3] as string;
-      // Unsubscribe URL variable is absent → Handlebars renders as empty string
-      expect(bodyText).not.toContain('http://test.properfy.local');
+      expect(sut.emailProvider.send).toHaveBeenCalled();
+    });
+
+    it('still sends SMS even when agency email sending is disabled', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ channel: 'SMS', recipient: '+5511999999999' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ channel: 'SMS', bodyText: 'Hi {{tenantName}}' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue({ emailSendingEnabled: false });
+      vi.mocked(sut.smsProvider.send).mockResolvedValue({ messageId: 'sms-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.smsProvider.send).toHaveBeenCalled();
     });
   });
 

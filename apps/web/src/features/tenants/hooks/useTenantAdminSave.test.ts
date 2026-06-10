@@ -39,6 +39,7 @@ const VALID_DATA: TenantAdminFormData = {
   timezone: 'America/Sao_Paulo',
   currency: 'AUD',
   notes: '',
+  emailSendingEnabled: true,
 };
 
 beforeEach(() => {
@@ -83,7 +84,31 @@ describe('useTenantAdminSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/tenants', { body: VALID_DATA });
+    // emailSendingEnabled is nested under settings; scalar fields stay top-level.
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants', {
+      body: {
+        name: 'Imob Alpha',
+        legalName: 'Alpha LTDA',
+        timezone: 'America/Sao_Paulo',
+        currency: 'AUD',
+        notes: '',
+        settings: { emailSendingEnabled: true },
+      },
+    });
+  });
+
+  it('nests emailSendingEnabled under settings when disabled', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_DATA, emailSendingEnabled: false }, 'ten-01');
+    });
+
+    expect(mockPatch).toHaveBeenCalledWith(
+      '/v1/tenants/ten-01',
+      expect.objectContaining({ body: expect.objectContaining({ settings: { emailSendingEnabled: false } }) }),
+    );
   });
 
   it('save returns success on edit', async () => {
@@ -96,7 +121,10 @@ describe('useTenantAdminSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/ten-01', { body: VALID_DATA });
+    expect(mockPatch).toHaveBeenCalledWith(
+      '/v1/tenants/ten-01',
+      expect.objectContaining({ body: expect.objectContaining({ settings: { emailSendingEnabled: true } }) }),
+    );
   });
 
   it('save returns failure on API error', async () => {

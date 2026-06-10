@@ -144,14 +144,15 @@ describe('NotificationTemplateListPage', () => {
   it('renders data table with template data after loading', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('INSPECTION_NOTICE')).toBeInTheDocument();
+      expect(screen.getByText('Inspection Notice')).toBeInTheDocument();
     });
+    // REMINDER_7D is not a known code → falls back to the raw code string.
     expect(screen.getByText('REMINDER_7D')).toBeInTheDocument();
   });
 
   it('renders table column headers', () => {
     renderPage();
-    expect(screen.getByText('Code')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
     expect(screen.getAllByText('Channel').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Subject').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Active')).toBeInTheDocument();

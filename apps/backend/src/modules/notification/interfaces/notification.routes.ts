@@ -22,13 +22,8 @@ import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware
 import { ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { SendNotificationUseCase } from '../application/use-cases/send-notification.use-case';
-import type { ProcessUnsubscribeUseCase } from '../application/use-cases/process-unsubscribe.use-case';
-import { InvalidUnsubscribeTokenError } from '../application/use-cases/process-unsubscribe.use-case';
-import type { RenderUnsubscribePageUseCase } from '../application/use-cases/render-unsubscribe-page.use-case';
 import type { ListConsentsByRecipientUseCase } from '../application/use-cases/list-consents-by-recipient.use-case';
 import type { OverrideConsentUseCase } from '../application/use-cases/override-consent.use-case';
-import type { ReOptInUseCase } from '../application/use-cases/re-opt-in.use-case';
-import { renderUnsubscribePageHtml } from './unsubscribe-page.renderer';
 import type { RetryNotificationUseCase } from '../application/use-cases/retry-notification.use-case';
 import type { HandleProviderWebhookUseCase } from '../application/use-cases/handle-provider-webhook.use-case';
 import type { ListNotificationsUseCase } from '../application/use-cases/list-notifications.use-case';
@@ -83,11 +78,8 @@ export interface NotificationRouteContainer {
   pollRetryableNotificationsUseCase: PollRetryableNotificationsUseCase;
   dispatchRemindersUseCase: DispatchRemindersUseCase;
   dispatchEscalationsUseCase: DispatchEscalationsUseCase;
-  processUnsubscribeUseCase: ProcessUnsubscribeUseCase;
-  renderUnsubscribePageUseCase: RenderUnsubscribePageUseCase;
   listConsentsByRecipientUseCase: ListConsentsByRecipientUseCase;
   overrideConsentUseCase: OverrideConsentUseCase;
-  reOptInUseCase: ReOptInUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
   webhookSignatureValidator: WebhookSignatureValidator;
@@ -271,149 +263,6 @@ export async function registerNotificationRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(paginated(result.data, result.data.length, 1, result.data.length || 10));
-    },
-  );
-
-  // GET /v1/notifications/unsubscribe (public, no auth)
-  // Renders the HTML confirmation page for the recipient to click "Confirm".
-  // Always returns 200 to prevent information leakage via status probing.
-  app.get(
-    '/v1/notifications/unsubscribe',
-    async (request, reply) => {
-      const query = request.query as { token?: string } | undefined;
-      const token = typeof query?.token === 'string' ? query.token : '';
-
-      const result = container.renderUnsubscribePageUseCase.execute({ token });
-
-      let html: string;
-      if (result.ok) {
-        html = renderUnsubscribePageHtml({
-          state: 'confirm',
-          recipient: result.recipient,
-          channel: result.channel,
-          token,
-        });
-      } else if (result.reason === 'expired') {
-        html = renderUnsubscribePageHtml({ state: 'expired' });
-      } else {
-        html = renderUnsubscribePageHtml({ state: 'invalid' });
-      }
-
-      return reply.status(200).header('content-type', 'text/html; charset=utf-8').send(html);
-    },
-  );
-
-  // POST /v1/notifications/unsubscribe (public, no auth required)
-  // Accepts both application/json (API clients) and application/x-www-form-urlencoded
-  // (HTML form submissions from the GET confirmation page).
-  app.post(
-    '/v1/notifications/unsubscribe',
-    async (request, reply) => {
-      const isFormSubmission = (request.headers['content-type'] ?? '').includes(
-        'application/x-www-form-urlencoded',
-      );
-      const bodyParsed = z.object({ token: z.string() }).safeParse(request.body);
-
-      if (!bodyParsed.success) {
-        if (isFormSubmission) {
-          const html = renderUnsubscribePageHtml({ state: 'invalid' });
-          return reply.status(200).header('content-type', 'text/html; charset=utf-8').send(html);
-        }
-        return reply.status(400).send({
-          error: { code: 'VALIDATION_ERROR', message: 'token is required' },
-        });
-      }
-      const body = bodyParsed.data;
-
-      try {
-        const result = await container.processUnsubscribeUseCase.execute({
-          token: body.token,
-          requestId: request.id,
-          ipAddress: request.ip,
-        });
-
-        if (isFormSubmission) {
-          const html = renderUnsubscribePageHtml({
-            state: 'success',
-            recipient: result.recipient,
-            channel: result.channel,
-            token: body.token, // allow the page to render a re-opt-in link
-          });
-          return reply.status(200).header('content-type', 'text/html; charset=utf-8').send(html);
-        }
-
-        return reply.status(200).send({
-          data: {
-            message: 'Successfully unsubscribed',
-            recipient: result.recipient,
-            channel: result.channel,
-            notificationClass: result.notificationClass,
-          },
-        });
-      } catch (error) {
-        if (isFormSubmission && error instanceof InvalidUnsubscribeTokenError) {
-          const state = error.reason === 'expired' ? 'expired' : 'invalid';
-          const html = renderUnsubscribePageHtml({ state });
-          return reply.status(200).header('content-type', 'text/html; charset=utf-8').send(html);
-        }
-        throw error;
-      }
-    },
-  );
-
-  // Feature 018 US6: POST /v1/notifications/re-opt-in (public, no auth required)
-  // Flips a previously opted-out consent back to opted-in via the same token flow.
-  app.post(
-    '/v1/notifications/re-opt-in',
-    async (request, reply) => {
-      const body = request.body as { token?: string } | undefined;
-      const isFormSubmission = (request.headers['content-type'] ?? '').includes(
-        'application/x-www-form-urlencoded',
-      );
-
-      if (!body?.token || typeof body.token !== 'string') {
-        if (isFormSubmission) {
-          const html = renderUnsubscribePageHtml({ state: 'invalid' });
-          return reply.status(200).header('content-type', 'text/html; charset=utf-8').send(html);
-        }
-        return reply.status(400).send({
-          error: { code: 'VALIDATION_ERROR', message: 'token is required' },
-        });
-      }
-
-      try {
-        const result = await container.reOptInUseCase.execute({
-          token: body.token,
-          requestId: request.id,
-          ipAddress: request.ip,
-        });
-
-        if (isFormSubmission) {
-          // Render the success page (generic — reuses the unsubscribe success template shape)
-          const html = renderUnsubscribePageHtml({
-            state: 'success',
-            recipient: result.recipient,
-            channel: result.channel,
-          });
-          return reply.status(200).header('content-type', 'text/html; charset=utf-8').send(html);
-        }
-
-        return reply.status(200).send({
-          data: {
-            message: 'Successfully re-subscribed',
-            recipient: result.recipient,
-            channel: result.channel,
-            notificationClass: result.notificationClass,
-          },
-        });
-      } catch (error) {
-        if (isFormSubmission && error instanceof InvalidUnsubscribeTokenError) {
-          const state = error.reason === 'expired' ? 'expired' : 'invalid';
-          const html = renderUnsubscribePageHtml({ state });
-          return reply.status(200).header('content-type', 'text/html; charset=utf-8').send(html);
-        }
-        throw error;
-      }
     },
   );
 

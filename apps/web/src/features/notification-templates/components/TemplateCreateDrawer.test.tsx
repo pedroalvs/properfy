@@ -109,12 +109,12 @@ beforeEach(() => {
 });
 
 describe('TemplateCreateDrawer', () => {
-  it('renders the code dropdown with all 20 mandatory codes', async () => {
+  it('renders the code dropdown with all mandatory codes', async () => {
     const user = userEvent.setup();
     renderDrawer();
     await user.click(screen.getByRole('button', { name: 'Template type' }));
     const listbox = screen.getByRole('listbox', { name: 'Template type' });
-    expect(within(listbox).getAllByRole('option')).toHaveLength(20);
+    expect(within(listbox).getAllByRole('option')).toHaveLength(21);
   });
 
   it('shows the agency selector for global roles', () => {

@@ -5,7 +5,7 @@ import { paginationSchema } from './pagination';
 export const notificationClassSchema = z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']);
 export type NotificationClassInput = z.infer<typeof notificationClassSchema>;
 
-export const consentChangeSourceSchema = z.enum(['unsubscribe_link', 'operator_override', 're_opt_in']);
+export const consentChangeSourceSchema = z.enum(['operator_override', 're_opt_in']);
 export type ConsentChangeSourceInput = z.infer<typeof consentChangeSourceSchema>;
 
 export const listNotificationsQuerySchema = paginationSchema.extend({

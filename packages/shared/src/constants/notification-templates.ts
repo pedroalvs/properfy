@@ -25,6 +25,7 @@ export const MANDATORY_TEMPLATE_CODES = [
   'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
   'REPORT_READY',
   'REPORT_FAILED',
+  'TENANT_PORTAL_LINK',
 ] as const;
 
 export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
@@ -54,6 +55,7 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'Unavailability Reported (SMS)',
   REPORT_READY: 'Report Ready',
   REPORT_FAILED: 'Report Failed',
+  TENANT_PORTAL_LINK: 'Tenant Portal Link',
 };
 
 // ---------------------------------------------------------------------------
@@ -93,6 +95,7 @@ export const DEFAULT_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClass>
   TENANT_SMS_ALERT: 'OPERATIONAL',
   REPORT_READY: 'OPERATIONAL',
   REPORT_FAILED: 'OPERATIONAL',
+  TENANT_PORTAL_LINK: 'OPERATIONAL',
 };
 
 export function isProtectedTemplateCode(templateCode: string): boolean {
@@ -123,7 +126,7 @@ export interface TemplateVariableSpec {
 export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableSpec> = {
   INSPECTION_NOTICE: {
     required: ['tenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'confirmationLink', 'rescheduleLink', 'unsubscribeUrl'],
+    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'confirmationLink', 'rescheduleLink'],
   },
   INSPECTION_NOTICE_SMS: {
     required: ['tenantName', 'scheduledDate'],
@@ -131,15 +134,15 @@ export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableS
   },
   REMINDER_7_DAYS: {
     required: ['tenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'unsubscribeUrl'],
+    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone'],
   },
   REMINDER_5_DAYS: {
     required: ['tenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'unsubscribeUrl'],
+    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone'],
   },
   REMINDER_3_DAYS: {
     required: ['tenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'unsubscribeUrl'],
+    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone'],
   },
   REMINDER_7_DAYS_SMS: {
     required: ['tenantName', 'scheduledDate'],
@@ -155,7 +158,7 @@ export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableS
   },
   PROPERTY_MANAGER_ESCALATION: {
     required: ['tenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['branchName', 'appointmentCode', 'agencyName', 'unsubscribeUrl'],
+    optional: ['branchName', 'appointmentCode', 'agencyName'],
   },
   TENANT_SMS_ALERT: {
     required: ['tenantName', 'propertyAddress', 'scheduledDate'],
@@ -171,7 +174,7 @@ export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableS
   },
   INSPECTION_RESCHEDULED: {
     required: ['tenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'unsubscribeUrl'],
+    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode'],
   },
   INSPECTION_RESCHEDULED_SMS: {
     required: ['tenantName', 'scheduledDate'],
@@ -195,11 +198,15 @@ export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableS
   },
   REPORT_READY: {
     required: ['userName', 'reportType', 'downloadLink'],
-    optional: ['unsubscribeUrl'],
+    optional: [],
   },
   REPORT_FAILED: {
     required: ['userName', 'reportType', 'errorMessage', 'downloadLink'],
-    optional: ['unsubscribeUrl'],
+    optional: [],
+  },
+  TENANT_PORTAL_LINK: {
+    required: ['tenantName', 'scheduledDate', 'confirmationLink'],
+    optional: ['rescheduleLink'],
   },
 };
 
@@ -218,7 +225,6 @@ export const ALLOWED_VARIABLES = [
   'appointmentCode',
   'confirmationLink',
   'rescheduleLink',
-  'unsubscribeUrl',
   'branchName',
   'userName',
   'reportType',
@@ -269,7 +275,6 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   agencyName: 'ABC Realty',
   agencyPhone: '+61 2 9876 5432',
   appointmentCode: 'INS-0042',
-  unsubscribeUrl: 'https://app.properfy.com/notifications/unsubscribe?token=xyz',
   branchName: 'Sydney CBD Branch',
   userName: 'Admin User',
   reportType: 'Monthly Report',

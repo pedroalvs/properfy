@@ -46,7 +46,7 @@ function makeTemplate(overrides: Partial<NotificationTemplate> = {}): Notificati
 describe('TemplateTable', () => {
   it('renders column headers', () => {
     render(<TemplateTable data={[]} />);
-    expect(screen.getByText('Code')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
     expect(screen.getByText('Scope')).toBeInTheDocument();
     expect(screen.getByText('Agency')).toBeInTheDocument();
     expect(screen.getByText('Channel')).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('TemplateTable', () => {
   it('renders template data', () => {
     const template = makeTemplate();
     render(<TemplateTable data={[template]} />);
-    expect(screen.getByText('INSPECTION_NOTICE')).toBeInTheDocument();
+    expect(screen.getByText('Inspection Notice')).toBeInTheDocument();
     expect(screen.getByText('Platform Default')).toBeInTheDocument();
     expect(screen.getByText('Inspection Scheduled')).toBeInTheDocument();
   });

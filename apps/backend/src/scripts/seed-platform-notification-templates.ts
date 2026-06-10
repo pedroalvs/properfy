@@ -2,44 +2,37 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Shared unsubscribe footer used by operational (non-transactional) email templates.
-// Transactional templates (INSPECTION_CONFIRMED, INSPECTION_RESCHEDULED, etc.) and all SMS
-// templates intentionally omit it — transactional notifications cannot be opted out of,
-// and SMS unsubscribe is handled via the STOP keyword.
-const OP_EMAIL_FOOTER =
-  ' If you no longer wish to receive operational notifications, you can unsubscribe here: {{unsubscribeUrl}}';
-
 const PLATFORM_TEMPLATES = [
   // ── EMAIL templates ────────────────────────────────────────────────────────
   {
     code: 'INSPECTION_NOTICE',
     channel: 'EMAIL' as const,
     subject: 'Upcoming Property Inspection',
-    body: `Dear {{tenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} between {{timeSlot}}. Confirm or reschedule: {{confirmationLink}}.${OP_EMAIL_FOOTER}`,
+    body: `Dear {{tenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} between {{timeSlot}}. Confirm or reschedule: {{confirmationLink}}.`,
   },
   {
     code: 'REMINDER_7_DAYS',
     channel: 'EMAIL' as const,
     subject: 'Inspection Reminder - 7 Days',
-    body: `Dear {{tenantName}}, this is a reminder that your property inspection at {{propertyAddress}} is in 7 days on {{scheduledDate}}.${OP_EMAIL_FOOTER}`,
+    body: `Dear {{tenantName}}, this is a reminder that your property inspection at {{propertyAddress}} is in 7 days on {{scheduledDate}}.`,
   },
   {
     code: 'REMINDER_5_DAYS',
     channel: 'EMAIL' as const,
     subject: 'Inspection Reminder - 5 Days',
-    body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 5 days on {{scheduledDate}}.${OP_EMAIL_FOOTER}`,
+    body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 5 days on {{scheduledDate}}.`,
   },
   {
     code: 'REMINDER_3_DAYS',
     channel: 'EMAIL' as const,
     subject: 'Inspection Reminder - 3 Days',
-    body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 3 days on {{scheduledDate}}.${OP_EMAIL_FOOTER}`,
+    body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 3 days on {{scheduledDate}}.`,
   },
   {
     code: 'PROPERTY_MANAGER_ESCALATION',
     channel: 'EMAIL' as const,
     subject: 'Tenant Not Responding - Escalation',
-    body: `The tenant {{tenantName}} at {{propertyAddress}} has not responded to the inspection notice for {{scheduledDate}}. Please follow up.${OP_EMAIL_FOOTER}`,
+    body: `The tenant {{tenantName}} at {{propertyAddress}} has not responded to the inspection notice for {{scheduledDate}}. Please follow up.`,
   },
   {
     code: 'INSPECTION_CONFIRMED',
@@ -69,13 +62,13 @@ const PLATFORM_TEMPLATES = [
     code: 'REPORT_READY',
     channel: 'EMAIL' as const,
     subject: 'Your report "{{reportType}}" is ready',
-    body: `Hi {{userName}}, your {{reportType}} report is ready. View and download it at {{downloadLink}}. The file is available for 30 days.${OP_EMAIL_FOOTER}`,
+    body: `Hi {{userName}}, your {{reportType}} report is ready. View and download it at {{downloadLink}}. The file is available for 30 days.`,
   },
   {
     code: 'REPORT_FAILED',
     channel: 'EMAIL' as const,
     subject: 'Your report "{{reportType}}" failed',
-    body: `Hi {{userName}}, your {{reportType}} report could not be generated. Reason: {{errorMessage}}. You can retry from the reports page: {{downloadLink}}.${OP_EMAIL_FOOTER}`,
+    body: `Hi {{userName}}, your {{reportType}} report could not be generated. Reason: {{errorMessage}}. You can retry from the reports page: {{downloadLink}}.`,
   },
   // ── SMS templates ─────────────────────────────────────────────────────────
   {
@@ -137,7 +130,7 @@ const PLATFORM_TEMPLATES = [
     code: 'TENANT_PORTAL_LINK',
     channel: 'EMAIL' as const,
     subject: 'Your property inspection portal',
-    body: `Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on {{scheduledDate}} using this secure link: {{confirmationLink}}.${OP_EMAIL_FOOTER}`,
+    body: `Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on {{scheduledDate}} using this secure link: {{confirmationLink}}.`,
   },
   {
     code: 'TENANT_PORTAL_LINK',
