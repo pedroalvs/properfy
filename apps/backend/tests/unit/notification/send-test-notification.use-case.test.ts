@@ -63,7 +63,9 @@ describe('SendTestNotificationUseCase', () => {
     templateRepo = {
       findByTenantCodeChannel: vi.fn().mockResolvedValue(makeTemplate()),
       findAll: vi.fn(),
+      findById: vi.fn(),
       upsert: vi.fn(),
+      delete: vi.fn(),
     };
 
     templateRenderer = {

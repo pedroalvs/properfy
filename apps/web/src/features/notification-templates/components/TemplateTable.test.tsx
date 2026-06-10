@@ -1,8 +1,29 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { TemplateTable } from './TemplateTable';
 import type { NotificationTemplate } from '../types';
+
+// Rows mount TemplateRowActions, which uses React Query + Snackbar.
+function AllProviders({ children }: { children: React.ReactNode }) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+  });
+  return (
+    <QueryClientProvider client={queryClient}>
+      <SnackbarProvider>
+        <MemoryRouter>{children}</MemoryRouter>
+      </SnackbarProvider>
+    </QueryClientProvider>
+  );
+}
+
+function render(ui: React.ReactElement) {
+  return rtlRender(ui, { wrapper: AllProviders });
+}
 
 function makeTemplate(overrides: Partial<NotificationTemplate> = {}): NotificationTemplate {
   return {

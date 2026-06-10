@@ -1,6 +1,6 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
-import { RowActions } from '@/components/data/RowActions';
 import { NotificationClassChip } from './NotificationClassChip';
+import { TemplateRowActions } from './TemplateRowActions';
 import type { NotificationTemplate } from '../types';
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -14,6 +14,9 @@ interface TemplateTableProps {
   error?: string;
   onRetryError?: () => void;
   onEdit?: (template: NotificationTemplate) => void;
+  onDeleted?: () => void;
+  /** AM/OP only — enables the delete action on agency overrides. */
+  canDelete?: boolean;
 }
 
 export function TemplateTable({
@@ -22,6 +25,8 @@ export function TemplateTable({
   error,
   onRetryError,
   onEdit,
+  onDeleted,
+  canDelete,
 }: TemplateTableProps) {
   const columns: DataTableColumn<NotificationTemplate>[] = [
     {
@@ -87,16 +92,13 @@ export function TemplateTable({
     {
       key: 'actions',
       label: '',
-      width: '60px',
+      width: '96px',
       render: (row) => (
-        <RowActions
-          actions={[
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
-            },
-          ]}
+        <TemplateRowActions
+          template={row}
+          onEdit={onEdit}
+          onDeleted={onDeleted}
+          canDelete={canDelete}
         />
       ),
     },

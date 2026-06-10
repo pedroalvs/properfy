@@ -29,6 +29,33 @@ export const MANDATORY_TEMPLATE_CODES = [
 
 export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
 
+/**
+ * Human-readable labels for each mandatory template code. Single source of truth
+ * for code dropdowns in the UI (e.g. the "create custom template" form).
+ */
+export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
+  INSPECTION_NOTICE: 'Inspection Notice',
+  INSPECTION_NOTICE_SMS: 'Inspection Notice (SMS)',
+  REMINDER_7_DAYS: 'Reminder – 7 Days',
+  REMINDER_5_DAYS: 'Reminder – 5 Days',
+  REMINDER_3_DAYS: 'Reminder – 3 Days',
+  REMINDER_7_DAYS_SMS: 'Reminder – 7 Days (SMS)',
+  REMINDER_5_DAYS_SMS: 'Reminder – 5 Days (SMS)',
+  REMINDER_3_DAYS_SMS: 'Reminder – 3 Days (SMS)',
+  PROPERTY_MANAGER_ESCALATION: 'Property Manager Escalation',
+  TENANT_SMS_ALERT: 'Tenant SMS Alert',
+  INSPECTION_CONFIRMED: 'Inspection Confirmed',
+  INSPECTION_CONFIRMED_SMS: 'Inspection Confirmed (SMS)',
+  INSPECTION_RESCHEDULED: 'Inspection Rescheduled',
+  INSPECTION_RESCHEDULED_SMS: 'Inspection Rescheduled (SMS)',
+  INSPECTION_CANCELLED: 'Inspection Cancelled',
+  INSPECTION_CANCELLED_SMS: 'Inspection Cancelled (SMS)',
+  INSPECTION_UNAVAILABILITY_REPORTED: 'Unavailability Reported',
+  INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'Unavailability Reported (SMS)',
+  REPORT_READY: 'Report Ready',
+  REPORT_FAILED: 'Report Failed',
+};
+
 // ---------------------------------------------------------------------------
 // Classification
 // ---------------------------------------------------------------------------

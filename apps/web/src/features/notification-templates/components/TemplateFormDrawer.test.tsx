@@ -177,6 +177,31 @@ describe('TemplateFormDrawer', () => {
     });
   });
 
+  it('sends the override tenantId when editing an agency override', async () => {
+    const user = userEvent.setup();
+    renderDrawer({ ...MOCK_TEMPLATE, tenantId: 'agency-1', tenantName: 'Acme Realty' });
+
+    await user.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      expect(mockPut).toHaveBeenCalledWith(
+        '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
+        expect.objectContaining({ body: expect.objectContaining({ tenantId: 'agency-1' }) }),
+      );
+    });
+  });
+
+  it('omits tenantId when editing a platform default', async () => {
+    const user = userEvent.setup();
+    renderDrawer(MOCK_TEMPLATE); // tenantId: null
+
+    await user.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(mockPut).toHaveBeenCalled());
+    const body = mockPut.mock.calls[0]![1].body as Record<string, unknown>;
+    expect(body.tenantId).toBeUndefined();
+  });
+
   it('shows cancel and save buttons', () => {
     renderDrawer();
     expect(screen.getByText('Cancel')).toBeInTheDocument();

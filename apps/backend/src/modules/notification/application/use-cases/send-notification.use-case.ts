@@ -133,7 +133,9 @@ export class SendNotificationUseCase {
       notification.templateCode,
       notification.channel,
     );
-    if (!template) {
+    // The tenant override is only honored when active; an inactive override
+    // falls through to the platform default (used as-is, regardless of its flag).
+    if (!template || !template.isActive()) {
       template = await this.templateRepo.findByTenantCodeChannel(
         null,
         notification.templateCode,

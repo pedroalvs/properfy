@@ -286,6 +286,7 @@ import { HandleProviderWebhookUseCase } from '../modules/notification/applicatio
 import { ListNotificationsUseCase } from '../modules/notification/application/use-cases/list-notifications.use-case';
 import { GetNotificationUseCase } from '../modules/notification/application/use-cases/get-notification.use-case';
 import { UpsertNotificationTemplateUseCase } from '../modules/notification/application/use-cases/upsert-notification-template.use-case';
+import { DeleteNotificationTemplateUseCase } from '../modules/notification/application/use-cases/delete-notification-template.use-case';
 import { SendTestNotificationUseCase } from '../modules/notification/application/use-cases/send-test-notification.use-case';
 import { ListNotificationTemplatesUseCase } from '../modules/notification/application/use-cases/list-notification-templates.use-case';
 import { CreateNotificationUseCase } from '../modules/notification/application/use-cases/create-notification.use-case';
@@ -1128,6 +1129,9 @@ export function createContainer(logger: Logger): AppContainer {
     notificationTemplateRepo, templateRenderer, auditService, authorizationService,
     htmlSanitizer, htmlToText, emailAssetRepo, templateImageBindingRepo,
   );
+  const deleteNotificationTemplateUseCase = new DeleteNotificationTemplateUseCase(
+    notificationTemplateRepo, authorizationService, auditService,
+  );
   const renderTemplatePreviewUseCase = new RenderTemplatePreviewUseCase(
     templateRenderer, htmlSanitizer, authorizationService,
     emailAssetRepo, env.EMAIL_ASSETS_PUBLIC_URL_BASE,
@@ -1581,6 +1585,7 @@ export function createContainer(logger: Logger): AppContainer {
       listNotificationsUseCase,
       getNotificationUseCase,
       upsertNotificationTemplateUseCase,
+      deleteNotificationTemplateUseCase,
       renderTemplatePreviewUseCase,
       requestImageUploadUseCase: requestImageUploadUseCase as NonNullable<typeof requestImageUploadUseCase>,
       confirmImageUploadUseCase: confirmImageUploadUseCase as NonNullable<typeof confirmImageUploadUseCase>,

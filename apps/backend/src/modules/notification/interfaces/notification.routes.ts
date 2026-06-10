@@ -34,6 +34,7 @@ import type { HandleProviderWebhookUseCase } from '../application/use-cases/hand
 import type { ListNotificationsUseCase } from '../application/use-cases/list-notifications.use-case';
 import type { GetNotificationUseCase } from '../application/use-cases/get-notification.use-case';
 import type { UpsertNotificationTemplateUseCase } from '../application/use-cases/upsert-notification-template.use-case';
+import type { DeleteNotificationTemplateUseCase } from '../application/use-cases/delete-notification-template.use-case';
 import type { RenderTemplatePreviewUseCase } from '../application/use-cases/render-template-preview.use-case';
 import type { RequestImageUploadUseCase } from '../application/use-cases/request-image-upload.use-case';
 import type { ConfirmImageUploadUseCase } from '../application/use-cases/confirm-image-upload.use-case';
@@ -69,6 +70,7 @@ export interface NotificationRouteContainer {
   listNotificationsUseCase: ListNotificationsUseCase;
   getNotificationUseCase: GetNotificationUseCase;
   upsertNotificationTemplateUseCase: UpsertNotificationTemplateUseCase;
+  deleteNotificationTemplateUseCase: DeleteNotificationTemplateUseCase;
   renderTemplatePreviewUseCase: RenderTemplatePreviewUseCase;
   requestImageUploadUseCase: RequestImageUploadUseCase;
   confirmImageUploadUseCase: ConfirmImageUploadUseCase;
@@ -534,6 +536,23 @@ export async function registerNotificationRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // DELETE /v1/notification-templates/:templateId — hard-delete a tenant override (AM/OP)
+  app.delete(
+    '/v1/notification-templates/:templateId',
+    { preHandler: authenticate, schema: { params: z.object({ templateId: z.string().uuid() }), response: { 204: z.null() } } },
+    async (request, reply) => {
+      const params = z.object({ templateId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid template id', params.error.errors);
+      }
+      await container.deleteNotificationTemplateUseCase.execute({
+        templateId: params.data.templateId,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
     },
   );
 

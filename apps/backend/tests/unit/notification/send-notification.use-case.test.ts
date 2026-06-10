@@ -84,7 +84,9 @@ function makeSut() {
   const templateRepo: INotificationTemplateRepository = {
     findByTenantCodeChannel: vi.fn(),
     findAll: vi.fn(),
+    findById: vi.fn(),
     upsert: vi.fn(),
+    delete: vi.fn(),
   };
   const consentRepo: INotificationConsentRepository = {
     findByRecipientChannelTenant: vi.fn().mockResolvedValue(null),
@@ -225,6 +227,75 @@ describe('SendNotificationUseCase', () => {
 
     expect(emailProvider.send).toHaveBeenCalled();
     expect(notificationRepo.update).toHaveBeenCalled();
+  });
+
+  it('should fall back to platform default when the tenant override is inactive', async () => {
+    const notification = makeNotification();
+    const inactiveOverride = makeTemplate({
+      tenantId: 'tenant-1',
+      isActive: false,
+      subject: 'Override for {{tenantName}}',
+      bodyHtml: '<p>Override {{tenantName}}</p>',
+      bodyText: 'Override {{tenantName}}',
+    });
+    const defaultTemplate = makeTemplate({ tenantId: null });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel)
+      .mockResolvedValueOnce(inactiveOverride) // tenant override exists but inactive
+      .mockResolvedValueOnce(defaultTemplate); // platform default
+    vi.mocked(emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+    await useCase.execute({ notificationId: 'notif-1' });
+
+    expect(templateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(2);
+    // Renders the PLATFORM DEFAULT, not the inactive override.
+    expect(emailProvider.send).toHaveBeenCalledWith(
+      'user@example.com',
+      'Inspection for John',
+      '<p>Hello John, your inspection is on 2026-03-20</p>',
+      'Hello John, your inspection is on 2026-03-20',
+    );
+  });
+
+  it('should use the tenant override when it is active (single lookup)', async () => {
+    const notification = makeNotification();
+    const activeOverride = makeTemplate({
+      tenantId: 'tenant-1',
+      isActive: true,
+      subject: 'Override for {{tenantName}}',
+      bodyHtml: '<p>Override {{tenantName}}</p>',
+      bodyText: 'Override {{tenantName}}',
+    });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValueOnce(activeOverride);
+    vi.mocked(emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+    await useCase.execute({ notificationId: 'notif-1' });
+
+    expect(templateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(1);
+    expect(emailProvider.send).toHaveBeenCalledWith(
+      'user@example.com',
+      'Override for John',
+      '<p>Override John</p>',
+      'Override John',
+    );
+  });
+
+  it('should throw TemplateNotFoundError when override is inactive and no platform default exists', async () => {
+    const notification = makeNotification();
+    const inactiveOverride = makeTemplate({ tenantId: 'tenant-1', isActive: false });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel)
+      .mockResolvedValueOnce(inactiveOverride)
+      .mockResolvedValueOnce(null);
+
+    await expect(useCase.execute({ notificationId: 'notif-1' })).rejects.toThrow(
+      TemplateNotFoundError,
+    );
+    expect(templateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(2);
   });
 
   it('should render template and send email via email provider', async () => {

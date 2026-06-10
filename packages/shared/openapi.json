@@ -25787,6 +25787,26 @@
         }
       }
     },
+    "/v1/notification-templates/{templateId}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "templateId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/v1/notification-templates/{templateCode}/{channel}/preview": {
       "post": {
         "requestBody": {
