@@ -90,7 +90,15 @@ export async function registerWorkers(
   await boss.work('notification.retry-poll', withJobMetrics('notification.retry-poll', async (job) => {
     logger.info({ jobId: job.id }, 'Processing notification.retry-poll job');
     const result = await pollRetryableNotificationsUseCase.execute();
-    logger.info({ jobId: job.id, enqueuedCount: result.enqueuedCount }, 'Retry poll completed');
+    logger.info(
+      {
+        jobId: job.id,
+        enqueuedCount: result.enqueuedCount,
+        stuckReenqueuedCount: result.stuckReenqueuedCount,
+        stuckFailedCount: result.stuckFailedCount,
+      },
+      'Retry poll completed',
+    );
   }));
 
   await boss.schedule('notification.dispatch-reminders', '0 8 * * *', {});

@@ -521,12 +521,16 @@ export const portalDataResponseSchema = z.object({
  * `reason: 'NO_PRIMARY_CONTACT'`. Without these fields in the schema,
  * Fastify's whitelist serialiser silently strips them and API consumers
  * cannot distinguish SUCCESS from a primary-less skip.
+ *
+ * `DISPATCH_FAILED` — the token was minted but every attempted notification
+ * (EMAIL/SMS) failed to be created/enqueued; the UI must not claim the email
+ * was sent.
  */
 export const portalTokenResponseSchema = z.object({
   token: z.string(),
   expiresAt: dateStr(),
   dispatched: z.boolean().optional(),
-  reason: z.literal('NO_PRIMARY_CONTACT').optional(),
+  reason: z.enum(['NO_PRIMARY_CONTACT', 'DISPATCH_FAILED']).optional(),
 });
 
 export const portalActivityItemSchema = z.object({

@@ -393,6 +393,75 @@ describe('AppointmentDetailPage', () => {
 
 import { api } from '@/services/api';
 
+// The portal-token endpoint reports whether the notification actually went
+// out (dispatched/reason); the toast must not claim "Email sent" otherwise.
+describe('AppointmentDetailPage — Send Portal Link dispatch feedback', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+  });
+
+  function mockPortalTokenResponse(payload: Record<string, unknown>) {
+    vi.mocked(api.POST).mockResolvedValueOnce({
+      data: { data: { token: 'tok', expiresAt: '2026-06-15T19:00:00Z', ...payload } },
+      error: undefined,
+      response: { status: 201 } as Response,
+    } as never);
+  }
+
+  it('shows success toast when the email was dispatched', async () => {
+    mockPortalTokenResponse({ dispatched: true });
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('send-portal-link-button'));
+    await screen.findByText('Email sent to tenant');
+  });
+
+  it('warns when no primary contact prevented the dispatch', async () => {
+    mockPortalTokenResponse({ dispatched: false, reason: 'NO_PRIMARY_CONTACT' });
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('send-portal-link-button'));
+    await screen.findByText('Portal link generated, but no email sent — appointment has no primary contact');
+    expect(screen.queryByText('Email sent to tenant')).not.toBeInTheDocument();
+  });
+
+  it('warns when the dispatch failed', async () => {
+    mockPortalTokenResponse({ dispatched: false, reason: 'DISPATCH_FAILED' });
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('send-portal-link-button'));
+    await screen.findByText('Portal link generated, but the email could not be sent — check the Notifications tab');
+    expect(screen.queryByText('Email sent to tenant')).not.toBeInTheDocument();
+  });
+});
+
+// Portal link can only be sent for released, non-terminal appointments:
+// AWAITING_INSPECTOR and SCHEDULED. DRAFT/DONE/CANCELLED/REJECTED hide it.
+describe('AppointmentDetailPage — Send Portal Link status gating', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+  });
+
+  it('hides Send Portal Link for DRAFT appointments', () => {
+    renderPage(); // default mock appointment is DRAFT
+    expect(screen.queryByTestId('send-portal-link-button')).not.toBeInTheDocument();
+  });
+
+  it('shows Send Portal Link for AWAITING_INSPECTOR appointments', () => {
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('send-portal-link-button')).toBeInTheDocument();
+  });
+
+  it('shows Send Portal Link for SCHEDULED appointments', () => {
+    renderPage('/appointments/with-portal-token');
+    expect(screen.getByTestId('send-portal-link-button')).toBeInTheDocument();
+  });
+
+  it('hides Send Portal Link for DONE appointments', () => {
+    renderPage('/appointments/done');
+    expect(screen.queryByTestId('send-portal-link-button')).not.toBeInTheDocument();
+  });
+});
+
 describe('AppointmentDetailPage — Copy Portal Link (T39)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
