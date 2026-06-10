@@ -7,7 +7,7 @@ import type { MintPortalTokenService } from '../../domain/mint-portal-token.serv
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import type { Logger } from '../../../../shared/infrastructure/logger';
-import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 
 export interface AuthContext {
   userId: string;
@@ -19,9 +19,19 @@ export interface AuthContext {
 export interface GeneratePortalTokenInput {
   appointmentId: string;
   actor: AuthContext;
+  /**
+   * GAP-004: the portal reschedule flow reopens the appointment to DRAFT and
+   * re-issues a fresh token for the new date. Internal callers set this to
+   * bypass the operator-facing status gate; HTTP routes must never set it.
+   */
+  allowAnyStatus?: boolean;
 }
 
 const ALLOWED_ROLES = ['AM', 'OP'] as const;
+
+// Portal link is only meaningful once the appointment leaves DRAFT and is not
+// terminal: the tenant confirms/reschedules a released, non-finished visit.
+const ALLOWED_STATUSES = ['AWAITING_INSPECTOR', 'SCHEDULED'] as const;
 
 export class GeneratePortalTokenUseCase {
   constructor(
@@ -49,6 +59,13 @@ export class GeneratePortalTokenUseCase {
     }
 
     const { appointment } = result;
+
+    if (!input.allowAnyStatus && !ALLOWED_STATUSES.includes(appointment.status as (typeof ALLOWED_STATUSES)[number])) {
+      throw new ConflictError(
+        'INVALID_APPOINTMENT_STATUS',
+        `Portal link can only be sent for AWAITING_INSPECTOR or SCHEDULED appointments (current: ${appointment.status})`,
+      );
+    }
 
     const tenant = await this.tenantRepo.findById(appointment.tenantId);
     if (!tenant) {
@@ -118,7 +135,10 @@ export class GeneratePortalTokenUseCase {
     }
 
     // Send portal link notification — fire-and-forget. The token is already persisted;
-    // a notification failure must not turn the endpoint into a 500.
+    // a notification failure must not turn the endpoint into a 500, but the
+    // caller must know nothing went out (the UI used to claim "Email sent").
+    let attemptedDispatches = 0;
+    let succeededDispatches = 0;
     if (this.createNotificationUseCase) {
       const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0] ?? '';
       const payloadJson = {
@@ -130,6 +150,7 @@ export class GeneratePortalTokenUseCase {
 
       const recipientEmail = result.contact.effectiveEmail;
       if (recipientEmail) {
+        attemptedDispatches += 1;
         try {
           await this.createNotificationUseCase.execute({
             tenantId: appointment.tenantId,
@@ -139,6 +160,7 @@ export class GeneratePortalTokenUseCase {
             templateCode: 'TENANT_PORTAL_LINK',
             payloadJson,
           });
+          succeededDispatches += 1;
         } catch (notificationDispatchError) {
           // fire-and-forget; token is already saved — failure must not turn the endpoint into a 500.
           // Log the error so dispatch failures are observable (Regras invariant A.2).
@@ -151,6 +173,7 @@ export class GeneratePortalTokenUseCase {
 
       const recipientPhone = result.contact.effectivePhone;
       if (recipientPhone) {
+        attemptedDispatches += 1;
         try {
           await this.createNotificationUseCase.execute({
             tenantId: appointment.tenantId,
@@ -160,6 +183,7 @@ export class GeneratePortalTokenUseCase {
             templateCode: 'TENANT_PORTAL_LINK',
             payloadJson,
           });
+          succeededDispatches += 1;
         } catch (notificationDispatchError) {
           // fire-and-forget; token is already saved — failure must not turn the endpoint into a 500.
           // Log the error so dispatch failures are observable (Regras invariant A.2).
@@ -169,6 +193,15 @@ export class GeneratePortalTokenUseCase {
           );
         }
       }
+    }
+
+    if (attemptedDispatches > 0 && succeededDispatches === 0) {
+      return {
+        token: rawToken,
+        expiresAt,
+        dispatched: false as const,
+        reason: 'DISPATCH_FAILED' as const,
+      };
     }
 
     return {

@@ -24,6 +24,12 @@ export interface INotificationRepository {
   findAll(filters: NotificationFilters, pagination: NotificationPagination): Promise<NotificationEntity[]>;
   count(filters: NotificationFilters): Promise<number>;
   findRetryable(now: Date, limit?: number): Promise<NotificationEntity[]>;
+  /**
+   * PENDING rows whose enqueue was lost (retry_count = 0, next_retry_at NULL)
+   * created before `cutoff` — invisible to findRetryable, so the retry-poll
+   * self-heals them (mirrors the geocoding self-heal pattern).
+   */
+  findStuckPending(cutoff: Date, limit?: number): Promise<NotificationEntity[]>;
   save(notification: NotificationEntity): Promise<void>;
   update(notification: NotificationEntity): Promise<void>;
   existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
