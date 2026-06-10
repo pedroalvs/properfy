@@ -17504,7 +17504,8 @@
                         "reason": {
                           "type": "string",
                           "enum": [
-                            "NO_PRIMARY_CONTACT"
+                            "NO_PRIMARY_CONTACT",
+                            "DISPATCH_FAILED"
                           ]
                         }
                       },

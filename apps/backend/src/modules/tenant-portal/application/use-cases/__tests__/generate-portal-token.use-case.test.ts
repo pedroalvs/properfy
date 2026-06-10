@@ -151,7 +151,7 @@ describe('GeneratePortalTokenUseCase — logger behavior on notification dispatc
       );
     });
 
-    it('should still return dispatched:true even when EMAIL notification throws (fire-and-forget)', async () => {
+    it('should still return the token but report dispatched:false when EMAIL notification throws', async () => {
       const createNotificationUseCase = {
         execute: vi.fn().mockRejectedValue(new Error('enqueue failed')),
       };
@@ -159,7 +159,11 @@ describe('GeneratePortalTokenUseCase — logger behavior on notification dispatc
 
       const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
 
-      expect(result.dispatched).toBe(true);
+      // fire-and-forget keeps the endpoint a 201 (token persisted), but the
+      // caller must know nothing went out — the UI used to claim "Email sent".
+      expect(result.token).toBe('raw-token-abc');
+      expect(result.dispatched).toBe(false);
+      expect(result.reason).toBe('DISPATCH_FAILED');
     });
   });
 
@@ -187,7 +191,7 @@ describe('GeneratePortalTokenUseCase — logger behavior on notification dispatc
       );
     });
 
-    it('should still return dispatched:true even when SMS notification throws (fire-and-forget)', async () => {
+    it('should still return the token but report dispatched:false when SMS notification throws', async () => {
       const createNotificationUseCase = {
         execute: vi.fn().mockRejectedValue(new Error('sms error')),
       };
@@ -198,7 +202,9 @@ describe('GeneratePortalTokenUseCase — logger behavior on notification dispatc
 
       const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
 
-      expect(result.dispatched).toBe(true);
+      expect(result.token).toBe('raw-token-abc');
+      expect(result.dispatched).toBe(false);
+      expect(result.reason).toBe('DISPATCH_FAILED');
     });
   });
 

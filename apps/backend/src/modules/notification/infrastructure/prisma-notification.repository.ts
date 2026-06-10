@@ -107,6 +107,21 @@ export class PrismaNotificationRepository implements INotificationRepository {
     return rows.map(mapToEntity);
   }
 
+  // Cross-tenant: background job self-heals rows whose enqueue was lost
+  async findStuckPending(cutoff: Date, limit = 100): Promise<NotificationEntity[]> {
+    const rows = await this.prisma.notification.findMany({
+      where: {
+        status: 'PENDING',
+        retry_count: 0,
+        next_retry_at: null,
+        created_at: { lte: cutoff },
+      },
+      take: limit,
+      orderBy: { created_at: 'asc' },
+    });
+    return rows.map(mapToEntity);
+  }
+
   async save(notification: NotificationEntity): Promise<void> {
     await this.prisma.notification.create({
       data: {

@@ -94,11 +94,11 @@ export function AppointmentDetailPage() {
     (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'DRAFT') &&
     !appointment.inspectorId &&
     (user?.role === 'OP' || user?.role === 'AM');
+  // Portal link is only meaningful once the appointment leaves DRAFT and is
+  // not terminal — mirrors the backend INVALID_APPOINTMENT_STATUS gate.
   const canSendPortalLink = !!appointment &&
     isPrivileged &&
-    appointment.status !== 'DONE' &&
-    appointment.status !== 'CANCELLED' &&
-    appointment.status !== 'REJECTED' &&
+    (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED') &&
     (!!appointment.contactEmail || !!appointment.contactPhone);
   const canCopyPortalLink = !!appointment && isPrivileged;
   const canDelete = !!appointment && user?.role === 'AM' && appointment.status === 'DRAFT';
@@ -120,7 +120,7 @@ export function AppointmentDetailPage() {
     if (!appointment) return;
     setIsGeneratingPortalToken(true);
     try {
-      const { error } = await api.POST(
+      const { data, error } = await api.POST(
         `/v1/appointments/${appointment.id}/portal-token` as never,
         {} as never,
       );
@@ -129,7 +129,18 @@ export function AppointmentDetailPage() {
         showError(err?.error?.message ?? 'Failed to send portal link');
         return;
       }
-      showSuccess('Email sent to tenant');
+      // The token is always minted, but the notification may have been
+      // skipped/failed — never claim "Email sent" unless it was dispatched.
+      const result = (data as { data?: { dispatched?: boolean; reason?: string } })?.data;
+      if (result?.dispatched === false) {
+        if (result.reason === 'NO_PRIMARY_CONTACT') {
+          showError('Portal link generated, but no email sent — appointment has no primary contact');
+        } else {
+          showError('Portal link generated, but the email could not be sent — check the Notifications tab');
+        }
+      } else {
+        showSuccess('Email sent to tenant');
+      }
       refetch();
     } catch {
       showError('Failed to send portal link');
