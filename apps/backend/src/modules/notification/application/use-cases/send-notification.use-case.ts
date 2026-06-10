@@ -17,7 +17,6 @@ import { NotificationAttemptEntity } from '../../domain/notification-attempt.ent
 import {
   NotificationNotFoundError,
   NotificationInvalidStatusError,
-  TemplateNotFoundError,
 } from '../../domain/notification.errors';
 import { MAX_RETRY_COUNT, RETRY_DELAYS, JITTER_FACTOR } from '../../domain/notification.constants';
 import { buildUnsubscribeUrl } from './process-unsubscribe.use-case';
@@ -141,7 +140,23 @@ export class SendNotificationUseCase {
       );
     }
     if (!template) {
-      throw new TemplateNotFoundError();
+      // Permanent failure: no tenant or platform template exists for this code/channel.
+      // Throwing would leave the notification PENDING and the retry-poll self-heal would
+      // re-enqueue it forever (poison-message loop), so mark it FAILED and stop here.
+      notification.status = 'FAILED';
+      notification.failedAt = new Date();
+      notification.failureReason = 'TEMPLATE_NOT_FOUND';
+      notification.updatedAt = new Date();
+      await this.notificationRepo.update(notification);
+      this.logger.error(
+        {
+          notificationId: notification.id,
+          templateCode: notification.templateCode,
+          channel: notification.channel,
+        },
+        'notification.template_not_found: marked FAILED, will not retry',
+      );
+      return;
     }
     if (notification.notificationClass === null) {
       effectiveClass = template.notificationClass;
