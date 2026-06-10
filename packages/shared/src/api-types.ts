@@ -7837,7 +7837,7 @@ export interface paths {
                                 expiresAt: string;
                                 dispatched?: boolean;
                                 /** @enum {string} */
-                                reason?: "NO_PRIMARY_CONTACT";
+                                reason?: "NO_PRIMARY_CONTACT" | "DISPATCH_FAILED";
                             };
                         };
                     };

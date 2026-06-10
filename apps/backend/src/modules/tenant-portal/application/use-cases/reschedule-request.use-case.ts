@@ -242,6 +242,9 @@ export class RescheduleRequestUseCase {
             tenantId: appointment.tenantId,
             role: 'OP',
           },
+          // Reopen-for-reschedule already moved the appointment to DRAFT; the
+          // re-issued link must still reach the tenant for the new date.
+          allowAnyStatus: true,
         });
       } catch {
         // fire-and-forget — token generation failure must not affect the reschedule

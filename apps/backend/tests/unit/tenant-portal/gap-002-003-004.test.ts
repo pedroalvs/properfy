@@ -588,6 +588,9 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
         tenantId: 'tenant-1',
         role: 'OP',
       },
+      // Reopen-for-reschedule moves the appointment to DRAFT; the re-issued
+      // link must bypass the operator-facing status gate.
+      allowAnyStatus: true,
     });
   });
 
