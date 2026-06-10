@@ -25217,6 +25217,10 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "tenantName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "templateCode": {
                             "type": "string"
                           },
@@ -25554,6 +25558,10 @@
                         "tenantId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "tenantName": {
+                          "type": "string",
                           "nullable": true
                         },
                         "templateCode": {

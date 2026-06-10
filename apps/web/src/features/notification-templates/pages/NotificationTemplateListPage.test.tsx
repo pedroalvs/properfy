@@ -37,10 +37,16 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+vi.mock('@/hooks/usePermissions', () => ({
+  usePermissions: vi.fn(() => ({ role: null, hasRole: () => false, canPerform: () => false })),
+}));
+
 import { api } from '@/services/api';
+import { usePermissions } from '@/hooks/usePermissions';
 import { NotificationTemplateListPage } from './NotificationTemplateListPage';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
+const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
 
 const MOCK_TEMPLATES = [
   {
@@ -58,6 +64,7 @@ const MOCK_TEMPLATES = [
   {
     id: 'tpl-02',
     tenantId: 'tenant-1',
+    tenantName: 'Acme Realty',
     code: 'REMINDER_7D',
     channel: 'SMS',
     subject: '',
@@ -94,6 +101,8 @@ beforeEach(() => {
       pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
     },
   });
+  // Default: non cross-tenant role → agency filter hidden.
+  mockUsePermissions.mockReturnValue({ role: null, hasRole: () => false, canPerform: () => false });
 });
 
 function renderPage() {
@@ -136,5 +145,25 @@ describe('NotificationTemplateListPage', () => {
     expect(screen.getAllByText('Channel').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Subject').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+
+  it('shows the Agency filter for cross-tenant roles (AM/OP)', () => {
+    mockUsePermissions.mockReturnValue({
+      role: 'AM',
+      hasRole: (...roles: string[]) => roles.includes('AM'),
+      canPerform: () => true,
+    });
+    renderPage();
+    expect(screen.getByLabelText('Agency')).toBeInTheDocument();
+  });
+
+  it('hides the Agency filter for non cross-tenant roles', () => {
+    mockUsePermissions.mockReturnValue({
+      role: 'CL_ADMIN',
+      hasRole: (...roles: string[]) => roles.includes('CL_ADMIN'),
+      canPerform: () => false,
+    });
+    renderPage();
+    expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
   });
 });

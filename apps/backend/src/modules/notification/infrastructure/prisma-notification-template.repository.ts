@@ -4,6 +4,7 @@ import { NotificationTemplateEntity } from '../domain/notification-template.enti
 import type {
   INotificationTemplateRepository,
   NotificationTemplateFilters,
+  NotificationTemplateListItem,
 } from '../domain/notification-template.repository';
 
 function mapToEntity(row: any): NotificationTemplateEntity {
@@ -41,7 +42,7 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
     return row ? mapToEntity(row) : null;
   }
 
-  async findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateEntity[]> {
+  async findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListItem[]> {
     const where: Record<string, unknown> = {};
 
     if (filters.tenantId !== undefined) {
@@ -58,8 +59,14 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
     if (filters.templateCode) where.template_code = filters.templateCode;
     if (filters.channel) where.channel = filters.channel;
 
-    const rows = await this.prisma.notificationTemplate.findMany({ where });
-    return rows.map(mapToEntity);
+    const rows = await this.prisma.notificationTemplate.findMany({
+      where,
+      include: { tenant: { select: { name: true } } },
+    });
+    return rows.map((row) => ({
+      template: mapToEntity(row),
+      tenantName: row.tenant?.name ?? null,
+    }));
   }
 
   async upsert(template: NotificationTemplateEntity): Promise<void> {

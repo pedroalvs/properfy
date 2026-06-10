@@ -706,6 +706,9 @@ export const notificationResponseSchema = z.object({
 export const notificationTemplateResponseSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid().nullable(),
+  // Present on list responses (owning agency name, null for platform defaults);
+  // omitted by the single-template upsert response, which does not join the tenant.
+  tenantName: z.string().nullable().optional(),
   templateCode: z.string(),
   channel: z.string(),
   subject: z.string().nullable(),

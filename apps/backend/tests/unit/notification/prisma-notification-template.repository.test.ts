@@ -24,10 +24,30 @@ describe('PrismaNotificationTemplateRepository', () => {
   const prisma = {
     notificationTemplate: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       update: vi.fn(),
       create: vi.fn(),
     },
   };
+
+  function makeRow(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'template-1',
+      tenant_id: null,
+      template_code: 'INSPECTION_NOTICE',
+      channel: 'EMAIL',
+      subject: 'Subject',
+      body_html: '<p>Hello</p>',
+      body_text: 'Hello',
+      variables_json: ['tenantName'],
+      is_active: true,
+      notification_class: 'OPERATIONAL',
+      created_at: new Date('2026-03-24T00:00:00.000Z'),
+      updated_at: new Date('2026-03-24T00:00:00.000Z'),
+      tenant: null,
+      ...overrides,
+    };
+  }
 
   let repository: PrismaNotificationTemplateRepository;
 
@@ -103,5 +123,24 @@ describe('PrismaNotificationTemplateRepository', () => {
         where: { id: 'tenant-template' },
       }),
     );
+  });
+
+  it('findAll joins the tenant and returns the agency name per list item', async () => {
+    prisma.notificationTemplate.findMany.mockResolvedValue([
+      makeRow({ id: 'override-1', tenant_id: 'tenant-1', tenant: { name: 'Acme Realty' } }),
+      makeRow({ id: 'default-1', tenant_id: null, tenant: null }),
+    ]);
+
+    const items = await repository.findAll({ tenantId: 'tenant-1', includeDefaults: true });
+
+    expect(prisma.notificationTemplate.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: { tenant: { select: { name: true } } },
+      }),
+    );
+    expect(items).toHaveLength(2);
+    expect(items[0]!.template.id).toBe('override-1');
+    expect(items[0]!.tenantName).toBe('Acme Realty');
+    expect(items[1]!.tenantName).toBeNull();
   });
 });

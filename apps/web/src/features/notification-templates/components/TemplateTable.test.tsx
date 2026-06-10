@@ -8,6 +8,7 @@ function makeTemplate(overrides: Partial<NotificationTemplate> = {}): Notificati
   return {
     id: 'tpl-1',
     tenantId: null,
+    tenantName: null,
     code: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection Scheduled',
@@ -26,6 +27,7 @@ describe('TemplateTable', () => {
     render(<TemplateTable data={[]} />);
     expect(screen.getByText('Code')).toBeInTheDocument();
     expect(screen.getByText('Scope')).toBeInTheDocument();
+    expect(screen.getByText('Agency')).toBeInTheDocument();
     expect(screen.getByText('Channel')).toBeInTheDocument();
     expect(screen.getByText('Subject')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
@@ -43,6 +45,19 @@ describe('TemplateTable', () => {
     const template = makeTemplate({ tenantId: 'tenant-1' });
     render(<TemplateTable data={[template]} />);
     expect(screen.getByText('Agency Override')).toBeInTheDocument();
+  });
+
+  it('shows the owning agency name for overrides', () => {
+    const template = makeTemplate({ tenantId: 'tenant-1', tenantName: 'Acme Realty' });
+    render(<TemplateTable data={[template]} />);
+    expect(screen.getByText('Acme Realty')).toBeInTheDocument();
+  });
+
+  it('shows em dash in the Agency column for platform defaults', () => {
+    const template = makeTemplate({ tenantId: null, tenantName: null, subject: 'Has subject' });
+    render(<TemplateTable data={[template]} />);
+    // Subject is present, so the only em dash comes from the Agency column.
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('shows channel chips with correct text', () => {

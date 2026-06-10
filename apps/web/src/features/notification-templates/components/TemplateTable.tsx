@@ -39,6 +39,16 @@ export function TemplateTable({
       ),
     },
     {
+      key: 'agency',
+      label: 'Agency',
+      width: '180px',
+      render: (row) => (
+        <span className="text-sm text-text-secondary">
+          {row.tenantId ? (row.tenantName ?? '—') : '—'}
+        </span>
+      ),
+    },
+    {
       key: 'channel',
       label: 'Channel',
       width: '130px',

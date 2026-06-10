@@ -8,12 +8,21 @@ export interface NotificationTemplateFilters {
   includeDefaults?: boolean;
 }
 
+/**
+ * Read-model returned by list queries: the template entity plus the owning
+ * agency's display name (null for platform-default templates, tenant_id = NULL).
+ */
+export interface NotificationTemplateListItem {
+  template: NotificationTemplateEntity;
+  tenantName: string | null;
+}
+
 export interface INotificationTemplateRepository {
   findByTenantCodeChannel(
     tenantId: string | null,
     templateCode: string,
     channel: NotificationChannel,
   ): Promise<NotificationTemplateEntity | null>;
-  findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateEntity[]>;
+  findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListItem[]>;
   upsert(template: NotificationTemplateEntity): Promise<void>;
 }

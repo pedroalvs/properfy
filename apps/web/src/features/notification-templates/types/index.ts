@@ -18,6 +18,8 @@ export {
 export interface NotificationTemplate {
   id: string;
   tenantId: string | null;
+  /** Owning agency name for overrides; null for platform defaults. */
+  tenantName: string | null;
   code: string;
   channel: NotificationChannel;
   subject: string;
@@ -46,10 +48,13 @@ export interface TemplateFiltersState {
   templateCode: string;
   channel: string;
   includeDefaults: 'true' | 'false';
+  /** Agency filter (AM/OP only). Empty string = all agencies. */
+  tenantId: string;
 }
 
 export const DEFAULT_TEMPLATE_FILTERS: TemplateFiltersState = {
   templateCode: '',
   channel: '',
   includeDefaults: 'true',
+  tenantId: '',
 };

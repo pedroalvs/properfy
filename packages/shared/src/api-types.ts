@@ -11232,6 +11232,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string | null;
+                                tenantName?: string | null;
                                 templateCode: string;
                                 channel: string;
                                 subject: string | null;
@@ -11512,6 +11513,7 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string | null;
+                                tenantName?: string | null;
                                 templateCode: string;
                                 channel: string;
                                 subject: string | null;
