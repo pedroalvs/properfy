@@ -563,7 +563,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
-  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService);
+  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService, logger);
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
