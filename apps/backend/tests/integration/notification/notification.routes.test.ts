@@ -10,6 +10,7 @@ const mockHandleProviderWebhookExecute = vi.fn();
 const mockListNotificationsExecute = vi.fn();
 const mockGetNotificationExecute = vi.fn();
 const mockUpsertNotificationTemplateExecute = vi.fn();
+const mockDeleteNotificationTemplateExecute = vi.fn();
 const mockListNotificationTemplatesExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
@@ -39,6 +40,7 @@ vi.mock('../../../src/main/container', () => ({
       listNotificationsUseCase: { execute: mockListNotificationsExecute },
       getNotificationUseCase: { execute: mockGetNotificationExecute },
       upsertNotificationTemplateUseCase: { execute: mockUpsertNotificationTemplateExecute },
+      deleteNotificationTemplateUseCase: { execute: mockDeleteNotificationTemplateExecute },
       listNotificationTemplatesUseCase: { execute: mockListNotificationTemplatesExecute },
       jwtService: { verify: mockJwtVerify },
       webhookSignatureValidator: {
@@ -253,5 +255,39 @@ describe('PUT /v1/notification-templates/:templateCode/:channel', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.templateCode).toBe('INSPECTION_NOTICE');
+  });
+});
+
+describe('DELETE /v1/notification-templates/:templateId', () => {
+  const TEMPLATE_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+
+  it('should return 401 without auth', async () => {
+    const res = await supertest(app.server).delete(`/v1/notification-templates/${TEMPLATE_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('should return 204 and call the use-case with templateId + actor', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockDeleteNotificationTemplateExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .delete(`/v1/notification-templates/${TEMPLATE_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(204);
+    expect(mockDeleteNotificationTemplateExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateId: TEMPLATE_ID, actor: amContext }),
+    );
+  });
+
+  it('should return 400 for a non-uuid templateId', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .delete('/v1/notification-templates/not-a-uuid')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(mockDeleteNotificationTemplateExecute).not.toHaveBeenCalled();
   });
 });

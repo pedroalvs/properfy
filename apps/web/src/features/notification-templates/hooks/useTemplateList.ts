@@ -19,6 +19,7 @@ export function useTemplateList(): UseTemplateListReturn {
     templateCode: filters.templateCode || undefined,
     channel: filters.channel || undefined,
     includeDefaults: filters.includeDefaults === 'true',
+    tenantId: filters.tenantId || undefined,
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<Record<string, unknown>>(
@@ -30,6 +31,7 @@ export function useTemplateList(): UseTemplateListReturn {
   const templates: NotificationTemplate[] = (response?.data ?? []).map((raw) => ({
     id: raw['id'] as string,
     tenantId: (raw['tenantId'] as string | null | undefined) ?? null,
+    tenantName: (raw['tenantName'] as string | null | undefined) ?? null,
     code: (raw['templateCode'] ?? raw['code']) as string,
     channel: raw['channel'] as NotificationTemplate['channel'],
     subject: (raw['subject'] as string) ?? '',

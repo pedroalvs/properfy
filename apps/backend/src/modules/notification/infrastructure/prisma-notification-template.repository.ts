@@ -4,6 +4,7 @@ import { NotificationTemplateEntity } from '../domain/notification-template.enti
 import type {
   INotificationTemplateRepository,
   NotificationTemplateFilters,
+  NotificationTemplateListItem,
 } from '../domain/notification-template.repository';
 
 function mapToEntity(row: any): NotificationTemplateEntity {
@@ -41,7 +42,7 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
     return row ? mapToEntity(row) : null;
   }
 
-  async findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateEntity[]> {
+  async findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListItem[]> {
     const where: Record<string, unknown> = {};
 
     if (filters.tenantId !== undefined) {
@@ -58,8 +59,29 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
     if (filters.templateCode) where.template_code = filters.templateCode;
     if (filters.channel) where.channel = filters.channel;
 
-    const rows = await this.prisma.notificationTemplate.findMany({ where });
-    return rows.map(mapToEntity);
+    const rows = await this.prisma.notificationTemplate.findMany({
+      where,
+      include: { tenant: { select: { name: true } } },
+    });
+    return rows.map((row) => ({
+      template: mapToEntity(row),
+      tenantName: row.tenant?.name ?? null,
+    }));
+  }
+
+  async findById(templateId: string): Promise<NotificationTemplateEntity | null> {
+    const row = await this.prisma.notificationTemplate.findUnique({
+      where: { id: templateId },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  async delete(templateId: string): Promise<void> {
+    // `tenant_id NOT NULL` guard ensures a platform default can never be hard-deleted,
+    // even if a bad id is passed — defense in depth beyond the use-case RBAC/guard.
+    await this.prisma.notificationTemplate.deleteMany({
+      where: { id: templateId, tenant_id: { not: null } },
+    });
   }
 
   async upsert(template: NotificationTemplateEntity): Promise<void> {

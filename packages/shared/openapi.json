@@ -733,6 +733,10 @@
                         "maxLength": 11,
                         "pattern": "^[a-zA-Z0-9]*$"
                       },
+                      "emailSendingEnabled": {
+                        "type": "boolean",
+                        "default": true
+                      },
                       "logoUrl": {
                         "type": "string",
                         "format": "uri"
@@ -1398,6 +1402,10 @@
                         "type": "string",
                         "maxLength": 11,
                         "pattern": "^[a-zA-Z0-9]*$"
+                      },
+                      "emailSendingEnabled": {
+                        "type": "boolean",
+                        "default": true
                       },
                       "logoUrl": {
                         "type": "string",
@@ -25218,6 +25226,10 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "tenantName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "templateCode": {
                             "type": "string"
                           },
@@ -25362,31 +25374,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/v1/notifications/unsubscribe": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/notifications/re-opt-in": {
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
           }
         }
       }
@@ -25557,6 +25544,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "tenantName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "templateCode": {
                           "type": "string"
                         },
@@ -25672,6 +25663,36 @@
                     "data"
                   ],
                   "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/notification-templates/{templateId}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "templateId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "enum": [
+                    "null"
+                  ],
+                  "nullable": true
                 }
               }
             }

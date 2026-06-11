@@ -11,7 +11,7 @@ export interface SaveResult {
 }
 
 export interface UseTemplateSaveReturn {
-  save: (code: string, channel: NotificationChannel, data: TemplateFormData) => Promise<SaveResult>;
+  save: (code: string, channel: NotificationChannel, data: TemplateFormData, tenantId?: string | null) => Promise<SaveResult>;
   isSaving: boolean;
   validationErrors: TemplateFormErrors;
   validate: (data: TemplateFormData, requiredVariables: string[], allowedVariables?: readonly string[]) => TemplateFormErrors;
@@ -86,6 +86,7 @@ export function useTemplateSave(): UseTemplateSaveReturn {
     code: string,
     channel: NotificationChannel,
     data: TemplateFormData,
+    tenantId?: string | null,
   ): Promise<SaveResult> => {
     setIsSaving(true);
     try {
@@ -97,6 +98,10 @@ export function useTemplateSave(): UseTemplateSaveReturn {
             subject: data.subject || undefined,
             bodyHtml: data.body,
             isActive: data.active,
+            // Target the correct scope: an agency override (tenantId set) vs the
+            // platform default (null → omitted). Without this, AM/OP editing an
+            // override would silently overwrite the platform default.
+            tenantId: tenantId ?? undefined,
           },
         },
       );

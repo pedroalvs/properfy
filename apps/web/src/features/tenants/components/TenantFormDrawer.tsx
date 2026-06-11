@@ -10,6 +10,7 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
+import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTenantAdminDetail } from '../hooks/useTenantAdminDetail';
 import { useTenantAdminSave } from '../hooks/useTenantAdminSave';
@@ -72,6 +73,8 @@ export function TenantFormDrawer({
         timezone: tenant.timezone,
         currency: tenant.currency,
         notes: tenant.notes ?? '',
+        // Read uses settingsJson (the GET response key). Missing/absent = enabled.
+        emailSendingEnabled: (tenant.settingsJson?.['emailSendingEnabled'] as boolean | undefined) ?? true,
       };
       setForm(data);
       setInitialData(data);
@@ -205,6 +208,14 @@ export function TenantFormDrawer({
                         aria-label="Notes"
                       />
                     </FormField>
+                  </FormSection>
+
+                  <FormSection title="Email">
+                    <Checkbox
+                      checked={form.emailSendingEnabled}
+                      onChange={(v) => updateField('emailSendingEnabled', v)}
+                      label="Send automated emails"
+                    />
                   </FormSection>
                 </div>
               </div>

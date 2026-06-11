@@ -47,6 +47,7 @@ const mockPut = api.PUT as ReturnType<typeof vi.fn>;
 const MOCK_TEMPLATE: NotificationTemplate = {
   id: 'tpl-01',
   tenantId: null,
+  tenantName: null,
   code: 'INSPECTION_NOTICE',
   channel: 'EMAIL',
   subject: 'Inspection at {{propertyAddress}}',
@@ -174,6 +175,31 @@ describe('TemplateFormDrawer', () => {
     await waitFor(() => {
       expect(onSaved).toHaveBeenCalled();
     });
+  });
+
+  it('sends the override tenantId when editing an agency override', async () => {
+    const user = userEvent.setup();
+    renderDrawer({ ...MOCK_TEMPLATE, tenantId: 'agency-1', tenantName: 'Acme Realty' });
+
+    await user.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      expect(mockPut).toHaveBeenCalledWith(
+        '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
+        expect.objectContaining({ body: expect.objectContaining({ tenantId: 'agency-1' }) }),
+      );
+    });
+  });
+
+  it('omits tenantId when editing a platform default', async () => {
+    const user = userEvent.setup();
+    renderDrawer(MOCK_TEMPLATE); // tenantId: null
+
+    await user.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(mockPut).toHaveBeenCalled());
+    const body = mockPut.mock.calls[0]![1].body as Record<string, unknown>;
+    expect(body.tenantId).toBeUndefined();
   });
 
   it('shows cancel and save buttons', () => {

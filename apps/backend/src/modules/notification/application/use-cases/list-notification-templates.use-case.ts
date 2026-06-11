@@ -18,6 +18,7 @@ export interface ListNotificationTemplatesInput {
 export interface NotificationTemplateOutputItem {
   id: string;
   tenantId: string | null;
+  tenantName: string | null;
   templateCode: string;
   channel: string;
   subject: string | null;
@@ -81,7 +82,7 @@ export class ListNotificationTemplatesUseCase {
 
     if (this.bindingRepo && this.assetRepo && templates.length > 0) {
       await Promise.all(
-        templates.map(async (t) => {
+        templates.map(async ({ template: t }) => {
           const bindings = await this.bindingRepo!.findByTemplate(t.id);
           const resolved = await Promise.all(
             bindings.map(async (b) => {
@@ -105,9 +106,10 @@ export class ListNotificationTemplatesUseCase {
 
     // 5. Map to output
     return {
-      data: templates.map((t) => ({
+      data: templates.map(({ template: t, tenantName }) => ({
         id: t.id,
         tenantId: t.tenantId,
+        tenantName,
         templateCode: t.templateCode,
         channel: t.channel,
         subject: t.subject,
