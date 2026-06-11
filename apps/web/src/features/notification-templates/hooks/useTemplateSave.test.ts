@@ -59,6 +59,32 @@ describe('useTemplateSave', () => {
     );
   });
 
+  it('sends tenantId in the body when provided (override edit)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save('INSPECTION_NOTICE', 'EMAIL', VALID_DATA, 'tenant-1');
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
+      { body: { subject: VALID_DATA.subject, bodyHtml: VALID_DATA.body, isActive: VALID_DATA.active, tenantId: 'tenant-1' } },
+    );
+  });
+
+  it('omits tenantId from the body when null (platform default edit)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save('INSPECTION_NOTICE', 'EMAIL', VALID_DATA, null);
+    });
+
+    const body = mockPut.mock.calls[0]![1].body as Record<string, unknown>;
+    expect(body.tenantId).toBeUndefined();
+  });
+
   it('validates against disallowed variables', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateSave(), { wrapper });

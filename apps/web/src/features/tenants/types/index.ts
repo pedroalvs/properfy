@@ -17,7 +17,8 @@ export interface TenantAdmin {
 }
 
 export interface TenantAdminDetail extends TenantAdmin {
-  settings: Record<string, unknown>;
+  /** GET /v1/tenants/:id returns the settings blob under `settingsJson`. */
+  settingsJson?: Record<string, unknown>;
   notes: string | null;
 }
 
@@ -27,6 +28,8 @@ export interface TenantAdminFormData {
   timezone: string;
   currency: string;
   notes: string;
+  /** When false, the platform skips EMAIL sends for this agency. */
+  emailSendingEnabled: boolean;
 }
 
 export type TenantAdminFormErrors = Partial<Record<keyof TenantAdminFormData, string>>;
@@ -37,6 +40,7 @@ export const EMPTY_TENANT_ADMIN_FORM: TenantAdminFormData = {
   timezone: '',
   currency: '',
   notes: '',
+  emailSendingEnabled: true,
 };
 
 export interface TenantAdminFiltersState {

@@ -217,4 +217,44 @@ describe('CreateNotificationUseCase', () => {
       expect(saved.notificationClass).toBeNull();
     });
   });
+
+  // Active-based override resolution: an override is only honored when active;
+  // an inactive override falls through to the platform default.
+  describe('active-based override resolution', () => {
+    it('falls back to platform default when the tenant override is inactive', async () => {
+      mockTemplateRepo.findByTenantCodeChannel
+        .mockResolvedValueOnce(makeTemplate({ isActive: false, notificationClass: 'OPERATIONAL' }))
+        .mockResolvedValueOnce(makeTemplate({ tenantId: null, notificationClass: 'TRANSACTIONAL' }));
+
+      await useCase.execute(baseInput);
+
+      expect(mockTemplateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(2);
+      const saved = mockRepo.save.mock.calls[0][0] as NotificationEntity;
+      expect(saved.notificationClass).toBe('TRANSACTIONAL');
+    });
+
+    it('uses the tenant override when it is active (single lookup)', async () => {
+      mockTemplateRepo.findByTenantCodeChannel.mockResolvedValueOnce(
+        makeTemplate({ isActive: true, notificationClass: 'TRANSACTIONAL' }),
+      );
+
+      await useCase.execute(baseInput);
+
+      expect(mockTemplateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(1);
+      const saved = mockRepo.save.mock.calls[0][0] as NotificationEntity;
+      expect(saved.notificationClass).toBe('TRANSACTIONAL');
+    });
+
+    it('stamps null when the tenant override is inactive and no platform default exists', async () => {
+      mockTemplateRepo.findByTenantCodeChannel
+        .mockResolvedValueOnce(makeTemplate({ isActive: false, notificationClass: 'OPERATIONAL' }))
+        .mockResolvedValueOnce(null);
+
+      await useCase.execute(baseInput);
+
+      expect(mockTemplateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(2);
+      const saved = mockRepo.save.mock.calls[0][0] as NotificationEntity;
+      expect(saved.notificationClass).toBeNull();
+    });
+  });
 });

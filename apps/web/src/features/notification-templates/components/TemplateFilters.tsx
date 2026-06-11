@@ -17,14 +17,33 @@ const INCLUDE_DEFAULTS_OPTIONS: FilterSelectOption[] = [
 interface TemplateFiltersProps {
   filters: TemplateFiltersState;
   onFiltersChange: (filters: TemplateFiltersState) => void;
+  /** Agency options (AM/OP only). Rendered as an "Agency" select when showTenantFilter is true. */
+  tenantOptions?: FilterSelectOption[];
+  /** Show the agency filter — only for cross-tenant roles (AM/OP). */
+  showTenantFilter?: boolean;
 }
 
 export function TemplateFilters({
   filters,
   onFiltersChange,
+  tenantOptions = [],
+  showTenantFilter = false,
 }: TemplateFiltersProps) {
+  const agencyOptions: FilterSelectOption[] = [
+    { label: 'All agencies', value: '' },
+    ...tenantOptions,
+  ];
+
   return (
     <FilterBar>
+      {showTenantFilter && (
+        <FilterSelect
+          label="Agency"
+          value={filters.tenantId}
+          onChange={(tenantId) => onFiltersChange({ ...filters, tenantId })}
+          options={agencyOptions}
+        />
+      )}
       <FilterInput
         label="Template Code"
         placeholder="INSPECTION_NOTICE"

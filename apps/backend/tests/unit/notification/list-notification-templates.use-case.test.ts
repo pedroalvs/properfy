@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ListNotificationTemplatesUseCase } from '../../../src/modules/notification/application/use-cases/list-notification-templates.use-case';
 import { NotificationTemplateEntity } from '../../../src/modules/notification/domain/notification-template.entity';
-import type { INotificationTemplateRepository } from '../../../src/modules/notification/domain/notification-template.repository';
+import type { INotificationTemplateRepository, NotificationTemplateListItem } from '../../../src/modules/notification/domain/notification-template.repository';
 import type { ITemplateImageBindingRepository, TemplateImageBindingData } from '../../../src/modules/notification/domain/template-image-binding.repository';
 import type { IEmailAssetRepository, EmailAssetData } from '../../../src/modules/notification/domain/email-asset.repository';
 import type { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -26,6 +26,13 @@ function makeTemplate(id: string, code: string) {
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
   });
+}
+
+function makeListItem(
+  template: NotificationTemplateEntity,
+  tenantName: string | null = null,
+): NotificationTemplateListItem {
+  return { template, tenantName };
 }
 
 function makeBinding(templateId: string, assetId: string, key = 'logo'): TemplateImageBindingData {
@@ -70,7 +77,9 @@ describe('ListNotificationTemplatesUseCase', () => {
     templateRepo = {
       findAll: vi.fn(),
       findByTenantCodeChannel: vi.fn(),
+      findById: vi.fn(),
       upsert: vi.fn(),
+      delete: vi.fn(),
     };
     bindingRepo = {
       findByTemplate: vi.fn(),
@@ -100,7 +109,7 @@ describe('ListNotificationTemplatesUseCase', () => {
     const binding = makeBinding('tpl-1', 'asset-1', 'logo');
     const asset = makeAsset('asset-1', 'logo');
 
-    vi.mocked(templateRepo.findAll).mockResolvedValue([template]);
+    vi.mocked(templateRepo.findAll).mockResolvedValue([makeListItem(template)]);
     vi.mocked(bindingRepo.findByTemplate).mockResolvedValue([binding]);
     vi.mocked(assetRepo.findById).mockResolvedValue(asset);
 
@@ -124,7 +133,7 @@ describe('ListNotificationTemplatesUseCase', () => {
   it('should return empty imageBindings when no bindings exist', async () => {
     const template = makeTemplate('tpl-2', 'TENANT_INVITATION');
 
-    vi.mocked(templateRepo.findAll).mockResolvedValue([template]);
+    vi.mocked(templateRepo.findAll).mockResolvedValue([makeListItem(template)]);
     vi.mocked(bindingRepo.findByTemplate).mockResolvedValue([]);
 
     const useCase = new ListNotificationTemplatesUseCase(
@@ -140,7 +149,7 @@ describe('ListNotificationTemplatesUseCase', () => {
     const template = makeTemplate('tpl-3', 'APPOINTMENT_REMINDER');
     const binding = makeBinding('tpl-3', 'missing-asset', 'logo');
 
-    vi.mocked(templateRepo.findAll).mockResolvedValue([template]);
+    vi.mocked(templateRepo.findAll).mockResolvedValue([makeListItem(template)]);
     vi.mocked(bindingRepo.findByTemplate).mockResolvedValue([binding]);
     vi.mocked(assetRepo.findById).mockResolvedValue(null);
 
@@ -154,12 +163,28 @@ describe('ListNotificationTemplatesUseCase', () => {
 
   it('should return empty imageBindings when optional repos are not injected (backward compat)', async () => {
     const template = makeTemplate('tpl-4', 'APPOINTMENT_REMINDER');
-    vi.mocked(templateRepo.findAll).mockResolvedValue([template]);
+    vi.mocked(templateRepo.findAll).mockResolvedValue([makeListItem(template)]);
 
     // Only required deps (no bindingRepo/assetRepo)
     const useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
     const result = await useCase.execute({ actor: makeActor('AM') });
 
     expect(result.data[0]!.imageBindings).toHaveLength(0);
+  });
+
+  it('should expose the owning agency name (tenantName) per template', async () => {
+    const override = makeTemplate('tpl-5', 'INSPECTION_NOTICE');
+    const platformDefault = makeTemplate('tpl-6', 'INSPECTION_NOTICE');
+
+    vi.mocked(templateRepo.findAll).mockResolvedValue([
+      makeListItem(override, 'Acme Realty'),
+      makeListItem(platformDefault, null),
+    ]);
+
+    const useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
+    const result = await useCase.execute({ actor: makeActor('AM') });
+
+    expect(result.data[0]!.tenantName).toBe('Acme Realty');
+    expect(result.data[1]!.tenantName).toBeNull();
   });
 });

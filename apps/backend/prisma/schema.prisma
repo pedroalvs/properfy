@@ -998,7 +998,6 @@ enum NotificationClass {
 }
 
 enum ConsentChangeSource {
-  unsubscribe_link
   operator_override
   re_opt_in
 }

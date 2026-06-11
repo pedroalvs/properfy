@@ -46,6 +46,7 @@ const MOCK_TEMPLATES = [
   {
     id: 'tpl-02',
     tenantId: 'tenant-1',
+    tenantName: 'Acme Realty',
     templateCode: 'REMINDER_7D',
     channel: 'SMS',
     subject: '',
@@ -86,6 +87,8 @@ describe('useTemplateList', () => {
 
     expect(result.current.data).toHaveLength(2);
     expect(result.current.data[0]?.code).toBe('INSPECTION_NOTICE');
+    expect(result.current.data[0]?.tenantName).toBeNull();
+    expect(result.current.data[1]?.tenantName).toBe('Acme Realty');
   });
 
   it('returns error state on API failure', async () => {
@@ -105,11 +108,11 @@ describe('useTemplateList', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateList(), { wrapper });
 
-    expect(result.current.filters).toEqual({ templateCode: '', channel: '', includeDefaults: 'true' });
+    expect(result.current.filters).toEqual({ templateCode: '', channel: '', includeDefaults: 'true', tenantId: '' });
     expect(typeof result.current.setFilters).toBe('function');
   });
 
-  it('sends only supported query params', async () => {
+  it('sends only supported query params and omits an empty tenantId', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateList(), { wrapper });
 
@@ -122,6 +125,7 @@ describe('useTemplateList', () => {
         templateCode: 'INSPECTION_NOTICE',
         channel: 'EMAIL',
         includeDefaults: 'false',
+        tenantId: '',
       });
     });
 
@@ -135,6 +139,35 @@ describe('useTemplateList', () => {
               channel: 'EMAIL',
               includeDefaults: 'false',
             },
+          },
+        }),
+      );
+    });
+  });
+
+  it('sends tenantId when an agency is selected', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    act(() => {
+      result.current.setFilters({
+        templateCode: '',
+        channel: '',
+        includeDefaults: 'true',
+        tenantId: 'tenant-1',
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenLastCalledWith(
+        '/v1/notification-templates',
+        expect.objectContaining({
+          params: {
+            query: expect.objectContaining({ tenantId: 'tenant-1' }),
           },
         }),
       );

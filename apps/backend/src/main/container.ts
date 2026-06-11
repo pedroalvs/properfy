@@ -286,18 +286,15 @@ import { HandleProviderWebhookUseCase } from '../modules/notification/applicatio
 import { ListNotificationsUseCase } from '../modules/notification/application/use-cases/list-notifications.use-case';
 import { GetNotificationUseCase } from '../modules/notification/application/use-cases/get-notification.use-case';
 import { UpsertNotificationTemplateUseCase } from '../modules/notification/application/use-cases/upsert-notification-template.use-case';
+import { DeleteNotificationTemplateUseCase } from '../modules/notification/application/use-cases/delete-notification-template.use-case';
 import { SendTestNotificationUseCase } from '../modules/notification/application/use-cases/send-test-notification.use-case';
 import { ListNotificationTemplatesUseCase } from '../modules/notification/application/use-cases/list-notification-templates.use-case';
 import { CreateNotificationUseCase } from '../modules/notification/application/use-cases/create-notification.use-case';
 import { PollRetryableNotificationsUseCase } from '../modules/notification/application/use-cases/poll-retryable-notifications.use-case';
 import { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
-import { ProcessUnsubscribeUseCase } from '../modules/notification/application/use-cases/process-unsubscribe.use-case';
-import { RenderUnsubscribePageUseCase } from '../modules/notification/application/use-cases/render-unsubscribe-page.use-case';
 import { ListConsentsByRecipientUseCase } from '../modules/notification/application/use-cases/list-consents-by-recipient.use-case';
 import { OverrideConsentUseCase } from '../modules/notification/application/use-cases/override-consent.use-case';
-import { ReOptInUseCase } from '../modules/notification/application/use-cases/re-opt-in.use-case';
-import { UnsubscribeTokenService } from '../modules/notification/domain/unsubscribe-token.service';
 import { BuildNotificationPayloadService } from '../modules/notification/domain/build-notification-payload.service';
 import { AppointmentCodeFormatter } from '../modules/appointment/domain/appointment-code.formatter';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
@@ -1106,9 +1103,6 @@ export function createContainer(logger: Logger): AppContainer {
     logger,
     metrics,
     getTenantSettings,
-    // Feature 018: unsubscribe URL injection for operational notifications
-    publicBaseUrl: env.PUBLIC_BASE_URL,
-    unsubscribeTokenSecret: env.NOTIFICATION_UNSUBSCRIBE_SECRET,
     // Feature 030: image-resolve → render → sanitize pipeline
     htmlSanitizer,
     htmlToText,
@@ -1127,6 +1121,9 @@ export function createContainer(logger: Logger): AppContainer {
   const upsertNotificationTemplateUseCase = new UpsertNotificationTemplateUseCase(
     notificationTemplateRepo, templateRenderer, auditService, authorizationService,
     htmlSanitizer, htmlToText, emailAssetRepo, templateImageBindingRepo,
+  );
+  const deleteNotificationTemplateUseCase = new DeleteNotificationTemplateUseCase(
+    notificationTemplateRepo, authorizationService, auditService,
   );
   const renderTemplatePreviewUseCase = new RenderTemplatePreviewUseCase(
     templateRenderer, htmlSanitizer, authorizationService,
@@ -1173,13 +1170,6 @@ export function createContainer(logger: Logger): AppContainer {
     buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL,
   );
-  const unsubscribeTokenService = new UnsubscribeTokenService(env.NOTIFICATION_UNSUBSCRIBE_SECRET);
-  const processUnsubscribeUseCase = new ProcessUnsubscribeUseCase(
-    consentRepo,
-    unsubscribeTokenService,
-    auditService,
-  );
-  const renderUnsubscribePageUseCase = new RenderUnsubscribePageUseCase(unsubscribeTokenService);
   const listConsentsByRecipientUseCase = new ListConsentsByRecipientUseCase(
     consentRepo,
     authorizationService,
@@ -1189,7 +1179,6 @@ export function createContainer(logger: Logger): AppContainer {
     authorizationService,
     auditService,
   );
-  const reOptInUseCase = new ReOptInUseCase(consentRepo, unsubscribeTokenService, auditService);
 
   // Dashboard repositories and use cases
   const dashboardRepo = new PrismaDashboardRepository(prisma);
@@ -1581,6 +1570,7 @@ export function createContainer(logger: Logger): AppContainer {
       listNotificationsUseCase,
       getNotificationUseCase,
       upsertNotificationTemplateUseCase,
+      deleteNotificationTemplateUseCase,
       renderTemplatePreviewUseCase,
       requestImageUploadUseCase: requestImageUploadUseCase as NonNullable<typeof requestImageUploadUseCase>,
       confirmImageUploadUseCase: confirmImageUploadUseCase as NonNullable<typeof confirmImageUploadUseCase>,
@@ -1593,11 +1583,8 @@ export function createContainer(logger: Logger): AppContainer {
       pollRetryableNotificationsUseCase,
       dispatchRemindersUseCase,
       dispatchEscalationsUseCase,
-      processUnsubscribeUseCase,
-      renderUnsubscribePageUseCase,
       listConsentsByRecipientUseCase,
       overrideConsentUseCase,
-      reOptInUseCase,
       jwtService,
       tenantRepo,
       webhookSignatureValidator,

@@ -17,10 +17,8 @@ import { NotificationAttemptEntity } from '../../domain/notification-attempt.ent
 import {
   NotificationNotFoundError,
   NotificationInvalidStatusError,
-  TemplateNotFoundError,
 } from '../../domain/notification.errors';
 import { MAX_RETRY_COUNT, RETRY_DELAYS, JITTER_FACTOR } from '../../domain/notification.constants';
-import { buildUnsubscribeUrl } from './process-unsubscribe.use-case';
 import { renderEmailBody } from '../render-email-body';
 
 export interface SendNotificationInput {
@@ -38,10 +36,6 @@ export interface SendNotificationDeps {
   logger: Logger;
   metrics: MetricsCollector;
   getTenantSettings: (tenantId: string) => Promise<Record<string, unknown>>;
-  /** Feature 018: base URL for unsubscribe link injection (e.g., https://api.properfy.com) */
-  publicBaseUrl: string;
-  /** Feature 018: HMAC secret for unsubscribe token generation */
-  unsubscribeTokenSecret: string;
   /** Feature 030: render-profile HTML sanitizer (defense-in-depth) */
   htmlSanitizer?: IHtmlSanitizerService;
   /** Feature 030: HTML → plain text derivation */
@@ -67,8 +61,6 @@ export class SendNotificationUseCase {
   private readonly logger: Logger;
   private readonly metrics: MetricsCollector;
   private readonly getTenantSettings: (tenantId: string) => Promise<Record<string, unknown>>;
-  private readonly publicBaseUrl: string;
-  private readonly unsubscribeTokenSecret: string;
   private readonly htmlSanitizer?: IHtmlSanitizerService;
   private readonly htmlToText?: IHtmlToTextService;
   private readonly imagePlaceholderResolver?: IImagePlaceholderResolver;
@@ -87,8 +79,6 @@ export class SendNotificationUseCase {
     this.logger = deps.logger;
     this.metrics = deps.metrics;
     this.getTenantSettings = deps.getTenantSettings;
-    this.publicBaseUrl = deps.publicBaseUrl;
-    this.unsubscribeTokenSecret = deps.unsubscribeTokenSecret;
     this.htmlSanitizer = deps.htmlSanitizer;
     this.htmlToText = deps.htmlToText;
     this.imagePlaceholderResolver = deps.imagePlaceholderResolver;
@@ -133,7 +123,9 @@ export class SendNotificationUseCase {
       notification.templateCode,
       notification.channel,
     );
-    if (!template) {
+    // The tenant override is only honored when active; an inactive override
+    // falls through to the platform default (used as-is, regardless of its flag).
+    if (!template || !template.isActive()) {
       template = await this.templateRepo.findByTenantCodeChannel(
         null,
         notification.templateCode,
@@ -141,7 +133,23 @@ export class SendNotificationUseCase {
       );
     }
     if (!template) {
-      throw new TemplateNotFoundError();
+      // Permanent failure: no tenant or platform template exists for this code/channel.
+      // Throwing would leave the notification PENDING and the retry-poll self-heal would
+      // re-enqueue it forever (poison-message loop), so mark it FAILED and stop here.
+      notification.status = 'FAILED';
+      notification.failedAt = new Date();
+      notification.failureReason = 'TEMPLATE_NOT_FOUND';
+      notification.updatedAt = new Date();
+      await this.notificationRepo.update(notification);
+      this.logger.error(
+        {
+          notificationId: notification.id,
+          templateCode: notification.templateCode,
+          channel: notification.channel,
+        },
+        'notification.template_not_found: marked FAILED, will not retry',
+      );
+      return;
     }
     if (notification.notificationClass === null) {
       effectiveClass = template.notificationClass;
@@ -186,8 +194,23 @@ export class SendNotificationUseCase {
       }
     }
 
-    // GAP-003: Check daily budget cap
     const settings = await this.getTenantSettings(notification.tenantId);
+
+    // Per-agency email kill switch: some agencies send their own emails. When
+    // disabled, skip EMAIL sends (SMS is unaffected). Missing key = enabled.
+    if (notification.channel === 'EMAIL' && settings.emailSendingEnabled === false) {
+      notification.status = 'SKIPPED_OPT_OUT';
+      notification.failureReason = 'AGENCY_EMAIL_DISABLED';
+      notification.updatedAt = new Date();
+      await this.notificationRepo.update(notification);
+      this.logger.info(
+        { notificationId: notification.id, tenantId: notification.tenantId },
+        'notification.skipped_agency_email_disabled',
+      );
+      return;
+    }
+
+    // GAP-003: Check daily budget cap
     const dailyCap = notification.channel === 'EMAIL'
       ? (typeof settings.notificationDailyCapEmail === 'number' ? settings.notificationDailyCapEmail : 500)
       : (typeof settings.notificationDailyCapSms === 'number' ? settings.notificationDailyCapSms : 100);
@@ -211,18 +234,7 @@ export class SendNotificationUseCase {
     }
 
     // GAP-004: Validate template variables (warn but don't fail)
-    // Feature 018: inject unsubscribeUrl for OPERATIONAL notifications. Transactional
-    // notifications do NOT get an unsubscribe link because they cannot be opted out of.
     const variables: Record<string, string> = { ...notification.payloadJson };
-    if (effectiveClass === 'OPERATIONAL') {
-      variables['unsubscribeUrl'] = buildUnsubscribeUrl(
-        this.publicBaseUrl,
-        notification.recipient,
-        notification.channel,
-        notification.tenantId,
-        this.unsubscribeTokenSecret,
-      );
-    }
 
     const allTemplateContent = [template.subject, template.bodyHtml, template.bodyText]
       .filter(Boolean)
