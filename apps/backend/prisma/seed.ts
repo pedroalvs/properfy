@@ -198,6 +198,19 @@ const IDS = {
 } as const;
 
 async function main() {
+  // This seed creates DEMO data (fixed UUIDs, fake tenants/inspectors, an
+  // in-progress inspection execution that goes "stuck" 6h after seeding and
+  // triggers ops alerts). It must never run against production: prod was
+  // accidentally seeded on 2026-03-27 and the leftover exec2 row generated
+  // hourly INSPECTION_STUCK_ALERT emails for months.
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+    console.error(
+      'Refusing to run the demo seed with NODE_ENV=production. ' +
+        'Set ALLOW_PROD_SEED=true only if you really intend to seed demo data into this database.',
+    );
+    process.exit(1);
+  }
+
   console.log('Seeding database...');
 
   const passwordHash = await bcrypt.hash('Admin@1234', 12);
@@ -1204,7 +1217,10 @@ async function main() {
     },
   });
 
-  // exec2: in-progress execution for apptScheduled (inspector started)
+  // exec2: in-progress execution for apptScheduled (inspector started).
+  // NOTE: 6h after seeding this row matches the notify-not-started "stuck"
+  // query forever. The worker's cool-off (24h) and max alert age (7d) keep the
+  // resulting ops alerts bounded in seeded environments.
   await prisma.inspectionExecution.upsert({
     where: { appointment_id: IDS.apptScheduled },
     update: {},

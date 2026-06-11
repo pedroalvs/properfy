@@ -1239,7 +1239,7 @@ export function createContainer(logger: Logger): AppContainer {
   const expireTokensWorker = new ExpireTokensWorker(tenantPortalTokenRepo, logger);
   const expireAssetsWorker = new ExpireAssetsWorker(inspectionAssetRepo, storageService, logger);
   const notifyStuckInspectionsWorker = new NotifyStuckInspectionsWorker(
-    inspectionExecutionRepo, appointmentRepo, createNotificationUseCase, logger,
+    inspectionExecutionRepo, appointmentRepo, notificationRepo, createNotificationUseCase, logger,
   );
   const expirePriorityWorker = new ExpirePriorityWorker(serviceGroupRepo, auditService, logger);
   const auditRetentionWorker = new AuditRetentionWorker(
