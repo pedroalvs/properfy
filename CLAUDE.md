@@ -285,6 +285,19 @@ When you (Claude Code) implement or modify code in this project:
 
 ## 16. Workflow orchestration
 
+### Git worktrees (mandatory for every implementation task)
+
+For every task that involves writing or modifying code, you MUST use the `superpowers:using-git-worktrees` skill before starting any implementation. This is not optional.
+
+The expected flow is:
+1. Invoke `superpowers:using-git-worktrees` to create an isolated worktree from `develop`
+2. Do all implementation work inside that worktree
+3. Run verification (lint, typecheck, tests) inside the worktree
+4. When work is complete, commit and push the feature branch
+5. Open a PR targeting `develop` — do this unless the user explicitly says not to
+
+Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks the user explicitly scopes as "quick fix, no PR needed".
+
 ### Plan mode
 
 - Enter plan mode before any non-trivial task to discuss approach, constraints and risks.
