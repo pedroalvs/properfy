@@ -5,6 +5,21 @@ import type { Logger } from '../../../../shared/infrastructure/logger';
 
 const STUCK_THRESHOLD_HOURS = 6;
 
+/**
+ * Payload contract for the INSPECTION_STUCK_ALERT template. The platform seed
+ * template may only use these variables (asserted by
+ * platform-notification-templates.test.ts); the payload literal below is typed
+ * against this list so adding/removing a key here is a compile-time error.
+ */
+export const STUCK_ALERT_PAYLOAD_KEYS = [
+  'appointmentId',
+  'inspectorId',
+  'startedAt',
+  'hoursStuck',
+] as const;
+
+type StuckAlertPayload = Record<(typeof STUCK_ALERT_PAYLOAD_KEYS)[number], string>;
+
 export class NotifyStuckInspectionsWorker {
   constructor(
     private readonly executionRepo: IInspectionExecutionRepository,
@@ -32,18 +47,19 @@ export class NotifyStuckInspectionsWorker {
           continue;
         }
 
+        const payloadJson: StuckAlertPayload = {
+          appointmentId: execution.appointmentId,
+          inspectorId: execution.inspectorId,
+          startedAt: execution.startedAt.toISOString(),
+          hoursStuck: String(STUCK_THRESHOLD_HOURS),
+        };
         await this.createNotificationUseCase.execute({
           tenantId: appointmentResult.appointment.tenantId,
           appointmentId: execution.appointmentId,
           recipient: 'ops@properfy.com.au',
           channel: 'EMAIL',
           templateCode: 'INSPECTION_STUCK_ALERT',
-          payloadJson: {
-            appointmentId: execution.appointmentId,
-            inspectorId: execution.inspectorId,
-            startedAt: execution.startedAt.toISOString(),
-            hoursStuck: String(STUCK_THRESHOLD_HOURS),
-          },
+          payloadJson,
         });
         notifiedCount++;
       } catch (err) {

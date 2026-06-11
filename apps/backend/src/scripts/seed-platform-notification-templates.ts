@@ -7,9 +7,15 @@ async function main() {
   let upserted = 0;
 
   for (const t of PLATFORM_TEMPLATES) {
-    const variables = (t.body.match(/\{\{(\w+)\}\}/g) ?? []).map((v) =>
-      v.replace(/\{\{|\}\}/g, ''),
-    );
+    // Subject can carry variables too (e.g. REPORT_READY, INSPECTION_STUCK_ALERT),
+    // so derive variables_json from subject + body, deduplicated.
+    const variables = [
+      ...new Set(
+        (`${t.subject ?? ''} ${t.body}`.match(/\{\{(\w+)\}\}/g) ?? []).map((v) =>
+          v.replace(/\{\{|\}\}/g, ''),
+        ),
+      ),
+    ];
 
     const existing = await prisma.notificationTemplate.findFirst({
       where: { tenant_id: null, template_code: t.code, channel: t.channel },

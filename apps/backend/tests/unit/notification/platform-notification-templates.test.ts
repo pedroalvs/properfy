@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PLATFORM_TEMPLATES } from '../../../src/scripts/platform-notification-templates';
-
-/**
- * Payload keys the notify-stuck worker provides when creating an
- * INSPECTION_STUCK_ALERT notification (see notify-stuck.worker.ts).
- */
-const STUCK_ALERT_PAYLOAD_KEYS = ['appointmentId', 'inspectorId', 'startedAt', 'hoursStuck'];
+import { STUCK_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 
 function extractVariables(content: string): string[] {
   return (content.match(/\{\{(\w+)\}\}/g) ?? []).map((v) => v.replace(/\{\{|\}\}/g, ''));

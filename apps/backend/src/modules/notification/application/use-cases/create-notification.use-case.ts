@@ -37,7 +37,8 @@ export class CreateNotificationUseCase {
     // Feature 018 T032: stamp the effective notificationClass at create time.
     // Resolve from the tenant-scoped template first, fall back to the platform
     // default template. If neither exists, leave it null — the send worker will
-    // throw TemplateNotFoundError later, which is the correct failure path.
+    // mark the notification FAILED (TEMPLATE_NOT_FOUND) later, which is the
+    // correct failure path.
     let notificationClass: NotificationClass | null = null;
     const tenantTemplate = await this.templateRepo.findByTenantCodeChannel(
       input.tenantId,
