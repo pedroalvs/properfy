@@ -27,6 +27,9 @@ export const tenantSettingsSchema = z.object({
   notificationFromName: z.string().max(100).optional(),
   notificationFromEmail: z.string().email().max(254).optional(),
   smsFromName: z.string().max(11).regex(/^[a-zA-Z0-9]*$/, 'Must be alphanumeric').optional(),
+  // When false, the platform skips EMAIL sends for this agency (they handle their
+  // own email delivery). SMS is unaffected. Default true (back-compat).
+  emailSendingEnabled: z.boolean().default(true),
 
   // Branding
   logoUrl: z.string().url().optional(),

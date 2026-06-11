@@ -16,7 +16,7 @@ const CLASS_STYLES: Record<NotificationClass, { color: string; label: string; ti
   OPERATIONAL: {
     color: 'bg-[#B3E5FC] text-[#01579B]',
     label: 'Operational',
-    title: 'Delivered unless the recipient has opted out via the unsubscribe link.',
+    title: 'Delivered unless the recipient has opted out of this notification class.',
   },
   MARKETING: {
     color: 'bg-gray-200 text-gray-700',

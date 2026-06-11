@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
@@ -116,10 +117,19 @@ describe('NotificationTemplateListPage', () => {
     expect(screen.getByText('Notification Templates')).toBeInTheDocument();
   });
 
-  it('does not render a CTA button', () => {
+  it('renders the "Create custom template" CTA', () => {
     renderPage();
-    expect(screen.queryByText('New Template')).not.toBeInTheDocument();
-    expect(screen.queryByText('Create')).not.toBeInTheDocument();
+    expect(screen.getByText('Create custom template')).toBeInTheDocument();
+  });
+
+  it('does not render the create drawer until the CTA is clicked', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    expect(screen.queryByText('Create Custom Template')).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('Create custom template'));
+    expect(await screen.findByText('Create Custom Template')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Template type' })).toBeInTheDocument();
   });
 
   it('renders filter bar with contract-backed controls only', () => {
@@ -134,14 +144,15 @@ describe('NotificationTemplateListPage', () => {
   it('renders data table with template data after loading', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('INSPECTION_NOTICE')).toBeInTheDocument();
+      expect(screen.getByText('Inspection Notice')).toBeInTheDocument();
     });
+    // REMINDER_7D is not a known code → falls back to the raw code string.
     expect(screen.getByText('REMINDER_7D')).toBeInTheDocument();
   });
 
   it('renders table column headers', () => {
     renderPage();
-    expect(screen.getByText('Code')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
     expect(screen.getAllByText('Channel').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Subject').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Active')).toBeInTheDocument();

@@ -14,6 +14,7 @@ function makeNotification(id: string): NotificationEntity {
     channel: 'EMAIL',
     templateCode: 'reminder',
     status: 'PENDING',
+    notificationClass: null,
     providerName: null,
     providerMessageId: null,
     sentAt: null,
@@ -32,6 +33,31 @@ function makeNotifications(count: number): NotificationEntity[] {
   return Array.from({ length: count }, (_, i) => makeNotification(`notif-${i + 1}`));
 }
 
+/** A PENDING row whose enqueue was lost: retryCount 0, nextRetryAt null. */
+function makeStuckNotification(id: string, createdAt: Date): NotificationEntity {
+  return new NotificationEntity({
+    id,
+    tenantId: 'tenant-1',
+    appointmentId: null,
+    recipient: 'user@example.com',
+    channel: 'EMAIL',
+    templateCode: 'TENANT_PORTAL_LINK',
+    status: 'PENDING',
+    notificationClass: null,
+    providerName: null,
+    providerMessageId: null,
+    sentAt: null,
+    deliveredAt: null,
+    failedAt: null,
+    failureReason: null,
+    payloadJson: {},
+    retryCount: 0,
+    nextRetryAt: null,
+    createdAt,
+    updatedAt: createdAt,
+  });
+}
+
 describe('PollRetryableNotificationsUseCase', () => {
   let mockRepo: {
     findById: ReturnType<typeof vi.fn>;
@@ -39,6 +65,7 @@ describe('PollRetryableNotificationsUseCase', () => {
     findAll: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
     findRetryable: ReturnType<typeof vi.fn>;
+    findStuckPending: ReturnType<typeof vi.fn>;
     save: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     existsByAppointmentAndTemplate: ReturnType<typeof vi.fn>;
@@ -54,6 +81,7 @@ describe('PollRetryableNotificationsUseCase', () => {
       findAll: vi.fn(),
       count: vi.fn(),
       findRetryable: vi.fn().mockResolvedValue([]),
+      findStuckPending: vi.fn().mockResolvedValue([]),
       save: vi.fn(),
       update: vi.fn(),
       existsByAppointmentAndTemplate: vi.fn(),
@@ -228,4 +256,90 @@ describe('PollRetryableNotificationsUseCase', () => {
       );
     });
   });
+
+  describe('stuck never-enqueued self-heal', () => {
+    it('queries stuck PENDING rows older than the 10-minute grace period', async () => {
+      const useCase = createUseCase(10);
+      const before = Date.now();
+      await useCase.execute();
+      const after = Date.now();
+
+      expect(mockRepo.findStuckPending).toHaveBeenCalledOnce();
+      const [cutoff, limit] = mockRepo.findStuckPending.mock.calls[0];
+      const tenMinutes = 10 * 60 * 1000;
+      expect((cutoff as Date).getTime()).toBeGreaterThanOrEqual(before - tenMinutes);
+      expect((cutoff as Date).getTime()).toBeLessThanOrEqual(after - tenMinutes);
+      expect(limit).toBe(11); // limit + 1 to detect overflow
+    });
+
+    it('re-enqueues stuck rows newer than 72 hours with the standard send options', async () => {
+      const useCase = createUseCase();
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      mockRepo.findStuckPending.mockResolvedValueOnce([
+        makeStuckNotification('stuck-1', oneHourAgo),
+      ]);
+
+      const result = await useCase.execute();
+
+      expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
+        'notification.send',
+        { notificationId: 'stuck-1' },
+        expect.objectContaining({ retryLimit: 0, singletonKey: 'stuck-1', expireInMinutes: 5 }),
+      );
+      expect(result.stuckReenqueuedCount).toBe(1);
+      expect(result.stuckFailedCount).toBe(0);
+      expect(mockRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('marks stuck rows older than 72 hours as FAILED instead of re-sending stale content', async () => {
+      const useCase = createUseCase();
+      const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+      const stale = makeStuckNotification('stuck-old', fourDaysAgo);
+      mockRepo.findStuckPending.mockResolvedValueOnce([stale]);
+
+      const result = await useCase.execute();
+
+      expect(mockJobQueue.enqueue).not.toHaveBeenCalled();
+      expect(mockRepo.update).toHaveBeenCalledOnce();
+      const updated = mockRepo.update.mock.calls[0][0] as NotificationEntity;
+      expect(updated.id).toBe('stuck-old');
+      expect(updated.status).toBe('FAILED');
+      expect(updated.failureReason).toBe('STUCK_NEVER_ENQUEUED');
+      expect(updated.failedAt).toBeInstanceOf(Date);
+      expect(result.stuckReenqueuedCount).toBe(0);
+      expect(result.stuckFailedCount).toBe(1);
+    });
+
+    it('handles fresh and stale stuck rows in the same poll', async () => {
+      const useCase = createUseCase();
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+      mockRepo.findStuckPending.mockResolvedValueOnce([
+        makeStuckNotification('stuck-fresh', oneHourAgo),
+        makeStuckNotification('stuck-old', fourDaysAgo),
+      ]);
+
+      const result = await useCase.execute();
+
+      expect(result.stuckReenqueuedCount).toBe(1);
+      expect(result.stuckFailedCount).toBe(1);
+      expect(mockJobQueue.enqueue).toHaveBeenCalledTimes(1);
+      expect(mockRepo.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts retryable and stuck rows independently', async () => {
+      const useCase = createUseCase();
+      mockRepo.findRetryable.mockResolvedValueOnce([makeNotification('retry-1')]);
+      mockRepo.findStuckPending.mockResolvedValueOnce([
+        makeStuckNotification('stuck-1', new Date(Date.now() - 60 * 60 * 1000)),
+      ]);
+
+      const result = await useCase.execute();
+
+      expect(result.enqueuedCount).toBe(1);
+      expect(result.stuckReenqueuedCount).toBe(1);
+      expect(mockJobQueue.enqueue).toHaveBeenCalledTimes(2);
+    });
+  });
+
 });

@@ -24,5 +24,11 @@ export interface INotificationTemplateRepository {
     channel: NotificationChannel,
   ): Promise<NotificationTemplateEntity | null>;
   findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListItem[]>;
+  findById(templateId: string): Promise<NotificationTemplateEntity | null>;
   upsert(template: NotificationTemplateEntity): Promise<void>;
+  /**
+   * Hard-deletes a tenant override. Platform-default templates (tenant_id = NULL)
+   * are never deleted — the implementation guards with `tenant_id NOT NULL`.
+   */
+  delete(templateId: string): Promise<void>;
 }

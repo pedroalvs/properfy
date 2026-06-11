@@ -202,8 +202,6 @@ async function main() {
  * local demo environments.
  */
 async function provisionDefaultTemplates(): Promise<void> {
-  const OP_EMAIL_FOOTER =
-    ' If you no longer wish to receive operational notifications, you can unsubscribe here: {{unsubscribeUrl}}';
   const templates: Array<{
     code: string;
     channel: 'EMAIL' | 'SMS';
@@ -216,14 +214,13 @@ async function provisionDefaultTemplates(): Promise<void> {
       subject: 'Your property inspection portal',
       body:
         'Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on ' +
-        '{{scheduledDate}} using this secure link: {{portalToken}}.' +
-        OP_EMAIL_FOOTER,
+        '{{scheduledDate}} using this secure link: {{confirmationLink}}.',
     },
     {
       code: 'TENANT_PORTAL_LINK',
       channel: 'SMS',
       subject: null,
-      body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{portalToken}}',
+      body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{confirmationLink}}',
     },
   ];
 

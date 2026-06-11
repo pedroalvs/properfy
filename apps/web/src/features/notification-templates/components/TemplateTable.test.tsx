@@ -1,8 +1,29 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { TemplateTable } from './TemplateTable';
 import type { NotificationTemplate } from '../types';
+
+// Rows mount TemplateRowActions, which uses React Query + Snackbar.
+function AllProviders({ children }: { children: React.ReactNode }) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+  });
+  return (
+    <QueryClientProvider client={queryClient}>
+      <SnackbarProvider>
+        <MemoryRouter>{children}</MemoryRouter>
+      </SnackbarProvider>
+    </QueryClientProvider>
+  );
+}
+
+function render(ui: React.ReactElement) {
+  return rtlRender(ui, { wrapper: AllProviders });
+}
 
 function makeTemplate(overrides: Partial<NotificationTemplate> = {}): NotificationTemplate {
   return {
@@ -25,7 +46,7 @@ function makeTemplate(overrides: Partial<NotificationTemplate> = {}): Notificati
 describe('TemplateTable', () => {
   it('renders column headers', () => {
     render(<TemplateTable data={[]} />);
-    expect(screen.getByText('Code')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
     expect(screen.getByText('Scope')).toBeInTheDocument();
     expect(screen.getByText('Agency')).toBeInTheDocument();
     expect(screen.getByText('Channel')).toBeInTheDocument();
@@ -36,7 +57,7 @@ describe('TemplateTable', () => {
   it('renders template data', () => {
     const template = makeTemplate();
     render(<TemplateTable data={[template]} />);
-    expect(screen.getByText('INSPECTION_NOTICE')).toBeInTheDocument();
+    expect(screen.getByText('Inspection Notice')).toBeInTheDocument();
     expect(screen.getByText('Platform Default')).toBeInTheDocument();
     expect(screen.getByText('Inspection Scheduled')).toBeInTheDocument();
   });

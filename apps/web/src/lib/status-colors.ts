@@ -181,7 +181,8 @@ export const SLOT_STATUS_MAP: Record<AvailabilitySlotStatus, StatusStyle> = {
  *   - FAILED:           provider rejected or transport error.
  *   - SKIPPED:          dispatch deliberately suppressed (rule, quiet hours,
  *                       missing recipient channel).
- *   - SKIPPED_OPT_OUT:  recipient unsubscribed from this notification class.
+ *   - SKIPPED_OPT_OUT:  deliberately not sent (recipient opted out of this class,
+ *                       or the agency has email sending disabled).
  * Reuses existing status-color tokens to stay aligned with the rest of
  * the design system; the two SKIPPED states share the "cancelled"
  * palette so they read as terminal-non-failure at a glance.

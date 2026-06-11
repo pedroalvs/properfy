@@ -24,9 +24,11 @@ describe('PrismaNotificationTemplateRepository', () => {
   const prisma = {
     notificationTemplate: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
       create: vi.fn(),
+      deleteMany: vi.fn(),
     },
   };
 
@@ -142,5 +144,35 @@ describe('PrismaNotificationTemplateRepository', () => {
     expect(items[0]!.template.id).toBe('override-1');
     expect(items[0]!.tenantName).toBe('Acme Realty');
     expect(items[1]!.tenantName).toBeNull();
+  });
+
+  it('findById returns the mapped entity', async () => {
+    prisma.notificationTemplate.findUnique.mockResolvedValue(
+      makeRow({ id: 'override-9', tenant_id: 'tenant-1' }),
+    );
+
+    const result = await repository.findById('override-9');
+
+    expect(prisma.notificationTemplate.findUnique).toHaveBeenCalledWith({
+      where: { id: 'override-9' },
+    });
+    expect(result?.id).toBe('override-9');
+    expect(result?.tenantId).toBe('tenant-1');
+  });
+
+  it('findById returns null when the row is missing', async () => {
+    prisma.notificationTemplate.findUnique.mockResolvedValue(null);
+
+    expect(await repository.findById('nope')).toBeNull();
+  });
+
+  it('delete hard-deletes only tenant overrides (tenant_id NOT NULL guard)', async () => {
+    prisma.notificationTemplate.deleteMany.mockResolvedValue({ count: 1 });
+
+    await repository.delete('override-9');
+
+    expect(prisma.notificationTemplate.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'override-9', tenant_id: { not: null } },
+    });
   });
 });

@@ -77,7 +77,9 @@ describe('ListNotificationTemplatesUseCase', () => {
     templateRepo = {
       findAll: vi.fn(),
       findByTenantCodeChannel: vi.fn(),
+      findById: vi.fn(),
       upsert: vi.fn(),
+      delete: vi.fn(),
     };
     bindingRepo = {
       findByTemplate: vi.fn(),

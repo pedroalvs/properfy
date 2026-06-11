@@ -1473,32 +1473,26 @@ async function main() {
 
   // ─── NOTIFICATION TEMPLATES ───────────────────────────────────────────────
 
-  // Feature 018: OPERATIONAL email templates include {{unsubscribeUrl}} footer.
-  // Protected TRANSACTIONAL templates (INSPECTION_CONFIRMED, INSPECTION_RESCHEDULED,
-  // INSPECTION_CANCELLED, INSPECTION_UNAVAILABILITY_REPORTED) and SMS templates do NOT
-  // include an unsubscribe footer — transactional notifications cannot be opted out of
-  // and SMS unsubscribe is handled via the STOP keyword (GAP-003 deferred).
-  const OP_EMAIL_FOOTER = ' If you no longer wish to receive operational notifications, you can unsubscribe here: {{unsubscribeUrl}}';
   const templates = [
-    { code: 'INSPECTION_NOTICE', channel: 'EMAIL' as const, subject: 'Upcoming Property Inspection', body: `Dear {{tenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} between {{timeSlot}}.${OP_EMAIL_FOOTER}` },
-    { code: 'REMINDER_7_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 7 Days', body: `Dear {{tenantName}}, this is a reminder that your property inspection at {{propertyAddress}} is in 7 days on {{scheduledDate}}.${OP_EMAIL_FOOTER}` },
-    { code: 'REMINDER_5_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 5 Days', body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 5 days on {{scheduledDate}}.${OP_EMAIL_FOOTER}` },
-    { code: 'REMINDER_3_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 3 Days', body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 3 days on {{scheduledDate}}.${OP_EMAIL_FOOTER}` },
-    { code: 'PROPERTY_MANAGER_ESCALATION', channel: 'EMAIL' as const, subject: 'Tenant Not Responding - Escalation', body: `The tenant {{tenantName}} at {{propertyAddress}} has not responded to the inspection notice for {{scheduledDate}}. Please follow up.${OP_EMAIL_FOOTER}` },
+    { code: 'INSPECTION_NOTICE', channel: 'EMAIL' as const, subject: 'Upcoming Property Inspection', body: `Dear {{tenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} between {{timeSlot}}.` },
+    { code: 'REMINDER_7_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 7 Days', body: `Dear {{tenantName}}, this is a reminder that your property inspection at {{propertyAddress}} is in 7 days on {{scheduledDate}}.` },
+    { code: 'REMINDER_5_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 5 Days', body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 5 days on {{scheduledDate}}.` },
+    { code: 'REMINDER_3_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 3 Days', body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 3 days on {{scheduledDate}}.` },
+    { code: 'PROPERTY_MANAGER_ESCALATION', channel: 'EMAIL' as const, subject: 'Tenant Not Responding - Escalation', body: `The tenant {{tenantName}} at {{propertyAddress}} has not responded to the inspection notice for {{scheduledDate}}. Please follow up.` },
     { code: 'TENANT_SMS_ALERT', channel: 'SMS' as const, subject: null, body: 'Properfy: Inspection at {{propertyAddress}} on {{scheduledDate}}. Confirm at {{portalUrl}}' },
     { code: 'INSPECTION_CONFIRMED', channel: 'EMAIL' as const, subject: 'Inspection Confirmed', body: 'Dear {{tenantName}}, your inspection at {{propertyAddress}} on {{scheduledDate}} has been confirmed.' },
     { code: 'INSPECTION_RESCHEDULED', channel: 'EMAIL' as const, subject: 'Inspection Rescheduled', body: 'Dear {{tenantName}}, the inspection at {{propertyAddress}} has been rescheduled. New details will follow.' },
     { code: 'INSPECTION_CANCELLED', channel: 'EMAIL' as const, subject: 'Inspection Cancelled', body: 'Dear {{tenantName}}, the inspection at {{propertyAddress}} on {{scheduledDate}} has been cancelled.' },
     { code: 'INSPECTION_UNAVAILABILITY_REPORTED', channel: 'EMAIL' as const, subject: 'Tenant Reported Unavailability', body: 'The tenant {{tenantName}} reported that the inspection at {{propertyAddress}} on {{scheduledDate}} is unavailable. Review appointment {{appointmentReference}} for follow-up.' },
     // Feature 019: report completion / failure notifications (closes 011#GAP-010)
-    { code: 'REPORT_READY', channel: 'EMAIL' as const, subject: 'Your report "{{reportType}}" is ready', body: `Hi {{userName}}, your {{reportType}} report is ready. View and download it at {{downloadLink}}. The file is available for 30 days.${OP_EMAIL_FOOTER}` },
-    { code: 'REPORT_FAILED', channel: 'EMAIL' as const, subject: 'Your report "{{reportType}}" failed', body: `Hi {{userName}}, your {{reportType}} report could not be generated. Reason: {{errorMessage}}. You can retry from the reports page: {{downloadLink}}.${OP_EMAIL_FOOTER}` },
-    // Feature 007 / Bug B-5: tenant portal deep-link. Enfileirado por
-    // `GeneratePortalTokenUseCase` quando o operador gera um portal link
-    // para o appointment. Variáveis esperadas: tenantName, portalToken,
-    // scheduledDate. O frontend compõe a URL completa a partir do token.
-    { code: 'TENANT_PORTAL_LINK', channel: 'EMAIL' as const, subject: 'Your property inspection portal', body: `Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on {{scheduledDate}} using this secure link: {{portalToken}}.${OP_EMAIL_FOOTER}` },
-    { code: 'TENANT_PORTAL_LINK', channel: 'SMS' as const, subject: null, body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{portalToken}}' },
+    { code: 'REPORT_READY', channel: 'EMAIL' as const, subject: 'Your report "{{reportType}}" is ready', body: `Hi {{userName}}, your {{reportType}} report is ready. View and download it at {{downloadLink}}. The file is available for 30 days.` },
+    { code: 'REPORT_FAILED', channel: 'EMAIL' as const, subject: 'Your report "{{reportType}}" failed', body: `Hi {{userName}}, your {{reportType}} report could not be generated. Reason: {{errorMessage}}. You can retry from the reports page: {{downloadLink}}.` },
+    // Feature 007 / Bug B-5: tenant portal deep-link. Enqueued by
+    // `GeneratePortalTokenUseCase` when the operator generates a portal link
+    // for the appointment. Expected variables: tenantName, confirmationLink,
+    // scheduledDate. The frontend builds the full URL from the token.
+    { code: 'TENANT_PORTAL_LINK', channel: 'EMAIL' as const, subject: 'Your property inspection portal', body: `Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on {{scheduledDate}} using this secure link: {{confirmationLink}}.` },
+    { code: 'TENANT_PORTAL_LINK', channel: 'SMS' as const, subject: null, body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{confirmationLink}}' },
   ];
 
   for (const t of templates) {

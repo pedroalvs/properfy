@@ -91,7 +91,6 @@ describe('upsertNotificationTemplateSchema', () => {
     const result = upsertNotificationTemplateSchema.safeParse({
       subject: 'Inspection scheduled',
       bodyHtml: '<p>Your inspection is scheduled</p>',
-      bodyText: 'Your inspection is scheduled',
       isActive: true,
     });
     expect(result.success).toBe(true);
@@ -99,17 +98,17 @@ describe('upsertNotificationTemplateSchema', () => {
 
   it('should accept valid input with only required fields', () => {
     const result = upsertNotificationTemplateSchema.safeParse({
-      bodyText: 'Your inspection is scheduled',
+      bodyHtml: '<p>Your inspection is scheduled</p>',
       isActive: false,
     });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.subject).toBeUndefined();
-      expect(result.data.bodyHtml).toBeUndefined();
+      expect(result.data.bodyHtml).toBe('<p>Your inspection is scheduled</p>');
     }
   });
 
-  it('should reject missing bodyText', () => {
+  it('should reject missing bodyHtml', () => {
     const result = upsertNotificationTemplateSchema.safeParse({
       isActive: true,
     });
@@ -118,14 +117,14 @@ describe('upsertNotificationTemplateSchema', () => {
 
   it('should reject missing isActive', () => {
     const result = upsertNotificationTemplateSchema.safeParse({
-      bodyText: 'Some text',
+      bodyHtml: '<p>Some text</p>',
     });
     expect(result.success).toBe(false);
   });
 
-  it('should reject empty bodyText', () => {
+  it('should reject empty bodyHtml', () => {
     const result = upsertNotificationTemplateSchema.safeParse({
-      bodyText: '',
+      bodyHtml: '',
       isActive: true,
     });
     expect(result.success).toBe(false);
@@ -134,7 +133,7 @@ describe('upsertNotificationTemplateSchema', () => {
   it('should reject empty subject', () => {
     const result = upsertNotificationTemplateSchema.safeParse({
       subject: '',
-      bodyText: 'Some text',
+      bodyHtml: '<p>Some text</p>',
       isActive: true,
     });
     expect(result.success).toBe(false);
@@ -143,7 +142,7 @@ describe('upsertNotificationTemplateSchema', () => {
   it('should reject subject exceeding 255 characters', () => {
     const result = upsertNotificationTemplateSchema.safeParse({
       subject: 'a'.repeat(256),
-      bodyText: 'Some text',
+      bodyHtml: '<p>Some text</p>',
       isActive: true,
     });
     expect(result.success).toBe(false);
@@ -152,24 +151,15 @@ describe('upsertNotificationTemplateSchema', () => {
   it('should accept subject at exactly 255 characters', () => {
     const result = upsertNotificationTemplateSchema.safeParse({
       subject: 'a'.repeat(255),
-      bodyText: 'Some text',
+      bodyHtml: '<p>Some text</p>',
       isActive: true,
     });
     expect(result.success).toBe(true);
   });
 
-  it('should reject empty bodyHtml', () => {
-    const result = upsertNotificationTemplateSchema.safeParse({
-      bodyHtml: '',
-      bodyText: 'Some text',
-      isActive: true,
-    });
-    expect(result.success).toBe(false);
-  });
-
   it('should reject non-boolean isActive', () => {
     const result = upsertNotificationTemplateSchema.safeParse({
-      bodyText: 'Some text',
+      bodyHtml: '<p>Some text</p>',
       isActive: 'yes',
     });
     expect(result.success).toBe(false);

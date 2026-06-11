@@ -45,7 +45,9 @@ describe('UpsertNotificationTemplateUseCase', () => {
     templateRepo = {
       findByTenantCodeChannel: vi.fn(),
       findAll: vi.fn(),
+      findById: vi.fn(),
       upsert: vi.fn(),
+      delete: vi.fn(),
     };
 
     templateRenderer = {

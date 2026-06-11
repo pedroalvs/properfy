@@ -1,7 +1,7 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
-import { RowActions } from '@/components/data/RowActions';
 import { NotificationClassChip } from './NotificationClassChip';
-import type { NotificationTemplate } from '../types';
+import { TemplateRowActions } from './TemplateRowActions';
+import { TEMPLATE_CODE_LABELS, type MandatoryTemplateCode, type NotificationTemplate } from '../types';
 
 const CHANNEL_COLORS: Record<string, string> = {
   EMAIL: 'bg-[#B3E5FC] text-[#01579B]',
@@ -14,6 +14,9 @@ interface TemplateTableProps {
   error?: string;
   onRetryError?: () => void;
   onEdit?: (template: NotificationTemplate) => void;
+  onDeleted?: () => void;
+  /** AM/OP only — enables the delete action on agency overrides. */
+  canDelete?: boolean;
 }
 
 export function TemplateTable({
@@ -22,11 +25,18 @@ export function TemplateTable({
   error,
   onRetryError,
   onEdit,
+  onDeleted,
+  canDelete,
 }: TemplateTableProps) {
   const columns: DataTableColumn<NotificationTemplate>[] = [
     {
       key: 'code',
-      label: 'Code',
+      label: 'Type',
+      render: (row) => (
+        <span className="text-sm font-medium text-text-primary">
+          {TEMPLATE_CODE_LABELS[row.code as MandatoryTemplateCode] ?? row.code}
+        </span>
+      ),
     },
     {
       key: 'scope',
@@ -87,16 +97,13 @@ export function TemplateTable({
     {
       key: 'actions',
       label: '',
-      width: '60px',
+      width: '96px',
       render: (row) => (
-        <RowActions
-          actions={[
-            {
-              icon: 'mdi-pencil-outline',
-              label: 'Edit',
-              onClick: () => onEdit?.(row),
-            },
-          ]}
+        <TemplateRowActions
+          template={row}
+          onEdit={onEdit}
+          onDeleted={onDeleted}
+          canDelete={canDelete}
         />
       ),
     },

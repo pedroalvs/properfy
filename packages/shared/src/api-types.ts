@@ -703,6 +703,8 @@ export interface paths {
                             /** Format: email */
                             notificationFromEmail?: string;
                             smsFromName?: string;
+                            /** @default true */
+                            emailSendingEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -894,6 +896,8 @@ export interface paths {
                             /** Format: email */
                             notificationFromEmail?: string;
                             smsFromName?: string;
+                            /** @default true */
+                            emailSendingEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -7837,7 +7841,7 @@ export interface paths {
                                 expiresAt: string;
                                 dispatched?: boolean;
                                 /** @enum {string} */
-                                reason?: "NO_PRIMARY_CONTACT";
+                                reason?: "NO_PRIMARY_CONTACT" | "DISPATCH_FAILED";
                             };
                         };
                     };
@@ -11276,89 +11280,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/notifications/unsubscribe": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notifications/re-opt-in": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/notifications/consents": {
         parameters: {
             query?: never;
@@ -11545,6 +11466,43 @@ export interface paths {
         };
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notification-templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    templateId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": "null" | null;
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;

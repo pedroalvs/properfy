@@ -69,6 +69,21 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
     }));
   }
 
+  async findById(templateId: string): Promise<NotificationTemplateEntity | null> {
+    const row = await this.prisma.notificationTemplate.findUnique({
+      where: { id: templateId },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  async delete(templateId: string): Promise<void> {
+    // `tenant_id NOT NULL` guard ensures a platform default can never be hard-deleted,
+    // even if a bad id is passed — defense in depth beyond the use-case RBAC/guard.
+    await this.prisma.notificationTemplate.deleteMany({
+      where: { id: templateId, tenant_id: { not: null } },
+    });
+  }
+
   async upsert(template: NotificationTemplateEntity): Promise<void> {
     const existing = await this.prisma.notificationTemplate.findFirst({
       where: {

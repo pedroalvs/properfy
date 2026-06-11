@@ -1,10 +1,7 @@
 /**
  * Feature 018 integration tests (mock-container based).
  *
- * These tests verify the wiring of the new consent endpoints added in US1 / US3 / US4 / US6:
- *   - GET  /v1/notifications/unsubscribe (public, HTML)
- *   - POST /v1/notifications/unsubscribe (public, HTML or JSON)
- *   - POST /v1/notifications/re-opt-in   (public, HTML or JSON)
+ * These tests verify the wiring of the operator consent endpoints:
  *   - GET  /v1/notifications/consents    (AM/OP only, JSON)
  *   - POST /v1/notifications/consents/:consentId/override (AM/OP only, JSON)
  *
@@ -20,22 +17,16 @@ import { createMockContainer } from '../../helpers/mock-container';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { NotificationConsentNotFoundError } from '../../../src/modules/notification/domain/notification.errors';
 
-const mockProcessUnsubscribe = vi.fn();
-const mockRenderUnsubscribePage = vi.fn();
 const mockListConsents = vi.fn();
 const mockOverrideConsent = vi.fn();
-const mockReOptIn = vi.fn();
 const mockJwtVerify = vi.fn();
 
 vi.mock('../../../src/main/container', () => ({
   createContainer: () =>
     createMockContainer({
       notification: {
-        processUnsubscribeUseCase: { execute: mockProcessUnsubscribe },
-        renderUnsubscribePageUseCase: { execute: mockRenderUnsubscribePage },
         listConsentsByRecipientUseCase: { execute: mockListConsents },
         overrideConsentUseCase: { execute: mockOverrideConsent },
-        reOptInUseCase: { execute: mockReOptIn },
         jwtService: { verify: mockJwtVerify },
       },
     } as any),
@@ -50,7 +41,6 @@ let app: FastifyInstance;
 beforeAll(async () => {
   process.env['NODE_ENV'] = 'test';
   process.env['CORS_ORIGIN'] = 'http://localhost:5173';
-  process.env['NOTIFICATION_UNSUBSCRIBE_SECRET'] = 'test-unsubscribe-secret-min-16';
   app = await buildApp();
   await app.ready();
 });
@@ -61,182 +51,6 @@ afterAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-});
-
-describe('Feature 018: public unsubscribe routes', () => {
-  describe('GET /v1/notifications/unsubscribe', () => {
-    it('returns 200 HTML with confirm state for a valid token', async () => {
-      mockRenderUnsubscribePage.mockReturnValue({
-        ok: true,
-        recipient: 'user@example.com',
-        channel: 'EMAIL',
-        tenantId: 'tenant-1',
-        notificationClass: 'OPERATIONAL',
-      });
-
-      const response = await supertest(app.server)
-        .get('/v1/notifications/unsubscribe?token=valid-token')
-        .expect(200);
-
-      expect(response.headers['content-type']).toContain('text/html');
-      expect(response.text).toContain('Unsubscribe');
-      expect(response.text).toContain('user@example.com');
-      expect(response.text).toContain('data-state="confirm"');
-    });
-
-    it('returns 200 HTML with expired state for an expired token', async () => {
-      mockRenderUnsubscribePage.mockReturnValue({ ok: false, reason: 'expired' });
-
-      const response = await supertest(app.server)
-        .get('/v1/notifications/unsubscribe?token=expired-token')
-        .expect(200);
-
-      expect(response.headers['content-type']).toContain('text/html');
-      expect(response.text).toContain('data-state="expired"');
-      expect(response.text).toContain('Link expired');
-    });
-
-    it('returns 200 HTML with invalid state for a malformed token', async () => {
-      mockRenderUnsubscribePage.mockReturnValue({ ok: false, reason: 'invalid' });
-
-      const response = await supertest(app.server)
-        .get('/v1/notifications/unsubscribe?token=bogus')
-        .expect(200);
-
-      expect(response.text).toContain('data-state="invalid"');
-    });
-
-    it('does not require authentication', async () => {
-      mockRenderUnsubscribePage.mockReturnValue({ ok: false, reason: 'invalid' });
-
-      await supertest(app.server)
-        .get('/v1/notifications/unsubscribe?token=anything')
-        .expect(200);
-
-      // Auth middleware must not have been invoked
-      expect(mockJwtVerify).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('POST /v1/notifications/unsubscribe', () => {
-    it('returns JSON success for application/json POST', async () => {
-      mockProcessUnsubscribe.mockResolvedValue({
-        recipient: 'user@example.com',
-        channel: 'EMAIL',
-        tenantId: 'tenant-1',
-        notificationClass: 'OPERATIONAL',
-      });
-
-      const response = await supertest(app.server)
-        .post('/v1/notifications/unsubscribe')
-        .send({ token: 'valid-token' })
-        .expect(200);
-
-      expect(response.body.data).toMatchObject({
-        recipient: 'user@example.com',
-        channel: 'EMAIL',
-        notificationClass: 'OPERATIONAL',
-      });
-    });
-
-    it('returns HTML success for application/x-www-form-urlencoded POST', async () => {
-      mockProcessUnsubscribe.mockResolvedValue({
-        recipient: 'user@example.com',
-        channel: 'EMAIL',
-        tenantId: 'tenant-1',
-        notificationClass: 'OPERATIONAL',
-      });
-
-      const response = await supertest(app.server)
-        .post('/v1/notifications/unsubscribe')
-        .type('form')
-        .send({ token: 'valid-token' })
-        .expect(200);
-
-      expect(response.headers['content-type']).toContain('text/html');
-      expect(response.text).toContain('data-state="success"');
-      expect(response.text).toContain('user@example.com');
-      // Re-subscribe link should be present in the success page
-      expect(response.text).toContain('/v1/notifications/re-opt-in');
-    });
-
-    it('returns 400 JSON error when token is missing on JSON POST', async () => {
-      const response = await supertest(app.server)
-        .post('/v1/notifications/unsubscribe')
-        .send({})
-        .expect(400);
-
-      expect(response.body.error.code).toBe('VALIDATION_ERROR');
-    });
-
-    // QA-018-LOW-001: empty body (Content-Type: application/json, no payload) must return 400 not 500
-    it('returns 400 when body is empty with Content-Type application/json', async () => {
-      const response = await supertest(app.server)
-        .post('/v1/notifications/unsubscribe')
-        .set('Content-Type', 'application/json')
-        .expect(400);
-
-      expect(response.body.error).toBeDefined();
-    });
-  });
-
-  describe('POST /v1/notifications/re-opt-in', () => {
-    it('flips opted-out to opted-in on valid JSON POST', async () => {
-      mockReOptIn.mockResolvedValue({
-        recipient: 'user@example.com',
-        channel: 'EMAIL',
-        tenantId: 'tenant-1',
-        notificationClass: 'OPERATIONAL',
-      });
-
-      const response = await supertest(app.server)
-        .post('/v1/notifications/re-opt-in')
-        .send({ token: 'valid-token' })
-        .expect(200);
-
-      expect(response.body.data).toMatchObject({
-        message: 'Successfully re-subscribed',
-        recipient: 'user@example.com',
-      });
-      expect(mockReOptIn).toHaveBeenCalledWith(
-        expect.objectContaining({ token: 'valid-token' }),
-      );
-    });
-
-    it('returns HTML success on form POST', async () => {
-      mockReOptIn.mockResolvedValue({
-        recipient: 'user@example.com',
-        channel: 'EMAIL',
-        tenantId: 'tenant-1',
-        notificationClass: 'OPERATIONAL',
-      });
-
-      const response = await supertest(app.server)
-        .post('/v1/notifications/re-opt-in')
-        .type('form')
-        .send({ token: 'valid-token' })
-        .expect(200);
-
-      expect(response.headers['content-type']).toContain('text/html');
-      expect(response.text).toContain('data-state="success"');
-    });
-
-    it('does not require authentication', async () => {
-      mockReOptIn.mockResolvedValue({
-        recipient: 'a@b.com',
-        channel: 'EMAIL',
-        tenantId: 't-1',
-        notificationClass: 'OPERATIONAL',
-      });
-
-      await supertest(app.server)
-        .post('/v1/notifications/re-opt-in')
-        .send({ token: 'x' })
-        .expect(200);
-
-      expect(mockJwtVerify).not.toHaveBeenCalled();
-    });
-  });
 });
 
 describe('Feature 018: operator consent endpoints', () => {
@@ -265,7 +79,7 @@ describe('Feature 018: operator consent endpoints', () => {
             notificationClass: 'OPERATIONAL',
             optedOut: true,
             optedOutAt: new Date('2026-04-01T00:00:00Z'),
-            changeSource: 'unsubscribe_link',
+            changeSource: 'operator_override',
             changedAt: new Date('2026-04-01T00:00:00Z'),
             changedByUserId: null,
             reason: null,

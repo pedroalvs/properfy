@@ -11,7 +11,7 @@ import type { PersistentAuditService } from '../../../src/modules/audit/applicat
 import type { MintPortalTokenService } from '../../../src/modules/tenant-portal/domain/mint-portal-token.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
-import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
@@ -248,6 +248,50 @@ describe('GeneratePortalTokenUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
+  // Portal link is only meaningful once the appointment leaves DRAFT and is
+  // not terminal: AWAITING_INSPECTOR and SCHEDULED are the only valid states.
+  it.each(['DRAFT', 'DONE', 'CANCELLED', 'REJECTED'] as const)(
+    'should throw ConflictError and not mint a token for %s appointments',
+    async (status) => {
+      appointmentRepo.findById.mockResolvedValueOnce({
+        appointment: makeAppointment({ status }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await expect(useCase.execute(makeInput())).rejects.toThrow(ConflictError);
+      expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+    },
+  );
+
+  // GAP-004: the portal reschedule flow reopens the appointment to DRAFT and
+  // then re-issues a fresh token for the new date — that internal caller must
+  // bypass the operator-facing status gate.
+  it('should skip the status gate when allowAnyStatus is set (reschedule re-issue)', async () => {
+    appointmentRepo.findById.mockResolvedValueOnce({
+      appointment: makeAppointment({ status: 'DRAFT' }),
+      contact: null,
+      restrictions: [],
+    });
+
+    const result = await useCase.execute(makeInput({ allowAnyStatus: true }));
+
+    expect(result.token).toBe(RAW_TOKEN);
+    expect(mintPortalTokenService.mint).toHaveBeenCalled();
+  });
+
+  it('should generate token for AWAITING_INSPECTOR appointments', async () => {
+    appointmentRepo.findById.mockResolvedValueOnce({
+      appointment: makeAppointment({ status: 'AWAITING_INSPECTOR' }),
+      contact: null,
+      restrictions: [],
+    });
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.token).toBe(RAW_TOKEN);
+  });
+
   it('should throw NotFoundError when appointment not found', async () => {
     appointmentRepo.findById.mockResolvedValue(null);
 
@@ -317,5 +361,73 @@ describe('GeneratePortalTokenUseCase', () => {
     expect(failingNotificationUseCase.execute).toHaveBeenCalledTimes(1);
     expect(result.token).toBeTruthy();
     expect(result.expiresAt).toBeInstanceOf(Date);
+    // The token survives, but the caller must know the email never went out —
+    // the UI used to show "Email sent to tenant" over a swallowed failure.
+    expect(result.dispatched).toBe(false);
+    expect(result.reason).toBe('DISPATCH_FAILED');
+  });
+
+  it('returns dispatched: true when the notification is created successfully', async () => {
+    const notificationUseCase = {
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+    };
+    const contact = {
+      isPrimary: true,
+      effectiveName: 'Jane Doe',
+      effectiveEmail: 'jane@example.com',
+      effectivePhone: null,
+    };
+    appointmentRepo.findById.mockResolvedValueOnce({
+      appointment: makeAppointment(),
+      contact,
+      restrictions: [],
+    });
+
+    const uc = new GeneratePortalTokenUseCase(
+      tokenRepo as unknown as ITenantPortalTokenRepository,
+      appointmentRepo as unknown as IAppointmentRepository,
+      tenantRepo as unknown as ITenantRepository,
+      mintPortalTokenService as unknown as MintPortalTokenService,
+      auditService as unknown as PersistentAuditService,
+      notificationUseCase as any,
+    );
+
+    const result = await uc.execute(makeInput({ actor: makeAMContext() }));
+
+    expect(result.dispatched).toBe(true);
+    expect(result.reason).toBeUndefined();
+  });
+
+  it('returns dispatched: true when only one of two channels fails', async () => {
+    const notificationUseCase = {
+      execute: vi
+        .fn()
+        .mockResolvedValueOnce({ notificationId: 'notif-email' })
+        .mockRejectedValueOnce(new Error('sms provider down')),
+    };
+    const contact = {
+      isPrimary: true,
+      effectiveName: 'Jane Doe',
+      effectiveEmail: 'jane@example.com',
+      effectivePhone: '+61400000000',
+    };
+    appointmentRepo.findById.mockResolvedValueOnce({
+      appointment: makeAppointment(),
+      contact,
+      restrictions: [],
+    });
+
+    const uc = new GeneratePortalTokenUseCase(
+      tokenRepo as unknown as ITenantPortalTokenRepository,
+      appointmentRepo as unknown as IAppointmentRepository,
+      tenantRepo as unknown as ITenantRepository,
+      mintPortalTokenService as unknown as MintPortalTokenService,
+      auditService as unknown as PersistentAuditService,
+      notificationUseCase as any,
+    );
+
+    const result = await uc.execute(makeInput({ actor: makeAMContext() }));
+
+    expect(result.dispatched).toBe(true);
   });
 });
