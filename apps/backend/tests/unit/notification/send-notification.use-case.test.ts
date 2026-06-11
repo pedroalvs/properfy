@@ -19,7 +19,6 @@ import {
 } from '../../../src/modules/notification/domain/notification-template.entity';
 import { NotificationNotFoundError } from '../../../src/modules/notification/domain/notification.errors';
 import { NotificationInvalidStatusError } from '../../../src/modules/notification/domain/notification.errors';
-import { TemplateNotFoundError } from '../../../src/modules/notification/domain/notification.errors';
 import { MAX_RETRY_COUNT } from '../../../src/modules/notification/domain/notification.constants';
 import type { Logger } from '../../../src/shared/infrastructure/logger';
 import type { MetricsCollector } from '../../../src/shared/infrastructure/metrics';
@@ -187,13 +186,14 @@ describe('SendNotificationUseCase', () => {
     );
   });
 
-  it('should throw TemplateNotFoundError when no template found (tenant or default)', async () => {
-    vi.mocked(notificationRepo.findById).mockResolvedValue(makeNotification());
+  it('should mark notification FAILED without throwing when no template found (tenant or default)', async () => {
+    // A missing template is a permanent failure: throwing would leave the notification
+    // PENDING forever and the retry-poll self-heal would re-enqueue it in an infinite loop.
+    const notification = makeNotification();
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
     vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(null);
 
-    await expect(useCase.execute({ notificationId: 'notif-1' })).rejects.toThrow(
-      TemplateNotFoundError,
-    );
+    await expect(useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
 
     // Should have tried tenant-specific then platform default
     expect(templateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(2);
@@ -209,6 +209,16 @@ describe('SendNotificationUseCase', () => {
       'INSPECTION_NOTICE',
       'EMAIL',
     );
+
+    expect(notificationRepo.update).toHaveBeenCalledTimes(1);
+    const updated = vi.mocked(notificationRepo.update).mock.calls[0]![0];
+    expect(updated.status).toBe('FAILED');
+    expect(updated.failureReason).toBe('TEMPLATE_NOT_FOUND');
+    expect(updated.failedAt).toBeInstanceOf(Date);
+
+    // No provider call and no attempt record for a permanent config failure
+    expect(emailProvider.send).not.toHaveBeenCalled();
+    expect(attemptRepo.save).not.toHaveBeenCalled();
   });
 
   it('should fall back to platform default template when tenant template not found', async () => {
@@ -281,7 +291,7 @@ describe('SendNotificationUseCase', () => {
     );
   });
 
-  it('should throw TemplateNotFoundError when override is inactive and no platform default exists', async () => {
+  it('marks FAILED (not thrown) when override is inactive and no platform default exists', async () => {
     const notification = makeNotification();
     const inactiveOverride = makeTemplate({ tenantId: 'tenant-1', isActive: false });
 
@@ -290,10 +300,12 @@ describe('SendNotificationUseCase', () => {
       .mockResolvedValueOnce(inactiveOverride)
       .mockResolvedValueOnce(null);
 
-    await expect(useCase.execute({ notificationId: 'notif-1' })).rejects.toThrow(
-      TemplateNotFoundError,
-    );
+    await expect(useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
+
     expect(templateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(2);
+    expect(notification.status).toBe('FAILED');
+    expect(notification.failureReason).toBe('TEMPLATE_NOT_FOUND');
+    expect(emailProvider.send).not.toHaveBeenCalled();
   });
 
   it('should render template and send email via email provider', async () => {

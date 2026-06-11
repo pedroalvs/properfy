@@ -38,8 +38,9 @@ export class CreateNotificationUseCase {
     // Resolve from the tenant-scoped template first, fall back to the platform
     // default template. The override is only honored when active — an inactive
     // override falls through to the platform default (which is used as-is). If
-    // neither resolves, leave it null — the send worker will throw
-    // TemplateNotFoundError later, which is the correct failure path.
+    // neither resolves, leave it null — the send worker will mark the
+    // notification FAILED (TEMPLATE_NOT_FOUND) later, which is the correct
+    // failure path.
     let notificationClass: NotificationClass | null = null;
     const tenantTemplate = await this.templateRepo.findByTenantCodeChannel(
       input.tenantId,
