@@ -12,6 +12,7 @@ import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useTenantAdminDetail } from '../hooks/useTenantAdminDetail';
 import { useTenantAdminSave } from '../hooks/useTenantAdminSave';
 import type { TenantAdminFormData, TenantAdminFormErrors } from '../types';
@@ -59,6 +60,10 @@ export function TenantFormDrawer({
   );
   const { save, isSaving, validate } = useTenantAdminSave();
   const { showSuccess, showError } = useSnackbar();
+  // Only AM can change agency settings (update-tenant.use-case restricts settings
+  // to AM; OP cannot PATCH tenants), so hide the email toggle for non-AM users.
+  const { hasRole } = usePermissions();
+  const isAdminMaster = hasRole('AM');
 
   const [form, setForm] = useState<TenantAdminFormData>(EMPTY_TENANT_ADMIN_FORM);
   const [initialData, setInitialData] = useState<TenantAdminFormData>(EMPTY_TENANT_ADMIN_FORM);
@@ -210,13 +215,15 @@ export function TenantFormDrawer({
                     </FormField>
                   </FormSection>
 
-                  <FormSection title="Email">
-                    <Checkbox
-                      checked={form.emailSendingEnabled}
-                      onChange={(v) => updateField('emailSendingEnabled', v)}
-                      label="Send automated emails"
-                    />
-                  </FormSection>
+                  {isAdminMaster && (
+                    <FormSection title="Email">
+                      <Checkbox
+                        checked={form.emailSendingEnabled}
+                        onChange={(v) => updateField('emailSendingEnabled', v)}
+                        label="Send automated emails"
+                      />
+                    </FormSection>
+                  )}
                 </div>
               </div>
 

@@ -26,7 +26,14 @@ vi.mock('@/lib/api-error', () => ({
   },
 }));
 
+vi.mock('@/hooks/usePermissions', () => ({
+  usePermissions: vi.fn(() => ({ role: 'AM', hasRole: () => true, canPerform: () => true })),
+}));
+
+import { usePermissions } from '@/hooks/usePermissions';
 import { TenantFormDrawer } from './TenantFormDrawer';
+
+const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -43,9 +50,35 @@ function createWrapper() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockUsePermissions.mockReturnValue({ role: 'AM', hasRole: () => true, canPerform: () => true });
 });
 
 describe('TenantFormDrawer', () => {
+  it('shows the email toggle for AM', () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    expect(screen.getByText('Send automated emails')).toBeInTheDocument();
+  });
+
+  it('hides the email toggle for non-AM roles (OP)', () => {
+    mockUsePermissions.mockReturnValue({
+      role: 'OP',
+      hasRole: (...roles: string[]) => roles.includes('OP'),
+      canPerform: () => true,
+    });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    expect(screen.queryByText('Send automated emails')).not.toBeInTheDocument();
+  });
+
   it('renders create mode title when no tenantId', () => {
     const Wrapper = createWrapper();
     render(
