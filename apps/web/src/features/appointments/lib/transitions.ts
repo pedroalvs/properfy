@@ -53,7 +53,8 @@ function filterByRole(
       return targets.filter((t) => {
         // AWAITING_INSPECTOR only via service group creation — never a standalone UI action
         if (t === AppointmentStatus.AWAITING_INSPECTOR) return false;
-        // AWAITING_INSPECTOR/DRAFT → SCHEDULED handled by Assign Inspector button
+        // → SCHEDULED is never a dropdown action: AWAITING_INSPECTOR → SCHEDULED is handled by
+        // the Assign Inspector button; DRAFT → SCHEDULED is not a supported UI transition.
         if (
           (currentStatus === AppointmentStatus.AWAITING_INSPECTOR ||
             currentStatus === AppointmentStatus.DRAFT) &&
@@ -70,7 +71,8 @@ function filterByRole(
       return targets.filter((t) => {
         // AWAITING_INSPECTOR only via service group creation — never a standalone UI action
         if (t === AppointmentStatus.AWAITING_INSPECTOR) return false;
-        // AWAITING_INSPECTOR/DRAFT → SCHEDULED handled by Assign Inspector button
+        // → SCHEDULED is never a dropdown action: AWAITING_INSPECTOR → SCHEDULED is handled by
+        // the Assign Inspector button; DRAFT → SCHEDULED is not a supported UI transition.
         if (
           (currentStatus === AppointmentStatus.AWAITING_INSPECTOR ||
             currentStatus === AppointmentStatus.DRAFT) &&
