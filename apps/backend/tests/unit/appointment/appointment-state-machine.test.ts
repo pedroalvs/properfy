@@ -33,6 +33,7 @@ describe('AppointmentStateMachine', () => {
     const validForAM: [AppointmentStatus, AppointmentStatus][] = [
       ['DRAFT', 'REJECTED'],
       ['DRAFT', 'CANCELLED'],
+      ['AWAITING_INSPECTOR', 'SCHEDULED'],
       ['AWAITING_INSPECTOR', 'CANCELLED'],
       ['AWAITING_INSPECTOR', 'REJECTED'],
       ['SCHEDULED', 'CANCELLED'],
@@ -55,7 +56,6 @@ describe('AppointmentStateMachine', () => {
 
     const invalidForAM: [AppointmentStatus, AppointmentStatus][] = [
       ['DRAFT', 'AWAITING_INSPECTOR'],
-      ['AWAITING_INSPECTOR', 'SCHEDULED'],
       ['SCHEDULED', 'DONE'],
     ];
 

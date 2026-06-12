@@ -33,7 +33,7 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'AWAITING_INSPECTOR',
     to: 'SCHEDULED',
-    allowedActors: ['SYS', 'OP'],
+    allowedActors: ['SYS', 'OP', 'AM'],
     requiresReason: false,
     requiresDoneCheckedBy: false,
   },

@@ -375,10 +375,16 @@ describe('AppointmentDetailPage', () => {
     expect(screen.getByTestId('assign-inspector-button')).toBeInTheDocument();
   });
 
-  it('shows Assign Inspector button for OP on DRAFT appointment', () => {
+  it('does not show Assign Inspector button for OP on DRAFT appointment', () => {
     mockUserRole = 'OP';
     renderPage();
-    expect(screen.getByTestId('assign-inspector-button')).toBeInTheDocument();
+    expect(screen.queryByTestId('assign-inspector-button')).not.toBeInTheDocument();
+  });
+
+  it('does not show Assign Inspector button for AM on DRAFT appointment', () => {
+    mockUserRole = 'AM';
+    renderPage();
+    expect(screen.queryByTestId('assign-inspector-button')).not.toBeInTheDocument();
   });
 
   it('opens assign inspector modal when button clicked', () => {

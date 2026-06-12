@@ -91,7 +91,7 @@ export function AppointmentDetailPage() {
     appointment.status === 'DONE' &&
     !appointment.doneCheckedByUserId;
   const canAssignInspector = !!appointment &&
-    (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'DRAFT') &&
+    appointment.status === 'AWAITING_INSPECTOR' &&
     !appointment.inspectorId &&
     (user?.role === 'OP' || user?.role === 'AM');
   // Portal link is only meaningful once the appointment leaves DRAFT and is

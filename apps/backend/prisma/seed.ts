@@ -407,7 +407,10 @@ async function main() {
     where: { id: IDS.inspectorLinked },
     update: {
       regions_json: ['Sydney', 'Surry Hills', 'North Sydney', 'Inner West'],
-      service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing],
+      service_types_json: [
+        { serviceTypeId: serviceTypeIds.routine, certified: true },
+        { serviceTypeId: serviceTypeIds.ingoing, certified: true },
+      ],
       client_eligibility_json: [IDS.tenant, IDS.tenant2],
     },
     create: {
@@ -418,7 +421,10 @@ async function main() {
       phone: '+61400111222',
       status: 'ACTIVE',
       regions_json: ['Sydney', 'Surry Hills', 'North Sydney', 'Inner West'],
-      service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing],
+      service_types_json: [
+        { serviceTypeId: serviceTypeIds.routine, certified: true },
+        { serviceTypeId: serviceTypeIds.ingoing, certified: true },
+      ],
       client_eligibility_json: [IDS.tenant, IDS.tenant2],
     },
   });
@@ -427,7 +433,10 @@ async function main() {
     where: { id: IDS.inspectorIndep },
     update: {
       regions_json: ['Eastern Suburbs', 'South Sydney', 'Surry Hills', 'North Sydney'],
-      service_types_json: [serviceTypeIds.routine, serviceTypeIds.outgoing],
+      service_types_json: [
+        { serviceTypeId: serviceTypeIds.routine, certified: true },
+        { serviceTypeId: serviceTypeIds.outgoing, certified: true },
+      ],
       client_eligibility_json: [IDS.tenant],
     },
     create: {
@@ -437,7 +446,10 @@ async function main() {
       phone: '+61400333444',
       status: 'ACTIVE',
       regions_json: ['Eastern Suburbs', 'South Sydney', 'Surry Hills', 'North Sydney'],
-      service_types_json: [serviceTypeIds.routine, serviceTypeIds.outgoing],
+      service_types_json: [
+        { serviceTypeId: serviceTypeIds.routine, certified: true },
+        { serviceTypeId: serviceTypeIds.outgoing, certified: true },
+      ],
       client_eligibility_json: [IDS.tenant],
     },
   });
@@ -446,7 +458,11 @@ async function main() {
     where: { id: IDS.inspectorLinked2 },
     update: {
       regions_json: ['Melbourne', 'Southbank', 'Richmond'],
-      service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing, serviceTypeIds.outgoing],
+      service_types_json: [
+        { serviceTypeId: serviceTypeIds.routine, certified: true },
+        { serviceTypeId: serviceTypeIds.ingoing, certified: true },
+        { serviceTypeId: serviceTypeIds.outgoing, certified: true },
+      ],
       client_eligibility_json: [IDS.tenant2],
     },
     create: {
@@ -457,7 +473,11 @@ async function main() {
       phone: '+61400555666',
       status: 'ACTIVE',
       regions_json: ['Melbourne', 'Southbank', 'Richmond'],
-      service_types_json: [serviceTypeIds.routine, serviceTypeIds.ingoing, serviceTypeIds.outgoing],
+      service_types_json: [
+        { serviceTypeId: serviceTypeIds.routine, certified: true },
+        { serviceTypeId: serviceTypeIds.ingoing, certified: true },
+        { serviceTypeId: serviceTypeIds.outgoing, certified: true },
+      ],
       client_eligibility_json: [IDS.tenant2],
     },
   });
