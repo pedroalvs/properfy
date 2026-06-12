@@ -58,7 +58,7 @@ export function AppointmentCreatePage() {
     (item) => ({ value: item.id, label: item.name }),
   );
   const { options: propertyOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
-    ['properties', 'appointment-create', effectiveTenantId ?? '', 'branch', 'form.branchId'],
+    ['properties', 'appointment-create', effectiveTenantId ?? '', 'branch', form.branchId],
     '/v1/properties',
     (item) => ({ value: item.id, label: `${item.propertyCode} - ${item.street}` }),
     {
@@ -262,11 +262,11 @@ export function AppointmentCreatePage() {
                 variant="secondary"
                 onClick={openPropertyCreateTab}
                 disabled={!form.branchId || requiresTenantSelection}
-                aria-label="Create property (opens in a new tab)"
               >
                 <i className="mdi mdi-home-plus-outline" aria-hidden="true" />
                 Property not listed? Create one
                 <i className="mdi mdi-open-in-new" aria-hidden="true" />
+                <span className="sr-only"> (opens in a new tab)</span>
               </Button>
             </div>
             <FormField label="Service Type" required error={errors.serviceTypeId}>

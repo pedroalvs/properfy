@@ -38,7 +38,7 @@ export function PropertyCreatePage() {
     && typeof location.state.tenantId === 'string'
       ? location.state.tenantId
       : '';
-  const initialTenantId = searchParams.get('tenantId') ?? stateTenantId;
+  const initialTenantId = searchParams.get('tenantId') || stateTenantId;
   const initialBranchId = searchParams.get('branchId') ?? '';
   const [selectedTenantId, setSelectedTenantId] = useState(initialTenantId);
   const effectiveTenantId = isGlobalRole ? selectedTenantId : user?.tenantId ?? undefined;

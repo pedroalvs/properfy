@@ -519,11 +519,11 @@ export function AppointmentFormDrawer({
                           variant="secondary"
                           onClick={openPropertyCreateTab}
                           disabled={!form.branchId || (isGlobalRole && !selectedTenantId)}
-                          aria-label="Create property (opens in a new tab)"
                         >
                           <i className="mdi mdi-home-plus-outline" aria-hidden="true" />
                           Property not listed? Create one
                           <i className="mdi mdi-open-in-new" aria-hidden="true" />
+                          <span className="sr-only"> (opens in a new tab)</span>
                         </Button>
                       </div>
                     )}
