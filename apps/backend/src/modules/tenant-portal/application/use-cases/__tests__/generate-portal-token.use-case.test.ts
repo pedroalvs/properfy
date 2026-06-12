@@ -121,6 +121,7 @@ function makeUseCase(options: {
     tenantRepo as any,
     mintPortalTokenService as any,
     auditService as any,
+    'https://portal.example.test',
     options.createNotificationUseCase as any,
     undefined,
     undefined,
