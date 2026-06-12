@@ -1,11 +1,13 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
 
 export interface ResolveRegionsInput {
   appointmentIds: string[];
-  /** Required for AM/OP callers whose JWT carries no tenantId (cross-tenant). */
+  /**
+   * Accepted for backward compatibility but no longer used: region matching is
+   * cross-tenant, so the caller's agency no longer scopes the result.
+   */
   tenantId?: string;
   actor: AuthContext;
 }
@@ -35,9 +37,9 @@ export class ResolveRegionsUseCase {
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_region.resolve', entityType: 'ServiceRegion' });
 
-    const tenantId = this.resolveTenantId(actor, input.tenantId);
-
-    const resolved = await this.serviceRegionRepo.resolveRegionsForAppointments(tenantId, appointmentIds);
+    // Cross-tenant: matching no longer depends on the actor's agency, so no
+    // tenantId is required (AM/OP with no agency selected resolve fine).
+    const resolved = await this.serviceRegionRepo.resolveRegionsForAppointments(appointmentIds);
 
     // Collect all matched appointment IDs across all regions (deduplicated)
     const allMatchedIds = new Set<string>();
@@ -65,27 +67,5 @@ export class ResolveRegionsUseCase {
       totalAppointments: appointmentIds.length,
       unmatchedAppointmentIds,
     };
-  }
-
-  /**
-   * For AM/OP (cross-tenant roles): use JWT tenantId when present, otherwise
-   * fall back to the explicitly supplied tenantId from the request body.
-   * Throws 403 when neither source provides a tenant.
-   *
-   * For tenant-scoped roles (CL_ADMIN, CL_USER, INSP): pin to JWT tenantId
-   * and ignore any body-supplied value (defense-in-depth).
-   */
-  private resolveTenantId(actor: AuthContext, requestedTenantId?: string): string {
-    if (actor.role === 'AM' || actor.role === 'OP') {
-      const tenantId = actor.tenantId ?? requestedTenantId;
-      if (!tenantId) {
-        throw new ForbiddenError('AUTH_FORBIDDEN', 'tenantId is required for cross-tenant region resolution');
-      }
-      return tenantId;
-    }
-    if (!actor.tenantId) {
-      throw new ForbiddenError('AUTH_FORBIDDEN', 'Tenant context is required');
-    }
-    return actor.tenantId;
   }
 }

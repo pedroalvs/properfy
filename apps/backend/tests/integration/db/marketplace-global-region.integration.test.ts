@@ -1,21 +1,21 @@
 /**
- * Real-database regression tests for GLOBAL service regions in the marketplace.
+ * Real-database tests for service-region matching in the marketplace, covering
+ * GLOBAL regions (`tenant_id IS NULL`) and full CROSS-TENANT matching.
  *
  * Requires Docker (testcontainers) + PostGIS extension (provided by the
  * `postgis/postgis:16-3.4-alpine` image used in the DB harness).
  *
  * Run via: `pnpm --filter backend test:integration:db`
  *
- * Bug context: service regions can be "global" (`service_regions.tenant_id IS
- * NULL`) — the default for AM/OP-created regions. The marketplace queries
- * matched regions to appointments with `sr.tenant_id = a.tenant_id`; since SQL
- * `NULL = <value>` is never TRUE, every global region was dropped from the
- * INNER JOIN and NO inspector ever saw offers backed by a global region.
+ * Behavior: region ownership (`service_regions.tenant_id`) is NOT a matching
+ * filter. Any ACTIVE region whose polygon contains an appointment's property
+ * matches it — whether the region is global (`tenant_id IS NULL`) or owned by a
+ * different agency. The selector (`resolveRegionsForAppointments`) and the three
+ * marketplace offer queries all join regions by geometry + status only.
  *
- * These tests fail (offers empty) before the fix and pass after the predicate
- * becomes `(sr.tenant_id = a.tenant_id OR sr.tenant_id IS NULL)`. They also
- * pin the invariants that must NOT change: multi-tenant isolation for
- * tenant-scoped regions, and the per-appointment denylist gate.
+ * The invariant that MUST hold: client/tenant isolation is enforced by the
+ * per-appointment inspector→client denylist (`inspectorBlockedClients`), not by
+ * region ownership. The denylist tests below pin that boundary.
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
@@ -255,10 +255,11 @@ describe('marketplace — GLOBAL service regions (tenant_id IS NULL)', () => {
     expect(detail).toBeNull();
   });
 
-  it('preserves multi-tenant isolation: a tenant-scoped region never matches another tenant appointment', async () => {
-    // Region scoped to Agency A, but the appointment belongs to Agency B —
-    // even though B's property sits inside A's polygon and the inspector is
-    // linked to A's region. Must stay hidden (regression guard for the fix).
+  it('cross-tenant: a tenant-scoped region matches another tenant appointment (region ownership is not a matching filter)', async () => {
+    // Region OWNED by Agency A; appointment belongs to Agency B, whose property
+    // sits inside A's polygon, with the inspector linked to A's region. Under
+    // full cross-tenant matching this surfaces — region tenant_id is ownership
+    // only. Client isolation is enforced by the denylist (asserted next).
     const { tenantId: tenantA, userId: userA } = await seedTenant(harness.prisma, 'Agency A');
     const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'Agency B');
     const branchB = await getBranchId(harness.prisma, tenantB);
@@ -267,7 +268,7 @@ describe('marketplace — GLOBAL service regions (tenant_id IS NULL)', () => {
     const { regionId } = await seedServiceRegion(harness.prisma, {
       tenantId: tenantA,
       userId: userA,
-      name: 'A-only Sydney',
+      name: 'A-owned Sydney',
       geojson: SYDNEY_POLYGON_GEOJSON as unknown as Record<string, unknown>,
     });
     const { inspectorId } = await seedInspector(harness.prisma, 'Insp Three');
@@ -286,9 +287,47 @@ describe('marketplace — GLOBAL service regions (tenant_id IS NULL)', () => {
 
     const count = await repo.countPublishedForInspector(inspectorId, [serviceTypeId], []);
     const offers = await repo.findPublishedForInspector(inspectorId, [serviceTypeId], [], PAGINATION);
+    const detail = await repo.findPublishedOfferDetail(groupId, inspectorId, [serviceTypeId], []);
+
+    expect(count).toBe(1);
+    expect(offers).toHaveLength(1);
+    expect(offers[0]!.groupId).toBe(groupId);
+    expect(detail).not.toBeNull();
+  });
+
+  it('cross-tenant isolation is still enforced by the denylist (not by region ownership)', async () => {
+    // Same cross-tenant setup, but the inspector is blocked from the
+    // appointment's tenant → the per-appointment denylist hides the offer.
+    const { tenantId: tenantA, userId: userA } = await seedTenant(harness.prisma, 'Agency A');
+    const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'Agency B');
+    const branchB = await getBranchId(harness.prisma, tenantB);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+
+    const { regionId } = await seedServiceRegion(harness.prisma, {
+      tenantId: tenantA,
+      userId: userA,
+      name: 'A-owned Sydney',
+      geojson: SYDNEY_POLYGON_GEOJSON as unknown as Record<string, unknown>,
+    });
+    const { inspectorId } = await seedInspector(harness.prisma, 'Insp Three Blocked');
+    await linkInspectorRegion(harness.prisma, inspectorId, regionId);
+
+    const propertyId = await seedPropertyInsideSydney(harness.prisma, tenantB, branchB);
+    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userB, 1);
+    await seedAwaitingAppointment(harness.prisma, {
+      tenantId: tenantB,
+      branchId: branchB,
+      propertyId,
+      serviceTypeId,
+      createdByUserId: userB,
+      groupId,
+    });
+
+    const count = await repo.countPublishedForInspector(inspectorId, [serviceTypeId], [tenantB]);
+    const detail = await repo.findPublishedOfferDetail(groupId, inspectorId, [serviceTypeId], [tenantB]);
 
     expect(count).toBe(0);
-    expect(offers).toHaveLength(0);
+    expect(detail).toBeNull();
   });
 
   it('cross-agency group via a global region: visible by default, hidden if any member tenant is blocked', async () => {
@@ -354,10 +393,91 @@ describe('operator region resolution — GLOBAL regions', () => {
       },
     });
 
-    const resolved = await regionRepo.resolveRegionsForAppointments(tenantId, [appointment.id]);
+    const resolved = await regionRepo.resolveRegionsForAppointments([appointment.id]);
 
     expect(resolved).toHaveLength(1);
     expect(resolved[0]!.regionName).toBe('Global Sydney');
     expect(resolved[0]!.matchedAppointmentIds).toContain(appointment.id);
+  });
+
+  it('returns a region owned by ANOTHER tenant for a cross-tenant appointment (the INS-0031 repro)', async () => {
+    const { tenantId: tenantA, userId: userA } = await seedTenant(harness.prisma, 'Agency A (region owner)');
+    const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'Agency B (appointment)');
+    const branchB = await getBranchId(harness.prisma, tenantB);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+
+    // Region OWNED by Agency A; the appointment below belongs to Agency B.
+    const { regionId } = await seedServiceRegion(harness.prisma, {
+      tenantId: tenantA,
+      userId: userA,
+      name: 'A-owned Sydney',
+      geojson: SYDNEY_POLYGON_GEOJSON as unknown as Record<string, unknown>,
+    });
+
+    const propertyId = await seedPropertyInsideSydney(harness.prisma, tenantB, branchB);
+    const appointment = await harness.prisma.appointment.create({
+      data: {
+        tenant_id: tenantB,
+        branch_id: branchB,
+        property_id: propertyId,
+        service_type_id: serviceTypeId,
+        status: 'DRAFT',
+        scheduled_date: FUTURE_DATE,
+        time_slot: 'MORNING',
+        price_amount: '100.00',
+        payout_amount: '80.00',
+        pricing_rule_snapshot_json: {},
+        tenant_confirmation_status: 'PENDING',
+        created_by_user_id: userB,
+      },
+    });
+
+    const resolved = await regionRepo.resolveRegionsForAppointments([appointment.id]);
+
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0]!.regionId).toBe(regionId);
+    expect(resolved[0]!.matchedAppointmentIds).toContain(appointment.id);
+  });
+
+  it('returns BOTH overlapping regions owned by different tenants', async () => {
+    const { tenantId: tenantA, userId: userA } = await seedTenant(harness.prisma, 'Agency A');
+    const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'Agency B');
+    const branchB = await getBranchId(harness.prisma, tenantB);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+
+    const { regionId: regionA } = await seedServiceRegion(harness.prisma, {
+      tenantId: tenantA,
+      userId: userA,
+      name: 'A Sydney',
+      geojson: SYDNEY_POLYGON_GEOJSON as unknown as Record<string, unknown>,
+    });
+    const { regionId: regionB } = await seedServiceRegion(harness.prisma, {
+      tenantId: tenantB,
+      userId: userB,
+      name: 'B Sydney',
+      geojson: SYDNEY_POLYGON_GEOJSON as unknown as Record<string, unknown>,
+    });
+
+    const propertyId = await seedPropertyInsideSydney(harness.prisma, tenantB, branchB);
+    const appointment = await harness.prisma.appointment.create({
+      data: {
+        tenant_id: tenantB,
+        branch_id: branchB,
+        property_id: propertyId,
+        service_type_id: serviceTypeId,
+        status: 'DRAFT',
+        scheduled_date: FUTURE_DATE,
+        time_slot: 'MORNING',
+        price_amount: '100.00',
+        payout_amount: '80.00',
+        pricing_rule_snapshot_json: {},
+        tenant_confirmation_status: 'PENDING',
+        created_by_user_id: userB,
+      },
+    });
+
+    const resolved = await regionRepo.resolveRegionsForAppointments([appointment.id]);
+
+    expect(resolved.map((r) => r.regionId).sort()).toEqual([regionA, regionB].sort());
   });
 });
