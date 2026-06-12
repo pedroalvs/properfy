@@ -6,7 +6,7 @@ export function useFormOptions<T>(
   path: string,
   mapper: (item: T) => SelectOption,
   extraParams?: Partial<ListParams>,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; staleTime?: number },
 ): { options: SelectOption[]; isLoading: boolean } {
   const { data: response, isLoading } = usePaginatedQuery<T>(
     queryKey,

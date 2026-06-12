@@ -173,7 +173,10 @@ export const router = createBrowserRouter([
           {
             path: 'properties/new',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
+              // CL_USER is permitted by the canonical RBAC matrix (property.create, gated by the
+              // create_properties flag enforced server-side), matching /properties and
+              // /properties/:id. The backend rejects a flag-less CL_USER on submit.
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
                 <PropertyCreatePage />
               </AuthGuard>
             ),

@@ -12,10 +12,6 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }));
 
-vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
-  PropertyFormDrawer: () => null,
-}));
-
 vi.mock('@/hooks/useSnackbar', async () => {
   const actual = await vi.importActual<typeof SnackbarModule>('@/hooks/useSnackbar');
   return {

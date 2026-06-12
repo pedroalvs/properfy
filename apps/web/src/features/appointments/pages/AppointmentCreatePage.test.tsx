@@ -48,10 +48,6 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
-  PropertyFormDrawer: ({ open }: { open: boolean }) => (open ? <div>Property Drawer</div> : null),
-}));
-
 import { api } from '@/services/api';
 import { AppointmentCreatePage } from './AppointmentCreatePage';
 
@@ -146,5 +142,37 @@ describe('AppointmentCreatePage', () => {
       const requiredErrors = screen.getAllByText('Required field');
       expect(requiredErrors.length).toBeGreaterThan(0);
     });
+  });
+
+  it('opens the property-creation page in a new tab pre-filled with the selected agency and branch', async () => {
+    mockGet.mockImplementation((path: string) => {
+      const list = (items: Array<Record<string, unknown>>) => Promise.resolve({
+        data: { data: items, pagination: { page: 1, pageSize: 100, total: items.length, totalPages: items.length ? 1 : 0 } },
+      });
+      if (path === '/v1/tenants') return list([{ id: 'tenant-1', name: 'Agency One' }]);
+      if (path === '/v1/branches') return list([{ id: 'branch-9', name: 'Branch Nine' }]);
+      return list([]);
+    });
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    renderPage();
+
+    // Select agency, then branch — the button is disabled until both are chosen.
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(await screen.findByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(await screen.findByText('Branch Nine'));
+
+    fireEvent.click(screen.getByText('Property not listed? Create one'));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const url = String(openSpy.mock.calls[0]?.[0]);
+    const target = openSpy.mock.calls[0]?.[1];
+    expect(url).toContain('/properties/new?');
+    expect(url).toContain('tenantId=tenant-1');
+    expect(url).toContain('branchId=branch-9');
+    expect(target).toBe('_blank');
+
+    openSpy.mockRestore();
   });
 });

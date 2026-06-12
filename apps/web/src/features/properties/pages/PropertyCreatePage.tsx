@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useCallback } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
@@ -28,12 +28,18 @@ export function PropertyCreatePage() {
   const { showSuccess, showError } = useSnackbar();
   const { save, isSaving, validate } = usePropertySave();
   const isGlobalRole = user?.role === UserRole.AM || user?.role === UserRole.OP;
-  const initialTenantId = typeof location.state === 'object'
+  const [searchParams] = useSearchParams();
+  // Pre-fill context can arrive via URL query params (new browser tab, e.g. from the
+  // appointment-create flow) or via router location.state (same-tab navigation from the
+  // property list). Query params win; location.state is the backward-compatible fallback.
+  const stateTenantId = typeof location.state === 'object'
     && location.state
     && 'tenantId' in location.state
     && typeof location.state.tenantId === 'string'
       ? location.state.tenantId
       : '';
+  const initialTenantId = searchParams.get('tenantId') ?? stateTenantId;
+  const initialBranchId = searchParams.get('branchId') ?? '';
   const [selectedTenantId, setSelectedTenantId] = useState(initialTenantId);
   const effectiveTenantId = isGlobalRole ? selectedTenantId : user?.tenantId ?? undefined;
   const requiresTenantSelection = isGlobalRole && !selectedTenantId;
@@ -54,15 +60,19 @@ export function PropertyCreatePage() {
     { enabled: !isGlobalRole || !!effectiveTenantId },
   );
 
-  const [form, setForm] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
-  const [initialData] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
+  // Seed form and baseline identically so a pre-filled branch is not treated as a dirty edit.
+  const [form, setForm] = useState<PropertyFormData>({ ...EMPTY_PROPERTY_FORM, branchId: initialBranchId });
+  const [initialData] = useState<PropertyFormData>({ ...EMPTY_PROPERTY_FORM, branchId: initialBranchId });
   const [errors, setErrors] = useState<PropertyFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
 
-  useEffect(() => {
-    if (!isGlobalRole) return;
+  // Changing the agency invalidates the branch (branches are tenant-scoped). Done imperatively
+  // in the change handler rather than a mount effect so a pre-filled branch survives the initial
+  // render (a reset effect would also fire on mount, and twice under React StrictMode).
+  const handleAgencyChange = useCallback((tenantId: string) => {
+    setSelectedTenantId(tenantId);
     setForm((prev) => ({ ...prev, branchId: '' }));
-  }, [isGlobalRole, selectedTenantId]);
+  }, []);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
@@ -178,7 +188,7 @@ export function PropertyCreatePage() {
                 <FormField label="Agency" required>
                   <SelectInput
                     value={selectedTenantId}
-                    onChange={setSelectedTenantId}
+                    onChange={handleAgencyChange}
                     options={tenantOptions}
                     placeholder="Select agency"
                     aria-label="Agency"
