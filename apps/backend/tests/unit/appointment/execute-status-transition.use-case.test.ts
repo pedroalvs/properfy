@@ -1117,19 +1117,19 @@ describe('ExecuteStatusTransitionUseCase – AM restricted from operational tran
     ).rejects.toThrow(AppointmentTransitionNotPermittedError);
   });
 
-  it('throws AppointmentTransitionNotPermittedError when AM tries AWAITING_INSPECTOR → SCHEDULED', async () => {
+  it('AWAITING_INSPECTOR → SCHEDULED with inspectorId (AM actor)', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: 'insp-1' }),
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
     );
     const uc = makeUseCase();
-    await expect(
-      uc.execute({
-        appointmentId: 'appt-1',
-        targetStatus: 'SCHEDULED',
-        inspectorId: 'insp-1',
-        actor: makeActor('AM'),
-      }),
-    ).rejects.toThrow(AppointmentTransitionNotPermittedError);
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'SCHEDULED',
+      inspectorId: 'insp-1',
+      actor: makeActor('AM'),
+    });
+    expect(result.status).toBe('SCHEDULED');
+    expect(result.inspectorId).toBe('insp-1');
   });
 
   it('throws AppointmentTransitionNotPermittedError when AM tries SCHEDULED → DONE', async () => {
@@ -1248,6 +1248,29 @@ describe('ExecuteStatusTransitionUseCase – service type confirmation rules', (
         targetStatus: 'SCHEDULED',
         inspectorId: 'insp-1',
         actor: makeActor('OP'),
+      }),
+    ).rejects.toThrow(AppointmentTenantConfirmationRequiredError);
+  });
+
+  it('AM does not bypass ROUTINE tenant confirmation when assigning inspector', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+    );
+    serviceTypeRepo.findById.mockResolvedValue({
+      id: 'st-1',
+      code: 'ROUTINE_INSP',
+      name: 'Routine Inspection',
+      flowType: 'ROUTINE',
+      requiresTenantConfirmation: true,
+      status: 'ACTIVE',
+    });
+    const uc = makeUseCase({ withServiceTypeRepo: true });
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'SCHEDULED',
+        inspectorId: 'insp-1',
+        actor: makeActor('AM'),
       }),
     ).rejects.toThrow(AppointmentTenantConfirmationRequiredError);
   });
