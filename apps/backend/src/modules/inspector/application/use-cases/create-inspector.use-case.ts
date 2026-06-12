@@ -38,6 +38,7 @@ export interface CreateInspectorOutput {
   serviceTypesJson: ServiceTypeEntry[];
   clientEligibilityJson: ClientEligibilityEntry[];
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class CreateInspectorUseCase {
@@ -158,6 +159,7 @@ export class CreateInspectorUseCase {
       serviceTypesJson: inspector.serviceTypesJson,
       clientEligibilityJson: inspector.clientEligibilityJson,
       createdAt: inspector.createdAt,
+      updatedAt: inspector.updatedAt,
     };
   }
 }
