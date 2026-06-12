@@ -4,6 +4,7 @@ import type { IInspectorRepository } from '../../../src/modules/inspector/domain
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
+import { inspectorResponseSchema } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { InspectorEmailConflictError } from '../../../src/modules/inspector/domain/inspector.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
@@ -110,6 +111,24 @@ describe('CreateInspectorUseCase', () => {
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'inspector.created' }),
     );
+  });
+
+  it('returns an output that satisfies inspectorResponseSchema (HTTP response contract)', async () => {
+    // Guards against field drift between the use case output and the route's
+    // declared response schema. The Fastify zod serializerCompiler parses the
+    // response body against this exact schema before sending the 201, so a
+    // missing required field (e.g. updatedAt) throws AFTER the rows are
+    // committed — the inspector persists but the client sees a 500.
+    vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      name: 'John Inspector',
+      email: 'john@example.com',
+      actor: makeActor(),
+    });
+
+    expect(() => inspectorResponseSchema.parse(result)).not.toThrow();
+    expect(result.updatedAt).toBeInstanceOf(Date);
   });
 
   it('should create inspector for OP', async () => {
