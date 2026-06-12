@@ -40,6 +40,8 @@ export class GeneratePortalTokenUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly mintPortalTokenService: MintPortalTokenService,
     private readonly auditService: AuditService,
+    /** Tenant-portal SPA base URL used to build confirmationLink / rescheduleLink. */
+    private readonly tenantPortalBaseUrl: string,
     private readonly createNotificationUseCase?: CreateNotificationUseCase,
     /** 028 — optional. When wired, creates an initial confirmation cycle atomically with the token. */
     private readonly cycleService?: ConfirmationCycleService,
@@ -141,9 +143,19 @@ export class GeneratePortalTokenUseCase {
     let succeededDispatches = 0;
     if (this.createNotificationUseCase) {
       const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0] ?? '';
+      // Build full portal URLs (not the bare token) so the email/SMS contains a
+      // clickable link. Mirrors BuildNotificationPayloadService (automated path).
+      const confirmationLink = new URL(
+        '/portal/' + encodeURIComponent(rawToken),
+        this.tenantPortalBaseUrl,
+      ).toString();
+      const rescheduleLink = new URL(
+        '/portal/' + encodeURIComponent(rawToken) + '/reschedule',
+        this.tenantPortalBaseUrl,
+      ).toString();
       const payloadJson = {
-        confirmationLink: rawToken,
-        rescheduleLink: rawToken,
+        confirmationLink,
+        rescheduleLink,
         scheduledDate: scheduledDateStr,
         tenantName: result.contact.effectiveName,
       };

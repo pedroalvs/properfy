@@ -759,7 +759,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
   const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo, confirmationCycleService);
   const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
-  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, createNotificationUseCase, confirmationCycleService, prisma, logger);
+  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, env.TENANT_PORTAL_BASE_URL, createNotificationUseCase, confirmationCycleService, prisma, logger);
   const getPortalLinkUseCase = portalTokenEncrypter
     ? new GetPortalLinkUseCase(appointmentRepo, tenantPortalTokenRepo, portalTokenEncrypter, env.TENANT_PORTAL_BASE_URL, authorizationService, auditService)
     : undefined;
