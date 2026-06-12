@@ -133,16 +133,18 @@ export class CreateServiceGroupUseCase {
     }
 
     // 5. Resolve service region — optional at create, required at publish for
-    //    single-agency groups (spec 005 FR-007). Regions are per-agency, so a
-    //    mixed-agency group cannot carry a single group-level region; it relies
-    //    on per-appointment region matching in the marketplace.
+    //    single-agency groups (spec 005 FR-007). A mixed-agency group cannot
+    //    carry a single group-level region; it relies on per-appointment region
+    //    matching in the marketplace. Region ownership is cross-tenant
+    //    (`sr.tenant_id` is not a matching filter), so any active region may be
+    //    attached regardless of which agency owns it — look it up by id only.
     let serviceRegionId: string | null = null;
     let regionName: string | null = null;
     if (input.serviceRegionId) {
       if (!primaryTenantId) {
         throw new ValidationError('A service region cannot be assigned to a group spanning multiple agencies');
       }
-      const region = await this.serviceRegionRepo.findById(input.serviceRegionId, primaryTenantId);
+      const region = await this.serviceRegionRepo.findById(input.serviceRegionId, null);
       if (!region) {
         throw new NotFoundError('SERVICE_REGION_NOT_FOUND', 'Service region not found');
       }

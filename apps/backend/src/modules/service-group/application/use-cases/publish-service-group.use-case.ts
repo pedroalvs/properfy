@@ -74,15 +74,16 @@ export class PublishServiceGroupUseCase {
       throw new ServiceGroupInvalidStatusError('DRAFT', group.status);
     }
 
-    // Region is per-agency. Single-agency groups must carry an active region to
-    // publish (spec 005 FR-007); mixed-agency groups have no single region and
-    // rely on per-appointment region matching in the marketplace, so the
-    // requirement is skipped for them.
+    // Single-agency groups must carry an active region to publish (spec 005
+    // FR-007); mixed-agency groups have no single region and rely on
+    // per-appointment region matching in the marketplace, so the requirement is
+    // skipped for them. Region ownership is cross-tenant (`sr.tenant_id` is not a
+    // matching filter), so the attached region is validated by id only.
     if (primaryTenantId) {
       if (!group.serviceRegionId) {
         throw new ServiceRegionRequiredError();
       }
-      const region = await this.serviceRegionRepo.findById(group.serviceRegionId, primaryTenantId);
+      const region = await this.serviceRegionRepo.findById(group.serviceRegionId, null);
       if (!region) {
         throw new ServiceRegionInactiveError();
       }
