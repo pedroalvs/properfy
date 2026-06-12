@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
@@ -49,6 +49,7 @@ function isPrivilegedRole(role: string): boolean {
 export function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { appointment, isLoading, isError, refetch } = useAppointmentDetail(id ?? null);
   const { crossCheckDone, isCrossChecking } = useAppointmentCrossCheck(id ?? null, refetch);
@@ -61,6 +62,17 @@ export function AppointmentDetailPage() {
   const [forceConfirmOpen, setForceConfirmOpen] = useState(false);
   const { remove, isDeleting } = useDeleteAppointment(id ?? null, () => navigate('/appointments'));
   const { forceConfirm } = useForceConfirmation(id ?? null, refetch);
+
+  const handleBack = useCallback(() => {
+    // The detail page is usually opened in a new tab (window.open _blank), where
+    // navigate(-1) has no in-tab history to return to. location.key === 'default'
+    // marks a fresh router session, so fall back to the appointments list instead.
+    if (location.key !== 'default') {
+      navigate(-1);
+    } else {
+      navigate('/appointments');
+    }
+  }, [location.key, navigate]);
 
   const isPrivileged = user ? isPrivilegedRole(user.role) : false;
   const canEdit = user ? CAN_EDIT_ROLES.includes(user.role) : false;
@@ -186,7 +198,7 @@ export function AppointmentDetailPage() {
         <PageHeader
           title="Loading..."
           secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: () => navigate(-1) },
+            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
           ]}
         />
         <div className="rounded bg-card-bg p-6 shadow-sm">
@@ -202,7 +214,7 @@ export function AppointmentDetailPage() {
         <PageHeader
           title="Appointment"
           secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: () => navigate(-1) },
+            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
           ]}
         />
         <div className="rounded bg-card-bg p-6 shadow-sm">
@@ -220,7 +232,7 @@ export function AppointmentDetailPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="rounded p-1 text-text-secondary hover:bg-black/5"
             aria-label="Go back"
           >
