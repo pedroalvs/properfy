@@ -94,6 +94,7 @@ function makeInput(overrides: Partial<GeneratePortalTokenInput> = {}): GenerateP
 
 const RAW_TOKEN = 'raw-token-64-chars-hex-string-for-testing-purposes-1234567890ab';
 const EXPIRES_AT = new Date('2026-04-14T08:00:00Z');
+const PORTAL_BASE_URL = 'https://portal.example.test';
 
 describe('GeneratePortalTokenUseCase', () => {
   let tokenRepo: {
@@ -177,6 +178,7 @@ describe('GeneratePortalTokenUseCase', () => {
       tenantRepo as unknown as ITenantRepository,
       mintPortalTokenService as unknown as MintPortalTokenService,
       auditService as unknown as PersistentAuditService,
+      PORTAL_BASE_URL,
     );
   });
 
@@ -352,6 +354,7 @@ describe('GeneratePortalTokenUseCase', () => {
       tenantRepo as unknown as ITenantRepository,
       mintPortalTokenService as unknown as MintPortalTokenService,
       auditService as unknown as PersistentAuditService,
+      PORTAL_BASE_URL,
       failingNotificationUseCase as any,
     );
 
@@ -389,6 +392,7 @@ describe('GeneratePortalTokenUseCase', () => {
       tenantRepo as unknown as ITenantRepository,
       mintPortalTokenService as unknown as MintPortalTokenService,
       auditService as unknown as PersistentAuditService,
+      PORTAL_BASE_URL,
       notificationUseCase as any,
     );
 
@@ -396,6 +400,50 @@ describe('GeneratePortalTokenUseCase', () => {
 
     expect(result.dispatched).toBe(true);
     expect(result.reason).toBeUndefined();
+  });
+
+  // Regression: the "send portal link" email must contain a clickable URL, not
+  // the bare token. The operator received "...secure link: <64-char hash>" in
+  // prod because the payload set confirmationLink/rescheduleLink to the raw
+  // token instead of building a full portal URL like the automated path does.
+  it('dispatches a full portal URL (not the bare token) as confirmationLink/rescheduleLink', async () => {
+    const notificationUseCase = {
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+    };
+    const contact = {
+      isPrimary: true,
+      effectiveName: 'Jane Doe',
+      effectiveEmail: 'jane@example.com',
+      effectivePhone: null,
+    };
+    appointmentRepo.findById.mockResolvedValueOnce({
+      appointment: makeAppointment(),
+      contact,
+      restrictions: [],
+    });
+
+    const uc = new GeneratePortalTokenUseCase(
+      tokenRepo as unknown as ITenantPortalTokenRepository,
+      appointmentRepo as unknown as IAppointmentRepository,
+      tenantRepo as unknown as ITenantRepository,
+      mintPortalTokenService as unknown as MintPortalTokenService,
+      auditService as unknown as PersistentAuditService,
+      PORTAL_BASE_URL,
+      notificationUseCase as any,
+    );
+
+    await uc.execute(makeInput({ actor: makeAMContext() }));
+
+    expect(notificationUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'TENANT_PORTAL_LINK',
+        channel: 'EMAIL',
+        payloadJson: expect.objectContaining({
+          confirmationLink: `${PORTAL_BASE_URL}/portal/${RAW_TOKEN}`,
+          rescheduleLink: `${PORTAL_BASE_URL}/portal/${RAW_TOKEN}/reschedule`,
+        }),
+      }),
+    );
   });
 
   it('returns dispatched: true when only one of two channels fails', async () => {
@@ -423,6 +471,7 @@ describe('GeneratePortalTokenUseCase', () => {
       tenantRepo as unknown as ITenantRepository,
       mintPortalTokenService as unknown as MintPortalTokenService,
       auditService as unknown as PersistentAuditService,
+      PORTAL_BASE_URL,
       notificationUseCase as any,
     );
 
