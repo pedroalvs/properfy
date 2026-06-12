@@ -32,7 +32,7 @@ Route access:
 
 ```tsx
 <Route path="/properties" element={<AuthGuard roles={['AM','OP','CL_ADMIN','CL_USER']}><PropertiesListPage /></AuthGuard>} />
-<Route path="/properties/new" element={<AuthGuard roles={['AM','OP','CL_ADMIN']}><PropertyCreatePage /></AuthGuard>} />
+<Route path="/properties/new" element={<AuthGuard roles={['AM','OP','CL_ADMIN','CL_USER']}><PropertyCreatePage /></AuthGuard>} />
 <Route path="/properties/:id" element={<AuthGuard roles={['AM','OP','CL_ADMIN','CL_USER']}><PropertyDetailPage /></AuthGuard>} />
 ```
 

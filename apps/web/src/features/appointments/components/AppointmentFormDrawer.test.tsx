@@ -62,10 +62,6 @@ vi.mock('@/hooks/useFormOptions', () => ({
   useFormOptions: (...args: unknown[]) => mockUseFormOptions(...args),
 }));
 
-vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
-  PropertyFormDrawer: ({ open }: { open: boolean }) => (open ? <div>Property Drawer</div> : null),
-}));
-
 vi.mock('../hooks/useContactSearch', () => ({
   useContactSearch: () => ({
     search: '',
@@ -291,6 +287,40 @@ describe('AppointmentFormDrawer', () => {
         headers: { 'Idempotency-Key': expect.any(String) },
       },
     );
+  });
+
+  it('opens the property-creation page in a new tab pre-filled with agency and branch (create mode)', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+      return { options: [], isLoading: false };
+    }) as any);
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    renderDrawer();
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch Nine'));
+
+    fireEvent.click(screen.getByText('Property not listed? Create one'));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const url = String(openSpy.mock.calls[0]?.[0]);
+    const target = openSpy.mock.calls[0]?.[1];
+    expect(url).toContain('/properties/new?');
+    expect(url).toContain('tenantId=tenant-1');
+    expect(url).toContain('branchId=branch-9');
+    expect(target).toBe('_blank');
+
+    openSpy.mockRestore();
+  });
+
+  it('does not render the create-property action in edit mode', () => {
+    renderDrawer({ appointmentId: 'apt-01' });
+    expect(screen.queryByText('Property not listed? Create one')).not.toBeInTheDocument();
   });
 
   // Regression: cross-tenant OP (tenantId=null in JWT) selects an agency in step 1
