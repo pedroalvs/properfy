@@ -129,7 +129,7 @@ describe('PrismaServiceRegionRepository', () => {
       ]);
     });
 
-    it('should scope query by tenant_id and ACTIVE status', async () => {
+    it('should match the tenant region AND global regions (tenant_id IS NULL), ACTIVE only', async () => {
       (prisma.$queryRaw as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
       await repo.resolveRegionsForAppointments('tenant-1', ['apt-1']);
@@ -138,6 +138,8 @@ describe('PrismaServiceRegionRepository', () => {
       const sqlStrings = callArgs[0];
       const joinedSql = Array.isArray(sqlStrings) ? sqlStrings.join('?') : String(sqlStrings);
       expect(joinedSql).toContain('sr.tenant_id');
+      // Global regions (tenant_id IS NULL) resolve for any tenant's appointments
+      expect(joinedSql).toContain('sr.tenant_id IS NULL');
       expect(joinedSql).toContain("sr.status = 'ACTIVE'");
     });
   });

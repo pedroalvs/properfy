@@ -175,7 +175,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
       JOIN properties p ON ST_Intersects(sr.geom, p.coordinates)
       JOIN appointments a ON a.property_id = p.id
       WHERE a.id = ANY(${appointmentIds}::text[])
-        AND sr.tenant_id = ${tenantId}
+        AND (sr.tenant_id = ${tenantId} OR sr.tenant_id IS NULL)
         AND sr.status = 'ACTIVE'
         AND sr.geom IS NOT NULL
         AND p.coordinates IS NOT NULL
