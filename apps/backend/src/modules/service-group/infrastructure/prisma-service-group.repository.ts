@@ -444,7 +444,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       JOIN properties p ON p.id = a.property_id
         AND p.deleted_at IS NULL
         AND p.coordinates IS NOT NULL
-      JOIN service_regions sr ON sr.tenant_id = a.tenant_id
+      JOIN service_regions sr ON (sr.tenant_id = a.tenant_id OR sr.tenant_id IS NULL)
         AND sr.status = 'ACTIVE'
         AND sr.geom IS NOT NULL
         AND ST_Intersects(sr.geom, p.coordinates)
@@ -484,7 +484,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       JOIN properties p ON p.id = a.property_id
         AND p.deleted_at IS NULL
         AND p.coordinates IS NOT NULL
-      JOIN service_regions sr ON sr.tenant_id = a.tenant_id
+      JOIN service_regions sr ON (sr.tenant_id = a.tenant_id OR sr.tenant_id IS NULL)
         AND sr.status = 'ACTIVE'
         AND sr.geom IS NOT NULL
         AND ST_Intersects(sr.geom, p.coordinates)
@@ -607,8 +607,10 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
   /**
    * Use PostGIS spatial join to find eligible service group IDs for the inspector.
-   * Region matching is tenant-scoped (sr.tenant_id = a.tenant_id), but the query
-   * is cross-tenant because inspectors can have region mappings across tenants.
+   * Region matching covers the appointment's own tenant region
+   * (sr.tenant_id = a.tenant_id) AND global regions (sr.tenant_id IS NULL); the
+   * per-appointment denylist (NOT EXISTS below) still gates global-region offers.
+   * The query is cross-tenant because inspectors can have region mappings across tenants.
    */
   private async findEligibleGroupIds(
     inspectorId: string,
@@ -628,7 +630,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       JOIN properties p ON p.id = a.property_id
         AND p.deleted_at IS NULL
         AND p.coordinates IS NOT NULL
-      JOIN service_regions sr ON sr.tenant_id = a.tenant_id
+      JOIN service_regions sr ON (sr.tenant_id = a.tenant_id OR sr.tenant_id IS NULL)
         AND sr.status = 'ACTIVE'
         AND sr.geom IS NOT NULL
         AND ST_Intersects(sr.geom, p.coordinates)

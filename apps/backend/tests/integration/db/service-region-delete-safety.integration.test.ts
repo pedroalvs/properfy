@@ -163,7 +163,6 @@ describe('T184 — delete safety', () => {
     // Create a service group that references this region
     await harness.prisma.serviceGroup.create({
       data: {
-        tenant_id: tenantId,
         service_type_id: serviceType.id,
         service_region_id: regionId,
         status: 'DRAFT',
