@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
@@ -9,6 +9,7 @@ import { AppointmentStatusChip } from '@/features/appointments/components/Appoin
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
@@ -49,7 +50,7 @@ function isPrivilegedRole(role: string): boolean {
 export function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
+  const handleBack = useGoBack('/appointments');
   const { user } = useAuth();
   const { appointment, isLoading, isError, refetch } = useAppointmentDetail(id ?? null);
   const { crossCheckDone, isCrossChecking } = useAppointmentCrossCheck(id ?? null, refetch);
@@ -62,17 +63,6 @@ export function AppointmentDetailPage() {
   const [forceConfirmOpen, setForceConfirmOpen] = useState(false);
   const { remove, isDeleting } = useDeleteAppointment(id ?? null, () => navigate('/appointments'));
   const { forceConfirm } = useForceConfirmation(id ?? null, refetch);
-
-  const handleBack = useCallback(() => {
-    // The detail page is usually opened in a new tab (window.open _blank), where
-    // navigate(-1) has no in-tab history to return to. location.key === 'default'
-    // marks a fresh router session, so fall back to the appointments list instead.
-    if (location.key !== 'default') {
-      navigate(-1);
-    } else {
-      navigate('/appointments');
-    }
-  }, [location.key, navigate]);
 
   const isPrivileged = user ? isPrivilegedRole(user.role) : false;
   const canEdit = user ? CAN_EDIT_ROLES.includes(user.role) : false;

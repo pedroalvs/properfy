@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from '../components/AppointmentRestrictionFields';
 import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
@@ -25,6 +26,7 @@ import { EMPTY_FORM_DATA } from '../types';
 
 export function AppointmentCreatePage() {
   const navigate = useNavigate();
+  const goBack = useGoBack('/appointments');
   const { user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const { save, isSaving, validate } = useAppointmentSave();
@@ -189,14 +191,14 @@ export function AppointmentCreatePage() {
     if (isDirty) {
       setShowConfirm(true);
     } else {
-      navigate(-1);
+      goBack();
     }
-  }, [isDirty, navigate]);
+  }, [isDirty, goBack]);
 
   const forceBack = useCallback(() => {
     setShowConfirm(false);
-    navigate(-1);
-  }, [navigate]);
+    goBack();
+  }, [goBack]);
 
   const cancelDiscard = useCallback(() => {
     setShowConfirm(false);

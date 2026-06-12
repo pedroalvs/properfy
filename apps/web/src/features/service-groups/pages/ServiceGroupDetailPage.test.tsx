@@ -283,6 +283,13 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.getByLabelText('Go back')).toBeInTheDocument();
   });
 
+  it('falls back to the service-groups list when back is clicked with no in-app history', () => {
+    // Opened in a new tab (window.open _blank) from the map → no history to pop.
+    renderPage();
+    fireEvent.click(screen.getByLabelText('Go back'));
+    expect(screen.getByText('list page')).toBeInTheDocument();
+  });
+
   it('opens cancel modal on Cancel Group click', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Cancel Group/ }));
