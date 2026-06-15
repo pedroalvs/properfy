@@ -13647,8 +13647,7 @@
                       "type": "string",
                       "format": "uuid"
                     },
-                    "minItems": 1,
-                    "maxItems": 30
+                    "minItems": 1
                   },
                   "serviceTypeId": {
                     "type": "string",
@@ -13683,19 +13682,6 @@
                       "PRIORITY_24H"
                     ],
                     "default": "STANDARD"
-                  },
-                  "exceptionType": {
-                    "type": "string",
-                    "enum": [
-                      "LOW_DENSITY_REGION",
-                      "ISOLATED_SERVICE",
-                      "PRIORITY_CLIENT"
-                    ]
-                  },
-                  "exceptionReason": {
-                    "type": "string",
-                    "minLength": 10,
-                    "maxLength": 1000
                   },
                   "actorTimezone": {
                     "type": "string"
@@ -14544,21 +14530,6 @@
                       "STANDARD",
                       "PRIORITY_24H"
                     ]
-                  },
-                  "exceptionType": {
-                    "type": "string",
-                    "enum": [
-                      "LOW_DENSITY_REGION",
-                      "ISOLATED_SERVICE",
-                      "PRIORITY_CLIENT"
-                    ],
-                    "nullable": true
-                  },
-                  "exceptionReason": {
-                    "type": "string",
-                    "minLength": 10,
-                    "maxLength": 1000,
-                    "nullable": true
                   },
                   "actorTimezone": {
                     "type": "string"

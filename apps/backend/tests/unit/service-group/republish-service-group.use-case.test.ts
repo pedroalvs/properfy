@@ -33,8 +33,6 @@ function makeGroup(
     name: null,
     regionName: null,
     description: null,
-    exceptionType: null,
-    exceptionReason: null,
     serviceRegionId: null,
     createdByUserId: 'user-1',
     createdAt: new Date(),

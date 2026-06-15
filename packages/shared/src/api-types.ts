@@ -5982,9 +5982,6 @@ export interface paths {
                          * @enum {string}
                          */
                         priorityMode?: "STANDARD" | "PRIORITY_24H";
-                        /** @enum {string} */
-                        exceptionType?: "LOW_DENSITY_REGION" | "ISOLATED_SERVICE" | "PRIORITY_CLIENT";
-                        exceptionReason?: string;
                         actorTimezone?: string;
                     };
                 };
@@ -6137,9 +6134,6 @@ export interface paths {
                         timeWindow?: string;
                         /** @enum {string} */
                         priorityMode?: "STANDARD" | "PRIORITY_24H";
-                        /** @enum {string|null} */
-                        exceptionType?: "LOW_DENSITY_REGION" | "ISOLATED_SERVICE" | "PRIORITY_CLIENT" | null;
-                        exceptionReason?: string | null;
                         actorTimezone?: string;
                     };
                 };
