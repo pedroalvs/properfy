@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router-dom';
+import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 
 /**
  * Application-wide router error boundary.
@@ -26,7 +27,7 @@ import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router-d
  */
 export function AppErrorBoundary() {
   const error = useRouteError();
-  const navigate = useNavigate();
+  const goBack = useGoBack('/');
   const [showStack, setShowStack] = useState(false);
 
   // Telemetry placeholder — no-op until /v1/telemetry or Sentry lands.
@@ -80,7 +81,7 @@ export function AppErrorBoundary() {
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={goBack}
           className="rounded border border-primary px-5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
           aria-label="Go back"
         >

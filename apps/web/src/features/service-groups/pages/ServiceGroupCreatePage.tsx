@@ -17,6 +17,7 @@ import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { useGoBack } from '@/hooks/useGoBack';
 import { api } from '@/services/api';
 import { EligibleAppointmentsTable } from '../components/EligibleAppointmentsTable';
 import { SelectionCounter } from '../components/SelectionCounter';
@@ -36,6 +37,7 @@ const EXCEPTION_TYPE_OPTIONS = [
 
 export function ServiceGroupCreatePage() {
   const navigate = useNavigate();
+  const goBack = useGoBack('/service-groups');
   const { showSuccess, showError } = useSnackbar();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -110,17 +112,17 @@ export function ServiceGroupCreatePage() {
     } else if (isDirty) {
       setShowConfirm(true);
     } else {
-      navigate(-1);
+      goBack();
     }
-  }, [step, isDirty, navigate]);
+  }, [step, isDirty, goBack]);
 
   const handleNavigateBack = useCallback(() => {
     if (isDirty) {
       setShowConfirm(true);
     } else {
-      navigate(-1);
+      goBack();
     }
-  }, [isDirty, navigate]);
+  }, [isDirty, goBack]);
 
   const handleSubmit = useCallback(async () => {
     setIsSaving(true);
@@ -151,8 +153,8 @@ export function ServiceGroupCreatePage() {
 
   const forceBack = useCallback(() => {
     setShowConfirm(false);
-    navigate(-1);
-  }, [navigate]);
+    goBack();
+  }, [goBack]);
 
   const timeWindow = startTime && endTime ? `${startTime} - ${endTime}` : '';
 
