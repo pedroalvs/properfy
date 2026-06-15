@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useContactDetail } from '../hooks/useContactDetail';
 import { useContactDeactivate } from '../hooks/useContactDeactivate';
 import { ContactTypeChip } from '../components/ContactTypeChip';
@@ -21,6 +22,7 @@ type TabId = 'overview' | 'relations' | 'timeline';
 export function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const handleBack = useGoBack('/contacts');
   const { showSuccess, showError } = useSnackbar();
   const { canPerform } = usePermissions();
   const { contact, isLoading, isError, refetch } = useContactDetail(id ?? null);
@@ -90,7 +92,7 @@ export function ContactDetailPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="rounded p-1 text-text-secondary hover:bg-black/5"
             aria-label="Go back"
           >

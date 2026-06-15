@@ -9,6 +9,7 @@ import { AppointmentStatusChip } from '@/features/appointments/components/Appoin
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
@@ -49,6 +50,7 @@ function isPrivilegedRole(role: string): boolean {
 export function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const handleBack = useGoBack('/appointments');
   const { user } = useAuth();
   const { appointment, isLoading, isError, refetch } = useAppointmentDetail(id ?? null);
   const { crossCheckDone, isCrossChecking } = useAppointmentCrossCheck(id ?? null, refetch);
@@ -186,7 +188,7 @@ export function AppointmentDetailPage() {
         <PageHeader
           title="Loading..."
           secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: () => navigate(-1) },
+            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
           ]}
         />
         <div className="rounded bg-card-bg p-6 shadow-sm">
@@ -202,7 +204,7 @@ export function AppointmentDetailPage() {
         <PageHeader
           title="Appointment"
           secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: () => navigate(-1) },
+            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
           ]}
         />
         <div className="rounded bg-card-bg p-6 shadow-sm">
@@ -220,7 +222,7 @@ export function AppointmentDetailPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="rounded p-1 text-text-secondary hover:bg-black/5"
             aria-label="Go back"
           >
