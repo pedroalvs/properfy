@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -20,10 +20,11 @@ import { CancelGroupModal } from '../components/CancelGroupModal';
 import { RejectGroupModal } from '../components/RejectGroupModal';
 import { RepublishGroupModal } from '../components/RepublishGroupModal';
 import { EditGroupModal } from '../components/EditGroupModal';
+import { useGoBack } from '@/hooks/useGoBack';
 
 export function ServiceGroupDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const handleBack = useGoBack('/service-groups');
   const { serviceGroup, isLoading, isError, refetch } = useServiceGroupDetail(id ?? null);
   const { publish, isPublishing } = usePublishServiceGroup(id ?? null, refetch);
   const { assign } = useAssignInspector(id ?? null, refetch);
@@ -75,7 +76,7 @@ export function ServiceGroupDetailPage() {
         <PageHeader
           title="Loading..."
           secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: () => navigate(-1) },
+            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
           ]}
         />
         <div className="rounded bg-card-bg p-6 shadow-sm">
@@ -91,7 +92,7 @@ export function ServiceGroupDetailPage() {
         <PageHeader
           title="Service Group"
           secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: () => navigate(-1) },
+            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
           ]}
         />
         <div className="rounded bg-card-bg p-6 shadow-sm">
@@ -127,7 +128,7 @@ export function ServiceGroupDetailPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="rounded p-1 text-text-secondary hover:bg-black/5"
             aria-label="Go back"
           >

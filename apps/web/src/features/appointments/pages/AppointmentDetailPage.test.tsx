@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { Snackbar } from '@/components/feedback/Snackbar';
 
@@ -254,7 +254,7 @@ function createWrapper(initialEntry: string = '/appointments/apt-01') {
           <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
               <Route path="/appointments/:id" element={children} />
-              <Route path="/appointments" element={<div>appointment list</div>} />
+              <Route path="/appointments" element={<ListStub />} />
             </Routes>
           </MemoryRouter>
           <Snackbar />
@@ -270,6 +270,21 @@ function renderPage(initialEntry?: string) {
     <Wrapper>
       <AppointmentDetailPage />
     </Wrapper>,
+  );
+}
+
+// Stub for the `/appointments` list route. The button lets a test perform a real
+// in-app push into the detail page, so location.key !== 'default' and the back
+// button exercises its navigate(-1) branch.
+function ListStub() {
+  const navigate = useNavigate();
+  return (
+    <div>
+      appointment list
+      <button type="button" onClick={() => navigate('/appointments/apt-01')}>
+        open detail
+      </button>
+    </div>
   );
 }
 
@@ -326,6 +341,21 @@ describe('AppointmentDetailPage', () => {
   it('renders go back button', () => {
     renderPage();
     expect(screen.getByLabelText('Go back')).toBeInTheDocument();
+  });
+
+  it('falls back to the appointments list when back is clicked with no in-app history', () => {
+    // Detail page is the initial router entry → location.key === 'default',
+    // mimicking a tab opened via window.open where navigate(-1) has nowhere to go.
+    renderPage();
+    fireEvent.click(screen.getByLabelText('Go back'));
+    expect(screen.getByText('appointment list')).toBeInTheDocument();
+  });
+
+  it('navigates back to the prior page when in-app history exists', () => {
+    renderPage('/appointments'); // start on the list
+    fireEvent.click(screen.getByText('open detail')); // push → detail, key !== 'default'
+    fireEvent.click(screen.getByLabelText('Go back')); // navigate(-1)
+    expect(screen.getByText('appointment list')).toBeInTheDocument();
   });
 
   it('renders edit button', () => {

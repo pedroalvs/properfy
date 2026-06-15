@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
+import { useGoBack } from '@/hooks/useGoBack';
 import { usePropertySave } from '../hooks/usePropertySave';
 import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
@@ -24,6 +25,7 @@ import { buildAddressLabel } from '@/lib/address';
 export function PropertyCreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const goBack = useGoBack('/properties');
   const { user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const { save, isSaving, validate } = usePropertySave();
@@ -154,14 +156,14 @@ export function PropertyCreatePage() {
     if (isDirty) {
       setShowConfirm(true);
     } else {
-      navigate(-1);
+      goBack();
     }
-  }, [isDirty, navigate]);
+  }, [isDirty, goBack]);
 
   const forceBack = useCallback(() => {
     setShowConfirm(false);
-    navigate(-1);
-  }, [navigate]);
+    goBack();
+  }, [goBack]);
 
   const cancelDiscard = useCallback(() => {
     setShowConfirm(false);
