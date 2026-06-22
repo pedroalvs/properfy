@@ -436,8 +436,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       JOIN properties p ON p.id = a.property_id
         AND p.deleted_at IS NULL
         AND p.coordinates IS NOT NULL
-      JOIN service_regions sr ON (sr.tenant_id = a.tenant_id OR sr.tenant_id IS NULL)
-        AND sr.status = 'ACTIVE'
+      -- Cross-tenant region match: region ownership is not a filter here; the
+      -- inspector->client denylist below is the isolation boundary.
+      JOIN service_regions sr ON sr.status = 'ACTIVE'
         AND sr.geom IS NOT NULL
         AND ST_Intersects(sr.geom, p.coordinates)
       JOIN inspector_regions ir ON ir.region_id = sr.id
@@ -476,8 +477,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       JOIN properties p ON p.id = a.property_id
         AND p.deleted_at IS NULL
         AND p.coordinates IS NOT NULL
-      JOIN service_regions sr ON (sr.tenant_id = a.tenant_id OR sr.tenant_id IS NULL)
-        AND sr.status = 'ACTIVE'
+      -- Cross-tenant region match: region ownership is not a filter here; the
+      -- inspector->client denylist below is the isolation boundary.
+      JOIN service_regions sr ON sr.status = 'ACTIVE'
         AND sr.geom IS NOT NULL
         AND ST_Intersects(sr.geom, p.coordinates)
       JOIN inspector_regions ir ON ir.region_id = sr.id
@@ -599,10 +601,10 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
   /**
    * Use PostGIS spatial join to find eligible service group IDs for the inspector.
-   * Region matching covers the appointment's own tenant region
-   * (sr.tenant_id = a.tenant_id) AND global regions (sr.tenant_id IS NULL); the
-   * per-appointment denylist (NOT EXISTS below) still gates global-region offers.
-   * The query is cross-tenant because inspectors can have region mappings across tenants.
+   * Region matching is cross-tenant: any ACTIVE region whose polygon contains the
+   * property matches, regardless of which agency owns it (region tenant_id is not
+   * a matching filter). Client isolation is enforced by the per-appointment
+   * inspector->client denylist (NOT EXISTS below), which gates every offer.
    */
   private async findEligibleGroupIds(
     inspectorId: string,
@@ -622,8 +624,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       JOIN properties p ON p.id = a.property_id
         AND p.deleted_at IS NULL
         AND p.coordinates IS NOT NULL
-      JOIN service_regions sr ON (sr.tenant_id = a.tenant_id OR sr.tenant_id IS NULL)
-        AND sr.status = 'ACTIVE'
+      -- Cross-tenant region match: region ownership is not a filter here; the
+      -- inspector->client denylist below is the isolation boundary.
+      JOIN service_regions sr ON sr.status = 'ACTIVE'
         AND sr.geom IS NOT NULL
         AND ST_Intersects(sr.geom, p.coordinates)
       JOIN inspector_regions ir ON ir.region_id = sr.id

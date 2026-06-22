@@ -45,7 +45,7 @@ export interface IServiceRegionRepository {
     }>,
   ): Promise<void>;
   findPropertyIdsInInspectorRegions(inspectorId: string): Promise<string[]>;
-  resolveRegionsForAppointments(tenantId: string, appointmentIds: string[]): Promise<ResolvedRegion[]>;
+  resolveRegionsForAppointments(appointmentIds: string[]): Promise<ResolvedRegion[]>;
   findContainingPoint(tenantId: string, lat: number, lng: number): Promise<ServiceRegionEntity[]>;
   countActiveInspectorsInRegion(regionId: string): Promise<number>;
   setInspectorRegions(inspectorId: string, regionIds: string[]): Promise<void>;

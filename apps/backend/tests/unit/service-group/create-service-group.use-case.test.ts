@@ -193,6 +193,9 @@ describe('CreateServiceGroupUseCase', () => {
     expect(result.priorityMode).toBe('STANDARD');
     expect(result.priorityExpiresAt).toBeNull();
     expect(result.serviceRegionId).toBe(REGION_ID);
+    // Cross-tenant: the region is looked up by id only (tenant arg null), so a
+    // region owned by another agency can be attached.
+    expect(serviceRegionRepo.findById).toHaveBeenCalledWith(REGION_ID, null);
     expect(serviceGroupRepo.save).toHaveBeenCalledOnce();
     expect(serviceGroupRepo.linkAppointments).toHaveBeenCalledWith(
       appointmentIds,
