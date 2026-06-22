@@ -13,10 +13,14 @@ const SAFE_SCHEMA_RE = /^[a-z_][a-z0-9_]*$/;
  * environment — every process on the same schema is a peer consumer of all
  * queues, so a dev laptop can dequeue (and silently no-op) staging's jobs.
  *
- * To make isolation safe-by-default, the schema is derived from NODE_ENV when
- * `PGBOSS_SCHEMA` is not set: dev → `pgboss_dev`, staging → `pgboss_staging`,
- * test → `pgboss_test`, production → `pgboss` (legacy name, so no prod migration).
- * An explicit `PGBOSS_SCHEMA` always wins.
+ * Deployed environments (staging/prod) MUST set `PGBOSS_SCHEMA` explicitly in
+ * their platform config — it is the single authoritative source. NODE_ENV must
+ * NOT be trusted for this: the container image hardcodes one NODE_ENV and the
+ * deploy platform overrides it via env, and those can disagree per machine.
+ *
+ * The NODE_ENV-derived fallback below exists ONLY as a local-dev convenience
+ * (dev → `pgboss_dev`, etc.) for when `PGBOSS_SCHEMA` is unset. An explicit
+ * `PGBOSS_SCHEMA` always wins.
  */
 export function resolvePgBossSchema(
   env: Record<string, string | undefined> = process.env,
