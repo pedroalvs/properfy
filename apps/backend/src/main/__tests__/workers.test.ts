@@ -19,6 +19,8 @@ const mockBoss = {
 
 vi.mock('../../shared/infrastructure/queue', () => ({
   getQueue: vi.fn().mockResolvedValue(mockBoss),
+  resolvePgBossSchema: vi.fn().mockReturnValue('pgboss'),
+  assertQueueDbConsistency: vi.fn(),
 }));
 
 vi.mock('../../shared/infrastructure/prisma', () => ({

@@ -1,4 +1,4 @@
-import { getQueue } from '../shared/infrastructure/queue';
+import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shared/infrastructure/queue';
 import { metrics } from '../shared/infrastructure/metrics';
 import { runWithRequestContext } from '../shared/infrastructure/request-context';
 import type { ProcessReportJobUseCase } from '../modules/report/application/use-cases/process-report-job.use-case';
@@ -67,6 +67,10 @@ export async function registerWorkers(
   rejectUnconfirmedWorker: RejectUnconfirmedWorker,
   logger: Logger,
 ): Promise<void> {
+  // Guard against the misconfiguration where this process consumes jobs from one
+  // database but reads/writes entities in another (silent no-op jobs).
+  assertQueueDbConsistency(logger);
+
   const boss = await getQueue();
 
   await boss.work('report.generate', withJobMetrics('report.generate', async (job) => {
@@ -240,7 +244,7 @@ export async function registerWorkers(
   }));
 
   // DLQ monitor — alert on accumulated failed jobs
-  const dlqMonitor = new DlqMonitor(prisma, logger, { threshold: 10 });
+  const dlqMonitor = new DlqMonitor(prisma, logger, { threshold: 10, schema: resolvePgBossSchema() });
   await boss.schedule('system.dlq-monitor', '*/5 * * * *', {});
   await boss.work('system.dlq-monitor', withJobMetrics('system.dlq-monitor', async (job) => {
     logger.info({ jobId: job.id }, 'Processing system.dlq-monitor job');

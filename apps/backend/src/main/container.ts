@@ -560,7 +560,12 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
-  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService, logger);
+  const geocodingService = env.MAPBOX_ACCESS_TOKEN
+    ? new MapboxGeocodingService(env.MAPBOX_ACCESS_TOKEN)
+    : new StubGeocodingService();
+  // Geocode synchronously at creation time so a new property has coordinates the
+  // instant the request returns (the async worker remains the fallback).
+  const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService, logger, geocodingService);
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
@@ -571,9 +576,6 @@ export function createContainer(logger: Logger): AppContainer {
     : new StubAddressLookupService();
   const addressLookupService = new CachedAddressLookupService(rawAddressLookupService);
   const searchAddressesUseCase = new SearchAddressesUseCase(addressLookupService);
-  const geocodingService = env.MAPBOX_ACCESS_TOKEN
-    ? new MapboxGeocodingService(env.MAPBOX_ACCESS_TOKEN)
-    : new StubGeocodingService();
   const geocodeWorker = new GeocodeWorker(propertyRepo, geocodingService, auditService, logger);
   const geocodeRetryWorker = new GeocodeRetryWorker(propertyRepo, logger);
 
