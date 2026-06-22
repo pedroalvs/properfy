@@ -44,8 +44,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     // Verify the SQL template contains ST_Intersects and key join conditions
     const sqlText = rawCall.map((s: unknown) => String(s)).join('');
     expect(sqlText).toContain('ST_Intersects');
-    expect(sqlText).toContain('sr.tenant_id = a.tenant_id');
-    expect(sqlText).toContain('sr.tenant_id IS NULL'); // global regions match too
+    expect(sqlText).not.toContain('sr.tenant_id'); // cross-tenant: region ownership is not a match filter
     expect(sqlText).toContain('inspector_regions');
 
     // Should then use Prisma findMany to load full data for matched IDs
@@ -107,8 +106,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     const sqlText = rawCall.map((s: unknown) => String(s)).join('');
     expect(sqlText).toContain('COUNT(DISTINCT sg.id)');
     expect(sqlText).toContain('ST_Intersects');
-    expect(sqlText).toContain('sr.tenant_id = a.tenant_id');
-    expect(sqlText).toContain('sr.tenant_id IS NULL'); // global regions match too
+    expect(sqlText).not.toContain('sr.tenant_id'); // cross-tenant: region ownership is not a match filter
   });
 
   it('returns 0 count when inspector has no eligible service types', async () => {
@@ -236,7 +234,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     expect(params).toContain(20);
   });
 
-  it('region matching covers the appointment tenant AND global (tenant_id IS NULL) regions', async () => {
+  it('region matching is cross-tenant (no sr.tenant_id predicate); isolation via the denylist', async () => {
     const queryRaw = vi.fn().mockResolvedValue([{ count: BigInt(0) }]);
     const prisma = {
       $queryRaw: queryRaw,
@@ -249,13 +247,10 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
 
     const rawCall = queryRaw.mock.calls[0][0];
     const sqlText = rawCall.map((s: unknown) => String(s)).join('');
-    // Tenant-scoped regions still match the appointment's own tenant
-    expect(sqlText).toContain('sr.tenant_id = a.tenant_id');
-    // Global regions (tenant_id IS NULL) also match — fix for offers not appearing
-    expect(sqlText).toContain('sr.tenant_id IS NULL');
-    // Guardrail: never a parameterized tenant filter on service_regions
-    // (cross-tenant for inspectors; a `sr.tenant_id = $param` would re-break global regions)
-    expect(sqlText).not.toMatch(/sr\.tenant_id\s*=\s*\$/);
+    // Cross-tenant: region ownership (sr.tenant_id) is NOT a matching filter at all.
+    expect(sqlText).not.toContain('sr.tenant_id');
+    // Isolation is preserved by the per-appointment inspector->client denylist.
+    expect(sqlText).toContain('ga.tenant_id = ANY');
   });
 });
 

@@ -163,9 +163,13 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     return rows.map((r) => r.id);
   }
 
-  async resolveRegionsForAppointments(tenantId: string, appointmentIds: string[]): Promise<ResolvedRegion[]> {
+  async resolveRegionsForAppointments(appointmentIds: string[]): Promise<ResolvedRegion[]> {
     if (appointmentIds.length === 0) return [];
 
+    // Region matching is cross-tenant: any ACTIVE region whose polygon contains
+    // the appointment's property matches, regardless of which agency owns the
+    // region (`sr.tenant_id` is ownership/label only). Client isolation is
+    // enforced downstream by the inspector→client denylist, not by region scope.
     const rows = await this.prisma.$queryRaw<
       Array<{ region_id: string; region_name: string; color: string; matched_appointment_ids: string[] }>
     >`
@@ -175,7 +179,6 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
       JOIN properties p ON ST_Intersects(sr.geom, p.coordinates)
       JOIN appointments a ON a.property_id = p.id
       WHERE a.id = ANY(${appointmentIds}::text[])
-        AND (sr.tenant_id = ${tenantId} OR sr.tenant_id IS NULL)
         AND sr.status = 'ACTIVE'
         AND sr.geom IS NOT NULL
         AND p.coordinates IS NOT NULL

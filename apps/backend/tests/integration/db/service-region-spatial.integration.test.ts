@@ -239,7 +239,7 @@ describe('resolveRegionsForAppointments — null coordinates handling', () => {
       },
     });
 
-    const result = await repo.resolveRegionsForAppointments(tenantId, [appointment.id]);
+    const result = await repo.resolveRegionsForAppointments([appointment.id]);
 
     // No regions should match (null coordinates → unmatched)
     expect(result).toHaveLength(0);
@@ -310,7 +310,7 @@ describe('resolveRegionsForAppointments — null coordinates handling', () => {
       },
     });
 
-    const result = await repo.resolveRegionsForAppointments(tenantId, [appointment.id]);
+    const result = await repo.resolveRegionsForAppointments([appointment.id]);
 
     expect(result).toHaveLength(1);
     expect(result[0].regionName).toBe('Sydney CBD');
