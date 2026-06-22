@@ -12,18 +12,6 @@ export class ServiceGroupInvalidStatusError extends DomainError {
   }
 }
 
-export class GroupSizeTooSmallError extends DomainError {
-  constructor(size: number) {
-    super('GROUP_SIZE_TOO_SMALL', `Group must have at least 5 appointments, got ${size}`, 422);
-  }
-}
-
-export class GroupSizeTooLargeError extends DomainError {
-  constructor(size: number) {
-    super('GROUP_SIZE_TOO_LARGE', `Group must have at most 30 appointments, got ${size}`, 422);
-  }
-}
-
 export class AppointmentInvalidStatusError extends DomainError {
   constructor(appointmentNumber: number) {
     super(
@@ -150,7 +138,7 @@ export class ServiceGroupNotDraftError extends DomainError {
   constructor() {
     super(
       'SERVICE_GROUP_NOT_DRAFT',
-      'Draft-only fields (scheduledDate, timeWindow, priorityMode, exceptionType, exceptionReason) can only be updated when the service group is in DRAFT status',
+      'Draft-only fields (scheduledDate, timeWindow, priorityMode) can only be updated when the service group is in DRAFT status',
       422,
     );
   }

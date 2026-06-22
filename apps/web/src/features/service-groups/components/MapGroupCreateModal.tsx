@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, ServiceGroupExceptionType, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
+import { createServiceGroupSchema, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
@@ -15,13 +15,6 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
 import type { AppointmentMapItem } from '@/features/appointments/hooks/useAppointmentMapData';
-
-const EXCEPTION_TYPE_OPTIONS = [
-  { value: '', label: 'None (standard group)' },
-  { value: ServiceGroupExceptionType.LOW_DENSITY_REGION, label: 'Low Density Region (max 30)' },
-  { value: ServiceGroupExceptionType.ISOLATED_SERVICE, label: 'Isolated Service (max 3)' },
-  { value: ServiceGroupExceptionType.PRIORITY_CLIENT, label: 'Priority Client (max 8)' },
-];
 
 interface MapGroupCreateModalProps {
   open: boolean;
@@ -64,8 +57,6 @@ export function MapGroupCreateModal({
   }, [inferredServiceTypeId]);
 
   const [description, setDescription] = useState('');
-  const [exceptionType, setExceptionType] = useState('');
-  const [exceptionReason, setExceptionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
@@ -90,7 +81,6 @@ export function MapGroupCreateModal({
       priorityMode,
       ...(name ? { name } : {}),
       ...(description ? { description } : {}),
-      ...(exceptionType ? { exceptionType, exceptionReason } : {}),
       actorTimezone: browserTz,
     };
 
@@ -101,25 +91,6 @@ export function MapGroupCreateModal({
         showError(`Validation error: ${firstError.path.join('.')} — ${firstError.message}`);
       }
       return;
-    }
-
-    const count = selectedAppointmentIds.length;
-    const STANDARD_MIN = 5;
-    const EXCEPTION_LIMITS: Record<string, number> = {
-      LOW_DENSITY_REGION: 30,
-      ISOLATED_SERVICE: 3,
-      PRIORITY_CLIENT: 8,
-    };
-    if (!exceptionType && count < STANDARD_MIN) {
-      showError(`Standard groups require at least ${STANDARD_MIN} appointments (selected: ${count}). Use an exception type for smaller groups.`);
-      return;
-    }
-    if (exceptionType) {
-      const max = EXCEPTION_LIMITS[exceptionType] ?? 30;
-      if (count > max) {
-        showError(`${exceptionType} exception allows a maximum of ${max} appointments (selected: ${count}).`);
-        return;
-      }
     }
 
     setSubmitting(true);
@@ -141,8 +112,8 @@ export function MapGroupCreateModal({
     }
   }, [
     selectedAppointmentIds, serviceTypeId, scheduledDate, startTime, endTime,
-    serviceRegionId, isMixedAgency, priorityMode, name, description, exceptionType,
-    exceptionReason, showSuccess, showError, queryClient, onSuccess,
+    serviceRegionId, isMixedAgency, priorityMode, name, description,
+    showSuccess, showError, queryClient, onSuccess,
   ]);
 
   return (
@@ -223,25 +194,6 @@ export function MapGroupCreateModal({
         <FormField label="Priority">
           <PriorityModeSelect value={priorityMode} onChange={setPriorityMode} />
         </FormField>
-
-        <FormField label="Exception Type">
-          <SelectInput
-            value={exceptionType}
-            onChange={setExceptionType}
-            options={EXCEPTION_TYPE_OPTIONS}
-          />
-        </FormField>
-
-        {exceptionType && (
-          <FormField label="Exception Reason" required>
-            <Textarea
-              value={exceptionReason}
-              onChange={setExceptionReason}
-              placeholder="Explain why this group requires an exception..."
-              rows={3}
-            />
-          </FormField>
-        )}
 
         <FormField label="Description">
           <Textarea

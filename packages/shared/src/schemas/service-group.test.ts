@@ -60,12 +60,12 @@ describe('createServiceGroupSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject more than 30 appointments', () => {
+  it('should accept more than 30 appointments (no upper bound at creation)', () => {
     const result = createServiceGroupSchema.safeParse({
       ...validInput,
       appointmentIds: generateUuids(31),
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('should reject invalid UUID in appointmentIds', () => {

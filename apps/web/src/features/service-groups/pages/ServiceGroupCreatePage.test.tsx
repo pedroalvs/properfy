@@ -185,8 +185,8 @@ describe('ServiceGroupCreatePage', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Full Inspection' }));
   }
 
-  function selectMinAppointments() {
-    for (let i = 1; i <= 5; i++) {
+  function selectAppointments(count: number) {
+    for (let i = 1; i <= count; i++) {
       fireEvent.click(screen.getByLabelText(`Select VST-${String(i).padStart(3, '0')}`));
     }
   }
@@ -205,11 +205,19 @@ describe('ServiceGroupCreatePage', () => {
     expect(screen.getByText(/selected/)).toBeInTheDocument();
   });
 
-  it('enables Next when enough appointments are selected', () => {
+  it('enables Next with a single appointment selected (no minimum)', () => {
     renderPage();
     selectAgency();
     selectServiceType();
-    selectMinAppointments();
+    selectAppointments(1);
+    expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
+  });
+
+  it('enables Next when several appointments are selected', () => {
+    renderPage();
+    selectAgency();
+    selectServiceType();
+    selectAppointments(5);
     expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
   });
 
@@ -217,7 +225,7 @@ describe('ServiceGroupCreatePage', () => {
     renderPage();
     selectAgency();
     selectServiceType();
-    selectMinAppointments();
+    selectAppointments(5);
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByLabelText('Scheduled Date')).toBeInTheDocument();
     expect(screen.getAllByText('Time Window').length).toBeGreaterThanOrEqual(1);
@@ -229,7 +237,7 @@ describe('ServiceGroupCreatePage', () => {
     renderPage();
     selectAgency();
     selectServiceType();
-    selectMinAppointments();
+    selectAppointments(5);
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('button', { name: 'Create Group' })).toBeInTheDocument();
   });
@@ -238,7 +246,7 @@ describe('ServiceGroupCreatePage', () => {
     renderPage();
     selectAgency();
     selectServiceType();
-    selectMinAppointments();
+    selectAppointments(5);
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     // "Back" appears in both page header and form actions; click the form action one
     const backButtons = screen.getAllByRole('button', { name: 'Back' });
@@ -261,7 +269,7 @@ describe('ServiceGroupCreatePage', () => {
     renderPage();
     selectAgency();
     selectServiceType();
-    selectMinAppointments();
+    selectAppointments(5);
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     // Use a date 14 days from now so the universal past-date guard
     // (cycle 6 §FR-560+, commits 23fd1ab + 4801500) accepts the form

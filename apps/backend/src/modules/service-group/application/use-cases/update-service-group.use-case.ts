@@ -1,4 +1,4 @@
-import type { AuthContext, PriorityMode, ServiceGroupExceptionType } from '@properfy/shared';
+import type { AuthContext, PriorityMode } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
@@ -19,8 +19,6 @@ const DRAFT_ONLY_FIELDS = [
   'scheduledDate',
   'timeWindow',
   'priorityMode',
-  'exceptionType',
-  'exceptionReason',
 ] as const;
 
 export interface UpdateServiceGroupInput {
@@ -32,8 +30,6 @@ export interface UpdateServiceGroupInput {
   scheduledDate?: string;
   timeWindow?: string;
   priorityMode?: PriorityMode;
-  exceptionType?: ServiceGroupExceptionType | null;
-  exceptionReason?: string | null;
   actorTimezone?: string;
   actor: AuthContext;
 }
@@ -53,8 +49,6 @@ export interface UpdateServiceGroupOutput {
   description: string | null;
   priorityMode: string;
   priorityExpiresAt: Date | null;
-  exceptionType: string | null;
-  exceptionReason: string | null;
   assignedInspectorId: string | null;
   serviceRegionId: string | null;
   publishedAt: Date | null;
@@ -133,12 +127,6 @@ export class UpdateServiceGroupUseCase {
     if (input.priorityMode !== undefined) {
       updateData.priorityMode = input.priorityMode;
     }
-    if (input.exceptionType !== undefined) {
-      updateData.exceptionType = input.exceptionType;
-    }
-    if (input.exceptionReason !== undefined) {
-      updateData.exceptionReason = input.exceptionReason;
-    }
 
     // Recalculate priorityExpiresAt when priorityMode changes
     if (input.priorityMode !== undefined) {
@@ -204,8 +192,6 @@ export class UpdateServiceGroupUseCase {
       description: g.description,
       priorityMode: g.priorityMode,
       priorityExpiresAt: g.priorityExpiresAt,
-      exceptionType: g.exceptionType,
-      exceptionReason: g.exceptionReason,
       assignedInspectorId: g.assignedInspectorId,
       serviceRegionId: g.serviceRegionId,
       publishedAt: g.publishedAt,

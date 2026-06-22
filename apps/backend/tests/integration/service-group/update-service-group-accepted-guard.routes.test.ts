@@ -80,8 +80,6 @@ const draftOutput = {
   description: null,
   priorityMode: 'STANDARD',
   priorityExpiresAt: null,
-  exceptionType: null,
-  exceptionReason: null,
   assignedInspectorId: null,
   serviceRegionId: null,
   publishedAt: null,
