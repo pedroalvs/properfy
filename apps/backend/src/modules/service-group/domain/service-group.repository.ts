@@ -153,8 +153,6 @@ export interface IServiceGroupRepository {
       scheduledDate: Date;
       timeWindow: string;
       priorityMode: string;
-      exceptionType: string | null;
-      exceptionReason: string | null;
     }>,
   ): Promise<void>;
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */

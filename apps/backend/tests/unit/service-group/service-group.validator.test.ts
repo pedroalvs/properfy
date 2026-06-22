@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ServiceGroupValidator } from '../../../src/modules/service-group/domain/service-group.validator';
 import type { AppointmentForValidation } from '../../../src/modules/service-group/domain/service-group.validator';
-import { GroupSizeTooSmallError } from '../../../src/modules/service-group/domain/service-group.errors';
-import { GroupSizeTooLargeError } from '../../../src/modules/service-group/domain/service-group.errors';
 import { AppointmentInvalidStatusError } from '../../../src/modules/service-group/domain/service-group.errors';
 import { AppointmentAlreadyInGroupError } from '../../../src/modules/service-group/domain/service-group.errors';
 import { ServiceTypeMismatchError } from '../../../src/modules/service-group/domain/service-group.errors';
@@ -26,16 +24,9 @@ function makeAppointments(count: number, overrides: Partial<AppointmentForValida
 }
 
 describe('ServiceGroupValidator', () => {
-  describe('valid scenarios', () => {
-    it('accepts 5 valid AWAITING_INSPECTOR appointments with same service type', () => {
-      const appointments = makeAppointments(5);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1'),
-      ).not.toThrow();
-    });
-
-    it('accepts 30 valid appointments (maximum)', () => {
-      const appointments = makeAppointments(30);
+  describe('valid scenarios (no size limits)', () => {
+    it('accepts a single appointment', () => {
+      const appointments = makeAppointments(1);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1'),
       ).not.toThrow();
@@ -47,49 +38,12 @@ describe('ServiceGroupValidator', () => {
         ServiceGroupValidator.validate(appointments, 'st-1'),
       ).not.toThrow();
     });
-  });
 
-  describe('size constraints', () => {
-    it('rejects less than 5 appointments', () => {
-      const appointments = makeAppointments(4);
+    it('accepts more than 30 appointments (no upper bound at creation)', () => {
+      const appointments = makeAppointments(50);
       expect(() =>
         ServiceGroupValidator.validate(appointments, 'st-1'),
-      ).toThrow(GroupSizeTooSmallError);
-    });
-
-    it('rejects 0 appointments', () => {
-      expect(() =>
-        ServiceGroupValidator.validate([], 'st-1'),
-      ).toThrow(GroupSizeTooSmallError);
-    });
-
-    it('rejects more than 30 appointments', () => {
-      const appointments = makeAppointments(31);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1'),
-      ).toThrow(GroupSizeTooLargeError);
-    });
-
-    it('includes actual size in error for too small', () => {
-      const appointments = makeAppointments(3);
-      try {
-        ServiceGroupValidator.validate(appointments, 'st-1');
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(GroupSizeTooSmallError);
-        expect((err as GroupSizeTooSmallError).message).toContain('3');
-      }
-    });
-
-    it('includes actual size in error for too large', () => {
-      const appointments = makeAppointments(35);
-      try {
-        ServiceGroupValidator.validate(appointments, 'st-1');
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(GroupSizeTooLargeError);
-        expect((err as GroupSizeTooLargeError).message).toContain('35');
-      }
+      ).not.toThrow();
     });
   });
 
@@ -162,77 +116,6 @@ describe('ServiceGroupValidator', () => {
     });
   });
 
-  describe('exception type size limits', () => {
-    it('LOW_DENSITY_REGION: accepts 1 appointment', () => {
-      const appointments = makeAppointments(1);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1', 'LOW_DENSITY_REGION'),
-      ).not.toThrow();
-    });
-
-    it('LOW_DENSITY_REGION: accepts 30 appointments', () => {
-      const appointments = makeAppointments(30);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1', 'LOW_DENSITY_REGION'),
-      ).not.toThrow();
-    });
-
-    it('LOW_DENSITY_REGION: rejects 31 appointments', () => {
-      const appointments = makeAppointments(31);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1', 'LOW_DENSITY_REGION'),
-      ).toThrow(GroupSizeTooLargeError);
-    });
-
-    it('ISOLATED_SERVICE: accepts 1 appointment', () => {
-      const appointments = makeAppointments(1);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1', 'ISOLATED_SERVICE'),
-      ).not.toThrow();
-    });
-
-    it('ISOLATED_SERVICE: accepts 3 appointments', () => {
-      const appointments = makeAppointments(3);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1', 'ISOLATED_SERVICE'),
-      ).not.toThrow();
-    });
-
-    it('ISOLATED_SERVICE: rejects 4 appointments', () => {
-      const appointments = makeAppointments(4);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1', 'ISOLATED_SERVICE'),
-      ).toThrow(GroupSizeTooLargeError);
-    });
-
-    it('PRIORITY_CLIENT: accepts 1 appointment', () => {
-      const appointments = makeAppointments(1);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1', 'PRIORITY_CLIENT'),
-      ).not.toThrow();
-    });
-
-    it('PRIORITY_CLIENT: accepts 8 appointments', () => {
-      const appointments = makeAppointments(8);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1', 'PRIORITY_CLIENT'),
-      ).not.toThrow();
-    });
-
-    it('PRIORITY_CLIENT: rejects 9 appointments', () => {
-      const appointments = makeAppointments(9);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1', 'PRIORITY_CLIENT'),
-      ).toThrow(GroupSizeTooLargeError);
-    });
-
-    it('no exception: rejects 4 appointments (standard min is 5)', () => {
-      const appointments = makeAppointments(4);
-      expect(() =>
-        ServiceGroupValidator.validate(appointments, 'st-1'),
-      ).toThrow(GroupSizeTooSmallError);
-    });
-  });
 });
 
 // 026 §FR-510 — predicate variant. Powers the per-item mixed-result

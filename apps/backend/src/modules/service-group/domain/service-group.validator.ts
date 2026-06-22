@@ -1,7 +1,5 @@
-import type { ServiceGroupExceptionType, ServiceGroupStatus } from '@properfy/shared';
+import type { ServiceGroupStatus } from '@properfy/shared';
 import {
-  GroupSizeTooSmallError,
-  GroupSizeTooLargeError,
   AppointmentInvalidStatusError,
   AppointmentAlreadyInGroupError,
   ServiceTypeMismatchError,
@@ -70,38 +68,17 @@ function sameDay(a: Date, b: Date): boolean {
     && a.getUTCDate() === b.getUTCDate();
 }
 
-const GROUP_CAPACITY_DEFAULT = 30;
-
 /**
- * Size limits that apply when a service group exception type is declared.
- * Without an exception: min=5, max=30.
- *
- * See: projeto-consolidado/service-group-exceptions.md for the full rationale
- * and migration path to automatic (Scenario 1) exceptions.
+ * Maximum number of appointments an existing group can hold. Enforced only when
+ * *adding* appointments to a group (`canAddToGroup`); group creation is unbounded.
  */
-const EXCEPTION_LIMITS: Record<ServiceGroupExceptionType, { min: number; max: number }> = {
-  LOW_DENSITY_REGION: { min: 1, max: 30 },
-  ISOLATED_SERVICE:   { min: 1, max: 3  },
-  PRIORITY_CLIENT:    { min: 1, max: 8  },
-};
-
-const DEFAULT_LIMITS = { min: 5, max: 30 };
+const GROUP_CAPACITY_DEFAULT = 30;
 
 export class ServiceGroupValidator {
   static validate(
     appointments: AppointmentForValidation[],
     expectedServiceTypeId: string,
-    exceptionType?: ServiceGroupExceptionType | null,
   ): void {
-    const limits = exceptionType ? EXCEPTION_LIMITS[exceptionType] : DEFAULT_LIMITS;
-
-    if (appointments.length < limits.min) {
-      throw new GroupSizeTooSmallError(appointments.length);
-    }
-    if (appointments.length > limits.max) {
-      throw new GroupSizeTooLargeError(appointments.length);
-    }
-
     for (const appt of appointments) {
       // Groupable statuses: DRAFT and REJECTED auto-transition to AWAITING_INSPECTOR on group join.
       if (appt.status !== 'AWAITING_INSPECTOR' && appt.status !== 'DRAFT' && appt.status !== 'REJECTED') {

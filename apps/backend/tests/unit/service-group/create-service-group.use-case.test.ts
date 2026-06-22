@@ -11,8 +11,6 @@ import { ForbiddenError, NotFoundError, ValidationError } from '../../../src/sha
 import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
-  GroupSizeTooSmallError,
-  GroupSizeTooLargeError,
   AppointmentInvalidStatusError,
   PriorityDateTooCloseError,
   ServiceRegionInactiveError,
@@ -382,7 +380,7 @@ describe('CreateServiceGroupUseCase', () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it('should throw GroupSizeTooSmallError when fewer than 5 appointments', async () => {
+  it('should allow fewer than 5 appointments (no minimum beyond 1)', async () => {
     const appointmentIds = makeAppointmentIds(3);
     for (let i = 0; i < 3; i++) {
       vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
@@ -390,17 +388,40 @@ describe('CreateServiceGroupUseCase', () => {
       );
     }
 
-    await expect(
-      useCase.execute({
-        appointmentIds,
-        serviceTypeId: 'svc-type-1',
-        scheduledDate: farFutureDate,
-        timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
-        serviceRegionId: REGION_ID,
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(GroupSizeTooSmallError);
+    const result = await useCase.execute({
+      appointmentIds,
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
+      actor: makeActor(),
+    });
+
+    expect(result.id).toBeDefined();
+    expect(result.groupSize).toBe(3);
+  });
+
+  it('should allow more than 30 appointments (no upper bound)', async () => {
+    const appointmentIds = makeAppointmentIds(31);
+    for (let i = 0; i < 31; i++) {
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
+      );
+    }
+
+    const result = await useCase.execute({
+      appointmentIds,
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
+      actor: makeActor(),
+    });
+
+    expect(result.id).toBeDefined();
+    expect(result.groupSize).toBe(31);
   });
 
   it('should throw PriorityDateTooCloseError for PRIORITY_24H with close date', async () => {
@@ -495,15 +516,13 @@ describe('CreateServiceGroupUseCase', () => {
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
       priorityMode: 'STANDARD',
-      exceptionType: 'ISOLATED_SERVICE',
-      exceptionReason: 'This property is geographically isolated from other appointments.',
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
     });
 
     expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
   });
 
-  it('should allow ISOLATED_SERVICE exception with 1 appointment', async () => {
+  it('should allow a single-appointment group', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
       makeAppointmentWithRelations({ id: 'appt-1' }),
     );
@@ -515,60 +534,11 @@ describe('CreateServiceGroupUseCase', () => {
       timeWindow: '09:00-12:00',
       priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
-      exceptionType: 'ISOLATED_SERVICE',
-      exceptionReason: 'This property is geographically isolated from other appointments.',
       actor: makeActor(),
     });
 
     expect(result.id).toBeDefined();
     expect(result.groupSize).toBe(1);
-  });
-
-  it('should reject ISOLATED_SERVICE exception exceeding its max (4 appointments)', async () => {
-    const appointmentIds = makeAppointmentIds(4);
-    for (let i = 0; i < 4; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
-
-    await expect(
-      useCase.execute({
-        appointmentIds,
-        serviceTypeId: 'svc-type-1',
-        scheduledDate: farFutureDate,
-        timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
-        serviceRegionId: REGION_ID,
-        exceptionType: 'ISOLATED_SERVICE',
-        exceptionReason: 'Isolated area.',
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(GroupSizeTooLargeError);
-  });
-
-  it('should allow PRIORITY_CLIENT exception with 3 appointments', async () => {
-    const appointmentIds = makeAppointmentIds(3);
-    for (let i = 0; i < 3; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
-
-    const result = await useCase.execute({
-      appointmentIds,
-      serviceTypeId: 'svc-type-1',
-      scheduledDate: farFutureDate,
-      timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
-      serviceRegionId: REGION_ID,
-      exceptionType: 'PRIORITY_CLIENT',
-      exceptionReason: 'Client requires expedited service by contract.',
-      actor: makeActor(),
-    });
-
-    expect(result.id).toBeDefined();
-    expect(result.groupSize).toBe(3);
   });
 
   describe('GAP-011: configurable priority offer hours', () => {

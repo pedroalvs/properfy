@@ -8,8 +8,6 @@ export interface UpdateServiceGroupData {
   scheduledDate?: string;
   timeWindow?: string;
   priorityMode?: 'STANDARD' | 'PRIORITY_24H';
-  exceptionType?: string | null;
-  exceptionReason?: string | null;
   actorTimezone?: string;
 }
 
