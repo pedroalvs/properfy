@@ -1,5 +1,6 @@
 import { BaseEntity } from '../../../shared/domain/entity';
 import type { PropertyType, GeocodingStatus, PropertyRules } from '@properfy/shared';
+import type { GeocodingResult } from './geocoding.service';
 
 export interface PropertyProps {
   id: string;
@@ -34,8 +35,8 @@ export class PropertyEntity extends BaseEntity {
   readonly postcode: string;
   readonly state: string;
   readonly country: string;
-  readonly lat: number | null;
-  readonly lng: number | null;
+  lat: number | null;
+  lng: number | null;
   geocodingStatus: GeocodingStatus;
   readonly notes: string | null;
   readonly rulesJson: Record<string, unknown>;
@@ -67,6 +68,23 @@ export class PropertyEntity extends BaseEntity {
 
   needsGeocoding(): boolean {
     return this.geocodingStatus === 'PENDING';
+  }
+
+  /**
+   * Apply the outcome of a geocoding lookup to this entity. A coordinate result
+   * sets SUCCESS; a null result (address not found) sets FAILED. Used by the
+   * create flow to geocode synchronously before persisting.
+   */
+  applyGeocodingResult(result: GeocodingResult | null): void {
+    if (result) {
+      this.lat = result.lat;
+      this.lng = result.lng;
+      this.geocodingStatus = 'SUCCESS';
+    } else {
+      this.lat = null;
+      this.lng = null;
+      this.geocodingStatus = 'FAILED';
+    }
   }
 
   get fullAddress(): string {

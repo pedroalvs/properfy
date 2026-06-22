@@ -9,6 +9,8 @@ primary_region = 'syd'
 
 [env]
   NODE_ENV = 'production'
+  # Explicit pg-boss queue schema — authoritative, do NOT rely on NODE_ENV inference.
+  PGBOSS_SCHEMA = 'pgboss'
   PORT = '3000'
   LOG_LEVEL = 'info'
   JWT_ACCESS_TOKEN_TTL_MINUTES = '60'

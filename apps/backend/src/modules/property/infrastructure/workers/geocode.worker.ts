@@ -18,9 +18,22 @@ export class GeocodeWorker {
     // payload). `null` makes the intent explicit; the old `''` sentinel
     // only worked because the repo's `buildWhere` treats it as falsy.
     const property = await this.propertyRepo.findById(propertyId, null);
-    if (!property || property.isDeleted()) {
-      this.logger.warn({ propertyId }, 'Property not found for geocoding');
-      return;
+    if (!property) {
+      // findById excludes soft-deleted rows. Distinguish a legitimate soft-delete
+      // (no-op is correct) from a row that does not exist in THIS database at all —
+      // the signature of a cross-environment queue consumer (a process whose
+      // DATABASE_URL differs from where the row lives) or a hard-deleted row.
+      const existsAnywhere = await this.propertyRepo.existsById(propertyId);
+      if (existsAnywhere) {
+        this.logger.warn({ propertyId }, 'Property soft-deleted, skipping geocoding');
+        return;
+      }
+      // Fail loudly: let pg-boss retry and surface the job in the DLQ instead of
+      // silently completing as a no-op and stranding the property in PENDING.
+      throw new Error(
+        `property.geocode: property ${propertyId} not found in this database ` +
+          `(possible cross-environment queue consumer or hard-deleted row)`,
+      );
     }
 
     if (

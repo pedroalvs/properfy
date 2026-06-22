@@ -62,6 +62,10 @@ COPY --from=builder /app/apps/backend/prisma/ apps/backend/prisma/
 
 WORKDIR /app/apps/backend
 
+# Fail-closed default so a misconfigured machine boots in strict (prod) mode rather
+# than dev mode. The deploy platform's [env] overrides this per environment
+# (staging sets NODE_ENV=staging). NOTE: queue isolation must NOT rely on NODE_ENV —
+# it reads the explicit PGBOSS_SCHEMA env var instead (see shared/infrastructure/queue.ts).
 ENV NODE_ENV=production
 EXPOSE 3000
 

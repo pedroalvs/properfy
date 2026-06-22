@@ -7,6 +7,8 @@ const { mockWork, mockSchedule } = vi.hoisted(() => ({
 
 vi.mock('../../src/shared/infrastructure/queue', () => ({
   getQueue: vi.fn().mockResolvedValue({ work: mockWork, schedule: mockSchedule }),
+  resolvePgBossSchema: vi.fn().mockReturnValue('pgboss'),
+  assertQueueDbConsistency: vi.fn(),
 }));
 
 vi.mock('../../src/shared/infrastructure/prisma', () => ({
