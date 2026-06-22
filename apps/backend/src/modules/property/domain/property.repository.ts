@@ -29,6 +29,12 @@ export interface PaginationParams {
 
 export interface IPropertyRepository {
   findById(id: string, tenantId?: string | null): Promise<PropertyEntity | null>;
+  /**
+   * Whether a property with this id exists in the database at all — ignoring tenant
+   * scope AND soft-delete. Used to tell "soft-deleted" apart from "absent entirely"
+   * (e.g. a job processed by a worker connected to the wrong database).
+   */
+  existsById(id: string): Promise<boolean>;
   findByIdWithBranch(id: string, tenantId?: string | null): Promise<PropertyWithBranch | null>;
   findByPropertyCode(
     propertyCode: string,

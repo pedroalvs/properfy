@@ -12,6 +12,9 @@ primary_region = 'syd'
 
 [env]
   NODE_ENV = 'staging'
+  # Explicit pg-boss queue schema — authoritative, do NOT rely on NODE_ENV inference.
+  # Isolates staging's queue from dev/prod (dev+staging share one database).
+  PGBOSS_SCHEMA = 'pgboss_staging'
   PORT = '3000'
   LOG_LEVEL = 'info'
   JWT_ACCESS_TOKEN_TTL_MINUTES = '60'

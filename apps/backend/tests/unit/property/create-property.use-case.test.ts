@@ -298,6 +298,115 @@ describe('CreatePropertyUseCase', () => {
     );
   });
 
+  describe('synchronous geocoding (instant)', () => {
+    beforeEach(() => {
+      // sendJob is a shared module mock; clear call history so "not called" assertions
+      // are not polluted by earlier tests in this file.
+      vi.mocked(sendJob).mockClear();
+    });
+
+    function makeGeocodingService(): { geocode: ReturnType<typeof vi.fn> } {
+      return { geocode: vi.fn() };
+    }
+
+    function makeLogger() {
+      return {
+        info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(),
+        fatal: vi.fn(), trace: vi.fn(), child: vi.fn(),
+      } as never;
+    }
+
+    const baseInput = {
+      tenantId: 'tenant-1',
+      propertyCode: 'PROP-SYNC',
+      type: 'RESIDENTIAL' as const,
+      street: '1 Sync St',
+      suburb: 'Sydney',
+      postcode: '2000',
+      state: 'NSW',
+      country: 'AU',
+      actor: makeActor(),
+    };
+
+    it('geocodes synchronously and returns SUCCESS with coordinates, without enqueuing a job', async () => {
+      vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+      const geocodingService = makeGeocodingService();
+      geocodingService.geocode.mockResolvedValue({ lat: -33.86, lng: 151.2 });
+      const uc = new CreatePropertyUseCase(
+        propertyRepo, branchRepo, auditService, undefined, undefined, makeLogger(),
+        geocodingService as never,
+      );
+
+      const result = await uc.execute(baseInput);
+
+      expect(geocodingService.geocode).toHaveBeenCalledWith('1 Sync St, Sydney, NSW, 2000, AU');
+      expect(result.geocodingStatus).toBe('SUCCESS');
+      expect(result.latitude).toBe(-33.86);
+      expect(result.longitude).toBe(151.2);
+      // Saved entity already carries the coordinates — no async round-trip needed.
+      const saved = vi.mocked(propertyRepo.save).mock.calls[0]![0];
+      expect(saved.geocodingStatus).toBe('SUCCESS');
+      expect(saved.lat).toBe(-33.86);
+      // Happy path must NOT touch the queue.
+      expect(sendJob).not.toHaveBeenCalled();
+    });
+
+    it('marks FAILED (no async retry) when geocoding finds no match', async () => {
+      vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+      const geocodingService = makeGeocodingService();
+      geocodingService.geocode.mockResolvedValue(null);
+      const uc = new CreatePropertyUseCase(
+        propertyRepo, branchRepo, auditService, undefined, undefined, makeLogger(),
+        geocodingService as never,
+      );
+
+      const result = await uc.execute(baseInput);
+
+      expect(result.geocodingStatus).toBe('FAILED');
+      expect(result.latitude).toBeNull();
+      expect(sendJob).not.toHaveBeenCalled();
+    });
+
+    it('falls back to PENDING and enqueues an async job when geocoding throws', async () => {
+      vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+      const geocodingService = makeGeocodingService();
+      geocodingService.geocode.mockRejectedValue(new Error('mapbox 503'));
+      const uc = new CreatePropertyUseCase(
+        propertyRepo, branchRepo, auditService, undefined, undefined, makeLogger(),
+        geocodingService as never,
+      );
+
+      const result = await uc.execute(baseInput);
+
+      expect(result.geocodingStatus).toBe('PENDING');
+      expect(sendJob).toHaveBeenCalledWith(
+        'property.geocode',
+        { propertyId: result.id },
+        { retryLimit: 6, retryBackoff: true },
+      );
+    });
+
+    it('falls back to PENDING and enqueues when geocoding exceeds the timeout', async () => {
+      vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+      const geocodingService = makeGeocodingService();
+      // never resolves -> the timeout must win
+      geocodingService.geocode.mockReturnValue(new Promise(() => {}));
+      const uc = new CreatePropertyUseCase(
+        propertyRepo, branchRepo, auditService, undefined, undefined, makeLogger(),
+        geocodingService as never, 20,
+      );
+
+      const result = await uc.execute(baseInput);
+
+      expect(result.geocodingStatus).toBe('PENDING');
+      expect(sendJob).toHaveBeenCalledWith(
+        'property.geocode',
+        { propertyId: result.id },
+        { retryLimit: 6, retryBackoff: true },
+      );
+    });
+  });
+
   it('should validate branch and create property with branchId', async () => {
     vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
     vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
