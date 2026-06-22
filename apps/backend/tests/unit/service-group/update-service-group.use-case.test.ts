@@ -40,8 +40,6 @@ function makeGroupProps(overrides: Partial<ServiceGroupProps> = {}): ServiceGrou
     description: null,
     priorityMode: 'STANDARD',
     priorityExpiresAt: null,
-    exceptionType: null,
-    exceptionReason: null,
     assignedInspectorId: null,
     serviceRegionId: null,
     publishedAt: null,
@@ -234,49 +232,6 @@ describe('UpdateServiceGroupUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(ServiceGroupNotDraftError);
-  });
-
-  it('should update exceptionType and exceptionReason on a DRAFT group', async () => {
-    const groupData = makeGroupWithAppointments({ status: 'DRAFT' });
-    vi.mocked(serviceGroupRepo.findById)
-      .mockResolvedValueOnce(groupData)
-      .mockResolvedValueOnce(groupData);
-
-    const result = await useCase.execute({
-      groupId: 'group-1',
-      exceptionType: 'LOW_DENSITY_REGION',
-      exceptionReason: 'Remote area with very few properties for inspection',
-      actor: makeActor(),
-    });
-
-    expect(result.id).toBe('group-1');
-    expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
-      exceptionType: 'LOW_DENSITY_REGION',
-      exceptionReason: 'Remote area with very few properties for inspection',
-    });
-  });
-
-  it('should clear exceptionType and exceptionReason when set to null', async () => {
-    const groupData = makeGroupWithAppointments({
-      status: 'DRAFT',
-      exceptionType: 'LOW_DENSITY_REGION',
-      exceptionReason: 'Some reason here for testing',
-    });
-    vi.mocked(serviceGroupRepo.findById)
-      .mockResolvedValueOnce(groupData)
-      .mockResolvedValueOnce(groupData);
-
-    await useCase.execute({
-      groupId: 'group-1',
-      exceptionType: null,
-      exceptionReason: null,
-      actor: makeActor(),
-    });
-
-    expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
-      exceptionType: null,
-      exceptionReason: null,
-    });
   });
 
   it('should recalculate priorityExpiresAt when scheduledDate changes and priorityMode is PRIORITY_24H', async () => {

@@ -1,4 +1,4 @@
-import type { AuthContext, ServiceGroupExceptionType } from '@properfy/shared';
+import type { AuthContext } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -24,8 +24,6 @@ export interface CreateServiceGroupInput {
   serviceRegionId?: string | null;
   description?: string;
   priorityMode: PriorityMode;
-  exceptionType?: ServiceGroupExceptionType;
-  exceptionReason?: string;
   actorTimezone?: string;
   actor: AuthContext;
 }
@@ -106,8 +104,8 @@ export class CreateServiceGroupUseCase {
     const tenantIds = [...new Set(appointments.map((a) => a.tenantId))];
     const primaryTenantId = tenantIds.length === 1 ? tenantIds[0]! : null;
 
-    // 3. Validate via domain validator (size / status / service type)
-    ServiceGroupValidator.validate(appointments, input.serviceTypeId, input.exceptionType);
+    // 3. Validate via domain validator (status / service type / not-already-grouped)
+    ServiceGroupValidator.validate(appointments, input.serviceTypeId);
 
     // 4. Calculate priority expiry
     let priorityExpiresAt: Date | null = null;
@@ -173,8 +171,6 @@ export class CreateServiceGroupUseCase {
       description: input.description ?? null,
       priorityMode: input.priorityMode,
       priorityExpiresAt,
-      exceptionType: input.exceptionType ?? null,
-      exceptionReason: input.exceptionReason ?? null,
       assignedInspectorId: null,
       serviceRegionId,
       publishedAt: null,

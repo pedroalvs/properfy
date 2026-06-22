@@ -3,75 +3,36 @@ import { paginationSchema } from './pagination';
 
 const timeWindowRegex = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
 
-const exceptionTypeEnum = z.enum(['LOW_DENSITY_REGION', 'ISOLATED_SERVICE', 'PRIORITY_CLIENT']);
-
 /**
  * Schema for creating a service group.
  *
- * Size limits:
- *   - Standard (no exception): min 5, max 30
- *   - LOW_DENSITY_REGION: min 1, max 30
- *   - ISOLATED_SERVICE: min 1, max 3
- *   - PRIORITY_CLIENT: min 1, max 8
- *
- * The shared schema enforces the hard boundary (min 1, max 30).
- * Business-rule limits per exception type are enforced by the domain validator.
- * See: projeto-consolidado/service-group-exceptions.md
+ * A group must contain at least one appointment. There is no upper bound on the
+ * number of appointments at creation time.
  */
-export const createServiceGroupSchema = z
-  .object({
-    appointmentIds: z.array(z.string().uuid()).min(1).max(30),
-    serviceTypeId: z.string().uuid(),
-    // Temporal validation is TZ-aware and performed in the use case.
-    scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    timeWindow: z.string().regex(timeWindowRegex),
-    name: z.string().min(1).max(255).optional(),
-    serviceRegionId: z.string().uuid().nullable().optional(),
-    description: z.string().max(5000).optional(),
-    priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
-    exceptionType: exceptionTypeEnum.optional(),
-    exceptionReason: z.string().min(10).max(1000).optional(),
-    actorTimezone: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      const hasType = data.exceptionType !== undefined;
-      const hasReason = data.exceptionReason !== undefined;
-      return hasType === hasReason;
-    },
-    { message: 'exceptionType and exceptionReason must both be provided or both omitted' },
-  );
+export const createServiceGroupSchema = z.object({
+  appointmentIds: z.array(z.string().uuid()).min(1),
+  serviceTypeId: z.string().uuid(),
+  // Temporal validation is TZ-aware and performed in the use case.
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  timeWindow: z.string().regex(timeWindowRegex),
+  name: z.string().min(1).max(255).optional(),
+  serviceRegionId: z.string().uuid().nullable().optional(),
+  description: z.string().max(5000).optional(),
+  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
+  actorTimezone: z.string().optional(),
+});
 export type CreateServiceGroupInput = z.infer<typeof createServiceGroupSchema>;
 
-export const updateServiceGroupSchema = z
-  .object({
-    name: z.string().min(1).max(255).optional(),
-    serviceRegionId: z.string().uuid().nullable().optional(),
-    description: z.string().max(5000).optional(),
-    // Draft-only fields; temporal validation is TZ-aware and performed in the use case.
-    scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    timeWindow: z.string().regex(timeWindowRegex).optional(),
-    priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
-    exceptionType: exceptionTypeEnum.nullable().optional(),
-    exceptionReason: z.string().min(10).max(1000).nullable().optional(),
-    actorTimezone: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      // If either exceptionType or exceptionReason is explicitly set (not undefined),
-      // both must be provided together or both set to null
-      const typeProvided = data.exceptionType !== undefined;
-      const reasonProvided = data.exceptionReason !== undefined;
-      if (!typeProvided && !reasonProvided) return true;
-      if (typeProvided && reasonProvided) {
-        const typeNull = data.exceptionType === null;
-        const reasonNull = data.exceptionReason === null;
-        return typeNull === reasonNull;
-      }
-      return false;
-    },
-    { message: 'exceptionType and exceptionReason must both be provided or both omitted' },
-  );
+export const updateServiceGroupSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  serviceRegionId: z.string().uuid().nullable().optional(),
+  description: z.string().max(5000).optional(),
+  // Draft-only fields; temporal validation is TZ-aware and performed in the use case.
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  timeWindow: z.string().regex(timeWindowRegex).optional(),
+  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
+  actorTimezone: z.string().optional(),
+});
 export type UpdateServiceGroupInput = z.infer<typeof updateServiceGroupSchema>;
 
 export const publishServiceGroupSchema = z.object({});
