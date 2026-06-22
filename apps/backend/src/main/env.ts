@@ -75,6 +75,19 @@ const envSchema = z.object({
 
   // Optional direct DB URL (migrations)
   DIRECT_URL: z.string().optional(),
+
+  // Optional direct (non-pooled) connection for pg-boss (advisory locks + LISTEN/NOTIFY
+  // are incompatible with PgBouncer transaction mode). Falls back to DATABASE_URL.
+  PG_BOSS_URL: z.string().optional(),
+
+  // pg-boss schema — per-environment queue isolation. dev/staging/prod share one
+  // Supabase database and pg-boss queues are NOT namespaced per environment, so any
+  // process on the same schema is a peer consumer of all queues. Set a distinct value
+  // per environment (e.g. pgboss_dev, pgboss_staging) to prevent cross-env job theft.
+  PGBOSS_SCHEMA: z
+    .string()
+    .regex(/^[a-z_][a-z0-9_]*$/, 'PGBOSS_SCHEMA must be a valid lowercase Postgres identifier')
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

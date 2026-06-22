@@ -9,10 +9,18 @@ import type { IPropertyRepository } from '../../domain/property.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import type { IGeocodingService } from '../../domain/geocoding.service';
 import { PropertyEntity } from '../../domain/property.entity';
 import { PropertyCodeConflictError, TenantInactiveError, BranchInactiveError } from '../../domain/property.errors';
 import { BranchNotFoundError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 import { sendJob } from '../../../../shared/infrastructure/queue';
+
+/**
+ * Upper bound for the inline geocode at creation time. Mapbox typically answers
+ * in well under a second; if it exceeds this we abandon the sync attempt, persist
+ * the property as PENDING and let the async worker finish it (fallback path).
+ */
+const DEFAULT_SYNC_GEOCODE_TIMEOUT_MS = 4000;
 
 export interface CreatePropertyInput {
   tenantId?: string;
@@ -59,7 +67,36 @@ export class CreatePropertyUseCase {
     private readonly tenantRepo?: ITenantRepository,
     private readonly authorizationService?: AuthorizationService,
     private readonly logger?: Logger,
+    private readonly geocodingService?: IGeocodingService,
+    private readonly syncGeocodeTimeoutMs: number = DEFAULT_SYNC_GEOCODE_TIMEOUT_MS,
   ) {}
+
+  /**
+   * Geocode within a bounded time. Resolves to coordinates (or null when the
+   * address has no match). Rejects on transient error OR timeout — the caller
+   * treats a rejection as "keep PENDING and finish via the async worker".
+   */
+  private async geocodeWithinTimeout(
+    address: string,
+  ): Promise<{ lat: number; lng: number } | null> {
+    const service = this.geocodingService!;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error('sync geocode timed out')),
+        this.syncGeocodeTimeoutMs,
+      );
+    });
+    const lookup = service.geocode(address);
+    // If the timeout wins, the lookup promise may still settle later — handle its
+    // rejection so it never surfaces as an unhandled rejection.
+    lookup.catch(() => {});
+    try {
+      return await Promise.race([lookup, timeout]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
 
   async execute(input: CreatePropertyInput): Promise<CreatePropertyOutput> {
     const { actor } = input;
@@ -139,14 +176,31 @@ export class CreatePropertyUseCase {
       deletedAt: null,
     });
 
+    // Geocode synchronously so the property has coordinates the instant creation
+    // returns (no dependency on the async queue in the happy path). On timeout or
+    // transient error we keep PENDING and let the async worker finish it.
+    if (this.geocodingService) {
+      try {
+        const result = await this.geocodeWithinTimeout(property.fullAddress);
+        property.applyGeocodingResult(result);
+      } catch (err) {
+        this.logger?.warn({ propertyId: id, err }, 'property.sync_geocode_failed_falling_back');
+        // property stays PENDING — async fallback below
+      }
+    }
+
     await this.propertyRepo.save(property);
 
-    sendJob('property.geocode', { propertyId: id }, { retryLimit: 6, retryBackoff: true }).catch((err) => {
-      // Geocoding is async — a queue failure must NOT fail property creation. But don't swallow it
-      // silently: log so a lost enqueue is diagnosable. The geocode-retry sweep re-enqueues stale
-      // PENDING properties (no coordinates) as the safety net that eventually heals this.
-      this.logger?.error({ propertyId: id, err }, 'property.geocode_enqueue_failed');
-    });
+    // Only enqueue the async geocode when the sync attempt did not resolve a
+    // status (PENDING). SUCCESS/FAILED are terminal here and need no job.
+    if (property.geocodingStatus === 'PENDING') {
+      sendJob('property.geocode', { propertyId: id }, { retryLimit: 6, retryBackoff: true }).catch((err) => {
+        // Geocoding is async — a queue failure must NOT fail property creation. But don't swallow it
+        // silently: log so a lost enqueue is diagnosable. The geocode-retry sweep re-enqueues stale
+        // PENDING properties (no coordinates) as the safety net that eventually heals this.
+        this.logger?.error({ propertyId: id, err }, 'property.geocode_enqueue_failed');
+      });
+    }
 
     this.auditService.log({
       action: 'property.created',

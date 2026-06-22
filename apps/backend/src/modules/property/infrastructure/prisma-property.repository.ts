@@ -70,6 +70,14 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     return row ? mapToEntity(row) : null;
   }
 
+  async existsById(id: string): Promise<boolean> {
+    // Intentionally ignores tenant scope and soft-delete: answers "does this row
+    // exist in this database at all?" so the geocode worker can distinguish a
+    // soft-deleted property from one absent entirely (wrong-database consumer).
+    const count = await this.prisma.property.count({ where: { id } });
+    return count > 0;
+  }
+
   async findByIdWithBranch(
     id: string,
     tenantId?: string | null,
