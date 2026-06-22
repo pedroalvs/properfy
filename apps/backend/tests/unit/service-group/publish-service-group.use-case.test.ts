@@ -131,6 +131,8 @@ describe('PublishServiceGroupUseCase', () => {
     expect(result.id).toBe('group-1');
     expect(result.status).toBe('PUBLISHED');
     expect(result.publishedAt).toBeInstanceOf(Date);
+    // Cross-tenant: the attached region is validated by id only (tenant arg null).
+    expect(serviceRegionRepo.findById).toHaveBeenCalledWith('region-1', null);
     expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
       status: 'PUBLISHED',
       offeredCount: 1,

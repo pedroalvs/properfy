@@ -94,7 +94,7 @@ describe('PrismaServiceRegionRepository', () => {
 
   describe('resolveRegionsForAppointments', () => {
     it('should return empty array for empty appointment ids', async () => {
-      const result = await repo.resolveRegionsForAppointments('tenant-1', []);
+      const result = await repo.resolveRegionsForAppointments([]);
       expect(result).toEqual([]);
       expect(prisma.$queryRaw).not.toHaveBeenCalled();
     });
@@ -109,7 +109,7 @@ describe('PrismaServiceRegionRepository', () => {
         },
       ]);
 
-      const result = await repo.resolveRegionsForAppointments('tenant-1', ['apt-1', 'apt-2', 'apt-3']);
+      const result = await repo.resolveRegionsForAppointments(['apt-1', 'apt-2', 'apt-3']);
 
       expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
       const callArgs = (prisma.$queryRaw as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -129,18 +129,18 @@ describe('PrismaServiceRegionRepository', () => {
       ]);
     });
 
-    it('should match the tenant region AND global regions (tenant_id IS NULL), ACTIVE only', async () => {
+    it('should match ACTIVE regions cross-tenant (no sr.tenant_id predicate)', async () => {
       (prisma.$queryRaw as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
-      await repo.resolveRegionsForAppointments('tenant-1', ['apt-1']);
+      await repo.resolveRegionsForAppointments(['apt-1']);
 
       const callArgs = (prisma.$queryRaw as ReturnType<typeof vi.fn>).mock.calls[0];
       const sqlStrings = callArgs[0];
       const joinedSql = Array.isArray(sqlStrings) ? sqlStrings.join('?') : String(sqlStrings);
-      expect(joinedSql).toContain('sr.tenant_id');
-      // Global regions (tenant_id IS NULL) resolve for any tenant's appointments
-      expect(joinedSql).toContain('sr.tenant_id IS NULL');
+      // Region ownership is no longer a matching filter — the WHERE has no sr.tenant_id.
+      expect(joinedSql).not.toContain('sr.tenant_id');
       expect(joinedSql).toContain("sr.status = 'ACTIVE'");
+      expect(joinedSql).toContain('ST_Intersects');
     });
   });
 
