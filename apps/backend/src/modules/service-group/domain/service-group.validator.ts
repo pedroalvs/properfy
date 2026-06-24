@@ -17,8 +17,12 @@ export interface AppointmentForValidation {
 /**
  * 026 §FR-510 — predicate variant of the validator used by the
  * add-to-group flow. Same invariants as the throw-style `validate` for
- * the in-list rules, plus group-level rules (tenant / date / timeWindow /
- * capacity / group-not-terminal).
+ * the in-list rules, plus group-level rules (date / capacity /
+ * group-not-terminal).
+ *
+ * Only the scheduled DATE must match the group — the time window is
+ * ignored, so appointments of the same day but different time slots can
+ * be grouped together.
  *
  * Returns `{ ok }` for use cases that surface per-item statuses in a
  * mixed-result envelope (eligibility check, bulk add) — exceptions
@@ -33,7 +37,6 @@ export type AddToGroupReason =
   | 'ALREADY_GROUPED'
   | 'INVALID_SERVICE_TYPE'
   | 'INVALID_DATE'
-  | 'INVALID_TIME_WINDOW'
   | 'GROUP_IN_TERMINAL_STATE'
   | 'GROUP_CAPACITY_EXCEEDED';
 
@@ -45,7 +48,6 @@ export interface GroupForValidation {
   status: ServiceGroupStatus;
   serviceTypeId: string;
   scheduledDate: Date;
-  timeWindow: string;
   /** Used for the capacity check; passed in because callers may want to
    *  pre-add appointments hypothetically (eligibility preview). */
   currentSize: number;
@@ -53,7 +55,6 @@ export interface GroupForValidation {
 
 export interface AppointmentForAddValidation extends AppointmentForValidation {
   scheduledDate: Date;
-  timeSlot: string;
 }
 
 /**
@@ -126,11 +127,9 @@ export class ServiceGroupValidator {
     if (appointment.serviceGroupId !== null) {
       return { ok: false, reasonCode: 'ALREADY_GROUPED' };
     }
+    // Date must match; the time window is intentionally not checked.
     if (!sameDay(appointment.scheduledDate, group.scheduledDate)) {
       return { ok: false, reasonCode: 'INVALID_DATE' };
-    }
-    if (appointment.timeSlot !== group.timeWindow) {
-      return { ok: false, reasonCode: 'INVALID_TIME_WINDOW' };
     }
     return { ok: true };
   }

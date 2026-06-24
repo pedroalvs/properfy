@@ -25,13 +25,14 @@ export interface FindAddableGroupsOutput {
  * dropdown never shows groups the operator cannot use.
  *
  * Pre-conditions checked here (before querying groups):
- *  - All appointments share the same serviceTypeId, scheduledDate, and
- *    timeSlot (the canAddToGroup invariants). Tenant is NOT required to match —
- *    groups are tenant-agnostic. If mixed → early return with
- *    reason = 'MIXED_APPOINTMENT_PROPERTIES'.
+ *  - All appointments share the same serviceTypeId and scheduledDate (the
+ *    canAddToGroup invariants). The time window is NOT a criterion — same-day
+ *    appointments of different time slots can be grouped. Tenant is NOT
+ *    required to match — groups are tenant-agnostic. If mixed → early return
+ *    with reason = 'MIXED_APPOINTMENT_PROPERTIES'.
  *
  * Group filters applied by the repository query:
- *  - Same serviceType, same scheduledDate, compatible timeWindow
+ *  - Same serviceType, same scheduledDate (time window is not a filter)
  *  - Status ∈ {DRAFT, PUBLISHED}
  *  - currentSize + |appointmentIds| ≤ capacity (default 30)
  */
@@ -58,13 +59,13 @@ export class FindAddableGroupsForAppointmentsUseCase {
 
     const first = valid[0]!;
 
-    // Pre-condition: all appointments must share serviceTypeId, scheduledDate,
-    // timeSlot. Tenant may differ — groups are tenant-agnostic.
+    // Pre-condition: all appointments must share serviceTypeId and scheduledDate.
+    // The time slot may differ (it is not a grouping criterion). Tenant may differ
+    // too — groups are tenant-agnostic.
     const isMixed = valid.some(
       (a) =>
         a.serviceTypeId !== first.serviceTypeId ||
-        a.scheduledDate?.toISOString().slice(0, 10) !== first.scheduledDate?.toISOString().slice(0, 10) ||
-        a.timeSlot !== first.timeSlot,
+        a.scheduledDate?.toISOString().slice(0, 10) !== first.scheduledDate?.toISOString().slice(0, 10),
     );
     if (isMixed) return { groups: [], reason: 'MIXED_APPOINTMENT_PROPERTIES' };
 
@@ -77,7 +78,6 @@ export class FindAddableGroupsForAppointmentsUseCase {
     const groups = await this.groupRepo.findAddableForAppointments({
       serviceTypeId: first.serviceTypeId,
       scheduledDate: first.scheduledDate,
-      timeSlot: first.timeSlot ?? '',
       batchSize: input.appointmentIds.length,
     });
 
