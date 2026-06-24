@@ -74,13 +74,11 @@ export class CheckAppointmentsEligibilityForGroupUseCase {
           tenantId: appointment.tenantId,
           serviceGroupId: appointment.serviceGroupId,
           scheduledDate: appointment.scheduledDate,
-          timeSlot: appointment.timeSlot,
         },
         {
           status: group.status,
           serviceTypeId: group.serviceTypeId,
           scheduledDate: group.scheduledDate,
-          timeWindow: group.timeWindow,
           // Hypothetical capacity: each eligible appointment increments
           // the running total so a group at 28 + 5 candidates reports
           // GROUP_CAPACITY_EXCEEDED for items beyond slot 30.

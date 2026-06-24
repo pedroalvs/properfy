@@ -78,6 +78,35 @@ describe('FindAddableGroupsForAppointmentsUseCase', () => {
     expect(groupRepo.findAddableForAppointments).not.toHaveBeenCalled();
   });
 
+  it('does NOT flag MIXED when appointments share date but differ in time slot (time is ignored)', async () => {
+    (appointmentRepo.findById as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-01T00:00:00.000Z'), timeSlot: '09:00-10:00' }))
+      .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-01T00:00:00.000Z'), timeSlot: '14:00-15:00' }));
+    const fakeGroups = [{ id: 'g-1', name: 'G', status: 'DRAFT', scheduledDate: new Date(), timeWindow: '09:00-17:00', currentSize: 2, serviceTypeName: 'Routine' }];
+    (groupRepo.findAddableForAppointments as ReturnType<typeof vi.fn>).mockResolvedValue(fakeGroups);
+
+    const result = await useCase.execute({ appointmentIds: ['appt-1', 'appt-2'], actor: makeAuth('OP') });
+    expect(result.reason).toBeUndefined();
+    expect(result.groups).toEqual(fakeGroups);
+    // The repo is queried by service type + date only (no time slot).
+    expect(groupRepo.findAddableForAppointments).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceTypeId: 'svc-1', batchSize: 2 }),
+    );
+    expect(groupRepo.findAddableForAppointments).not.toHaveBeenCalledWith(
+      expect.objectContaining({ timeSlot: expect.anything() }),
+    );
+  });
+
+  it('returns MIXED_APPOINTMENT_PROPERTIES when appointments have different dates', async () => {
+    (appointmentRepo.findById as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-01T00:00:00.000Z') }))
+      .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-02T00:00:00.000Z') }));
+
+    const result = await useCase.execute({ appointmentIds: ['appt-1', 'appt-2'], actor: makeAuth('OP') });
+    expect(result.reason).toBe('MIXED_APPOINTMENT_PROPERTIES');
+    expect(groupRepo.findAddableForAppointments).not.toHaveBeenCalled();
+  });
+
   it('allows appointments from different agencies (groups are tenant-agnostic)', async () => {
     (appointmentRepo.findById as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(makeApptResult({ tenantId: 'tenant-1' }))
