@@ -87,13 +87,11 @@ export class AddAppointmentsToGroupUseCase {
           tenantId: appointment.tenantId,
           serviceGroupId: appointment.serviceGroupId,
           scheduledDate: appointment.scheduledDate,
-          timeSlot: appointment.timeSlot,
         },
         {
           status: group.status,
           serviceTypeId: group.serviceTypeId,
           scheduledDate: group.scheduledDate,
-          timeWindow: group.timeWindow,
           currentSize,
         },
       );
@@ -173,7 +171,6 @@ function reasonMessage(code: AddToGroupReason): string {
     case 'ALREADY_GROUPED': return 'Appointment is already linked to another service group';
     case 'INVALID_SERVICE_TYPE': return 'Appointment service type does not match the group';
     case 'INVALID_DATE': return 'Appointment scheduled date does not match the group';
-    case 'INVALID_TIME_WINDOW': return 'Appointment time slot does not match the group time window';
     case 'GROUP_IN_TERMINAL_STATE': return 'Group is in a terminal state and cannot accept new appointments';
     case 'GROUP_CAPACITY_EXCEEDED': return 'Group has reached its capacity of 30 appointments';
   }
