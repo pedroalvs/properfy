@@ -36,13 +36,20 @@ vi.mock('@/hooks/useAuth', () => ({
 
 const mockSave = vi.fn();
 const mockValidate = vi.fn();
+// Must be a STABLE reference: the real useFinancialEntrySave memoizes this
+// with useCallback, and FinancialEntryFormDrawer lists it in a useEffect
+// dependency array. Returning a fresh vi.fn() per render (as before) made
+// the dep change every render → effect re-ran → setErrors({}) → re-render →
+// an unbounded re-render loop that exhausted the heap (OOM) instead of
+// failing fast. A stable fn makes the mock faithful to the real hook.
+const mockResetIdempotencyKey = vi.fn();
 
 vi.mock('../hooks/useFinancialEntrySave', () => ({
   useFinancialEntrySave: () => ({
     save: mockSave,
     isSaving: false,
     validate: mockValidate,
-    resetIdempotencyKey: vi.fn(),
+    resetIdempotencyKey: mockResetIdempotencyKey,
   }),
 }));
 
