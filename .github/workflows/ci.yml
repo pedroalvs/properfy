@@ -94,24 +94,19 @@ jobs:
       - run: pnpm --filter backend test
 
   test-web:
-    name: Test web (shard ${{ matrix.shard }}/8)
+    name: Test web
     runs-on: ubuntu-latest
-    # The full web suite has a cumulative-heap leak: the vitest worker is
-    # reused across files and residue (React Query clients/timers, jsdom,
-    # MapboxGL stubs) accumulates until one worker hits the V8 heap limit.
-    # Raising --max-old-space-size only delays it — the leak is unbounded.
-    # Sharding splits the suite into 8 parallel legs so most run fast and
-    # green and give granular signal. One leg still OOMs because a cluster
-    # of map/GL test files leaks hundreds of MB each (verified: even ~11
-    # such files exhaust 6 GB, so no practical shard count fixes it). That
-    # leg is kept non-blocking via `continue-on-error` — the real fix is
-    # the map/GL test teardown, tracked as dedicated follow-up. lint,
-    # typecheck, integration, test-backend and test-shared remain hard gates.
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    # Hard gate. A prior "cumulative web-suite OOM" was misdiagnosed as a
+    # suite-wide map/GL teardown leak and worked around with an 8-shard
+    # matrix + `continue-on-error` (one shard always OOMed, non-blocking).
+    # Root cause was actually a SINGLE test file: FinancialEntryFormDrawer
+    # .test.tsx mocked useFinancialEntrySave to return a fresh function for
+    # resetIdempotencyKey on every render; that unstable reference sat in a
+    # useEffect dependency that calls setErrors({}), so the effect re-ran
+    # every render → unbounded re-render loop → heap exhausted. (vitest's
+    # isolate:true already runs each file in its own process, so there was
+    # no cross-file accumulation.) With the mock made stable the full suite
+    # runs green in ~85s, so the shard matrix and the soft-fail are removed.
     steps:
       - uses: actions/checkout@v4
 
@@ -125,15 +120,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build shared (required for @properfy/shared resolution)
         run: pnpm --filter shared build
-      - name: Test web (shard ${{ matrix.shard }}/8)
-        run: pnpm --filter web test -- --shard=${{ matrix.shard }}/8
+      - name: Test web
+        run: pnpm --filter web test
 
   build:
     name: Build
     runs-on: ubuntu-latest
-    # `test-web` is intentionally non-blocking (continue-on-error, see the
-    # note above) due to a structural cumulative-heap leak; the other three
-    # `needs` jobs are the real correctness gate.
+    # All four `needs` jobs are hard gates. (test-web was restored to a
+    # blocking check once the single-file web-suite OOM was fixed.)
     needs: [lint-typecheck, test-shared, test-backend, test-web]
     steps:
       - uses: actions/checkout@v4
