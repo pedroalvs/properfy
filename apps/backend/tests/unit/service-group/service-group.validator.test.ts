@@ -203,10 +203,11 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
     )).toEqual({ ok: false, reasonCode: 'INVALID_DATE' });
   });
 
-  it('rejects when timeSlot doesn\'t match the group timeWindow', () => {
+  it('accepts a same-day appointment with a different time slot (time is ignored)', () => {
     expect(ServiceGroupValidator.canAddToGroup(
-      { ...baseAppointment, timeSlot: '13:00-16:00' }, baseGroup,
-    )).toEqual({ ok: false, reasonCode: 'INVALID_TIME_WINDOW' });
+      { ...baseAppointment, timeSlot: '13:00-16:00' },
+      { ...baseGroup, timeWindow: '09:00-12:00' },
+    )).toEqual({ ok: true });
   });
 
   it('isAddableStatus reflects the group lifecycle', () => {

@@ -839,7 +839,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   async findAddableForAppointments(params: {
     serviceTypeId: string;
     scheduledDate: Date;
-    timeSlot: string;
     batchSize: number;
   }): Promise<Array<{
     id: string;
@@ -884,14 +883,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       ORDER BY sg.created_at ASC
     `;
 
-    const [slotStart, slotEnd] = params.timeSlot.split('-');
-
+    // Same-day groups of the right service type with spare capacity. The time
+    // window is intentionally not a filter — date-only grouping.
     return rows
       .filter((row) => {
         const currentSize = Number(row.appt_count);
-        if (currentSize + params.batchSize > capacity) return false;
-        const [groupStart, groupEnd] = row.time_window.split('-');
-        return (slotStart ?? '') >= (groupStart ?? '') && (slotEnd ?? '') <= (groupEnd ?? '');
+        return currentSize + params.batchSize <= capacity;
       })
       .map((row) => ({
         id: row.id,

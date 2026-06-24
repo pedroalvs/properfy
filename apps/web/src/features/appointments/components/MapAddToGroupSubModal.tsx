@@ -136,7 +136,7 @@ export function MapAddToGroupSubModal({
         )}
         {groupsState.phase === 'ready' && groupsState.reason === 'MIXED_APPOINTMENT_PROPERTIES' && (
           <div className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="map-add-to-group-mixed-banner">
-            Selected appointments don&apos;t share service type, date, or time — refine your selection to appointments from the same property group.
+            Selected appointments don&apos;t share service type or date — refine your selection to appointments of the same service type and date.
           </div>
         )}
         {groupsState.phase === 'ready' && groupsState.reason === 'INVALID_APPOINTMENT_STATUS' && (
