@@ -65,7 +65,6 @@ const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/
 const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
 const AppointmentMapPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
 const PropertyMapPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyMapPage').then(m => ({ default: m.PropertyMapPage }))));
-const ServiceGroupMapPage = Loadable(lazyRetry(() => import('@/features/service-groups/pages/ServiceGroupMapPage').then(m => ({ default: m.ServiceGroupMapPage }))));
 
 import { ProtectedRoute } from './ProtectedRoute';
 import { AuthGuard } from './AuthGuard';
@@ -122,17 +121,22 @@ export const router = createBrowserRouter([
             path: 'appointments',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <AppointmentListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'map',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
                 <AppointmentMapPage />
               </AuthGuard>
             ),
           },
           {
+            // Back-compat: the list moved from /appointments/list to /appointments.
             path: 'appointments/list',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
-                <AppointmentListPage />
-              </AuthGuard>
-            ),
+            element: <Navigate to="/appointments" replace />,
           },
           {
             path: 'appointments/new',
@@ -151,8 +155,9 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            // Back-compat: the map moved from /appointments to /map.
             path: 'appointments/map',
-            element: <Navigate to="/appointments" replace />,
+            element: <Navigate to="/map" replace />,
           },
           {
             path: 'appointments/:id',
@@ -254,12 +259,10 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            // Back-compat: the broken standalone service-groups map was removed.
+            // The unified map's groups mode replaces it.
             path: 'service-groups/map',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <ServiceGroupMapPage />
-              </AuthGuard>
-            ),
+            element: <Navigate to="/map?mode=groups" replace />,
           },
           {
             path: 'marketplace',

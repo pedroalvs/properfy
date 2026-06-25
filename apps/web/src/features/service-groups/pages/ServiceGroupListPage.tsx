@@ -32,7 +32,7 @@ export function ServiceGroupListPage() {
           onClick: () => navigate('/service-groups/new'),
         }}
         secondaryActions={[
-          { label: 'Map View', icon: 'mdi-map-outline', onClick: () => navigate('/service-groups/map') },
+          { label: 'Map View', icon: 'mdi-map-outline', onClick: () => navigate('/map?mode=groups') },
         ]}
       >
         <ServiceGroupFilters
