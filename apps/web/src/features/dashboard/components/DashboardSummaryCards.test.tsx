@@ -102,10 +102,12 @@ describe('DashboardSummaryCards', () => {
 
     render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
-    // Link accessible name includes the value e.g. "4 Scheduled"
+    // Link accessible name includes the value e.g. "4 Scheduled".
+    // The date range uses startDate/endDate to match the appointment list's
+    // URL filter vocabulary (FIX 2) — fromDate/toDate were silently ignored.
     expect(screen.getByRole('link', { name: /scheduled$/i })).toHaveAttribute(
       'href',
-      '/appointments?status=SCHEDULED&fromDate=2026-03-25&toDate=2026-03-25',
+      '/appointments?status=SCHEDULED&startDate=2026-03-25&endDate=2026-03-25',
     );
   });
 
@@ -117,7 +119,7 @@ describe('DashboardSummaryCards', () => {
 
     expect(screen.getByRole('link', { name: /done this month/i })).toHaveAttribute(
       'href',
-      '/appointments?status=DONE&fromDate=2026-03-01&toDate=2026-03-25',
+      '/appointments?status=DONE&startDate=2026-03-01&endDate=2026-03-25',
     );
   });
 
@@ -138,8 +140,8 @@ describe('DashboardSummaryCards', () => {
 
     const doneThisWeekLink = screen.getByRole('link', { name: /done this week/i });
     expect(doneThisWeekLink.getAttribute('href')).toContain('status=DONE');
-    expect(doneThisWeekLink.getAttribute('href')).toContain('fromDate=');
-    expect(doneThisWeekLink.getAttribute('href')).toContain('toDate=');
+    expect(doneThisWeekLink.getAttribute('href')).toContain('startDate=');
+    expect(doneThisWeekLink.getAttribute('href')).toContain('endDate=');
   });
 
   it('scheduled this week card links with week range', () => {
@@ -150,7 +152,7 @@ describe('DashboardSummaryCards', () => {
 
     const scheduledThisWeekLink = screen.getByRole('link', { name: /scheduled this week/i });
     expect(scheduledThisWeekLink.getAttribute('href')).toContain('status=SCHEDULED');
-    expect(scheduledThisWeekLink.getAttribute('href')).toContain('fromDate=');
-    expect(scheduledThisWeekLink.getAttribute('href')).toContain('toDate=');
+    expect(scheduledThisWeekLink.getAttribute('href')).toContain('startDate=');
+    expect(scheduledThisWeekLink.getAttribute('href')).toContain('endDate=');
   });
 });

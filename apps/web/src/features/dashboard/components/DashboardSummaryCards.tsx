@@ -77,7 +77,7 @@ export function DashboardSummaryCards({
           label="Scheduled"
           colorClass="border-l-[#B3E5FC]"
           iconColorClass="text-info"
-          href={`/appointments?status=SCHEDULED&fromDate=${today.from}&toDate=${today.to}`}
+          href={`/appointments?status=SCHEDULED&startDate=${today.from}&endDate=${today.to}`}
         />
         <StatCard
           icon="mdi-close-circle-outline"
@@ -103,7 +103,7 @@ export function DashboardSummaryCards({
           label="Done This Week"
           colorClass="border-l-[#A5D6A7]"
           iconColorClass="text-success"
-          href={`/appointments?status=DONE&fromDate=${week.from}&toDate=${week.to}`}
+          href={`/appointments?status=DONE&startDate=${week.from}&endDate=${week.to}`}
         />
         <StatCard
           icon="mdi-check-circle-outline"
@@ -112,7 +112,7 @@ export function DashboardSummaryCards({
           sublabel={donePendingCrossCheck ? `${donePendingCrossCheck} pending review` : undefined}
           colorClass="border-l-[#C8E6C9]"
           iconColorClass="text-success"
-          href={`/appointments?status=DONE&fromDate=${month.from}&toDate=${month.to}`}
+          href={`/appointments?status=DONE&startDate=${month.from}&endDate=${month.to}`}
         />
         <StatCard
           icon="mdi-calendar-week"
@@ -120,7 +120,7 @@ export function DashboardSummaryCards({
           label="Scheduled This Week"
           colorClass="border-l-[#B3E5FC]"
           iconColorClass="text-info"
-          href={`/appointments?status=SCHEDULED&fromDate=${week.from}&toDate=${week.to}`}
+          href={`/appointments?status=SCHEDULED&startDate=${week.from}&endDate=${week.to}`}
         />
       </div>
     </div>
