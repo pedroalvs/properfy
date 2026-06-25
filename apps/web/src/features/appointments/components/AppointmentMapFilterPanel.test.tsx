@@ -105,4 +105,31 @@ describe('AppointmentMapFilterPanel', () => {
     expect(screen.getByLabelText('Date Range - start')).toBeInTheDocument();
     expect(screen.getByLabelText('Date Range - end')).toBeInTheDocument();
   });
+
+  // FIX 3 — the "Groups" mode is an AM/OP-only surface (it reads
+  // /v1/service-groups and its List view goes to /service-groups, both
+  // AM/OP-gated). Client roles must not see the toggle at all, otherwise
+  // they reach a 403 dead-end.
+  describe('Groups mode RBAC gating', () => {
+    it('hides the Groups mode option for CL_USER', () => {
+      renderPanel({ actorRole: 'CL_USER' });
+      expect(screen.queryByRole('tab', { name: 'Groups' })).toBeNull();
+      expect(screen.getByRole('tab', { name: 'Appointments' })).toBeInTheDocument();
+    });
+
+    it('hides the Groups mode option for CL_ADMIN', () => {
+      renderPanel({ actorRole: 'CL_ADMIN' });
+      expect(screen.queryByRole('tab', { name: 'Groups' })).toBeNull();
+    });
+
+    it('shows the Groups mode option for AM', () => {
+      renderPanel({ actorRole: 'AM' });
+      expect(screen.getByRole('tab', { name: 'Groups' })).toBeInTheDocument();
+    });
+
+    it('shows the Groups mode option for OP', () => {
+      renderPanel({ actorRole: 'OP' });
+      expect(screen.getByRole('tab', { name: 'Groups' })).toBeInTheDocument();
+    });
+  });
 });

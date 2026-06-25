@@ -115,9 +115,13 @@ export function AppointmentMapPage() {
   // screens deep-link straight into the groups view — e.g. the Service Groups
   // list "Map View" button -> /map?mode=groups. After mount, the in-panel
   // toggle owns `mode`; the URL is not kept in sync.
+  //
+  // Groups is an AM/OP-only surface (it reads /v1/service-groups and its List
+  // view targets /service-groups, both AM/OP-gated), so only honour the
+  // groups deep-link for global roles. Client roles stay on appointments.
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<FilterMode>(
-    () => (searchParams.get('mode') === 'groups' ? 'groups' : 'appointments'),
+    () => (searchParams.get('mode') === 'groups' && isGlobalRole ? 'groups' : 'appointments'),
   );
   const [appointmentFilters, setAppointmentFilters] = useState<AppointmentModeFilters>(DEFAULT_APPOINTMENT_FILTERS);
   const [groupFilters, setGroupFilters] = useState<GroupModeFilters>(DEFAULT_GROUP_FILTERS);
@@ -239,7 +243,9 @@ export function AppointmentMapPage() {
     ['service-groups-map'],
     '/v1/service-groups',
     groupParams,
-    { enabled: true, placeholderData: keepPreviousData },
+    // AM/OP-only endpoint — never fetch for client roles (avoids a 403 and a
+    // wasted request; client roles can't reach groups mode anyway).
+    { enabled: isGlobalRole, placeholderData: keepPreviousData },
   );
 
   const groupData = groupResponse?.data ?? [];
