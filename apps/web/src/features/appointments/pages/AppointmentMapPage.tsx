@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 
@@ -110,7 +111,14 @@ export function AppointmentMapPage() {
   const tenantId = user?.tenantId ?? null;
   const isGlobalRole = hasRole('AM', 'OP');
 
-  const [mode, setMode] = useState<FilterMode>('appointments');
+  // Seed the view mode from the URL once (?mode=groups). This lets other
+  // screens deep-link straight into the groups view — e.g. the Service Groups
+  // list "Map View" button -> /map?mode=groups. After mount, the in-panel
+  // toggle owns `mode`; the URL is not kept in sync.
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<FilterMode>(
+    () => (searchParams.get('mode') === 'groups' ? 'groups' : 'appointments'),
+  );
   const [appointmentFilters, setAppointmentFilters] = useState<AppointmentModeFilters>(DEFAULT_APPOINTMENT_FILTERS);
   const [groupFilters, setGroupFilters] = useState<GroupModeFilters>(DEFAULT_GROUP_FILTERS);
   const [selectedItem, setSelectedItem] = useState<AppointmentMapItem | null>(null);

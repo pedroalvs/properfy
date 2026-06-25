@@ -2,8 +2,6 @@ export { useServiceGroupList } from './useServiceGroupList';
 export type { UseServiceGroupListReturn } from './useServiceGroupList';
 export { useServiceGroupDetail } from './useServiceGroupDetail';
 export type { UseServiceGroupDetailReturn } from './useServiceGroupDetail';
-export { useServiceGroupMapData } from './useServiceGroupMapData';
-export type { UseServiceGroupMapDataReturn, ServiceGroupMapItem } from './useServiceGroupMapData';
 export { useEligibleAppointments } from './useEligibleAppointments';
 export type { UseEligibleAppointmentsReturn } from './useEligibleAppointments';
 export { usePublishServiceGroup } from './usePublishServiceGroup';
