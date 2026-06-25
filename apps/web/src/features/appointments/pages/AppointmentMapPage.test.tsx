@@ -100,6 +100,27 @@ function renderPage() {
   );
 }
 
+// Renders the page at a specific URL so we can exercise the ?mode= deep-link.
+function renderPageAt(initialEntries: string[]) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SnackbarProvider>
+          <MemoryRouter initialEntries={initialEntries}>
+            <AppointmentMapPage />
+          </MemoryRouter>
+        </SnackbarProvider>
+      </AuthProvider>
+    </QueryClientProvider>,
+  );
+}
+
 describe('AppointmentMapPage', () => {
   it('renders map screen layout in fullscreen mode (no page title)', () => {
     // 026 F3: PageHeader removed — map is now fullscreen with no title.
@@ -177,5 +198,21 @@ describe('AppointmentMapPage', () => {
     renderPage();
     const wrapper = screen.getByTestId('appointment-map-wrapper');
     expect(wrapper.className).not.toContain('appt-map-lasso-drawing');
+  });
+
+  // The Service Groups list "Map View" button deep-links to /map?mode=groups.
+  // The mode is seeded from the URL once on mount.
+  it('starts in groups mode when opened at /map?mode=groups', () => {
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+    expect(screen.getByRole('tab', { name: 'Groups' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Appointments' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('starts in appointments mode when opened at /map with no mode param', () => {
+    renderPageAt(['/map']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+    expect(screen.getByRole('tab', { name: 'Appointments' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Groups' })).toHaveAttribute('aria-selected', 'false');
   });
 });

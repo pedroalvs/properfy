@@ -16,10 +16,16 @@ describe('MapListViewToggleButton', () => {
     expect(screen.getByText('List view')).toBeInTheDocument();
   });
 
-  it('navigates to /appointments/list on click', () => {
+  it('navigates to /appointments on click (appointments mode)', () => {
     render(<MapListViewToggleButton />);
     fireEvent.click(screen.getByTestId('map-list-view-toggle'));
-    expect(mockNavigate).toHaveBeenCalledWith('/appointments/list');
+    expect(mockNavigate).toHaveBeenCalledWith('/appointments');
+  });
+
+  it('navigates to /service-groups on click (groups mode)', () => {
+    render(<MapListViewToggleButton mode="groups" />);
+    fireEvent.click(screen.getByTestId('map-list-view-toggle'));
+    expect(mockNavigate).toHaveBeenCalledWith('/service-groups');
   });
 
   it('does not have aria-pressed (navigation, not a stateful toggle)', () => {
