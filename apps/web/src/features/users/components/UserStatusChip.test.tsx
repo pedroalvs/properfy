@@ -1,0 +1,27 @@
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { UserStatus } from '@properfy/shared';
+import { UserStatusChip } from './UserStatusChip';
+
+const STATUS_LABELS: Record<UserStatus, string> = {
+  ACTIVE: 'Active',
+  INACTIVE: 'Inactive',
+  LOCKED: 'Blocked',
+  PENDING_INVITE: 'Pending Invite',
+};
+
+describe('UserStatusChip', () => {
+  it.each(Object.entries(STATUS_LABELS))(
+    'renders correct label for %s',
+    (status, label) => {
+      render(<UserStatusChip status={status as UserStatus} />);
+      expect(screen.getByText(label)).toBeInTheDocument();
+    },
+  );
+
+  it('passes className through', () => {
+    render(<UserStatusChip status={UserStatus.ACTIVE} className="my-custom" />);
+    const chip = screen.getByText('Active');
+    expect(chip.className).toContain('my-custom');
+  });
+});

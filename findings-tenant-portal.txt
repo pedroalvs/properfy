@@ -1,0 +1,3049 @@
+===== PR #86 =====
+--- Inline (file:line) ---
+FILE .coderabbit.yaml:36
+_🗄️ Data Integrity & Integration_ | _🟠 Major_ | _⚡ Quick win_
+
+**Keep Prisma migrations in review scope.**
+
+Excluding `apps/backend/prisma/migrations/**` hides some of the highest-risk backend changes: destructive DDL, bad backfills, and schema changes that can break tenant isolation or required financial/state invariants.
+
+<details>
+<summary>Suggested change</summary>
+
+```diff
+-    - "!apps/backend/prisma/migrations/**" # generated SQL migrations
+```
+</details>
+
+   
+
+As per coding guidelines, "All business entities must include `tenant_id`, all business queries must be tenant-scoped, and repositories must always be scoped by tenant."
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In @.coderabbit.yaml at line 36, The review scope is incorrectly excluding
+Prisma migration files, which can hide high-risk schema and data changes. Update
+the .coderabbit.yaml configuration to remove the
+`apps/backend/prisma/migrations/**` ignore entry so migrations are included in
+code review, and keep the scope aligned with the tenant-scoping rules for
+repositories and business entities.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:fa3d4d52c4f0a2d23717edc7 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE .coderabbit.yaml:74
+_📐 Maintainability & Code Quality_ | _🟠 Major_ | _⚡ Quick win_
+
+**Mirror the full backend rules here, not a partial subset.**
+
+These path instructions omit several repository-mandated checks from the backend guidelines (`request_id` on API/jobs, JWT tenant/role authorization rules, `/v1` response/error conventions, pg-boss requirement, stricter appointment/financial rules). That weakens future automated reviews because CodeRabbit will not enforce the complete project policy set.
+
+   
+
+As per coding guidelines, "All API requests and background jobs must include `request_id`", "JWT authentication must use internal RS256 tokens with `kid` rotation", and "Use PostgreSQL-backed `pg-boss` for async jobs such as notifications, imports, and finance; do not introduce Redis for job processing."
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In @.coderabbit.yaml around lines 41 - 74, The backend path instructions are
+missing several required repository rules, so expand the apps/backend/** entry
+to include the full backend policy set rather than a partial subset. Update the
+existing path_instructions block to also cover request_id requirements for API
+requests and background jobs, JWT tenant/role authorization with internal RS256
+and kid rotation, /v1 response and error conventions, PostgreSQL-backed pg-boss
+for async jobs, and the stricter appointment/financial transition constraints
+alongside the current Clean Architecture and tenant-scoping rules.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:a78e56d2b35d1dd7e4f9fcd2 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case.ts:59
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Thread tenant scope into this use case and every repository call.**
+
+`findById(input.appointmentId, null)` and `deleteRestrictionsByAppointmentId(input.appointmentId)` both operate without tenant scope. The upstream route contract in `apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts:97-136` only supplies `tokenId/appointmentId/...`, so this use case never receives the `tenantId` it needs to satisfy the repository contract. Add `tenantId` to `ConfirmAppointmentInput` from portal auth and require it on every read/write here.
+
+As per coding guidelines, "All business entities and queries must be tenant-scoped" and "Every repository method must scope queries by `tenantId`"; the upstream contract in `apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts:97-136` currently prevents that.  
+    
+
+
+Also applies to: 105-106
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case.ts`
+around lines 47 - 59, Thread tenant scope through ConfirmAppointmentInput and
+ConfirmAppointmentUseCase so every repository call is tenant-aware. Update the
+use case’s execute flow to require tenantId from portal auth, then pass it into
+appointmentRepo.findById and any mutation like
+deleteRestrictionsByAppointmentId. Also update any related input/command
+creation path from the tenant-portal route contract so tenantId is available
+end-to-end and the repository contract is satisfied.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:aaf78ae48db8d2ccb6c50029 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case.ts:56
+_🗄️ Data Integrity & Integration_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Make token consumption atomic instead of checking a stale snapshot.**
+
+`isUsed` is checked from request context before any write, but the token is marked used only later. Two parallel requests with the same unused token can both pass the guard and double-record activity, notifications, and events. Claim the token with an atomic "mark used if unused" operation (or a transaction) before side effects and use that result as the idempotency gate.
+
+As per coding guidelines, "Critical commands and operations must be idempotent, including acceptance, execution, notifications, and financial entries."  
+   
+
+
+Also applies to: 124-127
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case.ts`
+around lines 53 - 56, The token usage check in the confirm-appointment flow is
+based on a stale request snapshot, so concurrent requests can both proceed;
+update the logic in confirm-appointment.use-case to atomically claim the token
+before any side effects. Use a single “mark used if unused” operation or
+transaction as the idempotency gate, and only continue with activity,
+notification, and event recording if that claim succeeds. Remove reliance on
+input.isUsed as the pre-write guard and apply the same atomic pattern to the
+other affected block referenced in the review.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:cbf314c81322eded440833eb -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case.ts:93
+_🗄️ Data Integrity & Integration_ | _🟠 Major_ | _⚡ Quick win_
+
+**Don’t downgrade every cycle-service failure into a direct confirm.**
+
+This `catch` swallows all `cycleService.confirm()` failures and then writes `tenantConfirmationStatus: 'CONFIRMED'` anyway. That bypasses the official transition rules whenever the cycle service rejects for a real business reason instead of a missing-cycle case. Only fall back for the specific "no active cycle" condition and rethrow everything else.
+
+As per coding guidelines, "Appointment transitions must strictly follow the official state machine" and "Sensitive appointment transitions require a reason, and every transition must validate tenant scope and actor permissions."
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case.ts`
+around lines 84 - 93, The catch around cycleService.confirm in
+confirm-appointment.use-case is too broad and incorrectly marks every failure as
+CONFIRMED via appointmentRepo.update. Narrow the fallback so it only handles the
+specific “no active cycle” case from cycleService.confirm, and rethrow any other
+error to preserve the official transition rules. Update the logic in
+ConfirmAppointmentUseCase to distinguish the missing-cycle path from real
+business-rule failures before writing tenantConfirmationStatus.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:e874628a0f4c7d80be4a20a6 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/get-available-groups.use-case.ts:45
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Don’t derive tenant context from an unscoped appointment read.**
+
+`findById(input.appointmentId, null)` resolves the appointment outside tenant scope, then reuses that row’s `tenantId` for `findPortalEligibleGroups(...)`. That means the tenant boundary has already failed before the service-group query runs. Pass `tenantId` from portal auth into `GetAvailableGroupsInput` and make the initial appointment lookup tenant-scoped too.
+
+As per coding guidelines, "All business queries must be tenant-scoped" and "Every repository method must scope queries by `tenantId`"; the downstream route contract in `apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts:251-263` currently omits the tenant context needed here.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/get-available-groups.use-case.ts`
+around lines 32 - 45, The appointment lookup in GetAvailableGroupsUseCase is
+using an unscoped findById and then reusing appointment.tenantId, which bypasses
+tenant isolation. Update GetAvailableGroupsInput to accept tenantId from portal
+auth, pass it into the initial appointmentRepo lookup, and ensure
+findPortalEligibleGroups is also called with that same tenantId from the request
+context rather than deriving it from the appointment row. Also update the
+tenant-portal route contract and any callers so the use case always receives
+tenant context explicitly.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:eb3285049bc70df75b001608 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-data.use-case.ts:30
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**Define and enforce Zod schemas in this use case.**
+
+This application-layer file exposes a DTO interface, but `execute()` never parses `input`. The route only validates `params`; the middleware-populated portal fields forwarded here reach the use case unchecked. Add `GetPortalDataInputSchema` here (and ideally an output schema) and parse at the start of `execute()`.
+
+    
+As per coding guidelines, `apps/backend/src/**/application/**/*.ts`: `define DTOs and Zod schemas there`; as per coding guidelines, `Use Zod for all input validation`.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-data.use-case.ts`
+around lines 10 - 30, The GetPortalDataUseCase currently accepts a DTO interface
+but does not validate the middleware-populated fields before use. Add a
+GetPortalDataInputSchema alongside GetPortalDataInput in GetPortalDataUseCase
+and parse the incoming input at the start of execute() before any repository
+calls. If this use case returns structured data, also define an output schema in
+the same application-layer file and use it for the final result.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:76183043b68c65254d343ca3 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-link.use-case.test.ts:162
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**This test does not actually verify tenant scoping.**
+
+`findById` is mocked to return `null` regardless of the actor, so this still goes green even if `GetPortalLinkUseCase` stops passing `OP_ACTOR.tenantId` entirely. Replace it with a Postgres-backed integration test, or at minimum assert the repository is called with the tenant scope. As per path instructions, "tests must cover behavior (red-green-refactor), including tenant-scope filters asserted against a real Postgres, since mocks return regardless of the tenant_id argument and can mask isolation bugs."
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-link.use-case.test.ts`
+around lines 156 - 162, The current test in get-portal-link.use-case.test only
+mocks appointmentRepo.findById to return null, so it does not prove tenant
+scoping and can miss regressions in GetPortalLinkUseCase.execute. Update this
+test to verify the tenant_id filter is actually applied either by converting it
+to a Postgres-backed integration test or, at minimum, asserting the repository
+is called with OP_ACTOR.tenantId in the findById path. Focus on the behavior
+around GetPortalLinkUseCase, makeUseCase, and the appointmentRepo.findById
+interaction so the test fails if tenant scope is omitted.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:27c3cd7cfdb0f711b824bc0a -->
+
+_Source: Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/join-group.use-case.ts:73
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Do not let `tokenId` and `appointmentId` drift apart.**
+
+Line 67 loads `input.appointmentId` with `tenantId = null`, then Lines 106-113 update that appointment, while Line 169 only consumes `input.tokenId`. If the caller ever supplies a mismatched appointment id, this flow will move the wrong appointment into a group and invalidate the caller’s token. Derive the appointment from the portal token, or verify the token’s appointment/tenant before any repository call. As per coding guidelines, "repositories must always be scoped by tenant." As per path instructions, "every business query and repository must be scoped by tenant_id."  
+    
+
+
+Also applies to: 106-113, 168-169
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/join-group.use-case.ts`
+around lines 61 - 73, The JoinGroupUseCase::execute flow is using
+input.appointmentId independently of input.tokenId, which can let the wrong
+appointment be moved and later invalidate the wrong token. Update the use case
+to derive or verify the appointment from the portal token before any repository
+access, and ensure appointmentRepo and serviceGroupRepo calls are always scoped
+by the tenant from the token rather than null. Keep the token, appointment, and
+tenant checks aligned throughout execute so the update and token consumption
+paths use the same validated appointment context.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:6f5c956e01132c218339c985 -->
+
+_Sources: Coding guidelines, Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/join-group.use-case.ts:134
+_🗄️ Data Integrity & Integration_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Reserve capacity and move the appointment in one transaction.**
+
+Lines 88-90 check capacity in memory, then Lines 102-134 decrement the old group, update the appointment, run a status transition, and increment the new group across separate calls. Two concurrent joins can both see spare capacity and push the group past 10, and any failure mid-sequence leaves counts and appointment state out of sync. The capacity check and both counter updates need to happen atomically with the appointment move.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/join-group.use-case.ts`
+around lines 82 - 134, The join flow in the use-case needs to reserve capacity
+and move the appointment atomically instead of checking capacity and then doing
+separate repo calls. Wrap the capacity check, decrement of the previous group,
+appointmentRepo.update, statusTransition.execute, and
+serviceGroupRepo.incrementConfirmedCount in a single transaction so two
+concurrent joins can’t overfill a group and partial failures can’t leave counts
+or appointment state inconsistent. Use the existing join-group use case logic
+around serviceGroupRepo, appointmentRepo, and statusTransition as the place to
+introduce the transactional boundary.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:49d7bc222476e102772f2c1f -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/report-unavailability.use-case.ts:53
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Carry `tenantId` into this use case instead of querying by appointment alone.**
+
+`findById(input.appointmentId, null)` and `deleteRestrictionsByAppointmentId(input.appointmentId)` both bypass tenant scoping. The upstream route contract in `apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts:210-249` only passes `appointmentId` from portal context, so this use case cannot satisfy the repository tenant-scope contract. Thread `tenantId` through the portal context and require it on every repository operation here.
+
+As per coding guidelines, "All business entities and queries must be tenant-scoped" and "repositories must always be scoped by tenant"; the upstream contract in `apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts:210-249` currently blocks that.  
+    
+
+
+Also applies to: 116-118
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/report-unavailability.use-case.ts`
+around lines 50 - 53, Thread tenantId through the report-unavailability flow and
+use it on every repository call in ReportUnavailabilityUseCase. The execute
+method should no longer call appointmentRepo.findById(input.appointmentId, null)
+or deleteRestrictionsByAppointmentId(input.appointmentId) without tenant scope;
+update the input shape and the tenant-portal route/context so tenantId is
+provided, then pass it into both appointmentRepo and restriction deletion
+operations. Use the unique symbols ReportUnavailabilityUseCase.execute,
+appointmentRepo.findById, and deleteRestrictionsByAppointmentId to locate and
+update the tenant-scoped contract end to end.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:115197fb43f438f68502a2eb -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/report-unavailability.use-case.ts:70
+_🗄️ Data Integrity & Integration_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Use an atomic token-claim step for idempotency.**
+
+The current flow checks `isUsed` first and only flips the token later, so concurrent requests can both pass the guard and both execute the mutation path. Make token usage a single atomic claim (or transactionally guarded update) before the appointment write so the rest of the flow is truly idempotent.
+
+As per coding guidelines, "Critical operations must support idempotency, including acceptance, execution, notifications, and financial entries."  
+   
+
+
+Also applies to: 111-114
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/report-unavailability.use-case.ts`
+around lines 67 - 70, The current `report-unavailability` flow in
+`ReportUnavailabilityUseCase` only checks `input.isUsed` before proceeding,
+which allows concurrent requests to race and both enter the mutation path.
+Update the token handling to perform a single atomic claim or transactionally
+guarded update before any appointment write, and have the rest of the use case
+rely on that claimed state rather than a separate pre-check. Ensure the
+idempotency guard is applied consistently in the other referenced token-usage
+block as well.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:0de9527bad247297cacd6c4f -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/report-unavailability.use-case.ts:99
+_🗄️ Data Integrity & Integration_ | _🟠 Major_ | _⚡ Quick win_
+
+**Narrow this fallback to the actual "no active cycle" case.**
+
+Catching every `cycleService.markUnavailable()` error and then writing `UNAVAILABLE` directly means state-machine rejections, permission failures, and transient errors all get converted into a persisted transition. This should only fall back for the specific missing-cycle condition; everything else needs to bubble up.
+
+As per coding guidelines, "Appointment transitions must strictly follow the official state machine" and "Sensitive appointment transitions require a reason, and every transition must validate tenant scope and actor permissions."
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/report-unavailability.use-case.ts`
+around lines 90 - 99, The fallback in report-unavailability.use-case.ts is too
+broad because the catch around cycleService.markUnavailable() converts all
+failures into a direct UNAVAILABLE write. Narrow the catch in the
+reportUnavailability use case to only the specific “no active cycle” condition
+from cycleService, and let state-machine rejections, permission failures, and
+transient errors propagate. Use the existing cycleService.markUnavailable and
+appointmentRepo.update flow, but gate the fallback on the actual missing-cycle
+error only.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:97171fbdbc6aa1ab631b0727 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/reschedule-request.use-case.ts:80
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Bind the portal token to the appointment before any write.**
+
+Line 77 loads `input.appointmentId` with `tenantId = null`, and Lines 148-158 then mutate that appointment while only consuming `input.tokenId`. If those ids ever diverge, this flow updates one appointment and burns an unrelated token. Resolve the appointment from the token itself, or verify the token’s appointment/tenant before the first repository call. As per coding guidelines, "all business queries must be tenant-scoped, and repositories must always be scoped by tenant." As per path instructions, "every business query and repository must be scoped by tenant_id (no business query without tenant scope)."  
+    
+
+
+Also applies to: 146-158
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/reschedule-request.use-case.ts`
+around lines 65 - 80, Bind the token to the appointment before any write in
+RescheduleRequestUseCase.execute by resolving or validating the appointment
+through the portal token instead of loading only input.appointmentId with a null
+tenant scope. Update the initial repository lookup to use the token’s
+appointment/tenant context, and ensure the mutation path that consumes
+input.tokenId and reschedules the appointment only proceeds after verifying the
+token matches that same appointment and tenant. Use the execute method and the
+downstream reschedule/consume flow to keep all business queries tenant-scoped
+and prevent updating one appointment while burning an unrelated token.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:e671a40b19e0d70d41d1f985 -->
+
+_Sources: Coding guidelines, Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/reschedule-request.use-case.ts:74
+_🗄️ Data Integrity & Integration_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Make token consumption atomic.**
+
+Lines 67-73 trust caller-provided `isReadOnly`/`isUsed`, but the single-use flag is only persisted at Line 154 after the appointment has already been changed and side effects have been emitted. Two concurrent requests with the same token can both pass these checks and both execute the reschedule flow. Move validation + consume into one repository operation or transaction before the mutation sequence. As per coding guidelines, "Critical operations must support idempotency."  
+   
+
+
+Also applies to: 153-158
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/reschedule-request.use-case.ts`
+around lines 66 - 74, Make token validation and consumption atomic in
+reschedule-request.use-case.ts: the current checks in the reschedule flow rely
+on caller-provided input.isReadOnly and input.isUsed, then mark the token used
+only after the appointment update and side effects, which allows duplicate
+concurrent executions. Refactor the RescheduleRequestUseCase path so the token
+is validated and consumed in a single repository call or transaction before any
+mutation/notification work begins, and base the decision on persisted token
+state rather than the input flags. Update the token-usage persistence around the
+current use-case flow so the consume step happens first and only one request can
+proceed.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:054a88b4ebe38930799b1cc7 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/reschedule-request.use-case.ts:106
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**Compare date-only values in one timezone.**
+
+Line 104 parses `newDate` as UTC midnight, while Line 103 normalizes `today` in the server’s local timezone. On non-UTC hosts, a same-day value can be rejected as already in the past. Use either UTC for both sides or, preferably, the tenant timezone for both comparisons.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/reschedule-request.use-case.ts`
+around lines 101 - 106, The past-date check in reschedule-request.use-case.ts is
+mixing UTC parsing for newDate with local-time normalization for today, which
+can misclassify same-day requests. Update the comparison in the reschedule flow
+so both sides use the same timezone consistently, ideally the tenant timezone;
+otherwise use UTC for both. Focus on the date validation block in the
+reschedule-request use case where today and newDateObj are computed, and ensure
+PortalDateInPastError is thrown only after comparing like-for-like date-only
+values.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:35663252266d911d1e1ca25c -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/update-contact.use-case.ts:59
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Scope both the lookup and the contact update by tenant.**
+
+`findById(input.appointmentId, null)` bypasses tenant scoping, and `updateContact(input.appointmentId, updateData)` mutates by appointment ID alone. The route contract in `apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts:181-208` never provides `tenantId`, so this use case cannot enforce the multi-tenant repository contract. Add `tenantId` to `UpdateContactInput` from portal auth context and require tenant-scoped repository methods for both operations.
+
+As per coding guidelines, "All business entities must include `tenant_id`, all business queries must be tenant-scoped, and repositories must always be scoped by tenant"; the upstream contract in `apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts:181-208` currently prevents that.  
+    
+
+
+Also applies to: 96-97
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/update-contact.use-case.ts`
+around lines 53 - 59, The appointment lookup and contact update in
+UpdateContactUseCase are bypassing tenant scoping, so update the use case to
+require tenantId from the portal auth context in UpdateContactInput and pass it
+through both repository calls. Replace the unscoped
+AppointmentRepository.findById(input.appointmentId, null) and
+updateContact(input.appointmentId, updateData) usage with tenant-scoped variants
+that require tenantId, and ensure the surrounding contract in
+UpdateContactUseCase aligns with the tenant-portal route/auth flow so both read
+and write operations are always constrained by tenant.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:4f7000d8a1904f92fc307124 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/domain/tenant-portal-token.entity.ts:16
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Add `tenantId` to the token entity and propagate it through portal auth.**
+
+Without tenant scope on the token itself, downstream code has no safe way to keep portal reads tenant-scoped; that already forces the portal data flow into an unscoped appointment lookup. Thread `tenantId` through this entity, the repository contract, and the middleware context.
+
+     
+As per coding guidelines, `All backend business entities and queries must be tenant-scoped: include tenant_id in business entities... and never perform business queries without tenant scope`; as per path instructions, `every business query and repository must be scoped by tenant_id`.
+
+
+Also applies to: 18-37
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/backend/src/modules/tenant-portal/domain/tenant-portal-token.entity.ts`
+around lines 4 - 16, The TenantPortalTokenProps entity is missing tenant scope,
+which prevents safe tenant-scoped portal auth flows. Add tenantId to
+TenantPortalTokenProps and update the related tenant-portal token
+entity/repository contract and middleware context so tenantId is carried through
+token creation, lookup, and validation in the portal auth flow. Make sure the
+unique symbols TenantPortalTokenProps and the portal auth/middleware paths are
+updated consistently so no business query relies on an unscoped appointment
+lookup.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:d12d53230e3db828bc3a19cc -->
+
+_Sources: Coding guidelines, Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/domain/tenant-portal-token.entity.ts:42
+_🎯 Functional Correctness_ | _🟡 Minor_ | _⚡ Quick win_
+
+**Make token expiry inclusive at the deadline.**
+
+`isExpired()` uses `now > expiresAt`, but the repository/tests treat `expires_at <= now` as expired/inactive. At the exact expiry instant this entity still reports "not expired", so middleware can leave a just-expired token writable for one request.
+
+<details>
+<summary>Proposed fix</summary>
+
+```diff
+   isExpired(now: Date): boolean {
+-    return now > this.expiresAt;
++    return now >= this.expiresAt;
+   }
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+  isExpired(now: Date): boolean {
+    return now >= this.expiresAt;
+  }
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/backend/src/modules/tenant-portal/domain/tenant-portal-token.entity.ts`
+around lines 40 - 42, The `TenantPortalTokenEntity.isExpired()` check is off by
+one at the deadline because it uses a strict greater-than comparison. Update the
+expiry logic in `isExpired(now: Date)` so the token is considered expired when
+`now` is equal to or later than `expiresAt`, matching the repository/tests
+behavior and keeping just-expired tokens inactive immediately.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:ce889e92fa19de30968d6e18 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/infrastructure/__tests__/prisma-tenant-portal-token.repository.test.ts:118
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Add a real Postgres isolation test for this repository.**
+
+These tests only assert Prisma call shape against mocks. They will not catch tenant-leak bugs, because the mock returns rows regardless of tenant isolation. Add an integration test that inserts conflicting data for multiple tenants and proves `findActiveByAppointmentId` cannot read across tenants.
+
+     
+As per path instructions, `Tests must cover behavior ... including tenant-scope filters asserted against a real Postgres, since mocks return regardless of the tenant_id argument and can mask isolation bugs`; as per path instructions, `Flag any tenant_id WHERE filter not covered by a Postgres-real integration test`.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/infrastructure/__tests__/prisma-tenant-portal-token.repository.test.ts`
+around lines 34 - 118, The current tests for
+PrismaTenantPortalTokenRepository.findActiveByAppointmentId only verify mocked
+Prisma calls and can miss tenant-isolation bugs. Add a real Postgres integration
+test for PrismaTenantPortalTokenRepository that seeds conflicting
+tenantPortalToken rows across multiple tenant_id values and asserts the
+repository only returns the appointment token for the correct tenant, using the
+actual findActiveByAppointmentId behavior rather than mock findFirst shape
+checks. Keep the existing unit tests, but supplement them with a Postgres-backed
+case that proves any tenant_id WHERE filter is enforced and that cross-tenant
+rows are not visible.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:531d58fc713a354f4f3db9b8 -->
+
+_Sources: Coding guidelines, Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/infrastructure/prisma-tenant-portal-activity.repository.ts:57
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Persist and query portal activities with tenant scope.**
+
+`save()` never stores `tenant_id`, and both read paths filter only by `tenant_portal_token_id` / `appointment_id`. That makes the audit trail impossible to isolate by tenant and creates a cross-tenant read path if those identifiers leak. Thread `tenantId` through the entity/repository contract and add it to every `where` clause.
+
+    
+As per coding guidelines, `All business entities must include tenant_id, all business queries must be tenant-scoped, and repositories must always be scoped by tenant`; as per path instructions, `every business query and repository must be scoped by tenant_id`.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/infrastructure/prisma-tenant-portal-activity.repository.ts`
+around lines 24 - 57, The tenant portal activity repository is missing tenant
+scoping because `save()` does not persist `tenant_id` and
+`findLatestByTokenAndAction()` / `findByAppointmentId()` query only by token or
+appointment. Update the `TenantPortalActivityEntity` and
+`PrismaTenantPortalActivityRepository` contract to carry `tenantId`, persist it
+in `save()`, and add it to every `where` clause in the read methods so all
+activity access is tenant-scoped.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:766035520ff192083f30eb2a -->
+
+_Sources: Coding guidelines, Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/infrastructure/workers/expire-tokens.worker.ts:15
+_📐 Maintainability & Code Quality_ | _🟠 Major_ | _⚡ Quick win_
+
+**Thread `request_id` through the worker contract and logs.**
+
+This background job has no way to receive or emit `request_id`, so its work cannot be correlated end-to-end.
+
+<details>
+<summary>Proposed fix</summary>
+
+```diff
+ export class ExpireTokensWorker {
+@@
+-  async execute(): Promise<{ expiredCount: number }> {
++  async execute(requestId: string): Promise<{ expiredCount: number }> {
+     const expiredCount = await this.tokenRepo.expireActiveTokens();
+     if (expiredCount > 0) {
+-      this.logger.info({ expiredCount }, 'Expired portal tokens');
++      this.logger.info({ request_id: requestId, expiredCount }, 'Expired portal tokens');
+     }
+     return { expiredCount };
+   }
+ }
+```
+</details>
+
+   
+As per coding guidelines, `All API requests and background jobs must include request_id`.
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+  async execute(requestId: string): Promise<{ expiredCount: number }> {
+    const expiredCount = await this.tokenRepo.expireActiveTokens();
+    if (expiredCount > 0) {
+      this.logger.info({ request_id: requestId, expiredCount }, 'Expired portal tokens');
+    }
+    return { expiredCount };
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/infrastructure/workers/expire-tokens.worker.ts`
+around lines 10 - 15, Thread request_id through the worker contract and logging
+in expire-tokens.worker.ts so background executions can be correlated
+end-to-end. Update the ExpireTokensWorker.execute method (and any
+caller/contract it uses) to accept a request_id value, pass it through the job
+workflow, and include it in the logger.info payload alongside expiredCount. Make
+sure any related worker interface, job payload, or repository call sites are
+updated consistently so request_id is available everywhere this worker runs.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:d86131adb7976a23df029fdd -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/interfaces/portal-token-middleware.test.ts:68
+_📐 Maintainability & Code Quality_ | _🟡 Minor_ | _⚡ Quick win_
+
+**Assert the `EXPIRED` write as well as the derived flag.**
+
+This case currently passes even if the middleware stops persisting the status transition. Add an assertion on `tokenRepo.updateStatus(...)` so the test covers the full behavior. As per path instructions, "TDD is mandatory. Tests must cover behavior (red-green-refactor)".
+
+   
+<details>
+<summary>Suggested assertion</summary>
+
+```diff
+     await middleware(request, {} as any);
+     expect(request.portalContext.isReadOnly).toBe(true);
++    expect(tokenRepo.updateStatus).toHaveBeenCalledWith('token-1', 'appt-1', 'EXPIRED');
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+  it('should mark expired ACTIVE tokens as read-only', async () => {
+    const expired = makeToken('ACTIVE', new Date(Date.now() - 1000));
+    const tokenRepo = {
+      findByTokenHash: vi.fn().mockResolvedValue(expired),
+      updateStatus: vi.fn(),
+    };
+    const middleware = createPortalTokenMiddleware(tokenRepo as any, (r) => r);
+    const request = { params: { token: 'raw-token' }, portalContext: undefined } as any;
+
+    await middleware(request, {} as any);
+    expect(request.portalContext.isReadOnly).toBe(true);
+    expect(tokenRepo.updateStatus).toHaveBeenCalledWith('token-1', 'appt-1', 'EXPIRED');
+  });
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/interfaces/portal-token-middleware.test.ts`
+around lines 57 - 68, The portal token middleware test only checks the derived
+read-only flag and misses the persisted status transition. Update the expired
+ACTIVE token case in createPortalTokenMiddleware to also assert
+tokenRepo.updateStatus was called with the EXPIRED transition, while keeping the
+existing portalContext.isReadOnly check. This ensures the test covers both the
+side effect and the derived behavior in portal-token-middleware.test.ts.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:60359e589eabf96d348bf0d0 -->
+
+_Source: Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/interfaces/portal-token-middleware.ts:62
+_🩺 Stability & Availability_ | _🟠 Major_ | _⚡ Quick win_
+
+**Don't make the expired portal view depend on a status write.**
+
+If `updateStatus()` throws here, an expired token request becomes a 500 before the handler can return the read-only/expired response. The expiry sync should be best-effort or moved off the request path.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/backend/src/modules/tenant-portal/interfaces/portal-token-middleware.ts`
+around lines 59 - 62, The expired-token path in portal-token-middleware should
+not fail the request if the status sync write fails. In the middleware logic
+around tokenEntity.isActive(), tokenEntity.isExpired(), markExpired(), and
+tokenRepo.updateStatus(), make the update best-effort by catching/swallowing
+failures or moving the write off the request path so the handler can still
+proceed with the read-only/expired response. Keep the read-only state change
+independent from updateStatus() success.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:485c88f5bf30eae0decafa35 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts:135
+_🗄️ Data Integrity & Integration_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Add `Idempotency-Key` handling to these mutation endpoints.**
+
+These routes mutate appointment state or generate/send portal tokens, but the interface layer neither requires nor forwards an `Idempotency-Key`. A client retry can therefore double-apply confirmation/reschedule/group actions or dispatch duplicate portal-token notifications. The notification side effect is already visible in `apps/backend/src/modules/tenant-portal/application/use-cases/__tests__/generate-portal-token.use-case.test.ts:136-209`. As per coding guidelines, "Critical commands and operations must be idempotent... and must use the `Idempotency-Key` header where applicable."
+
+    
+
+
+Also applies to: 138-179, 210-248, 265-293, 299-313
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts`
+around lines 97 - 135, Add Idempotency-Key support to the tenant-portal mutation
+routes so retries cannot double-apply state changes or resend notifications.
+Update the route handlers in tenant-portal.routes.ts for the
+confirm/reschedule/group/token-generation endpoints to require and forward the
+Idempotency-Key header into their use-case calls, and ensure the relevant
+use-cases and request schemas accept it consistently. Use the existing handler
+symbols such as the POST /v1/tenant-portal/:token/confirm route and the
+token-generation mutation handlers as the places to wire this through.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:2a6eec26748d6c85f1106b2d -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/components/AvailableGroupsList.tsx:16
+_📐 Maintainability & Code Quality_ | _🟠 Major_ | _⚡ Quick win_
+
+**Replace hardcoded palette utilities with semantic tokens.**
+
+These blocks introduce `white`/`gray`/`red`/`black` utility colors directly in `apps/web/src`, so this screen can drift from the approved portal theme. Swap them for the existing semantic token classes used elsewhere in the app. As per coding guidelines, `apps/web/src/**/*.{ts,tsx,css}`: "Use design tokens and approved theme values; do not introduce hardcoded colors without justification."
+   
+
+
+Also applies to: 41-47, 73-76
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/components/AvailableGroupsList.tsx`
+around lines 14 - 16, The loading and group state blocks in AvailableGroupsList
+are using hardcoded palette utilities like white, gray, red, and black instead
+of the app’s semantic theme tokens. Update the JSX in AvailableGroupsList to
+swap these Tailwind color classes for the existing token-based classes already
+used elsewhere in the portal, including the related blocks in the same component
+that follow the same pattern. Keep the structure and spacing the same, but
+ensure all color styling comes from approved semantic tokens only.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:refactor_suggestion -->
+
+<!-- cr-comment:v1:c90075aeaf96f41f83c18c61 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/components/AvailableGroupsList.tsx:92
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**Expose the selected group state semantically.**
+
+The current choice is only conveyed by border/ring styling, so assistive tech never learns which slot is selected. Add an explicit selected state on each row (`aria-pressed` at minimum, or radio-group semantics) and keep the ring as a secondary cue. As per coding guidelines, `apps/web/src/**/*.{ts,tsx}`: "Interactive controls must meet accessibility requirements: visible focus, semantic labels, `aria-label` on action icons, proper dialog focus management, and non-color-only disabled states."
+   
+
+<details>
+<summary>Minimal improvement</summary>
+
+```diff
+           <button
+             key={group.id}
+             type="button"
++            aria-pressed={isSelected}
+             data-testid="group-row"
+             onClick={() => onSelect(group.id)}
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+          <button
+            key={group.id}
+            type="button"
+            aria-pressed={isSelected}
+            data-testid="group-row"
+            onClick={() => onSelect(group.id)}
+            className={[
+              'w-full rounded-lg border bg-white p-4 text-left transition-colors hover:border-primary/50',
+              isSelected
+                ? 'border-primary ring ring-primary/30'
+                : 'border-black/10',
+            ].join(' ')}
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-text-primary">{group.suburb}</span>
+              <span className="text-sm text-text-muted">
+                {group.confirmedCount}/{group.capacityMax} confirmed
+              </span>
+            </div>
+            <div className="mt-1 flex items-center gap-3 text-sm text-text-secondary">
+              <span>{group.timeWindow}</span>
+              <span>·</span>
+              <span>{group.inspectorName}</span>
+              <span>·</span>
+              <span>{group.scheduledDate}</span>
+            </div>
+          </button>
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/components/AvailableGroupsList.tsx`
+around lines 67 - 92, The selectable row in AvailableGroupsList is only visually
+marked as selected, so add an explicit accessible selected state to the button
+rendered for each group. Update the row control in AvailableGroupsList so the
+interactive element exposes its state semantically via aria-pressed at minimum
+(or switch to proper radio-group semantics if appropriate), while preserving the
+current ring/border styling as a visual cue. Use the existing onSelect,
+isSelected, and group.id logic to keep the semantics aligned with the current
+selection behavior.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:8aca4c11b2c8ec28b782078c -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/components/ContactForm.tsx:41
+_🎯 Functional Correctness_ | _🟡 Minor_ | _⚡ Quick win_
+
+**Only submit fields that actually changed.**
+
+With an existing `contact`, Line 31 and Line 34 always copy the non-empty primary values into `data`, so an untouched form bypasses Line 38 and still emits a PATCH. That turns a no-op into a write and shows a false "updated" success path. Build `data` by diffing against `contact` instead of copying every populated field.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/components/ContactForm.tsx` around lines
+30 - 41, The ContactForm submit logic is treating untouched populated inputs as
+changes, so an existing contact can still emit a PATCH and show a false success
+state. Update the data-building logic in ContactForm to compare each field
+against contact before adding it to UpdateContactInput, using the existing
+contact values to skip unchanged primaryEmail, secondaryEmail, primaryPhone, and
+secondaryPhone. Keep the null-clearing behavior for secondary fields when an
+existing value is being removed, and preserve the empty-payload guard so no-op
+submissions are blocked.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:42a5e7a2cb29beda0cab1b6a -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/components/InspectionConfirmationForm.tsx:166
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**Restricted mode blocks the urgent "No" path and can still leak a stale confirm.**
+
+`PortalPage.tsx` Line 172-176 says restricted mode should still allow urgent unavailability, but Line 86, Line 102, Line 133, and Line 150 disable the entire "No" flow whenever `isReadOnly` is true. At the same time, Line 75 does not factor `isReadOnly` into `canSubmit`, so a tenant who selected "Yes" before a deadline-triggered refetch can still submit Line 67 after the cutoff. Split this into per-action gating instead of treating `isReadOnly` as both "urgent-only" and "fully disabled".
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/web/src/features/tenant-portal/components/InspectionConfirmationForm.tsx`
+around lines 64 - 166, The `InspectionConfirmationForm` currently treats
+`isReadOnly` as a full lock, which blocks the urgent “No” path and can still
+leave a stale “Yes” submission enabled after a deadline refetch. Update
+`handleSubmit`, `canSubmit`, and the YES/NO button/textarea/picker disabled
+logic so `isReadOnly` only prevents the confirm path while still allowing the
+unavailable flow with its required inputs. Use the existing `selection`,
+`isSubmitEnabled`, and `WeeklyAvailabilityPicker`/`onConfirm`/`onUnavailable`
+branches to apply per-action gating instead of one blanket disabled state.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:78fb394324597ded35016172 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/components/InspectionConfirmationForm.tsx:115
+_🎯 Functional Correctness_ | _🟡 Minor_ | _⚡ Quick win_
+
+**Expose the Yes/No selection state to assistive tech.**
+
+These buttons behave like a binary selector, but they never expose which option is active (`aria-pressed` or radio semantics). Screen-reader users can trigger them, but they cannot reliably tell which choice is selected.
+
+<details>
+<summary>Suggested fix</summary>
+
+```diff
+           <button
+             type="button"
++            aria-pressed={selection === 'YES'}
+             disabled={isReadOnly}
+             onClick={() => setSelection('YES')}
+             className={[
+@@
+           <button
+             type="button"
++            aria-pressed={selection === 'NO'}
+             disabled={isReadOnly}
+             onClick={() => setSelection('NO')}
+             className={[
+```
+</details>
+
+As per coding guidelines, "Interactive controls must meet accessibility requirements: visible focus, semantic labels, `aria-label` on action icons, proper dialog focus management, and non-color-only disabled states."
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+          <button
+            type="button"
+            aria-pressed={selection === 'YES'}
+            disabled={isReadOnly}
+            onClick={() => setSelection('YES')}
+            className={[
+              'rounded-full px-5 py-2 text-sm font-medium transition-colors',
+              selection === 'YES'
+                ? 'bg-success text-white'
+                : 'bg-gray-100 text-text-secondary hover:bg-gray-200',
+              isReadOnly ? 'cursor-not-allowed opacity-50' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            aria-pressed={selection === 'NO'}
+            disabled={isReadOnly}
+            onClick={() => setSelection('NO')}
+            className={[
+              'rounded-full px-5 py-2 text-sm font-medium transition-colors',
+              selection === 'NO'
+                ? 'bg-warning text-white'
+                : 'bg-gray-100 text-text-secondary hover:bg-gray-200',
+              isReadOnly ? 'cursor-not-allowed opacity-50' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            No
+          </button>
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/web/src/features/tenant-portal/components/InspectionConfirmationForm.tsx`
+around lines 84 - 115, The Yes/No controls in InspectionConfirmationForm behave
+like a toggle but don’t expose the active state to assistive tech. Update the
+button group to use proper selection semantics in the component logic around
+selection and setSelection, such as adding pressed-state accessibility on each
+button or switching to radio-style semantics. Keep the existing Yes/No labels
+and ensure screen readers can reliably determine which option is currently
+selected.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:55526f9f8c2e9b4b30faf84b -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/components/PortalErrorState.tsx:50
+_🎯 Functional Correctness_ | _🟡 Minor_ | _⚡ Quick win_
+
+**Preserve plain `Error` messages instead of forcing the connection copy.**
+
+`PortalPage` already reaches this branch with `new Error('No portal token provided')`, but the fallback at Line 49 rewrites that into a network-specific message. That makes the no-token path misleading and hides other non-`ApiError` failures. Use the connection copy only for known network errors and otherwise surface `error.message`.
+   
+
+<details>
+<summary>Suggested change</summary>
+
+```diff
+-  return { title: 'Connection Error', message: 'Could not connect to the server. Please check your internet connection.' };
++  return {
++    title: 'Error',
++    message: error.message || 'Something went wrong. Please try again.',
++  };
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+function getPortalErrorMessage(error: ApiError | Error): { title: string; message: string } {
+  if (error instanceof ApiError) {
+    switch (error.code) {
+      case 'PORTAL_TOKEN_INVALID':
+      case 'PORTAL_TOKEN_NOT_FOUND':
+        return {
+          title: 'Invalid Link',
+          message: 'This link is invalid or has expired. Please contact the agency for a new link.',
+        };
+      case 'PORTAL_TOKEN_REVOKED':
+        return {
+          title: 'Link Revoked',
+          message: 'This link has been revoked. Please contact the agency for assistance.',
+        };
+      case 'PORTAL_TOKEN_EXPIRED':
+        return {
+          title: 'Link Expired',
+          message: 'This link has expired. Please contact the agency if you need to make changes.',
+        };
+      case 'PORTAL_APPOINTMENT_INACTIVE':
+        return {
+          title: 'Appointment Inactive',
+          message: 'This appointment is no longer active.',
+        };
+      default:
+        break;
+    }
+    if (error.status === 404) {
+      return {
+        title: 'Not Found',
+        message: 'This link is invalid. Please check the URL and try again.',
+      };
+    }
+    if (error.status >= 500) {
+      return {
+        title: 'Server Error',
+        message: 'Something went wrong. Please try again later.',
+      };
+    }
+    return { title: 'Error', message: error.message };
+  }
+  return {
+    title: 'Error',
+    message: error.message || 'Something went wrong. Please try again.',
+  };
+}
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/components/PortalErrorState.tsx` around
+lines 8 - 50, The fallback in getPortalErrorMessage is treating every plain
+Error as a connection problem, which overrides real messages like the no-token
+case from PortalPage. Update the final non-ApiError branch in PortalErrorState
+so it only uses the connection copy for known network failures and otherwise
+returns the original error.message, keeping the existing ApiError code/status
+handling intact.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:6d116407969de3b0a7cff455 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/components/RescheduleForm.test.tsx:214
+_📐 Maintainability & Code Quality_ | _🟠 Major_ | _⚡ Quick win_
+
+**Add boundary tests for the date-window guards.**
+
+`RescheduleForm.tsx` Line 56 and Line 62 contain the core business rules for this form, but this suite only exercises empty submission and a happy path. A regression here would let tenants request a past date or a `>30` day date without CI catching it.
+
+As per path instructions, "TDD is mandatory. Tests must cover behavior (red-green-refactor)".
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/components/RescheduleForm.test.tsx`
+around lines 117 - 214, Add boundary-focused tests for the date-window guards in
+RescheduleForm, since the current RescheduleForm.test.tsx suite only covers
+empty, valid, and failure cases. Extend the existing RescheduleForm behavior
+tests to verify that submitting a date before today and a date more than 30 days
+out are both rejected, and that mockMutateAsync is not called in those cases.
+Use the existing form interactions around the date-input, text-input, and
+Request Reschedule button so the new tests directly exercise the validation
+logic in RescheduleForm.tsx.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:refactor_suggestion -->
+
+<!-- cr-comment:v1:3066159fc758f2d25d66fdc5 -->
+
+_Source: Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/components/TenantPortalExpiredView.tsx:45
+_🎯 Functional Correctness_ | _🟡 Minor_ | _⚡ Quick win_
+
+**Render a user-facing response label instead of the raw enum.**
+
+`existingResponse.type` is printed verbatim here, so the expired view shows internal codes like `CONFIRMED`/`UNAVAILABLE` while the rest of the portal already uses readable labels. Reuse the same mapping—or the existing `ResponseConfirmationCard`—to keep this screen consistent.
+
+    
+
+As per path instructions, "Never expose raw IDs in the UI — show readable fields (e.g. number + address + status + date)".
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/components/TenantPortalExpiredView.tsx`
+around lines 39 - 45, The expired view is rendering the raw response enum via
+existingResponse.type, so replace that with the same user-facing label mapping
+used elsewhere in the portal. Update TenantPortalExpiredView to reuse the
+existing response display logic from ResponseConfirmationCard (or the shared
+enum-to-label helper) so the UI shows a readable confirmation/status label
+instead of internal codes like CONFIRMED or UNAVAILABLE, while keeping the
+existing date formatting intact.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:d21b10f5563c34bfdfce8607 -->
+
+_Source: Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/components/WeeklyAvailabilityPicker.tsx:102
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**Label the start/end time selects.**
+
+Lines 76-102 render two comboboxes per day with no accessible name, so assistive tech gets multiple indistinguishable selects. Add visible labels or `aria-label`s that include both the day and whether the field is the start or end time. As per coding guidelines, "Interactive controls must meet accessibility requirements: visible focus, semantic labels..."
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/components/WeeklyAvailabilityPicker.tsx`
+around lines 71 - 102, The two time comboboxes rendered by
+WeeklyAvailabilityPicker lack accessible names, so each day’s start and end
+selects are indistinguishable to assistive tech. Update the select elements in
+WeeklyAvailabilityPicker to have semantic labels or aria-labels that include
+both the day name and whether the field is the start or end time, using the
+existing slot.dayOfWeek and DAYS lookup so each control is uniquely identified.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:e893b8bafef5ef29a61bbd07 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/hooks/useCountdown.test.ts:129
+_📐 Maintainability & Code Quality_ | _🟠 Major_ | _⚡ Quick win_
+
+**Add regression tests for `onExpire` and deadline removal.**
+
+The suite only checks local countdown state. It never asserts that `onExpire` fires, and it never rerenders from a real deadline to `undefined`, so the two prop-driven branches PortalPage relies on can regress unnoticed.
+
+    
+
+As per path instructions, "TDD is mandatory. Tests must cover behavior (red-green-refactor)...".
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/hooks/useCountdown.test.ts` around lines
+94 - 129, Add regression coverage in useCountdown.test for the prop-driven
+branches PortalPage depends on: verify the useCountdown hook calls the onExpire
+callback when the deadline reaches zero, and verify it handles the deadline
+being removed by rerendering the hook from a real ISO deadline to undefined. Use
+the existing useCountdown, renderHook, act, and vi timer setup to assert both
+behaviors, not just the local minutes/isExpired state.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:refactor_suggestion -->
+
+<!-- cr-comment:v1:91fd62e20f84568b32205ad5 -->
+
+_Source: Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/hooks/useCountdown.ts:45
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**Reset the hook state when `deadline` is cleared.**
+
+This early return leaves the previous countdown in state, so a portal that refetches into a no-deadline/read-only state can keep showing the old timer until remount. The initializer on Line 39 only runs once.
+
+<details>
+<summary>Suggested fix</summary>
+
+```diff
++const EXPIRED_RESULT: CountdownResult = {
++  hours: 0,
++  minutes: 0,
++  isExpired: true,
++  isUrgent: true,
++  isCritical: true,
++  label: '',
++};
++
+ export function useCountdown(deadline: string | undefined, onExpire?: () => void): CountdownResult {
+   const [result, setResult] = useState<CountdownResult>(() =>
+-    deadline ? calcCountdown(deadline) : { hours: 0, minutes: 0, isExpired: true, isUrgent: true, isCritical: true, label: '' },
++    deadline ? calcCountdown(deadline) : EXPIRED_RESULT,
+   );
+ 
+   useEffect(() => {
+-    if (!deadline) return;
++    if (!deadline) {
++      setResult(EXPIRED_RESULT);
++      return;
++    }
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+const EXPIRED_RESULT: CountdownResult = {
+  hours: 0,
+  minutes: 0,
+  isExpired: true,
+  isUrgent: true,
+  isCritical: true,
+  label: '',
+};
+
+export function useCountdown(deadline: string | undefined, onExpire?: () => void): CountdownResult {
+  const [result, setResult] = useState<CountdownResult>(() =>
+    deadline ? calcCountdown(deadline) : EXPIRED_RESULT,
+  );
+
+  useEffect(() => {
+    if (!deadline) {
+      setResult(EXPIRED_RESULT);
+      return;
+    }
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/hooks/useCountdown.ts` around lines 43 -
+45, The useCountdown hook does not clear its existing countdown state when
+deadline becomes null/undefined, so stale timer values can remain visible after
+a refetch into a no-deadline state. Update useCountdown’s effect logic to
+explicitly reset the hook state when deadline is cleared, instead of only
+returning early; keep the countdown state in sync with deadline changes so the
+hook can transition back to an empty/read-only state without waiting for
+remount.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:6d01f18a5a6b88450f8f59a4 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/hooks/useCountdown.ts:60
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**Fire expiry from the actual deadline, not the next minute tick.**
+
+The interval is aligned to mount time, not to `deadline`, so a cutoff that lands between ticks can delay `next.isExpired` and `onExpire()` by almost 59 seconds. In `apps/web/src/features/tenant-portal/pages/PortalPage.tsx:29-44`, that callback is what refetches the page, so the portal can stay actionable after the real deadline.
+
+<details>
+<summary>Suggested fix</summary>
+
+```diff
+   useEffect(() => {
+     if (!deadline) {
+       setResult(EXPIRED_RESULT);
+       return;
+     }
+ 
+     const initial = calcCountdown(deadline);
+     setResult(initial);
+ 
+     if (initial.isExpired) {
+       return;
+     }
+ 
+-    const interval = setInterval(() => {
++    const tick = () => {
+       const next = calcCountdown(deadline);
+       setResult(next);
+       if (next.isExpired) {
+         clearInterval(interval);
+         onExpire?.();
+       }
+-    }, 60_000);
++    };
++
++    const msUntilNextMinute = Math.min(
++      60_000,
++      Math.max(0, new Date(deadline).getTime() - Date.now()),
++    );
++    const timeout = setTimeout(() => {
++      tick();
++      const interval = setInterval(tick, 60_000);
++    }, msUntilNextMinute);
+ 
+-    return () => clearInterval(interval);
++    return () => {
++      clearTimeout(timeout);
++      clearInterval(interval);
++    };
+   }, [deadline, onExpire]);
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/hooks/useCountdown.ts` around lines 53 -
+60, The expiry check in useCountdown is driven by the 60_000ms interval tick, so
+onExpire can fire late when the actual deadline falls between ticks. Update
+useCountdown to schedule expiry based on the real deadline using the
+calcCountdown result and the deadline timestamp itself, and ensure the callback
+passed from PortalPage is triggered as soon as the deadline is reached rather
+than waiting for the next minute tick.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:d957e092165ba717ddf049dc -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/hooks/usePortalData.ts:43
+_📐 Maintainability & Code Quality_ | _🟡 Minor_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+echo "== API client definitions =="
+fd -i '^api\.(ts|tsx)$' apps/web | while read -r file; do
+  echo "--- $file ---"
+  sed -n '1,220p' "$file"
+done
+
+echo
+echo "== Generated-client related references =="
+rg -n "openapi|createClient|paths|api\\.(GET|POST|PATCH)" apps/web -g '!**/*.test.*'
+
+echo
+echo "== Tenant portal hook =="
+sed -n '1,180p' apps/web/src/features/tenant-portal/hooks/usePortalData.ts
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 4369
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+echo "== services/api files =="
+fd -a 'api' apps/web/src services apps/web | sed -n '1,80p'
+
+echo
+echo "== api service implementation =="
+for f in $(fd -a 'api.(ts|tsx|js|jsx)' apps/web/src apps/web services 2>/dev/null); do
+  echo "--- $f ---"
+  sed -n '1,260p' "$f"
+done
+
+echo
+echo "== type references for api.GET/POST/PATCH =="
+rg -n "api\.(GET|POST|PATCH)\(" apps/web/src apps/web -g '!**/*.test.*'
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 1178
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+echo "== services/api files =="
+fd -a 'api' apps/web/src services apps/web | sed -n '1,80p'
+
+echo
+echo "== api service implementation =="
+for f in $(fd -a 'api.(ts|tsx|js|jsx)' apps/web/src apps/web services 2>/dev/null); do
+  echo "--- $f ---"
+  sed -n '1,260p' "$f"
+done
+
+echo
+echo "== type references for api.GET/POST/PATCH =="
+rg -n "api\.(GET|POST|PATCH)\(" apps/web/src apps/web -g '!**/*.test.*'
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 1178
+
+---
+
+
+
+</details>
+
+**Preserve the generated API types here.** `path as any`, `body as any`, and `data as T` turn these helpers into untyped escape hatches, so route/body drift against the OpenAPI client will still compile. Thread the client’s endpoint/body/response types through `portalGet`/`portalPost`/`portalPatch` instead of re-casting them away.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/hooks/usePortalData.ts` around lines 28 -
+43, The helper functions portalGet, portalPost, and portalPatch are erasing the
+generated OpenAPI types by casting path, body, and data to any/T. Update these
+helpers to carry through the api client’s inferred endpoint, request body, and
+response types directly from api.GET/POST/PATCH instead of re-casting, so type
+drift is caught at compile time. Keep the changes localized to usePortalData.ts
+and ensure the generic signatures reflect the actual client types rather than
+acting as untyped escape hatches.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:227a726794c70298717eeeb4 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/pages/PortalPage.test.tsx:175
+_📐 Maintainability & Code Quality_ | _🔵 Trivial_ | _⚡ Quick win_
+
+**Add a regression test for the plain `Error` fallback.**
+
+The suite covers `ApiError` codes and 500s, but it never exercises the reachable non-`ApiError` path that `PortalPage` uses for missing-token failures. Add one case for a plain `Error` so this user-visible branch cannot regress silently. As per path instructions, `**/*.{test,spec}.{ts,tsx}`: "Tests must cover behavior (red-green-refactor)".
+    
+
+
+Also applies to: 340-347
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/pages/PortalPage.test.tsx` around lines
+150 - 175, The PortalPage test suite covers ApiError-based failures but misses
+the plain Error fallback branch used for missing-token cases. Add a regression
+test in PortalPage.test.tsx that makes mockGet reject or resolve with a
+non-ApiError Error and verifies PortalPage renders the same invalid-link
+message, using the existing renderPortal helper and the API error handling path
+to locate the branch under test.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:nitpick -->
+
+<!-- cr-comment:v1:4ce83f5cb0f4eed06b418179 -->
+
+_Source: Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/web/src/features/tenant-portal/pages/PortalPage.tsx:73
+_🩺 Stability & Availability_ | _🟠 Major_ | _⚡ Quick win_
+
+**Handle portal action failures instead of letting them reject the click handler.**
+
+Line 47, Line 54, and Line 61 await `mutateAsync()` directly with no catch or user-visible error path. If any of these requests fail, the promise rejects out of the event handler or `InspectionConfirmationForm`, so the main portal actions fail silently apart from a console error. Mirror the snackbar/inline-error handling already used by `RescheduleForm` and `ContactForm`.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/web/src/features/tenant-portal/pages/PortalPage.tsx` around lines 45 -
+73, The portal action handlers in PortalPage are awaiting mutateAsync directly,
+so failures escape the click/form flow without any user-facing error handling.
+Update handleJoinGroup, handleConfirm, and handleUnavailable to catch mutation
+errors and surface them through the same snackbar or inline-error pattern used
+elsewhere in the portal flow, using the existing mutation hooks and helper
+components in PortalPage and InspectionConfirmationForm.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:7cfab8fb1c9a6a0ef0319ca4 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts:1
+_📐 Maintainability & Code Quality_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Keep Prisma transaction handling out of the application layer.**
+
+The use case imports `PrismaClient` and opens the transaction itself. That hard-couples the application layer to Prisma instead of depending on an application-side unit-of-work/port.
+
+As per coding guidelines, `apps/backend/src/**/application/**/*.ts`: "Application layer files must implement one use case per file with an `execute()` method, define DTOs and Zod schemas there, orchestrate domain logic only, and avoid direct Prisma, Fastify, or pg-boss imports." As per path instructions, `apps/backend/**`: "Clean Architecture: domain has no external dependencies; application orchestrates; infrastructure implements ports."
+    
+
+
+Also applies to: 47-49, 80-93
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts`
+at line 1, The generate-portal-token use case is coupled to Prisma transaction
+management, which should live outside the application layer. Update
+generate-portal-token.use-case.ts so GeneratePortalTokenUseCase.execute
+orchestrates only the application logic and depends on an application-side
+unit-of-work or transaction port instead of importing PrismaClient directly.
+Move the transaction boundary and Prisma-specific handling into infrastructure,
+and keep the use case focused on DTOs, Zod schemas, and domain orchestration
+only.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:refactor_suggestion -->
+
+<!-- cr-comment:v1:68b6c6c5196d05ec438f642d -->
+
+_Sources: Coding guidelines, Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts:28
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Remove the public `allowAnyStatus` escape hatch.**
+
+This bypass sits on the exported use-case input, so any caller can suppress the status gate that protects portal issuance. The comment says HTTP routes must never set it, but there is no technical boundary enforcing that. Move this into a non-exported helper or a dedicated internal-only flow instead of exposing it on the public DTO.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts`
+around lines 19 - 28, The exported GeneratePortalTokenInput DTO exposes
+allowAnyStatus, which lets external callers bypass the status gate for portal
+issuance. Remove this flag from the public interface and move the bypass into an
+internal-only helper or separate reschedule flow inside
+generate-portal-token.use-case.ts, keeping GeneratePortalToken and its exported
+input limited to the normal operator-facing path.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:1fb005c1e2167a21601f7a16 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts:223
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**`dispatched` can be `true` even when nothing was sent.**
+
+If `createNotificationUseCase` is not wired, or the primary contact has neither email nor phone, `attemptedDispatches` stays `0` and this still returns `dispatched: true`. That reports a successful send although no delivery path existed.
+
+<details>
+<summary>Possible fix</summary>
+
+```diff
+-    if (attemptedDispatches > 0 && succeededDispatches === 0) {
++    if (attemptedDispatches === 0) {
++      return {
++        token: rawToken,
++        expiresAt,
++        dispatched: false as const,
++        reason: 'NO_DELIVERY_CHANNEL' as const,
++      };
++    }
++
++    if (succeededDispatches === 0) {
+       return {
+         token: rawToken,
+         expiresAt,
+         dispatched: false as const,
+         reason: 'DISPATCH_FAILED' as const,
+       };
+     }
+```
+</details>
+
+<!-- suggestion_start -->
+
+<details>
+<summary>📝 Committable suggestion</summary>
+
+> ‼️ **IMPORTANT**
+> Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+```suggestion
+    if (this.createNotificationUseCase) {
+      const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0] ?? '';
+      // Build full portal URLs (not the bare token) so the email/SMS contains a
+      // clickable link. Mirrors BuildNotificationPayloadService (automated path).
+      const confirmationLink = new URL(
+        '/portal/' + encodeURIComponent(rawToken),
+        this.tenantPortalBaseUrl,
+      ).toString();
+      const rescheduleLink = new URL(
+        '/portal/' + encodeURIComponent(rawToken) + '/reschedule',
+        this.tenantPortalBaseUrl,
+      ).toString();
+      const payloadJson = {
+        confirmationLink,
+        rescheduleLink,
+        scheduledDate: scheduledDateStr,
+        tenantName: result.contact.effectiveName,
+      };
+
+      const recipientEmail = result.contact.effectiveEmail;
+      if (recipientEmail) {
+        attemptedDispatches += 1;
+        try {
+          await this.createNotificationUseCase.execute({
+            tenantId: appointment.tenantId,
+            appointmentId: input.appointmentId,
+            recipient: recipientEmail,
+            channel: 'EMAIL',
+            templateCode: 'TENANT_PORTAL_LINK',
+            payloadJson,
+          });
+          succeededDispatches += 1;
+        } catch (notificationDispatchError) {
+          // fire-and-forget; token is already saved — failure must not turn the endpoint into a 500.
+          // Log the error so dispatch failures are observable (Regras invariant A.2).
+          this.logger?.error(
+            { notificationDispatchError, appointmentId: input.appointmentId, tenantId: appointment.tenantId, channel: 'EMAIL', recipient: recipientEmail },
+            'tenant_portal.notification_dispatch_failed',
+          );
+        }
+      }
+
+      const recipientPhone = result.contact.effectivePhone;
+      if (recipientPhone) {
+        attemptedDispatches += 1;
+        try {
+          await this.createNotificationUseCase.execute({
+            tenantId: appointment.tenantId,
+            appointmentId: input.appointmentId,
+            recipient: recipientPhone,
+            channel: 'SMS',
+            templateCode: 'TENANT_PORTAL_LINK',
+            payloadJson,
+          });
+          succeededDispatches += 1;
+        } catch (notificationDispatchError) {
+          // fire-and-forget; token is already saved — failure must not turn the endpoint into a 500.
+          // Log the error so dispatch failures are observable (Regras invariant A.2).
+          this.logger?.error(
+            { notificationDispatchError, appointmentId: input.appointmentId, tenantId: appointment.tenantId, channel: 'SMS', recipient: recipientPhone },
+            'tenant_portal.notification_dispatch_failed',
+          );
+        }
+      }
+    }
+
+    if (attemptedDispatches === 0) {
+      return {
+        token: rawToken,
+        expiresAt,
+        dispatched: false as const,
+        reason: 'NO_DELIVERY_CHANNEL' as const,
+      };
+    }
+
+    if (succeededDispatches === 0) {
+      return {
+        token: rawToken,
+        expiresAt,
+        dispatched: false as const,
+        reason: 'DISPATCH_FAILED' as const,
+      };
+    }
+
+    return {
+      token: rawToken,
+      expiresAt,
+      dispatched: true as const,
+    };
+```
+
+</details>
+
+<!-- suggestion_end -->
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts`
+around lines 144 - 223, The returned dispatched flag in
+generate-portal-token.use-case.ts can be true even when no notification was
+actually sent because createNotificationUseCase is missing or both
+recipientEmail and recipientPhone are absent. Update GeneratePortalTokenUseCase
+so it tracks whether any delivery path was available and only returns
+dispatched: true when at least one notification was successfully sent; otherwise
+return dispatched: false (with the appropriate reason if needed) even when no
+attempts were made. Use the existing attemptedDispatches/succeededDispatches
+flow and the createNotificationUseCase, recipientEmail, and recipientPhone
+branches to locate and adjust the final return logic.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:5b265c8c132219a990876cc1 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts:155
+_🎯 Functional Correctness_ | _🟠 Major_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+echo "== Route/path occurrences =="
+rg -n --glob '*.ts' --glob '*.tsx' '/tenant-portal/|/portal/' apps/backend apps/web
+
+echo
+echo "== Candidate router/page files =="
+fd -t f 'PortalPage\.tsx|routes\.ts|routes\.tsx|router\.ts|router\.tsx' apps/web apps/backend
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 4521
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+echo "== PortalPage component =="
+sed -n '1,220p' apps/web/src/features/tenant-portal/pages/PortalPage.tsx
+
+echo
+echo "== PortalPage test router setup =="
+sed -n '1,140p' apps/web/src/features/tenant-portal/pages/PortalPage.test.tsx
+
+echo
+echo "== Get portal link use case =="
+sed -n '1,140p' apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-link.use-case.ts
+
+echo
+echo "== Generate portal token use case excerpt =="
+sed -n '130,175p' apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 16489
+
+---
+
+
+
+</details>
+
+**Align the copied-link URL with the portal route**
+
+`apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-link.use-case.ts:63` emits `/tenant-portal/...`, but the portal page is mounted at `/portal/:token` and the notification flow already uses `/portal/...`. Make the copied-link flow use the same prefix, or add an explicit redirect if both paths should be supported.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts`
+around lines 148 - 155, The copied-link flow in generate-portal-token use case
+is building URLs with the wrong portal prefix, so align it with the portal route
+used elsewhere. Update the URL construction in generate-portal-token.use-case.ts
+to match the /portal/:token pattern already used by the notification flow and
+the portal page, and check get-portal-link.use-case if it still emits
+/tenant-portal/... so both flows stay consistent; if both paths must remain
+valid, add an explicit redirect for the legacy prefix.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:5d366502bc5ea694fa521331 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts:180
+_🔒 Security & Privacy_ | _🟠 Major_ | _⚡ Quick win_
+
+**Do not log raw recipient email/phone values.**
+
+These error logs persist tenant contact data every time delivery fails. Keep the appointment/notification identifiers, but mask or omit `recipient` so dispatch failures do not become a PII logging path.
+   
+
+
+Also applies to: 202-203
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.ts`
+around lines 179 - 180, The error logging in generate-portal-token.use-case.ts
+is persisting tenant contact PII by including raw recipient values in the
+notification dispatch failure logs. Update the logger calls in the notification
+dispatch error paths around the recipientEmail and phone recipient handling to
+omit or mask recipient, while keeping appointmentId, tenantId, channel, and
+notificationDispatchError. Use the existing logging points in the use case so
+failures still have identifiers for tracing without exposing raw contact data.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:60f3c52d41332f0b9ae3d930 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/application/use-cases/list-portal-activities.use-case.ts:10
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**Validate pagination in the application layer.**
+
+`page` and `pageSize` go straight to the repository with no bounds check. Define a Zod input schema here and reject `page < 1`, `pageSize < 1`, and unbounded page sizes before they hit the data layer.
+
+As per coding guidelines, `apps/backend/src/**/application/**/*.ts`: "Application layer files must implement one use case per file with an `execute()` method, define DTOs and Zod schemas there..." As per coding guidelines, `apps/backend/src/**/*.ts`: "Use Zod for all input validation." As per path instructions, `apps/backend/**`: "Validate all API payloads with Zod."
+    
+
+
+Also applies to: 21-38
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/application/use-cases/list-portal-activities.use-case.ts`
+around lines 6 - 10, The pagination inputs in ListPortalActivitiesInput are
+passed through without validation, so add a Zod schema in
+ListPortalActivitiesUseCase to validate the DTO before repository access. Update
+the use case’s execute() flow to reject page and pageSize values below 1 and
+enforce a bounded maximum pageSize, keeping the schema co-located with the use
+case as required by the application-layer conventions. Use the existing
+ListPortalActivitiesInput and execute() symbols to locate and wire the
+validation into this file.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:refactor_suggestion -->
+
+<!-- cr-comment:v1:fe7504bb97da269e2df958e1 -->
+
+_Sources: Coding guidelines, Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/domain/mint-portal-token.service.ts:1
+_📐 Maintainability & Code Quality_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Keep Prisma out of the domain service.**
+
+Importing `Prisma.TransactionClient` into this domain file couples the domain layer to the persistence implementation. Push the transaction boundary behind a repository/unit-of-work port so `mint()` stays storage-agnostic.
+
+As per coding guidelines, `apps/backend/src/**/domain/**/*.ts`: "Domain layer files must contain pure business logic only: no framework imports, no Prisma/Fastify/pg-boss dependencies." As per path instructions, `apps/backend/**`: "Clean Architecture: domain has no external dependencies; application orchestrates; infrastructure implements ports."
+    
+
+
+Also applies to: 25-25
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/backend/src/modules/tenant-portal/domain/mint-portal-token.service.ts`
+at line 1, The domain service currently imports Prisma, which leaks persistence
+details into the domain layer and breaks the storage-agnostic boundary. Remove
+the Prisma dependency from mint-portal-token.service.ts and keep mint() pure by
+depending on a repository or unit-of-work port instead; let the application
+layer pass transaction handling through a port, and use the existing domain
+symbols like mint() and any repository interface to relocate the transaction
+boundary out of the domain.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:90e15d40fec10e19e1732be6 -->
+
+_Sources: Coding guidelines, Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/domain/mint-portal-token.service.ts:20
+_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_
+
+**Do not persist freshly minted tokens without encrypted recovery data.**
+
+When `tokenEncrypter` is absent, this stores `rawTokenEncrypted = null`. `GetPortalLinkUseCase` then rejects that token as non-decryptable on Lines 52-60 of `apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-link.use-case.ts`, so a token minted here can no longer support later "copy link" flows. Make encryption mandatory for new tokens or fail fast instead of silently saving an unrecoverable token.
+   
+
+
+Also applies to: 36-36
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/backend/src/modules/tenant-portal/domain/mint-portal-token.service.ts`
+around lines 19 - 20, The minting flow in MintPortalTokenService currently
+allows tokenEncrypter to be missing and persists rawTokenEncrypted as null,
+which creates tokens that GetPortalLinkUseCase later cannot decrypt. Update
+MintPortalTokenService to require encryption for newly minted tokens by failing
+fast when tokenEncrypter is absent, or otherwise ensure raw token recovery data
+is always stored before saving. Use the existing minting path and related token
+persistence logic to keep newly created portal tokens compatible with the
+GetPortalLinkUseCase copy-link flow.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:3607f15d3be0a4d5b6873bae -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/domain/tenant-portal-activity.repository.ts:11
+_🔒 Security & Privacy_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Tenant scope is missing from the activity repository contract.**
+
+`findLatestByTokenAndAction(...)` and `findByAppointmentId(...)` can only query by token/appointment, and `TenantPortalActivityEntity` in `apps/backend/src/modules/tenant-portal/domain/tenant-portal-activity.entity.ts` (Lines 3-35) also carries no `tenantId`. That makes repository-level tenant filtering impossible and pushes isolation guarantees onto callers. Add `tenantId` to the entity and require it on every read/write method.
+
+As per coding guidelines, `apps/backend/src/**/*.{ts,tsx}`: "Every repository method must scope queries by `tenantId`, and tenant-context operations must never return or modify another tenant’s data." As per path instructions, `apps/backend/**`: "Enforce multi-tenant safety: every business query and repository must be scoped by tenant_id (no business query without tenant scope)."
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In
+`@apps/backend/src/modules/tenant-portal/domain/tenant-portal-activity.repository.ts`
+around lines 8 - 11, Add tenant scoping to the tenant portal activity contract
+and entity so repository isolation is enforced at the data layer. Update
+TenantPortalActivityEntity to carry tenantId, then change
+ITenantPortalActivityRepository so save, findLatestByTokenAndAction, and
+findByAppointmentId all require tenantId as an argument. After updating the
+contract, propagate the new tenantId through any repository implementation and
+callers to ensure every query/write is scoped by tenant before touching
+tenant-portal activity data.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:5d2b0c0e1ee34600bdaac4e8 -->
+
+_Sources: Coding guidelines, Path instructions_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/domain/token.service.ts:72
+_🎯 Functional Correctness_ | _🟠 Major_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+# Map the relevant file and its symbols first
+ast-grep outline apps/backend/src/modules/tenant-portal/domain/token.service.ts --view expanded || true
+
+# Show the file with line numbers, limited to the relevant section
+sed -n '1,220p' apps/backend/src/modules/tenant-portal/domain/token.service.ts | cat -n
+
+# Find where computeExpiresAt is consumed
+rg -n "computeExpiresAt|measureOffset|mint\\(" apps/backend/src/modules/tenant-portal -S
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 4736
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+# Inspect usage of Intl.DateTimeFormat parts and timezone-related logic elsewhere for comparison
+rg -n "formatToParts\\(|getUTCMinutes\\(|minute'\\)|timeZone" apps/backend/src/modules -S
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 368
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+# Check whether this module has tests covering half-hour / quarter-hour timezones
+rg -n "Kathmandu|Adelaide|half-hour|45-minute|timezone|computeExpiresAt" apps/backend -S
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 1262
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+# Read the target file in a smaller slice if needed
+sed -n '1,140p' apps/backend/src/modules/tenant-portal/domain/token.service.ts | nl -ba
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 196
+
+---
+
+
+
+</details>
+
+**Compute the offset in minutes, not hours.** `measureOffset()` ignores the `minute` part, so non-integer timezone offsets are treated as whole hours. `computeExpiresAt()` will be 30–45 minutes off in zones like Australia/Adelaide or Asia/Kathmandu, and `mint-portal-token.service.ts` uses this for every portal token.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/backend/src/modules/tenant-portal/domain/token.service.ts` around lines
+45 - 72, The timezone offset calculation in token.service.ts is using hours
+only, so non-integer offsets are rounded incorrectly. Update measureOffset() and
+the computeExpiresAt() flow it feeds to work in minutes by reading the minute
+part from formatter.formatToParts() and comparing against UTC minutes, then
+apply the resulting minute offset in the guess/candidate Date.UTC calculations.
+Keep the existing DST re-check logic intact, but ensure the returned expiration
+time is accurate for token minting in mint-portal-token.service.ts.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:528b7fb6fb5dafdedbcc45e4 -->
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+FILE apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts:206
+_🗄️ Data Integrity & Integration_ | _🟠 Major_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+printf '\n## File list\n'
+git ls-files apps/backend/src/modules/tenant-portal | sed -n '1,200p'
+
+printf '\n## Outline routes file\n'
+ast-grep outline apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts --view expanded || true
+
+printf '\n## Key symbols search\n'
+rg -n "updateContactPortalSchema|GeneratePortalTokenUseCase|Idempotency|contact: z\.unknown|contact" apps/backend/src/modules/tenant-portal -S
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 19602
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+sed -n '1,260p' apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 11528
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+# Read the route file around the affected area and related schemas/use cases.
+sed -n '1,260p' apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts
+
+printf '\n## updateContactPortalSchema\n'
+rg -n "updateContactPortalSchema" apps/backend/src/modules/tenant-portal -S
+
+printf '\n## idempotency in tenant-portal module\n'
+rg -n "Idempotency|idempotent|idempotency-key|Idempotency-Key" apps/backend/src/modules/tenant-portal -S
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 12164
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+sed -n '260,420p' apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts
+
+printf '\n## update-contact use case\n'
+sed -n '1,260p' apps/backend/src/modules/tenant-portal/application/use-cases/update-contact.use-case.ts
+
+printf '\n## shared schema definitions\n'
+rg -n "updateContactPortalSchema|confirmAppointmentPortalSchema|rescheduleRequestPortalSchema|reportUnavailabilityPortalSchema|portalDataResponseSchema|portalTokenResponseSchema|portalActivitiesResponseSchema" packages apps/backend/src -S
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 15262
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+sed -n '260,420p' apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 3216
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+printf '\n## tenant-portal routes tail\n'
+sed -n '260,420p' apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts
+
+printf '\n## update-contact use case\n'
+sed -n '1,260p' apps/backend/src/modules/tenant-portal/application/use-cases/update-contact.use-case.ts
+
+printf '\n## shared schema definitions search\n'
+rg -n "updateContactPortalSchema|confirmAppointmentPortalSchema|rescheduleRequestPortalSchema|reportUnavailabilityPortalSchema|portalDataResponseSchema|portalTokenResponseSchema|portalActivitiesResponseSchema" apps packages -S
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 15299
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+printf '\n## tenant-portal routes tail\n'
+sed -n '260,420p' apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 3246
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+printf '\n## tenant-portal routes tail\n'
+sed -n '260,420p' apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts
+
+printf '\n## update-contact use case\n'
+sed -n '1,260p' apps/backend/src/modules/tenant-portal/application/use-cases/update-contact.use-case.ts
+
+printf '\n## shared schema definitions search\n'
+rg -n "updateContactPortalSchema|confirmAppointmentPortalSchema|rescheduleRequestPortalSchema|reportUnavailabilityPortalSchema|portalDataResponseSchema|portalTokenResponseSchema|portalActivitiesResponseSchema|availableGroupsResponseSchema|joinGroupRequestSchema|joinGroupResponseSchema" apps packages -S
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 16333
+
+---
+
+🏁 Script executed:
+
+```shell
+#!/bin/bash
+set -euo pipefail
+
+printf '\n## tenant-portal routes tail\n'
+sed -n '260,420p' apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts
+
+printf '\n## update-contact use case\n'
+sed -n '1,260p' apps/backend/src/modules/tenant-portal/application/use-cases/update-contact.use-case.ts
+
+printf '\n## shared schema definitions search\n'
+rg -n "updateContactPortalSchema|confirmAppointmentPortalSchema|rescheduleRequestPortalSchema|reportUnavailabilityPortalSchema|portalDataResponseSchema|portalTokenResponseSchema|portalActivitiesResponseSchema|availableGroupsResponseSchema|joinGroupRequestSchema|joinGroupResponseSchema" apps packages -S
+```
+
+Repository: pedroalvs/properfy
+
+Length of output: 16333
+
+---
+
+
+
+</details>
+
+**Replace `z.unknown()` with a concrete contact response schema**
+
+`PATCH /v1/tenant-portal/:token/contact` returns a fixed object (`tenantName`, `primaryEmail`, `secondaryEmail`, `primaryPhone`, `secondaryPhone`), so `z.object({ contact: z.unknown() })` erases the response shape from the API contract. Use a shared schema that matches the use case output instead.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts`
+around lines 184 - 206, The PATCH contact route in tenant-portal.routes.ts is
+exposing an untyped response by using z.unknown() for contact, so update the
+response schema in the route definition to use a concrete shared contact schema
+that matches the object returned by updateContactUseCase.execute and the contact
+payload fields tenantName, primaryEmail, secondaryEmail, primaryPhone, and
+secondaryPhone. Reuse or introduce a named schema near the route handler so the
+API contract stays aligned with the actual response shape and is easy to locate
+even if the route block moves.
+```
+
+</details>
+
+<!-- fingerprinting:phantom:poseidon:grasshopper -->
+
+<!-- cr-indicator-types:potential_issue -->
+
+<!-- cr-comment:v1:750644a655e607a437196999 -->
+
+_Source: Coding guidelines_
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+----
+--- Summary / walkthrough ---
+<!-- This is an auto-generated comment: summarize by coderabbit.ai -->
+<!-- review_stack_entry_start -->
+
+[![Review Change Stack](https://storage.googleapis.com/coderabbit_public_assets/review-stack-in-coderabbit-ui.svg)](https://app.coderabbit.ai/change-stack/pedroalvs/properfy/pull/86?utm_source=github_walkthrough&utm_medium=github&utm_campaign=change_stack)
+
+<!-- review_stack_entry_end -->
+<!-- walkthrough_start -->
+
+## Walkthrough
+Adds tenant-portal backend token, activity, access, and action flows; wires Fastify routes and admin endpoints; and introduces the web portal types, hooks, components, forms, and page composition for loading data and submitting confirmations, reschedules, updates, and group actions.
+
+## Changes
+
+**CodeRabbit configuration**
+
+|Layer / File(s)|Summary|
+|---|---|
+|**Review settings** <br> `.coderabbit.yaml`|Review behavior, path filters, path instructions, and chat auto-reply are configured in the CodeRabbit file.|
+
+**Tenant Portal Delivery**
+
+|Layer / File(s)|Summary|
+|---|---|
+|**Token lifecycle foundation** <br> `apps/backend/src/modules/tenant-portal/domain/*token*`, `apps/backend/src/modules/tenant-portal/domain/tenant-portal.errors.ts`, `apps/backend/src/modules/tenant-portal/domain/mint-portal-token.service.ts`, `apps/backend/src/modules/tenant-portal/infrastructure/*token*`, `apps/backend/src/modules/tenant-portal/infrastructure/workers/expire-tokens.worker.ts`, `apps/backend/src/modules/tenant-portal/infrastructure/__tests__/prisma-tenant-portal-token.repository.test.ts`|Token entities, token persistence, minting, encryption, and expiry worker code are added together.|
+|**Activity logging foundation** <br> `apps/backend/src/modules/tenant-portal/domain/tenant-portal-activity.*`, `apps/backend/src/modules/tenant-portal/infrastructure/prisma-tenant-portal-activity.repository.ts`|Tenant portal activity record types and persistence are added.|
+|**Portal access and issuance** <br> `apps/backend/src/modules/tenant-portal/interfaces/portal-token-middleware.*`, `apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-link.use-case.*`, `apps/backend/src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case.*`, `apps/backend/src/modules/tenant-portal/application/use-cases/get-portal-data.use-case.ts`, `apps/backend/src/modules/tenant-portal/application/use-cases/list-portal-activities.use-case.ts`, `apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts`|Portal token resolution, portal link/token issuance, portal data retrieval, activity listing, and admin route wiring are added.|
+|**Portal action workflows** <br> `apps/backend/src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case.ts`, `apps/backend/src/modules/tenant-portal/application/use-cases/report-unavailability.use-case.ts`, `apps/backend/src/modules/tenant-portal/application/use-cases/reschedule-request.use-case.ts`, `apps/backend/src/modules/tenant-portal/application/use-cases/update-contact.use-case.ts`, `apps/backend/src/modules/tenant-portal/application/use-cases/get-available-groups.use-case.ts`, `apps/backend/src/modules/tenant-portal/application/use-cases/join-group.use-case.ts`, `apps/backend/src/modules/tenant-portal/interfaces/tenant-portal.routes.ts`|Confirmation, unavailability, rescheduling, contact updates, available group lookup, group join, and token-auth route wiring are added.|
+|**Shared portal UI** <br> `apps/web/src/features/tenant-portal/types/index.ts`, `apps/web/src/features/tenant-portal/hooks/useCountdown.*`, `apps/web/src/features/tenant-portal/hooks/usePortalData.ts`, `apps/web/src/features/tenant-portal/components/AppointmentInfoCard.*`, `apps/web/src/features/tenant-portal/components/AvailableGroupsList.*`, `apps/web/src/features/tenant-portal/components/PortalLayout.*`, `apps/web/src/features/tenant-portal/components/PortalErrorState.*`, `apps/web/src/features/tenant-portal/components/ResponseConfirmationCard.*`, `apps/web/src/features/tenant-portal/components/TenantPortal*View.*`|Portal data types, countdown/query hooks, layout, error/status cards, and portal view components are added with tests.|
+|**Portal forms and page** <br> `apps/web/src/features/tenant-portal/components/WeeklyAvailabilityPicker.*`, `apps/web/src/features/tenant-portal/components/InspectionConfirmationForm.*`, `apps/web/src/features/tenant-portal/components/RescheduleForm.*`, `apps/web/src/features/tenant-portal/components/ContactForm.*`, `apps/web/src/features/tenant-portal/pages/PortalPage.*`, `apps/web/src/features/tenant-portal/index.ts`|Availability, confirmation, rescheduling, and contact forms plus the PortalPage orchestration and page tests are added.|
+
+## Estimated code review effort
+🎯 5 (Critical) | ⏱️ ~120 minutes
+
+## Possibly related PRs
+- [pedroalvs/properfy#82](https://github.com/pedroalvs/properfy/pull/82): Both PRs touch the same `.coderabbit.yaml` review configuration, including review profile, path filters, and instructions.
+
+<!-- walkthrough_end -->
+<!-- pre_merge_checks_walkthrough_start -->
+
+<details>
+<summary>🚥 Pre-merge checks | ✅ 3 | ❌ 2</summary>
+
+### ❌ Failed checks (1 warning, 1 inconclusive)
+
+|     Check name     | Status         | Explanation                                                                                     | Resolution                                                                                                             |
+| :----------------: | :------------- | :---------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
+| Docstring Coverage | ⚠️ Warning     | Docstring coverage is 6.45% which is insufficient. The required threshold is 80.00%.            | Write docstrings for the functions missing them to satisfy the coverage threshold.                                     |
+|     Title check    | ❓ Inconclusive | The title is related to the tenant portal changes but is too vague to identify the main update. | Use a concise, specific title that names the primary change, such as adding tenant portal workflows and UI/components. |
+
+<details>
+<summary>✅ Passed checks (3 passed)</summary>
+
+|         Check name         | Status   | Explanation                                                              |
+| :------------------------: | :------- | :----------------------------------------------------------------------- |
+|      Description Check     | ✅ Passed | Check skipped - CodeRabbit’s high-level summary is enabled.              |
+|     Linked Issues check    | ✅ Passed | Check skipped because no linked issues were found for this pull request. |
+| Out of Scope Changes check | ✅ Passed | Check skipped because no linked issues were found for this pull request. |
+
+</details>
+
+</details>
+
+<!-- pre_merge_checks_walkthrough_end -->
+<!-- finishing_touch_checkbox_start -->
+
+<details>
+<summary>✨ Finishing Touches</summary>
+
+<details>
+<summary>📝 Generate docstrings</summary>
+
+- [ ] <!-- {"checkboxId": "7962f53c-55bc-4827-bfbf-6a18da830691"} --> Create stacked PR
+- [ ] <!-- {"checkboxId": "3e1879ae-f29b-4d0d-8e06-d12b7ba33d98"} --> Commit on current branch
+
+</details>
+<details>
+<summary>🧪 Generate unit tests (beta)</summary>
+
+- [ ] <!-- {"checkboxId": "f47ac10b-58cc-4372-a567-0e02b2c3d479", "radioGroupId": "utg-output-choice-group-unknown_comment_id"} -->   Create PR with unit tests
+- [ ] <!-- {"checkboxId": "6ba7b810-9dad-11d1-80b4-00c04fd430c8", "radioGroupId": "utg-output-choice-group-unknown_comment_id"} -->   Commit unit tests in branch `cr-audit-tenant-portal`
+
+</details>
+
+</details>
+
+<!-- finishing_touch_checkbox_end -->
+<!-- tips_start -->
+
+---
+
+
+
+
+<sub>Comment `@coderabbitai help` to get the list of available commands.</sub>
+
+<!-- tips_end -->
+====
