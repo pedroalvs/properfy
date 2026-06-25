@@ -1,0 +1,167 @@
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
+import { ReportFilters } from '../components/ReportFilters';
+import { ReportTable } from '../components/ReportTable';
+import { ReportDetailDrawer } from '../components/ReportDetailDrawer';
+import { GenerateReportDialog } from '../components/GenerateReportDialog';
+import { useReportList } from '../hooks/useReportList';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import { api } from '@/services/api';
+import type { Report } from '../types';
+import { getReportDownloadName } from '../lib/report-display';
+
+export function ReportListPage() {
+  const navigate = useNavigate();
+
+  const {
+    data,
+    isLoading,
+    isError,
+    errorMessage,
+    refetch,
+    filters,
+    setFilters,
+    pagination,
+  } = useReportList();
+
+  const { showSuccess, showError } = useSnackbar();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleView = useCallback((report: { id: string }) => {
+    setSelectedId(report.id);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    setSelectedId(null);
+  }, []);
+
+  const handleGenerateSubmit = useCallback(async ({
+    reportType,
+    fromDate,
+    toDate,
+    tenantId,
+  }: {
+    reportType: string;
+    fromDate: string;
+    toDate: string;
+    tenantId?: string;
+  }) => {
+    setIsGenerating(true);
+    try {
+      const { error } = await api.POST('/v1/reports' as any, {
+        body: {
+          reportType,
+          filters: {
+            fromDate,
+            toDate,
+            tenantId,
+          },
+          format: 'XLSX',
+        } as any,
+      });
+      if (error) {
+        throw new Error((error as any)?.error?.message ?? 'Failed to generate report');
+      }
+      showSuccess('Report generation started');
+      setGenerateOpen(false);
+      refetch();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to generate report');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [refetch, showSuccess, showError]);
+
+  const handleDownload = useCallback(async (report: Report) => {
+    try {
+      const { data: fileData, error } = await api.GET(
+        `/v1/reports/${report.id}/download` as any,
+        {},
+      );
+      if (error) {
+        throw new Error((error as any)?.error?.message ?? 'Failed to download report');
+      }
+
+      const downloadUrl = (fileData as { downloadUrl?: string } | undefined)?.downloadUrl;
+      if (!downloadUrl) {
+        throw new Error('Report download URL is unavailable');
+      }
+
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = getReportDownloadName(report);
+      a.target = '_blank';
+      a.rel = 'noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to download report');
+    }
+  }, [showError]);
+
+  const handleRetry = useCallback(async (report: Report) => {
+    try {
+      if (!report.filters) {
+        throw new Error('This report cannot be regenerated because its filters are unavailable');
+      }
+
+      const { error } = await api.POST('/v1/reports' as any, {
+        body: {
+          reportType: report.reportType,
+          filters: report.filters,
+          format: report.format,
+        } as any,
+      });
+      if (error) {
+        throw new Error((error as any)?.error?.message ?? 'Failed to regenerate report');
+      }
+      showSuccess('Report regeneration started');
+      refetch();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to regenerate report');
+    }
+  }, [refetch, showSuccess, showError]);
+
+  return (
+    <ListFilterTableTemplate
+      title="Reports"
+      primaryAction={{ label: 'Generate Report', icon: 'mdi-plus', onClick: () => setGenerateOpen(true) }}
+      secondaryActions={[
+        { label: 'Scheduled Reports', icon: 'mdi-calendar-clock', onClick: () => navigate('/scheduled-reports') },
+      ]}
+    >
+      <ReportFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
+      <ReportTable
+        data={data}
+        loading={isLoading}
+        error={isError ? (errorMessage ?? 'Failed to load reports') : undefined}
+        onRetryError={refetch}
+        pagination={pagination}
+        onDownload={handleDownload}
+        onRetry={handleRetry}
+        onView={handleView}
+      />
+      <ReportDetailDrawer
+        reportId={selectedId}
+        open={drawerOpen}
+        onClose={handleCloseDrawer}
+      />
+      <GenerateReportDialog
+        open={generateOpen}
+        onClose={() => setGenerateOpen(false)}
+        onSubmit={handleGenerateSubmit}
+        isSubmitting={isGenerating}
+      />
+    </ListFilterTableTemplate>
+  );
+}
