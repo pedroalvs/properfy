@@ -282,7 +282,7 @@ export function AppointmentMapPage() {
   // Time slot options
   const { options: timeSlotOptions } = useFormOptions<{ id: string; label: string }>(
     ['time-slots', 'map-filter'],
-    '/v1/appointment-time-slots',
+    '/v1/time-slots',
     (item) => ({ value: item.id, label: item.label }),
   );
 

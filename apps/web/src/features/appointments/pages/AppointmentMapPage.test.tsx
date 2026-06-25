@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
@@ -214,5 +214,26 @@ describe('AppointmentMapPage', () => {
     fireEvent.click(screen.getByTestId('map-filter-toggle'));
     expect(screen.getByRole('tab', { name: 'Appointments' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Groups' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  // FIX 1 — the Time Slot filter dropdown was empty because the map fetched
+  // the time slots from `/v1/appointment-time-slots`, which does not exist
+  // (the backend exposes the route at `/v1/time-slots`), returning 404.
+  it('fetches time-slot options from /v1/time-slots (not the 404 alias)', async () => {
+    // Resolve every query empty so the assertion isolates the request path
+    // (the bug is the URL, not the payload).
+    mockGet.mockResolvedValue({
+      data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } },
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/v1/time-slots', {
+        params: { query: expect.any(Object) },
+      });
+    });
+    expect(mockGet).not.toHaveBeenCalledWith(
+      '/v1/appointment-time-slots',
+      expect.anything(),
+    );
   });
 });
