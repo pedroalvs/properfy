@@ -1,0 +1,106 @@
+import { BaseEntity } from '../../../shared/domain/entity';
+import type { ReportType, ReportStatus, ReportFormat } from '@properfy/shared';
+
+export interface ReportProps {
+  id: string;
+  tenantId: string | null;
+  reportType: ReportType;
+  filtersJson: Record<string, unknown>;
+  format: ReportFormat;
+  status: ReportStatus;
+  fileKey: string | null;
+  requestedByUserId: string;
+  /** Feature 019: optional back-reference to the schedule that produced this report. */
+  scheduledReportId: string | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  failedAt: Date | null;
+  errorMessage: string | null;
+  rowCount: number | null;
+  expiresAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class ReportEntity extends BaseEntity {
+  readonly tenantId: string | null;
+  readonly reportType: ReportType;
+  readonly filtersJson: Record<string, unknown>;
+  readonly format: ReportFormat;
+  status: ReportStatus;
+  fileKey: string | null;
+  readonly requestedByUserId: string;
+  readonly scheduledReportId: string | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  failedAt: Date | null;
+  errorMessage: string | null;
+  rowCount: number | null;
+  expiresAt: Date | null;
+
+  constructor(props: ReportProps) {
+    super(props.id, props.createdAt, props.updatedAt);
+    this.tenantId = props.tenantId;
+    this.reportType = props.reportType;
+    this.filtersJson = props.filtersJson;
+    this.format = props.format;
+    this.status = props.status;
+    this.fileKey = props.fileKey;
+    this.requestedByUserId = props.requestedByUserId;
+    this.scheduledReportId = props.scheduledReportId;
+    this.startedAt = props.startedAt;
+    this.completedAt = props.completedAt;
+    this.failedAt = props.failedAt;
+    this.errorMessage = props.errorMessage;
+    this.rowCount = props.rowCount;
+    this.expiresAt = props.expiresAt;
+  }
+
+  isPending(): boolean {
+    return this.status === 'PENDING';
+  }
+
+  isProcessing(): boolean {
+    return this.status === 'PROCESSING';
+  }
+
+  isReady(): boolean {
+    return this.status === 'READY';
+  }
+
+  isFailed(): boolean {
+    return this.status === 'FAILED';
+  }
+
+  isExpired(): boolean {
+    return this.expiresAt !== null && this.expiresAt < new Date();
+  }
+
+  canBeDownloaded(): boolean {
+    return this.isReady() && !this.isExpired() && this.fileKey !== null;
+  }
+
+  markProcessing(): void {
+    this.status = 'PROCESSING';
+    this.startedAt = new Date();
+    this.updatedAt = new Date();
+  }
+
+  markReady(fileKey: string, rowCount: number): void {
+    this.status = 'READY';
+    this.fileKey = fileKey;
+    this.rowCount = rowCount;
+    this.completedAt = new Date();
+    const expiresAt = new Date(this.completedAt);
+    expiresAt.setDate(expiresAt.getDate() + 30);
+    this.expiresAt = expiresAt;
+    this.updatedAt = new Date();
+  }
+
+  markFailed(errorMessage: string): void {
+    this.status = 'FAILED';
+    this.errorMessage = errorMessage;
+    this.failedAt = new Date();
+    this.updatedAt = new Date();
+  }
+}
