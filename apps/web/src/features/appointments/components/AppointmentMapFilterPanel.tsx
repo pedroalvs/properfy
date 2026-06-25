@@ -111,6 +111,14 @@ export function AppointmentMapFilterPanel({
       : [...currentStatuses, status];
   };
 
+  // The "Groups" mode is an AM/OP-only surface — it reads /v1/service-groups
+  // and its List view navigates to /service-groups, both AM/OP-gated. Hide the
+  // option for client roles so they can't switch into a 403 dead-end.
+  const canUseGroups = actorRole === 'AM' || actorRole === 'OP';
+  const modeOptions = canUseGroups
+    ? MODE_OPTIONS
+    : MODE_OPTIONS.filter((opt) => opt.value === 'appointments');
+
   return (
     <div className="bg-transparent" data-testid="map-filter-panel">
       {/* No internal collapse button — the panel header in AppointmentMapPage owns collapse/expand. */}
@@ -119,7 +127,7 @@ export function AppointmentMapFilterPanel({
           <FilterSegmented
             label="Mode"
             value={mode}
-            options={MODE_OPTIONS}
+            options={modeOptions}
             onChange={(v) => onModeChange(v as FilterMode)}
           />
 
