@@ -6,7 +6,7 @@ interface MapListViewToggleButtonProps {
 
 export function MapListViewToggleButton({ mode = 'appointments' }: MapListViewToggleButtonProps) {
   const navigate = useNavigate();
-  const path = mode === 'groups' ? '/service-groups' : '/appointments/list';
+  const path = mode === 'groups' ? '/service-groups' : '/appointments';
   return (
     <button
       type="button"

@@ -24,7 +24,10 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { icon: 'mdi-view-dashboard-outline', label: 'Dashboard', to: '/dashboard' },
-  { icon: 'mdi-calendar-month', label: 'Appointments', to: '/appointments' },
+  // Map-first navigation: the map is the single entry point for appointments
+  // and service groups. The lists are reached from the map's "List view"
+  // toggle (appointments mode -> /appointments, groups mode -> /service-groups).
+  { icon: 'mdi-map-outline', label: 'Map', to: '/map', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
   { icon: 'mdi-home-city-outline', label: 'Properties', to: '/properties' },
   // Unified contacts registry (specs 022 + 023). The legacy /tenant-contacts
   // confirmation board was retired in 023; per-appointment confirmation
@@ -42,7 +45,6 @@ const NAV_ITEMS: NavItem[] = [
       { icon: 'mdi-shield-account-outline', label: 'Users', to: '/users', roles: [UserRole.AM, UserRole.OP] },
     ],
   },
-  { icon: 'mdi-office-building-marker', label: 'Service Groups', to: '/service-groups', roles: [UserRole.AM, UserRole.OP] },
   { icon: 'mdi-store-outline', label: 'Marketplace', to: '/marketplace', roles: [UserRole.INSP] },
   { icon: 'mdi-calendar-clock-outline', label: 'Availability', to: '/availability-slots', roles: [UserRole.AM, UserRole.OP] },
   { icon: 'mdi-bank-outline', label: 'Financial', to: '/financial', roles: [UserRole.AM, UserRole.OP] },
