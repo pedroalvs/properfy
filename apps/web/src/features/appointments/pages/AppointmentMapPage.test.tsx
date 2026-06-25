@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
@@ -35,6 +35,32 @@ vi.mock('@/lib/auth-storage', () => ({
     setTokens: vi.fn(),
     clearTokens: vi.fn(),
   },
+}));
+
+// Role is injected synchronously so the page's initial-mode useState sees it
+// at mount (mirrors the real app, where the map renders behind the auth guard
+// with the user already loaded). Default AM keeps the role-agnostic tests on
+// the AM/OP happy path; per-test overrides set authState.role.
+const authState = vi.hoisted(() => ({ role: 'AM' as string | null }));
+
+vi.mock('@/hooks/useAuth', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => ({
+    user: authState.role
+      ? {
+          id: 'user-1',
+          name: 'Test User',
+          email: 'test@example.com',
+          role: authState.role,
+          tenantId: authState.role.startsWith('CL') ? 'tenant-1' : null,
+        }
+      : null,
+    token: authState.role ? 'test-token' : null,
+    isAuthenticated: authState.role != null,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
 }));
 
 import { api } from '@/services/api';
@@ -79,6 +105,7 @@ function createWrapper() {
 }
 
 beforeEach(() => {
+  authState.role = 'AM';
   mockGet.mockReset();
   mockGet.mockResolvedValue({
     data: {
@@ -201,12 +228,38 @@ describe('AppointmentMapPage', () => {
   });
 
   // The Service Groups list "Map View" button deep-links to /map?mode=groups.
-  // The mode is seeded from the URL once on mount.
-  it('starts in groups mode when opened at /map?mode=groups', () => {
+  // The mode is seeded from the URL once on mount (AM/OP only — see FIX 3).
+  it('starts in groups mode when opened at /map?mode=groups (AM)', () => {
+    authState.role = 'AM';
     renderPageAt(['/map?mode=groups']);
     fireEvent.click(screen.getByTestId('map-filter-toggle'));
     expect(screen.getByRole('tab', { name: 'Groups' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Appointments' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  // FIX 3 — Groups is an AM/OP-only surface. A client role landing on the
+  // groups deep-link must NOT enter groups mode; it stays on appointments and
+  // never sees the (hidden) Groups toggle — no 403 dead-end.
+  it('client role stays in appointments mode at /map?mode=groups', () => {
+    authState.role = 'CL_USER';
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+    expect(screen.getByRole('tab', { name: 'Appointments' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('tab', { name: 'Groups' })).toBeNull();
+  });
+
+  it('does not fetch /v1/service-groups for a client role', async () => {
+    authState.role = 'CL_USER';
+    mockGet.mockResolvedValue({
+      data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } },
+    });
+    renderPage();
+    // Wait until the appointments query has fired so all mount-time queries
+    // have had their chance to run.
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/v1/appointments', expect.anything());
+    });
+    expect(mockGet).not.toHaveBeenCalledWith('/v1/service-groups', expect.anything());
   });
 
   it('starts in appointments mode when opened at /map with no mode param', () => {
@@ -214,5 +267,26 @@ describe('AppointmentMapPage', () => {
     fireEvent.click(screen.getByTestId('map-filter-toggle'));
     expect(screen.getByRole('tab', { name: 'Appointments' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Groups' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  // FIX 1 — the Time Slot filter dropdown was empty because the map fetched
+  // the time slots from `/v1/appointment-time-slots`, which does not exist
+  // (the backend exposes the route at `/v1/time-slots`), returning 404.
+  it('fetches time-slot options from /v1/time-slots (not the 404 alias)', async () => {
+    // Resolve every query empty so the assertion isolates the request path
+    // (the bug is the URL, not the payload).
+    mockGet.mockResolvedValue({
+      data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } },
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/v1/time-slots', {
+        params: { query: expect.any(Object) },
+      });
+    });
+    expect(mockGet).not.toHaveBeenCalledWith(
+      '/v1/appointment-time-slots',
+      expect.anything(),
+    );
   });
 });
