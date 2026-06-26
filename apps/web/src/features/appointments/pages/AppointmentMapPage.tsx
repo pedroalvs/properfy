@@ -48,12 +48,15 @@ const STATUS_ICONS: Record<string, string> = {
   REJECTED: 'mdi-close-octagon',
 };
 
-const GROUP_STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#E1BEE7',
-  PUBLISHED: '#FFE0B2',
-  ACCEPTED: '#4CAF50',
-  CANCELLED: '#EF5350',
-  REJECTED: '#FF7043',
+// Group pins follow the same standard as appointment pins: a black teardrop
+// whose status is encoded by the icon inside it (not by color). Icons mirror
+// the analogous appointment status glyph so the two modes read as one language.
+export const GROUP_STATUS_ICONS: Record<string, string> = {
+  DRAFT: 'mdi-pencil',            // Awaiting Host      (≈ appt DRAFT)
+  PUBLISHED: 'mdi-account-clock', // Awaiting Inspector (≈ appt AWAITING_INSPECTOR)
+  ACCEPTED: 'mdi-calendar-check', // Accepted           (≈ appt SCHEDULED)
+  CANCELLED: 'mdi-cancel',        // Canceled           (≈ appt CANCELLED)
+  REJECTED: 'mdi-close-octagon',  // Rejected           (≈ appt REJECTED)
 };
 
 interface ServiceGroupMapAppointment {
@@ -729,7 +732,7 @@ export function AppointmentMapPage() {
               key={item.id}
               longitude={item.longitude}
               latitude={item.latitude}
-              color={GROUP_STATUS_COLORS[item.status] ?? '#9E9E9E'}
+              icon={GROUP_STATUS_ICONS[item.status] ?? 'mdi-map-marker'}
               label={item.name ?? ''}
               active={selectedGroupItem?.id === item.id}
               onClick={() => handleGroupMarkerClick(item)}
