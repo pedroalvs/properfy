@@ -51,7 +51,7 @@ const STATUS_ICONS: Record<string, string> = {
 // Group pins follow the same standard as appointment pins: a black teardrop
 // whose status is encoded by the icon inside it (not by color). Icons mirror
 // the analogous appointment status glyph so the two modes read as one language.
-export const GROUP_STATUS_ICONS: Record<string, string> = {
+export const GROUP_STATUS_ICONS: Record<ServiceGroupStatus, string> = {
   DRAFT: 'mdi-pencil',            // Awaiting Host      (≈ appt DRAFT)
   PUBLISHED: 'mdi-account-clock', // Awaiting Inspector (≈ appt AWAITING_INSPECTOR)
   ACCEPTED: 'mdi-calendar-check', // Accepted           (≈ appt SCHEDULED)
@@ -68,7 +68,7 @@ interface ServiceGroupMapAppointment {
 interface ServiceGroupMapItem {
   id: string;
   name: string | null;
-  status: string;
+  status: ServiceGroupStatus;
   groupSize: number;
   scheduledDate: string;
   appointments: ServiceGroupMapAppointment[];
@@ -806,7 +806,7 @@ export function AppointmentMapPage() {
           <div className="space-y-1">
             <p>
               <span className="text-text-muted">Status:</span>{' '}
-              {SERVICE_GROUP_STATUS_MAP[selectedGroupItem.status as ServiceGroupStatus]?.label ?? selectedGroupItem.status}
+              {SERVICE_GROUP_STATUS_MAP[selectedGroupItem.status]?.label ?? selectedGroupItem.status}
             </p>
             <p>
               <span className="text-text-muted">Appointments:</span>{' '}
