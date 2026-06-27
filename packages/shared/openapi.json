@@ -1059,6 +1059,7 @@
                         "status",
                         "timezone",
                         "currency",
+                        "appointmentCodePrefix",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -1212,6 +1213,7 @@
                           "status",
                           "timezone",
                           "currency",
+                          "appointmentCodePrefix",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -1336,6 +1338,7 @@
                         "status",
                         "timezone",
                         "currency",
+                        "appointmentCodePrefix",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -1751,6 +1754,7 @@
                         "status",
                         "timezone",
                         "currency",
+                        "appointmentCodePrefix",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -15758,6 +15762,8 @@
                             },
                             "required": [
                               "id",
+                              "groupNumber",
+                              "code",
                               "name",
                               "status",
                               "scheduledDate",
@@ -15933,6 +15939,8 @@
                         },
                         "required": [
                           "groupId",
+                          "groupNumber",
+                          "code",
                           "tenantName",
                           "serviceTypeName",
                           "groupSize",
@@ -16149,6 +16157,8 @@
                       },
                       "required": [
                         "groupId",
+                        "groupNumber",
+                        "code",
                         "tenantName",
                         "serviceTypeName",
                         "groupSize",
@@ -19335,6 +19345,8 @@
                         },
                         "required": [
                           "groupId",
+                          "groupNumber",
+                          "code",
                           "tenantName",
                           "serviceTypeName",
                           "groupSize",

@@ -75,11 +75,37 @@ describe('useTenantAdminSave', () => {
     expect(errors.legalName).toBeDefined();
   });
 
-  it('validate requires appointmentCodePrefix', () => {
+  it('validate requires appointmentCodePrefix on create', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
     const errors = result.current.validate({ ...VALID_DATA, appointmentCodePrefix: '' });
     expect(errors.appointmentCodePrefix).toBeDefined();
+  });
+
+  it('validate allows an empty appointmentCodePrefix on edit (legacy tenants)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_DATA, appointmentCodePrefix: '' }, { isCreate: false });
+    expect(errors.appointmentCodePrefix).toBeUndefined();
+  });
+
+  it('validate still rejects a malformed prefix on edit', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_DATA, appointmentCodePrefix: 'A' }, { isCreate: false });
+    expect(errors.appointmentCodePrefix).toBeDefined();
+  });
+
+  it('save omits an empty prefix from the edit payload (legacy tenant unrelated edit)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_DATA, appointmentCodePrefix: '' }, 'ten-01');
+    });
+
+    const body = mockPatch.mock.calls[0]![1].body;
+    expect(body).not.toHaveProperty('appointmentCodePrefix');
   });
 
   it('validate rejects a too-short / too-long / non-alphanumeric prefix', () => {

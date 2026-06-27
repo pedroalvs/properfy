@@ -42,6 +42,14 @@ describe('createTenantSchema', () => {
     }
   });
 
+  it('should trim and uppercase appointmentCodePrefix (whitespace normalization)', () => {
+    const result = createTenantSchema.safeParse({ ...validInput, appointmentCodePrefix: '  ab1  ' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appointmentCodePrefix).toBe('AB1');
+    }
+  });
+
   it('should reject appointmentCodePrefix shorter than 3 chars', () => {
     const result = createTenantSchema.safeParse({ ...validInput, appointmentCodePrefix: 'AB' });
     expect(result.success).toBe(false);

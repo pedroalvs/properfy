@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { appointmentCodePrefixSchema } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TenantAdminFormData, TenantAdminFormErrors } from '../types';
@@ -7,16 +8,18 @@ const REQUIRED_FIELD_MESSAGE = 'Required field';
 const PREFIX_FORMAT_MESSAGE = 'Use 3–4 letters or numbers';
 const PREFIX_CONFLICT_MESSAGE = 'This prefix is already in use by another agency';
 
-// Mirrors the backend appointmentCodePrefixSchema (3–4 alphanumeric, uppercased).
-const PREFIX_PATTERN = /^[A-Z0-9]{3,4}$/;
-
 const REQUIRED_FIELDS: (keyof TenantAdminFormData)[] = [
   'name',
   'legalName',
   'timezone',
   'currency',
-  'appointmentCodePrefix',
 ];
+
+export interface ValidateOptions {
+  /** Prefix is required on create; on edit it may be blank for legacy tenants
+   *  pending backfill (so unrelated edits aren't blocked). */
+  isCreate?: boolean;
+}
 
 function validateRequired(data: TenantAdminFormData, fields: (keyof TenantAdminFormData)[]): TenantAdminFormErrors {
   const errors: TenantAdminFormErrors = {};
@@ -39,18 +42,23 @@ export interface SaveResult {
 export interface UseTenantAdminSaveReturn {
   save: (data: TenantAdminFormData, tenantId?: string) => Promise<SaveResult>;
   isSaving: boolean;
-  validate: (data: TenantAdminFormData) => TenantAdminFormErrors;
+  validate: (data: TenantAdminFormData, opts?: ValidateOptions) => TenantAdminFormErrors;
 }
 
 export function useTenantAdminSave(): UseTenantAdminSaveReturn {
   const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
 
-  const validate = useCallback((data: TenantAdminFormData): TenantAdminFormErrors => {
+  const validate = useCallback((data: TenantAdminFormData, opts?: ValidateOptions): TenantAdminFormErrors => {
+    const isCreate = opts?.isCreate ?? true;
     const errors = validateRequired(data, REQUIRED_FIELDS);
-    // Format check only when present (required check already flags empty).
-    const prefix = data.appointmentCodePrefix.trim().toUpperCase();
-    if (prefix && !PREFIX_PATTERN.test(prefix)) {
+
+    const prefix = data.appointmentCodePrefix.trim();
+    if (!prefix) {
+      // Required on create; allowed empty on edit (legacy tenants).
+      if (isCreate) errors.appointmentCodePrefix = REQUIRED_FIELD_MESSAGE;
+    } else if (!appointmentCodePrefixSchema.safeParse(prefix).success) {
+      // Reuse the shared schema (trim/format) instead of re-encoding the rule.
       errors.appointmentCodePrefix = PREFIX_FORMAT_MESSAGE;
     }
     return errors;
@@ -60,14 +68,14 @@ export function useTenantAdminSave(): UseTenantAdminSaveReturn {
     setIsSaving(true);
     try {
       // Settings flags are nested under `settings` (deep-merged server-side into
-      // settings_json); scalar fields stay top-level. The prefix is uppercased to
-      // match the backend's normalization and the uniqueness constraint.
+      // settings_json); scalar fields stay top-level.
       const { emailSendingEnabled, appointmentCodePrefix, ...rest } = data;
-      const body = {
-        ...rest,
-        appointmentCodePrefix: appointmentCodePrefix.trim().toUpperCase(),
-        settings: { emailSendingEnabled },
-      };
+      const body: Record<string, unknown> = { ...rest, settings: { emailSendingEnabled } };
+      // Only send the prefix when present (uppercased to match the backend). On
+      // edit, an empty value (legacy tenant) is omitted so the field is untouched.
+      const trimmedPrefix = appointmentCodePrefix.trim().toUpperCase();
+      if (trimmedPrefix) body.appointmentCodePrefix = trimmedPrefix;
+
       const { error } = tenantId
         ? await api.PATCH(`/v1/tenants/${tenantId}` as any, { body: body as any })
         : await api.POST('/v1/tenants' as any, { body: body as any });

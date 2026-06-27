@@ -64,6 +64,7 @@ const tenantStub = {
   legalName: 'Test Tenant Pty Ltd',
   timezone: 'Australia/Sydney',
   currency: 'AUD',
+  appointmentCodePrefix: null,
   settingsJson: {},
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),

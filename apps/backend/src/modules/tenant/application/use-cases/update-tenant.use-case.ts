@@ -138,13 +138,21 @@ export class UpdateTenantUseCase {
       }
     }
 
+    // Normalize before the uniqueness lookup AND the update payload, so non-route
+    // callers can't store a mixed-case value that bypasses the case-insensitive
+    // uniqueness contract.
+    const normalizedAppointmentCodePrefix =
+      data.appointmentCodePrefix !== undefined
+        ? data.appointmentCodePrefix.toUpperCase()
+        : undefined;
+
     // Check appointmentCodePrefix uniqueness if changing (excluding this tenant)
     if (
-      data.appointmentCodePrefix !== undefined &&
-      data.appointmentCodePrefix !== tenant.appointmentCodePrefix
+      normalizedAppointmentCodePrefix !== undefined &&
+      normalizedAppointmentCodePrefix !== tenant.appointmentCodePrefix
     ) {
       const prefixOwner = await this.tenantRepo.findByAppointmentCodePrefix(
-        data.appointmentCodePrefix,
+        normalizedAppointmentCodePrefix,
       );
       if (prefixOwner && prefixOwner.id !== tenantId) {
         throw new TenantAppointmentCodePrefixConflictError();
@@ -166,8 +174,8 @@ export class UpdateTenantUseCase {
     if (data.legalName !== undefined) updateData.legalName = data.legalName;
     if (data.timezone !== undefined) updateData.timezone = data.timezone;
     if (data.currency !== undefined) updateData.currency = data.currency;
-    if (data.appointmentCodePrefix !== undefined)
-      updateData.appointmentCodePrefix = data.appointmentCodePrefix;
+    if (normalizedAppointmentCodePrefix !== undefined)
+      updateData.appointmentCodePrefix = normalizedAppointmentCodePrefix;
     if (data.settings !== undefined) {
       updateData.settingsJson = deepMerge(tenant.settingsJson, data.settings);
     }

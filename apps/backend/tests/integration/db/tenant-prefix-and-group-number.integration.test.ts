@@ -103,17 +103,30 @@ describe('Tenant appointment_code_prefix + ServiceGroup group_number (real DB)',
     ).resolves.toBeUndefined();
   });
 
-  it('assigns distinct, ascending group_number values on save', async () => {
-    const fixture = await seedLegacyDoneAppointment(harness.prisma, {
-      tenantName: `Group Number Test ${randomUUID().slice(0, 8)}`,
+  it('rejects a lowercase prefix at the DB level (CHECK constraint enforces uppercase)', async () => {
+    // The repo does not normalize (the use case does); a direct write of a
+    // mixed-case prefix must be rejected by the DB CHECK so the case-insensitive
+    // uniqueness contract cannot be bypassed.
+    await expect(tenantRepo.save(makeTenant('abc', randomUUID()))).rejects.toThrow();
+  });
+
+  it('assigns a distinct, ascending group_number from a GLOBAL sequence across tenants', async () => {
+    // Two independent fixtures (different tenants/service types) prove the
+    // sequence is global, not just increasing within one group of inserts.
+    const fixtureA = await seedLegacyDoneAppointment(harness.prisma, {
+      tenantName: `Group Seq A ${randomUUID().slice(0, 8)}`,
+    });
+    const fixtureB = await seedLegacyDoneAppointment(harness.prisma, {
+      tenantName: `Group Seq B ${randomUUID().slice(0, 8)}`,
     });
 
-    const g1 = makeGroup(fixture.serviceTypeId, fixture.userId);
-    const g2 = makeGroup(fixture.serviceTypeId, fixture.userId);
-    await groupRepo.save(g1);
-    await groupRepo.save(g2);
+    const gA = makeGroup(fixtureA.serviceTypeId, fixtureA.userId);
+    await groupRepo.save(gA);
+    const gB = makeGroup(fixtureB.serviceTypeId, fixtureB.userId);
+    await groupRepo.save(gB);
 
-    expect(g1.groupNumber).toBeGreaterThan(0);
-    expect(g2.groupNumber).toBeGreaterThan(g1.groupNumber);
+    expect(gA.groupNumber).toBeGreaterThan(0);
+    // gB belongs to a different tenant yet still gets the next global number.
+    expect(gB.groupNumber).toBeGreaterThan(gA.groupNumber);
   });
 });

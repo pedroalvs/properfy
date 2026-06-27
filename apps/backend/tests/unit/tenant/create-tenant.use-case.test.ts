@@ -186,4 +186,23 @@ describe('CreateTenantUseCase', () => {
     const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
     expect(saved.appointmentCodePrefix).toBe('PRX');
   });
+
+  it('uppercases the prefix for the uniqueness pre-check and persistence', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    await useCase.execute({
+      name: 'Lower Agency',
+      legalName: 'Lower Agency Pty Ltd',
+      timezone: 'Australia/Sydney',
+      currency: 'AUD',
+      appointmentCodePrefix: 'abc',
+      actor: makeActor(),
+    });
+
+    // Pre-check must use the normalized value so a lowercase input still
+    // collides with an existing uppercase prefix.
+    expect(tenantRepo.findByAppointmentCodePrefix).toHaveBeenCalledWith('ABC');
+    const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
+    expect(saved.appointmentCodePrefix).toBe('ABC');
+  });
 });

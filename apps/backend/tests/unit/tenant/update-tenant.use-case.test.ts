@@ -296,6 +296,21 @@ describe('UpdateTenantUseCase', () => {
     expect(updateCall).toHaveProperty('appointmentCodePrefix', 'NEW');
   });
 
+  it('uppercases the prefix for the uniqueness lookup and the update payload', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ appointmentCodePrefix: 'OLD' }));
+    vi.mocked(tenantRepo.findByAppointmentCodePrefix).mockResolvedValue(null);
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      data: { appointmentCodePrefix: 'xyz' },
+      actor: makeActor(),
+    });
+
+    expect(tenantRepo.findByAppointmentCodePrefix).toHaveBeenCalledWith('XYZ');
+    const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+    expect(updateCall).toHaveProperty('appointmentCodePrefix', 'XYZ');
+  });
+
   it('should throw TENANT_PREFIX_CONFLICT when the new prefix belongs to another tenant', async () => {
     vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ appointmentCodePrefix: 'OLD' }));
     vi.mocked(tenantRepo.findByAppointmentCodePrefix).mockResolvedValue(

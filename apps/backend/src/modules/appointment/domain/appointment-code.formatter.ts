@@ -1,7 +1,9 @@
 import type { TenantEntity } from '../../tenant/domain/tenant.entity';
 
-// Prefix may be alphanumeric (e.g. "AB12"), so allow digits in the prefix segment.
-const CODE_PATTERN = /^[A-Za-z0-9]+-(\d+)$/;
+// Prefix may be alphanumeric (e.g. "AB12") and is always 3-4 chars, matching the
+// appointmentCodePrefixSchema contract — keep parse() in sync so malformed codes
+// (wrong-length prefix) don't parse as valid.
+const CODE_PATTERN = /^[A-Za-z0-9]{3,4}-(\d+)$/;
 
 export class AppointmentCodeFormatter {
   format(appointmentNumber: number, tenant: TenantEntity): string {

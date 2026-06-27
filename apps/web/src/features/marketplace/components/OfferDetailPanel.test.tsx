@@ -5,6 +5,8 @@ import type { MarketplaceOffer, MarketplaceOfferDetail } from '../types';
 
 const MOCK_OFFER: MarketplaceOffer = {
   groupId: 'grp-01',
+  groupNumber: 1057,
+  code: '1057',
   tenantName: 'Sydney CBD',
   serviceTypeName: 'Routine Inspection',
   priorityMode: 'STANDARD',
@@ -31,6 +33,8 @@ function makeDetailAppointment(overrides: Partial<MarketplaceOfferDetail['appoin
 
 const MOCK_DETAIL_MIXED: MarketplaceOfferDetail = {
   groupId: 'grp-01',
+  groupNumber: 1057,
+  code: '1057',
   tenantName: 'Multiple agencies',
   serviceTypeName: 'Routine Inspection',
   groupSize: 2,

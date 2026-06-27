@@ -7,6 +7,13 @@
 -- AlterTable
 ALTER TABLE "tenants" ADD COLUMN "appointment_code_prefix" VARCHAR(4);
 
+-- Enforce the appointment-code prefix contract at the DB level (defense in depth
+-- against direct Prisma/SQL writes): 3-4 uppercase letters/digits. NULL is allowed
+-- for legacy rows (a NULL CHECK expression is treated as satisfied).
+ALTER TABLE "tenants"
+  ADD CONSTRAINT "tenants_appointment_code_prefix_format"
+  CHECK ("appointment_code_prefix" ~ '^[A-Z0-9]{3,4}$');
+
 -- AlterTable
 ALTER TABLE "service_groups" ADD COLUMN "group_number" SERIAL NOT NULL;
 

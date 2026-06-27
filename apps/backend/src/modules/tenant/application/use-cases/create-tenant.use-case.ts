@@ -45,7 +45,10 @@ export class CreateTenantUseCase {
   ) {}
 
   async execute(input: CreateTenantInput): Promise<CreateTenantOutput> {
-    const { name, legalName, timezone, currency, appointmentCodePrefix, settings, actor } = input;
+    const { name, legalName, timezone, currency, settings, actor } = input;
+    // Normalize here too (not just in the shared schema) so non-route callers
+    // can't bypass the "uppercased on write / globally unique" contract.
+    const appointmentCodePrefix = input.appointmentCodePrefix.toUpperCase();
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'tenant.create',

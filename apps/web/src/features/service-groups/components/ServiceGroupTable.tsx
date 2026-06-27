@@ -30,7 +30,8 @@ export function ServiceGroupTable({
 }: ServiceGroupTableProps) {
   const columns: DataTableColumn<ServiceGroup>[] = [
     {
-      key: 'code',
+      // Sort by the numeric groupNumber (not the stringified code) so 9 < 10.
+      key: 'groupNumber',
       label: 'Code',
       width: '90px',
       sortable: true,

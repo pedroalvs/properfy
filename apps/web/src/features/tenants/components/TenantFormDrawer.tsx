@@ -114,7 +114,7 @@ export function TenantFormDrawer({
   );
 
   const handleSubmit = useCallback(async () => {
-    const validationErrors = validate(form);
+    const validationErrors = validate(form, { isCreate: !isEditMode });
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
