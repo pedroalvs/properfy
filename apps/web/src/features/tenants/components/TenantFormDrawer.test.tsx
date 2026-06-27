@@ -100,6 +100,7 @@ describe('TenantFormDrawer', () => {
     expect(screen.getByLabelText('Legal Name')).toBeInTheDocument();
     expect(screen.getByLabelText('Timezone')).toBeInTheDocument();
     expect(screen.getByLabelText('Currency')).toBeInTheDocument();
+    expect(screen.getByLabelText('Appointment code prefix')).toBeInTheDocument();
     expect(screen.getByLabelText('Notes')).toBeInTheDocument();
   });
 

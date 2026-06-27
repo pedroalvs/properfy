@@ -136,6 +136,9 @@ export type FindAddableGroupsRequest = z.infer<typeof findAddableGroupsRequestSc
 
 export const addableGroupSummarySchema = z.object({
   id: z.string().uuid(),
+  // DB-assigned for every group; the single producer (find-addable-groups) maps both.
+  groupNumber: z.number(),
+  code: z.string(),
   name: z.string().nullable(),
   status: z.string(),
   scheduledDate: z.string(),

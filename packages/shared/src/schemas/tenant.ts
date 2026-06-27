@@ -115,12 +115,23 @@ export function validateBillingSettings(settings: Partial<TenantSettingsInput>):
   return { valid: true };
 }
 
+// Appointment-code prefix: 3–4 letters/digits, globally unique per agency.
+// Accepts any case and normalizes to uppercase so the DB unique index is
+// effectively case-insensitive (e.g. "ab1" and "AB1" collide).
+export const appointmentCodePrefixSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9]{3,4}$/, 'Prefix must be 3–4 letters or numbers')
+  .transform((s) => s.toUpperCase());
+
 // Create tenant
 export const createTenantSchema = z.object({
   name: z.string().min(1).max(200).trim(),
   legalName: z.string().min(1).max(200).trim(),
   timezone: z.string().min(1).max(60).default('Australia/Sydney'),
   currency: z.string().length(3).default('AUD'),
+  // Required: every agency must have a unique appointment-code prefix.
+  appointmentCodePrefix: appointmentCodePrefixSchema,
   settings: tenantSettingsSchema.optional(),
 });
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
@@ -131,6 +142,7 @@ export const updateTenantSchema = z.object({
   legalName: z.string().min(1).max(200).trim().optional(),
   timezone: z.string().min(1).max(60).optional(),
   currency: z.string().length(3).optional(),
+  appointmentCodePrefix: appointmentCodePrefixSchema.optional(),
   settings: tenantSettingsSchema.partial().optional(),
 });
 export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;

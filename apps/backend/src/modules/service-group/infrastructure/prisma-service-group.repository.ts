@@ -57,6 +57,7 @@ function deriveOfferTenant(
 function mapToEntity(row: any): ServiceGroupEntity {
   return new ServiceGroupEntity({
     id: row.id,
+    groupNumber: row.group_number,
     serviceTypeId: row.service_type_id,
     status: row.status as ServiceGroupStatus,
     groupSize: row.group_size,
@@ -256,7 +257,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   }
 
   async save(group: ServiceGroupEntity): Promise<void> {
-    await this.prisma.serviceGroup.create({
+    const created = await this.prisma.serviceGroup.create({
       data: {
         id: group.id,
         service_type_id: group.serviceTypeId,
@@ -278,6 +279,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         created_by_user_id: group.createdByUserId,
       },
     });
+    // Surface the DB-generated sequential code back onto the entity so callers
+    // (e.g. create-service-group) can return it in the response.
+    group.groupNumber = created.group_number;
   }
 
   async update(
@@ -403,6 +407,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       const payoutEstimate = payoutTotal > 0 ? payoutTotal : null;
       return {
         groupId: row.id,
+        groupNumber: row.group_number,
+        code: String(row.group_number),
         tenantId,
         tenantName,
         serviceTypeName: row.service_type?.name ?? '',
@@ -511,7 +517,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             payout_amount: true,
             notes: true,
             tenant_id: true,
-            tenant: { select: { name: true, settings_json: true } },
+            tenant: { select: { name: true, appointment_code_prefix: true } },
             property: { select: { suburb: true, state: true, street: true } },
           },
         },
@@ -557,14 +563,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     // Appointment code prefix is per-tenant; a mixed group has appointments from
     // several agencies, so resolve the prefix from each appointment's own tenant.
     const prefixFor = (appt: any): string => {
-      const settings = appt.tenant?.settings_json as Record<string, unknown> | null;
-      return typeof settings?.appointmentCodePrefix === 'string' && settings.appointmentCodePrefix.length > 0
-        ? settings.appointmentCodePrefix
-        : 'INS';
+      return appt.tenant?.appointment_code_prefix || 'INS';
     };
 
     return {
       groupId: row.id,
+      groupNumber: row.group_number,
+      code: String(row.group_number),
       tenantId,
       tenantName,
       serviceTypeName: row.service_type?.name ?? '',
@@ -842,6 +847,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     batchSize: number;
   }): Promise<Array<{
     id: string;
+    groupNumber: number;
+    code: string;
     name: string | null;
     status: string;
     scheduledDate: Date;
@@ -855,6 +862,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     // Use $queryRaw to get appointment count and service type name in one round-trip.
     type Row = {
       id: string;
+      group_number: number;
       name: string | null;
       status: string;
       scheduled_date: Date;
@@ -866,6 +874,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const rows = await this.prisma.$queryRaw<Row[]>`
       SELECT
         sg.id,
+        sg.group_number,
         sg.name,
         sg.status::text,
         sg.scheduled_date,
@@ -879,7 +888,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       WHERE sg.service_type_id = ${params.serviceTypeId}
         AND sg.scheduled_date::date = ${dateStr}::date
         AND sg.status IN ('DRAFT', 'PUBLISHED')
-      GROUP BY sg.id, sg.name, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
+      GROUP BY sg.id, sg.group_number, sg.name, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
       ORDER BY sg.created_at ASC
     `;
 
@@ -892,6 +901,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       })
       .map((row) => ({
         id: row.id,
+        groupNumber: row.group_number,
+        code: String(row.group_number),
         name: row.name,
         status: row.status,
         scheduledDate: row.scheduled_date,

@@ -5,6 +5,9 @@ export type { Agency } from '@properfy/shared';
 
 export interface ServiceGroup {
   id: string;
+  /** Sequential human-friendly code (pure numeric). */
+  groupNumber?: number;
+  code?: string;
   /** Null when the group spans multiple agencies (cross-agency group). */
   tenantId: string | null;
   /** Distinct agencies of the group's appointments (populated by the list/detail hooks). */

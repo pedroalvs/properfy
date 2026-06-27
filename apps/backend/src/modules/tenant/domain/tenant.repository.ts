@@ -15,6 +15,7 @@ export interface PaginationParams {
 export interface ITenantRepository {
   findById(id: string): Promise<TenantEntity | null>;
   findByLegalName(legalName: string): Promise<TenantEntity | null>;
+  findByAppointmentCodePrefix(prefix: string): Promise<TenantEntity | null>;
   findAll(
     filters: TenantFilters,
     pagination: PaginationParams,
@@ -28,6 +29,7 @@ export interface ITenantRepository {
       legalName: string;
       timezone: string;
       currency: string;
+      appointmentCodePrefix: string | null;
       settingsJson: Record<string, unknown>;
       status: string;
       deletedAt: Date | null;

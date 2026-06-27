@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import type { AuthContext } from '@properfy/shared';
+import { appointmentCodePrefixSchema } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ITenantRepository } from '../../domain/tenant.repository';
 import {
   TenantNotFoundError,
   TenantLegalNameConflictError,
+  TenantAppointmentCodePrefixConflictError,
 } from '../../domain/tenant.errors';
 import { deepMerge } from '../../../../shared/domain/utils';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
@@ -22,15 +24,15 @@ const CL_ADMIN_SETTINGS_ALLOW_LIST = new Set([
   'smsFromName',
   'emailTemplates',
   'contactPhone',
-  'appointmentCodePrefix',
 ]);
 
 // These keys must only be set via the dedicated logo upload flow (presign → PUT → confirm).
 const IMMUTABLE_SETTINGS_KEYS = ['logoUrl', 'logoStorageKey'] as const;
 
 // H8: Zod schema for CL_ADMIN-writable settings fields that require validation.
+// Note: `appointmentCodePrefix` is no longer a settings key — it is a top-level
+// scalar column validated by the shared updateTenantSchema and handled below.
 const clAdminSettingsSchema = z.object({
-  appointmentCodePrefix: z.string().regex(/^[A-Z0-9]{2,5}$/, 'Must be 2-5 uppercase letters/digits').optional(),
   contactPhone: z.string().min(8).max(20).optional(),
 }).passthrough();
 
@@ -53,6 +55,7 @@ export interface UpdateTenantInput {
     legalName?: string;
     timezone?: string;
     currency?: string;
+    appointmentCodePrefix?: string;
     settings?: Record<string, unknown>;
   };
   actor: AuthContext;
@@ -65,6 +68,7 @@ export interface UpdateTenantOutput {
   status: string;
   timezone: string;
   currency: string;
+  appointmentCodePrefix: string | null;
   settingsJson: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -100,7 +104,13 @@ export class UpdateTenantUseCase {
           throw new ValidationError('Invalid settings value', fields);
         }
       }
-      data = { name: data.name, settings: filteredSettings };
+      // Keep the top-level appointmentCodePrefix (CL_ADMIN/OP may set it); other
+      // top-level fields (legalName, timezone, currency) remain AM-only.
+      data = {
+        name: data.name,
+        appointmentCodePrefix: data.appointmentCodePrefix,
+        settings: filteredSettings,
+      };
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
@@ -129,11 +139,39 @@ export class UpdateTenantUseCase {
       }
     }
 
+    // Validate AND normalize before the uniqueness lookup and the update payload,
+    // so non-route callers get a deterministic validation error and can't store a
+    // mixed-case/invalid value that bypasses the case-insensitive uniqueness contract.
+    let normalizedAppointmentCodePrefix: string | undefined;
+    if (data.appointmentCodePrefix !== undefined) {
+      const prefixResult = appointmentCodePrefixSchema.safeParse(data.appointmentCodePrefix);
+      if (!prefixResult.success) {
+        throw new ValidationError('Invalid appointment code prefix', [
+          { field: 'appointmentCodePrefix', message: 'Prefix must be 3–4 letters or numbers' },
+        ]);
+      }
+      normalizedAppointmentCodePrefix = prefixResult.data;
+    }
+
+    // Check appointmentCodePrefix uniqueness if changing (excluding this tenant)
+    if (
+      normalizedAppointmentCodePrefix !== undefined &&
+      normalizedAppointmentCodePrefix !== tenant.appointmentCodePrefix
+    ) {
+      const prefixOwner = await this.tenantRepo.findByAppointmentCodePrefix(
+        normalizedAppointmentCodePrefix,
+      );
+      if (prefixOwner && prefixOwner.id !== tenantId) {
+        throw new TenantAppointmentCodePrefixConflictError();
+      }
+    }
+
     const before = {
       name: tenant.name,
       legalName: tenant.legalName,
       timezone: tenant.timezone,
       currency: tenant.currency,
+      appointmentCodePrefix: tenant.appointmentCodePrefix,
       settingsJson: tenant.settingsJson,
     };
 
@@ -143,6 +181,8 @@ export class UpdateTenantUseCase {
     if (data.legalName !== undefined) updateData.legalName = data.legalName;
     if (data.timezone !== undefined) updateData.timezone = data.timezone;
     if (data.currency !== undefined) updateData.currency = data.currency;
+    if (normalizedAppointmentCodePrefix !== undefined)
+      updateData.appointmentCodePrefix = normalizedAppointmentCodePrefix;
     if (data.settings !== undefined) {
       updateData.settingsJson = deepMerge(tenant.settingsJson, data.settings);
     }
@@ -154,6 +194,9 @@ export class UpdateTenantUseCase {
       legalName: (updateData.legalName as string) ?? tenant.legalName,
       timezone: (updateData.timezone as string) ?? tenant.timezone,
       currency: (updateData.currency as string) ?? tenant.currency,
+      appointmentCodePrefix:
+        (updateData.appointmentCodePrefix as string | undefined) ??
+        tenant.appointmentCodePrefix,
       settingsJson:
         (updateData.settingsJson as Record<string, unknown>) ??
         tenant.settingsJson,
@@ -183,6 +226,7 @@ export class UpdateTenantUseCase {
       status: tenant.status,
       timezone: after.timezone,
       currency: after.currency,
+      appointmentCodePrefix: after.appointmentCodePrefix,
       settingsJson: after.settingsJson,
       createdAt: tenant.createdAt,
       updatedAt: new Date(),

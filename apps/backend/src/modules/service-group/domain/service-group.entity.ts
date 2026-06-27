@@ -3,6 +3,9 @@ import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
 
 export interface ServiceGroupProps {
   id: string;
+  // Sequential human-friendly code (pure numeric, cross-tenant global sequence).
+  // Optional in props so test factories need not supply it; persisted rows always set it.
+  groupNumber?: number;
   serviceTypeId: string;
   status: ServiceGroupStatus;
   groupSize: number;
@@ -25,6 +28,8 @@ export interface ServiceGroupProps {
 }
 
 export class ServiceGroupEntity extends BaseEntity {
+  // Mutable: assigned by the DB sequence on save (0 until persisted).
+  groupNumber: number;
   readonly serviceTypeId: string;
   status: ServiceGroupStatus;
   readonly groupSize: number;
@@ -45,6 +50,7 @@ export class ServiceGroupEntity extends BaseEntity {
 
   constructor(props: ServiceGroupProps) {
     super(props.id, props.createdAt, props.updatedAt);
+    this.groupNumber = props.groupNumber ?? 0;
     this.serviceTypeId = props.serviceTypeId;
     this.status = props.status;
     this.groupSize = props.groupSize;

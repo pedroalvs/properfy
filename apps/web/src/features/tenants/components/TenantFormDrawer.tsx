@@ -77,6 +77,7 @@ export function TenantFormDrawer({
         legalName: tenant.legalName ?? '',
         timezone: tenant.timezone,
         currency: tenant.currency,
+        appointmentCodePrefix: tenant.appointmentCodePrefix ?? '',
         notes: tenant.notes ?? '',
         // Read uses settingsJson (the GET response key). Missing/absent = enabled.
         emailSendingEnabled: (tenant.settingsJson?.['emailSendingEnabled'] as boolean | undefined) ?? true,
@@ -113,7 +114,7 @@ export function TenantFormDrawer({
   );
 
   const handleSubmit = useCallback(async () => {
-    const validationErrors = validate(form);
+    const validationErrors = validate(form, { isCreate: !isEditMode });
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -123,6 +124,9 @@ export function TenantFormDrawer({
     if (result.success) {
       showSuccess(isEditMode ? 'Agency updated successfully' : 'Agency created successfully');
       onSaved();
+    } else if (result.fieldErrors) {
+      // Inline field-level errors (e.g. a 409 prefix conflict).
+      setErrors(result.fieldErrors);
     } else {
       showError(result.error ?? 'Failed to save');
     }
@@ -199,6 +203,21 @@ export function TenantFormDrawer({
                         placeholder="Select currency"
                         error={!!errors.currency}
                         aria-label="Currency"
+                      />
+                    </FormField>
+                    <FormField
+                      label="Appointment code prefix"
+                      required
+                      error={errors.appointmentCodePrefix}
+                      hint="3–4 letters or numbers, unique per agency (e.g. INS → INS-0042)."
+                    >
+                      <TextInput
+                        value={form.appointmentCodePrefix}
+                        onChange={(v) => updateField('appointmentCodePrefix', v.toUpperCase())}
+                        placeholder="INS"
+                        maxLength={4}
+                        error={!!errors.appointmentCodePrefix}
+                        aria-label="Appointment code prefix"
                       />
                     </FormField>
                   </FormSection>

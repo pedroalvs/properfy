@@ -166,6 +166,7 @@ describe('PATCH /v1/tenants/:tenantId — immutable settings hardening', () => {
       status: 'ACTIVE',
       timezone: 'Australia/Sydney',
       currency: 'AUD',
+      appointmentCodePrefix: null,
       settingsJson: { timezone: 'Australia/Sydney' },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

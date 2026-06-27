@@ -8,6 +8,7 @@ export interface TenantProps {
   status: TenantStatus;
   timezone: string;
   currency: string;
+  appointmentCodePrefix?: string | null;
   settingsJson: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -20,6 +21,7 @@ export class TenantEntity extends BaseEntity {
   status: TenantStatus;
   readonly timezone: string;
   readonly currency: string;
+  readonly appointmentCodePrefix: string | null;
   readonly settingsJson: Record<string, unknown>;
   readonly deletedAt: Date | null;
 
@@ -30,6 +32,7 @@ export class TenantEntity extends BaseEntity {
     this.status = props.status;
     this.timezone = props.timezone;
     this.currency = props.currency;
+    this.appointmentCodePrefix = props.appointmentCodePrefix ?? null;
     this.settingsJson = props.settingsJson;
     this.deletedAt = props.deletedAt;
   }

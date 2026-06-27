@@ -13,6 +13,8 @@ export interface GetMarketplaceOffersInput {
 
 export interface MarketplaceOfferOutput {
   groupId: string;
+  groupNumber: number;
+  code: string;
   tenantName: string;
   serviceTypeName: string;
   groupSize: number;
@@ -74,6 +76,8 @@ export class GetMarketplaceOffersUseCase {
     return {
       data: data.map((offer) => ({
         groupId: offer.groupId,
+        groupNumber: offer.groupNumber,
+        code: offer.code,
         tenantName: offer.tenantName,
         serviceTypeName: offer.serviceTypeName,
         groupSize: offer.groupSize,

@@ -5,6 +5,8 @@ import type { MarketplaceOffer } from '../types';
 
 const MOCK_OFFER: MarketplaceOffer = {
   groupId: 'grp-01',
+  groupNumber: 1057,
+  code: '1057',
   tenantName: 'Sydney CBD',
   serviceTypeName: 'Routine Inspection',
   priorityMode: 'STANDARD',
@@ -30,6 +32,7 @@ describe('OfferCard', () => {
     expect(screen.getAllByText('Sydney CBD').length).toBeGreaterThan(0);
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('09:00-12:00')).toBeInTheDocument();
+    expect(screen.getByText('#1057')).toBeInTheDocument();
   });
 
   it('shows standard priority badge', () => {

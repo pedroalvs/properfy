@@ -5,6 +5,8 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 
 export interface AddableGroupSummary {
   id: string;
+  groupNumber: number;
+  code: string;
   name: string | null;
   status: string;
   scheduledDate: Date;

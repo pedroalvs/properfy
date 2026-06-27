@@ -241,6 +241,7 @@ async function main() {
       status: 'ACTIVE',
       timezone: 'Australia/Sydney',
       currency: 'AUD',
+      appointment_code_prefix: 'SYD',
     },
   });
 
@@ -254,6 +255,7 @@ async function main() {
       status: 'ACTIVE',
       timezone: 'Australia/Melbourne',
       currency: 'AUD',
+      appointment_code_prefix: 'MEL',
     },
   });
   console.log('Tenants: 2 created');

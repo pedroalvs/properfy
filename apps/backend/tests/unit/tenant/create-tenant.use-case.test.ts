@@ -6,8 +6,11 @@ import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { DomainEventBus, TENANT_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
-import { TenantLegalNameConflictError } from '../../../src/modules/tenant/domain/tenant.errors';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import {
+  TenantLegalNameConflictError,
+  TenantAppointmentCodePrefixConflictError,
+} from '../../../src/modules/tenant/domain/tenant.errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeTenant(
@@ -50,6 +53,7 @@ describe('CreateTenantUseCase', () => {
     tenantRepo = {
       findById: vi.fn(),
       findByLegalName: vi.fn(),
+      findByAppointmentCodePrefix: vi.fn().mockResolvedValue(null),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
@@ -76,10 +80,12 @@ describe('CreateTenantUseCase', () => {
       legalName: 'New Agency Pty Ltd',
       timezone: 'Australia/Sydney',
       currency: 'AUD',
+      appointmentCodePrefix: 'NEW',
       actor: makeActor(),
     });
 
     expect(result.status).toBe('PENDING');
+    expect(result.appointmentCodePrefix).toBe('NEW');
     expect(result.name).toBe('New Agency');
     expect(result.legalName).toBe('New Agency Pty Ltd');
     expect(result.id).toBeDefined();
@@ -101,6 +107,7 @@ describe('CreateTenantUseCase', () => {
       legalName: 'Event Agency Pty Ltd',
       timezone: 'Australia/Sydney',
       currency: 'AUD',
+      appointmentCodePrefix: 'EVT',
       actor: makeActor(),
     });
 
@@ -125,6 +132,7 @@ describe('CreateTenantUseCase', () => {
           legalName: 'Agency Ltd',
           timezone: 'UTC',
           currency: 'USD',
+          appointmentCodePrefix: 'AGY',
           actor: makeActor({ role, tenantId: 'tenant-1' }),
         }),
       ).rejects.toThrow(ForbiddenError);
@@ -140,8 +148,77 @@ describe('CreateTenantUseCase', () => {
         legalName: 'Test Agency Pty Ltd',
         timezone: 'UTC',
         currency: 'USD',
+        appointmentCodePrefix: 'ANB',
         actor: makeActor(),
       }),
     ).rejects.toThrow(TenantLegalNameConflictError);
+  });
+
+  it('should throw TENANT_PREFIX_CONFLICT when appointmentCodePrefix already exists', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+    vi.mocked(tenantRepo.findByAppointmentCodePrefix).mockResolvedValue(makeTenant());
+
+    await expect(
+      useCase.execute({
+        name: 'Prefix Clash Agency',
+        legalName: 'Prefix Clash Pty Ltd',
+        timezone: 'UTC',
+        currency: 'USD',
+        appointmentCodePrefix: 'ACME',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(TenantAppointmentCodePrefixConflictError);
+    expect(tenantRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should persist the appointmentCodePrefix on the saved tenant', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    await useCase.execute({
+      name: 'Prefix Agency',
+      legalName: 'Prefix Agency Pty Ltd',
+      timezone: 'Australia/Sydney',
+      currency: 'AUD',
+      appointmentCodePrefix: 'PRX',
+      actor: makeActor(),
+    });
+
+    const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
+    expect(saved.appointmentCodePrefix).toBe('PRX');
+  });
+
+  it('rejects an invalid prefix with a ValidationError (non-route caller)', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        name: 'Bad Prefix Agency',
+        legalName: 'Bad Prefix Pty Ltd',
+        timezone: 'Australia/Sydney',
+        currency: 'AUD',
+        appointmentCodePrefix: 'A', // too short
+        actor: makeActor(),
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(tenantRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('uppercases the prefix for the uniqueness pre-check and persistence', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    await useCase.execute({
+      name: 'Lower Agency',
+      legalName: 'Lower Agency Pty Ltd',
+      timezone: 'Australia/Sydney',
+      currency: 'AUD',
+      appointmentCodePrefix: 'abc',
+      actor: makeActor(),
+    });
+
+    // Pre-check must use the normalized value so a lowercase input still
+    // collides with an existing uppercase prefix.
+    expect(tenantRepo.findByAppointmentCodePrefix).toHaveBeenCalledWith('ABC');
+    const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
+    expect(saved.appointmentCodePrefix).toBe('ABC');
   });
 });

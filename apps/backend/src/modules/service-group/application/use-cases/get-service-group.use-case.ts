@@ -10,6 +10,8 @@ export interface GetServiceGroupInput {
 
 export interface GetServiceGroupOutput {
   id: string;
+  groupNumber: number;
+  code: string;
   tenantId: string | null;
   agencies: Array<{ id: string; name: string }>;
   serviceTypeId: string;
@@ -62,6 +64,8 @@ export class GetServiceGroupUseCase {
 
     return {
       id: group.id,
+      groupNumber: group.groupNumber,
+      code: String(group.groupNumber),
       tenantId: primaryTenantId,
       agencies,
       serviceTypeId: group.serviceTypeId,

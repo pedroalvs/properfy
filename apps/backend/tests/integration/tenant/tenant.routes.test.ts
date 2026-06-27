@@ -90,6 +90,7 @@ describe('POST /v1/tenants', () => {
       status: 'PENDING',
       timezone: 'Australia/Sydney',
       currency: 'AUD',
+      appointmentCodePrefix: 'ACME',
       settingsJson: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -101,6 +102,7 @@ describe('POST /v1/tenants', () => {
       .send({
         name: 'Acme Realty',
         legalName: 'Acme Realty Pty Ltd',
+        appointmentCodePrefix: 'ACME',
       });
 
     expect(res.status).toBe(201);
@@ -133,6 +135,7 @@ describe('POST /v1/tenants', () => {
       .send({
         name: 'Acme Realty',
         legalName: 'Acme Realty Pty Ltd',
+        appointmentCodePrefix: 'ACME',
       });
 
     expect(res.status).toBe(403);
@@ -144,6 +147,7 @@ describe('POST /v1/tenants', () => {
       .send({
         name: 'Acme Realty',
         legalName: 'Acme Realty Pty Ltd',
+        appointmentCodePrefix: 'ACME',
       });
 
     expect(res.status).toBe(401);
@@ -162,6 +166,7 @@ describe('GET /v1/tenants', () => {
           status: 'ACTIVE',
           timezone: 'Australia/Sydney',
           currency: 'AUD',
+          appointmentCodePrefix: null,
           settingsJson: {},
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -198,6 +203,7 @@ describe('GET /v1/tenants/:tenantId', () => {
       status: 'ACTIVE',
       timezone: 'Australia/Sydney',
       currency: 'AUD',
+      appointmentCodePrefix: null,
       settingsJson: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -246,6 +252,7 @@ describe('PATCH /v1/tenants/:tenantId', () => {
       status: 'ACTIVE',
       timezone: 'Australia/Sydney',
       currency: 'AUD',
+      appointmentCodePrefix: null,
       settingsJson: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

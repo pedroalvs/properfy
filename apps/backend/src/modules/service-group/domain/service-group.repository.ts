@@ -69,6 +69,9 @@ export interface ServiceGroupMapAppointment {
 
 export interface MarketplaceOffer {
   groupId: string;
+  /** Sequential human-friendly group code (pure numeric). */
+  groupNumber: number;
+  code: string;
   /** Single agency id when the group is single-agency, else null (mixed/cross-agency group). */
   tenantId: string | null;
   /** Agency display name; "Multiple agencies" when the group spans more than one tenant. */
@@ -215,6 +218,8 @@ export interface IServiceGroupRepository {
     batchSize: number;
   }): Promise<Array<{
     id: string;
+    groupNumber: number;
+    code: string;
     name: string | null;
     status: string;
     scheduledDate: Date;

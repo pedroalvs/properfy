@@ -46,6 +46,8 @@ const GROUP_ID = '00000000-0000-0000-0000-000000000001';
 
 const marketplaceOffer = {
   groupId: GROUP_ID,
+  groupNumber: 1057,
+  code: '1057',
   tenantName: 'Properfy Realty',
   serviceTypeName: 'Routine Inspection',
   groupSize: 5,
