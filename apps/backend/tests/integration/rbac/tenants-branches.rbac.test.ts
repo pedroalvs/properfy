@@ -84,7 +84,7 @@ beforeEach(() => { vi.clearAllMocks(); });
 // ── POST /v1/tenants ──────────────────────────────────────────────────────────
 
 describe('POST /v1/tenants — RBAC', () => {
-  const payload = { name: 'Acme Realty', legalName: 'Acme Realty Pty Ltd' };
+  const payload = { name: 'Acme Realty', legalName: 'Acme Realty Pty Ltd', appointmentCodePrefix: 'ACME' };
 
   it('allows AM', async () => {
     mockJwtVerify.mockResolvedValue(makeAmContext());

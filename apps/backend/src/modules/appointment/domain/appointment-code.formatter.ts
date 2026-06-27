@@ -1,14 +1,13 @@
 import type { TenantEntity } from '../../tenant/domain/tenant.entity';
 
-const CODE_PATTERN = /^[A-Za-z]+-(\d+)$/;
+// Prefix may be alphanumeric (e.g. "AB12"), so allow digits in the prefix segment.
+const CODE_PATTERN = /^[A-Za-z0-9]+-(\d+)$/;
 
 export class AppointmentCodeFormatter {
   format(appointmentNumber: number, tenant: TenantEntity): string {
-    const settings = tenant.settingsJson;
-    const prefix =
-      typeof settings.appointmentCodePrefix === 'string' && settings.appointmentCodePrefix.length > 0
-        ? settings.appointmentCodePrefix
-        : 'INS';
+    // Prefix is now a dedicated tenant column; fall back to "INS" for legacy
+    // tenants whose prefix has not been backfilled yet.
+    const prefix = tenant.appointmentCodePrefix || 'INS';
     const padded = String(appointmentNumber).padStart(4, '0');
     return `${prefix}-${padded}`;
   }

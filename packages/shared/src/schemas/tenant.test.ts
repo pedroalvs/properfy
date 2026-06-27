@@ -16,6 +16,7 @@ describe('createTenantSchema', () => {
   const validInput = {
     name: 'Acme Realty',
     legalName: 'Acme Realty Pty Ltd',
+    appointmentCodePrefix: 'ACME',
   };
 
   it('should accept valid input with defaults', () => {
@@ -25,6 +26,35 @@ describe('createTenantSchema', () => {
       expect(result.data.timezone).toBe('Australia/Sydney');
       expect(result.data.currency).toBe('AUD');
     }
+  });
+
+  it('should require appointmentCodePrefix', () => {
+    const { appointmentCodePrefix: _omit, ...noPrefix } = validInput;
+    const result = createTenantSchema.safeParse(noPrefix);
+    expect(result.success).toBe(false);
+  });
+
+  it('should normalize appointmentCodePrefix to uppercase', () => {
+    const result = createTenantSchema.safeParse({ ...validInput, appointmentCodePrefix: 'ab1' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appointmentCodePrefix).toBe('AB1');
+    }
+  });
+
+  it('should reject appointmentCodePrefix shorter than 3 chars', () => {
+    const result = createTenantSchema.safeParse({ ...validInput, appointmentCodePrefix: 'AB' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject appointmentCodePrefix longer than 4 chars', () => {
+    const result = createTenantSchema.safeParse({ ...validInput, appointmentCodePrefix: 'ABCDE' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject appointmentCodePrefix with non-alphanumeric chars', () => {
+    const result = createTenantSchema.safeParse({ ...validInput, appointmentCodePrefix: 'A-1' });
+    expect(result.success).toBe(false);
   });
 
   it('should accept valid input with all fields', () => {
@@ -76,6 +106,19 @@ describe('updateTenantSchema', () => {
 
   it('should reject invalid currency length', () => {
     const result = updateTenantSchema.safeParse({ currency: 'US' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept and uppercase a valid appointmentCodePrefix', () => {
+    const result = updateTenantSchema.safeParse({ appointmentCodePrefix: 'xy9' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appointmentCodePrefix).toBe('XY9');
+    }
+  });
+
+  it('should reject an invalid appointmentCodePrefix', () => {
+    const result = updateTenantSchema.safeParse({ appointmentCodePrefix: 'toolong' });
     expect(result.success).toBe(false);
   });
 });

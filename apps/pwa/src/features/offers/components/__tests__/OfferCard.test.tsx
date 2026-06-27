@@ -6,6 +6,8 @@ import { toLocalISODate } from '@/lib/format-date';
 
 const baseOffer: MarketplaceOffer = {
   groupId: 'group-1',
+  groupNumber: 1057,
+  code: '1057',
   tenantName: 'Acme Realty',
   serviceTypeName: 'Routine Inspection',
   groupSize: 3,
@@ -36,6 +38,7 @@ describe('OfferCard', () => {
     expect(screen.getByText(/Brunswick/)).toBeInTheDocument();
     expect(screen.getByText('Acme Realty')).toBeInTheDocument();
     expect(screen.getByText('3 inspections')).toBeInTheDocument();
+    expect(screen.getByText('#1057')).toBeInTheDocument();
   });
 
   it('shows Accept button for IDLE state', () => {

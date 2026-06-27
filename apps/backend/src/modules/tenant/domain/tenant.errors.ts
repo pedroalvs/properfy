@@ -15,6 +15,15 @@ export class TenantLegalNameConflictError extends ConflictError {
   }
 }
 
+export class TenantAppointmentCodePrefixConflictError extends ConflictError {
+  constructor() {
+    super(
+      'TENANT_PREFIX_CONFLICT',
+      'This appointment code prefix is already in use by another agency',
+    );
+  }
+}
+
 export class TenantAlreadyInactiveError extends ConflictError {
   constructor() {
     super('TENANT_ALREADY_INACTIVE', 'Tenant is already inactive');

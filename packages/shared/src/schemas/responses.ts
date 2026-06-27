@@ -78,6 +78,8 @@ export const tenantResponseSchema = z.object({
   status: z.string(),
   timezone: z.string(),
   currency: z.string(),
+  // Dedicated column (nullable for legacy rows pending backfill).
+  appointmentCodePrefix: z.string().nullable().optional(),
   settingsJson: z.unknown(),
   branchCount: z.number().optional(),
   createdAt: dateStr(),
@@ -383,6 +385,9 @@ export type Agency = z.infer<typeof agencyRefSchema>;
 
 export const serviceGroupResponseSchema = z.object({
   id: z.string().uuid(),
+  // Sequential human-friendly code (pure numeric, cross-tenant global sequence).
+  groupNumber: z.number().optional(),
+  code: z.string().optional(),
   // Null when the group spans multiple agencies (cross-agency group).
   tenantId: z.string().uuid().nullable(),
   // Distinct agencies of the group's appointments (one entry for single-agency groups).
@@ -417,6 +422,9 @@ const centroidSchema = z.object({ lat: z.number(), lng: z.number() }).nullable()
 
 export const marketplaceOfferResponseSchema = z.object({
   groupId: z.string().uuid(),
+  // Sequential human-friendly group code (pure numeric). Shown to inspectors.
+  groupNumber: z.number().optional(),
+  code: z.string().optional(),
   tenantName: z.string(),
   serviceTypeName: z.string(),
   groupSize: z.number(),

@@ -38,6 +38,7 @@ const VALID_DATA: TenantAdminFormData = {
   legalName: 'Alpha LTDA',
   timezone: 'America/Sao_Paulo',
   currency: 'AUD',
+  appointmentCodePrefix: 'INS',
   notes: '',
   emailSendingEnabled: true,
 };
@@ -74,6 +75,59 @@ describe('useTenantAdminSave', () => {
     expect(errors.legalName).toBeDefined();
   });
 
+  it('validate requires appointmentCodePrefix', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_DATA, appointmentCodePrefix: '' });
+    expect(errors.appointmentCodePrefix).toBeDefined();
+  });
+
+  it('validate rejects a too-short / too-long / non-alphanumeric prefix', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    expect(result.current.validate({ ...VALID_DATA, appointmentCodePrefix: 'AB' }).appointmentCodePrefix).toBeDefined();
+    expect(result.current.validate({ ...VALID_DATA, appointmentCodePrefix: 'ABCDE' }).appointmentCodePrefix).toBeDefined();
+    expect(result.current.validate({ ...VALID_DATA, appointmentCodePrefix: 'A-1' }).appointmentCodePrefix).toBeDefined();
+  });
+
+  it('validate accepts a lowercase prefix (uppercased before checking)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    expect(result.current.validate({ ...VALID_DATA, appointmentCodePrefix: 'ab1' }).appointmentCodePrefix).toBeUndefined();
+  });
+
+  it('save uppercases the prefix in the payload', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_DATA, appointmentCodePrefix: 'abc' });
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      '/v1/tenants',
+      expect.objectContaining({ body: expect.objectContaining({ appointmentCodePrefix: 'ABC' }) }),
+    );
+  });
+
+  it('save maps a 409 prefix conflict to an inline field error', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { code: 'TENANT_PREFIX_CONFLICT', message: 'already in use' } },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.appointmentCodePrefix).toBeDefined();
+    expect(saveResult?.error).toBeUndefined();
+  });
+
   it('save returns success on create', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
@@ -91,6 +145,7 @@ describe('useTenantAdminSave', () => {
         legalName: 'Alpha LTDA',
         timezone: 'America/Sao_Paulo',
         currency: 'AUD',
+        appointmentCodePrefix: 'INS',
         notes: '',
         settings: { emailSendingEnabled: true },
       },

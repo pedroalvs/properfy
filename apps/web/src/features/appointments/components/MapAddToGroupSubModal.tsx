@@ -88,7 +88,9 @@ export function MapAddToGroupSubModal({
   const groupOptions = groupsState.phase === 'ready'
     ? groupsState.groups.map((g) => ({
         value: g.id,
-        label: g.name ?? `Group · ${g.scheduledDate} · ${g.timeWindow} (${g.currentSize} appts)`,
+        label: g.code
+          ? `Group ${g.code}${g.name ? ` · ${g.name}` : ''} · ${g.timeWindow} (${g.currentSize} appts)`
+          : g.name ?? `Group · ${g.scheduledDate} · ${g.timeWindow} (${g.currentSize} appts)`,
       }))
     : [];
 

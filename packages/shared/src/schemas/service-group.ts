@@ -136,6 +136,8 @@ export type FindAddableGroupsRequest = z.infer<typeof findAddableGroupsRequestSc
 
 export const addableGroupSummarySchema = z.object({
   id: z.string().uuid(),
+  groupNumber: z.number().optional(),
+  code: z.string().optional(),
   name: z.string().nullable(),
   status: z.string(),
   scheduledDate: z.string(),
