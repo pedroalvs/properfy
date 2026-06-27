@@ -10,7 +10,7 @@ import {
   TenantLegalNameConflictError,
   TenantAppointmentCodePrefixConflictError,
 } from '../../../src/modules/tenant/domain/tenant.errors';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
 function makeTenant(
@@ -185,6 +185,22 @@ describe('CreateTenantUseCase', () => {
 
     const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
     expect(saved.appointmentCodePrefix).toBe('PRX');
+  });
+
+  it('rejects an invalid prefix with a ValidationError (non-route caller)', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        name: 'Bad Prefix Agency',
+        legalName: 'Bad Prefix Pty Ltd',
+        timezone: 'Australia/Sydney',
+        currency: 'AUD',
+        appointmentCodePrefix: 'A', // too short
+        actor: makeActor(),
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(tenantRepo.save).not.toHaveBeenCalled();
   });
 
   it('uppercases the prefix for the uniqueness pre-check and persistence', async () => {

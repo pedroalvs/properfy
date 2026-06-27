@@ -1,4 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
+import { appointmentCodePrefixSchema } from '@properfy/shared';
+import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ITenantRepository } from '../../domain/tenant.repository';
@@ -46,9 +48,16 @@ export class CreateTenantUseCase {
 
   async execute(input: CreateTenantInput): Promise<CreateTenantOutput> {
     const { name, legalName, timezone, currency, settings, actor } = input;
-    // Normalize here too (not just in the shared schema) so non-route callers
-    // can't bypass the "uppercased on write / globally unique" contract.
-    const appointmentCodePrefix = input.appointmentCodePrefix.toUpperCase();
+    // Validate AND normalize here (not only in the shared route schema) so
+    // non-route callers get a deterministic validation error and can't bypass
+    // the "3-4 alphanumeric, uppercased, globally unique" contract.
+    const prefixResult = appointmentCodePrefixSchema.safeParse(input.appointmentCodePrefix);
+    if (!prefixResult.success) {
+      throw new ValidationError('Invalid appointment code prefix', [
+        { field: 'appointmentCodePrefix', message: 'Prefix must be 3–4 letters or numbers' },
+      ]);
+    }
+    const appointmentCodePrefix = prefixResult.data;
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'tenant.create',

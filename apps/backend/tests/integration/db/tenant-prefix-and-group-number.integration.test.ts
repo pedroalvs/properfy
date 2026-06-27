@@ -105,9 +105,11 @@ describe('Tenant appointment_code_prefix + ServiceGroup group_number (real DB)',
 
   it('rejects a lowercase prefix at the DB level (CHECK constraint enforces uppercase)', async () => {
     // The repo does not normalize (the use case does); a direct write of a
-    // mixed-case prefix must be rejected by the DB CHECK so the case-insensitive
-    // uniqueness contract cannot be bypassed.
-    await expect(tenantRepo.save(makeTenant('abc', randomUUID()))).rejects.toThrow();
+    // mixed-case prefix must be rejected by the specific uppercase CHECK so the
+    // case-insensitive uniqueness contract cannot be bypassed.
+    await expect(tenantRepo.save(makeTenant('abc', randomUUID()))).rejects.toThrow(
+      /tenants_appointment_code_prefix_format|check constraint/i,
+    );
   });
 
   it('assigns a distinct, ascending group_number from a GLOBAL sequence across tenants', async () => {

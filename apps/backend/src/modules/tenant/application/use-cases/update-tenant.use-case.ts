@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AuthContext } from '@properfy/shared';
+import { appointmentCodePrefixSchema } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ITenantRepository } from '../../domain/tenant.repository';
@@ -138,13 +139,19 @@ export class UpdateTenantUseCase {
       }
     }
 
-    // Normalize before the uniqueness lookup AND the update payload, so non-route
-    // callers can't store a mixed-case value that bypasses the case-insensitive
-    // uniqueness contract.
-    const normalizedAppointmentCodePrefix =
-      data.appointmentCodePrefix !== undefined
-        ? data.appointmentCodePrefix.toUpperCase()
-        : undefined;
+    // Validate AND normalize before the uniqueness lookup and the update payload,
+    // so non-route callers get a deterministic validation error and can't store a
+    // mixed-case/invalid value that bypasses the case-insensitive uniqueness contract.
+    let normalizedAppointmentCodePrefix: string | undefined;
+    if (data.appointmentCodePrefix !== undefined) {
+      const prefixResult = appointmentCodePrefixSchema.safeParse(data.appointmentCodePrefix);
+      if (!prefixResult.success) {
+        throw new ValidationError('Invalid appointment code prefix', [
+          { field: 'appointmentCodePrefix', message: 'Prefix must be 3–4 letters or numbers' },
+        ]);
+      }
+      normalizedAppointmentCodePrefix = prefixResult.data;
+    }
 
     // Check appointmentCodePrefix uniqueness if changing (excluding this tenant)
     if (
