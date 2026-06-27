@@ -46,6 +46,8 @@ const GROUP_ID = '00000000-0000-0000-0000-000000000002';
 
 const mockOfferDetail = {
   groupId: GROUP_ID,
+  groupNumber: 2042,
+  code: '2042',
   tenantId: 'tenant-1',
   tenantName: 'Properfy Realty',
   serviceTypeName: 'Routine Inspection',

@@ -128,7 +128,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         contacts: true,
         restrictions: true,
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
-        tenant: { select: { name: true, settings_json: true } },
+        tenant: { select: { name: true, appointment_code_prefix: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true } },
         inspector: { select: { name: true } },
@@ -160,13 +160,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
       : '';
 
-    const tenantSettings = (row as any).tenant?.settings_json as Record<string, unknown> | null;
     const tenantAppointmentCodePrefix =
-      tenantSettings &&
-      typeof tenantSettings.appointmentCodePrefix === 'string' &&
-      tenantSettings.appointmentCodePrefix.length > 0
-        ? tenantSettings.appointmentCodePrefix
-        : null;
+      (row as any).tenant?.appointment_code_prefix ?? null;
 
     return {
       appointment,
@@ -202,7 +197,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       include: {
         contacts: { select: { id: true, appointment_id: true, contact_id: true, role: true, is_primary: true, snapshot_name: true, snapshot_email: true, snapshot_phone: true, tenant_name: true, primary_email: true, secondary_email: true, primary_phone: true, secondary_phone: true, created_at: true, updated_at: true } },
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
-        tenant: { select: { name: true, settings_json: true } },
+        tenant: { select: { name: true, appointment_code_prefix: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true } },
         inspector: { select: { name: true } },
@@ -214,13 +209,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       const propertyAddress = row.property
         ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
         : '';
-      const tenantSettings = row.tenant?.settings_json as Record<string, unknown> | null;
-      const tenantAppointmentCodePrefix =
-        tenantSettings &&
-        typeof tenantSettings.appointmentCodePrefix === 'string' &&
-        tenantSettings.appointmentCodePrefix.length > 0
-          ? tenantSettings.appointmentCodePrefix
-          : null;
+      const tenantAppointmentCodePrefix = row.tenant?.appointment_code_prefix ?? null;
       return {
         appointment,
         contact,

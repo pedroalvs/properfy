@@ -21,6 +21,7 @@ export interface ListTenantsOutput {
     status: string;
     timezone: string;
     currency: string;
+    appointmentCodePrefix: string | null;
     branchCount: number;
     createdAt: Date;
     updatedAt: Date;
@@ -61,6 +62,7 @@ export class ListTenantsUseCase {
         status: t.status,
         timezone: t.timezone,
         currency: t.currency,
+        appointmentCodePrefix: t.appointmentCodePrefix,
         branchCount: branchCounts[t.id] ?? 0,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,

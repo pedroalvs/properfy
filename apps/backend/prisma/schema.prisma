@@ -174,6 +174,10 @@ model Tenant {
   timezone      String       @default("Australia/Sydney") @db.VarChar(60)
   currency      String       @default("AUD") @db.Char(3)
   settings_json Json         @default("{}")
+  // Human-friendly appointment-code prefix (e.g. "INS" -> "INS-0042"). Promoted out of
+  // settings_json so uniqueness is DB-enforced. Nullable for legacy rows (unique index
+  // ignores NULLs); always uppercased on write so the plain unique index is case-insensitive.
+  appointment_code_prefix String? @unique @db.VarChar(4)
   created_at    DateTime     @default(now())
   updated_at    DateTime     @updatedAt
   deleted_at    DateTime?
@@ -571,6 +575,8 @@ model AppointmentConfirmationCycle {
 
 model ServiceGroup {
   id                    String                     @id @default(uuid())
+  // Human-friendly sequential code (cross-tenant global sequence). Pure numeric.
+  group_number          Int                        @unique @default(autoincrement())
   service_type_id       String
   status                ServiceGroupStatus         @default(DRAFT)
   group_size            Int

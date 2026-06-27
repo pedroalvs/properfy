@@ -30,6 +30,8 @@ export interface CreateServiceGroupInput {
 
 export interface CreateServiceGroupOutput {
   id: string;
+  groupNumber: number;
+  code: string;
   tenantId: string | null;
   serviceTypeId: string;
   status: string;
@@ -227,6 +229,8 @@ export class CreateServiceGroupUseCase {
 
     return {
       id: group.id,
+      groupNumber: group.groupNumber,
+      code: String(group.groupNumber),
       tenantId: primaryTenantId,
       serviceTypeId: group.serviceTypeId,
       status: group.status,

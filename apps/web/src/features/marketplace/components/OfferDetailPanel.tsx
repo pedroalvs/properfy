@@ -41,7 +41,10 @@ export function OfferDetailPanel({ offer, detail, detailLoading, onAccept, isAcc
   return (
     <div className="border-t border-gray-200 p-4" data-testid="offer-detail-panel">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-base font-bold text-secondary">{offer.serviceTypeName}</h3>
+        <h3 className="text-base font-bold text-secondary">
+          {offer.serviceTypeName}
+          {offer.code ? <span className="ml-2 font-mono text-sm font-normal text-text-muted">#{offer.code}</span> : null}
+        </h3>
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeBg}`}>
           {badgeLabel}
         </span>

@@ -15,6 +15,8 @@ const GROUP_ID = '00000000-0000-0000-0000-000000000002';
 
 const mockDetail: MarketplaceOfferDetail = {
   groupId: GROUP_ID,
+  groupNumber: 2042,
+  code: '2042',
   tenantName: 'Properfy Realty',
   serviceTypeName: 'Routine Inspection',
   groupSize: 2,
@@ -79,6 +81,7 @@ describe('GroupDetailBottomSheet', () => {
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     expect(screen.getByText('Bondi NSW')).toBeInTheDocument();
     expect(screen.getByText('Manly NSW')).toBeInTheDocument();
+    expect(screen.getByText('Group #2042')).toBeInTheDocument();
   });
 
   it('shows each appointment\'s agency (groups may span agencies)', () => {

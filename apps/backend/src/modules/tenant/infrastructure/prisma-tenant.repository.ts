@@ -7,9 +7,30 @@ import type {
   PaginationParams,
 } from '../domain/tenant.repository';
 import type { TenantStatus } from '@properfy/shared';
+import { TenantAppointmentCodePrefixConflictError } from '../domain/tenant.errors';
 
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
+/**
+ * Translates a Postgres unique-constraint violation on appointment_code_prefix
+ * (Prisma P2002) into the domain conflict error, so concurrent writes that slip
+ * past the application-level pre-check still surface a friendly 409.
+ */
+function rethrowPrefixConflict(error: unknown): never {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002' &&
+    JSON.stringify((error as { meta?: { target?: unknown } }).meta?.target ?? '').includes(
+      'appointment_code_prefix',
+    )
+  ) {
+    throw new TenantAppointmentCodePrefixConflictError();
+  }
+  throw error;
 }
 
 function mapToEntity(row: {
@@ -19,6 +40,7 @@ function mapToEntity(row: {
   status: string;
   timezone: string;
   currency: string;
+  appointment_code_prefix: string | null;
   settings_json: unknown;
   created_at: Date;
   updated_at: Date;
@@ -31,6 +53,7 @@ function mapToEntity(row: {
     status: row.status as TenantStatus,
     timezone: row.timezone,
     currency: row.currency,
+    appointmentCodePrefix: row.appointment_code_prefix ?? null,
     settingsJson: (row.settings_json as Record<string, unknown>) ?? {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -51,6 +74,13 @@ export class PrismaTenantRepository implements ITenantRepository {
   async findByLegalName(legalName: string): Promise<TenantEntity | null> {
     const row = await this.prisma.tenant.findFirst({
       where: { legal_name: legalName, deleted_at: null },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  async findByAppointmentCodePrefix(prefix: string): Promise<TenantEntity | null> {
+    const row = await this.prisma.tenant.findFirst({
+      where: { appointment_code_prefix: prefix, deleted_at: null },
     });
     return row ? mapToEntity(row) : null;
   }
@@ -78,17 +108,22 @@ export class PrismaTenantRepository implements ITenantRepository {
   }
 
   async save(tenant: TenantEntity): Promise<void> {
-    await this.prisma.tenant.create({
-      data: {
-        id: tenant.id,
-        name: tenant.name,
-        legal_name: tenant.legalName,
-        status: tenant.status as PrismaTenantStatus,
-        timezone: tenant.timezone,
-        currency: tenant.currency,
-        settings_json: tenant.settingsJson as Prisma.InputJsonValue,
-      },
-    });
+    try {
+      await this.prisma.tenant.create({
+        data: {
+          id: tenant.id,
+          name: tenant.name,
+          legal_name: tenant.legalName,
+          status: tenant.status as PrismaTenantStatus,
+          timezone: tenant.timezone,
+          currency: tenant.currency,
+          appointment_code_prefix: tenant.appointmentCodePrefix,
+          settings_json: tenant.settingsJson as Prisma.InputJsonValue,
+        },
+      });
+    } catch (error) {
+      rethrowPrefixConflict(error);
+    }
   }
 
   async update(
@@ -98,6 +133,7 @@ export class PrismaTenantRepository implements ITenantRepository {
       legalName: string;
       timezone: string;
       currency: string;
+      appointmentCodePrefix: string | null;
       settingsJson: Record<string, unknown>;
       status: string;
       deletedAt: Date | null;
@@ -108,11 +144,17 @@ export class PrismaTenantRepository implements ITenantRepository {
     if (data.legalName !== undefined) updateData['legal_name'] = data.legalName;
     if (data.timezone !== undefined) updateData['timezone'] = data.timezone;
     if (data.currency !== undefined) updateData['currency'] = data.currency;
+    if (data.appointmentCodePrefix !== undefined)
+      updateData['appointment_code_prefix'] = data.appointmentCodePrefix;
     if (data.settingsJson !== undefined)
       updateData['settings_json'] = data.settingsJson;
     if (data.status !== undefined) updateData['status'] = data.status;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
-    await this.prisma.tenant.update({ where: { id }, data: updateData });
+    try {
+      await this.prisma.tenant.update({ where: { id }, data: updateData });
+    } catch (error) {
+      rethrowPrefixConflict(error);
+    }
   }
 
   private buildWhere(filters: TenantFilters) {

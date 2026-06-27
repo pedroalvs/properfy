@@ -39,6 +39,8 @@ export interface ServiceGroupSummaryAppointment {
 
 export interface ServiceGroupSummary {
   id: string;
+  groupNumber: number;
+  code: string;
   tenantId: string | null;
   agencies: Array<{ id: string; name: string }>;
   serviceTypeId: string;
@@ -110,6 +112,8 @@ export class ListServiceGroupsUseCase {
         const appointments = appointmentsByGroup.get(g.id);
         return {
           id: g.id,
+          groupNumber: g.groupNumber,
+          code: String(g.groupNumber),
           tenantId: primaryTenantId,
           agencies,
           serviceTypeId: g.serviceTypeId,

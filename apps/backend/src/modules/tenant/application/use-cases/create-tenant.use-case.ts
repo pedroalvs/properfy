@@ -1,9 +1,14 @@
 import type { AuthContext } from '@properfy/shared';
+import { appointmentCodePrefixSchema } from '@properfy/shared';
+import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ITenantRepository } from '../../domain/tenant.repository';
 import { TenantEntity } from '../../domain/tenant.entity';
-import { TenantLegalNameConflictError } from '../../domain/tenant.errors';
+import {
+  TenantLegalNameConflictError,
+  TenantAppointmentCodePrefixConflictError,
+} from '../../domain/tenant.errors';
 import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import { AppointmentTimeSlotEntity } from '../../../appointment-time-slot/domain/appointment-time-slot.entity';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
@@ -14,6 +19,7 @@ export interface CreateTenantInput {
   legalName: string;
   timezone: string;
   currency: string;
+  appointmentCodePrefix: string;
   settings?: Record<string, unknown>;
   actor: AuthContext;
 }
@@ -25,6 +31,7 @@ export interface CreateTenantOutput {
   status: string;
   timezone: string;
   currency: string;
+  appointmentCodePrefix: string | null;
   settingsJson: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +48,16 @@ export class CreateTenantUseCase {
 
   async execute(input: CreateTenantInput): Promise<CreateTenantOutput> {
     const { name, legalName, timezone, currency, settings, actor } = input;
+    // Validate AND normalize here (not only in the shared route schema) so
+    // non-route callers get a deterministic validation error and can't bypass
+    // the "3-4 alphanumeric, uppercased, globally unique" contract.
+    const prefixResult = appointmentCodePrefixSchema.safeParse(input.appointmentCodePrefix);
+    if (!prefixResult.success) {
+      throw new ValidationError('Invalid appointment code prefix', [
+        { field: 'appointmentCodePrefix', message: 'Prefix must be 3–4 letters or numbers' },
+      ]);
+    }
+    const appointmentCodePrefix = prefixResult.data;
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'tenant.create',
@@ -50,6 +67,11 @@ export class CreateTenantUseCase {
     const existing = await this.tenantRepo.findByLegalName(legalName);
     if (existing) {
       throw new TenantLegalNameConflictError();
+    }
+
+    const prefixOwner = await this.tenantRepo.findByAppointmentCodePrefix(appointmentCodePrefix);
+    if (prefixOwner) {
+      throw new TenantAppointmentCodePrefixConflictError();
     }
 
     const now = new Date();
@@ -62,6 +84,7 @@ export class CreateTenantUseCase {
       status: 'PENDING',
       timezone,
       currency,
+      appointmentCodePrefix,
       settingsJson: settings ?? {},
       createdAt: now,
       updatedAt: now,
@@ -84,6 +107,7 @@ export class CreateTenantUseCase {
         status: 'PENDING',
         timezone,
         currency,
+        appointmentCodePrefix,
         settingsJson: tenant.settingsJson,
       },
     });
@@ -101,6 +125,7 @@ export class CreateTenantUseCase {
       status: tenant.status,
       timezone: tenant.timezone,
       currency: tenant.currency,
+      appointmentCodePrefix: tenant.appointmentCodePrefix,
       settingsJson: tenant.settingsJson,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,

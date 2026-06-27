@@ -7,6 +7,7 @@ import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import {
   TenantNotFoundError,
   TenantLegalNameConflictError,
+  TenantAppointmentCodePrefixConflictError,
 } from '../../../src/modules/tenant/domain/tenant.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
@@ -48,6 +49,7 @@ describe('UpdateTenantUseCase', () => {
     tenantRepo = {
       findById: vi.fn(),
       findByLegalName: vi.fn(),
+      findByAppointmentCodePrefix: vi.fn().mockResolvedValue(null),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
@@ -277,6 +279,86 @@ describe('UpdateTenantUseCase', () => {
         actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('should let CL_ADMIN update the top-level appointmentCodePrefix (not stripped)', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ appointmentCodePrefix: 'OLD' }));
+    vi.mocked(tenantRepo.findByAppointmentCodePrefix).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      data: { appointmentCodePrefix: 'NEW' },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.appointmentCodePrefix).toBe('NEW');
+    const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+    expect(updateCall).toHaveProperty('appointmentCodePrefix', 'NEW');
+  });
+
+  it('uppercases the prefix for the uniqueness lookup and the update payload', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ appointmentCodePrefix: 'OLD' }));
+    vi.mocked(tenantRepo.findByAppointmentCodePrefix).mockResolvedValue(null);
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      data: { appointmentCodePrefix: 'xyz' },
+      actor: makeActor(),
+    });
+
+    expect(tenantRepo.findByAppointmentCodePrefix).toHaveBeenCalledWith('XYZ');
+    const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+    expect(updateCall).toHaveProperty('appointmentCodePrefix', 'XYZ');
+  });
+
+  it('should throw TENANT_PREFIX_CONFLICT when the new prefix belongs to another tenant', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ appointmentCodePrefix: 'OLD' }));
+    vi.mocked(tenantRepo.findByAppointmentCodePrefix).mockResolvedValue(
+      makeTenant({ id: 'tenant-other', appointmentCodePrefix: 'NEW' }),
+    );
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        data: { appointmentCodePrefix: 'NEW' },
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(TenantAppointmentCodePrefixConflictError);
+  });
+
+  it('should NOT conflict when the prefix is unchanged (owned by the same tenant)', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ appointmentCodePrefix: 'SAME' }));
+    vi.mocked(tenantRepo.findByAppointmentCodePrefix).mockResolvedValue(
+      makeTenant({ id: 'tenant-1', appointmentCodePrefix: 'SAME' }),
+    );
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      data: { appointmentCodePrefix: 'SAME', name: 'Renamed' },
+      actor: makeActor(),
+    });
+
+    expect(result.name).toBe('Renamed');
+    // Unchanged prefix → no uniqueness lookup needed
+    expect(tenantRepo.findByAppointmentCodePrefix).not.toHaveBeenCalled();
+  });
+
+  it('should record appointmentCodePrefix in the audit before/after', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ appointmentCodePrefix: 'OLD' }));
+    vi.mocked(tenantRepo.findByAppointmentCodePrefix).mockResolvedValue(null);
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      data: { appointmentCodePrefix: 'NEW' },
+      actor: makeActor(),
+    });
+
+    const logArg = vi.mocked(auditService.log).mock.calls[0]![0] as {
+      before: Record<string, unknown>;
+      after: Record<string, unknown>;
+    };
+    expect(logArg.before.appointmentCodePrefix).toBe('OLD');
+    expect(logArg.after.appointmentCodePrefix).toBe('NEW');
   });
 
   it('should NOT filter settings keys for AM — all keys pass through', async () => {

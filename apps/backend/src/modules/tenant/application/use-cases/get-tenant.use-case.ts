@@ -15,6 +15,7 @@ export interface GetTenantOutput {
   status: string;
   timezone: string;
   currency: string;
+  appointmentCodePrefix: string | null;
   settingsJson: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -47,6 +48,7 @@ export class GetTenantUseCase {
       status: tenant.status,
       timezone: tenant.timezone,
       currency: tenant.currency,
+      appointmentCodePrefix: tenant.appointmentCodePrefix,
       settingsJson: tenant.settingsJson,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
