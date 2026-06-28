@@ -48,7 +48,6 @@ function makeSchedule(overrides: Partial<ScheduledReport> = {}): ScheduledReport
     skipDeliveryWhenEmpty: false,
     consecutiveFailureCount: 0,
     status: 'ACTIVE',
-    isActive: true,
     lastRunAt: null,
     nextRunAt: null,
     lastRunStatus: null,

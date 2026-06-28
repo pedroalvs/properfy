@@ -9,8 +9,6 @@ export interface ScheduledReportProps {
   filtersJson: Record<string, unknown>;
   format: ReportFormat;
   cronExpression: string;
-  /** @deprecated — Feature 019 replaces this with `deliveryMode` + `recipientUserIds`. Kept for back-compat. */
-  deliveryEmail: string;
   displayName: string | null;
   deliveryMode: ScheduleDeliveryMode;
   recipientUserIds: string[];
@@ -18,8 +16,6 @@ export interface ScheduledReportProps {
   consecutiveFailureCount: number;
   status: ScheduleStatus;
   deletedAt: Date | null;
-  /** @deprecated — Feature 019 replaces this with `status`. Kept for back-compat with the existing column. */
-  isActive: boolean;
   lastRunAt: Date | null;
   nextRunAt: Date | null;
   createdByUserId: string;
@@ -33,7 +29,6 @@ export class ScheduledReportEntity extends BaseEntity {
   filtersJson: Record<string, unknown>;
   format: ReportFormat;
   cronExpression: string;
-  readonly deliveryEmail: string;
   displayName: string | null;
   deliveryMode: ScheduleDeliveryMode;
   recipientUserIds: string[];
@@ -41,7 +36,6 @@ export class ScheduledReportEntity extends BaseEntity {
   consecutiveFailureCount: number;
   status: ScheduleStatus;
   deletedAt: Date | null;
-  isActive: boolean;
   lastRunAt: Date | null;
   nextRunAt: Date | null;
   /** Mutable to support AM ownership reassignment (Feature 019 FR-028a). */
@@ -54,7 +48,6 @@ export class ScheduledReportEntity extends BaseEntity {
     this.filtersJson = props.filtersJson;
     this.format = props.format;
     this.cronExpression = props.cronExpression;
-    this.deliveryEmail = props.deliveryEmail;
     this.displayName = props.displayName;
     this.deliveryMode = props.deliveryMode;
     this.recipientUserIds = props.recipientUserIds;
@@ -62,7 +55,6 @@ export class ScheduledReportEntity extends BaseEntity {
     this.consecutiveFailureCount = props.consecutiveFailureCount;
     this.status = props.status;
     this.deletedAt = props.deletedAt;
-    this.isActive = props.isActive;
     this.lastRunAt = props.lastRunAt;
     this.nextRunAt = props.nextRunAt;
     this.createdByUserId = props.createdByUserId;
@@ -83,7 +75,6 @@ export class ScheduledReportEntity extends BaseEntity {
    */
   pause(): void {
     this.status = 'PAUSED';
-    this.isActive = false;
     this.updatedAt = new Date();
   }
 
@@ -94,7 +85,6 @@ export class ScheduledReportEntity extends BaseEntity {
    */
   resume(nextRunAt: Date | null): void {
     this.status = 'ACTIVE';
-    this.isActive = true;
     this.consecutiveFailureCount = 0;
     this.nextRunAt = nextRunAt;
     this.updatedAt = new Date();
@@ -107,7 +97,6 @@ export class ScheduledReportEntity extends BaseEntity {
   softDelete(): void {
     this.deletedAt = new Date();
     this.status = 'PAUSED';
-    this.isActive = false;
     this.updatedAt = new Date();
   }
 
@@ -133,7 +122,6 @@ export class ScheduledReportEntity extends BaseEntity {
     this.updatedAt = now;
     if (this.consecutiveFailureCount >= SCHEDULE_AUTO_PAUSE_FAILURE_THRESHOLD) {
       this.status = 'PAUSED';
-      this.isActive = false;
       return { autoPaused: true };
     }
     return { autoPaused: false };

@@ -421,7 +421,6 @@ model Inspector {
   phone                      String?         @db.VarChar(20)
   status                     InspectorStatus @default(ACTIVE)
   payment_settings_json      Json            @default("{}")
-  regions_json               Json            @default("[]")
   service_types_json         Json            @default("[]")
   client_eligibility_json    Json            @default("[]")
   // Feedback Round item 1: blocked-clients model (replaces allow-list)
@@ -1531,8 +1530,6 @@ model ScheduledReport {
   filters_json              Json
   format                    ReportFormat         @default(XLSX)
   cron_expression           String               @db.VarChar(100)
-  // Legacy single-recipient delivery field (Feature 019 deprecates this in favor of delivery_mode + recipient_user_ids)
-  delivery_email            String               @db.VarChar(254)
   // Feature 019: lifecycle columns
   display_name              String?              @db.VarChar(120)
   delivery_mode             ScheduleDeliveryMode @default(OWNER_ONLY)
@@ -1541,8 +1538,6 @@ model ScheduledReport {
   consecutive_failure_count Int                  @default(0)
   status                    ScheduleStatus       @default(ACTIVE)
   deleted_at                DateTime?
-  // Legacy flag kept for back-compat; new code must read `status`
-  is_active                 Boolean              @default(true)
   last_run_at               DateTime?
   next_run_at               DateTime?
   created_by_user_id        String
@@ -1555,7 +1550,6 @@ model ScheduledReport {
   runs      ScheduledReportRun[]
 
   @@index([tenant_id])
-  @@index([is_active, next_run_at])
   @@index([status, next_run_at])
   @@index([created_by_user_id])
   @@map("scheduled_reports")

@@ -86,7 +86,6 @@ async function main() {
         email: insp.email,
         status: 'ACTIVE',
         payment_settings_json: {},
-        regions_json: [],
         service_types_json: [],
         client_eligibility_json: [],
         blocked_clients_json: [],

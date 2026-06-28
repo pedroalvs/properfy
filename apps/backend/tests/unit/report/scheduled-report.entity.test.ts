@@ -10,7 +10,6 @@ function makeEntity(overrides: Partial<ConstructorParameters<typeof ScheduledRep
     filtersJson: {},
     format: 'XLSX',
     cronExpression: '0 8 * * 1',
-    deliveryEmail: 'test@example.com',
     displayName: null,
     deliveryMode: 'OWNER_ONLY',
     recipientUserIds: [],
@@ -18,7 +17,6 @@ function makeEntity(overrides: Partial<ConstructorParameters<typeof ScheduledRep
     consecutiveFailureCount: 0,
     status: 'ACTIVE',
     deletedAt: null,
-    isActive: true,
     lastRunAt: null,
     nextRunAt: new Date(now.getTime() + 86400000),
     createdByUserId: 'user-1',
@@ -46,7 +44,7 @@ describe('ScheduledReportEntity', () => {
 
     it('should return false when paused', () => {
       const past = new Date(Date.now() - 60000);
-      const entity = makeEntity({ isActive: false, status: 'PAUSED', nextRunAt: past });
+      const entity = makeEntity({ status: 'PAUSED', nextRunAt: past });
 
       expect(entity.isDue(new Date())).toBe(false);
     });
@@ -80,12 +78,12 @@ describe('ScheduledReportEntity', () => {
   });
 
   describe('deactivate', () => {
-    it('should set isActive to false', () => {
-      const entity = makeEntity({ isActive: true });
+    it('should pause the schedule', () => {
+      const entity = makeEntity({ status: 'ACTIVE' });
 
       entity.deactivate();
 
-      expect(entity.isActive).toBe(false);
+      expect(entity.status).toBe('PAUSED');
     });
   });
 
@@ -93,14 +91,13 @@ describe('ScheduledReportEntity', () => {
 
   describe('feature 019: pause / resume', () => {
     it('pause() transitions to PAUSED', () => {
-      const entity = makeEntity({ status: 'ACTIVE', isActive: true });
+      const entity = makeEntity({ status: 'ACTIVE' });
       entity.pause();
       expect(entity.status).toBe('PAUSED');
-      expect(entity.isActive).toBe(false);
     });
 
     it('pause() is idempotent', () => {
-      const entity = makeEntity({ status: 'PAUSED', isActive: false });
+      const entity = makeEntity({ status: 'PAUSED' });
       entity.pause();
       expect(entity.status).toBe('PAUSED');
     });
@@ -108,7 +105,6 @@ describe('ScheduledReportEntity', () => {
     it('resume() transitions to ACTIVE and resets the failure counter', () => {
       const entity = makeEntity({
         status: 'PAUSED',
-        isActive: false,
         consecutiveFailureCount: 3,
       });
       const nextRun = new Date(Date.now() + 86400000);
@@ -116,7 +112,6 @@ describe('ScheduledReportEntity', () => {
       entity.resume(nextRun);
 
       expect(entity.status).toBe('ACTIVE');
-      expect(entity.isActive).toBe(true);
       expect(entity.consecutiveFailureCount).toBe(0);
       expect(entity.nextRunAt).toBe(nextRun);
     });
@@ -124,11 +119,10 @@ describe('ScheduledReportEntity', () => {
 
   describe('feature 019: softDelete', () => {
     it('softDelete() sets deletedAt and pauses the schedule', () => {
-      const entity = makeEntity({ status: 'ACTIVE', isActive: true });
+      const entity = makeEntity({ status: 'ACTIVE' });
       entity.softDelete();
       expect(entity.deletedAt).toBeInstanceOf(Date);
       expect(entity.status).toBe('PAUSED');
-      expect(entity.isActive).toBe(false);
     });
 
     it('isDue() returns false after soft-delete', () => {
@@ -176,7 +170,6 @@ describe('ScheduledReportEntity', () => {
       expect(r.autoPaused).toBe(true);
       expect(entity.consecutiveFailureCount).toBe(3);
       expect(entity.status).toBe('PAUSED');
-      expect(entity.isActive).toBe(false);
     });
   });
 });

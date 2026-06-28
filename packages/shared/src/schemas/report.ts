@@ -117,8 +117,6 @@ export const createScheduledReportSchema = z
     recipientUserIds: z.array(z.string().uuid()).max(50).default([]),
     displayName: z.string().max(120).optional(),
     skipDeliveryWhenEmpty: z.boolean().default(false),
-    /** @deprecated — use `deliveryMode` + `recipientUserIds` instead. */
-    deliveryEmail: z.string().email().optional(),
     /** AM only: explicit tenant scope when JWT tenantId is null. */
     tenantId: z.string().uuid().optional(),
   })

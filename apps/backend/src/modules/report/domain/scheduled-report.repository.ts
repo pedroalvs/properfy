@@ -3,7 +3,6 @@ import type { ScheduleStatus } from '@properfy/shared';
 
 export interface ScheduledReportFilters {
   tenantId?: string;
-  isActive?: boolean;
   status?: ScheduleStatus;
   includeDeleted?: boolean;
   createdByUserId?: string;

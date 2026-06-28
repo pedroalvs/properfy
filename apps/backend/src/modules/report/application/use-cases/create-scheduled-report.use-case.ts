@@ -45,8 +45,6 @@ export interface CreateScheduledReportInput {
   recipientUserIds: string[];
   displayName?: string;
   skipDeliveryWhenEmpty: boolean;
-  /** @deprecated — kept for back-compat with callers that still send a single email. */
-  deliveryEmail?: string;
   /** AM only: explicit tenant scope when JWT tenantId is null. */
   tenantId?: string;
 }
@@ -55,12 +53,10 @@ export interface CreateScheduledReportOutput {
   id: string;
   reportType: ReportType;
   cronExpression: string;
-  deliveryEmail: string;
   displayName: string | null;
   deliveryMode: ScheduleDeliveryMode;
   recipientUserIds: string[];
   skipDeliveryWhenEmpty: boolean;
-  isActive: boolean;
   status: 'ACTIVE' | 'PAUSED';
   nextRunAt: Date | null;
   createdAt: Date;
@@ -102,7 +98,6 @@ export class CreateScheduledReportUseCase {
       recipientUserIds,
       displayName,
       skipDeliveryWhenEmpty,
-      deliveryEmail,
       tenantId: inputTenantId,
     } = input;
     const { userId, tenantId, role } = auth;
@@ -209,7 +204,6 @@ export class CreateScheduledReportUseCase {
       filtersJson,
       format,
       cronExpression,
-      deliveryEmail: deliveryEmail ?? '',
       displayName: displayName ?? null,
       deliveryMode,
       recipientUserIds: recipientUserIds ?? [],
@@ -217,7 +211,6 @@ export class CreateScheduledReportUseCase {
       consecutiveFailureCount: 0,
       status: 'ACTIVE',
       deletedAt: null,
-      isActive: true,
       lastRunAt: null,
       nextRunAt,
       createdByUserId: userId,
@@ -250,12 +243,10 @@ export class CreateScheduledReportUseCase {
       id,
       reportType,
       cronExpression,
-      deliveryEmail: deliveryEmail ?? '',
       displayName: displayName ?? null,
       deliveryMode,
       recipientUserIds: recipientUserIds ?? [],
       skipDeliveryWhenEmpty,
-      isActive: true,
       status: 'ACTIVE',
       nextRunAt,
       createdAt: now,

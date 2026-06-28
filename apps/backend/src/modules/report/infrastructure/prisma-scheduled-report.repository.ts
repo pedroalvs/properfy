@@ -80,7 +80,6 @@ export class PrismaScheduledReportRepository implements IScheduledReportReposito
         filters_json: entity.filtersJson as Prisma.InputJsonValue,
         format: entity.format as PrismaReportFormat,
         cron_expression: entity.cronExpression,
-        delivery_email: entity.deliveryEmail,
         display_name: entity.displayName,
         delivery_mode: entity.deliveryMode as PrismaScheduleDeliveryMode,
         recipient_user_ids: entity.recipientUserIds as unknown as Prisma.InputJsonValue,
@@ -88,7 +87,6 @@ export class PrismaScheduledReportRepository implements IScheduledReportReposito
         consecutive_failure_count: entity.consecutiveFailureCount,
         status: entity.status as PrismaScheduleStatus,
         deleted_at: entity.deletedAt,
-        is_active: entity.isActive,
         last_run_at: entity.lastRunAt,
         next_run_at: entity.nextRunAt,
         created_by_user_id: entity.createdByUserId,
@@ -109,7 +107,6 @@ export class PrismaScheduledReportRepository implements IScheduledReportReposito
         consecutive_failure_count: entity.consecutiveFailureCount,
         status: entity.status as PrismaScheduleStatus,
         deleted_at: entity.deletedAt,
-        is_active: entity.isActive,
         last_run_at: entity.lastRunAt,
         next_run_at: entity.nextRunAt,
         created_by_user_id: entity.createdByUserId,
@@ -120,7 +117,6 @@ export class PrismaScheduledReportRepository implements IScheduledReportReposito
   private buildWhere(filters: ScheduledReportFilters) {
     const where: Record<string, unknown> = {};
     if (filters.tenantId) where.tenant_id = filters.tenantId;
-    if (filters.isActive !== undefined) where.is_active = filters.isActive;
     if (filters.status) where.status = filters.status;
     if (filters.createdByUserId) where.created_by_user_id = filters.createdByUserId;
     if (!filters.includeDeleted) where.deleted_at = null;
@@ -135,7 +131,6 @@ export class PrismaScheduledReportRepository implements IScheduledReportReposito
       filtersJson: row.filters_json as Record<string, unknown>,
       format: row.format,
       cronExpression: row.cron_expression,
-      deliveryEmail: row.delivery_email,
       displayName: row.display_name ?? null,
       deliveryMode: row.delivery_mode,
       recipientUserIds: Array.isArray(row.recipient_user_ids)
@@ -145,7 +140,6 @@ export class PrismaScheduledReportRepository implements IScheduledReportReposito
       consecutiveFailureCount: row.consecutive_failure_count,
       status: row.status,
       deletedAt: row.deleted_at ?? null,
-      isActive: row.is_active,
       lastRunAt: row.last_run_at,
       nextRunAt: row.next_run_at,
       createdByUserId: row.created_by_user_id,

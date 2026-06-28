@@ -656,6 +656,7 @@ export interface paths {
                                 status: string;
                                 timezone: string;
                                 currency: string;
+                                appointmentCodePrefix: string | null;
                                 settingsJson?: unknown;
                                 branchCount?: number;
                                 createdAt: string;
@@ -689,6 +690,7 @@ export interface paths {
                         timezone?: string;
                         /** @default AUD */
                         currency?: string;
+                        appointmentCodePrefix: string;
                         settings?: {
                             /**
                              * @default MONTHLY
@@ -802,6 +804,7 @@ export interface paths {
                                 status: string;
                                 timezone: string;
                                 currency: string;
+                                appointmentCodePrefix: string | null;
                                 settingsJson?: unknown;
                                 branchCount?: number;
                                 createdAt: string;
@@ -851,6 +854,7 @@ export interface paths {
                                 status: string;
                                 timezone: string;
                                 currency: string;
+                                appointmentCodePrefix: string | null;
                                 settingsJson?: unknown;
                                 branchCount?: number;
                                 createdAt: string;
@@ -882,6 +886,7 @@ export interface paths {
                         legalName?: string;
                         timezone?: string;
                         currency?: string;
+                        appointmentCodePrefix?: string;
                         settings?: {
                             /**
                              * @default MONTHLY
@@ -995,6 +1000,7 @@ export interface paths {
                                 status: string;
                                 timezone: string;
                                 currency: string;
+                                appointmentCodePrefix: string | null;
                                 settingsJson?: unknown;
                                 branchCount?: number;
                                 createdAt: string;
@@ -5912,6 +5918,8 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
+                                groupNumber?: number;
+                                code?: string;
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 agencies?: {
@@ -5997,6 +6005,8 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
+                                groupNumber?: number;
+                                code?: string;
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 agencies?: {
@@ -6070,6 +6080,8 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
+                                groupNumber?: number;
+                                code?: string;
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 agencies?: {
@@ -6149,6 +6161,8 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
+                                groupNumber?: number;
+                                code?: string;
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 agencies?: {
@@ -6220,6 +6234,8 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
+                                groupNumber?: number;
+                                code?: string;
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 agencies?: {
@@ -6302,6 +6318,8 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
+                                groupNumber?: number;
+                                code?: string;
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 agencies?: {
@@ -6639,6 +6657,8 @@ export interface paths {
                                 groups: {
                                     /** Format: uuid */
                                     id: string;
+                                    groupNumber: number;
+                                    code: string;
                                     name: string | null;
                                     status: string;
                                     scheduledDate: string;
@@ -6691,6 +6711,8 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 groupId: string;
+                                groupNumber: number;
+                                code: string;
                                 tenantName: string;
                                 serviceTypeName: string;
                                 groupSize: number;
@@ -6753,6 +6775,8 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 groupId: string;
+                                groupNumber: number;
+                                code: string;
                                 tenantName: string;
                                 serviceTypeName: string;
                                 groupSize: number;
@@ -8509,6 +8533,8 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 groupId: string;
+                                groupNumber: number;
+                                code: string;
                                 tenantName: string;
                                 serviceTypeName: string;
                                 groupSize: number;
@@ -10590,8 +10616,6 @@ export interface paths {
                                 filtersJson?: unknown;
                                 format: string;
                                 cronExpression: string;
-                                deliveryEmail: string;
-                                isActive: boolean;
                                 lastRunAt?: (string) | null;
                                 nextRunAt?: (string) | null;
                                 /** Format: uuid */
@@ -10669,8 +10693,6 @@ export interface paths {
                         displayName?: string;
                         /** @default false */
                         skipDeliveryWhenEmpty?: boolean;
-                        /** Format: email */
-                        deliveryEmail?: string;
                         /** Format: uuid */
                         tenantId?: string;
                     };
@@ -10689,8 +10711,6 @@ export interface paths {
                                 id: string;
                                 reportType: string;
                                 cronExpression: string;
-                                deliveryEmail: string;
-                                isActive: boolean;
                                 nextRunAt?: (string) | null;
                                 createdAt: string;
                             };

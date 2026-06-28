@@ -17,7 +17,6 @@ export interface ScheduledReportDto {
   filtersJson: Record<string, unknown>;
   format: string;
   cronExpression: string;
-  deliveryEmail: string;
   // Feature 019 additions
   displayName: string | null;
   deliveryMode: ScheduleDeliveryMode;
@@ -27,7 +26,6 @@ export interface ScheduledReportDto {
   status: ScheduleStatus;
   deletedAt: Date | null;
   lastRunStatus: ScheduleRunStatus | null;
-  isActive: boolean;
   lastRunAt: Date | null;
   nextRunAt: Date | null;
   createdByUserId: string;
@@ -46,7 +44,6 @@ function toDto(
     filtersJson: entity.filtersJson,
     format: entity.format,
     cronExpression: entity.cronExpression,
-    deliveryEmail: entity.deliveryEmail,
     displayName: entity.displayName,
     deliveryMode: entity.deliveryMode,
     recipientUserIds: entity.recipientUserIds,
@@ -55,7 +52,6 @@ function toDto(
     status: entity.status,
     deletedAt: entity.deletedAt,
     lastRunStatus,
-    isActive: entity.isActive,
     lastRunAt: entity.lastRunAt,
     nextRunAt: entity.nextRunAt,
     createdByUserId: entity.createdByUserId,

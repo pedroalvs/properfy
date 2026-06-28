@@ -59,7 +59,6 @@ function makeSchedule(
     filtersJson: {},
     format: 'XLSX',
     cronExpression: '0 8 * * *', // daily at 08:00
-    deliveryEmail: 'reports@example.com',
     displayName: null,
     deliveryMode: 'OWNER_ONLY',
     recipientUserIds: [],
@@ -67,7 +66,6 @@ function makeSchedule(
     consecutiveFailureCount: 0,
     status: 'ACTIVE',
     deletedAt: null,
-    isActive: true,
     lastRunAt: null,
     nextRunAt: new Date(now.getTime() - 60000), // 1 minute ago (due)
     createdByUserId: 'user-1',

@@ -14,9 +14,9 @@ function makeSchedule(overrides: Partial<ScheduledReportProps> = {}): ScheduledR
   return new ScheduledReportEntity({
     id: 'sched-1', tenantId: 'tenant-1', reportType: 'INSPECTIONS_SCHEDULED',
     filtersJson: {}, format: 'XLSX', cronExpression: '0 8 * * 1',
-    deliveryEmail: '', displayName: null, deliveryMode: 'OWNER_ONLY',
+    displayName: null, deliveryMode: 'OWNER_ONLY',
     recipientUserIds: [], skipDeliveryWhenEmpty: false, consecutiveFailureCount: 3,
-    status: 'PAUSED', deletedAt: null, isActive: false, lastRunAt: null,
+    status: 'PAUSED', deletedAt: null, lastRunAt: null,
     nextRunAt: null, createdByUserId: 'user-1',
     createdAt: new Date(), updatedAt: new Date(), ...overrides,
   });

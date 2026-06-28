@@ -28,7 +28,6 @@ export interface ScheduledReport {
   skipDeliveryWhenEmpty: boolean;
   consecutiveFailureCount: number;
   status: ScheduleStatus;
-  isActive: boolean;
   lastRunAt: string | null;
   nextRunAt: string | null;
   lastRunStatus: ScheduleRunStatus | null;

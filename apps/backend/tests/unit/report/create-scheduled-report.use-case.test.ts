@@ -38,7 +38,6 @@ function makeInput(overrides: Partial<CreateScheduledReportInput> = {}): CreateS
     filtersJson: { tenantId: 'tenant-1' },
     format: 'XLSX',
     cronExpression: '0 8 * * 1',
-    deliveryEmail: 'reports@example.com',
     deliveryMode: 'OWNER_ONLY',
     recipientUserIds: [],
     skipDeliveryWhenEmpty: false,
@@ -80,8 +79,7 @@ describe('CreateScheduledReportUseCase', () => {
     expect(result.id).toBeDefined();
     expect(result.reportType).toBe('INSPECTIONS_SCHEDULED');
     expect(result.cronExpression).toBe('0 8 * * 1');
-    expect(result.deliveryEmail).toBe('reports@example.com');
-    expect(result.isActive).toBe(true);
+    expect(result.status).toBe('ACTIVE');
     expect(result.nextRunAt).not.toBeNull();
     expect(result.createdAt).toBeInstanceOf(Date);
 
@@ -94,7 +92,7 @@ describe('CreateScheduledReportUseCase', () => {
 
     const result = await useCase.execute(input, auth);
 
-    expect(result.isActive).toBe(true);
+    expect(result.status).toBe('ACTIVE');
     expect(scheduledReportRepo.save).toHaveBeenCalledOnce();
   });
 

@@ -62,7 +62,6 @@ function makeSchedule(overrides: Partial<ConstructorParameters<typeof ScheduledR
     filtersJson: {},
     format: 'XLSX',
     cronExpression: '0 8 * * *',
-    deliveryEmail: 'reports@example.com',
     displayName: 'Worker Integration Daily',
     deliveryMode: 'OWNER_ONLY',
     recipientUserIds: [],
@@ -70,7 +69,6 @@ function makeSchedule(overrides: Partial<ConstructorParameters<typeof ScheduledR
     consecutiveFailureCount: 0,
     status: 'ACTIVE',
     deletedAt: null,
-    isActive: true,
     lastRunAt: null,
     nextRunAt: new Date(now.getTime() - 60_000), // 1 minute ago (due)
     createdByUserId: 'creator-1',

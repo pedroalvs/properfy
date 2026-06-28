@@ -408,7 +408,6 @@ async function main() {
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorLinked },
     update: {
-      regions_json: ['Sydney', 'Surry Hills', 'North Sydney', 'Inner West'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
@@ -422,7 +421,6 @@ async function main() {
       email: 'insp@pedroalvs.com',
       phone: '+61400111222',
       status: 'ACTIVE',
-      regions_json: ['Sydney', 'Surry Hills', 'North Sydney', 'Inner West'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
@@ -434,7 +432,6 @@ async function main() {
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorIndep },
     update: {
-      regions_json: ['Eastern Suburbs', 'South Sydney', 'Surry Hills', 'North Sydney'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
@@ -447,7 +444,6 @@ async function main() {
       email: 'carlos.mendez@inspectors.com.au',
       phone: '+61400333444',
       status: 'ACTIVE',
-      regions_json: ['Eastern Suburbs', 'South Sydney', 'Surry Hills', 'North Sydney'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
@@ -459,7 +455,6 @@ async function main() {
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorLinked2 },
     update: {
-      regions_json: ['Melbourne', 'Southbank', 'Richmond'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
@@ -474,7 +469,6 @@ async function main() {
       email: 'insp2@pedroalvs.com',
       phone: '+61400555666',
       status: 'ACTIVE',
-      regions_json: ['Melbourne', 'Southbank', 'Richmond'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
@@ -493,7 +487,6 @@ async function main() {
       email: 'retired@inspectors.com.au',
       phone: '+61400777888',
       status: 'INACTIVE',
-      regions_json: ['Parramatta', 'Western Sydney'],
     },
   });
   console.log('Inspectors: 4 created (2 active linked, 1 active independent, 1 inactive)');

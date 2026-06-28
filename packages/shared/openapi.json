@@ -24058,10 +24058,6 @@
                     "type": "boolean",
                     "default": false
                   },
-                  "deliveryEmail": {
-                    "type": "string",
-                    "format": "email"
-                  },
                   "tenantId": {
                     "type": "string",
                     "format": "uuid"
@@ -24097,12 +24093,6 @@
                         "cronExpression": {
                           "type": "string"
                         },
-                        "deliveryEmail": {
-                          "type": "string"
-                        },
-                        "isActive": {
-                          "type": "boolean"
-                        },
                         "nextRunAt": {
                           "anyOf": [
                             {
@@ -24131,8 +24121,6 @@
                         "id",
                         "reportType",
                         "cronExpression",
-                        "deliveryEmail",
-                        "isActive",
                         "createdAt"
                       ],
                       "additionalProperties": false
@@ -24218,12 +24206,6 @@
                           },
                           "cronExpression": {
                             "type": "string"
-                          },
-                          "deliveryEmail": {
-                            "type": "string"
-                          },
-                          "isActive": {
-                            "type": "boolean"
                           },
                           "lastRunAt": {
                             "anyOf": [
@@ -24338,8 +24320,6 @@
                           "reportType",
                           "format",
                           "cronExpression",
-                          "deliveryEmail",
-                          "isActive",
                           "createdAt",
                           "updatedAt"
                         ],
