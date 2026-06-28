@@ -189,7 +189,7 @@ describe('TNT actor: JWT routes are inaccessible without valid JWT', () => {
   it('POST /v1/tenants — no JWT + valid body → 401', async () => {
     const res = await supertest(app.server)
       .post('/v1/tenants')
-      .send({ name: 'Acme Realty', legalName: 'Acme Realty Pty Ltd' });
+      .send({ name: 'Acme Realty', legalName: 'Acme Realty Pty Ltd', appointmentCodePrefix: 'ACME' });
     expect(res.status).toBe(401);
   });
 });
@@ -246,7 +246,7 @@ describe('INSP actor: denied — tenant management', () => {
     const res = await supertest(app.server)
       .post('/v1/tenants')
       .set('Authorization', 'Bearer t')
-      .send({ name: 'Test', legalName: 'Test Pty Ltd' });
+      .send({ name: 'Test', legalName: 'Test Pty Ltd', appointmentCodePrefix: 'TST' });
     expect(res.status).toBe(403);
   });
 });

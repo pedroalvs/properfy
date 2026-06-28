@@ -692,6 +692,10 @@
                     "maxLength": 3,
                     "default": "AUD"
                   },
+                  "appointmentCodePrefix": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9]{3,4}$"
+                  },
                   "settings": {
                     "type": "object",
                     "properties": {
@@ -978,7 +982,8 @@
                 },
                 "required": [
                   "name",
-                  "legalName"
+                  "legalName",
+                  "appointmentCodePrefix"
                 ],
                 "additionalProperties": false
               }
@@ -1016,6 +1021,10 @@
                         "currency": {
                           "type": "string"
                         },
+                        "appointmentCodePrefix": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "settingsJson": {},
                         "branchCount": {
                           "type": "number"
@@ -1050,6 +1059,7 @@
                         "status",
                         "timezone",
                         "currency",
+                        "appointmentCodePrefix",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -1165,6 +1175,10 @@
                           "currency": {
                             "type": "string"
                           },
+                          "appointmentCodePrefix": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "settingsJson": {},
                           "branchCount": {
                             "type": "number"
@@ -1199,6 +1213,7 @@
                           "status",
                           "timezone",
                           "currency",
+                          "appointmentCodePrefix",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -1285,6 +1300,10 @@
                         "currency": {
                           "type": "string"
                         },
+                        "appointmentCodePrefix": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "settingsJson": {},
                         "branchCount": {
                           "type": "number"
@@ -1319,6 +1338,7 @@
                         "status",
                         "timezone",
                         "currency",
+                        "appointmentCodePrefix",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -1361,6 +1381,10 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 3
+                  },
+                  "appointmentCodePrefix": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9]{3,4}$"
                   },
                   "settings": {
                     "type": "object",
@@ -1692,6 +1716,10 @@
                         "currency": {
                           "type": "string"
                         },
+                        "appointmentCodePrefix": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "settingsJson": {},
                         "branchCount": {
                           "type": "number"
@@ -1726,6 +1754,7 @@
                         "status",
                         "timezone",
                         "currency",
+                        "appointmentCodePrefix",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -13714,6 +13743,12 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "groupNumber": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
                         "tenantId": {
                           "type": "string",
                           "format": "uuid",
@@ -14076,6 +14111,12 @@
                             "type": "string",
                             "format": "uuid"
                           },
+                          "groupNumber": {
+                            "type": "number"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
                           "tenantId": {
                             "type": "string",
                             "format": "uuid",
@@ -14312,6 +14353,12 @@
                         "id": {
                           "type": "string",
                           "format": "uuid"
+                        },
+                        "groupNumber": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string"
                         },
                         "tenantId": {
                           "type": "string",
@@ -14566,6 +14613,12 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "groupNumber": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
                         "tenantId": {
                           "type": "string",
                           "format": "uuid",
@@ -14776,6 +14829,12 @@
                         "id": {
                           "type": "string",
                           "format": "uuid"
+                        },
+                        "groupNumber": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string"
                         },
                         "tenantId": {
                           "type": "string",
@@ -15007,6 +15066,12 @@
                         "id": {
                           "type": "string",
                           "format": "uuid"
+                        },
+                        "groupNumber": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string"
                         },
                         "tenantId": {
                           "type": "string",
@@ -15668,6 +15733,12 @@
                                 "type": "string",
                                 "format": "uuid"
                               },
+                              "groupNumber": {
+                                "type": "number"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
                               "name": {
                                 "type": "string",
                                 "nullable": true
@@ -15691,6 +15762,8 @@
                             },
                             "required": [
                               "id",
+                              "groupNumber",
+                              "code",
                               "name",
                               "status",
                               "scheduledDate",
@@ -15789,6 +15862,12 @@
                             "type": "string",
                             "format": "uuid"
                           },
+                          "groupNumber": {
+                            "type": "number"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
                           "tenantName": {
                             "type": "string"
                           },
@@ -15860,6 +15939,8 @@
                         },
                         "required": [
                           "groupId",
+                          "groupNumber",
+                          "code",
                           "tenantName",
                           "serviceTypeName",
                           "groupSize",
@@ -15939,6 +16020,12 @@
                         "groupId": {
                           "type": "string",
                           "format": "uuid"
+                        },
+                        "groupNumber": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string"
                         },
                         "tenantName": {
                           "type": "string"
@@ -16070,6 +16157,8 @@
                       },
                       "required": [
                         "groupId",
+                        "groupNumber",
+                        "code",
                         "tenantName",
                         "serviceTypeName",
                         "groupSize",
@@ -19179,6 +19268,12 @@
                             "type": "string",
                             "format": "uuid"
                           },
+                          "groupNumber": {
+                            "type": "number"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
                           "tenantName": {
                             "type": "string"
                           },
@@ -19250,6 +19345,8 @@
                         },
                         "required": [
                           "groupId",
+                          "groupNumber",
+                          "code",
                           "tenantName",
                           "serviceTypeName",
                           "groupSize",

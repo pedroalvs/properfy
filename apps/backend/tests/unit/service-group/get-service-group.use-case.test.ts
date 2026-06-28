@@ -105,6 +105,20 @@ describe('GetServiceGroupUseCase', () => {
     expect(serviceGroupRepo.findById).toHaveBeenCalledWith('group-1', null);
   });
 
+  it('should expose the sequential group code (groupNumber + code)', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ groupNumber: 1057 }),
+    );
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.groupNumber).toBe(1057);
+    expect(result.code).toBe('1057');
+  });
+
   it('should return group for OP', async () => {
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
 

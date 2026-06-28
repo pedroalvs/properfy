@@ -2,6 +2,10 @@ export type OfferAcceptState = 'IDLE' | 'CONFIRMING' | 'ACCEPTING' | 'ACCEPTED' 
 
 export interface MarketplaceOffer {
   groupId: string;
+  /** Sequential human-friendly group code (pure numeric). Required — backend
+   *  marketplace responses always include it. */
+  groupNumber: number;
+  code: string;
   tenantName: string;
   serviceTypeName: string;
   groupSize: number;

@@ -167,6 +167,32 @@ describe('CreateServiceGroupUseCase', () => {
     );
   });
 
+  it('should return the DB-assigned sequential group code after save', async () => {
+    const appointmentIds = makeAppointmentIds(5);
+    for (let i = 0; i < 5; i++) {
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
+      );
+    }
+    // Simulate the DB sequence assigning group_number on persist.
+    vi.mocked(serviceGroupRepo.save).mockImplementation(async (g) => {
+      g.groupNumber = 42;
+    });
+
+    const result = await useCase.execute({
+      appointmentIds,
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
+      actor: makeActor(),
+    });
+
+    expect(result.groupNumber).toBe(42);
+    expect(result.code).toBe('42');
+  });
+
   it('should create a service group with 5 valid appointments (happy path)', async () => {
     const appointmentIds = makeAppointmentIds(5);
     for (let i = 0; i < 5; i++) {

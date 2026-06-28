@@ -19,6 +19,8 @@ export interface TenantAdmin {
 export interface TenantAdminDetail extends TenantAdmin {
   /** GET /v1/tenants/:id returns the settings blob under `settingsJson`. */
   settingsJson?: Record<string, unknown>;
+  /** Dedicated column; null for legacy rows pending backfill. */
+  appointmentCodePrefix?: string | null;
   notes: string | null;
 }
 
@@ -27,6 +29,8 @@ export interface TenantAdminFormData {
   legalName: string;
   timezone: string;
   currency: string;
+  /** 3–4 letters/numbers, uppercased, unique per agency (e.g. "INS" -> "INS-0042"). */
+  appointmentCodePrefix: string;
   notes: string;
   /** When false, the platform skips EMAIL sends for this agency. */
   emailSendingEnabled: boolean;
@@ -39,6 +43,7 @@ export const EMPTY_TENANT_ADMIN_FORM: TenantAdminFormData = {
   legalName: '',
   timezone: '',
   currency: '',
+  appointmentCodePrefix: '',
   notes: '',
   emailSendingEnabled: true,
 };

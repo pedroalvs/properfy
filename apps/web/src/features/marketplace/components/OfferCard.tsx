@@ -40,7 +40,10 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
     >
       <div className="mb-2 flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-bold text-text-primary">{offer.serviceTypeName}</h3>
+          <h3 className="text-sm font-bold text-text-primary">
+            {offer.serviceTypeName}
+            {offer.code ? <span className="ml-2 font-mono text-xs text-text-muted">#{offer.code}</span> : null}
+          </h3>
           <p className="text-xs text-text-secondary">{offer.tenantName}</p>
         </div>
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeBg}`} data-testid="priority-badge">

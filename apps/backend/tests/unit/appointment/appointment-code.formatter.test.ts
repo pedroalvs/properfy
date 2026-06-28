@@ -4,7 +4,7 @@ import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 
 const formatter = new AppointmentCodeFormatter();
 
-function makeTenant(settingsJson: Record<string, unknown> = {}) {
+function makeTenant(appointmentCodePrefix: string | null = null) {
   return new TenantEntity({
     id: 'tenant-1',
     name: 'Test Agency',
@@ -12,7 +12,8 @@ function makeTenant(settingsJson: Record<string, unknown> = {}) {
     status: 'ACTIVE',
     timezone: 'Australia/Sydney',
     currency: 'AUD',
-    settingsJson,
+    appointmentCodePrefix,
+    settingsJson: {},
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
@@ -20,20 +21,24 @@ function makeTenant(settingsJson: Record<string, unknown> = {}) {
 }
 
 describe('AppointmentCodeFormatter', () => {
-  it('uses default prefix INS when no appointmentCodePrefix in settings', () => {
+  it('uses default prefix INS when the tenant has no appointmentCodePrefix', () => {
     expect(formatter.format(1, makeTenant())).toBe('INS-0001');
   });
 
-  it('uses custom prefix from tenant settings', () => {
-    expect(formatter.format(42, makeTenant({ appointmentCodePrefix: 'APT' }))).toBe('APT-0042');
+  it('uses the custom prefix from the tenant column', () => {
+    expect(formatter.format(42, makeTenant('APT'))).toBe('APT-0042');
+  });
+
+  it('uses an alphanumeric prefix from the tenant column', () => {
+    expect(formatter.format(42, makeTenant('AB12'))).toBe('AB12-0042');
   });
 
   it('falls back to INS when appointmentCodePrefix is empty string', () => {
-    expect(formatter.format(5, makeTenant({ appointmentCodePrefix: '' }))).toBe('INS-0005');
+    expect(formatter.format(5, makeTenant(''))).toBe('INS-0005');
   });
 
-  it('falls back to INS when appointmentCodePrefix is not a string', () => {
-    expect(formatter.format(5, makeTenant({ appointmentCodePrefix: 123 }))).toBe('INS-0005');
+  it('falls back to INS when appointmentCodePrefix is null', () => {
+    expect(formatter.format(5, makeTenant(null))).toBe('INS-0005');
   });
 
   it('pads single-digit number to 4 digits', () => {
@@ -67,6 +72,10 @@ describe('AppointmentCodeFormatter', () => {
 
     it('parses "INS-12345" and returns 12345', () => {
       expect(AppointmentCodeFormatter.parse('INS-12345')).toBe(12345);
+    });
+
+    it('parses an alphanumeric prefix "AB12-0042" and returns 42', () => {
+      expect(AppointmentCodeFormatter.parse('AB12-0042')).toBe(42);
     });
 
     it('returns null for "invalid"', () => {

@@ -195,11 +195,11 @@ describe('BuildNotificationPayloadService', () => {
 
   // ── appointmentCode via formatter ─────────────────────────────────────────
 
-  it('formats appointmentCode using tenant prefix setting', () => {
-    const tenant = makeTenant({ settingsJson: { appointmentCodePrefix: 'INS' } });
+  it('formats appointmentCode using the tenant prefix column', () => {
+    const tenant = makeTenant({ appointmentCodePrefix: 'ABC' });
     const appointment = makeAppointment({ appointmentNumber: 42 });
     const result = svc.build(baseCtx({ tenant, appointment, templateCode: 'INSPECTION_NOTICE' }));
-    expect(result.appointmentCode).toBe('INS-0042');
+    expect(result.appointmentCode).toBe('ABC-0042');
   });
 
   // ── All mandatory template codes build without throwing ───────────────────

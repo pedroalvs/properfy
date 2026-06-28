@@ -98,7 +98,10 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
         {/* Service + payout */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-[15px] font-bold text-text-primary leading-tight">{offer.serviceTypeName}</p>
+            <p className="text-[15px] font-bold text-text-primary leading-tight">
+              {offer.serviceTypeName}
+              {offer.code ? <span className="ml-2 font-mono text-xs font-semibold text-text-muted">#{offer.code}</span> : null}
+            </p>
             <p className="mt-0.5 text-xs text-text-muted">{offer.tenantName}</p>
           </div>
           <div className="shrink-0 text-right">

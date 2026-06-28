@@ -36,7 +36,11 @@ export function ServiceGroupDetailDrawer({ serviceGroupId, open, onClose, onEdit
         ) : serviceGroup ? (
           <>
             <DrawerHeader
-              title={serviceGroup.name ?? '—'}
+              title={
+                serviceGroup.code
+                  ? `Group ${serviceGroup.code}${serviceGroup.name ? ` · ${serviceGroup.name}` : ''}`
+                  : (serviceGroup.name ?? '—')
+              }
               onClose={onClose}
               actions={
                 <>
