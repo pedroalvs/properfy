@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -37,7 +37,7 @@ import { api } from '@/services/api';
 import { TenantFormDrawer } from './TenantFormDrawer';
 
 const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
-const mockPost = api.POST as unknown as Mock;
+const mockPost = vi.mocked(api.POST);
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -289,6 +289,7 @@ describe('TenantFormDrawer – discard-confirm behavior', () => {
     await user.click(screen.getByRole('button', { name: 'Continue editing' }));
 
     expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
   });
 
   it('closes immediately without confirm when no changes have been made', async () => {
