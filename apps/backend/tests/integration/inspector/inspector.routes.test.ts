@@ -72,7 +72,6 @@ const fullInspector = {
   paymentSettingsJson: {},
   regionIds: [],
   serviceTypesJson: [],
-  clientEligibilityJson: [],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

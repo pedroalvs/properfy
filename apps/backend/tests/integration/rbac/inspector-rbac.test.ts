@@ -60,7 +60,6 @@ const inspectorStub = {
   status: 'ACTIVE',
   paymentSettingsJson: null,
   serviceTypesJson: null,
-  clientEligibilityJson: null,
   regionIds: [],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),

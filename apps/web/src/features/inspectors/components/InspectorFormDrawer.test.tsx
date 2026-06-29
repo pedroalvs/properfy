@@ -52,7 +52,6 @@ const MOCK_INSPECTOR = {
   id: 'insp-01', name: 'Carlos Silva', email: 'carlos@test.com',
   phone: '11888888888', status: 'ACTIVE',
   regions: ['Centro', 'Norte'], regionIds: [], serviceTypes: [{ serviceTypeId: '123e4567-e89b-12d3-a456-426614174000', certified: false }],
-  clientEligibility: [{ tenantId: 'ten-01', eligible: true }],
   fullName: 'Carlos Alberto Silva', abn: '12345678901', dateOfBirth: '1990-05-15',
   insuranceFileKey: 'uploads/insurance.pdf', insuranceExpiresAt: '2027-06-30',
   policeCheckFileKey: 'uploads/police.pdf', policeCheckExpiresAt: '2027-12-31',

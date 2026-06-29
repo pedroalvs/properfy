@@ -612,7 +612,7 @@ describe('CreateServiceGroupUseCase', () => {
         );
       }
 
-      const scheduledDate = '2026-07-01';
+      const scheduledDate = farFutureDate;
       const result = await useCaseWithTenant.execute({
         appointmentIds,
         serviceTypeId: 'svc-type-1',

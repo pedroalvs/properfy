@@ -2,7 +2,6 @@ import type {
   AuthContext,
   PaymentSettings,
   ServiceTypeEntry,
-  ClientEligibilityEntry,
 } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
@@ -23,7 +22,6 @@ export interface GetInspectorOutput {
   paymentSettingsJson: PaymentSettings;
   regionIds: string[];
   serviceTypesJson: ServiceTypeEntry[];
-  clientEligibilityJson: ClientEligibilityEntry[];
   blockedClients: string[];
   fullName: string | null;
   address: Record<string, unknown> | null;
@@ -78,7 +76,6 @@ export class GetInspectorUseCase {
       paymentSettingsJson: inspector.paymentSettingsJson,
       regionIds,
       serviceTypesJson: inspector.serviceTypesJson,
-      clientEligibilityJson: inspector.clientEligibilityJson,
       blockedClients: inspector.blockedClientsJson,
       fullName: inspector.fullName,
       address: inspector.address,

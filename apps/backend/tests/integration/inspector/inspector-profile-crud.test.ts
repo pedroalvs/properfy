@@ -70,7 +70,6 @@ const fullProfileInspector = {
   paymentSettingsJson: {},
   regionIds: [],
   serviceTypesJson: [],
-  clientEligibilityJson: [],
   createdAt: now,
   updatedAt: now,
 };
@@ -110,7 +109,6 @@ describe('POST /v1/inspectors — profile fields', () => {
       paymentSettingsJson: {},
       regionIds: [],
       serviceTypesJson: [],
-      clientEligibilityJson: [],
       createdAt: now,
       updatedAt: now,
     };

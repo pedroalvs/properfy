@@ -48,7 +48,6 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
       { serviceTypeId: '123e4567-e89b-12d3-a456-426614174000', certified: false },
       { serviceTypeId: '123e4567-e89b-12d3-a456-426614174001', certified: false },
     ],
-    clientEligibility: [],
     blockedClients: [],
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
@@ -144,14 +143,6 @@ describe('InspectorDetailSections', () => {
   it('shows service types list', () => {
     render(<InspectorDetailSections inspector={makeInspector()} />, { wrapper });
     expect(screen.getByText('Vistoria de Entrada, Vistoria de Saída')).toBeInTheDocument();
-  });
-
-  it('shows client eligibility when tenants are assigned', () => {
-    render(
-      <InspectorDetailSections inspector={makeInspector({ clientEligibility: [{ tenantId: 'ten-01', eligible: true }, { tenantId: 'ten-02', eligible: true }] })} />,
-      { wrapper },
-    );
-    expect(screen.getByText('Imobiliaria Alpha, Imobiliaria Beta')).toBeInTheDocument();
   });
 
   it('shows profile fields (full name, ABN, DOB) when present', () => {

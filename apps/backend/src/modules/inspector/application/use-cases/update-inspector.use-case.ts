@@ -2,7 +2,6 @@ import type {
   AuthContext,
   PaymentSettings,
   ServiceTypeEntry,
-  ClientEligibilityEntry,
 } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -24,8 +23,6 @@ export interface UpdateInspectorInput {
     regions?: string[];
     regionIds?: string[];
     serviceTypes?: ServiceTypeEntry[];
-    /** @deprecated Kept for backwards-compatibility; use blockedClients. */
-    clientEligibility?: ClientEligibilityEntry[];
     blockedClients?: string[];
     fullName?: string | null;
     address?: Record<string, unknown> | null;
@@ -48,7 +45,6 @@ export interface UpdateInspectorOutput {
   paymentSettingsJson: PaymentSettings;
   regionIds: string[];
   serviceTypesJson: ServiceTypeEntry[];
-  clientEligibilityJson: ClientEligibilityEntry[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -89,7 +85,6 @@ export class UpdateInspectorUseCase {
       status: inspector.status,
       paymentSettingsJson: inspector.paymentSettingsJson,
       serviceTypesJson: inspector.serviceTypesJson,
-      clientEligibilityJson: inspector.clientEligibilityJson,
     };
 
     // Build update payload
@@ -100,7 +95,6 @@ export class UpdateInspectorUseCase {
     if (data.status !== undefined) updateData.status = data.status;
     if (data.paymentSettings !== undefined) updateData.paymentSettingsJson = data.paymentSettings;
     if (data.serviceTypes !== undefined) updateData.serviceTypesJson = data.serviceTypes;
-    if (data.clientEligibility !== undefined) updateData.clientEligibilityJson = data.clientEligibility;
     if (data.blockedClients !== undefined) updateData.blockedClientsJson = data.blockedClients;
     if (data.fullName !== undefined) updateData.fullName = data.fullName;
     if (data.address !== undefined) updateData.address = data.address;
@@ -133,7 +127,6 @@ export class UpdateInspectorUseCase {
       paymentSettingsJson: (updateData.paymentSettingsJson as PaymentSettings) ?? inspector.paymentSettingsJson,
       regionIds: resolvedRegionIds,
       serviceTypesJson: (updateData.serviceTypesJson as ServiceTypeEntry[]) ?? inspector.serviceTypesJson,
-      clientEligibilityJson: (updateData.clientEligibilityJson as ClientEligibilityEntry[]) ?? inspector.clientEligibilityJson,
     };
 
     this.auditService.log({
@@ -155,7 +148,6 @@ export class UpdateInspectorUseCase {
       paymentSettingsJson: after.paymentSettingsJson,
       regionIds: after.regionIds,
       serviceTypesJson: after.serviceTypesJson,
-      clientEligibilityJson: after.clientEligibilityJson,
       createdAt: inspector.createdAt,
       updatedAt: new Date(),
     };

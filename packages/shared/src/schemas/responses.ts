@@ -180,7 +180,6 @@ export const inspectorResponseSchema = z.object({
   paymentSettingsJson: z.unknown(),
   regionIds: z.array(z.string()).optional(),
   serviceTypesJson: z.unknown(),
-  clientEligibilityJson: z.unknown(),
   // Profile + denylist fields (Feedback Round item 1, item 6).
   blockedClients: z.array(z.string()).optional(),
   fullName: z.string().nullable().optional(),

@@ -7130,27 +7130,6 @@
                     },
                     "default": []
                   },
-                  "clientEligibility": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "eligible": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "tenantId",
-                        "eligible"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "default": []
-                  },
                   "blockedClients": {
                     "type": "array",
                     "items": {
@@ -7237,7 +7216,6 @@
                           }
                         },
                         "serviceTypesJson": {},
-                        "clientEligibilityJson": {},
                         "blockedClients": {
                           "type": "array",
                           "items": {
@@ -7478,7 +7456,6 @@
                             }
                           },
                           "serviceTypesJson": {},
-                          "clientEligibilityJson": {},
                           "blockedClients": {
                             "type": "array",
                             "items": {
@@ -7665,7 +7642,6 @@
                           }
                         },
                         "serviceTypesJson": {},
-                        "clientEligibilityJson": {},
                         "blockedClients": {
                           "type": "array",
                           "items": {
@@ -7869,26 +7845,6 @@
                       "additionalProperties": false
                     }
                   },
-                  "clientEligibility": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "eligible": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "tenantId",
-                        "eligible"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
                   "blockedClients": {
                     "type": "array",
                     "items": {
@@ -7987,7 +7943,6 @@
                           }
                         },
                         "serviceTypesJson": {},
-                        "clientEligibilityJson": {},
                         "blockedClients": {
                           "type": "array",
                           "items": {

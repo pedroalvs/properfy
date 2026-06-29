@@ -47,7 +47,6 @@ const INSPECTOR_STUB = {
   status: 'ACTIVE',
   regionIds: [],
   serviceTypes: [],
-  clientEligibility: [],
   blockedClients: [],
 };
 
