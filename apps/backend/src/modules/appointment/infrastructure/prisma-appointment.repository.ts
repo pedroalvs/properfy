@@ -92,14 +92,9 @@ function mapContactToEntity(row: any): AppointmentContactEntity {
     contactId: row.contact_id ?? null,
     role: row.role ?? 'RENTAL_TENANT',
     isPrimary: row.is_primary ?? true,
-    snapshotName: row.snapshot_name ?? null,
+    snapshotName: row.snapshot_name,
     snapshotEmail: row.snapshot_email ?? null,
     snapshotPhone: row.snapshot_phone ?? null,
-    rentalTenantName: row.rental_tenant_name,
-    primaryEmail: row.primary_email,
-    secondaryEmail: row.secondary_email,
-    primaryPhone: row.primary_phone,
-    secondaryPhone: row.secondary_phone,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -205,7 +200,12 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
       include: {
-        contacts: { select: { id: true, appointment_id: true, contact_id: true, role: true, is_primary: true, snapshot_name: true, snapshot_email: true, snapshot_phone: true, rental_tenant_name: true, primary_email: true, secondary_email: true, primary_phone: true, secondary_phone: true, created_at: true, updated_at: true } },
+        contacts: {
+          select: { id: true, appointment_id: true, contact_id: true, role: true, is_primary: true, snapshot_name: true, snapshot_email: true, snapshot_phone: true, created_at: true, updated_at: true },
+          // Deterministic list-display contact: primary first, then insertion order
+          // (mirrors findById's in-memory sort). Without this, contacts[0] below is arbitrary.
+          orderBy: [{ is_primary: 'desc' }, { created_at: 'asc' }],
+        },
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
         tenant: { select: { name: true, appointment_code_prefix: true } },
         branch: { select: { name: true } },
@@ -365,35 +365,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         snapshot_name: contact.snapshotName,
         snapshot_email: contact.snapshotEmail,
         snapshot_phone: contact.snapshotPhone,
-        rental_tenant_name: contact.rentalTenantName,
-        primary_email: contact.primaryEmail,
-        secondary_email: contact.secondaryEmail,
-        primary_phone: contact.primaryPhone,
-        secondary_phone: contact.secondaryPhone,
       },
-    });
-  }
-
-  async updateContact(
-    appointmentId: string,
-    data: Partial<{
-      rentalTenantName: string;
-      primaryEmail: string | null;
-      secondaryEmail: string | null;
-      primaryPhone: string | null;
-      secondaryPhone: string | null;
-    }>,
-  ): Promise<void> {
-    const updateData: Record<string, unknown> = {};
-    if (data.rentalTenantName !== undefined) updateData['rental_tenant_name'] = data.rentalTenantName;
-    if (data.primaryEmail !== undefined) updateData['primary_email'] = data.primaryEmail;
-    if (data.secondaryEmail !== undefined) updateData['secondary_email'] = data.secondaryEmail;
-    if (data.primaryPhone !== undefined) updateData['primary_phone'] = data.primaryPhone;
-    if (data.secondaryPhone !== undefined) updateData['secondary_phone'] = data.secondaryPhone;
-
-    await this.prisma.appointmentContact.updateMany({
-      where: { appointment_id: appointmentId },
-      data: updateData,
     });
   }
 
@@ -506,9 +478,6 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         { notes: { contains: filters.search, mode: 'insensitive' } },
         { property: { property_code: { contains: filters.search, mode: 'insensitive' } } },
         { property: { street: { contains: filters.search, mode: 'insensitive' } } },
-        { contacts: { some: { rental_tenant_name: { contains: filters.search, mode: 'insensitive' } } } },
-        { contacts: { some: { primary_phone: { contains: filters.search, mode: 'insensitive' } } } },
-        { contacts: { some: { primary_email: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { snapshot_name: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { snapshot_email: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { snapshot_phone: { contains: filters.search } } } },
@@ -542,9 +511,6 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_phone: { contains: filters.contactSearch } },
-        { rental_tenant_name: { contains: filters.contactSearch, mode: 'insensitive' } },
-        { primary_email: { contains: filters.contactSearch, mode: 'insensitive' } },
-        { primary_phone: { contains: filters.contactSearch } },
       ];
       where['contacts'] = { some: { OR: contactOrConditions } };
     }

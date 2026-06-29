@@ -10580,16 +10580,7 @@
                         "format": "email",
                         "maxLength": 254
                       },
-                      "secondaryEmail": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
-                      },
                       "primaryPhone": {
-                        "type": "string",
-                        "maxLength": 30
-                      },
-                      "secondaryPhone": {
                         "type": "string",
                         "maxLength": 30
                       }
@@ -12054,16 +12045,7 @@
                         "format": "email",
                         "maxLength": 254
                       },
-                      "secondaryEmail": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
-                      },
                       "primaryPhone": {
-                        "type": "string",
-                        "maxLength": 30
-                      },
-                      "secondaryPhone": {
                         "type": "string",
                         "maxLength": 30
                       }
@@ -17799,21 +17781,10 @@
                     "type": "string",
                     "format": "email"
                   },
-                  "secondaryEmail": {
-                    "type": "string",
-                    "format": "email",
-                    "nullable": true
-                  },
                   "primaryPhone": {
                     "type": "string",
                     "minLength": 8,
                     "maxLength": 20
-                  },
-                  "secondaryPhone": {
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 20,
-                    "nullable": true
                   }
                 },
                 "additionalProperties": false
@@ -19167,17 +19138,12 @@
                             "primaryPhone": {
                               "type": "string",
                               "nullable": true
-                            },
-                            "secondaryPhone": {
-                              "type": "string",
-                              "nullable": true
                             }
                           },
                           "required": [
                             "rentalTenantName",
                             "primaryEmail",
-                            "primaryPhone",
-                            "secondaryPhone"
+                            "primaryPhone"
                           ],
                           "additionalProperties": false,
                           "nullable": true

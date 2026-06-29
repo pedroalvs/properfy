@@ -63,9 +63,7 @@ export interface CreateAppointmentInput {
   contact?: {
     rentalTenantName: string;
     primaryEmail?: string;
-    secondaryEmail?: string;
     primaryPhone?: string;
-    secondaryPhone?: string;
   };
   /** New contacts array format (feature 021) */
   contacts?: Array<{
@@ -141,9 +139,7 @@ export interface CreateAppointmentOutput {
     id: string;
     rentalTenantName: string;
     primaryEmail: string | null;
-    secondaryEmail: string | null;
     primaryPhone: string | null;
-    secondaryPhone: string | null;
   };
   restriction: {
     id: string;
@@ -441,11 +437,6 @@ export class CreateAppointmentUseCase {
           snapshotName,
           snapshotEmail,
           snapshotPhone,
-          rentalTenantName: snapshotName,
-          primaryEmail: snapshotEmail,
-          secondaryEmail: null,
-          primaryPhone: snapshotPhone,
-          secondaryPhone: null,
           createdAt: now,
           updatedAt: now,
         });
@@ -468,11 +459,6 @@ export class CreateAppointmentUseCase {
         snapshotName: input.contact.rentalTenantName,
         snapshotEmail: input.contact.primaryEmail ?? null,
         snapshotPhone: input.contact.primaryPhone ?? null,
-        rentalTenantName: input.contact.rentalTenantName,
-        primaryEmail: input.contact.primaryEmail ?? null,
-        secondaryEmail: input.contact.secondaryEmail ?? null,
-        primaryPhone: input.contact.primaryPhone ?? null,
-        secondaryPhone: input.contact.secondaryPhone ?? null,
         createdAt: now,
         updatedAt: now,
       });
@@ -551,19 +537,15 @@ export class CreateAppointmentUseCase {
       contact: contact
         ? {
             id: contact.id,
-            rentalTenantName: contact.rentalTenantName,
-            primaryEmail: contact.primaryEmail,
-            secondaryEmail: contact.secondaryEmail,
-            primaryPhone: contact.primaryPhone,
-            secondaryPhone: contact.secondaryPhone,
+            rentalTenantName: contact.effectiveName,
+            primaryEmail: contact.effectiveEmail,
+            primaryPhone: contact.effectivePhone,
           }
         : {
             id: '',
             rentalTenantName: '',
             primaryEmail: null,
-            secondaryEmail: null,
             primaryPhone: null,
-            secondaryPhone: null,
           },
       restriction: restriction
         ? {

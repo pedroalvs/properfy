@@ -52,11 +52,12 @@ function makeContact(): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    rentalTenantName: 'John Smith',
-    primaryEmail: 'john@example.com',
-    secondaryEmail: null,
-    primaryPhone: '+61400000000',
-    secondaryPhone: null,
+    contactId: null,
+    role: 'RENTAL_TENANT',
+    isPrimary: true,
+    snapshotName: 'John Smith',
+    snapshotEmail: 'john@example.com',
+    snapshotPhone: '+61400000000',
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -98,6 +99,8 @@ describe('UpdateAppointmentUseCase', () => {
       update: vi.fn(),
       saveContact: vi.fn(),
       updateContact: vi.fn(),
+      updateContactSnapshot: vi.fn(),
+      deleteContactsByAppointmentId: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
     };
@@ -229,9 +232,10 @@ describe('UpdateAppointmentUseCase', () => {
       actor: makeActor(),
     });
 
-    expect(appointmentRepo.updateContact).toHaveBeenCalledWith(
+    expect(appointmentRepo.updateContactSnapshot).toHaveBeenCalledWith(
       'appt-1',
-      expect.objectContaining({ rentalTenantName: 'Jane Doe' }),
+      'contact-1',
+      expect.objectContaining({ snapshotName: 'Jane Doe' }),
     );
     expect(appointmentRepo.saveContact).not.toHaveBeenCalled();
   });

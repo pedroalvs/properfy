@@ -67,9 +67,7 @@ export interface GetAppointmentOutput {
     id: string;
     rentalTenantName: string;
     primaryEmail: string | null;
-    secondaryEmail: string | null;
     primaryPhone: string | null;
-    secondaryPhone: string | null;
   } | null;
   /** Enriched contacts array (feature 021 junction + snapshot). Primary first, then insertion order. */
   contacts: Array<{
@@ -151,9 +149,7 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
           id: contact.id,
           rentalTenantName: contact.effectiveName,
           primaryEmail: contact.effectiveEmail,
-          secondaryEmail: contact.secondaryEmail,
           primaryPhone: contact.effectivePhone,
-          secondaryPhone: contact.secondaryPhone,
         }
       : null,
     contacts: (found.contacts ?? (contact ? [contact] : [])).map((c) => ({

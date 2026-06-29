@@ -18,9 +18,7 @@ vi.mock('../hooks/usePortalData', () => ({
 const mockContact = {
   rentalTenantName: 'John Smith',
   primaryEmail: 'john@example.com',
-  secondaryEmail: '',
   primaryPhone: '+61 400 000 000',
-  secondaryPhone: '',
 };
 
 describe('ContactForm', () => {

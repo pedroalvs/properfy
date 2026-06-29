@@ -161,18 +161,7 @@ export interface IAppointmentRepository {
     }>,
   ): Promise<void>;
   saveContact(contact: AppointmentContactEntity): Promise<void>;
-  /** @deprecated Use updateContactSnapshot for junction-aware writes. Kept during expand phase. */
-  updateContact(
-    appointmentId: string,
-    data: Partial<{
-      rentalTenantName: string;
-      primaryEmail: string | null;
-      secondaryEmail: string | null;
-      primaryPhone: string | null;
-      secondaryPhone: string | null;
-    }>,
-  ): Promise<void>;
-  /** Update snapshot fields on a specific junction row. Used by portal dual-write (feature 007 FR-053). */
+  /** Update snapshot fields on a specific junction row. Used by portal contact edits and legacy single-contact updates. */
   updateContactSnapshot(
     appointmentId: string,
     contactJunctionId: string,

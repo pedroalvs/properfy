@@ -105,9 +105,7 @@ describe('PATCH /v1/rental-tenant-portal/:token/contact — snapshot immutabilit
     mockUpdateContactExecute.mockResolvedValue({
       rentalTenantName: 'Alice',
       primaryEmail: 'updated@example.com',
-      secondaryEmail: null,
       primaryPhone: null,
-      secondaryPhone: null,
     });
 
     const res = await supertest(app.server)
@@ -115,6 +113,13 @@ describe('PATCH /v1/rental-tenant-portal/:token/contact — snapshot immutabilit
       .send({ primaryEmail: 'updated@example.com' });
 
     expect(res.status).toBe(200);
+
+    // Response contract is snapshot-only: primary fields echo back and the
+    // removed secondary_* fields must NOT be serialized (guards a stale route
+    // serializer that could keep emitting the dropped inline columns).
+    expect(res.body.contact).toMatchObject({ primaryEmail: 'updated@example.com' });
+    expect(res.body.contact).not.toHaveProperty('secondaryEmail');
+    expect(res.body.contact).not.toHaveProperty('secondaryPhone');
 
     // Exactly one call to the use case
     expect(mockUpdateContactExecute).toHaveBeenCalledOnce();
@@ -133,7 +138,7 @@ describe('PATCH /v1/rental-tenant-portal/:token/contact — snapshot immutabilit
     mockHashToken.mockReturnValue('hashed-token-a');
     mockFindByTokenHash.mockResolvedValue(tokenForAppointment(APPT_A));
     mockUpdateContactExecute.mockResolvedValue({
-      rentalTenantName: 'A', primaryEmail: 'a@example.com', secondaryEmail: null, primaryPhone: null, secondaryPhone: null,
+      rentalTenantName: 'A', primaryEmail: 'a@example.com', primaryPhone: null,
     });
 
     const res1 = await supertest(app.server)
@@ -155,7 +160,7 @@ describe('PATCH /v1/rental-tenant-portal/:token/contact — snapshot immutabilit
       updatedAt: new Date(),
     }));
     mockUpdateContactExecute.mockResolvedValue({
-      rentalTenantName: 'B', primaryEmail: 'b@example.com', secondaryEmail: null, primaryPhone: null, secondaryPhone: null,
+      rentalTenantName: 'B', primaryEmail: 'b@example.com', primaryPhone: null,
     });
 
     const res2 = await supertest(app.server)

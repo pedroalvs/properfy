@@ -52,9 +52,7 @@ function makeContact(): AppointmentContactEntity {
     appointmentId: 'appt-1',
     rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
-    secondaryEmail: null,
     primaryPhone: '+61400000000',
-    secondaryPhone: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   });

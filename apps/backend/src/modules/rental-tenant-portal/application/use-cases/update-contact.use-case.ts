@@ -18,9 +18,7 @@ export interface UpdateContactInput {
   isReadOnly: boolean;
   contact: {
     primaryEmail?: string | null;
-    secondaryEmail?: string | null;
     primaryPhone?: string | null;
-    secondaryPhone?: string | null;
   };
   ipAddress: string | null;
   userAgent: string | null;
@@ -66,37 +64,18 @@ export class UpdateContactUseCase {
     const previousValues: Record<string, unknown> = {};
     const newValues: Record<string, unknown> = {};
 
+    // Map the request field name to the contact's effective (snapshot) accessor
+    // so the audit "before" value reflects the real prior contact data.
+    const previousValueFor: Record<string, unknown> = contact
+      ? { primaryEmail: contact.effectiveEmail, primaryPhone: contact.effectivePhone }
+      : {};
+
     for (const [field, value] of fieldsToUpdate) {
-      previousValues[field] = contact ? (contact as unknown as Record<string, unknown>)[field] : null;
+      previousValues[field] = contact ? (previousValueFor[field] ?? null) : null;
       newValues[field] = value;
     }
 
-    // 4. Build update data — only include fields explicitly provided (not undefined)
-    const updateData: Partial<{
-      rentalTenantName: string;
-      primaryEmail: string | null;
-      secondaryEmail: string | null;
-      primaryPhone: string | null;
-      secondaryPhone: string | null;
-    }> = {};
-
-    if (input.contact.primaryEmail !== undefined) {
-      updateData.primaryEmail = input.contact.primaryEmail;
-    }
-    if (input.contact.secondaryEmail !== undefined) {
-      updateData.secondaryEmail = input.contact.secondaryEmail;
-    }
-    if (input.contact.primaryPhone !== undefined) {
-      updateData.primaryPhone = input.contact.primaryPhone;
-    }
-    if (input.contact.secondaryPhone !== undefined) {
-      updateData.secondaryPhone = input.contact.secondaryPhone;
-    }
-
-    // 5. Update contact (legacy fields)
-    await this.appointmentRepo.updateContact(input.appointmentId, updateData);
-
-    // 5b. Also update snapshot fields on the primary junction row (feature 021 expand phase)
+    // 4. Update the contact snapshot on the primary junction row.
     if (contact) {
       const snapshotUpdate: Partial<{ snapshotName: string; snapshotEmail: string | null; snapshotPhone: string | null }> = {};
       if (input.contact.primaryEmail !== undefined) snapshotUpdate.snapshotEmail = input.contact.primaryEmail;
@@ -198,18 +177,10 @@ export class UpdateContactUseCase {
         input.contact.primaryEmail !== undefined
           ? input.contact.primaryEmail
           : (contact?.effectiveEmail ?? null),
-      secondaryEmail:
-        input.contact.secondaryEmail !== undefined
-          ? input.contact.secondaryEmail
-          : (contact?.secondaryEmail ?? null),
       primaryPhone:
         input.contact.primaryPhone !== undefined
           ? input.contact.primaryPhone
           : (contact?.effectivePhone ?? null),
-      secondaryPhone:
-        input.contact.secondaryPhone !== undefined
-          ? input.contact.secondaryPhone
-          : (contact?.secondaryPhone ?? null),
     };
   }
 }

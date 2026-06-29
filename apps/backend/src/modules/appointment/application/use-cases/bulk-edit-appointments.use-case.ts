@@ -232,11 +232,6 @@ export class BulkEditAppointmentsUseCase {
             snapshotName: pmContact.displayName,
             snapshotEmail: pmContact.primaryEmail,
             snapshotPhone: pmContact.primaryPhone,
-            rentalTenantName: pmContact.displayName,
-            primaryEmail: pmContact.primaryEmail,
-            secondaryEmail: null,
-            primaryPhone: pmContact.primaryPhone,
-            secondaryPhone: null,
             createdAt: new Date(),
             updatedAt: new Date(),
           });

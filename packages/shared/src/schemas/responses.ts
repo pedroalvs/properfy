@@ -326,7 +326,6 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
     rentalTenantName: z.string(),
     primaryEmail: z.string().nullable(),
     primaryPhone: z.string().nullable(),
-    secondaryPhone: z.string().nullable(),
   }).nullable(),
   restrictions: z.array(z.object({
     isHome: z.boolean(),

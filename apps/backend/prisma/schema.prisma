@@ -662,14 +662,11 @@ model AppointmentContact {
   id              String                 @id @default(uuid())
   appointment_id  String
   contact_id      String?
-  rental_tenant_name     String                 @db.VarChar(200)
-  primary_email   String?                @db.VarChar(254)
-  secondary_email String?                @db.VarChar(254)
-  primary_phone   String?                @db.VarChar(30)
-  secondary_phone String?                @db.VarChar(30)
   role            AppointmentContactRole @default(RENTAL_TENANT)
   is_primary      Boolean                @default(true)
-  snapshot_name   String?                @db.VarChar(200)
+  // Snapshot of the contact at link time — the authoritative contact data
+  // (024 contract: replaced the legacy tenant_name/primary_*/secondary_* inline columns).
+  snapshot_name   String                 @db.VarChar(200)
   snapshot_email  String?                @db.VarChar(254)
   snapshot_phone  String?                @db.VarChar(30)
   created_at      DateTime               @default(now())

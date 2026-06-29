@@ -4766,10 +4766,7 @@ export interface paths {
                             rentalTenantName: string;
                             /** Format: email */
                             primaryEmail?: string;
-                            /** Format: email */
-                            secondaryEmail?: string;
                             primaryPhone?: string;
-                            secondaryPhone?: string;
                         };
                         contacts?: ({
                             /** Format: uuid */
@@ -5068,10 +5065,7 @@ export interface paths {
                             rentalTenantName: string;
                             /** Format: email */
                             primaryEmail?: string;
-                            /** Format: email */
-                            secondaryEmail?: string;
                             primaryPhone?: string;
-                            secondaryPhone?: string;
                         };
                         contacts?: ({
                             /** Format: uuid */
@@ -7889,10 +7883,7 @@ export interface paths {
                     "application/json": {
                         /** Format: email */
                         primaryEmail?: string;
-                        /** Format: email */
-                        secondaryEmail?: string | null;
                         primaryPhone?: string;
-                        secondaryPhone?: string | null;
                     };
                 };
             };
@@ -8435,7 +8426,6 @@ export interface paths {
                                     rentalTenantName: string;
                                     primaryEmail: string | null;
                                     primaryPhone: string | null;
-                                    secondaryPhone: string | null;
                                 } | null;
                                 restrictions: {
                                     isHome: boolean;
