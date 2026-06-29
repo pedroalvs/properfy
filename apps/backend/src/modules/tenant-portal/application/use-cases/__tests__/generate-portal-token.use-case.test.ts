@@ -75,11 +75,6 @@ function makeContact(opts: { withEmail?: boolean; withPhone?: boolean } = {}): A
     snapshotName: 'Test Tenant',
     snapshotEmail: withEmail ? 'tenant@example.com' : null,
     snapshotPhone: withPhone ? '+61400000000' : null,
-    tenantName: 'Test Tenant',
-    primaryEmail: null,
-    secondaryEmail: null,
-    primaryPhone: null,
-    secondaryPhone: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   });

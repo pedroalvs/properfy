@@ -231,7 +231,6 @@ describe('AppointmentImportWorker — field name alignment with template headers
       const saveContactCall = (appointmentRepo.saveContact as ReturnType<typeof vi.fn>).mock.calls.at(0)![0];
       // The contact entity must carry the email from primaryContactEmail
       expect(saveContactCall.snapshotEmail).toBe('john@example.com');
-      expect(saveContactCall.primaryEmail).toBe('john@example.com');
       // The CSV column used is primaryContactEmail, not the old tenantEmail
       expect(Object.keys(saveContactCall)).not.toContain('tenantEmail');
     });
@@ -266,7 +265,6 @@ describe('AppointmentImportWorker — field name alignment with template headers
       const saveContactCall = (appointmentRepo.saveContact as ReturnType<typeof vi.fn>).mock.calls.at(0)![0];
       // The contact entity must carry the phone from primaryContactPhone
       expect(saveContactCall.snapshotPhone).toBe('+61400000001');
-      expect(saveContactCall.primaryPhone).toBe('+61400000001');
       // The CSV column used is primaryContactPhone, not the old tenantPhone
       expect(Object.keys(saveContactCall)).not.toContain('tenantPhone');
     });

@@ -299,19 +299,16 @@ export class UpdateAppointmentUseCase {
           id: crypto.randomUUID(), appointmentId, contactId: cId,
           role: entry.role as AppointmentContactRole, isPrimary: entry.isPrimary,
           snapshotName: sName, snapshotEmail: sEmail, snapshotPhone: sPhone,
-          tenantName: sName, primaryEmail: sEmail, secondaryEmail: null,
-          primaryPhone: sPhone, secondaryPhone: null, createdAt: now, updatedAt: now,
+          createdAt: now, updatedAt: now,
         }));
       }
     } else if (data.contact !== undefined) {
       // Legacy path: single contact upsert (backward compat)
       if (found.contact) {
-        await this.appointmentRepo.updateContact(appointmentId, {
-          tenantName: data.contact.tenantName,
-          primaryEmail: data.contact.primaryEmail ?? null,
-          secondaryEmail: data.contact.secondaryEmail ?? null,
-          primaryPhone: data.contact.primaryPhone ?? null,
-          secondaryPhone: data.contact.secondaryPhone ?? null,
+        await this.appointmentRepo.updateContactSnapshot(appointmentId, found.contact.id, {
+          snapshotName: data.contact.tenantName,
+          snapshotEmail: data.contact.primaryEmail ?? null,
+          snapshotPhone: data.contact.primaryPhone ?? null,
         });
       } else {
         const now = this.clock.now();
@@ -320,9 +317,6 @@ export class UpdateAppointmentUseCase {
           role: 'TENANT' as AppointmentContactRole, isPrimary: true,
           snapshotName: data.contact.tenantName, snapshotEmail: data.contact.primaryEmail ?? null,
           snapshotPhone: data.contact.primaryPhone ?? null,
-          tenantName: data.contact.tenantName, primaryEmail: data.contact.primaryEmail ?? null,
-          secondaryEmail: data.contact.secondaryEmail ?? null,
-          primaryPhone: data.contact.primaryPhone ?? null, secondaryPhone: data.contact.secondaryPhone ?? null,
           createdAt: now, updatedAt: now,
         });
         await this.appointmentRepo.saveContact(contact);

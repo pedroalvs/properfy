@@ -51,11 +51,12 @@ function makeContact(
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Doe',
-    primaryEmail: 'john@example.com',
-    secondaryEmail: null,
-    primaryPhone: null,
-    secondaryPhone: null,
+    contactId: null,
+    role: 'TENANT',
+    isPrimary: true,
+    snapshotName: 'John Doe',
+    snapshotEmail: 'john@example.com',
+    snapshotPhone: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -249,7 +250,7 @@ describe('DispatchRemindersUseCase', () => {
       .mockResolvedValueOnce([
         makeRelation(
           { id: 'appt-x', tenantId: 'tenant-x', scheduledDate, timeSlot: '14:00-17:00' },
-          { tenantName: 'Jane Smith', primaryEmail: 'jane@example.com' },
+          { snapshotName: 'Jane Smith', snapshotEmail: 'jane@example.com' },
         ),
       ])
       .mockResolvedValueOnce([])
@@ -305,7 +306,7 @@ describe('DispatchRemindersUseCase', () => {
         .mockResolvedValueOnce([
           makeRelation(
             { id: 'appt-sms', tenantId: 'tenant-sms' },
-            { primaryEmail: null, primaryPhone: '+61400000000', tenantName: 'SMS Tenant' },
+            { snapshotEmail: null, snapshotPhone: '+61400000000', snapshotName: 'SMS Tenant' },
           ),
         ])
         .mockResolvedValueOnce([])
@@ -329,7 +330,7 @@ describe('DispatchRemindersUseCase', () => {
         .mockResolvedValueOnce([
           makeRelation(
             { id: 'appt-skip' },
-            { primaryEmail: null, primaryPhone: null },
+            { snapshotEmail: null, snapshotPhone: null },
           ),
         ])
         .mockResolvedValueOnce([])
@@ -346,7 +347,7 @@ describe('DispatchRemindersUseCase', () => {
         .mockResolvedValueOnce([
           makeRelation(
             { id: 'appt-email' },
-            { primaryEmail: 'test@example.com', primaryPhone: '+61400000000' },
+            { snapshotEmail: 'test@example.com', snapshotPhone: '+61400000000' },
           ),
         ])
         .mockResolvedValueOnce([])
@@ -371,13 +372,13 @@ describe('DispatchRemindersUseCase', () => {
         .mockResolvedValueOnce([
           makeRelation(
             { id: 'appt-5d' },
-            { primaryEmail: null, primaryPhone: '+61400000000' },
+            { snapshotEmail: null, snapshotPhone: '+61400000000' },
           ),
         ])
         .mockResolvedValueOnce([
           makeRelation(
             { id: 'appt-3d' },
-            { primaryEmail: null, primaryPhone: '+61400000001' },
+            { snapshotEmail: null, snapshotPhone: '+61400000001' },
           ),
         ]);
 
@@ -403,7 +404,7 @@ describe('DispatchRemindersUseCase', () => {
         .mockResolvedValueOnce([
           makeRelation(
             { id: 'appt-dup' },
-            { primaryEmail: null, primaryPhone: '+61400000000' },
+            { snapshotEmail: null, snapshotPhone: '+61400000000' },
           ),
         ])
         .mockResolvedValueOnce([])

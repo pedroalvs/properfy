@@ -272,11 +272,6 @@ export class AppointmentImportWorker {
       snapshotName: row.primaryContactName,
       snapshotEmail: row.primaryContactEmail ?? null,
       snapshotPhone: row.primaryContactPhone ?? null,
-      tenantName: row.primaryContactName,
-      primaryEmail: row.primaryContactEmail ?? null,
-      secondaryEmail: null,
-      primaryPhone: row.primaryContactPhone ?? null,
-      secondaryPhone: null,
       createdAt: now,
       updatedAt: now,
     });

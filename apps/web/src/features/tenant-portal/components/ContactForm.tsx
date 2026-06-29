@@ -18,9 +18,7 @@ export function ContactForm({ contact, token, isReadOnly }: ContactFormProps) {
   const updateMutation = useUpdateContact(token);
 
   const [primaryEmail, setPrimaryEmail] = useState(contact?.primaryEmail ?? '');
-  const [secondaryEmail, setSecondaryEmail] = useState(contact?.secondaryEmail ?? '');
   const [primaryPhone, setPrimaryPhone] = useState(contact?.primaryPhone ?? '');
-  const [secondaryPhone, setSecondaryPhone] = useState(contact?.secondaryPhone ?? '');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -29,11 +27,7 @@ export function ContactForm({ contact, token, isReadOnly }: ContactFormProps) {
 
     const data: UpdateContactInput = {};
     if (primaryEmail.trim()) data.primaryEmail = primaryEmail.trim();
-    if (secondaryEmail.trim()) data.secondaryEmail = secondaryEmail.trim();
-    else if (contact?.secondaryEmail && !secondaryEmail.trim()) data.secondaryEmail = null;
     if (primaryPhone.trim()) data.primaryPhone = primaryPhone.trim();
-    if (secondaryPhone.trim()) data.secondaryPhone = secondaryPhone.trim();
-    else if (contact?.secondaryPhone && !secondaryPhone.trim()) data.secondaryPhone = null;
 
     if (Object.keys(data).length === 0) {
       setError('Please update at least one contact field.');
@@ -75,28 +69,10 @@ export function ContactForm({ contact, token, isReadOnly }: ContactFormProps) {
           />
         </FormField>
 
-        <FormField label="Secondary Email">
-          <EmailInput
-            value={secondaryEmail}
-            onChange={setSecondaryEmail}
-            placeholder="Optional"
-            disabled={isReadOnly}
-          />
-        </FormField>
-
         <FormField label="Primary Phone">
           <PhoneInput
             value={primaryPhone}
             onChange={setPrimaryPhone}
-            disabled={isReadOnly}
-          />
-        </FormField>
-
-        <FormField label="Secondary Phone">
-          <PhoneInput
-            value={secondaryPhone}
-            onChange={setSecondaryPhone}
-            placeholder="Optional"
             disabled={isReadOnly}
           />
         </FormField>

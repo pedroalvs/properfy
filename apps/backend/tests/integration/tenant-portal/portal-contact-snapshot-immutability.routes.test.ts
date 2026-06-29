@@ -105,9 +105,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — snapshot immutability (feat
     mockUpdateContactExecute.mockResolvedValue({
       tenantName: 'Alice',
       primaryEmail: 'updated@example.com',
-      secondaryEmail: null,
       primaryPhone: null,
-      secondaryPhone: null,
     });
 
     const res = await supertest(app.server)
@@ -133,8 +131,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — snapshot immutability (feat
     mockHashToken.mockReturnValue('hashed-token-a');
     mockFindByTokenHash.mockResolvedValue(tokenForAppointment(APPT_A));
     mockUpdateContactExecute.mockResolvedValue({
-      tenantName: 'A', primaryEmail: 'a@example.com', secondaryEmail: null, primaryPhone: null, secondaryPhone: null,
-    });
+      tenantName: 'A', primaryEmail: 'a@example.com',primaryPhone: null,    });
 
     const res1 = await supertest(app.server)
       .patch('/v1/tenant-portal/token-for-a/contact')
@@ -155,8 +152,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — snapshot immutability (feat
       updatedAt: new Date(),
     }));
     mockUpdateContactExecute.mockResolvedValue({
-      tenantName: 'B', primaryEmail: 'b@example.com', secondaryEmail: null, primaryPhone: null, secondaryPhone: null,
-    });
+      tenantName: 'B', primaryEmail: 'b@example.com',primaryPhone: null,    });
 
     const res2 = await supertest(app.server)
       .patch('/v1/tenant-portal/token-for-b/contact')

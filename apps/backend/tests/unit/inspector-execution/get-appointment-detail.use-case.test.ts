@@ -66,14 +66,9 @@ function makeContact(
     contactId: null,
     role: 'TENANT',
     isPrimary: true,
-    snapshotName: null,
-    snapshotEmail: null,
-    snapshotPhone: null,
-    tenantName: 'John Smith',
-    primaryEmail: 'john@example.com',
-    secondaryEmail: null,
-    primaryPhone: '+61400000000',
-    secondaryPhone: '+61400000001',
+    snapshotName: 'John Smith',
+    snapshotEmail: 'john@example.com',
+    snapshotPhone: '+61400000000',
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -261,7 +256,6 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.contact!.tenantName).toBe('John Smith');
     expect(result.contact!.primaryEmail).toBe('john@example.com');
     expect(result.contact!.primaryPhone).toBe('+61400000000');
-    expect(result.contact!.secondaryPhone).toBe('+61400000001');
 
     expect(result.restrictions).toHaveLength(1);
     expect(result.restrictions[0].isHome).toBe(true);

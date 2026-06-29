@@ -63,9 +63,7 @@ export interface CreateAppointmentInput {
   contact?: {
     tenantName: string;
     primaryEmail?: string;
-    secondaryEmail?: string;
     primaryPhone?: string;
-    secondaryPhone?: string;
   };
   /** New contacts array format (feature 021) */
   contacts?: Array<{
@@ -130,9 +128,7 @@ export interface CreateAppointmentOutput {
     id: string;
     tenantName: string;
     primaryEmail: string | null;
-    secondaryEmail: string | null;
     primaryPhone: string | null;
-    secondaryPhone: string | null;
   };
   restriction: {
     id: string;
@@ -437,11 +433,6 @@ export class CreateAppointmentUseCase {
           snapshotName,
           snapshotEmail,
           snapshotPhone,
-          tenantName: snapshotName,
-          primaryEmail: snapshotEmail,
-          secondaryEmail: null,
-          primaryPhone: snapshotPhone,
-          secondaryPhone: null,
           createdAt: now,
           updatedAt: now,
         });
@@ -464,11 +455,6 @@ export class CreateAppointmentUseCase {
         snapshotName: input.contact.tenantName,
         snapshotEmail: input.contact.primaryEmail ?? null,
         snapshotPhone: input.contact.primaryPhone ?? null,
-        tenantName: input.contact.tenantName,
-        primaryEmail: input.contact.primaryEmail ?? null,
-        secondaryEmail: input.contact.secondaryEmail ?? null,
-        primaryPhone: input.contact.primaryPhone ?? null,
-        secondaryPhone: input.contact.secondaryPhone ?? null,
         createdAt: now,
         updatedAt: now,
       });
@@ -545,19 +531,15 @@ export class CreateAppointmentUseCase {
       contact: contact
         ? {
             id: contact.id,
-            tenantName: contact.tenantName,
-            primaryEmail: contact.primaryEmail,
-            secondaryEmail: contact.secondaryEmail,
-            primaryPhone: contact.primaryPhone,
-            secondaryPhone: contact.secondaryPhone,
+            tenantName: contact.effectiveName,
+            primaryEmail: contact.effectiveEmail,
+            primaryPhone: contact.effectivePhone,
           }
         : {
             id: '',
             tenantName: '',
             primaryEmail: null,
-            secondaryEmail: null,
             primaryPhone: null,
-            secondaryPhone: null,
           },
       restriction: restriction
         ? {
