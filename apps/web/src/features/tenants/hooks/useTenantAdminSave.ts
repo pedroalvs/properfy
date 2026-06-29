@@ -68,23 +68,31 @@ export function useTenantAdminSave(): UseTenantAdminSaveReturn {
     setIsSaving(true);
     try {
       // Settings flags are nested under `settings` (deep-merged server-side into
-      // settings_json); scalar fields stay top-level.
-      const { emailSendingEnabled, appointmentCodePrefix, ...rest } = data;
-      const body: Record<string, unknown> = { ...rest, settings: { emailSendingEnabled } };
+      // settings_json); scalar fields stay top-level. `notes` is not part of the
+      // API contract and is excluded from the payload.
+      const { emailSendingEnabled, appointmentCodePrefix, notes: _notes, ...rest } = data;
       // Only send the prefix when present (uppercased to match the backend). On
       // edit, an empty value (legacy tenant) is omitted so the field is untouched.
       const trimmedPrefix = appointmentCodePrefix.trim().toUpperCase();
-      if (trimmedPrefix) body.appointmentCodePrefix = trimmedPrefix;
+      const settings = { emailSendingEnabled };
 
       const { error } = tenantId
-        ? await api.PATCH(`/v1/tenants/${tenantId}` as any, { body: body as any })
-        : await api.POST('/v1/tenants' as any, { body: body as any });
+        ? await api.PATCH('/v1/tenants/{tenantId}', {
+            params: { path: { tenantId } },
+            body: { ...rest, settings, ...(trimmedPrefix ? { appointmentCodePrefix: trimmedPrefix } : {}) },
+          })
+        : await api.POST('/v1/tenants', {
+            body: { ...rest, settings, appointmentCodePrefix: trimmedPrefix },
+          });
+
+      type ApiErrorEnvelope = { error?: { code?: string; message?: string } };
+      const errorEnvelope = error as ApiErrorEnvelope | undefined;
       if (error) {
         // Surface the prefix-uniqueness conflict inline rather than as a generic snackbar.
-        if ((error as any)?.error?.code === 'TENANT_PREFIX_CONFLICT') {
+        if (errorEnvelope?.error?.code === 'TENANT_PREFIX_CONFLICT') {
           return { success: false, fieldErrors: { appointmentCodePrefix: PREFIX_CONFLICT_MESSAGE } };
         }
-        throw new Error((error as any)?.error?.message ?? 'Request failed');
+        throw new Error(errorEnvelope?.error?.message ?? 'Request failed');
       }
       queryClient.invalidateQueries({ queryKey: ['tenant-admins'] });
       return { success: true };

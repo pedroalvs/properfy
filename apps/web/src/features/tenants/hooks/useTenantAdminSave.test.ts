@@ -165,6 +165,7 @@ describe('useTenantAdminSave', () => {
 
     expect(saveResult?.success).toBe(true);
     // emailSendingEnabled is nested under settings; scalar fields stay top-level.
+    // notes is excluded — it is not part of the API contract.
     expect(mockPost).toHaveBeenCalledWith('/v1/tenants', {
       body: {
         name: 'Imob Alpha',
@@ -172,7 +173,6 @@ describe('useTenantAdminSave', () => {
         timezone: 'America/Sao_Paulo',
         currency: 'AUD',
         appointmentCodePrefix: 'INS',
-        notes: '',
         settings: { emailSendingEnabled: true },
       },
     });
@@ -187,8 +187,11 @@ describe('useTenantAdminSave', () => {
     });
 
     expect(mockPatch).toHaveBeenCalledWith(
-      '/v1/tenants/ten-01',
-      expect.objectContaining({ body: expect.objectContaining({ settings: { emailSendingEnabled: false } }) }),
+      '/v1/tenants/{tenantId}',
+      expect.objectContaining({
+        params: { path: { tenantId: 'ten-01' } },
+        body: expect.objectContaining({ settings: { emailSendingEnabled: false } }),
+      }),
     );
   });
 
@@ -203,8 +206,11 @@ describe('useTenantAdminSave', () => {
 
     expect(saveResult?.success).toBe(true);
     expect(mockPatch).toHaveBeenCalledWith(
-      '/v1/tenants/ten-01',
-      expect.objectContaining({ body: expect.objectContaining({ settings: { emailSendingEnabled: true } }) }),
+      '/v1/tenants/{tenantId}',
+      expect.objectContaining({
+        params: { path: { tenantId: 'ten-01' } },
+        body: expect.objectContaining({ settings: { emailSendingEnabled: true } }),
+      }),
     );
   });
 
