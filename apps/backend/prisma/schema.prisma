@@ -418,8 +418,7 @@ model Inspector {
   status                     InspectorStatus @default(ACTIVE)
   payment_settings_json      Json            @default("{}")
   service_types_json         Json            @default("[]")
-  client_eligibility_json    Json            @default("[]")
-  // Feedback Round item 1: blocked-clients model (replaces allow-list)
+  // Feedback Round item 1: blocked-clients deny-list (replaced the legacy allow-list)
   blocked_clients_json       Json            @default("[]")
   // Feedback Round item 6: profile extension fields
   full_name                  String?         @db.VarChar(300)

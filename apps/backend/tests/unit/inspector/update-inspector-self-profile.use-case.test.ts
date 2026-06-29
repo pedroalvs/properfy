@@ -21,7 +21,6 @@ function makeInspector(
     status: 'ACTIVE',
     paymentSettingsJson: { bankBsb: '062-000', bankAccount: '12345678' },
     serviceTypesJson: [],
-    clientEligibilityJson: [],
     blockedClientsJson: [],
     fullName: 'John Michael Inspector',
     address: null,

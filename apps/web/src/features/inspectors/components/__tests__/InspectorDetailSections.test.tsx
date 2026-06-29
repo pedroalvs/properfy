@@ -39,7 +39,6 @@ const BASE_INSPECTOR: InspectorDetail = {
   regionsCount: 0,
   serviceTypes: [],
   serviceTypesCount: 0,
-  clientEligibility: [],
   blockedClients: [],
   insuranceFileKey: null,
   insuranceExpiresAt: null,

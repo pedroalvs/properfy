@@ -44,7 +44,6 @@ function makeInspector(
     status: 'ACTIVE',
     paymentSettingsJson: {},
     serviceTypesJson: [],
-    clientEligibilityJson: [],
     blockedClientsJson: [],
     fullName: null,
     address: null,
