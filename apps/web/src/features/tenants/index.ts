@@ -12,10 +12,13 @@ export {
   useTenantAdminDetail,
   useTenantAdminSave,
   useTenantDeactivate,
+  useTenantActivate,
   useBranchList,
   useBranchSave,
   useBranchDeactivate,
+  useBranchById,
 } from './hooks';
+export type { UseTenantActivateReturn } from './hooks';
 export type {
   TenantAdmin,
   TenantAdminDetail,
