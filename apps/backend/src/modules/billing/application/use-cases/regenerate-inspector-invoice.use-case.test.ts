@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RegenerateInspectorInvoiceUseCase } from './regenerate-inspector-invoice.use-case';
 import { InspectorInvoiceEntity } from '../../domain/inspector-invoice.entity';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 
 const INVOICE_ID = 'invoice-existing-1';
 const INSPECTOR_ID = 'insp-1';
@@ -57,11 +58,11 @@ describe('RegenerateInspectorInvoiceUseCase — #109 in-place update', () => {
       deps.invoiceRepo as any,
       deps.financialEntryRepo as any,
       deps.auditService as any,
-      deps.jobQueue as any,
       deps.authorizationService as any,
+      deps.jobQueue as any,
     );
 
-    await useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR });
+    await useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR, reason: 'recompute reason' });
 
     expect(deps.invoiceRepo.save).not.toHaveBeenCalled();
   });
@@ -72,11 +73,11 @@ describe('RegenerateInspectorInvoiceUseCase — #109 in-place update', () => {
       deps.invoiceRepo as any,
       deps.financialEntryRepo as any,
       deps.auditService as any,
-      deps.jobQueue as any,
       deps.authorizationService as any,
+      deps.jobQueue as any,
     );
 
-    await useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR });
+    await useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR, reason: 'recompute reason' });
 
     expect(deps.invoiceRepo.update).toHaveBeenCalledOnce();
     const [calledId, calledData] = deps.invoiceRepo.update.mock.calls[0];
@@ -90,11 +91,11 @@ describe('RegenerateInspectorInvoiceUseCase — #109 in-place update', () => {
       deps.invoiceRepo as any,
       deps.financialEntryRepo as any,
       deps.auditService as any,
-      deps.jobQueue as any,
       deps.authorizationService as any,
+      deps.jobQueue as any,
     );
 
-    const result = await useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR });
+    const result = await useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR, reason: 'recompute reason' });
 
     expect(result.id).toBe(INVOICE_ID);
   });
@@ -105,14 +106,64 @@ describe('RegenerateInspectorInvoiceUseCase — #109 in-place update', () => {
       deps.invoiceRepo as any,
       deps.financialEntryRepo as any,
       deps.auditService as any,
-      deps.jobQueue as any,
       deps.authorizationService as any,
+      deps.jobQueue as any,
     );
 
-    const result = await useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR });
+    const result = await useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR, reason: 'recompute reason' });
 
     // existing.totalAmount is 500, recomputed is 750
     expect(result.totalAmount).toBe(750);
     expect(result.totalAmount).not.toBe(500);
+  });
+});
+
+describe('RegenerateInspectorInvoiceUseCase — #110 mandatory auth + required reason', () => {
+  it('throws INVOICE_REGENERATION_REASON_REQUIRED when reason is undefined', async () => {
+    const deps = makeDeps();
+    const useCase = new RegenerateInspectorInvoiceUseCase(
+      deps.invoiceRepo as any,
+      deps.financialEntryRepo as any,
+      deps.auditService as any,
+      deps.authorizationService as any,
+      deps.jobQueue as any,
+    );
+
+    await expect(
+      useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR, reason: undefined }),
+    ).rejects.toMatchObject({ code: 'INVOICE_REGENERATION_REASON_REQUIRED' });
+  });
+
+  it('throws INVOICE_REGENERATION_REASON_REQUIRED when reason is blank whitespace', async () => {
+    const deps = makeDeps();
+    const useCase = new RegenerateInspectorInvoiceUseCase(
+      deps.invoiceRepo as any,
+      deps.financialEntryRepo as any,
+      deps.auditService as any,
+      deps.authorizationService as any,
+      deps.jobQueue as any,
+    );
+
+    await expect(
+      useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR, reason: '   ' }),
+    ).rejects.toMatchObject({ code: 'INVOICE_REGENERATION_REASON_REQUIRED' });
+  });
+
+  it('propagates error when authorizationService.assertRoles throws ForbiddenError', async () => {
+    const deps = makeDeps();
+    deps.authorizationService.assertRoles.mockImplementation(() => {
+      throw new ForbiddenError('FORBIDDEN', 'Only AM can regenerate invoices');
+    });
+    const useCase = new RegenerateInspectorInvoiceUseCase(
+      deps.invoiceRepo as any,
+      deps.financialEntryRepo as any,
+      deps.auditService as any,
+      deps.authorizationService as any,
+      deps.jobQueue as any,
+    );
+
+    await expect(
+      useCase.execute({ invoiceId: INVOICE_ID, actor: MOCK_ACTOR, reason: 'valid reason' }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

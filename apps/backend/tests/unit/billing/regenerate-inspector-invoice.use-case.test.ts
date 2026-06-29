@@ -85,8 +85,8 @@ function makeSut() {
     invoiceRepo,
     financialEntryRepo,
     auditService,
-    jobQueue,
     authorizationService,
+    jobQueue,
   );
 
   return { useCase, invoiceRepo, financialEntryRepo, auditService, jobQueue };
@@ -105,7 +105,6 @@ describe('RegenerateInspectorInvoiceUseCase', () => {
 
     vi.mocked(invoiceRepo.findById).mockResolvedValue(makeInvoice({ status: 'CLOSED', totalAmount: 1400 }));
     vi.mocked(financialEntryRepo.sumApprovedPayoutsForInspectorInPeriod).mockResolvedValue(1800);
-    vi.mocked(invoiceRepo.save).mockResolvedValue(undefined);
     vi.mocked(invoiceRepo.update).mockResolvedValue(undefined);
 
     const result = await useCase.execute({
@@ -116,19 +115,14 @@ describe('RegenerateInspectorInvoiceUseCase', () => {
 
     expect(result.status).toBe('CLOSED');
     expect(result.totalAmount).toBe(1800);
-    expect(result.previousInvoiceId).toBe('invoice-1');
-    expect(result.id).not.toBe('invoice-1'); // New ID
+    expect(result.id).toBe('invoice-1'); // Same ID — in-place update
+    expect(result.previousInvoiceId).toBeNull(); // existing.previousInvoiceId is null
 
-    // Old invoice marked as SUPERSEDED
-    expect(invoiceRepo.update).toHaveBeenCalledWith('invoice-1', { status: 'SUPERSEDED' });
-
-    // New invoice saved
-    expect(invoiceRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        inspectorId: 'insp-1',
-        status: 'CLOSED',
-        totalAmount: 1800,
-      }),
+    // In-place update — never marks old invoice SUPERSEDED, never saves a new one
+    expect(invoiceRepo.save).not.toHaveBeenCalled();
+    expect(invoiceRepo.update).toHaveBeenCalledWith(
+      'invoice-1',
+      expect.objectContaining({ status: 'CLOSED', totalAmount: 1800 }),
     );
 
     expect(auditService.log).toHaveBeenCalledWith(
@@ -140,7 +134,7 @@ describe('RegenerateInspectorInvoiceUseCase', () => {
 
     expect(jobQueue.enqueue).toHaveBeenCalledWith(
       'billing.generate-invoice-file',
-      expect.objectContaining({ invoiceId: result.id }),
+      expect.objectContaining({ invoiceId: 'invoice-1' }),
     );
   });
 
@@ -151,34 +145,40 @@ describe('RegenerateInspectorInvoiceUseCase', () => {
       makeInvoice({ status: 'PAID', paidAt: new Date() }),
     );
     vi.mocked(financialEntryRepo.sumApprovedPayoutsForInspectorInPeriod).mockResolvedValue(900);
-    vi.mocked(invoiceRepo.save).mockResolvedValue(undefined);
     vi.mocked(invoiceRepo.update).mockResolvedValue(undefined);
 
     const result = await useCase.execute({
       invoiceId: 'invoice-1',
+      reason: 'Correct payout after PAID',
       actor: makeActor({ role: 'AM' }),
     });
 
     expect(result.status).toBe('CLOSED');
     expect(result.totalAmount).toBe(900);
-    expect(result.previousInvoiceId).toBe('invoice-1');
+    expect(result.id).toBe('invoice-1'); // Same ID — in-place update
+    expect(result.previousInvoiceId).toBeNull(); // existing.previousInvoiceId is null
   });
 
-  it('should maintain version chain (previousInvoiceId)', async () => {
+  it('should update in-place and preserve notes from the reason', async () => {
     const { useCase, invoiceRepo, financialEntryRepo } = sut;
 
     vi.mocked(invoiceRepo.findById).mockResolvedValue(makeInvoice({ id: 'inv-v1', status: 'CLOSED' }));
     vi.mocked(financialEntryRepo.sumApprovedPayoutsForInspectorInPeriod).mockResolvedValue(500);
-    vi.mocked(invoiceRepo.save).mockResolvedValue(undefined);
     vi.mocked(invoiceRepo.update).mockResolvedValue(undefined);
 
     const result = await useCase.execute({
       invoiceId: 'inv-v1',
+      reason: 'Correction after audit',
       actor: makeActor({ role: 'AM' }),
     });
 
-    expect(result.previousInvoiceId).toBe('inv-v1');
-    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-v1', { status: 'SUPERSEDED' });
+    // In-place: same id, notes set to reason
+    expect(result.id).toBe('inv-v1');
+    expect(result.notes).toBe('Correction after audit');
+    expect(invoiceRepo.update).toHaveBeenCalledWith(
+      'inv-v1',
+      expect.objectContaining({ status: 'CLOSED', notes: 'Correction after audit' }),
+    );
   });
 
   it('should reject OPEN invoice (not regenerable)', async () => {
@@ -189,6 +189,7 @@ describe('RegenerateInspectorInvoiceUseCase', () => {
     await expect(
       useCase.execute({
         invoiceId: 'invoice-1',
+        reason: 'some reason',
         actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toThrow(InvoiceNotRegenerableError);
@@ -202,6 +203,7 @@ describe('RegenerateInspectorInvoiceUseCase', () => {
     await expect(
       useCase.execute({
         invoiceId: 'non-existent',
+        reason: 'some reason',
         actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toThrow(InvoiceNotFoundError);
@@ -213,6 +215,7 @@ describe('RegenerateInspectorInvoiceUseCase', () => {
     await expect(
       useCase.execute({
         invoiceId: 'invoice-1',
+        reason: 'some reason',
         actor: makeActor({ role: 'OP' }),
       }),
     ).rejects.toThrow(ForbiddenError);
