@@ -178,6 +178,19 @@ describe('useTenantAdminSave', () => {
     });
   });
 
+  it('omits appointmentCodePrefix from POST body when blank', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_DATA, appointmentCodePrefix: '' });
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants', {
+      body: expect.not.objectContaining({ appointmentCodePrefix: expect.anything() }),
+    });
+  });
+
   it('nests emailSendingEnabled under settings when disabled', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
