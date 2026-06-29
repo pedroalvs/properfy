@@ -3250,7 +3250,6 @@ export interface paths {
                                 paymentSettingsJson?: unknown;
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
-                                clientEligibilityJson?: unknown;
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
@@ -3315,12 +3314,6 @@ export interface paths {
                             certified?: boolean;
                         }[];
                         /** @default [] */
-                        clientEligibility?: {
-                            /** Format: uuid */
-                            tenantId: string;
-                            eligible: boolean;
-                        }[];
-                        /** @default [] */
                         blockedClients?: string[];
                         fullName?: string;
                         address?: {
@@ -3356,7 +3349,6 @@ export interface paths {
                                 paymentSettingsJson?: unknown;
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
-                                clientEligibilityJson?: unknown;
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
@@ -3418,7 +3410,6 @@ export interface paths {
                                 paymentSettingsJson?: unknown;
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
-                                clientEligibilityJson?: unknown;
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
@@ -3480,11 +3471,6 @@ export interface paths {
                             /** @default false */
                             certified?: boolean;
                         }[];
-                        clientEligibility?: {
-                            /** Format: uuid */
-                            tenantId: string;
-                            eligible: boolean;
-                        }[];
                         blockedClients?: string[];
                         fullName?: string | null;
                         address?: {
@@ -3520,7 +3506,6 @@ export interface paths {
                                 paymentSettingsJson?: unknown;
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
-                                clientEligibilityJson?: unknown;
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;

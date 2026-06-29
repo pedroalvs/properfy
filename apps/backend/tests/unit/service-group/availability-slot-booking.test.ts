@@ -51,7 +51,6 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
     status: 'ACTIVE',
     paymentSettingsJson: {},
     serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }],
-    clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
     blockedClientsJson: [],
     fullName: null,
     address: null,

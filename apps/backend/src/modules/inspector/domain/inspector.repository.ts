@@ -1,4 +1,4 @@
-import type { PaymentSettings, ServiceTypeEntry, ClientEligibilityEntry, AvailabilityTemplate } from '@properfy/shared';
+import type { PaymentSettings, ServiceTypeEntry, AvailabilityTemplate } from '@properfy/shared';
 import type { InspectorEntity } from './inspector.entity';
 
 export interface InspectorFilters {
@@ -36,7 +36,6 @@ export interface IInspectorRepository {
       status: string;
       paymentSettingsJson: PaymentSettings;
       serviceTypesJson: ServiceTypeEntry[];
-      clientEligibilityJson: ClientEligibilityEntry[];
       fullName: string | null;
       deletedAt: Date | null;
       photoStorageKey: string | null;

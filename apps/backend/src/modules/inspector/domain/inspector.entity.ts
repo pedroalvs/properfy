@@ -3,7 +3,6 @@ import type {
   InspectorStatus,
   PaymentSettings,
   ServiceTypeEntry,
-  ClientEligibilityEntry,
   AvailabilityTemplate,
   BillingPeriodType,
 } from '@properfy/shared';
@@ -18,8 +17,6 @@ export interface InspectorProps {
   status: InspectorStatus;
   paymentSettingsJson: PaymentSettings;
   serviceTypesJson: ServiceTypeEntry[];
-  /** @deprecated Use blockedClientsJson instead */
-  clientEligibilityJson: ClientEligibilityEntry[];
   // Feedback Round item 1: blocked-clients model
   blockedClientsJson: string[];
   // Feedback Round item 6: profile extension
@@ -51,8 +48,6 @@ export class InspectorEntity extends BaseEntity {
   status: InspectorStatus;
   readonly paymentSettingsJson: PaymentSettings;
   readonly serviceTypesJson: ServiceTypeEntry[];
-  /** @deprecated Use blockedClientsJson instead */
-  readonly clientEligibilityJson: ClientEligibilityEntry[];
   readonly blockedClientsJson: string[];
   readonly fullName: string | null;
   readonly address: Record<string, unknown> | null;
@@ -78,7 +73,6 @@ export class InspectorEntity extends BaseEntity {
     this.status = props.status;
     this.paymentSettingsJson = props.paymentSettingsJson;
     this.serviceTypesJson = props.serviceTypesJson;
-    this.clientEligibilityJson = props.clientEligibilityJson;
     this.blockedClientsJson = props.blockedClientsJson;
     this.fullName = props.fullName;
     this.address = props.address;

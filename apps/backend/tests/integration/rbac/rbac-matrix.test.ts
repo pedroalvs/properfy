@@ -358,7 +358,7 @@ describe('Matrix: financial.view (GET /v1/financial/entries) — AM, OP only', (
 // ── inspector.create: AM, OP only ────────────────────────────────────────────
 
 describe('Matrix: inspector.create (POST /v1/inspectors) — AM, OP only', () => {
-  const inspectorStub = { id: INSPECTOR_ID, name: 'New Inspector', email: 'new@inspector.com', phone: '+61400000002', status: 'ACTIVE', paymentSettingsJson: null, serviceTypesJson: null, clientEligibilityJson: null, regionIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  const inspectorStub = { id: INSPECTOR_ID, name: 'New Inspector', email: 'new@inspector.com', phone: '+61400000002', status: 'ACTIVE', paymentSettingsJson: null, serviceTypesJson: null,regionIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   const payload = { name: 'New Inspector', email: 'new@inspector.com', phone: '+61400000002' };
 
   it('AM → 201', async () => {

@@ -24,13 +24,6 @@ export const serviceTypeEntrySchema = z.object({
 export const serviceTypesSchema = z.array(serviceTypeEntrySchema);
 export type ServiceTypeEntry = z.infer<typeof serviceTypeEntrySchema>;
 
-export const clientEligibilityEntrySchema = z.object({
-  tenantId: z.string().uuid(),
-  eligible: z.boolean(),
-});
-export const clientEligibilitySchema = z.array(clientEligibilityEntrySchema);
-export type ClientEligibilityEntry = z.infer<typeof clientEligibilityEntrySchema>;
-
 // --- Inspector CRUD schemas ---
 
 export const createInspectorSchema = z.object({
@@ -41,8 +34,6 @@ export const createInspectorSchema = z.object({
   regions: z.array(z.string()).default([]),
   regionIds: z.array(z.string().uuid()).default([]),
   serviceTypes: serviceTypesSchema.default([]),
-  /** @deprecated Use blockedClients instead */
-  clientEligibility: clientEligibilitySchema.default([]),
   // Feedback Round item 1: blocked-clients model
   blockedClients: z.array(z.string().uuid()).default([]),
   // Feedback Round item 6: profile extension
@@ -66,8 +57,6 @@ export const updateInspectorSchema = z.object({
   regions: z.array(z.string()).optional(),
   regionIds: z.array(z.string().uuid()).optional(),
   serviceTypes: serviceTypesSchema.optional(),
-  /** @deprecated Use blockedClients instead */
-  clientEligibility: clientEligibilitySchema.optional(),
   blockedClients: z.array(z.string().uuid()).optional(),
   fullName: z.string().max(300).optional().nullable(),
   address: z.record(z.unknown()).optional().nullable(),
