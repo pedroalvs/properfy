@@ -149,6 +149,8 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
   async update(id: string, data: InvoiceUpdateData): Promise<void> {
     const updateData: Record<string, unknown> = {};
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.totalAmount !== undefined) updateData.total_amount = data.totalAmount;
+    if (data.currency !== undefined) updateData.currency = data.currency;
     if (data.fileKey !== undefined) updateData.file_key = data.fileKey;
     if (data.generatedByUserId !== undefined) updateData.generated_by_user_id = data.generatedByUserId;
     if (data.generatedAt !== undefined) updateData.generated_at = data.generatedAt;
