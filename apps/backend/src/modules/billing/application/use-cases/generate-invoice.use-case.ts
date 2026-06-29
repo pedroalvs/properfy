@@ -42,16 +42,16 @@ export class GenerateInvoiceUseCase {
     private readonly invoiceRepo: IInspectorInvoiceRepository,
     private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly jobQueue?: IJobQueue,
     private readonly tenantRepo?: ITenantRepository,
-    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: GenerateInvoiceInput): Promise<GenerateInvoiceOutput> {
     const { inspectorId, periodStart, periodEnd, actor } = input;
 
     // 1. Validate role AM/OP
-    this.authorizationService?.assertRoles(actor, ['AM', 'OP'], { action: 'financial.generate_invoice', entityType: 'InspectorInvoice' });
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'financial.generate_invoice', entityType: 'InspectorInvoice' });
 
     // Resolve tenant timezone for period boundary computation
     const tenantId = input.tenantId ?? actor.tenantId;

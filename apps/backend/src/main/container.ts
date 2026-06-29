@@ -946,7 +946,7 @@ export function createContainer(logger: Logger): AppContainer {
   const reportStorageService = s3Client
     ? new SupabaseReportStorageService(s3Client, env.SUPABASE_STORAGE_BUCKET)
     : new StubReportStorageService();
-  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, tenantRepo, authorizationService);
+  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue, tenantRepo);
   const listInvoicesUseCase = new ListInvoicesUseCase(inspectorInvoiceRepo);
   const getInvoiceUseCase = new GetInvoiceUseCase(inspectorInvoiceRepo);
   const downloadInvoiceUseCase = new DownloadInvoiceUseCase(
