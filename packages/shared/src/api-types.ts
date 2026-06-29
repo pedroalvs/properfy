@@ -690,7 +690,7 @@ export interface paths {
                         timezone?: string;
                         /** @default AUD */
                         currency?: string;
-                        appointmentCodePrefix: string;
+                        appointmentCodePrefix?: string;
                         settings?: {
                             /**
                              * @default MONTHLY
