@@ -153,7 +153,6 @@ beforeAll(async () => {
       appointment: { connect: { id: apptInB.id } },
       contact: { connect: { id: cInA.id } },
       role: 'PROPERTY_MANAGER', is_primary: false,
-      tenant_name: 'A-Owned Contact',
       snapshot_name: 'A-Owned Contact',
       snapshot_email: cInA.primary_email,
     },

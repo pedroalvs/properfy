@@ -146,9 +146,7 @@ describe('updateContactPortalSchema', () => {
   it('should accept all fields', () => {
     const result = updateContactPortalSchema.safeParse({
       primaryEmail: 'tenant@example.com',
-      secondaryEmail: 'alt@example.com',
       primaryPhone: '11999887766',
-      secondaryPhone: '11888776655',
     });
     expect(result.success).toBe(true);
   });
@@ -163,15 +161,6 @@ describe('updateContactPortalSchema', () => {
       primaryEmail: 'not-an-email',
     });
     expect(result.success).toBe(false);
-  });
-
-  it('should accept null for nullable fields', () => {
-    const result = updateContactPortalSchema.safeParse({
-      primaryEmail: 'tenant@example.com',
-      secondaryEmail: null,
-      secondaryPhone: null,
-    });
-    expect(result.success).toBe(true);
   });
 
   it('should reject phone shorter than 8 characters', () => {

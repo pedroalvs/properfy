@@ -53,11 +53,12 @@ function makeContact(
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Doe',
-    primaryEmail: 'john@example.com',
-    secondaryEmail: null,
-    primaryPhone: '+61400000000',
-    secondaryPhone: null,
+    contactId: null,
+    role: 'TENANT',
+    isPrimary: true,
+    snapshotName: 'John Doe',
+    snapshotEmail: 'john@example.com',
+    snapshotPhone: '+61400000000',
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -271,7 +272,7 @@ describe('DispatchEscalationsUseCase', () => {
 
   it('skips SMS when contact has no primaryPhone (increments skipped)', async () => {
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
-      makeRelation({}, { primaryPhone: null }),
+      makeRelation({}, { snapshotPhone: null }),
     ]);
 
     const result = await useCase.execute(today);
@@ -321,7 +322,7 @@ describe('DispatchEscalationsUseCase', () => {
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
       makeRelation(
         { id: 'appt-x', tenantId: 'tenant-x', branchId: 'branch-1', scheduledDate, timeSlot: '14:00-17:00' },
-        { tenantName: 'Jane Smith', primaryPhone: '+61400111222' },
+        { snapshotName: 'Jane Smith', snapshotPhone: '+61400111222' },
       ),
     ]);
     mockTenantRepo.findById.mockResolvedValue(makeTenant('tenant-x'));
@@ -349,7 +350,7 @@ describe('DispatchEscalationsUseCase', () => {
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
       makeRelation(
         { id: 'appt-x', tenantId: 'tenant-x', scheduledDate, timeSlot: '14:00-17:00' },
-        { tenantName: 'Jane Smith', primaryPhone: '+61400111222' },
+        { snapshotName: 'Jane Smith', snapshotPhone: '+61400111222' },
       ),
     ]);
     mockTenantRepo.findById.mockResolvedValue(makeTenant('tenant-x'));

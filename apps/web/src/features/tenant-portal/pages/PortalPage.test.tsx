@@ -50,9 +50,7 @@ const MOCK_PORTAL_DATA = {
   contact: {
     tenantName: 'John Tenant',
     primaryEmail: 'john@example.com',
-    secondaryEmail: null,
     primaryPhone: '+61400000000',
-    secondaryPhone: null,
   },
   restrictions: null,
 };

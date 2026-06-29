@@ -54,11 +54,12 @@ function makeContact(): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Smith',
-    primaryEmail: 'john@example.com',
-    secondaryEmail: null,
-    primaryPhone: '+61400000000',
-    secondaryPhone: null,
+    contactId: null,
+    role: 'TENANT',
+    isPrimary: true,
+    snapshotName: 'John Smith',
+    snapshotEmail: 'john@example.com',
+    snapshotPhone: '+61400000000',
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -255,9 +256,7 @@ describe('GetPortalDataUseCase', () => {
     expect(result.contact).toEqual({
       tenantName: 'John Smith',
       primaryEmail: 'john@example.com',
-      secondaryEmail: null,
       primaryPhone: '+61400000000',
-      secondaryPhone: null,
     });
     expect(result.restrictions).toEqual({
       isHome: true,

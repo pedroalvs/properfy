@@ -29,9 +29,9 @@ export class PrismaReportDataReader implements IReportDataReader {
       scheduledDate: a.scheduled_date?.toISOString().split('T')[0] ?? '',
       timeSlot: a.time_slot,
       status: a.status,
-      tenantName: a.contacts?.[0]?.tenant_name ?? '',
-      tenantEmail: a.contacts?.[0]?.primary_email ?? '',
-      tenantPhone: a.contacts?.[0]?.primary_phone ?? '',
+      tenantName: a.contacts?.[0]?.snapshot_name ?? '',
+      tenantEmail: a.contacts?.[0]?.snapshot_email ?? '',
+      tenantPhone: a.contacts?.[0]?.snapshot_phone ?? '',
       inspector: a.inspector?.name ?? '',
       confirmationStatus: a.tenant_confirmation_status,
       keyRequired: a.key_required ? 'Yes' : 'No',
@@ -113,8 +113,8 @@ export class PrismaReportDataReader implements IReportDataReader {
         serviceType: a.service_type?.name ?? '',
         propertyAddress: a.property?.street ?? '',
         scheduledDate: a.scheduled_date?.toISOString().split('T')[0] ?? '',
-        tenantName: a.contacts?.[0]?.tenant_name ?? '',
-        tenantPhone: a.contacts?.[0]?.primary_phone ?? '',
+        tenantName: a.contacts?.[0]?.snapshot_name ?? '',
+        tenantPhone: a.contacts?.[0]?.snapshot_phone ?? '',
         confirmationStatus: a.tenant_confirmation_status,
         initialNoticeSent: lastReminder?.sent_at?.toISOString() ?? '',
         lastReminderSent: lastReminder?.sent_at?.toISOString() ?? '',
@@ -178,9 +178,9 @@ export class PrismaReportDataReader implements IReportDataReader {
       where.OR = [
         { property: { street: { contains: filters.search, mode: 'insensitive' } } },
         { property: { suburb: { contains: filters.search, mode: 'insensitive' } } },
-        { contacts: { some: { tenant_name: { contains: filters.search, mode: 'insensitive' } } } },
-        { contacts: { some: { primary_phone: { contains: filters.search, mode: 'insensitive' } } } },
-        { contacts: { some: { primary_email: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { snapshot_name: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { snapshot_phone: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { snapshot_email: { contains: filters.search, mode: 'insensitive' } } } },
       ];
     }
     if (filters.emailNotificationStatus) {
