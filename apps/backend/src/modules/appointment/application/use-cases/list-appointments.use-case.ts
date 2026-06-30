@@ -57,6 +57,10 @@ export interface ListAppointmentsOutput {
     createdAt: Date;
     updatedAt: Date;
     // Enriched fields
+    /** Service group this appointment belongs to (null when ungrouped). */
+    serviceGroupId: string | null;
+    /** Human-friendly service group code (String(group_number); null when ungrouped). */
+    serviceGroupCode: string | null;
     /** Formatted appointment code (e.g. "INS-0042"). */
     appointmentCode: string;
     code: string;
@@ -167,6 +171,8 @@ export class ListAppointmentsUseCase {
         doneCheckedAt: item.appointment.doneCheckedAt,
         createdAt: item.appointment.createdAt,
         updatedAt: item.appointment.updatedAt,
+        serviceGroupId: item.appointment.serviceGroupId,
+        serviceGroupCode: item.serviceGroupNumber != null ? String(item.serviceGroupNumber) : null,
         appointmentCode,
         code: appointmentCode,
         propertyAddress: item.propertyAddress,

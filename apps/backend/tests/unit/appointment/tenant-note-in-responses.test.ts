@@ -94,6 +94,7 @@ function makeListItem(
     branchName: 'Test Branch',
     serviceTypeName: 'Routine Inspection',
     inspectorName: null,
+    serviceGroupNumber: null,
   };
 }
 

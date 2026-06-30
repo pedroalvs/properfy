@@ -4683,6 +4683,7 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
@@ -4866,6 +4867,7 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
@@ -4972,6 +4974,7 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
@@ -5154,6 +5157,7 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;

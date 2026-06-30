@@ -10936,6 +10936,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "serviceGroupCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "status": {
                           "type": "string"
                         },
@@ -11431,6 +11435,10 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "serviceGroupCode": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "status": {
                             "type": "string"
                           },
@@ -11749,6 +11757,10 @@
                         "serviceGroupId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "serviceGroupCode": {
+                          "type": "string",
                           "nullable": true
                         },
                         "status": {
@@ -12317,6 +12329,10 @@
                         "serviceGroupId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "serviceGroupCode": {
+                          "type": "string",
                           "nullable": true
                         },
                         "status": {

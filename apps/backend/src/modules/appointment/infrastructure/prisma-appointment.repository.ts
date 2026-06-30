@@ -201,6 +201,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         branch: { select: { name: true } },
         service_type: { select: { name: true } },
         inspector: { select: { name: true } },
+        service_group: { select: { group_number: true } },
       },
     });
     return rows.map((row) => {
@@ -222,6 +223,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         branchName: row.branch?.name ?? '',
         serviceTypeName: row.service_type?.name ?? '',
         inspectorName: row.inspector?.name ?? null,
+        serviceGroupNumber: row.service_group?.group_number ?? null,
       };
     });
   }

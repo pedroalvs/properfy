@@ -211,6 +211,15 @@ export function MapBulkActionModal({
       ),
     },
     {
+      key: 'group',
+      label: 'Group',
+      width: '72px',
+      render: (row) =>
+        row.serviceGroupCode
+          ? <span className="font-mono text-sm text-text-secondary">{row.serviceGroupCode}</span>
+          : <span className="text-sm text-text-secondary">—</span>,
+    },
+    {
       key: 'client',
       label: 'Client',
       render: (row) => <span className="text-sm text-text-primary">{row.clientName ?? '—'}</span>,

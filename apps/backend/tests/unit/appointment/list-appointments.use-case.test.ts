@@ -48,6 +48,7 @@ function makeAppointmentListItem(overrides: Partial<ConstructorParameters<typeof
     branchName: 'Main Branch',
     serviceTypeName: 'Routine Inspection',
     inspectorName: null,
+    serviceGroupNumber: null,
   };
 }
 
@@ -454,6 +455,39 @@ describe('ListAppointmentsUseCase', () => {
         expect.objectContaining({ hasTenantNote: false }),
         defaultPagination,
       );
+    });
+  });
+
+  describe('service group reference in list output', () => {
+    it('exposes serviceGroupId and serviceGroupCode for a grouped appointment', async () => {
+      const item = makeAppointmentListItem({ serviceGroupId: 'group-uuid-1' });
+      item.serviceGroupNumber = 42;
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([item]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.serviceGroupId).toBe('group-uuid-1');
+      expect(result.data[0]!.serviceGroupCode).toBe('42');
+    });
+
+    it('returns null serviceGroupId and serviceGroupCode for an ungrouped appointment', async () => {
+      // factory defaults: entity serviceGroupId = null, serviceGroupNumber = null
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.serviceGroupId).toBeNull();
+      expect(result.data[0]!.serviceGroupCode).toBeNull();
     });
   });
 
