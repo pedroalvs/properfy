@@ -112,6 +112,8 @@ export function ServiceGroupDetailPage() {
   const canCancel = isDraft || isPublished || isAccepted;
   const canReject = isPublished || isAccepted;
   const canEdit = !isAccepted;
+  // Backend allows manual assignment while the group is DRAFT or PUBLISHED (group.canAssign()).
+  const canAssign = isDraft || isPublished;
 
   // Publish requires every appointment to be AWAITING_INSPECTOR.
   // Surface blocking appointments so the user knows what to fix before clicking.
@@ -177,7 +179,7 @@ export function ServiceGroupDetailPage() {
             </Button>
           </span>
         )}
-        {isPublished && (
+        {canAssign && (
           <Button
             variant="outlined"
             onClick={() => setAssignOpen(true)}

@@ -22,6 +22,7 @@ export interface GetServiceGroupOutput {
   scheduledDate: Date;
   timeWindow: string;
   name: string | null;
+  serviceRegionId: string | null;
   regionName: string | null;
   description: string | null;
   priorityMode: string;
@@ -76,6 +77,7 @@ export class GetServiceGroupUseCase {
       scheduledDate: group.scheduledDate,
       timeWindow: group.timeWindow,
       name: group.name,
+      serviceRegionId: group.serviceRegionId,
       regionName: group.regionName,
       description: group.description,
       priorityMode: group.priorityMode,

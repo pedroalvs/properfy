@@ -155,6 +155,44 @@ describe('useBranchSave', () => {
     });
   });
 
+  it('save preserves zero coordinates on create', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useBranchSave(), { wrapper });
+    const zeroCoordData: BranchFormData = {
+      ...VALID_DATA,
+      address: { ...VALID_DATA.address!, latitude: 0, longitude: 0 },
+    };
+
+    await act(async () => {
+      await result.current.save(zeroCoordData, 'ten-01');
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/ten-01/branches', {
+      body: expect.objectContaining({
+        address: expect.objectContaining({ latitude: 0, longitude: 0 }),
+      }),
+    });
+  });
+
+  it('save preserves zero coordinates on edit', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useBranchSave(), { wrapper });
+    const zeroCoordData: BranchFormData = {
+      ...VALID_DATA,
+      address: { ...VALID_DATA.address!, latitude: 0, longitude: 0 },
+    };
+
+    await act(async () => {
+      await result.current.save(zeroCoordData, 'ten-01', 'br-01');
+    });
+
+    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/ten-01/branches/br-01', {
+      body: expect.objectContaining({
+        address: expect.objectContaining({ latitude: 0, longitude: 0 }),
+      }),
+    });
+  });
+
   it('save returns failure on API error', async () => {
     mockPost.mockResolvedValueOnce({ data: undefined, error: { error: { message: 'Server error' } } });
     const wrapper = createQueryWrapper();
