@@ -55,6 +55,31 @@ describe('useServiceGroupDetail', () => {
     expect(result.current.serviceGroup?.name).toBe('Zona Sul SP');
   });
 
+  it('maps serviceRegionId to null when absent from the raw response', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupDetail('sg-01'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.serviceGroup?.serviceRegionId).toBeNull();
+  });
+
+  it('maps serviceRegionId from the raw response when present', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { data: { ...MOCK_SERVICE_GROUP, serviceRegionId: 'region-99' } },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupDetail('sg-01'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.serviceGroup?.serviceRegionId).toBe('region-99');
+  });
+
   it('returns null when id is null', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useServiceGroupDetail(null), { wrapper });

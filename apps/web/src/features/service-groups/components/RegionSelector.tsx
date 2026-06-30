@@ -11,9 +11,17 @@ interface RegionSelectorProps {
   onRegionChange: (regionId: string) => void;
   /** Required for AM/OP creating a group on behalf of a selected agency. */
   tenantId?: string;
+  /** Override the field hint (defaults to the creation-flow copy). */
+  hint?: string;
 }
 
-export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChange, tenantId }: RegionSelectorProps) {
+export function RegionSelector({
+  appointmentIds,
+  selectedRegionId,
+  onRegionChange,
+  tenantId,
+  hint = 'Optional at creation. Required to publish — you can add it later via Edit Group.',
+}: RegionSelectorProps) {
   const { data, isLoading, isError } = useResolveRegions(appointmentIds, tenantId);
 
   const options = useMemo(() => {
@@ -65,7 +73,7 @@ export function RegionSelector({ appointmentIds, selectedRegionId, onRegionChang
     <div className="flex flex-col gap-3">
       <FormField
         label="Target Region"
-        hint="Optional at creation. Required to publish — you can add it later via Edit Group."
+        hint={hint}
       >
         <SelectInput
           value={selectedRegionId}

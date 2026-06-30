@@ -10,6 +10,7 @@ function makeServiceGroup(overrides: Partial<ServiceGroup> = {}): ServiceGroup {
     id: 'sg-1',
     tenantId: 'tenant-1',
     name: 'Zona Sul SP',
+    serviceRegionId: null,
     regionName: 'São Paulo - Sul',
     inspectorId: 'insp-1',
     inspectorName: 'Carlos Silva',
