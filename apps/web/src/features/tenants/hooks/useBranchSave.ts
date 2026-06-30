@@ -63,8 +63,8 @@ export function useBranchSave(): UseBranchSaveReturn {
               state: data.address.state,
               postcode: data.address.postcode,
               country: data.address.country || 'AU',
-              latitude: data.address.latitude || undefined,
-              longitude: data.address.longitude || undefined,
+              latitude: data.address.latitude ?? undefined,
+              longitude: data.address.longitude ?? undefined,
             }
           : undefined,
         contactEmail: data.contactEmail || undefined,

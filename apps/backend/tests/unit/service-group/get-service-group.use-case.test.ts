@@ -105,6 +105,19 @@ describe('GetServiceGroupUseCase', () => {
     expect(serviceGroupRepo.findById).toHaveBeenCalledWith('group-1', null);
   });
 
+  it('should expose serviceRegionId so the edit UI can pre-select the current region', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ serviceRegionId: 'region-42' }),
+    );
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.serviceRegionId).toBe('region-42');
+  });
+
   it('should expose the sequential group code (groupNumber + code)', async () => {
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
       makeGroupWithAppointments({ groupNumber: 1057 }),

@@ -22,6 +22,7 @@ export function useServiceGroupDetail(id: string | null): UseServiceGroupDetailR
     return {
       ...raw,
       name: raw.name ?? '',
+      serviceRegionId: raw.serviceRegionId ?? null,
       regionName: raw.regionName ?? null,
       inspectorId: raw.assignedInspectorId ?? null,
       inspectorName: raw.assignedInspectorName ?? null,

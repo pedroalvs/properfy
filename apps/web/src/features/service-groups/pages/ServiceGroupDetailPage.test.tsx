@@ -256,6 +256,12 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.getByRole('button', { name: /Manual Assign/ })).toBeInTheDocument();
   });
 
+  it('shows Manual Assign button for DRAFT status', () => {
+    // Backend allows manual assignment while the group is DRAFT (group.canAssign()).
+    renderPage();
+    expect(screen.getByRole('button', { name: /Manual Assign/ })).toBeInTheDocument();
+  });
+
   it('shows assigned inspector for ACCEPTED status', () => {
     renderPage('/service-groups/accepted');
     // Inspector name appears in detail sections and inspector panel
@@ -266,6 +272,8 @@ describe('ServiceGroupDetailPage', () => {
     renderPage('/service-groups/cancelled');
     expect(screen.queryByRole('button', { name: /Publish/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Cancel Group/ })).not.toBeInTheDocument();
+    // canAssign is DRAFT/PUBLISHED only — no Manual Assign for CANCELLED.
+    expect(screen.queryByRole('button', { name: /Manual Assign/ })).not.toBeInTheDocument();
   });
 
   it('shows loading state', () => {
