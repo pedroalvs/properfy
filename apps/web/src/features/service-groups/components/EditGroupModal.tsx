@@ -7,6 +7,7 @@ import { Textarea } from '@/components/forms/Textarea';
 import { FormField } from '@/components/forms/FormField';
 import { PriorityModeSelect } from './PriorityModeSelect';
 import { TimeWindowPicker } from './TimeWindowPicker';
+import { RegionSelector } from './RegionSelector';
 import { useUpdateServiceGroup } from '../hooks/useUpdateServiceGroup';
 import type { ServiceGroupDetail } from '../types';
 import type { UpdateServiceGroupData } from '../hooks/useUpdateServiceGroup';
@@ -21,6 +22,7 @@ interface EditGroupModalProps {
 export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGroupModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [serviceRegionId, setServiceRegionId] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -35,6 +37,7 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
     if (open) {
       setName(serviceGroup.name ?? '');
       setDescription(serviceGroup.description ?? '');
+      setServiceRegionId(serviceGroup.serviceRegionId ?? '');
       setScheduledDate('');
       setStartTime('');
       setEndTime('');
@@ -51,6 +54,12 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
 
     if (description.trim()) {
       data.description = description.trim();
+    }
+
+    // Only send the region when it actually changed; '' clears it (sends null).
+    const initialRegionId = serviceGroup.serviceRegionId ?? '';
+    if (serviceRegionId !== initialRegionId) {
+      data.serviceRegionId = serviceRegionId || null;
     }
 
     if (scheduledDate) {
@@ -109,6 +118,14 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
             aria-label="Service group description"
           />
         </FormField>
+
+        <RegionSelector
+          appointmentIds={(serviceGroup.appointments ?? []).map((a) => a.id)}
+          selectedRegionId={serviceRegionId}
+          onRegionChange={setServiceRegionId}
+          tenantId={serviceGroup.tenantId ?? undefined}
+          hint="Change the target region for this group. Required before publishing."
+        />
 
         {serviceGroup.status === 'DRAFT' && (
           <>

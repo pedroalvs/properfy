@@ -13,6 +13,7 @@ export interface ServiceGroup {
   /** Distinct agencies of the group's appointments (populated by the list/detail hooks). */
   agencies?: Agency[];
   name: string | null;
+  serviceRegionId: string | null;
   regionName: string | null;
   inspectorId: string | null;
   inspectorName: string | null;
