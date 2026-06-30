@@ -1001,6 +1001,9 @@ export function AppointmentMapPage() {
         onActionComplete={() => {
           queryClient.invalidateQueries({ queryKey: ['appointments-by-group'] });
           queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+          // Also refresh the Appointments-mode list so its pins/statuses
+          // repaint after a group bulk action (cancel / status / reschedule).
+          queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
         }}
       />
 
