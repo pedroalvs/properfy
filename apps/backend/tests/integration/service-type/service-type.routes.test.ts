@@ -31,7 +31,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: { jwtService: { verify: mockJwtVerify } },
     report: { jwtService: { verify: mockJwtVerify } },
@@ -61,7 +61,7 @@ const fullServiceType = {
   code: 'ROUTINE',
   name: 'Routine Inspection',
   flowType: 'ROUTINE',
-  requiresTenantConfirmation: true,
+  requiresRentalTenantConfirmation: true,
   status: 'ACTIVE',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -79,7 +79,7 @@ describe('POST /v1/service-types', () => {
         code: 'ROUTINE',
         name: 'Routine Inspection',
         flowType: 'ROUTINE',
-        requiresTenantConfirmation: true,
+        requiresRentalTenantConfirmation: true,
       });
 
     expect(res.status).toBe(201);

@@ -13,7 +13,7 @@ export interface UpdateServiceTypeInput {
   data: {
     name?: string;
     flowType?: ServiceTypeFlowType;
-    requiresTenantConfirmation?: boolean;
+    requiresRentalTenantConfirmation?: boolean;
     status?: ServiceTypeStatus;
   };
   actor: AuthContext;
@@ -24,7 +24,7 @@ export interface UpdateServiceTypeOutput {
   code: string;
   name: string;
   flowType: string;
-  requiresTenantConfirmation: boolean;
+  requiresRentalTenantConfirmation: boolean;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -58,15 +58,15 @@ export class UpdateServiceTypeUseCase {
     const before = {
       name: serviceType.name,
       flowType: serviceType.flowType,
-      requiresTenantConfirmation: serviceType.requiresTenantConfirmation,
+      requiresRentalTenantConfirmation: serviceType.requiresRentalTenantConfirmation,
       status: serviceType.status,
     };
 
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.flowType !== undefined) updateData.flowType = data.flowType;
-    if (data.requiresTenantConfirmation !== undefined)
-      updateData.requiresTenantConfirmation = data.requiresTenantConfirmation;
+    if (data.requiresRentalTenantConfirmation !== undefined)
+      updateData.requiresRentalTenantConfirmation = data.requiresRentalTenantConfirmation;
     if (data.status !== undefined) updateData.status = data.status;
 
     await this.serviceTypeRepo.update(serviceTypeId, updateData);
@@ -74,9 +74,9 @@ export class UpdateServiceTypeUseCase {
     const after = {
       name: (updateData.name as string) ?? serviceType.name,
       flowType: (updateData.flowType as string) ?? serviceType.flowType,
-      requiresTenantConfirmation:
-        (updateData.requiresTenantConfirmation as boolean) ??
-        serviceType.requiresTenantConfirmation,
+      requiresRentalTenantConfirmation:
+        (updateData.requiresRentalTenantConfirmation as boolean) ??
+        serviceType.requiresRentalTenantConfirmation,
       status: (updateData.status as string) ?? serviceType.status,
     };
 
@@ -95,7 +95,7 @@ export class UpdateServiceTypeUseCase {
       code: serviceType.code,
       name: after.name,
       flowType: after.flowType,
-      requiresTenantConfirmation: after.requiresTenantConfirmation,
+      requiresRentalTenantConfirmation: after.requiresRentalTenantConfirmation,
       status: after.status,
       createdAt: serviceType.createdAt,
       updatedAt: new Date(),

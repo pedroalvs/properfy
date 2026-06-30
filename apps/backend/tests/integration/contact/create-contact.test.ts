@@ -38,7 +38,7 @@ function makeContact(overrides: Record<string, unknown> = {}) {
   return {
     id: 'c1eebc99-9c0b-4ef8-bb6d-6bb9bd380a00',
     tenantId: TENANT_A,
-    type: 'TENANT',
+    type: 'RENTAL_TENANT',
     displayName: 'Alice Smith',
     company: null,
     primaryEmail: 'alice@example.com',
@@ -76,12 +76,12 @@ describe('POST /v1/contacts — create-contact', () => {
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ type: 'TENANT', displayName: 'Alice Smith', primaryEmail: 'alice@example.com' });
+      .send({ type: 'RENTAL_TENANT', displayName: 'Alice Smith', primaryEmail: 'alice@example.com' });
 
     expect(res.status).toBe(201);
     expect(res.body.data.displayName).toBe('Alice Smith');
     expect(mockCreateContactExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: TENANT_A, type: 'TENANT', displayName: 'Alice Smith' }),
+      expect.objectContaining({ tenantId: TENANT_A, type: 'RENTAL_TENANT', displayName: 'Alice Smith' }),
     );
   });
 
@@ -125,7 +125,7 @@ describe('POST /v1/contacts — create-contact', () => {
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ type: 'TENANT', displayName: 'Jane', primaryEmail: 'jane@test.com' });
+      .send({ type: 'RENTAL_TENANT', displayName: 'Jane', primaryEmail: 'jane@test.com' });
 
     expect(res.status).toBe(403);
     expect(mockCreateContactExecute).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe('POST /v1/contacts — create-contact', () => {
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ type: 'TENANT', displayName: 'X', primaryEmail: 'x@test.com' });
+      .send({ type: 'RENTAL_TENANT', displayName: 'X', primaryEmail: 'x@test.com' });
 
     expect(res.status).toBe(403);
   });
@@ -148,7 +148,7 @@ describe('POST /v1/contacts — create-contact', () => {
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ type: 'TENANT', displayName: 'No Channels' });
+      .send({ type: 'RENTAL_TENANT', displayName: 'No Channels' });
 
     expect(res.status).toBe(400);
   });
@@ -160,7 +160,7 @@ describe('POST /v1/contacts — create-contact', () => {
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ type: 'TENANT', displayName: 'Duplicate', primaryEmail: 'dupe@example.com' });
+      .send({ type: 'RENTAL_TENANT', displayName: 'Duplicate', primaryEmail: 'dupe@example.com' });
 
     expect(res.status).toBe(409);
   });
@@ -172,7 +172,7 @@ describe('POST /v1/contacts — create-contact', () => {
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ type: 'TENANT', displayName: 'Duplicate Phone', primaryPhone: '+61400000099' });
+      .send({ type: 'RENTAL_TENANT', displayName: 'Duplicate Phone', primaryPhone: '+61400000099' });
 
     expect(res.status).toBe(409);
   });
@@ -185,7 +185,7 @@ describe('POST /v1/contacts — create-contact', () => {
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ tenantId: TENANT_B, type: 'TENANT', displayName: 'Cross Tenant', primaryEmail: 'alice@example.com' });
+      .send({ tenantId: TENANT_B, type: 'RENTAL_TENANT', displayName: 'Cross Tenant', primaryEmail: 'alice@example.com' });
 
     expect(res.status).toBe(201);
   });
@@ -200,7 +200,7 @@ describe('POST /v1/contacts — create-contact', () => {
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ tenantId: TENANT_B, type: 'TENANT', displayName: 'Op Cross-Tenant', primaryEmail: 'op-cross@example.com' });
+      .send({ tenantId: TENANT_B, type: 'RENTAL_TENANT', displayName: 'Op Cross-Tenant', primaryEmail: 'op-cross@example.com' });
 
     expect(res.status).toBe(201);
     expect(mockCreateContactExecute).toHaveBeenCalledWith(
@@ -217,7 +217,7 @@ describe('POST /v1/contacts — create-contact', () => {
     const res = await supertest(app.server)
       .post('/v1/contacts')
       .set('Authorization', 'Bearer token')
-      .send({ tenantId: TENANT_B, type: 'TENANT', displayName: 'Should Not Cross', primaryEmail: 'hack@example.com' });
+      .send({ tenantId: TENANT_B, type: 'RENTAL_TENANT', displayName: 'Should Not Cross', primaryEmail: 'hack@example.com' });
 
     expect(res.status).toBe(201);
     expect(mockCreateContactExecute).toHaveBeenCalledWith(

@@ -51,7 +51,7 @@ function makeAppointmentResult(overrides: Record<string, unknown> = {}) {
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -99,7 +99,7 @@ describe('POST /v1/appointments — create with contactId reference (T043)', () 
       contacts: [{
         id: 'junction-1',
         contactId: CONTACT_ID,
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'John Registry',
         snapshotEmail: 'john@registry.com',
@@ -113,7 +113,7 @@ describe('POST /v1/appointments — create with contactId reference (T043)', () 
       .set('Authorization', 'Bearer token')
       .send({
         ...basePayload,
-        contacts: [{ contactId: CONTACT_ID, role: 'TENANT', isPrimary: true }],
+        contacts: [{ contactId: CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }],
       });
 
     expect(res.status).toBe(201);
@@ -137,7 +137,7 @@ describe('POST /v1/appointments — create with contactId reference (T043)', () 
       .set('Authorization', 'Bearer token')
       .send({
         ...basePayload,
-        contacts: [{ contactId: 'other-tenant-contact', role: 'TENANT', isPrimary: true }],
+        contacts: [{ contactId: 'other-tenant-contact', role: 'RENTAL_TENANT', isPrimary: true }],
       });
 
     expect(res.status).toBe(400);
@@ -154,7 +154,7 @@ describe('POST /v1/appointments — create with contactId reference (T043)', () 
       .set('Authorization', 'Bearer token')
       .send({
         ...basePayload,
-        contacts: [{ contactId: CONTACT_ID, role: 'TENANT', isPrimary: true }],
+        contacts: [{ contactId: CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }],
       });
 
     expect(res.status).toBe(400);
@@ -169,7 +169,7 @@ describe('POST /v1/appointments — create with contactId reference (T043)', () 
       .set('Authorization', 'Bearer token')
       .send({
         ...basePayload,
-        contact: { tenantName: 'Legacy Contact', primaryEmail: 'legacy@example.com' },
+        contact: { rentalTenantName: 'Legacy Contact', primaryEmail: 'legacy@example.com' },
       });
 
     expect(res.status).toBe(201);
@@ -181,7 +181,7 @@ describe('POST /v1/appointments — create with contactId reference (T043)', () 
       contacts: [{
         id: 'junction-2',
         contactId: 'new-registry-id',
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'Inline Contact',
         snapshotEmail: 'inline@new.com',
@@ -196,11 +196,11 @@ describe('POST /v1/appointments — create with contactId reference (T043)', () 
         ...basePayload,
         contacts: [{
           inline: {
-            type: 'TENANT',
+            type: 'RENTAL_TENANT',
             displayName: 'Inline Contact',
             primaryEmail: 'inline@new.com',
           },
-          role: 'TENANT',
+          role: 'RENTAL_TENANT',
           isPrimary: true,
         }],
       });

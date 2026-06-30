@@ -92,7 +92,7 @@ enum AppointmentStatus {
   REJECTED
 }
 
-enum TenantConfirmationStatus {
+enum RentalTenantConfirmationStatus {
   PENDING
   CONFIRMED
   UNAVAILABLE
@@ -107,26 +107,26 @@ enum CycleStatus {
 }
 
 enum CycleConfirmationSource {
-  TENANT_PORTAL
+  RENTAL_TENANT_PORTAL
   OPERATOR_FORCED
-  TENANT_RESCHEDULE
+  RENTAL_TENANT_RESCHEDULE
 }
 
 enum CycleInvalidatedReason {
   DATE_CHANGED
   TIME_CHANGED
   APPOINTMENT_REOPENED
-  TENANT_RESCHEDULE
+  RENTAL_TENANT_RESCHEDULE
 }
 
 enum RestrictionSource {
-  TENANT_PORTAL
+  RENTAL_TENANT_PORTAL
   OPERATOR
   IMPORT
 }
 
 enum ContactType {
-  TENANT
+  RENTAL_TENANT
   PROPERTY_MANAGER
   HOUSEKEEPER
   BROKER
@@ -139,8 +139,8 @@ enum ContactChannelType {
 }
 
 enum AppointmentContactRole {
-  TENANT
-  TENANT_REPRESENTATIVE
+  RENTAL_TENANT
+  RENTAL_TENANT_REPRESENTATIVE
   HOUSEKEEPER
   PROPERTY_MANAGER
   BROKER
@@ -372,7 +372,7 @@ model ServiceType {
   code                         String              @unique @db.VarChar(50)
   name                         String              @db.VarChar(200)
   flow_type                    ServiceTypeFlowType
-  requires_tenant_confirmation Boolean             @default(true)
+  requires_rental_tenant_confirmation Boolean             @default(true)
   status                       ServiceTypeStatus   @default(ACTIVE)
   created_at                   DateTime            @default(now())
   updated_at                   DateTime            @updatedAt
@@ -496,13 +496,13 @@ model Appointment {
   key_required                 Boolean                  @default(false)
   meeting_location             String?                  @db.VarChar(500)
   key_location                 String?                  @db.VarChar(500)
-  tenant_confirmation_status   TenantConfirmationStatus @default(PENDING)
+  rental_tenant_confirmation_status   RentalTenantConfirmationStatus @default(PENDING)
   active_confirmation_cycle_id String?
   price_amount                 Decimal                  @db.Decimal(12, 2)
   payout_amount                Decimal                  @db.Decimal(12, 2)
   pricing_rule_snapshot_json   Json
   notes                        String?                  @db.Text
-  tenant_note                  String?                  @db.Text
+  rental_tenant_note                  String?                  @db.Text
   observation                  String?                  @db.Text
   custom_fields_json           Json?
   reason                       String?                  @db.Text
@@ -532,8 +532,8 @@ model Appointment {
   contacts          AppointmentContact[]
   app_credentials   AppointmentAppCredential[]
   restrictions      AppointmentRestriction[]
-  portal_tokens     TenantPortalToken[]
-  portal_activities TenantPortalActivity[]
+  portal_tokens     RentalTenantPortalToken[]
+  portal_activities RentalTenantPortalActivity[]
   execution         InspectionExecution?
   inspection_assets InspectionAsset[]
   financial_entries FinancialEntry[]
@@ -564,9 +564,9 @@ model AppointmentConfirmationCycle {
   created_at          DateTime                 @default(now())
 
   appointment      Appointment         @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
-  portal_token     TenantPortalToken?  @relation("CycleMintedToken", fields: [portal_token_id], references: [id], onDelete: SetNull)
+  portal_token     RentalTenantPortalToken?  @relation("CycleMintedToken", fields: [portal_token_id], references: [id], onDelete: SetNull)
   active_for       Appointment[]       @relation("ActiveCycle")
-  tokens_for_cycle TenantPortalToken[] @relation("TokenCycle")
+  tokens_for_cycle RentalTenantPortalToken[] @relation("TokenCycle")
 
   @@unique([appointment_id, cycle_number])
   @@index([appointment_id, status])
@@ -648,12 +648,12 @@ model AppointmentContact {
   id              String                 @id @default(uuid())
   appointment_id  String
   contact_id      String?
-  tenant_name     String                 @db.VarChar(200)
+  rental_tenant_name     String                 @db.VarChar(200)
   primary_email   String?                @db.VarChar(254)
   secondary_email String?                @db.VarChar(254)
   primary_phone   String?                @db.VarChar(30)
   secondary_phone String?                @db.VarChar(30)
-  role            AppointmentContactRole @default(TENANT)
+  role            AppointmentContactRole @default(RENTAL_TENANT)
   is_primary      Boolean                @default(true)
   snapshot_name   String?                @db.VarChar(200)
   snapshot_email  String?                @db.VarChar(254)
@@ -913,14 +913,14 @@ model DataSubjectErasureRequest {
   @@map("data_subject_erasure_requests")
 }
 
-enum TenantPortalTokenStatus {
+enum RentalTenantPortalTokenStatus {
   ACTIVE
   EXPIRED
   REVOKED
   SUPERSEDED
 }
 
-enum TenantPortalAction {
+enum RentalTenantPortalAction {
   VIEW
   CONFIRM
   RESCHEDULE
@@ -1007,12 +1007,12 @@ enum EmailAssetStatus {
   UPLOAD_FAILED
 }
 
-model TenantPortalToken {
+model RentalTenantPortalToken {
   id                    String                  @id @default(uuid())
   appointment_id        String
   token_hash            String                  @unique
   expires_at            DateTime
-  status                TenantPortalTokenStatus @default(ACTIVE)
+  status                RentalTenantPortalTokenStatus @default(ACTIVE)
   used_at               DateTime?
   last_accessed_at      DateTime?
   raw_token_encrypted   String?
@@ -1023,19 +1023,19 @@ model TenantPortalToken {
   appointment        Appointment                   @relation(fields: [appointment_id], references: [id])
   confirmation_cycle AppointmentConfirmationCycle? @relation("TokenCycle", fields: [confirmation_cycle_id], references: [id], onDelete: SetNull)
   minted_for_cycle   AppointmentConfirmationCycle? @relation("CycleMintedToken")
-  activities         TenantPortalActivity[]
+  activities         RentalTenantPortalActivity[]
 
   @@index([appointment_id])
   @@index([status])
   @@index([expires_at])
-  @@map("tenant_portal_tokens")
+  @@map("rental_tenant_portal_tokens")
 }
 
-model TenantPortalActivity {
+model RentalTenantPortalActivity {
   id                     String                  @id @default(uuid())
   appointment_id         String
   tenant_portal_token_id String
-  action                 TenantPortalAction
+  action                 RentalTenantPortalAction
   previous_values_json   Json?
   new_values_json        Json?
   ip_address             String?
@@ -1047,22 +1047,22 @@ model TenantPortalActivity {
   cold_storage           Boolean                 @default(false)
 
   appointment Appointment       @relation(fields: [appointment_id], references: [id])
-  token       TenantPortalToken @relation(fields: [tenant_portal_token_id], references: [id])
+  token       RentalTenantPortalToken @relation(fields: [tenant_portal_token_id], references: [id])
 
   @@index([appointment_id])
   @@index([tenant_portal_token_id])
   @@index([action])
   @@index([created_at])
   @@index([redaction_status])
-  @@map("tenant_portal_activities")
+  @@map("rental_tenant_portal_activities")
 }
 
-// Feature 020: parallel cold-storage table for tenant_portal_activities
-model TenantPortalActivityArchive {
+// Feature 020: parallel cold-storage table for rental_tenant_portal_activities
+model RentalTenantPortalActivityArchive {
   id                     String                  @id
   appointment_id         String
   tenant_portal_token_id String
-  action                 TenantPortalAction
+  action                 RentalTenantPortalAction
   previous_values_json   Json?
   new_values_json        Json?
   ip_address             String?
@@ -1078,7 +1078,7 @@ model TenantPortalActivityArchive {
   @@index([action])
   @@index([created_at])
   @@index([archived_at])
-  @@map("tenant_portal_activities_archive")
+  @@map("rental_tenant_portal_activities_archive")
 }
 
 model InspectionExecution {

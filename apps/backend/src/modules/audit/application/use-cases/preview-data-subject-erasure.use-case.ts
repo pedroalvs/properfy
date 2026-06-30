@@ -31,13 +31,13 @@ export interface PreviewDataSubjectErasureOutput {
   byTier: {
     hot: number;
     cold: number;
-    tenantPortalHot: number;
-    tenantPortalCold: number;
+    rentalTenantPortalHot: number;
+    rentalTenantPortalCold: number;
   };
   entriesFlaggedForReview: number;
 }
 
-interface TenantPortalMatch {
+interface RentalTenantPortalMatch {
   id: string;
   isArchived: boolean;
 }
@@ -52,7 +52,7 @@ interface TenantPortalMatch {
  *   3. Transition to SCANNING
  *   4. Call `erasurePiiResolver.resolve()` to collect historical PII values
  *   5. Scan hot + cold `audit_logs` via `searchPiiByValues`
- *   6. Scan hot + cold `tenant_portal_activities` in parallel
+ *   6. Scan hot + cold `rental_tenant_portal_activities` in parallel
  *   7. Classify matches by category + tier
  *   8. Flag matches whose action has no registered PII field mapping as
  *      "requires manual review" (FR-018)
@@ -111,9 +111,9 @@ export class PreviewDataSubjectErasureUseCase {
           })
         : [];
 
-    // 5. Scan hot + cold tenant_portal_activities
+    // 5. Scan hot + cold rental_tenant_portal_activities
     const portalMatches =
-      resolved.piiValues.length > 0 ? await this.scanTenantPortalActivities(resolved.piiValues) : { hot: [], cold: [] };
+      resolved.piiValues.length > 0 ? await this.scanRentalTenantPortalActivities(resolved.piiValues) : { hot: [], cold: [] };
 
     // 6. Classify
     const byCategory = {
@@ -125,8 +125,8 @@ export class PreviewDataSubjectErasureUseCase {
     const byTier = {
       hot: 0,
       cold: 0,
-      tenantPortalHot: portalMatches.hot.length,
-      tenantPortalCold: portalMatches.cold.length,
+      rentalTenantPortalHot: portalMatches.hot.length,
+      rentalTenantPortalCold: portalMatches.cold.length,
     };
     let flaggedForReview = 0;
 
@@ -170,25 +170,25 @@ export class PreviewDataSubjectErasureUseCase {
   }
 
   /**
-   * Scans `tenant_portal_activities` and `tenant_portal_activities_archive`
+   * Scans `rental_tenant_portal_activities` and `rental_tenant_portal_activities_archive`
    * using the same ILIKE-ANY strategy as `searchPiiByValues`. Returns id-only
    * matches grouped by tier.
    */
-  private async scanTenantPortalActivities(
+  private async scanRentalTenantPortalActivities(
     values: string[],
-  ): Promise<{ hot: TenantPortalMatch[]; cold: TenantPortalMatch[] }> {
+  ): Promise<{ hot: RentalTenantPortalMatch[]; cold: RentalTenantPortalMatch[] }> {
     if (values.length === 0) return { hot: [], cold: [] };
     const likePatterns = values.map((v) => `%${v}%`);
 
     const hotRows: Array<{ id: string }> = await this.prisma.$queryRawUnsafe(
-      `SELECT id FROM "tenant_portal_activities"
+      `SELECT id FROM "rental_tenant_portal_activities"
        WHERE previous_values_json::text ILIKE ANY($1::text[])
           OR new_values_json::text ILIKE ANY($1::text[])
        LIMIT 5000`,
       likePatterns,
     );
     const coldRows: Array<{ id: string }> = await this.prisma.$queryRawUnsafe(
-      `SELECT id FROM "tenant_portal_activities_archive"
+      `SELECT id FROM "rental_tenant_portal_activities_archive"
        WHERE previous_values_json::text ILIKE ANY($1::text[])
           OR new_values_json::text ILIKE ANY($1::text[])
        LIMIT 5000`,

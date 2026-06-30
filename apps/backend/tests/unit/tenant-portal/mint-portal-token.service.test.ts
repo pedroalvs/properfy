@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MintPortalTokenService } from '../../../src/modules/tenant-portal/domain/mint-portal-token.service';
+import { MintPortalTokenService } from '../../../src/modules/rental-tenant-portal/domain/mint-portal-token.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
-import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.repository';
-import type { TokenService } from '../../../src/modules/tenant-portal/domain/token.service';
+import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
+import type { TokenService } from '../../../src/modules/rental-tenant-portal/domain/token.service';
 
 const RAW_TOKEN = 'a'.repeat(64);
 const TOKEN_HASH = 'h'.repeat(64);
@@ -24,7 +24,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -98,7 +98,7 @@ describe('MintPortalTokenService', () => {
       computeExpiresAt: vi.fn().mockReturnValue(EXPIRES_AT),
     };
     svc = new MintPortalTokenService(
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       tokenService as unknown as TokenService,
     );
   });

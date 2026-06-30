@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ListPortalActivitiesUseCase } from '../../../src/modules/tenant-portal/application/use-cases/list-portal-activities.use-case';
-import { TenantPortalActivityEntity } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.entity';
-import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
+import { ListPortalActivitiesUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/list-portal-activities.use-case';
+import { RentalTenantPortalActivityEntity } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.entity';
+import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuthContext } from '@properfy/shared';
 
-function createMockActivityRepo(): ITenantPortalActivityRepository {
+function createMockActivityRepo(): IRentalTenantPortalActivityRepository {
   return {
     save: vi.fn(),
     findLatestByTokenAndAction: vi.fn(),
@@ -19,11 +19,11 @@ function createMockAppointmentRepo(): Pick<IAppointmentRepository, 'findById'> {
   };
 }
 
-function buildActivity(overrides: Partial<ConstructorParameters<typeof TenantPortalActivityEntity>[0]> = {}): TenantPortalActivityEntity {
-  return new TenantPortalActivityEntity({
+function buildActivity(overrides: Partial<ConstructorParameters<typeof RentalTenantPortalActivityEntity>[0]> = {}): RentalTenantPortalActivityEntity {
+  return new RentalTenantPortalActivityEntity({
     id: overrides.id ?? crypto.randomUUID(),
     appointmentId: overrides.appointmentId ?? 'appt-1',
-    tenantPortalTokenId: overrides.tenantPortalTokenId ?? 'token-1',
+    rentalTenantPortalTokenId: overrides.rentalTenantPortalTokenId ?? 'token-1',
     action: overrides.action ?? 'VIEW',
     previousValuesJson: overrides.previousValuesJson ?? null,
     newValuesJson: overrides.newValuesJson ?? null,
@@ -34,7 +34,7 @@ function buildActivity(overrides: Partial<ConstructorParameters<typeof TenantPor
 }
 
 describe('ListPortalActivitiesUseCase', () => {
-  let activityRepo: ITenantPortalActivityRepository;
+  let activityRepo: IRentalTenantPortalActivityRepository;
   let appointmentRepo: Pick<IAppointmentRepository, 'findById'>;
   let useCase: ListPortalActivitiesUseCase;
 

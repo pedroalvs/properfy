@@ -5,13 +5,13 @@
  * - It is SCHEDULED, AND
  * - One of:
  *   - flow_type is INGOING or OUTGOING (no tenant confirmation required)
- *   - tenantConfirmationStatus = CONFIRMED
+ *   - rentalTenantConfirmationStatus = CONFIRMED
  *   - keyRequired = true
  */
 export class T1VisibilityService {
   /**
    * @param flowType - Service type flow type (ROUTINE, INGOING, OUTGOING)
-   * @param tenantConfirmationStatus - Current tenant confirmation status
+   * @param rentalTenantConfirmationStatus - Current tenant confirmation status
    * @param keyRequired - Whether key access is available
    * @param scheduledDate - The appointment's scheduled date
    * @param today - Current date (for T-1 comparison)
@@ -19,7 +19,7 @@ export class T1VisibilityService {
    */
   isVisibleForInspector(
     flowType: string,
-    tenantConfirmationStatus: string,
+    rentalTenantConfirmationStatus: string,
     keyRequired: boolean,
     scheduledDate: Date,
     today: Date,
@@ -33,11 +33,11 @@ export class T1VisibilityService {
       return true;
     }
 
-    if (tenantConfirmationStatus === 'CONFIRMED') {
+    if (rentalTenantConfirmationStatus === 'CONFIRMED') {
       return true;
     }
 
-    if (tenantConfirmationStatus === 'UNAVAILABLE') {
+    if (rentalTenantConfirmationStatus === 'UNAVAILABLE') {
       return false;
     }
 

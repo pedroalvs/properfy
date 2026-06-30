@@ -13,7 +13,7 @@ export * from './service-type';
 export * from './pricing-rule';
 export * from './inspector';
 export * from './audit-log';
-export * from './tenant-portal';
+export * from './rental-tenant-portal';
 export * from './inspection-execution';
 export * from './billing';
 export * from './notification';

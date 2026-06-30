@@ -178,7 +178,7 @@ describe('useTenantAdminSave', () => {
     });
   });
 
-  it('omits appointmentCodePrefix from POST body when blank', async () => {
+  it('always sends appointmentCodePrefix in POST body (required by the create contract)', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
 
@@ -187,7 +187,7 @@ describe('useTenantAdminSave', () => {
     });
 
     expect(mockPost).toHaveBeenCalledWith('/v1/tenants', {
-      body: expect.not.objectContaining({ appointmentCodePrefix: expect.anything() }),
+      body: expect.objectContaining({ appointmentCodePrefix: '' }),
     });
   });
 

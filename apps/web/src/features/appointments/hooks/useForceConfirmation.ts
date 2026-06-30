@@ -20,7 +20,7 @@ export function useForceConfirmation(
   const forceConfirm = (reason: string) => {
     if (!appointmentId) return;
     mutation.mutate(
-      { tenantConfirmationStatus: 'CONFIRMED', reason },
+      { rentalTenantConfirmationStatus: 'CONFIRMED', reason },
       {
         onSuccess: () => {
           showSuccess('Tenant confirmation forced');

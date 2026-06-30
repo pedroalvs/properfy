@@ -2,7 +2,7 @@
  * T045 — Snapshot immutability integration tests.
  *
  * Unit-level proof lives in:
- *   tests/unit/tenant-portal/portal-contact-snapshot-immutability.test.ts
+ *   tests/unit/rental-tenant-portal/portal-contact-snapshot-immutability.test.ts
  *
  * This file covers the application-layer invariant: when a registry contact's
  * email is updated via UpdateContactUseCase, any previously created appointment
@@ -30,7 +30,7 @@ function makeContact(overrides: Partial<ConstructorParameters<typeof ContactEnti
   return new ContactEntity({
     id: CONTACT_ID,
     tenantId: TENANT_ID,
-    type: 'TENANT',
+    type: 'RENTAL_TENANT',
     displayName: 'Original Name',
     company: null,
     primaryEmail: 'original@example.com',
@@ -73,7 +73,7 @@ describe('Snapshot immutability — T045', () => {
 
     await createUseCase.execute({
       tenantId: TENANT_ID,
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: 'Original Name',
       primaryEmail: 'original@example.com',
       actorId: 'user-1',

@@ -263,11 +263,11 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
       return (
         <div className="flex items-center gap-3">
           <ConfirmationChannelIcons
-            tenantConfirmationStatus={detail?.tenantConfirmationStatus ?? marker.tenantConfirmationStatus}
+            rentalTenantConfirmationStatus={detail?.rentalTenantConfirmationStatus ?? marker.rentalTenantConfirmationStatus}
             hasEmail={!!(detail?.contactEmail ?? marker.contactEmail)}
             hasSms={!!(detail?.contactPhone ?? marker.contactPhone)}
           />
-          <span>{detail?.tenantConfirmationStatus ?? marker.tenantConfirmationStatus ?? 'PENDING'}</span>
+          <span>{detail?.rentalTenantConfirmationStatus ?? marker.rentalTenantConfirmationStatus ?? 'PENDING'}</span>
         </div>
       );
     case 'meeting':

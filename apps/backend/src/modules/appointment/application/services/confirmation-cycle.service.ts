@@ -169,7 +169,7 @@ export class ConfirmationCycleService {
     tx?: Tx,
   ): Promise<ConfirmationCycleEntity> {
     const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
-      await this.supersedeCurrent(appointmentId, tenantId, 'TENANT_RESCHEDULE', client);
+      await this.supersedeCurrent(appointmentId, tenantId, 'RENTAL_TENANT_RESCHEDULE', client);
 
       const maxCycleNumber = await this.cycleRepo.findMaxCycleNumber(appointmentId, client);
       const now = new Date();
@@ -180,7 +180,7 @@ export class ConfirmationCycleService {
         scheduledDate: newDate,
         timeSlot: newTimeSlot,
         status: 'CONFIRMED',
-        confirmationSource: 'TENANT_RESCHEDULE',
+        confirmationSource: 'RENTAL_TENANT_RESCHEDULE',
         confirmedAt: now,
         invalidatedAt: null,
         invalidatedReason: null,
@@ -196,7 +196,7 @@ export class ConfirmationCycleService {
         entityType: 'AppointmentConfirmationCycle',
         entityId: cycle.id,
         tenantId,
-        after: { cycleNumber: cycle.cycleNumber, status: 'CONFIRMED', source: 'TENANT_RESCHEDULE' },
+        after: { cycleNumber: cycle.cycleNumber, status: 'CONFIRMED', source: 'RENTAL_TENANT_RESCHEDULE' },
       });
 
       return cycle;
@@ -212,7 +212,7 @@ export class ConfirmationCycleService {
   async confirm(
     appointmentId: string,
     tenantId: string,
-    source: 'TENANT_PORTAL' | 'OPERATOR_FORCED',
+    source: 'RENTAL_TENANT_PORTAL' | 'OPERATOR_FORCED',
     tokenId: string | null,
     tx?: Tx,
   ): Promise<ConfirmationCycleEntity> {
@@ -295,7 +295,7 @@ export class ConfirmationCycleService {
     await this.cycleRepo.update(superseded, client);
     // Mark the associated portal token as SUPERSEDED so the middleware rejects it.
     if (active.portalTokenId) {
-      await (client as unknown as PrismaClient).tenantPortalToken.update({
+      await (client as unknown as PrismaClient).rentalTenantPortalToken.update({
         where: { id: active.portalTokenId },
         data: { status: 'SUPERSEDED' as never },
       });
@@ -314,7 +314,7 @@ export class ConfirmationCycleService {
       where: { id: appointmentId, tenant_id: tenantId },
       data: {
         active_confirmation_cycle_id: cycleId,
-        tenant_confirmation_status: denormStatus as never,
+        rental_tenant_confirmation_status: denormStatus as never,
       },
     });
   }
@@ -329,7 +329,7 @@ export class ConfirmationCycleService {
       where: { id: appointmentId, tenant_id: tenantId },
       data: {
         active_confirmation_cycle_id: null,
-        tenant_confirmation_status: denormStatus as never,
+        rental_tenant_confirmation_status: denormStatus as never,
       },
     });
   }
@@ -340,7 +340,7 @@ export class ConfirmationCycleService {
     tx: Tx,
   ): Promise<void> {
     if (!tokenId) return;
-    await (tx as unknown as PrismaClient).tenantPortalToken.update({
+    await (tx as unknown as PrismaClient).rentalTenantPortalToken.update({
       where: { id: tokenId },
       data: { confirmation_cycle_id: cycleId },
     });

@@ -27,8 +27,8 @@ function makeInput(overrides: Partial<Parameters<UpsertNotificationTemplateUseCa
     templateCode: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection for {{propertyAddress}}',
-    bodyHtml: '<p>Hello {{tenantName}}</p>',
-    bodyText: 'Hello {{tenantName}}, your inspection at {{propertyAddress}} is scheduled.',
+    bodyHtml: '<p>Hello {{rentalTenantName}}</p>',
+    bodyText: 'Hello {{rentalTenantName}}, your inspection at {{propertyAddress}} is scheduled.',
     isActive: true,
     actor: makeActor(),
     ...overrides,
@@ -133,7 +133,7 @@ describe('UpsertNotificationTemplateUseCase', () => {
     await useCase.execute(makeInput());
 
     const upsertCall = vi.mocked(templateRepo.upsert).mock.calls[0][0];
-    expect(upsertCall.variablesJson).toContain('tenantName');
+    expect(upsertCall.variablesJson).toContain('rentalTenantName');
     expect(upsertCall.variablesJson).toContain('propertyAddress');
   });
 
@@ -147,7 +147,7 @@ describe('UpsertNotificationTemplateUseCase', () => {
     expect(entity.templateCode).toBe('INSPECTION_NOTICE');
     expect(entity.channel).toBe('EMAIL');
     // bodyText is now derived from bodyHtml (htmlToText not injected → fallback to bodyHtml)
-    expect(entity.bodyText).toBe('<p>Hello {{tenantName}}</p>');
+    expect(entity.bodyText).toBe('<p>Hello {{rentalTenantName}}</p>');
     expect(entity.active).toBe(true);
     expect(entity.tenantId).toBeNull();
   });

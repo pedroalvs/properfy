@@ -28,9 +28,9 @@ function makeTemplate(overrides: Partial<ConstructorParameters<typeof Notificati
     templateCode: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection at {{propertyAddress}}',
-    bodyHtml: '<p>Hello {{tenantName}}</p>',
-    bodyText: 'Hello {{tenantName}}',
-    variablesJson: ['tenantName', 'propertyAddress'],
+    bodyHtml: '<p>Hello {{rentalTenantName}}</p>',
+    bodyText: 'Hello {{rentalTenantName}}',
+    variablesJson: ['rentalTenantName', 'propertyAddress'],
     isActive: true,
     notificationClass: 'OPERATIONAL',
     createdAt: new Date(),
@@ -46,8 +46,8 @@ function makeSmsTemplate() {
     channel: 'SMS',
     subject: null,
     bodyHtml: null,
-    bodyText: 'Hi {{tenantName}}, inspection on {{scheduledDate}}',
-    variablesJson: ['tenantName', 'scheduledDate'],
+    bodyText: 'Hi {{rentalTenantName}}, inspection on {{scheduledDate}}',
+    variablesJson: ['rentalTenantName', 'scheduledDate'],
   });
 }
 
@@ -174,7 +174,7 @@ describe('SendTestNotificationUseCase', () => {
     await useCase.execute({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com', actor: makeActor() });
     expect(templateRenderer.render).toHaveBeenCalled();
     const [, passedVars] = vi.mocked(templateRenderer.render).mock.calls[0] as [unknown, Record<string, string>];
-    expect(passedVars).toHaveProperty('tenantName');
+    expect(passedVars).toHaveProperty('rentalTenantName');
     expect(passedVars).toHaveProperty('propertyAddress');
     expect(passedVars).toHaveProperty('scheduledDate');
   });
@@ -254,7 +254,7 @@ describe('SendTestNotificationUseCase', () => {
     vi.mocked(templateRenderer.render).mockReset().mockReturnValue('Hi John Smith, inspection on 2026-04-15');
     await useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() });
     expect(templateRenderer.render).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(templateRenderer.render).mock.calls[0][0]).toBe('Hi {{tenantName}}, inspection on {{scheduledDate}}');
+    expect(vi.mocked(templateRenderer.render).mock.calls[0][0]).toBe('Hi {{rentalTenantName}}, inspection on {{scheduledDate}}');
   });
 
   it('SMS path calls smsProvider.send with recipient and rendered bodyText', async () => {
@@ -317,7 +317,7 @@ describe('SendTestNotificationUseCase', () => {
     vi.mocked(templateRenderer.render).mockReset().mockReturnValue('rendered');
     await useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() });
     const [, passedVars] = vi.mocked(templateRenderer.render).mock.calls[0] as [unknown, Record<string, string>];
-    expect(passedVars).toHaveProperty('tenantName');
+    expect(passedVars).toHaveProperty('rentalTenantName');
     expect(passedVars).toHaveProperty('scheduledDate');
     // inspectorName is not in INSPECTION_NOTICE_SMS spec
     expect(passedVars).not.toHaveProperty('inspectorName');

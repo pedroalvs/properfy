@@ -211,7 +211,7 @@ describe('PreviewDataSubjectErasureUseCase', () => {
     expect(result.entriesFlaggedForReview).toBe(1);
   });
 
-  it('scans tenant_portal_activities in both tiers', async () => {
+  it('scans rental_tenant_portal_activities in both tiers', async () => {
     (erasurePiiResolver.resolve as any).mockResolvedValueOnce({
       canonicalUserId: 'u1',
       piiValues: ['foo@bar.com'],
@@ -231,8 +231,8 @@ describe('PreviewDataSubjectErasureUseCase', () => {
       actor: amActor(),
     });
 
-    expect(result.byTier.tenantPortalHot).toBe(2);
-    expect(result.byTier.tenantPortalCold).toBe(1);
+    expect(result.byTier.rentalTenantPortalHot).toBe(2);
+    expect(result.byTier.rentalTenantPortalCold).toBe(1);
     expect(result.totalFound).toBe(3);
   });
 });

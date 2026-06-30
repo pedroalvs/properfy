@@ -1,7 +1,7 @@
 import type { SelectOption } from '@/components/forms/SelectInput';
 
 export const CONTACT_TYPE_OPTIONS: SelectOption[] = [
-  { label: 'Tenant', value: 'TENANT' },
+  { label: 'Tenant', value: 'RENTAL_TENANT' },
   { label: 'Property Manager', value: 'PROPERTY_MANAGER' },
   { label: 'Housekeeper', value: 'HOUSEKEEPER' },
   { label: 'Broker', value: 'BROKER' },

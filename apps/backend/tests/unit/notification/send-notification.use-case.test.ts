@@ -41,7 +41,7 @@ function makeNotification(overrides: Partial<NotificationProps> = {}): Notificat
     deliveredAt: null,
     failedAt: null,
     failureReason: null,
-    payloadJson: { tenantName: 'John', date: '2026-03-20' },
+    payloadJson: { rentalTenantName: 'John', date: '2026-03-20' },
     retryCount: 0,
     nextRetryAt: null,
     createdAt: now,
@@ -56,10 +56,10 @@ function makeTemplate(overrides: Partial<NotificationTemplateProps> = {}): Notif
     tenantId: 'tenant-1',
     templateCode: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
-    subject: 'Inspection for {{tenantName}}',
-    bodyHtml: '<p>Hello {{tenantName}}, your inspection is on {{date}}</p>',
-    bodyText: 'Hello {{tenantName}}, your inspection is on {{date}}',
-    variablesJson: ['tenantName', 'date'],
+    subject: 'Inspection for {{rentalTenantName}}',
+    bodyHtml: '<p>Hello {{rentalTenantName}}, your inspection is on {{date}}</p>',
+    bodyText: 'Hello {{rentalTenantName}}, your inspection is on {{date}}',
+    variablesJson: ['rentalTenantName', 'date'],
     isActive: true,
     notificationClass: 'OPERATIONAL',
     createdAt: now,
@@ -242,9 +242,9 @@ describe('SendNotificationUseCase', () => {
     const inactiveOverride = makeTemplate({
       tenantId: 'tenant-1',
       isActive: false,
-      subject: 'Override for {{tenantName}}',
-      bodyHtml: '<p>Override {{tenantName}}</p>',
-      bodyText: 'Override {{tenantName}}',
+      subject: 'Override for {{rentalTenantName}}',
+      bodyHtml: '<p>Override {{rentalTenantName}}</p>',
+      bodyText: 'Override {{rentalTenantName}}',
     });
     const defaultTemplate = makeTemplate({ tenantId: null });
 
@@ -271,9 +271,9 @@ describe('SendNotificationUseCase', () => {
     const activeOverride = makeTemplate({
       tenantId: 'tenant-1',
       isActive: true,
-      subject: 'Override for {{tenantName}}',
-      bodyHtml: '<p>Override {{tenantName}}</p>',
-      bodyText: 'Override {{tenantName}}',
+      subject: 'Override for {{rentalTenantName}}',
+      bodyHtml: '<p>Override {{rentalTenantName}}</p>',
+      bodyText: 'Override {{rentalTenantName}}',
     });
 
     vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
@@ -647,7 +647,7 @@ describe('SendNotificationUseCase', () => {
         makeNotification({ channel: 'SMS', recipient: '+5511999999999' }),
       );
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
-        makeTemplate({ channel: 'SMS', bodyText: 'Hi {{tenantName}}' }),
+        makeTemplate({ channel: 'SMS', bodyText: 'Hi {{rentalTenantName}}' }),
       );
       vi.mocked(sut.getTenantSettings).mockResolvedValue({ emailSendingEnabled: false });
       vi.mocked(sut.smsProvider.send).mockResolvedValue({ messageId: 'sms-1' });
@@ -716,7 +716,7 @@ describe('SendNotificationUseCase', () => {
     it('should log warning when template has missing variables', async () => {
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-        makeNotification({ payloadJson: { tenantName: 'John' } }), // missing 'date'
+        makeNotification({ payloadJson: { rentalTenantName: 'John' } }), // missing 'date'
       );
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
       vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });

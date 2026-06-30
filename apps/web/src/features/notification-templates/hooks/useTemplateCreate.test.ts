@@ -24,11 +24,11 @@ function makeTemplate(overrides: Partial<NotificationTemplate> = {}): Notificati
   return {
     id: 'tpl-1',
     tenantId: null,
-    tenantName: null,
+    rentalTenantName: null,
     code: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Default subject',
-    body: '<p>Default body {{tenantName}}</p>',
+    body: '<p>Default body {{rentalTenantName}}</p>',
     active: true,
     notificationClass: 'OPERATIONAL',
     requiredVariables: [],
@@ -74,7 +74,7 @@ describe('prefillFromDefault', () => {
 });
 
 describe('useTemplateCreate', () => {
-  const data: TemplateFormData = { subject: 'Hi', body: '<p>Hello {{tenantName}}</p>', active: true };
+  const data: TemplateFormData = { subject: 'Hi', body: '<p>Hello {{rentalTenantName}}</p>', active: true };
 
   it('PUTs to the derived channel with tenantId and isActive', async () => {
     const wrapper = createQueryWrapper();

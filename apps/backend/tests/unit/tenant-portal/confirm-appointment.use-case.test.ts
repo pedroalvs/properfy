@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ConfirmAppointmentUseCase } from '../../../src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case';
-import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
+import { ConfirmAppointmentUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
+import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
@@ -8,7 +8,7 @@ import { AppointmentContactEntity } from '../../../src/modules/appointment/domai
 import {
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
-} from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+} from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 function makeAppointmentEntity(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -26,7 +26,7 @@ function makeAppointmentEntity(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -49,7 +49,7 @@ function makeContact(): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -82,7 +82,7 @@ function makeInput(overrides: Partial<Parameters<ConfirmAppointmentUseCase['exec
 }
 
 describe('ConfirmAppointmentUseCase', () => {
-  let activityRepo: ITenantPortalActivityRepository;
+  let activityRepo: IRentalTenantPortalActivityRepository;
   let appointmentRepo: IAppointmentRepository;
   let auditService: PersistentAuditService;
   let useCase: ConfirmAppointmentUseCase;
@@ -114,10 +114,10 @@ describe('ConfirmAppointmentUseCase', () => {
 
     const result = await useCase.execute(makeInput());
 
-    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
     expect(result.confirmedAt).toBeDefined();
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
     });
     expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
   });
@@ -132,12 +132,12 @@ describe('ConfirmAppointmentUseCase', () => {
 
   it('should return idempotent success when already confirmed', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
-      makeAppointmentWithRelations({ tenantConfirmationStatus: 'CONFIRMED' }),
+      makeAppointmentWithRelations({ rentalTenantConfirmationStatus: 'CONFIRMED' }),
     );
 
     const result = await useCase.execute(makeInput());
 
-    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
     expect(appointmentRepo.update).not.toHaveBeenCalled();
     expect(activityRepo.save).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();
@@ -182,9 +182,9 @@ describe('ConfirmAppointmentUseCase', () => {
     const savedActivity = vi.mocked(activityRepo.save).mock.calls[0][0];
     expect(savedActivity.action).toBe('CONFIRM');
     expect(savedActivity.appointmentId).toBe('appt-1');
-    expect(savedActivity.tenantPortalTokenId).toBe('token-1');
-    expect(savedActivity.previousValuesJson).toEqual({ tenantConfirmationStatus: 'PENDING' });
-    expect(savedActivity.newValuesJson).toEqual({ tenantConfirmationStatus: 'CONFIRMED' });
+    expect(savedActivity.rentalTenantPortalTokenId).toBe('token-1');
+    expect(savedActivity.previousValuesJson).toEqual({ rentalTenantConfirmationStatus: 'PENDING' });
+    expect(savedActivity.newValuesJson).toEqual({ rentalTenantConfirmationStatus: 'CONFIRMED' });
     expect(savedActivity.ipAddress).toBe('192.168.1.1');
     expect(savedActivity.userAgent).toBe('Mozilla/5.0');
   });
@@ -195,13 +195,13 @@ describe('ConfirmAppointmentUseCase', () => {
     await useCase.execute(makeInput());
 
     expect(auditService.log).toHaveBeenCalledWith({
-      action: 'tenant_portal.appointment_confirmed',
+      action: 'rental_tenant_portal.appointment_confirmed',
       actorType: 'ANONYMOUS',
       entityType: 'Appointment',
       entityId: 'appt-1',
       tenantId: 'tenant-1',
-      before: { tenantConfirmationStatus: 'PENDING' },
-      after: { tenantConfirmationStatus: 'CONFIRMED' },
+      before: { rentalTenantConfirmationStatus: 'PENDING' },
+      after: { rentalTenantConfirmationStatus: 'CONFIRMED' },
       ipAddress: '192.168.1.1',
     });
   });
@@ -226,7 +226,7 @@ describe('ConfirmAppointmentUseCase', () => {
     expect(savedRestriction.unavailableDaysJson).toEqual(['Monday', 'Tuesday']);
     expect(savedRestriction.unavailableHoursJson).toEqual(['08:00-09:00']);
     expect(savedRestriction.notes).toBe('Dog at home');
-    expect(savedRestriction.source).toBe('TENANT_PORTAL');
+    expect(savedRestriction.source).toBe('RENTAL_TENANT_PORTAL');
   });
 
   it('should clear stale restrictions even when no new restrictions are provided', async () => {
@@ -245,7 +245,7 @@ describe('ConfirmAppointmentUseCase', () => {
 
     const result = await useCase.execute(makeInput());
 
-    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
   });
 
   it('should allow confirmation for SCHEDULED status', async () => {
@@ -255,12 +255,12 @@ describe('ConfirmAppointmentUseCase', () => {
 
     const result = await useCase.execute(makeInput());
 
-    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
   });
 });
 
 describe('ConfirmAppointmentUseCase – onNotificationHandler', () => {
-  let activityRepo: ITenantPortalActivityRepository;
+  let activityRepo: IRentalTenantPortalActivityRepository;
   let appointmentRepo: IAppointmentRepository;
   let auditService: PersistentAuditService;
   let onNotificationHandler: { execute: ReturnType<typeof vi.fn> };
@@ -314,7 +314,7 @@ describe('ConfirmAppointmentUseCase – onNotificationHandler', () => {
     );
     const result = await useCase.execute(makeInput());
 
-    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
   });
 
   it('does not call onNotificationHandler when not provided', async () => {

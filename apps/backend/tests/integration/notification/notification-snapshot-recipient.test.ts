@@ -34,7 +34,7 @@ function makeAppointment(id = 'appt-1') {
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -72,12 +72,12 @@ function makeContact(overrides: Partial<ConstructorParameters<typeof Appointment
     id: 'junction-1',
     appointmentId: 'appt-1',
     contactId: 'registry-1',
-    role: 'TENANT',
+    role: 'RENTAL_TENANT',
     isPrimary: true,
     snapshotName: 'Snapshot Name',
     snapshotEmail: 'snapshot@example.com',
     snapshotPhone: '+61400000001',
-    tenantName: 'Legacy Name',
+    rentalTenantName: 'Legacy Name',
     primaryEmail: 'legacy@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -152,7 +152,7 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
         recipient: 'snapshot@example.com',
         templateCode: 'INSPECTION_NOTICE',
         payloadJson: expect.objectContaining({
-          tenantName: 'Snapshot Name',
+          rentalTenantName: 'Snapshot Name',
         }),
       }),
     );
@@ -164,7 +164,7 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
       snapshotName: null,
       // legacy fields present
       primaryEmail: 'legacy@example.com',
-      tenantName: 'Legacy Name',
+      rentalTenantName: 'Legacy Name',
     });
     // contact.effectiveEmail = null ?? 'legacy@example.com' = 'legacy@example.com'
 
@@ -199,7 +199,7 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
       expect.objectContaining({
         recipient: 'legacy@example.com',
         payloadJson: expect.objectContaining({
-          tenantName: 'Legacy Name',
+          rentalTenantName: 'Legacy Name',
         }),
       }),
     );

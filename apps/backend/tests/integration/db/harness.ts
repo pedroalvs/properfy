@@ -217,7 +217,7 @@ export async function seedLegacyDoneAppointment(
       code: `T061-ST-${stSuffix}`,
       name: `T061 Routine Inspection ${stSuffix}`,
       flow_type: 'ROUTINE',
-      requires_tenant_confirmation: true,
+      requires_rental_tenant_confirmation: true,
       status: 'ACTIVE',
     },
   });
@@ -233,7 +233,7 @@ export async function seedLegacyDoneAppointment(
       price_amount: '100.00',
       payout_amount: '80.00',
       pricing_rule_snapshot_json: {},
-      tenant_confirmation_status: 'CONFIRMED',
+      rental_tenant_confirmation_status: 'CONFIRMED',
       created_by_user_id: user.id,
       // Legacy state: DONE but cross-check never performed
       done_marked_by_user_id: null,

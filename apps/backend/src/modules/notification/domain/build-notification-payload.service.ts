@@ -58,7 +58,7 @@ export class BuildNotificationPayloadService {
       : '';
 
     const allVars: Record<string, string> = {
-      tenantName: ctx.contact.effectiveName,
+      rentalTenantName: ctx.contact.effectiveName,
       propertyAddress: ctx.propertyAddress ?? '',
       scheduledDate,
       timeSlot: ctx.appointment.timeSlot,

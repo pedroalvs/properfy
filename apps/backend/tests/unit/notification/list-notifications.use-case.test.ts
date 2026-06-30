@@ -22,7 +22,7 @@ function makeNotification(overrides: Partial<NotificationProps> = {}): Notificat
     deliveredAt: null,
     failedAt: null,
     failureReason: null,
-    payloadJson: { tenantName: 'John' },
+    payloadJson: { rentalTenantName: 'John' },
     retryCount: 0,
     nextRetryAt: null,
     createdAt: now,

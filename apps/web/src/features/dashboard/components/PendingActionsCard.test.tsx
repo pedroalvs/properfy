@@ -9,7 +9,7 @@ vi.mock('@/hooks/useAuth', () => ({
 
 describe('PendingActionsCard', () => {
   const defaultProps = {
-    noResponseTenants: 5,
+    noResponseRentalTenants: 5,
     pendingOperatorCrossChecks: 4,
     pendingFinancialEntries: 12,
     processingReports: 3,
@@ -47,7 +47,7 @@ describe('PendingActionsCard', () => {
 
     expect(screen.getByRole('link', { name: /No-response tenants/i })).toHaveAttribute(
       'href',
-      '/appointments?tenantConfirmationStatus=NO_RESPONSE',
+      '/appointments?rentalTenantConfirmationStatus=NO_RESPONSE',
     );
     expect(screen.getByRole('link', { name: /Pending operator cross-checks/i })).toHaveAttribute(
       'href',
@@ -67,7 +67,7 @@ describe('PendingActionsCard', () => {
     render(
       <MemoryRouter>
         <PendingActionsCard
-          noResponseTenants={0}
+          noResponseRentalTenants={0}
           pendingOperatorCrossChecks={0}
           pendingFinancialEntries={0}
           processingReports={0}

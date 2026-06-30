@@ -27,7 +27,7 @@ export interface IServiceTypeRepository {
     data: Partial<{
       name: string;
       flowType: string;
-      requiresTenantConfirmation: boolean;
+      requiresRentalTenantConfirmation: boolean;
       status: string;
     }>,
   ): Promise<void>;

@@ -192,7 +192,7 @@ export type ContactPropertyAggregateResponse = z.infer<typeof contactPropertyAgg
 
 /** @deprecated Use contactRegistrySchema instead. Kept for existing consumers during the expand phase. */
 export const contactSchema = z.object({
-  tenantName: z.string().min(1).max(200),
+  rentalTenantName: z.string().min(1).max(200),
   primaryEmail: z.string().email().max(254).optional(),
   secondaryEmail: z.string().email().max(254).optional(),
   primaryPhone: z.string().max(30).optional(),

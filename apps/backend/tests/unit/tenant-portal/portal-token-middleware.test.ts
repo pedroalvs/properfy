@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { createPortalTokenMiddleware } from '../../../src/modules/tenant-portal/interfaces/portal-token-middleware';
-import { TenantPortalTokenEntity } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.entity';
-import type { TenantPortalTokenProps } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.entity';
-import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.repository';
-import { PortalTokenInvalidError, PortalTokenRevokedError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { createPortalTokenMiddleware } from '../../../src/modules/rental-tenant-portal/interfaces/portal-token-middleware';
+import { RentalTenantPortalTokenEntity } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.entity';
+import type { RentalTenantPortalTokenProps } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.entity';
+import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
+import { PortalTokenInvalidError, PortalTokenRevokedError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
-function makeTokenEntity(overrides: Partial<TenantPortalTokenProps> = {}): TenantPortalTokenEntity {
-  return new TenantPortalTokenEntity({
+function makeTokenEntity(overrides: Partial<RentalTenantPortalTokenProps> = {}): RentalTenantPortalTokenEntity {
+  return new RentalTenantPortalTokenEntity({
     id: 'token-1',
     appointmentId: 'appt-1',
     tokenHash: 'hashed-abc123',
@@ -29,7 +29,7 @@ function makeReply(): FastifyReply {
   return {} as unknown as FastifyReply;
 }
 
-function makeTokenRepo(overrides: Partial<ITenantPortalTokenRepository> = {}): ITenantPortalTokenRepository {
+function makeTokenRepo(overrides: Partial<IRentalTenantPortalTokenRepository> = {}): IRentalTenantPortalTokenRepository {
   return {
     findByTokenHash: vi.fn().mockResolvedValue(null),
     findActiveByAppointmentId: vi.fn().mockResolvedValue(null),

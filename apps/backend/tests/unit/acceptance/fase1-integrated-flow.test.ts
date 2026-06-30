@@ -118,7 +118,7 @@ function makeServiceType(): ServiceTypeEntity {
     code: 'INGOING',
     name: 'Ingoing Inspection',
     flowType: 'INGOING',
-    requiresTenantConfirmation: false,
+    requiresRentalTenantConfirmation: false,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -218,7 +218,7 @@ class InMemoryAppointmentRepo implements IAppointmentRepository {
         if (filters.serviceTypeId && appointment.serviceTypeId !== filters.serviceTypeId) return false;
         if (filters.inspectorId && appointment.inspectorId !== filters.inspectorId) return false;
         if (filters.propertyId && appointment.propertyId !== filters.propertyId) return false;
-        if (filters.tenantConfirmationStatus && appointment.tenantConfirmationStatus !== filters.tenantConfirmationStatus) return false;
+        if (filters.rentalTenantConfirmationStatus && appointment.rentalTenantConfirmationStatus !== filters.rentalTenantConfirmationStatus) return false;
         const scheduledDate = appointment.scheduledDate.toISOString().slice(0, 10);
         if (filters.fromDate && scheduledDate < filters.fromDate) return false;
         if (filters.toDate && scheduledDate > filters.toDate) return false;
@@ -326,7 +326,7 @@ class InMemoryAppointmentRepo implements IAppointmentRepository {
       const flowType = serviceType?.flowType ?? 'ROUTINE';
       return t1.isVisibleForInspector(
         flowType,
-        item.appointment.tenantConfirmationStatus,
+        item.appointment.rentalTenantConfirmationStatus,
         item.appointment.keyRequired,
         item.appointment.scheduledDate,
         params.today,
@@ -343,7 +343,7 @@ class InMemoryAppointmentRepo implements IAppointmentRepository {
     const t1 = new T1VisibilityService();
     return t1.isVisibleForInspector(
       flowType,
-      appointment.tenantConfirmationStatus,
+      appointment.rentalTenantConfirmationStatus,
       appointment.keyRequired,
       appointment.scheduledDate,
       today,
@@ -460,7 +460,7 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
         return {
           groupId: group.id,
           tenantId: group.tenantId,
-          tenantName: this.tenants.get(group.tenantId)?.name ?? group.tenantId,
+          rentalTenantName: this.tenants.get(group.tenantId)?.name ?? group.tenantId,
           serviceTypeName: this.serviceTypes.get(group.serviceTypeId)?.name ?? group.serviceTypeId,
           groupSize: group.groupSize,
           scheduledDate: group.scheduledDate,
@@ -717,7 +717,7 @@ describe('FASE 1 integrated proof', () => {
         scheduledDate: today,
         timeSlot: `0${8 + index}:00-0${9 + index}:00`,
         contact: {
-          tenantName: `Tenant ${index + 1}`,
+          rentalTenantName: `Tenant ${index + 1}`,
           primaryEmail: `tenant${index + 1}@example.com`,
         },
         keyRequired: false,

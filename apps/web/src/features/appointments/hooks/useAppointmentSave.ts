@@ -13,7 +13,7 @@ import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } fro
  * contract test (T-2-907) asserts the inline shape equals the dedicated
  * `/contacts` create shape modulo `role` (which is appointment-only).
  *
- * The `?? ContactType.TENANT` fallback exists ONLY for backward compatibility
+ * The `?? ContactType.RENTAL_TENANT` fallback exists ONLY for backward compatibility
  * with callers that pre-date 023; the standard form path validates that
  * `contactType` is set before submit (`validate()` blocks otherwise).
  */
@@ -36,7 +36,7 @@ export function buildContactsPayload(data: AppointmentFormData) {
         .filter((ch) => ch.value.length > 0);
       return {
         inline: {
-          type: c.contactType ?? ContactType.TENANT,
+          type: c.contactType ?? ContactType.RENTAL_TENANT,
           displayName: c.name.trim(),
           ...(c.company && c.company.trim() ? { company: c.company.trim() } : {}),
           ...(c.email.trim() ? { primaryEmail: c.email.trim() } : { primaryEmail: null }),
@@ -55,7 +55,7 @@ export function buildContactsPayload(data: AppointmentFormData) {
 /** Build legacy contact object from flat fields (backward compat). */
 function buildLegacyContact(data: AppointmentFormData) {
   return {
-    tenantName: data.contactName.trim(),
+    rentalTenantName: data.contactName.trim(),
     ...(data.contactEmail.trim() ? { primaryEmail: data.contactEmail.trim() } : {}),
     ...(data.contactPhone.trim() ? { primaryPhone: data.contactPhone.trim() } : {}),
   };
@@ -118,7 +118,7 @@ const SCHEMA_PATH_TO_FORM_FIELD: Record<string, keyof AppointmentFormData> = {
   serviceTypeId: 'serviceTypeId',
   scheduledDate: 'scheduledDate',
   timeSlot: 'timeSlot',
-  'contact.tenantName': 'contactName',
+  'contact.rentalTenantName': 'contactName',
   'contact.primaryEmail': 'contactEmail',
   'contact.primaryPhone': 'contactPhone',
   keyRequired: 'keyRequired',

@@ -347,7 +347,7 @@ describe('TriggerRetentionRunUseCase', () => {
         hardDeletedCount: 0,
         skippedInProgressCount: 0,
         erroredCount: 0,
-        tenantPortalMovedCount: 0,
+        rentalTenantPortalMovedCount: 0,
       }),
     } as any;
     const auditService = { log: vi.fn() } as any;

@@ -33,7 +33,7 @@ export interface RequestReportInput {
     branchId?: string;
     inspectorId?: string;
     status?: string;
-    tenantConfirmationStatus?: string;
+    rentalTenantConfirmationStatus?: string;
     search?: string;
     emailNotificationStatus?: string;
   };

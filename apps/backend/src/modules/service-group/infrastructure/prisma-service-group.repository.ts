@@ -265,7 +265,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         status: true,
         scheduled_date: true,
         time_slot: true,
-        tenant_confirmation_status: true,
+        rental_tenant_confirmation_status: true,
         active_confirmation_cycle: {
           select: { scheduled_date: true, time_slot: true, status: true },
         },
@@ -281,7 +281,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       status: a.status,
       scheduledDate: a.scheduled_date,
       timeSlot: a.time_slot,
-      tenantConfirmationStatus: a.tenant_confirmation_status,
+      rentalTenantConfirmationStatus: a.rental_tenant_confirmation_status,
       activeCycle: a.active_confirmation_cycle
         ? {
             scheduledDate: a.active_confirmation_cycle.scheduled_date,
@@ -793,7 +793,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_phone: { contains: filters.contactSearch } },
-        { tenant_name: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { rental_tenant_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { primary_email: { contains: filters.contactSearch, mode: 'insensitive' } },
         { primary_phone: { contains: filters.contactSearch } },
       ];

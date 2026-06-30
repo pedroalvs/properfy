@@ -23,7 +23,7 @@ export interface ScheduleAppointmentItem {
   timeSlot: string;
   serviceTypeId: string;
   propertyId: string;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
   keyRequired: boolean;
   meetingLocation: string | null;
   agencyName: string;
@@ -105,7 +105,7 @@ export class GetInspectorScheduleUseCase {
         timeSlot: appt.timeSlot,
         serviceTypeId: appt.serviceTypeId,
         propertyId: appt.propertyId,
-        tenantConfirmationStatus: appt.tenantConfirmationStatus,
+        rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,
         keyRequired: appt.keyRequired,
         meetingLocation: appt.meetingLocation,
         agencyName: item.tenantName ?? '',
@@ -157,7 +157,7 @@ export class GetInspectorScheduleUseCase {
           timeSlot: appt.timeSlot,
           serviceTypeId: appt.serviceTypeId,
           propertyId: appt.propertyId,
-          tenantConfirmationStatus: appt.tenantConfirmationStatus,
+          rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,
           keyRequired: appt.keyRequired,
           meetingLocation: appt.meetingLocation,
           agencyName: item.tenantName ?? '',
@@ -224,7 +224,7 @@ export class GetInspectorScheduleUseCase {
         timeSlot: appt.timeSlot,
         serviceTypeId: appt.serviceTypeId,
         propertyId: appt.propertyId,
-        tenantConfirmationStatus: appt.tenantConfirmationStatus,
+        rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,
         keyRequired: appt.keyRequired,
         meetingLocation: appt.meetingLocation,
         agencyName: item.tenantName ?? '',

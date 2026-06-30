@@ -88,7 +88,7 @@ describe('QA-006-HIGH-001: bulk-edit branchId round-trip (real DB)', () => {
         code: `QA006-ST-${Math.random().toString(36).slice(2, 10)}`,
         name: 'QA-006 Routine',
         flow_type: 'ROUTINE',
-        requires_tenant_confirmation: false,
+        requires_rental_tenant_confirmation: false,
         status: 'ACTIVE',
       },
     });
@@ -106,7 +106,7 @@ describe('QA-006-HIGH-001: bulk-edit branchId round-trip (real DB)', () => {
         price_amount: '150.00',
         payout_amount: '100.00',
         pricing_rule_snapshot_json: {},
-        tenant_confirmation_status: 'PENDING',
+        rental_tenant_confirmation_status: 'PENDING',
         created_by_user_id: user.id,
       },
     });

@@ -33,7 +33,7 @@ const mockPut = api.PUT as ReturnType<typeof vi.fn>;
 
 const VALID_DATA: TemplateFormData = {
   subject: 'Inspection at {{propertyAddress}}',
-  body: 'Hello {{tenantName}}, your inspection is on {{scheduledDate}}.',
+  body: 'Hello {{rentalTenantName}}, your inspection is on {{scheduledDate}}.',
   active: true,
 };
 
@@ -120,11 +120,11 @@ describe('useTemplateSave', () => {
 
     const data: TemplateFormData = {
       subject: 'Valid subject',
-      body: '<p>Hello <strong>{{tenantName}}</strong></p>',
+      body: '<p>Hello <strong>{{rentalTenantName}}</strong></p>',
       active: true,
     };
 
-    const errors = result.current.validate(data, ['tenantName']);
+    const errors = result.current.validate(data, ['rentalTenantName']);
     expect(errors.body).toBeUndefined();
   });
 
@@ -134,7 +134,7 @@ describe('useTemplateSave', () => {
 
     const htmlData: TemplateFormData = {
       subject: 'Test',
-      body: '<p>Hello {{tenantName}}</p>',
+      body: '<p>Hello {{rentalTenantName}}</p>',
       active: true,
     };
 
@@ -144,7 +144,7 @@ describe('useTemplateSave', () => {
 
     expect(mockPut).toHaveBeenCalledWith(
       '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
-      { body: { subject: 'Test', bodyHtml: '<p>Hello {{tenantName}}</p>', isActive: true } },
+      { body: { subject: 'Test', bodyHtml: '<p>Hello {{rentalTenantName}}</p>', isActive: true } },
     );
   });
 
@@ -168,7 +168,7 @@ describe('useTemplateSave', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateSave(), { wrapper });
 
-    const errors = result.current.validate(VALID_DATA, ['tenantName', 'scheduledDate']);
+    const errors = result.current.validate(VALID_DATA, ['rentalTenantName', 'scheduledDate']);
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
