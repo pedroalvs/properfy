@@ -329,7 +329,7 @@ describe('PrismaServiceGroupRepository list filters', () => {
                     { snapshot_name: { contains: 'smith', mode: 'insensitive' } },
                     { snapshot_email: { contains: 'smith', mode: 'insensitive' } },
                     { snapshot_phone: { contains: 'smith' } },
-                    { tenant_name: { contains: 'smith', mode: 'insensitive' } },
+                    { rental_tenant_name: { contains: 'smith', mode: 'insensitive' } },
                     { primary_email: { contains: 'smith', mode: 'insensitive' } },
                     { primary_phone: { contains: 'smith' } },
                   ],

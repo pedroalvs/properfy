@@ -23,7 +23,7 @@ function makeServiceType(
     code: 'ROUTINE',
     name: 'Routine Inspection',
     flowType: 'ROUTINE',
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus } from '@properfy/shared';
-import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP, SERVICE_GROUP_STATUS_MAP, PRIORITY_MODE_MAP, USER_ROLE_MAP, USER_STATUS_MAP, FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP, TENANT_CONFIRMATION_STATUS_MAP, REPORT_TYPE_MAP, REPORT_STATUS_MAP, FLOW_TYPE_MAP, SERVICE_TYPE_STATUS_MAP, SLOT_STATUS_MAP } from './status-colors';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus } from '@properfy/shared';
+import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP, SERVICE_GROUP_STATUS_MAP, PRIORITY_MODE_MAP, USER_ROLE_MAP, USER_STATUS_MAP, FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP, RENTAL_TENANT_CONFIRMATION_STATUS_MAP, REPORT_TYPE_MAP, REPORT_STATUS_MAP, FLOW_TYPE_MAP, SERVICE_TYPE_STATUS_MAP, SLOT_STATUS_MAP } from './status-colors';
 
 describe('APPOINTMENT_STATUS_MAP', () => {
   const allStatuses: AppointmentStatus[] = [
@@ -279,33 +279,33 @@ describe('FINANCIAL_ENTRY_STATUS_MAP', () => {
   });
 });
 
-describe('TENANT_CONFIRMATION_STATUS_MAP', () => {
-  const allStatuses: TenantConfirmationStatus[] = [
-    TenantConfirmationStatus.PENDING,
-    TenantConfirmationStatus.CONFIRMED,
-    TenantConfirmationStatus.UNAVAILABLE,
-    TenantConfirmationStatus.NO_RESPONSE,
+describe('RENTAL_TENANT_CONFIRMATION_STATUS_MAP', () => {
+  const allStatuses: RentalTenantConfirmationStatus[] = [
+    RentalTenantConfirmationStatus.PENDING,
+    RentalTenantConfirmationStatus.CONFIRMED,
+    RentalTenantConfirmationStatus.UNAVAILABLE,
+    RentalTenantConfirmationStatus.NO_RESPONSE,
   ];
 
   it('maps all 4 tenant confirmation statuses', () => {
-    expect(Object.keys(TENANT_CONFIRMATION_STATUS_MAP)).toHaveLength(4);
+    expect(Object.keys(RENTAL_TENANT_CONFIRMATION_STATUS_MAP)).toHaveLength(4);
     for (const status of allStatuses) {
-      expect(TENANT_CONFIRMATION_STATUS_MAP[status]).toBeDefined();
+      expect(RENTAL_TENANT_CONFIRMATION_STATUS_MAP[status]).toBeDefined();
     }
   });
 
   it.each(allStatuses)('status %s has bg, text, and label', (status) => {
-    const style = TENANT_CONFIRMATION_STATUS_MAP[status];
+    const style = RENTAL_TENANT_CONFIRMATION_STATUS_MAP[status];
     expect(style.bg).toBeTruthy();
     expect(style.text).toBeTruthy();
     expect(style.label).toBeTruthy();
   });
 
   it('returns correct labels', () => {
-    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.PENDING].label).toBe('Pending');
-    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.CONFIRMED].label).toBe('Confirmed');
-    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.UNAVAILABLE].label).toBe('Unavailable');
-    expect(TENANT_CONFIRMATION_STATUS_MAP[TenantConfirmationStatus.NO_RESPONSE].label).toBe('No Response');
+    expect(RENTAL_TENANT_CONFIRMATION_STATUS_MAP[RentalTenantConfirmationStatus.PENDING].label).toBe('Pending');
+    expect(RENTAL_TENANT_CONFIRMATION_STATUS_MAP[RentalTenantConfirmationStatus.CONFIRMED].label).toBe('Confirmed');
+    expect(RENTAL_TENANT_CONFIRMATION_STATUS_MAP[RentalTenantConfirmationStatus.UNAVAILABLE].label).toBe('Unavailable');
+    expect(RENTAL_TENANT_CONFIRMATION_STATUS_MAP[RentalTenantConfirmationStatus.NO_RESPONSE].label).toBe('No Response');
   });
 });
 

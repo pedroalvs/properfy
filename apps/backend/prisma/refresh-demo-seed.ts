@@ -90,7 +90,7 @@ async function collectScope(): Promise<RefreshScope> {
   });
   const executionIds = executions.map((execution) => execution.id);
 
-  const portalTokens = await prisma.tenantPortalToken.findMany({
+  const portalTokens = await prisma.rentalTenantPortalToken.findMany({
     where: { appointment_id: { in: appointmentIds.length > 0 ? appointmentIds : ['__none__'] } },
     select: { id: true },
   });
@@ -121,7 +121,7 @@ async function countPlannedDeletes(scope: RefreshScope) {
     }),
     notifications: await prisma.notification.count({ where: { tenant_id: { in: tenantIds } } }),
     notificationTemplates: await prisma.notificationTemplate.count({ where: { tenant_id: { in: tenantIds } } }),
-    portalActivities: await prisma.tenantPortalActivity.count({
+    portalActivities: await prisma.rentalTenantPortalActivity.count({
       where: {
         OR: [
           { appointment_id: { in: appointmentIds } },
@@ -129,7 +129,7 @@ async function countPlannedDeletes(scope: RefreshScope) {
         ],
       },
     }),
-    portalTokens: await prisma.tenantPortalToken.count({ where: { id: { in: portalTokenIds } } }),
+    portalTokens: await prisma.rentalTenantPortalToken.count({ where: { id: { in: portalTokenIds } } }),
     inspectionAssets: await prisma.inspectionAsset.count({
       where: {
         OR: [
@@ -192,7 +192,7 @@ async function executeRefresh(scope: RefreshScope) {
   });
   await prisma.notification.deleteMany({ where: { tenant_id: { in: tenantIds } } });
   await prisma.notificationTemplate.deleteMany({ where: { tenant_id: { in: tenantIds } } });
-  await prisma.tenantPortalActivity.deleteMany({
+  await prisma.rentalTenantPortalActivity.deleteMany({
     where: {
       OR: [
         { appointment_id: { in: appointmentIds } },
@@ -200,7 +200,7 @@ async function executeRefresh(scope: RefreshScope) {
       ],
     },
   });
-  await prisma.tenantPortalToken.deleteMany({ where: { id: { in: portalTokenIds } } });
+  await prisma.rentalTenantPortalToken.deleteMany({ where: { id: { in: portalTokenIds } } });
   await prisma.inspectionAsset.deleteMany({
     where: {
       OR: [

@@ -24,12 +24,12 @@ function makeAppointmentEntity(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
     notes: null,
-    tenantNote: null,
+    rentalTenantNote: null,
     customFieldsJson: null,
     reason: null,
     cancellationReasonCode: null,
@@ -50,7 +50,7 @@ function makeContact(): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -89,7 +89,7 @@ function makeListItem(
     propertyAddress: '123 Test St',
     propertyLatitude: -33.8,
     propertyLongitude: 151.2,
-    tenantName: 'Test Tenant',
+    rentalTenantName: 'Test Tenant',
     tenantAppointmentCodePrefix: 'INS',
     branchName: 'Test Branch',
     serviceTypeName: 'Routine Inspection',
@@ -109,7 +109,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   };
 }
 
-describe('GetAppointmentUseCase – tenantNote in response', () => {
+describe('GetAppointmentUseCase – rentalTenantNote in response', () => {
   let appointmentRepo: IAppointmentRepository;
   let auditService: AuditService;
   let useCase: GetAppointmentUseCase;
@@ -130,9 +130,9 @@ describe('GetAppointmentUseCase – tenantNote in response', () => {
     useCase = new GetAppointmentUseCase(appointmentRepo, new AuthorizationService(auditService));
   });
 
-  it('should include tenantNote in the response when it has a value', async () => {
+  it('should include rentalTenantNote in the response when it has a value', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
-      makeAppointmentWithRelations({ tenantNote: 'Please call before arriving' }),
+      makeAppointmentWithRelations({ rentalTenantNote: 'Please call before arriving' }),
     );
 
     const result = await useCase.execute({
@@ -140,12 +140,12 @@ describe('GetAppointmentUseCase – tenantNote in response', () => {
       actor: makeActor(),
     });
 
-    expect(result.tenantNote).toBe('Please call before arriving');
+    expect(result.rentalTenantNote).toBe('Please call before arriving');
   });
 
-  it('should include tenantNote as null when not set', async () => {
+  it('should include rentalTenantNote as null when not set', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
-      makeAppointmentWithRelations({ tenantNote: null }),
+      makeAppointmentWithRelations({ rentalTenantNote: null }),
     );
 
     const result = await useCase.execute({
@@ -153,11 +153,11 @@ describe('GetAppointmentUseCase – tenantNote in response', () => {
       actor: makeActor(),
     });
 
-    expect(result.tenantNote).toBeNull();
+    expect(result.rentalTenantNote).toBeNull();
   });
 });
 
-describe('ListAppointmentsUseCase – hasTenantNote in response', () => {
+describe('ListAppointmentsUseCase – hasRentalTenantNote in response', () => {
   let appointmentRepo: IAppointmentRepository;
   let auditService: AuditService;
   let useCase: ListAppointmentsUseCase;
@@ -178,9 +178,9 @@ describe('ListAppointmentsUseCase – hasTenantNote in response', () => {
     useCase = new ListAppointmentsUseCase(appointmentRepo, new AuthorizationService(auditService));
   });
 
-  it('should return hasTenantNote=true when tenant_note has content', async () => {
+  it('should return hasRentalTenantNote=true when rental_tenant_note has content', async () => {
     vi.mocked(appointmentRepo.findAll).mockResolvedValue([
-      makeListItem({ tenantNote: 'Dog is friendly but barks' }),
+      makeListItem({ rentalTenantNote: 'Dog is friendly but barks' }),
     ]);
 
     const result = await useCase.execute({
@@ -190,12 +190,12 @@ describe('ListAppointmentsUseCase – hasTenantNote in response', () => {
     });
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0].hasTenantNote).toBe(true);
+    expect(result.data[0].hasRentalTenantNote).toBe(true);
   });
 
-  it('should return hasTenantNote=false when tenant_note is null', async () => {
+  it('should return hasRentalTenantNote=false when rental_tenant_note is null', async () => {
     vi.mocked(appointmentRepo.findAll).mockResolvedValue([
-      makeListItem({ tenantNote: null }),
+      makeListItem({ rentalTenantNote: null }),
     ]);
 
     const result = await useCase.execute({
@@ -205,12 +205,12 @@ describe('ListAppointmentsUseCase – hasTenantNote in response', () => {
     });
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0].hasTenantNote).toBe(false);
+    expect(result.data[0].hasRentalTenantNote).toBe(false);
   });
 
-  it('should return hasTenantNote=false when tenant_note is empty string', async () => {
+  it('should return hasRentalTenantNote=false when rental_tenant_note is empty string', async () => {
     vi.mocked(appointmentRepo.findAll).mockResolvedValue([
-      makeListItem({ tenantNote: '' }),
+      makeListItem({ rentalTenantNote: '' }),
     ]);
 
     const result = await useCase.execute({
@@ -220,6 +220,6 @@ describe('ListAppointmentsUseCase – hasTenantNote in response', () => {
     });
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0].hasTenantNote).toBe(false);
+    expect(result.data[0].hasRentalTenantNote).toBe(false);
   });
 });

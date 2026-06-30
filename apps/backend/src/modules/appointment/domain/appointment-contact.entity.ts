@@ -11,7 +11,7 @@ export interface AppointmentContactProps {
   snapshotEmail: string | null;
   snapshotPhone: string | null;
   // Legacy fields (kept during expand phase — read-only, will be dropped in a future migration)
-  tenantName: string;
+  rentalTenantName: string;
   primaryEmail: string | null;
   secondaryEmail: string | null;
   primaryPhone: string | null;
@@ -31,7 +31,7 @@ export class AppointmentContactEntity {
   readonly snapshotEmail: string | null;
   readonly snapshotPhone: string | null;
   // Legacy fields
-  readonly tenantName: string;
+  readonly rentalTenantName: string;
   readonly primaryEmail: string | null;
   readonly secondaryEmail: string | null;
   readonly primaryPhone: string | null;
@@ -48,7 +48,7 @@ export class AppointmentContactEntity {
     this.snapshotName = props.snapshotName;
     this.snapshotEmail = props.snapshotEmail;
     this.snapshotPhone = props.snapshotPhone;
-    this.tenantName = props.tenantName;
+    this.rentalTenantName = props.rentalTenantName;
     this.primaryEmail = props.primaryEmail;
     this.secondaryEmail = props.secondaryEmail;
     this.primaryPhone = props.primaryPhone;
@@ -59,7 +59,7 @@ export class AppointmentContactEntity {
 
   /** Resolve the effective display name: snapshot if available, legacy fallback */
   get effectiveName(): string {
-    return this.snapshotName ?? this.tenantName;
+    return this.snapshotName ?? this.rentalTenantName;
   }
 
   /** Resolve the effective email: snapshot if available, legacy fallback */

@@ -3,14 +3,14 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
-import { TenantPortalTokenEntity } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.entity';
+import { RentalTenantPortalTokenEntity } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.entity';
 import {
   PortalActionBlockedError,
   PortalTokenAlreadyUsedError,
   PortalGroupNotFoundError,
   PortalGroupFullError,
   PortalGroupUnavailableError,
-} from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+} from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 const APPOINTMENT_ID = '00000000-0000-0000-0000-000000000001';
 const TOKEN_ID = '00000000-0000-0000-0000-000000000002';
@@ -35,7 +35,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: {
+    rentalTenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
       confirmAppointmentUseCase: { execute: vi.fn() },
       rescheduleRequestUseCase: { execute: vi.fn() },
@@ -67,7 +67,7 @@ vi.mock('../../../src/main/container', () => ({
 }));
 
 function createMockToken(overrides: { status?: string; usedAt?: Date | null } = {}) {
-  return new TenantPortalTokenEntity({
+  return new RentalTenantPortalTokenEntity({
     id: TOKEN_ID,
     appointmentId: APPOINTMENT_ID,
     tokenHash: 'hashed-token',
@@ -102,7 +102,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('GET /v1/tenant-portal/:token/available-groups', () => {
+describe('GET /v1/rental-tenant-portal/:token/available-groups', () => {
   it('should return 200 with groups list', async () => {
     setupPortalAuth();
     const mockResult = {
@@ -120,7 +120,7 @@ describe('GET /v1/tenant-portal/:token/available-groups', () => {
     };
     mockGetAvailableGroupsExecute.mockResolvedValueOnce(mockResult);
 
-    const res = await supertest(app.server).get('/v1/tenant-portal/valid-token/available-groups');
+    const res = await supertest(app.server).get('/v1/rental-tenant-portal/valid-token/available-groups');
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(mockResult);
@@ -138,7 +138,7 @@ describe('GET /v1/tenant-portal/:token/available-groups', () => {
     mockFindByTokenHash.mockResolvedValue(expiredToken);
     mockGetAvailableGroupsExecute.mockResolvedValueOnce({ groups: [] });
 
-    const res = await supertest(app.server).get('/v1/tenant-portal/valid-token/available-groups');
+    const res = await supertest(app.server).get('/v1/rental-tenant-portal/valid-token/available-groups');
 
     expect(res.status).toBe(200);
     expect(mockGetAvailableGroupsExecute).toHaveBeenCalledWith(
@@ -150,27 +150,27 @@ describe('GET /v1/tenant-portal/:token/available-groups', () => {
     mockHashToken.mockReturnValue('hashed-bad');
     mockFindByTokenHash.mockResolvedValue(null);
 
-    const res = await supertest(app.server).get('/v1/tenant-portal/bad-token/available-groups');
+    const res = await supertest(app.server).get('/v1/rental-tenant-portal/bad-token/available-groups');
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('PORTAL_TOKEN_INVALID');
   });
 });
 
-describe('POST /v1/tenant-portal/:token/join-group', () => {
+describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
   it('should return 200 on successful join', async () => {
     setupPortalAuth();
     const mockResult = {
       scheduledDate: '2026-06-01',
       timeWindow: '09:00-12:00',
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       appointmentStatus: 'SCHEDULED',
       inspector: { id: '00000000-0000-0000-0000-000000000010', name: 'John Smith' },
     };
     mockJoinGroupExecute.mockResolvedValueOnce(mockResult);
 
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/valid-token/join-group')
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
       .send({ groupId: GROUP_ID });
 
     expect(res.status).toBe(200);
@@ -186,22 +186,22 @@ describe('POST /v1/tenant-portal/:token/join-group', () => {
     );
   });
 
-  it('should forward tenantNote to use case', async () => {
+  it('should forward rentalTenantNote to use case', async () => {
     setupPortalAuth();
     mockJoinGroupExecute.mockResolvedValueOnce({
       scheduledDate: '2026-06-01',
       timeWindow: '09:00-12:00',
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       appointmentStatus: 'SCHEDULED',
       inspector: { id: '00000000-0000-0000-0000-000000000010', name: 'John Smith' },
     });
 
     await supertest(app.server)
-      .post('/v1/tenant-portal/valid-token/join-group')
-      .send({ groupId: GROUP_ID, tenantNote: 'Please ring bell' });
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
+      .send({ groupId: GROUP_ID, rentalTenantNote: 'Please ring bell' });
 
     expect(mockJoinGroupExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantNote: 'Please ring bell' }),
+      expect.objectContaining({ rentalTenantNote: 'Please ring bell' }),
     );
   });
 
@@ -209,7 +209,7 @@ describe('POST /v1/tenant-portal/:token/join-group', () => {
     setupPortalAuth();
 
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/valid-token/join-group')
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
       .send({});
 
     expect(res.status).toBe(400);
@@ -219,7 +219,7 @@ describe('POST /v1/tenant-portal/:token/join-group', () => {
     setupPortalAuth();
 
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/valid-token/join-group')
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
       .send({ groupId: 'not-a-uuid' });
 
     expect(res.status).toBe(400);
@@ -231,7 +231,7 @@ describe('POST /v1/tenant-portal/:token/join-group', () => {
     mockJoinGroupExecute.mockRejectedValueOnce(new PortalTokenAlreadyUsedError());
 
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/valid-token/join-group')
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
       .send({ groupId: GROUP_ID });
 
     expect(res.status).toBe(409);
@@ -244,7 +244,7 @@ describe('POST /v1/tenant-portal/:token/join-group', () => {
     mockJoinGroupExecute.mockRejectedValueOnce(new PortalActionBlockedError());
 
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/valid-token/join-group')
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
       .send({ groupId: GROUP_ID });
 
     expect(res.status).toBe(403);
@@ -255,7 +255,7 @@ describe('POST /v1/tenant-portal/:token/join-group', () => {
     mockJoinGroupExecute.mockRejectedValueOnce(new PortalGroupNotFoundError());
 
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/valid-token/join-group')
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
       .send({ groupId: GROUP_ID });
 
     expect(res.status).toBe(404);
@@ -266,7 +266,7 @@ describe('POST /v1/tenant-portal/:token/join-group', () => {
     mockJoinGroupExecute.mockRejectedValueOnce(new PortalGroupFullError());
 
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/valid-token/join-group')
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
       .send({ groupId: GROUP_ID });
 
     expect(res.status).toBe(409);
@@ -277,7 +277,7 @@ describe('POST /v1/tenant-portal/:token/join-group', () => {
     mockJoinGroupExecute.mockRejectedValueOnce(new PortalGroupUnavailableError());
 
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/valid-token/join-group')
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
       .send({ groupId: GROUP_ID });
 
     expect(res.status).toBe(409);
@@ -288,7 +288,7 @@ describe('POST /v1/tenant-portal/:token/join-group', () => {
     mockFindByTokenHash.mockResolvedValue(null);
 
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/bad-token/join-group')
+      .post('/v1/rental-tenant-portal/bad-token/join-group')
       .send({ groupId: GROUP_ID });
 
     expect(res.status).toBe(404);

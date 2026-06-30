@@ -46,7 +46,7 @@ const BASE_STATS = {
     { id: 'apt-07', code: 'VST-007', propertyAddress: 'Address 07', status: 'DONE', doneCheckedByUserId: 'op-1', scheduledDate: '2026-03-28' },
   ],
   pendingActions: {
-    noResponseTenants: 2,
+    noResponseRentalTenants: 2,
     pendingOperatorCrossChecks: 3,
     pendingFinancialEntries: 5,
     processingReports: 2,

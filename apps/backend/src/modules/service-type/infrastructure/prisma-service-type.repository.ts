@@ -17,7 +17,7 @@ function mapToEntity(row: {
   code: string;
   name: string;
   flow_type: string;
-  requires_tenant_confirmation: boolean;
+  requires_rental_tenant_confirmation: boolean;
   status: string;
   created_at: Date;
   updated_at: Date;
@@ -27,7 +27,7 @@ function mapToEntity(row: {
     code: row.code,
     name: row.name,
     flowType: row.flow_type as ServiceTypeFlowType,
-    requiresTenantConfirmation: row.requires_tenant_confirmation,
+    requiresRentalTenantConfirmation: row.requires_rental_tenant_confirmation,
     status: row.status as ServiceTypeStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -84,7 +84,7 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
         code: serviceType.code,
         name: serviceType.name,
         flow_type: serviceType.flowType as PrismaServiceTypeFlowType,
-        requires_tenant_confirmation: serviceType.requiresTenantConfirmation,
+        requires_rental_tenant_confirmation: serviceType.requiresRentalTenantConfirmation,
         status: serviceType.status as PrismaServiceTypeStatus,
       },
     });
@@ -95,7 +95,7 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
     data: Partial<{
       name: string;
       flowType: string;
-      requiresTenantConfirmation: boolean;
+      requiresRentalTenantConfirmation: boolean;
       status: string;
     }>,
   ): Promise<void> {
@@ -103,9 +103,9 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
     if (data.name !== undefined) updateData['name'] = data.name;
     if (data.flowType !== undefined)
       updateData['flow_type'] = data.flowType;
-    if (data.requiresTenantConfirmation !== undefined)
-      updateData['requires_tenant_confirmation'] =
-        data.requiresTenantConfirmation;
+    if (data.requiresRentalTenantConfirmation !== undefined)
+      updateData['requires_rental_tenant_confirmation'] =
+        data.requiresRentalTenantConfirmation;
     if (data.status !== undefined) updateData['status'] = data.status;
     await this.prisma.serviceType.update({ where: { id }, data: updateData });
   }

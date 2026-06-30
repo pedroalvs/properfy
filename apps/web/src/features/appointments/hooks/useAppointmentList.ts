@@ -7,7 +7,7 @@ import type { Appointment, AppointmentFiltersState } from '../types';
 const FILTER_SCHEMA = {
   search: { type: 'string' as const, default: '' },
   status: { type: 'string' as const, default: '' },
-  tenantConfirmationStatus: { type: 'string' as const, default: '' },
+  rentalTenantConfirmationStatus: { type: 'string' as const, default: '' },
   tenantId: { type: 'string' as const, default: '' },
   branchId: { type: 'string' as const, default: '' },
   serviceTypeId: { type: 'string' as const, default: '' },
@@ -45,7 +45,7 @@ export function useAppointmentList(): UseAppointmentListReturn {
     page,
     pageSize,
     status: filters.status || undefined,
-    tenantConfirmationStatus: filters.tenantConfirmationStatus || undefined,
+    rentalTenantConfirmationStatus: filters.rentalTenantConfirmationStatus || undefined,
     tenantId: filters.tenantId || undefined,
     branchId: filters.branchId || undefined,
     serviceTypeId: filters.serviceTypeId || undefined,

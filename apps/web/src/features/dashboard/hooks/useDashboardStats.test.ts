@@ -27,7 +27,7 @@ const MOCK_STATS = {
     { id: 'apt-07', code: 'VST-007', propertyAddress: 'Address 07', status: 'DONE', doneCheckedByUserId: 'op-1', scheduledDate: '2026-03-28' },
   ],
   pendingActions: {
-    noResponseTenants: 2,
+    noResponseRentalTenants: 2,
     pendingOperatorCrossChecks: 3,
     pendingFinancialEntries: 5,
     processingReports: 2,
@@ -99,7 +99,7 @@ describe('useDashboardStats', () => {
     });
 
     const { pendingActions } = result.current.stats!;
-    expect(pendingActions.noResponseTenants).toBe(2);
+    expect(pendingActions.noResponseRentalTenants).toBe(2);
     expect(pendingActions.pendingOperatorCrossChecks).toBe(3);
     expect(pendingActions.pendingFinancialEntries).toBe(5);
     expect(pendingActions.processingReports).toBe(2);

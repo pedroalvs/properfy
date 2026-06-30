@@ -165,7 +165,7 @@ describe('W-2 / T061: 006 cross-check invariance under retention (real DB)', () 
 
     // Seed a fresh appointment + audit entry (independent of the first test)
     const fixture = await seedLegacyDoneAppointment(prisma, {
-      tenantName: 'T061 Phase 2 Tenant',
+      rentalTenantName: 'T061 Phase 2 Tenant',
     });
     const auditEntryId = '00000000-0000-0000-0000-00000000t062';
     const longAgo = new Date('2015-01-01T00:00:00Z');
@@ -242,7 +242,7 @@ describe('W-2 / T061: 006 cross-check invariance under retention (real DB)', () 
     const { prisma } = harness;
 
     const fixture = await seedLegacyDoneAppointment(prisma, {
-      tenantName: 'T062 Financial Tenant',
+      rentalTenantName: 'T062 Financial Tenant',
     });
 
     const financialEntryId = '00000000-0000-0000-0000-00000000t0f1';

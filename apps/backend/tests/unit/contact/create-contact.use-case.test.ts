@@ -33,7 +33,7 @@ function makeSut() {
 function baseInput(overrides: Record<string, unknown> = {}) {
   return {
     tenantId: TENANT_ID,
-    type: 'TENANT' as const,
+    type: 'RENTAL_TENANT' as const,
     displayName: 'Alice Smith',
     primaryEmail: 'alice@example.com',
     primaryPhone: null,
@@ -86,7 +86,7 @@ describe('CreateContactUseCase', () => {
         entityType: 'contact',
         tenantId: TENANT_ID,
         after: expect.objectContaining({
-          type: 'TENANT',
+          type: 'RENTAL_TENANT',
           displayName: 'Alice Smith',
           primaryEmail: 'alice@example.com',
         }),

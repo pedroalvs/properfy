@@ -47,14 +47,14 @@ const mockPut = api.PUT as ReturnType<typeof vi.fn>;
 const MOCK_TEMPLATE: NotificationTemplate = {
   id: 'tpl-01',
   tenantId: null,
-  tenantName: null,
+  rentalTenantName: null,
   code: 'INSPECTION_NOTICE',
   channel: 'EMAIL',
   subject: 'Inspection at {{propertyAddress}}',
-  body: 'Hello {{tenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.',
+  body: 'Hello {{rentalTenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.',
   active: true,
   notificationClass: 'OPERATIONAL',
-  requiredVariables: ['tenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
+  requiredVariables: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };
@@ -127,7 +127,7 @@ describe('TemplateFormDrawer', () => {
     renderDrawer();
     expect(screen.getByLabelText('Subject')).toHaveValue('Inspection at {{propertyAddress}}');
     expect(screen.getByLabelText('Body')).toHaveValue(
-      'Hello {{tenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.',
+      'Hello {{rentalTenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.',
     );
   });
 
@@ -140,7 +140,7 @@ describe('TemplateFormDrawer', () => {
   it('shows required variables in info bar', () => {
     renderDrawer();
     expect(screen.getByText('Required Variables')).toBeInTheDocument();
-    expect(screen.getByText('{{tenantName}}, {{propertyAddress}}, {{scheduledDate}}, {{timeSlot}}')).toBeInTheDocument();
+    expect(screen.getByText('{{rentalTenantName}}, {{propertyAddress}}, {{scheduledDate}}, {{timeSlot}}')).toBeInTheDocument();
   });
 
   it('validates on save and shows errors for disallowed variables', async () => {
@@ -149,7 +149,7 @@ describe('TemplateFormDrawer', () => {
 
     const bodyInput = screen.getByLabelText('Body');
     fireEvent.change(bodyInput, {
-      target: { value: 'Hello {{bad_var}} {{tenantName}} {{scheduledDate}}' },
+      target: { value: 'Hello {{bad_var}} {{rentalTenantName}} {{scheduledDate}}' },
     });
 
     await user.click(screen.getByText('Save'));
@@ -179,7 +179,7 @@ describe('TemplateFormDrawer', () => {
 
   it('sends the override tenantId when editing an agency override', async () => {
     const user = userEvent.setup();
-    renderDrawer({ ...MOCK_TEMPLATE, tenantId: 'agency-1', tenantName: 'Acme Realty' });
+    renderDrawer({ ...MOCK_TEMPLATE, tenantId: 'agency-1', rentalTenantName: 'Acme Realty' });
 
     await user.click(screen.getByText('Save'));
 

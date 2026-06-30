@@ -15,7 +15,7 @@ function makeServiceType(
     code: 'ROUTINE',
     name: 'Routine Inspection',
     flowType: 'ROUTINE',
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -60,14 +60,14 @@ describe('CreateServiceTypeUseCase', () => {
       code: 'INGOING',
       name: 'Ingoing Inspection',
       flowType: 'INGOING',
-      requiresTenantConfirmation: false,
+      requiresRentalTenantConfirmation: false,
       actor: makeActor(),
     });
 
     expect(result.code).toBe('INGOING');
     expect(result.name).toBe('Ingoing Inspection');
     expect(result.flowType).toBe('INGOING');
-    expect(result.requiresTenantConfirmation).toBe(false);
+    expect(result.requiresRentalTenantConfirmation).toBe(false);
     expect(result.status).toBe('ACTIVE');
     expect(result.id).toBeDefined();
     expect(serviceTypeRepo.save).toHaveBeenCalled();
@@ -76,34 +76,34 @@ describe('CreateServiceTypeUseCase', () => {
     );
   });
 
-  it('should require explicit requiresTenantConfirmation — schema rejects omitted value', async () => {
+  it('should require explicit requiresRentalTenantConfirmation — schema rejects omitted value', async () => {
     const { createServiceTypeSchema } = await import('@properfy/shared');
     const result = createServiceTypeSchema.safeParse({
       code: 'OUTGOING',
       name: 'Outgoing Inspection',
       flowType: 'OUTGOING',
-      // requiresTenantConfirmation intentionally omitted
+      // requiresRentalTenantConfirmation intentionally omitted
     });
     expect(result.success).toBe(false);
     if (!result.success) {
       const paths = result.error.issues.map((i) => i.path.join('.'));
-      expect(paths).toContain('requiresTenantConfirmation');
+      expect(paths).toContain('requiresRentalTenantConfirmation');
     }
   });
 
-  it('should accept explicit requiresTenantConfirmation=false', async () => {
+  it('should accept explicit requiresRentalTenantConfirmation=false', async () => {
     vi.mocked(serviceTypeRepo.findByCode).mockResolvedValue(null);
-    vi.mocked(serviceTypeRepo.save).mockResolvedValue(makeServiceType({ requiresTenantConfirmation: false }));
+    vi.mocked(serviceTypeRepo.save).mockResolvedValue(makeServiceType({ requiresRentalTenantConfirmation: false }));
 
     const result = await useCase.execute({
       code: 'OUTGOING',
       name: 'Outgoing Inspection',
       flowType: 'OUTGOING',
-      requiresTenantConfirmation: false,
+      requiresRentalTenantConfirmation: false,
       actor: makeActor(),
     });
 
-    expect(result.requiresTenantConfirmation).toBe(false);
+    expect(result.requiresRentalTenantConfirmation).toBe(false);
   });
 
   it('should reject non-AM roles', async () => {

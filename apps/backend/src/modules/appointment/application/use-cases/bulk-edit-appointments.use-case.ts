@@ -233,7 +233,7 @@ export class BulkEditAppointmentsUseCase {
             snapshotName: pmContact.displayName,
             snapshotEmail: pmContact.primaryEmail,
             snapshotPhone: pmContact.primaryPhone,
-            tenantName: pmContact.displayName,
+            rentalTenantName: pmContact.displayName,
             primaryEmail: pmContact.primaryEmail,
             secondaryEmail: null,
             primaryPhone: pmContact.primaryPhone,

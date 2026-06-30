@@ -70,7 +70,7 @@ async function seedAppointmentNoActiveCycle(prisma: PrismaClient) {
     data: {
       code: `C2-ST-${stSuffix}`,
       name: `C2 Routine ${stSuffix}`, flow_type: 'ROUTINE',
-      requires_tenant_confirmation: true, status: 'ACTIVE',
+      requires_rental_tenant_confirmation: true, status: 'ACTIVE',
     },
   });
   const user = await prisma.user.create({
@@ -86,13 +86,13 @@ async function seedAppointmentNoActiveCycle(prisma: PrismaClient) {
       service_type_id: serviceType.id, status: 'SCHEDULED',
       scheduled_date: new Date('2026-07-01'), time_slot: 'MORNING',
       price_amount: '100.00', payout_amount: '80.00',
-      pricing_rule_snapshot_json: {}, tenant_confirmation_status: 'PENDING',
+      pricing_rule_snapshot_json: {}, rental_tenant_confirmation_status: 'PENDING',
       created_by_user_id: user.id,
     },
   });
 
   // Create two tokens for the two concurrent callers
-  const tokenA = await prisma.tenantPortalToken.create({
+  const tokenA = await prisma.rentalTenantPortalToken.create({
     data: {
       appointment_id: appointment.id,
       token_hash: `hash-A-${Math.random().toString(36).slice(2)}`,
@@ -101,7 +101,7 @@ async function seedAppointmentNoActiveCycle(prisma: PrismaClient) {
       raw_token_encrypted: 'enc-A',
     },
   });
-  const tokenB = await prisma.tenantPortalToken.create({
+  const tokenB = await prisma.rentalTenantPortalToken.create({
     data: {
       appointment_id: appointment.id,
       token_hash: `hash-B-${Math.random().toString(36).slice(2)}`,

@@ -4,8 +4,8 @@ import { ServiceTypeTable } from './ServiceTypeTable';
 import type { ServiceType } from '../types';
 
 const MOCK_DATA: ServiceType[] = [
-  { id: 'st-01', code: 'ROUTINE_IN', name: 'Routine Ingoing', flowType: 'INGOING', requiresTenantConfirmation: true, status: 'ACTIVE', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z' },
-  { id: 'st-02', code: 'OUTGOING', name: 'Outgoing Inspection', flowType: 'OUTGOING', requiresTenantConfirmation: false, status: 'INACTIVE', createdAt: '2026-03-02T10:00:00Z', updatedAt: '2026-03-02T10:00:00Z' },
+  { id: 'st-01', code: 'ROUTINE_IN', name: 'Routine Ingoing', flowType: 'INGOING', requiresRentalTenantConfirmation: true, status: 'ACTIVE', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z' },
+  { id: 'st-02', code: 'OUTGOING', name: 'Outgoing Inspection', flowType: 'OUTGOING', requiresRentalTenantConfirmation: false, status: 'INACTIVE', createdAt: '2026-03-02T10:00:00Z', updatedAt: '2026-03-02T10:00:00Z' },
 ];
 
 describe('ServiceTypeTable', () => {

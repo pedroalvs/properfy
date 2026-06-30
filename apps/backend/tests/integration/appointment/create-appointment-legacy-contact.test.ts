@@ -48,7 +48,7 @@ function makeAppointmentResult(overrides: Record<string, unknown> = {}) {
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -96,7 +96,7 @@ describe('POST /v1/appointments — legacy contact field backward compat (T015)'
       contacts: [{
         id: 'legacy-junction-1',
         contactId: null,
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'Legacy Tenant',
         snapshotEmail: 'legacy@example.com',
@@ -110,7 +110,7 @@ describe('POST /v1/appointments — legacy contact field backward compat (T015)'
       .send({
         ...basePayload,
         contact: {
-          tenantName: 'Legacy Tenant',
+          rentalTenantName: 'Legacy Tenant',
           primaryEmail: 'legacy@example.com',
           primaryPhone: '+61400000000',
         },
@@ -122,18 +122,18 @@ describe('POST /v1/appointments — legacy contact field backward compat (T015)'
     expect(res.body.data.contacts[0].snapshotName).toBe('Legacy Tenant');
     expect(mockCreateAppointmentExecute).toHaveBeenCalledWith(
       expect.objectContaining({
-        contact: expect.objectContaining({ tenantName: 'Legacy Tenant' }),
+        contact: expect.objectContaining({ rentalTenantName: 'Legacy Tenant' }),
       }),
     );
   });
 
-  it('201: legacy contact with only tenantName and primaryPhone (no email) → still accepted', async () => {
+  it('201: legacy contact with only rentalTenantName and primaryPhone (no email) → still accepted', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockCreateAppointmentExecute.mockResolvedValue(makeAppointmentResult({
       contacts: [{
         id: 'legacy-junction-2',
         contactId: null,
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'Phone Only Tenant',
         snapshotEmail: null,
@@ -147,7 +147,7 @@ describe('POST /v1/appointments — legacy contact field backward compat (T015)'
       .send({
         ...basePayload,
         contact: {
-          tenantName: 'Phone Only Tenant',
+          rentalTenantName: 'Phone Only Tenant',
           primaryPhone: '+61411111111',
         },
       });
@@ -164,8 +164,8 @@ describe('POST /v1/appointments — legacy contact field backward compat (T015)'
       .set('Authorization', 'Bearer token')
       .send({
         ...basePayload,
-        contact: { tenantName: 'Legacy', primaryEmail: 'legacy@example.com' },
-        contacts: [{ contactId: 'f5555555-0000-4000-8000-000000000001', role: 'TENANT', isPrimary: true }],
+        contact: { rentalTenantName: 'Legacy', primaryEmail: 'legacy@example.com' },
+        contacts: [{ contactId: 'f5555555-0000-4000-8000-000000000001', role: 'RENTAL_TENANT', isPrimary: true }],
       });
 
     expect(res.status).toBe(400);

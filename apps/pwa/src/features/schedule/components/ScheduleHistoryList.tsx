@@ -9,7 +9,7 @@ interface HistoryItem {
   timeSlot: string;
   serviceTypeId: string;
   propertyId: string;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
   keyRequired: boolean;
   meetingLocation: string | null;
   executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED';

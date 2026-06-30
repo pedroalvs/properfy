@@ -7,14 +7,14 @@ import type { ConfirmationCycleService } from '../services/confirmation-cycle.se
 
 export interface ForceManualConfirmationInput {
   appointmentId: string;
-  tenantConfirmationStatus: 'CONFIRMED';
+  rentalTenantConfirmationStatus: 'CONFIRMED';
   reason: string;
   actor: AuthContext;
 }
 
 export interface ForceManualConfirmationOutput {
   id: string;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
 }
 
 export class ForceManualTenantConfirmationUseCase {
@@ -26,7 +26,7 @@ export class ForceManualTenantConfirmationUseCase {
   ) {}
 
   async execute(input: ForceManualConfirmationInput): Promise<ForceManualConfirmationOutput> {
-    const { appointmentId, tenantConfirmationStatus, reason, actor } = input;
+    const { appointmentId, rentalTenantConfirmationStatus, reason, actor } = input;
 
     // 1. RBAC: AM/OP allowed, CL_USER with force_confirmation permission
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_USER'], { action: 'appointment.force_confirmation', entityType: 'Appointment' });
@@ -59,12 +59,12 @@ export class ForceManualTenantConfirmationUseCase {
       } catch {
         // No active cycle (pre-feature appointment) — fall back to direct denorm write
         await this.appointmentRepo.update(appointmentId, result.appointment.tenantId, {
-          tenantConfirmationStatus,
+          rentalTenantConfirmationStatus,
         });
       }
     } else {
       await this.appointmentRepo.update(appointmentId, result.appointment.tenantId, {
-        tenantConfirmationStatus,
+        rentalTenantConfirmationStatus,
       });
     }
 
@@ -76,14 +76,14 @@ export class ForceManualTenantConfirmationUseCase {
       entityType: 'Appointment',
       entityId: appointmentId,
       tenantId: result.appointment.tenantId,
-      before: { tenantConfirmationStatus: result.appointment.tenantConfirmationStatus },
-      after: { tenantConfirmationStatus },
+      before: { rentalTenantConfirmationStatus: result.appointment.rentalTenantConfirmationStatus },
+      after: { rentalTenantConfirmationStatus },
       reason,
     });
 
     return {
       id: appointmentId,
-      tenantConfirmationStatus,
+      rentalTenantConfirmationStatus,
     };
   }
 }

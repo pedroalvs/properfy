@@ -72,7 +72,7 @@ beforeAll(async () => {
     data: {
       code: `Y-ST-${Math.random().toString(36).slice(2, 6)}`,
       name: 'Y Inspection', flow_type: 'ROUTINE',
-      requires_tenant_confirmation: false, status: 'ACTIVE',
+      requires_rental_tenant_confirmation: false, status: 'ACTIVE',
     },
   });
   const apptY = await harness.prisma.appointment.create({
@@ -83,7 +83,7 @@ beforeAll(async () => {
       time_slot: 'MORNING',
       price_amount: '100.00', payout_amount: '80.00',
       pricing_rule_snapshot_json: {},
-      tenant_confirmation_status: 'CONFIRMED',
+      rental_tenant_confirmation_status: 'CONFIRMED',
       created_by_user_id: userY.id,
     },
   });
@@ -121,7 +121,7 @@ beforeAll(async () => {
       time_slot: 'MORNING',
       price_amount: '100.00', payout_amount: '80.00',
       pricing_rule_snapshot_json: {},
-      tenant_confirmation_status: 'CONFIRMED',
+      rental_tenant_confirmation_status: 'CONFIRMED',
       created_by_user_id: userZ.id,
     },
   });
@@ -155,7 +155,7 @@ beforeAll(async () => {
   });
   const cCross = await harness.prisma.contact.create({
     data: {
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       display_name: 'Cross-Tenant-Contact',
       primary_email: '024-cross@test.local',
       additional_channels_json: [], is_active: true,
@@ -163,14 +163,14 @@ beforeAll(async () => {
   });
 
   // --- appointment_contacts junction rows ---
-  // `tenant_name` is mandatory on the legacy junction model; populate it
+  // `rental_tenant_name` is mandatory on the legacy junction model; populate it
   // from the contact's display_name (matches 023 snapshot pattern).
   await harness.prisma.appointmentContact.create({
     data: {
       appointment: { connect: { id: apptY.id } },
       contact: { connect: { id: cY.id } },
-      role: 'TENANT', is_primary: true,
-      tenant_name: 'Y-Contact',
+      role: 'RENTAL_TENANT', is_primary: true,
+      rental_tenant_name: 'Y-Contact',
       snapshot_name: 'Y-Contact',
       snapshot_email: '024-y-contact@test.local',
     },
@@ -179,8 +179,8 @@ beforeAll(async () => {
     data: {
       appointment: { connect: { id: apptZ.id } },
       contact: { connect: { id: cZ.id } },
-      role: 'TENANT', is_primary: true,
-      tenant_name: 'Z-Contact',
+      role: 'RENTAL_TENANT', is_primary: true,
+      rental_tenant_name: 'Z-Contact',
       snapshot_name: 'Z-Contact',
       snapshot_email: '024-z-contact@test.local',
     },
@@ -191,7 +191,7 @@ beforeAll(async () => {
       appointment: { connect: { id: apptY.id } },
       contact: { connect: { id: cCross.id } },
       role: 'PROPERTY_MANAGER', is_primary: false,
-      tenant_name: 'Cross-Tenant-Contact',
+      rental_tenant_name: 'Cross-Tenant-Contact',
       snapshot_name: 'Cross-Tenant-Contact',
       snapshot_email: '024-cross@test.local',
     },
@@ -201,7 +201,7 @@ beforeAll(async () => {
       appointment: { connect: { id: apptZ.id } },
       contact: { connect: { id: cCross.id } },
       role: 'PROPERTY_MANAGER', is_primary: false,
-      tenant_name: 'Cross-Tenant-Contact',
+      rental_tenant_name: 'Cross-Tenant-Contact',
       snapshot_name: 'Cross-Tenant-Contact',
       snapshot_email: '024-cross@test.local',
     },

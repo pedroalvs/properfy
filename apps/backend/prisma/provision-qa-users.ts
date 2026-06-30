@@ -213,7 +213,7 @@ async function provisionDefaultTemplates(): Promise<void> {
       channel: 'EMAIL',
       subject: 'Your property inspection portal',
       body:
-        'Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on ' +
+        'Dear {{rentalTenantName}}, confirm, reschedule or update contact details for your inspection on ' +
         '{{scheduledDate}} using this secure link: {{confirmationLink}}.',
     },
     {

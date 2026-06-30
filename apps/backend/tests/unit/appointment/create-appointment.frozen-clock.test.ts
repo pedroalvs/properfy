@@ -69,7 +69,7 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
     code: 'ROUTINE',
     name: 'Routine Inspection',
     flowType: 'ROUTINE',
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -128,7 +128,7 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
     propertyId: 'property-1',
     serviceTypeId: 'svc-type-1',
     timeSlot: '09:00-10:00',
-    contact: { tenantName: 'Test', primaryEmail: 't@example.com' },
+    contact: { rentalTenantName: 'Test', primaryEmail: 't@example.com' },
     keyRequired: false,
   };
 

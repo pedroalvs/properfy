@@ -26,7 +26,7 @@ const groupJoinActivity = {
     serviceGroupId: 'sg-1',
     scheduledDate: '2026-06-01',
     timeSlot: '09:00-12:00',
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
   },
   ipAddress: null,
   userAgent: null,

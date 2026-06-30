@@ -44,10 +44,10 @@ describe('HtmlToTextService', () => {
 
   it('should NOT uppercase heading text (preserves Handlebars {{vars}})', async () => {
     const svc = await loadImpl();
-    const result = svc.convert('<h1>{{tenantName}}</h1>');
+    const result = svc.convert('<h1>{{rentalTenantName}}</h1>');
     // html-to-text default uppercases headings — this breaks Handlebars (case-sensitive)
     expect(result).not.toContain('{{TENANTNAME}}');
-    expect(result).toContain('{{tenantName}}');
+    expect(result).toContain('{{rentalTenantName}}');
   });
 
   it('should not uppercase plain heading text', async () => {

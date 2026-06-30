@@ -1,5 +1,5 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { AppointmentStatus, TenantConfirmationStatus, CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
+import type { AppointmentStatus, RentalTenantConfirmationStatus, CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
 import { TRANSITION_RULES } from './appointment-state-machine';
 
 export interface AppointmentProps {
@@ -17,14 +17,14 @@ export interface AppointmentProps {
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
-  tenantConfirmationStatus: TenantConfirmationStatus;
+  rentalTenantConfirmationStatus: RentalTenantConfirmationStatus;
   activeConfirmationCycleId?: string | null;
   priceAmount: number;
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
-  tenantNote?: string | null;
-  /** Operational free-text note set on direct create/edit (distinct from tenant-portal `notes`/`tenantNote`). */
+  rentalTenantNote?: string | null;
+  /** Operational free-text note set on direct create/edit (distinct from rental-tenant-portal `notes`/`rentalTenantNote`). */
   observation?: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
@@ -53,13 +53,13 @@ export class AppointmentEntity extends BaseEntity {
   readonly keyRequired: boolean;
   readonly meetingLocation: string | null;
   readonly keyLocation: string | null;
-  tenantConfirmationStatus: TenantConfirmationStatus;
+  rentalTenantConfirmationStatus: RentalTenantConfirmationStatus;
   readonly activeConfirmationCycleId: string | null;
   readonly priceAmount: number;
   readonly payoutAmount: number;
   readonly pricingRuleSnapshotJson: Record<string, unknown>;
   readonly notes: string | null;
-  readonly tenantNote: string | null;
+  readonly rentalTenantNote: string | null;
   readonly observation: string | null;
   readonly customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
@@ -86,13 +86,13 @@ export class AppointmentEntity extends BaseEntity {
     this.keyRequired = props.keyRequired;
     this.meetingLocation = props.meetingLocation;
     this.keyLocation = props.keyLocation;
-    this.tenantConfirmationStatus = props.tenantConfirmationStatus;
+    this.rentalTenantConfirmationStatus = props.rentalTenantConfirmationStatus;
     this.activeConfirmationCycleId = props.activeConfirmationCycleId ?? null;
     this.priceAmount = props.priceAmount;
     this.payoutAmount = props.payoutAmount;
     this.pricingRuleSnapshotJson = props.pricingRuleSnapshotJson;
     this.notes = props.notes;
-    this.tenantNote = props.tenantNote ?? null;
+    this.rentalTenantNote = props.rentalTenantNote ?? null;
     this.observation = props.observation ?? null;
     this.customFieldsJson = props.customFieldsJson;
     this.reason = props.reason;

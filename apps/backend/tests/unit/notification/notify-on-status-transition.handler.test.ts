@@ -23,7 +23,7 @@ function makeAppointment(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -48,7 +48,7 @@ function makeContact(
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -358,7 +358,7 @@ describe('NotifyOnStatusTransitionHandler', () => {
     expect(metricsCollector.incrementNotificationHandlerErrorCount).not.toHaveBeenCalled();
   });
 
-  it('passes payloadJson with tenantName and scheduledDate', async () => {
+  it('passes payloadJson with rentalTenantName and scheduledDate', async () => {
     const handler = makeHandler();
     await handler.execute({
       appointmentId: 'appt-1',
@@ -371,7 +371,7 @@ describe('NotifyOnStatusTransitionHandler', () => {
         tenantId: 'tenant-1',
         appointmentId: 'appt-1',
         payloadJson: expect.objectContaining({
-          tenantName: 'John Smith',
+          rentalTenantName: 'John Smith',
           scheduledDate: '2026-04-01',
         }),
       }),

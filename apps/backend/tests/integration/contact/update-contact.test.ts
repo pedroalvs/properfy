@@ -31,7 +31,7 @@ function makeContact(overrides: Record<string, unknown> = {}) {
   return {
     id: CONTACT_ID,
     tenantId: TENANT_A,
-    type: 'TENANT',
+    type: 'RENTAL_TENANT',
     displayName: 'Alice Smith',
     company: null,
     primaryEmail: 'alice@example.com',

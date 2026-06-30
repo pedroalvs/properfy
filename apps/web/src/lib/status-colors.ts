@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, type InspectorInvoiceStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, type InspectorInvoiceStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -44,7 +44,7 @@ export function getStatusStyle(status: AppointmentStatus): StatusStyle {
 }
 
 export const CONTACT_TYPE_MAP: Record<ContactType, StatusStyle> = {
-  [ContactType.TENANT]:           { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Tenant' },
+  [ContactType.RENTAL_TENANT]:           { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Tenant' },
   [ContactType.PROPERTY_MANAGER]: { bg: 'var(--color-type-commercial)',  text: 'var(--color-text-primary)', label: 'Property Manager' },
   [ContactType.HOUSEKEEPER]:      { bg: 'var(--color-type-rural)',       text: 'var(--color-text-primary)', label: 'Housekeeper' },
   [ContactType.BROKER]:           { bg: 'var(--color-type-industrial)',  text: 'var(--color-text-primary)', label: 'Broker' },
@@ -107,11 +107,11 @@ export const FINANCIAL_ENTRY_STATUS_MAP: Record<FinancialEntryStatus, StatusStyl
   [FinancialEntryStatus.VOIDED]:    { bg: 'var(--color-status-rejected)',      text: 'var(--color-text-primary)', label: 'Voided' },
 };
 
-export const TENANT_CONFIRMATION_STATUS_MAP: Record<TenantConfirmationStatus, StatusStyle> = {
-  [TenantConfirmationStatus.PENDING]:     { bg: 'var(--color-confirmation-pending)',     text: 'var(--color-text-primary)', label: 'Pending' },
-  [TenantConfirmationStatus.CONFIRMED]:   { bg: 'var(--color-confirmation-confirmed)',   text: 'var(--color-text-primary)', label: 'Confirmed' },
-  [TenantConfirmationStatus.UNAVAILABLE]: { bg: 'var(--color-confirmation-unavailable)', text: 'var(--color-text-primary)', label: 'Unavailable' },
-  [TenantConfirmationStatus.NO_RESPONSE]: { bg: 'var(--color-confirmation-no-response)', text: 'var(--color-text-primary)', label: 'No Response' },
+export const RENTAL_TENANT_CONFIRMATION_STATUS_MAP: Record<RentalTenantConfirmationStatus, StatusStyle> = {
+  [RentalTenantConfirmationStatus.PENDING]:     { bg: 'var(--color-confirmation-pending)',     text: 'var(--color-text-primary)', label: 'Pending' },
+  [RentalTenantConfirmationStatus.CONFIRMED]:   { bg: 'var(--color-confirmation-confirmed)',   text: 'var(--color-text-primary)', label: 'Confirmed' },
+  [RentalTenantConfirmationStatus.UNAVAILABLE]: { bg: 'var(--color-confirmation-unavailable)', text: 'var(--color-text-primary)', label: 'Unavailable' },
+  [RentalTenantConfirmationStatus.NO_RESPONSE]: { bg: 'var(--color-confirmation-no-response)', text: 'var(--color-text-primary)', label: 'No Response' },
 };
 
 export const GEOCODING_STATUS_MAP: Record<GeocodingStatus, StatusStyle> = {

@@ -39,7 +39,7 @@ function makeContact(overrides: Record<string, unknown> = {}) {
   return {
     id: CONTACT_ID,
     tenantId: TENANT_A,
-    type: 'TENANT',
+    type: 'RENTAL_TENANT',
     displayName: 'Deactivation Target',
     company: null,
     primaryEmail: 'deact@example.com',

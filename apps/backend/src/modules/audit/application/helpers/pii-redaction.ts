@@ -38,12 +38,12 @@ const PII_REGISTRY: PiiRule[] = [
   { actionPrefix: 'portal.', fieldPath: 'name' },
 
   // Appointment contact updates
-  { actionPrefix: 'appointment.', fieldPath: 'contact.tenantName' },
+  { actionPrefix: 'appointment.', fieldPath: 'contact.rentalTenantName' },
   { actionPrefix: 'appointment.', fieldPath: 'contact.primaryEmail' },
   { actionPrefix: 'appointment.', fieldPath: 'contact.primaryPhone' },
-  { actionPrefix: 'appointment.', fieldPath: 'tenantName' },
-  { actionPrefix: 'appointment.', fieldPath: 'tenantEmail' },
-  { actionPrefix: 'appointment.', fieldPath: 'tenantPhone' },
+  { actionPrefix: 'appointment.', fieldPath: 'rentalTenantName' },
+  { actionPrefix: 'appointment.', fieldPath: 'rentalTenantEmail' },
+  { actionPrefix: 'appointment.', fieldPath: 'rentalTenantPhone' },
 ];
 
 /**

@@ -125,75 +125,75 @@ export interface TemplateVariableSpec {
 
 export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableSpec> = {
   INSPECTION_NOTICE: {
-    required: ['tenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
+    required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'confirmationLink', 'rescheduleLink'],
   },
   INSPECTION_NOTICE_SMS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'confirmationLink', 'appointmentCode'],
   },
   REMINDER_7_DAYS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone'],
   },
   REMINDER_5_DAYS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone'],
   },
   REMINDER_3_DAYS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone'],
   },
   REMINDER_7_DAYS_SMS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
   },
   REMINDER_5_DAYS_SMS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
   },
   REMINDER_3_DAYS_SMS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
   },
   PROPERTY_MANAGER_ESCALATION: {
-    required: ['tenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
+    required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['branchName', 'appointmentCode', 'agencyName'],
   },
   TENANT_SMS_ALERT: {
-    required: ['tenantName', 'propertyAddress', 'scheduledDate'],
+    required: ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
     optional: ['confirmationLink', 'appointmentCode'],
   },
   INSPECTION_CONFIRMED: {
-    required: ['tenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
+    required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode'],
   },
   INSPECTION_CONFIRMED_SMS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
   },
   INSPECTION_RESCHEDULED: {
-    required: ['tenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
+    required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode'],
   },
   INSPECTION_RESCHEDULED_SMS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
   },
   INSPECTION_CANCELLED: {
-    required: ['tenantName', 'propertyAddress', 'scheduledDate'],
+    required: ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
     optional: ['agencyName', 'agencyPhone', 'appointmentCode'],
   },
   INSPECTION_CANCELLED_SMS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'appointmentCode'],
   },
   INSPECTION_UNAVAILABILITY_REPORTED: {
-    required: ['tenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
+    required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
     optional: ['agencyName'],
   },
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: {
-    required: ['tenantName', 'scheduledDate'],
+    required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'appointmentCode'],
   },
   REPORT_READY: {
@@ -205,7 +205,7 @@ export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableS
     optional: [],
   },
   TENANT_PORTAL_LINK: {
-    required: ['tenantName', 'scheduledDate', 'confirmationLink'],
+    required: ['rentalTenantName', 'scheduledDate', 'confirmationLink'],
     optional: ['rescheduleLink'],
   },
 };
@@ -215,7 +215,7 @@ export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableS
 // ---------------------------------------------------------------------------
 
 export const ALLOWED_VARIABLES = [
-  'tenantName',
+  'rentalTenantName',
   'propertyAddress',
   'scheduledDate',
   'timeSlot',
@@ -265,7 +265,7 @@ export function extractImagePlaceholderKeys(body: string): string[] {
 }
 
 export const SAMPLE_DATA: Record<AllowedVariable, string> = {
-  tenantName: 'John Smith',
+  rentalTenantName: 'John Smith',
   propertyAddress: '123 Main St, Sydney NSW 2000',
   scheduledDate: '2026-04-15',
   timeSlot: '09:00 - 12:00',

@@ -6,7 +6,7 @@ export interface ServiceTypeProps {
   code: string;
   name: string;
   flowType: ServiceTypeFlowType;
-  requiresTenantConfirmation: boolean;
+  requiresRentalTenantConfirmation: boolean;
   status: ServiceTypeStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -16,7 +16,7 @@ export class ServiceTypeEntity extends BaseEntity {
   readonly code: string;
   readonly name: string;
   readonly flowType: ServiceTypeFlowType;
-  readonly requiresTenantConfirmation: boolean;
+  readonly requiresRentalTenantConfirmation: boolean;
   status: ServiceTypeStatus;
 
   constructor(props: ServiceTypeProps) {
@@ -24,7 +24,7 @@ export class ServiceTypeEntity extends BaseEntity {
     this.code = props.code;
     this.name = props.name;
     this.flowType = props.flowType;
-    this.requiresTenantConfirmation = props.requiresTenantConfirmation;
+    this.requiresRentalTenantConfirmation = props.requiresRentalTenantConfirmation;
     this.status = props.status;
   }
 

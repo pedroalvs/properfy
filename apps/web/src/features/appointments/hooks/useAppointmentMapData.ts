@@ -21,7 +21,7 @@ export interface AppointmentMapItem {
   contactPhone?: string | null;
   contactEmail?: string | null;
   /** Whether the tenant portal has been confirmed; drives the confirmation icons. */
-  tenantConfirmationStatus?: string;
+  rentalTenantConfirmationStatus?: string;
   /** Optional service type label surfaced in the detail panel header. */
   serviceTypeName?: string;
   /** Service type id — used to validate homogeneous selection before group creation. */
@@ -30,9 +30,9 @@ export interface AppointmentMapItem {
   rejectionReasonCode?: string | null;
   reason?: string | null;
   /** True when the tenant left a note via the portal. */
-  hasTenantNote?: boolean;
+  hasRentalTenantNote?: boolean;
   /** Tenant note text — shown as tooltip on the note icon in the bulk modal. */
-  tenantNote?: string | null;
+  rentalTenantNote?: string | null;
   /** Optional service group id used to gate the "Add to group" action. */
   serviceGroupId?: string | null;
   /** Human-friendly service group code (String(group_number)); null/absent when ungrouped. */

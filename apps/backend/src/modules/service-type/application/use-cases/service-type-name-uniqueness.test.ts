@@ -12,7 +12,7 @@ function makeEntity(overrides: Partial<ConstructorParameters<typeof ServiceTypeE
     code: 'EXISTING',
     name: 'Routine Inspection',
     flowType: 'STANDARD' as any,
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
     status: 'ACTIVE' as any,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -37,7 +37,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
         code: 'NEW',
         name: 'Routine Inspection',
         flowType: 'STANDARD' as any,
-        requiresTenantConfirmation: true,
+        requiresRentalTenantConfirmation: true,
         actor: AM_ACTOR,
       }),
     ).rejects.toThrow(ServiceTypeNameConflictError);
@@ -59,7 +59,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
         code: 'NEW',
         name: 'routine inspection',
         flowType: 'STANDARD' as any,
-        requiresTenantConfirmation: true,
+        requiresRentalTenantConfirmation: true,
         actor: AM_ACTOR,
       }),
     ).rejects.toThrow(ServiceTypeNameConflictError);
@@ -79,7 +79,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
         code: 'EXISTING',
         name: 'New Name',
         flowType: 'STANDARD' as any,
-        requiresTenantConfirmation: true,
+        requiresRentalTenantConfirmation: true,
         actor: AM_ACTOR,
       }),
     ).rejects.toThrow(ServiceTypeCodeConflictError);
@@ -100,7 +100,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
       code: 'NEW',
       name: 'Brand New Type',
       flowType: 'STANDARD' as any,
-      requiresTenantConfirmation: true,
+      requiresRentalTenantConfirmation: true,
       actor: AM_ACTOR,
     });
 
@@ -165,7 +165,7 @@ describe('UpdateServiceTypeUseCase — name uniqueness', () => {
 
     await useCase.execute({
       serviceTypeId: 'st-1',
-      data: { requiresTenantConfirmation: false },
+      data: { requiresRentalTenantConfirmation: false },
       actor: AM_ACTOR,
     });
 

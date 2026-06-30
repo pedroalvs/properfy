@@ -1,6 +1,6 @@
 import type { AuthContext, SendGroupPortalLinksResultItem } from '@properfy/shared';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
-import type { GeneratePortalTokenUseCase } from '../../../tenant-portal/application/use-cases/generate-portal-token.use-case';
+import type { GeneratePortalTokenUseCase } from '../../../rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';

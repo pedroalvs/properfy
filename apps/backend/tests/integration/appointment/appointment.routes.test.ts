@@ -40,7 +40,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: { jwtService: { verify: mockJwtVerify } },
     report: { jwtService: { verify: mockJwtVerify } },
@@ -72,7 +72,7 @@ const appointmentResult = {
   keyRequired: false,
   meetingLocation: null,
   keyLocation: null,
-  tenantConfirmationStatus: 'PENDING',
+  rentalTenantConfirmationStatus: 'PENDING',
   priceAmount: 150,
   payoutAmount: 100,
   pricingRuleSnapshotJson: {},
@@ -88,7 +88,7 @@ const appointmentResult = {
   contact: {
     id: 'contact-uuid-1111-1111-1111-111111111111',
     appointmentId: APPOINTMENT_ID,
-    tenantName: 'John Doe',
+    rentalTenantName: 'John Doe',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: null,
@@ -130,7 +130,7 @@ const validCreatePayload = {
   scheduledDate: '2027-01-15',
   timeSlot: '09:00-10:00',
   contact: {
-    tenantName: 'John Doe',
+    rentalTenantName: 'John Doe',
     primaryEmail: 'john@example.com',
   },
   keyRequired: false,
@@ -162,7 +162,7 @@ describe('POST /v1/appointments', () => {
         serviceTypeId: SERVICE_TYPE_ID,
         scheduledDate: '2026-04-01',
         timeSlot: '09:00-10:00',
-        contact: { tenantName: 'John Doe' },
+        contact: { rentalTenantName: 'John Doe' },
       });
 
     expect(res.status).toBe(400);
@@ -368,17 +368,17 @@ describe('POST /v1/appointments/:appointmentId/force-confirmation', () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockForceManualConfirmationExecute.mockResolvedValueOnce({
       id: APPOINTMENT_ID,
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
     });
 
     const res = await supertest(app.server)
       .post(`/v1/appointments/${APPOINTMENT_ID}/force-confirmation`)
       .set('Authorization', 'Bearer valid-token')
-      .send({ tenantConfirmationStatus: 'CONFIRMED', reason: 'Operator confirmed manually' });
+      .send({ rentalTenantConfirmationStatus: 'CONFIRMED', reason: 'Operator confirmed manually' });
 
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(APPOINTMENT_ID);
-    expect(res.body.data.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(res.body.data.rentalTenantConfirmationStatus).toBe('CONFIRMED');
   });
 
   it('should return 400 with missing reason', async () => {
@@ -387,19 +387,19 @@ describe('POST /v1/appointments/:appointmentId/force-confirmation', () => {
     const res = await supertest(app.server)
       .post(`/v1/appointments/${APPOINTMENT_ID}/force-confirmation`)
       .set('Authorization', 'Bearer valid-token')
-      .send({ tenantConfirmationStatus: 'CONFIRMED' });
+      .send({ rentalTenantConfirmationStatus: 'CONFIRMED' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('should return 400 with invalid tenantConfirmationStatus (not CONFIRMED)', async () => {
+  it('should return 400 with invalid rentalTenantConfirmationStatus (not CONFIRMED)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
       .post(`/v1/appointments/${APPOINTMENT_ID}/force-confirmation`)
       .set('Authorization', 'Bearer valid-token')
-      .send({ tenantConfirmationStatus: 'PENDING', reason: 'Some reason' });
+      .send({ rentalTenantConfirmationStatus: 'PENDING', reason: 'Some reason' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
