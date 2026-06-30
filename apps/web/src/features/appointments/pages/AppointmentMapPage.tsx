@@ -285,11 +285,17 @@ export function AppointmentMapPage() {
   const {
     data: groupApptResponse,
     isFetching: groupApptFetching,
+    isError: groupApptError,
+    refetch: refetchGroupAppointments,
   } = usePaginatedQuery<AppointmentMapItem>(
     ['appointments-by-group', drilledGroupId],
     '/v1/appointments',
     groupApptParams,
-    { enabled: !!drilledGroupId, placeholderData: keepPreviousData },
+    // No keepPreviousData: each group must load fresh so the once-per-group
+    // camera fit never marks a new group fitted using the previous group's
+    // stale bounds (and so a failed fetch yields no rows → error state, not
+    // a misleading "no appointments").
+    { enabled: !!drilledGroupId },
   );
   const groupAppointments = useMemo(() => groupApptResponse?.data ?? [], [groupApptResponse]);
 
@@ -965,6 +971,8 @@ export function AppointmentMapPage() {
         appointments={groupAppointments}
         open={mode === 'groups' && !!selectedGroupItem}
         isLoading={groupApptFetching}
+        isError={groupApptError}
+        onRetry={() => { void refetchGroupAppointments(); }}
         title={selectedGroupItem?.name ?? 'Group appointments'}
         emptyText="This group has no appointments."
         resizeStorageKey="appointments-map.group-modal.width"

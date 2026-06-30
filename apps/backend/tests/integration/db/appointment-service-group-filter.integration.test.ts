@@ -23,7 +23,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { AuthContext } from '@properfy/shared';
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { ListAppointmentsUseCase } from '../../../src/modules/appointment/application/use-cases/list-appointments.use-case';
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';

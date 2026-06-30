@@ -241,6 +241,15 @@ describe('MapBulkActionModal', () => {
     expect(screen.queryByText(/No appointments inside the lasso/)).toBeNull();
   });
 
+  it('shows a retryable error state (over loading/empty) when isError and no rows', () => {
+    const onRetry = vi.fn();
+    renderModal({ appointments: [], isError: true, isLoading: true, onRetry });
+    expect(screen.getByTestId('map-modal-error')).toBeInTheDocument();
+    expect(screen.queryByTestId('map-modal-loading')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
   it('hides the Add/Create group footer buttons when showGroupCreationActions is false (group drill-down)', () => {
     renderModal({ showGroupCreationActions: false });
     // Check a row so the action area renders.

@@ -3,6 +3,7 @@ import { useResizableWidth } from '@/hooks/useResizableWidth';
 import { Dialog } from '@/components/ui/Dialog';
 import { ViewportAwareDropdown } from '@/components/ui/ViewportAwareDropdown';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate } from '@/lib/format-date';
@@ -74,6 +75,10 @@ interface MapBulkActionModalProps {
   showGroupCreationActions?: boolean;
   /** When true and there are no rows yet, show a loading state instead of the empty-state text (async fetch in flight). */
   isLoading?: boolean;
+  /** When true and there are no rows, show a retryable error state instead of the empty-state text. */
+  isError?: boolean;
+  /** Retry handler for the error state. */
+  onRetry?: () => void;
 }
 
 interface RowResult {
@@ -122,6 +127,8 @@ export function MapBulkActionModal({
   resizeStorageKey = 'appointments-map.bulk-modal.width',
   showGroupCreationActions = true,
   isLoading = false,
+  isError = false,
+  onRetry,
 }: MapBulkActionModalProps) {
   const { widthPx, isDragging, onHandleMouseDown } = useResizableWidth({
     initialPx: Math.round(window.innerWidth * 0.6),
@@ -398,7 +405,11 @@ export function MapBulkActionModal({
       {!activeAction && !results && (
         <>
           {appointments.length === 0 ? (
-            isLoading ? (
+            isError ? (
+              <div className="py-6" data-testid="map-modal-error">
+                <ErrorState message="Failed to load appointments." onRetry={onRetry ?? (() => {})} />
+              </div>
+            ) : isLoading ? (
               <div
                 className="flex items-center justify-center gap-2 py-8 text-sm text-text-secondary"
                 data-testid="map-modal-loading"

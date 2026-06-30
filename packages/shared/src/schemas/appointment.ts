@@ -155,6 +155,17 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   // group (drives the map "Groups" drill-down modal). Unlike `ungroupedOnly`
   // (service_group_id IS NULL), this is a positive match on a specific group.
   serviceGroupId: z.string().uuid().optional(),
+}).superRefine((val, ctx) => {
+  // `serviceGroupId` (positive membership) and `ungroupedOnly`
+  // (service_group_id IS NULL) are mutually exclusive — fail fast rather than
+  // silently dropping `serviceGroupId` downstream in the repository.
+  if (val.serviceGroupId && val.ungroupedOnly) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['serviceGroupId'],
+      message: 'serviceGroupId cannot be combined with ungroupedOnly',
+    });
+  }
 });
 export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySchema>;
 
