@@ -7,12 +7,9 @@ import mapboxgl from 'mapbox-gl';
 import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
 import { MapMarker } from '@/components/map/MapMarker';
-import { MapPopup } from '@/components/map/MapPopup';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
 import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
-import { formatDate } from '@/lib/format-date';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -106,6 +103,26 @@ export function filterAppointmentsByGrouping<T extends { serviceGroupId?: string
   return items.filter((item) => !item.serviceGroupId);
 }
 
+/**
+ * Group-mode pin selection. With no group drilled into, the map shows the
+ * group teardrops; once a group is selected, it shows that group's appointment
+ * teardrops instead (and the group pins are hidden). Exported so
+ * `AppointmentMapPage.group-modal.test.ts` can pin the swap logic without a
+ * live Mapbox instance.
+ */
+export function selectGroupModePins(args: {
+  selectedGroupId: string | null;
+  groupPins: ServiceGroupMapPin[];
+  groupAppointmentPins: AppointmentMapItem[];
+}):
+  | { kind: 'groups'; items: ServiceGroupMapPin[] }
+  | { kind: 'appointments'; items: AppointmentMapItem[] } {
+  if (args.selectedGroupId) {
+    return { kind: 'appointments', items: args.groupAppointmentPins };
+  }
+  return { kind: 'groups', items: args.groupPins };
+}
+
 export function AppointmentMapPage() {
 
   const queryClient = useQueryClient();
@@ -130,7 +147,6 @@ export function AppointmentMapPage() {
   const [groupFilters, setGroupFilters] = useState<GroupModeFilters>(DEFAULT_GROUP_FILTERS);
   const [selectedItem, setSelectedItem] = useState<AppointmentMapItem | null>(null);
   const [selectedGroupItem, setSelectedGroupItem] = useState<ServiceGroupMapPin | null>(null);
-  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
   // 025 §FR-401 — lasso state machine replaces the boolean active flag.
   // 'idle' clears the polygon + draw control; 'drawing' enables the lasso;
@@ -146,6 +162,9 @@ export function AppointmentMapPage() {
   // T-C4-4 — tracks bulk modal width so flyTo can pad right by modalWidth+32
   // to keep the focused marker visible beside the modal.
   const [bulkModalWidth, setBulkModalWidth] = useState(() => Math.round(window.innerWidth * 0.6));
+  // Same idea for the group drill-down modal (tracked separately so each modal
+  // keeps its own resized width).
+  const [groupModalWidth, setGroupModalWidth] = useState(() => Math.round(window.innerWidth * 0.6));
 
   // 026 §FR-570 — Filter panel collapse + sessionStorage persistence.
   // Default CLOSED on first load; the toggle button at top-left re-opens
@@ -253,6 +272,27 @@ export function AppointmentMapPage() {
 
   const groupData = groupResponse?.data ?? [];
 
+  // Group drill-down: when a group pin is clicked, fetch that group's FULL
+  // appointments (same shape as the lasso bulk modal) so the modal renders the
+  // rich columns and the pins drive the same rich detail panel. Enabled only
+  // while a group is selected in groups mode; the empty `serviceGroupId` is
+  // stripped by the query-params serializer when disabled.
+  const drilledGroupId = mode === 'groups' ? selectedGroupItem?.id ?? null : null;
+  const groupApptParams: ListParams = useMemo(
+    () => ({ page: 1, pageSize: 100, serviceGroupId: drilledGroupId ?? '' }),
+    [drilledGroupId],
+  );
+  const {
+    data: groupApptResponse,
+    isFetching: groupApptFetching,
+  } = usePaginatedQuery<AppointmentMapItem>(
+    ['appointments-by-group', drilledGroupId],
+    '/v1/appointments',
+    groupApptParams,
+    { enabled: !!drilledGroupId, placeholderData: keepPreviousData },
+  );
+  const groupAppointments = useMemo(() => groupApptResponse?.data ?? [], [groupApptResponse]);
+
   // Shared loading/error states
   const isLoading = mode === 'appointments' ? appointmentsLoading : groupsLoading;
   const isFetching = mode === 'appointments' ? appointmentsFetching : groupsFetching;
@@ -337,29 +377,11 @@ export function AppointmentMapPage() {
     hasFittedRef.current = { mode: null, map: null };
   }, [mode]);
 
-  // Keep popup position in sync. Groups mode still uses the legacy
-  // screen-pixel MapPopup; appointments mode uses the Mapbox-native
-  // Popup wired below.
-  const activeCoords = selectedGroupItem
-      && 'latitude' in selectedGroupItem
-      && selectedGroupItem.latitude != null
-      && selectedGroupItem.longitude != null
-    ? { lat: selectedGroupItem.latitude, lng: selectedGroupItem.longitude }
-    : null;
-
-  useEffect(() => {
-    if (!mapInstance || !activeCoords || mode !== 'groups') {
-      setPopupPosition(null);
-      return;
-    }
-    const update = () => {
-      const { x, y } = mapInstance.project([activeCoords.lng, activeCoords.lat]);
-      setPopupPosition({ x, y });
-    };
-    update();
-    mapInstance.on('move', update);
-    return () => { mapInstance.off('move', update); };
-  }, [mapInstance, activeCoords?.lat, activeCoords?.lng, mode]);
+  // The rich appointment detail popup is available in Appointments mode AND
+  // in the Groups drill-down (when a group is open). Same native popup, same
+  // AppointmentMapDetailPanel — clicking an appointment pin or its code pill
+  // opens it identically in both contexts.
+  const appointmentDetailEnabled = mode === 'appointments' || !!selectedGroupItem;
 
   // 025 cycle 2/2 — Mapbox-native Popup for the appointment detail
   // panel. Creates the popup imperatively when an appointment is
@@ -370,7 +392,7 @@ export function AppointmentMapPage() {
   // the panel owns its own click-outside logic and we don't want a
   // single map click to dismiss the popup while the user is reading.
   useEffect(() => {
-    if (!mapInstance || mode !== 'appointments' || !selectedItem
+    if (!mapInstance || !appointmentDetailEnabled || !selectedItem
         || selectedItem.latitude == null || selectedItem.longitude == null) {
       // Cleanup any existing popup if the selection cleared.
       if (appointmentPopupRef.current) {
@@ -405,7 +427,7 @@ export function AppointmentMapPage() {
       appointmentPopupRef.current = null;
       setAppointmentPopupRoot(null);
     };
-  }, [mapInstance, mode, selectedItem?.id, selectedItem?.latitude, selectedItem?.longitude]);
+  }, [mapInstance, appointmentDetailEnabled, selectedItem?.id, selectedItem?.latitude, selectedItem?.longitude]);
 
   // Clear selection on mode change
   useEffect(() => {
@@ -444,6 +466,22 @@ export function AppointmentMapPage() {
     }
   }, [mapInstance]);
 
+  // Drill-down appointment-pin click: open the SAME rich detail panel as
+  // Appointments mode, but DO NOT clear selectedGroupItem — we must stay in
+  // the group view (unlike handleMarkerClick, which exits it). flyTo pads
+  // right for the open group modal so the focused pin stays visible.
+  const handleGroupAppointmentMarkerClick = useCallback((item: AppointmentMapItem) => {
+    setSelectedItem(item);
+    if (mapInstance && item.longitude != null && item.latitude != null) {
+      mapInstance.flyTo({
+        center: [item.longitude, item.latitude],
+        zoom: Math.max(mapInstance.getZoom(), 15),
+        duration: 600,
+        padding: { right: groupModalWidth + 32 },
+      });
+    }
+  }, [mapInstance, groupModalWidth]);
+
   // 026 cycle 1 devolução — sidePanel is filter-only now; the
   // appointments/groups list was removed because it duplicated the
   // post-lasso bulk modal's content. The handlers that powered the
@@ -452,13 +490,6 @@ export function AppointmentMapPage() {
   const handleViewDetail = useCallback(
     (id: string) => {
       window.open(`/appointments/${id}`, '_blank');
-    },
-    [],
-  );
-
-  const handleViewGroupDetail = useCallback(
-    (id: string) => {
-      window.open(`/service-groups/${id}`, '_blank');
     },
     [],
   );
@@ -683,6 +714,61 @@ export function AppointmentMapPage() {
     [groupData],
   );
 
+  // The drilled group's appointment pins (teardrops) — only those with coords.
+  const validGroupApptPins = useMemo(
+    () =>
+      groupAppointments.filter(
+        (item): item is AppointmentMapItem & { latitude: number; longitude: number } =>
+          item.latitude != null && item.longitude != null,
+      ),
+    [groupAppointments],
+  );
+
+  // Groups mode renders EITHER the group teardrops (no drill-down) OR the
+  // selected group's appointment teardrops (drill-down). Pure-helper driven so
+  // the swap is unit-testable without a Mapbox instance.
+  const groupModePins = useMemo(
+    () =>
+      selectGroupModePins({
+        selectedGroupId: selectedGroupItem?.id ?? null,
+        groupPins: validGroupPins,
+        groupAppointmentPins: validGroupApptPins,
+      }),
+    [selectedGroupItem?.id, validGroupPins, validGroupApptPins],
+  );
+
+  // Fit the camera to the drilled group's appointment pins once they load.
+  // Kept separate from the mode-level auto-fit (and from handleGroupMarkerClick,
+  // whose flyTo is pinned by a regression guard) and given its OWN
+  // once-per-group sentinel so a post-bulk-action refetch does not re-fit and
+  // undo the operator's pan. Right-padded so pins clear the top-right modal.
+  const hasFittedGroupRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!drilledGroupId) {
+      hasFittedGroupRef.current = null;
+      return;
+    }
+    if (!mapInstance) return;
+    if (hasFittedGroupRef.current === drilledGroupId) return;
+    if (validGroupApptPins.length === 0) return;
+    const bounds = computeBounds(
+      validGroupApptPins.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
+    );
+    if (!bounds) return;
+    const rightPad = groupModalWidth + 32;
+    if (isSinglePointBounds(bounds)) {
+      const [[lng, lat]] = bounds as [[number, number], [number, number]];
+      mapInstance.flyTo({ center: [lng, lat], zoom: 15, duration: 600, padding: { right: rightPad } });
+    } else {
+      mapInstance.fitBounds(bounds, {
+        padding: { top: 60, bottom: 60, left: 60, right: rightPad },
+        maxZoom: 15,
+        duration: 600,
+      });
+    }
+    hasFittedGroupRef.current = drilledGroupId;
+  }, [drilledGroupId, mapInstance, validGroupApptPins, groupModalWidth]);
+
   const lassoPoints: LassoPoint[] = useMemo(
     () =>
       validAppointmentPins.map((item) => ({
@@ -726,8 +812,8 @@ export function AppointmentMapPage() {
               onClick={() => handleMarkerClick(item)}
             />
           ))}
-        {mode === 'groups' &&
-          validGroupPins.map((item) => (
+        {mode === 'groups' && groupModePins.kind === 'groups' &&
+          groupModePins.items.map((item) => (
             <MapMarker
               key={item.id}
               longitude={item.longitude}
@@ -736,6 +822,21 @@ export function AppointmentMapPage() {
               label={item.name ?? ''}
               active={selectedGroupItem?.id === item.id}
               onClick={() => handleGroupMarkerClick(item)}
+            />
+          ))}
+        {/* Group drill-down: the selected group's appointment pins replace the
+            group pins. Same teardrop + detail-panel behaviour as Appointments
+            mode, but clicking keeps the drill-down open. */}
+        {mode === 'groups' && groupModePins.kind === 'appointments' &&
+          groupModePins.items.map((item) => (
+            <MapMarker
+              key={item.id}
+              longitude={item.longitude}
+              latitude={item.latitude}
+              icon={STATUS_ICONS[item.status] ?? 'mdi-map-marker'}
+              label={item.code}
+              active={selectedItem?.id === item.id}
+              onClick={() => handleGroupAppointmentMarkerClick(item)}
             />
           ))}
       </MapContainer>
@@ -786,39 +887,9 @@ export function AppointmentMapPage() {
         </div>
       )}
 
-      {/* Marker detail panel replaces the inline popup in appointments mode (025 §FR-451). */}
-
-      {mode === 'groups' && selectedGroupItem && popupPosition && (
-        <MapPopup
-          title={selectedGroupItem.name ?? '—'}
-          onClose={() => setSelectedGroupItem(null)}
-          actions={[
-            { label: 'View Details', onClick: () => handleViewGroupDetail(selectedGroupItem.id) },
-          ]}
-          style={{
-            left: popupPosition.x,
-            top: popupPosition.y,
-            transform: popupPosition.y > 220
-              ? 'translate(-50%, calc(-100% - 14px))'
-              : 'translate(-50%, 14px)',
-          }}
-        >
-          <div className="space-y-1">
-            <p>
-              <span className="text-text-muted">Status:</span>{' '}
-              {SERVICE_GROUP_STATUS_MAP[selectedGroupItem.status]?.label ?? selectedGroupItem.status}
-            </p>
-            <p>
-              <span className="text-text-muted">Appointments:</span>{' '}
-              {selectedGroupItem.appointments.length}
-            </p>
-            <p>
-              <span className="text-text-muted">Date:</span>{' '}
-              {formatDate(selectedGroupItem.scheduledDate)}
-            </p>
-          </div>
-        </MapPopup>
-      )}
+      {/* Marker detail panel replaces the inline popup in appointments mode
+          (025 §FR-451). Groups now open the floating group modal instead of a
+          screen-pixel popup — see the MapBulkActionModal below. */}
 
       <MapFloatingAction
         actions={[
@@ -885,6 +956,46 @@ export function AppointmentMapPage() {
         }}
       />
 
+      {/* Group drill-down modal — the SAME floating bulk modal as the lasso
+          flow, triggered by clicking a group pin and fed with that group's
+          full appointments. While open, group pins are hidden and the group's
+          appointment pins show on the map (see groupModePins). Group-creation
+          footer buttons are hidden (rows already belong to a group). */}
+      <MapBulkActionModal
+        appointments={groupAppointments}
+        open={mode === 'groups' && !!selectedGroupItem}
+        isLoading={groupApptFetching}
+        title={selectedGroupItem?.name ?? 'Group appointments'}
+        emptyText="This group has no appointments."
+        resizeStorageKey="appointments-map.group-modal.width"
+        showGroupCreationActions={false}
+        onClose={() => { setSelectedGroupItem(null); setSelectedItem(null); }}
+        actorTimezone={actorTimezone}
+        actorRole={actorRole}
+        clUserFlags={clUserFlags}
+        onResize={setGroupModalWidth}
+        // Hidden in this context, but the props are required.
+        onAddToGroup={() => {}}
+        onCreateGroup={() => {}}
+        onOpenDetailPanel={(id) => {
+          const item = groupAppointments.find((a) => a.id === id) ?? null;
+          if (!item) return;
+          setSelectedItem(item); // keeps selectedGroupItem — stays in the drill-down
+          if (mapInstance && item.longitude != null && item.latitude != null) {
+            mapInstance.flyTo({
+              center: [item.longitude, item.latitude],
+              zoom: 15,
+              duration: 600,
+              padding: { right: groupModalWidth + 32 },
+            });
+          }
+        }}
+        onActionComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['appointments-by-group'] });
+          queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+        }}
+      />
+
       {/* 026 §FR-510 — Add-to-group sub-modal. Seeded from the modal
           footer button; runs eligibility-check on group pick, surfaces
           per-item ineligibles, commits with the eligible subset only. */}
@@ -905,7 +1016,7 @@ export function AppointmentMapPage() {
           inside the map canvas's DOM tree; we portal the React content into
           the popup's root so Mapbox manages positioning per frame while
           React owns the content lifecycle. */}
-      {mode === 'appointments' && selectedItem && appointmentPopupRoot && createPortal(
+      {appointmentDetailEnabled && selectedItem && appointmentPopupRoot && createPortal(
         <AppointmentMapDetailPanel
           appointment={selectedItem}
           onClose={() => setSelectedItem(null)}

@@ -64,6 +64,16 @@ interface MapBulkActionModalProps {
    * modal width for flyTo padding calculations.
    */
   onResize?: (widthPx: number) => void;
+  /** Header title + aria-label. Defaults to "Bulk actions" (lasso flow). */
+  title?: string;
+  /** Empty-state copy when there are no appointments. Defaults to the lasso wording. */
+  emptyText?: string;
+  /** sessionStorage key for the resizable width. Distinct per call site so the lasso and group modals size independently. */
+  resizeStorageKey?: string;
+  /** When false, hides the "Add to group / Create group" footer buttons (e.g. the group drill-down, where rows are already grouped). */
+  showGroupCreationActions?: boolean;
+  /** When true and there are no rows yet, show a loading state instead of the empty-state text (async fetch in flight). */
+  isLoading?: boolean;
 }
 
 interface RowResult {
@@ -107,12 +117,17 @@ export function MapBulkActionModal({
   onActionComplete,
   onResize,
   position = 'top-right',
+  title = 'Bulk actions',
+  emptyText = 'No appointments inside the lasso. Try drawing again with a wider area.',
+  resizeStorageKey = 'appointments-map.bulk-modal.width',
+  showGroupCreationActions = true,
+  isLoading = false,
 }: MapBulkActionModalProps) {
   const { widthPx, isDragging, onHandleMouseDown } = useResizableWidth({
     initialPx: Math.round(window.innerWidth * 0.6),
     minPx: 480,
     maxPx: Math.round(window.innerWidth * 0.9),
-    storageKey: 'appointments-map.bulk-modal.width',
+    storageKey: resizeStorageKey,
   });
 
   // T-C4-4 — report modal width to page on mount and on drag end so the
@@ -383,9 +398,22 @@ export function MapBulkActionModal({
       {!activeAction && !results && (
         <>
           {appointments.length === 0 ? (
-            <p className="py-8 text-center text-sm text-text-secondary">
-              No appointments inside the lasso. Try drawing again with a wider area.
-            </p>
+            isLoading ? (
+              <div
+                className="flex items-center justify-center gap-2 py-8 text-sm text-text-secondary"
+                data-testid="map-modal-loading"
+              >
+                <span
+                  className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-border-subtle border-t-real-estate"
+                  aria-hidden="true"
+                />
+                Loading…
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-text-secondary">
+                {emptyText}
+              </p>
+            )
           ) : (
             <>
               <p className="mb-2 text-sm text-text-secondary">
@@ -471,7 +499,7 @@ export function MapBulkActionModal({
       {/* Footer state matrix */}
       {!results && (
         <div className="mt-4 border-t border-border-subtle pt-3" data-testid="bulk-modal-footer">
-        {groupButtonState.disabled && groupButtonState.reason && checkedIds.size > 0 && (
+        {showGroupCreationActions && groupButtonState.disabled && groupButtonState.reason && checkedIds.size > 0 && (
           <p className="mb-2 text-xs text-amber-600" data-testid="group-button-reason">{groupButtonState.reason}</p>
         )}
         <div className="flex items-center justify-between">
@@ -501,27 +529,32 @@ export function MapBulkActionModal({
                       onSelect={(key) => setActiveAction(key)}
                     />
                     {/* 026 §FR-510 — Add to group / Create group as SEPARATE
-                        footer buttons. Both AM/OP only. */}
-                    <button
-                      type="button"
-                      disabled={groupButtonState.disabled}
-                      title={groupButtonState.reason}
-                      onClick={() => { if (!groupButtonState.disabled) onAddToGroup(Array.from(checkedIds)); }}
-                      className="rounded border border-real-estate px-4 py-2 text-sm font-semibold text-real-estate hover:bg-real-estate/5 disabled:cursor-not-allowed disabled:opacity-50"
-                      data-testid="bulk-modal-footer-add-to-group"
-                    >
-                      Add to group
-                    </button>
-                    <button
-                      type="button"
-                      disabled={groupButtonState.disabled}
-                      title={groupButtonState.reason}
-                      onClick={() => { if (!groupButtonState.disabled) onCreateGroup(Array.from(checkedIds)); }}
-                      className="rounded bg-real-estate px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
-                      data-testid="bulk-modal-footer-create-group"
-                    >
-                      Create group ({checkedIds.size})
-                    </button>
+                        footer buttons. Both AM/OP only. Hidden in the group
+                        drill-down (rows already belong to a group). */}
+                    {showGroupCreationActions && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={groupButtonState.disabled}
+                          title={groupButtonState.reason}
+                          onClick={() => { if (!groupButtonState.disabled) onAddToGroup(Array.from(checkedIds)); }}
+                          className="rounded border border-real-estate px-4 py-2 text-sm font-semibold text-real-estate hover:bg-real-estate/5 disabled:cursor-not-allowed disabled:opacity-50"
+                          data-testid="bulk-modal-footer-add-to-group"
+                        >
+                          Add to group
+                        </button>
+                        <button
+                          type="button"
+                          disabled={groupButtonState.disabled}
+                          title={groupButtonState.reason}
+                          onClick={() => { if (!groupButtonState.disabled) onCreateGroup(Array.from(checkedIds)); }}
+                          className="rounded bg-real-estate px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                          data-testid="bulk-modal-footer-create-group"
+                        >
+                          Create group ({checkedIds.size})
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </>
@@ -568,7 +601,7 @@ export function MapBulkActionModal({
         }}
         role="dialog"
         aria-modal="false"
-        aria-label="Bulk actions"
+        aria-label={title}
         data-testid="map-bulk-action-modal"
       >
         {/* Left-edge resize handle — hidden on mobile (< 640px). */}
@@ -581,7 +614,7 @@ export function MapBulkActionModal({
         </div>
 
         <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
-          <h2 className="text-sm font-semibold text-text-primary">Bulk actions</h2>
+          <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
           <button
             type="button"
             onClick={closeAndReset}
@@ -599,7 +632,7 @@ export function MapBulkActionModal({
   }
 
   return (
-    <Dialog open={open} onClose={closeAndReset} title="Bulk actions" maxWidth="880px">
+    <Dialog open={open} onClose={closeAndReset} title={title} maxWidth="880px">
       {modalContent}
     </Dialog>
   );

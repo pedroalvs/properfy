@@ -451,6 +451,20 @@ describe('listAppointmentsQuerySchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('should accept a valid serviceGroupId (group-membership filter)', () => {
+    const result = listAppointmentsQuerySchema.safeParse({
+      serviceGroupId: validServiceTypeId,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject a non-uuid serviceGroupId', () => {
+    const result = listAppointmentsQuerySchema.safeParse({
+      serviceGroupId: 'not-a-uuid',
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('forceManualConfirmationSchema', () => {

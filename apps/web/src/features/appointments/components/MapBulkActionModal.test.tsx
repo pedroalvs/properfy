@@ -200,4 +200,55 @@ describe('MapBulkActionModal', () => {
     renderModal(); // sampleAppointments have no hasTenantNote
     expect(screen.queryByTestId('bulk-modal-tenant-note-icon')).toBeNull();
   });
+
+  // ── Group drill-down generalization (title / emptyText / showGroupCreationActions / isLoading) ──
+
+  it('renders a custom title in the header and aria-label, defaulting to "Bulk actions"', () => {
+    const { rerender } = renderModal();
+    expect(screen.getByTestId('map-bulk-action-modal')).toHaveAttribute('aria-label', 'Bulk actions');
+    expect(screen.getByRole('heading', { name: 'Bulk actions' })).toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <MapBulkActionModal
+            appointments={sampleAppointments}
+            open
+            onClose={vi.fn()}
+            actorRole="OP"
+            onAddToGroup={vi.fn()}
+            onCreateGroup={vi.fn()}
+            title="Sydney CBD batch"
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByTestId('map-bulk-action-modal')).toHaveAttribute('aria-label', 'Sydney CBD batch');
+    expect(screen.getByRole('heading', { name: 'Sydney CBD batch' })).toBeInTheDocument();
+  });
+
+  it('overrides the empty-state copy while the default still mentions the lasso', () => {
+    renderModal({ appointments: [] });
+    expect(screen.getByText(/No appointments inside the lasso/)).toBeInTheDocument();
+
+    renderModal({ appointments: [], emptyText: 'This group has no appointments.' });
+    expect(screen.getByText('This group has no appointments.')).toBeInTheDocument();
+  });
+
+  it('shows the loading state instead of the empty-state when isLoading and no rows', () => {
+    renderModal({ appointments: [], isLoading: true });
+    expect(screen.getByTestId('map-modal-loading')).toBeInTheDocument();
+    expect(screen.queryByText(/No appointments inside the lasso/)).toBeNull();
+  });
+
+  it('hides the Add/Create group footer buttons when showGroupCreationActions is false (group drill-down)', () => {
+    renderModal({ showGroupCreationActions: false });
+    // Check a row so the action area renders.
+    fireEvent.click(screen.getByTestId(`bulk-modal-row-${sampleAppointments[0]!.code}`));
+    // Bulk-actions dropdown stays (the group modal still supports bulk actions)…
+    expect(screen.getByTestId('bulk-actions-toggle')).toBeInTheDocument();
+    // …but the group-creation buttons are gone.
+    expect(screen.queryByTestId('bulk-modal-footer-add-to-group')).toBeNull();
+    expect(screen.queryByTestId('bulk-modal-footer-create-group')).toBeNull();
+  });
 });
