@@ -8,22 +8,17 @@ vi.mock('../hooks/useUpdateServiceGroup', () => ({
   useUpdateServiceGroup: () => ({ update: mockUpdate, isUpdating: false }),
 }));
 
-// RegionSelector consumes this hook; mock it so the modal can render regions without a real query.
-vi.mock('../hooks/useResolveRegions', () => ({
-  useResolveRegions: () => ({
-    data: {
-      regions: [
-        { regionId: 'r1', regionName: 'North', color: '#000', matchedAppointmentCount: 1, inspectorCount: 2 },
-        { regionId: 'r2', regionName: 'South', color: '#111', matchedAppointmentCount: 1, inspectorCount: 1 },
-      ],
-      totalAppointments: 1,
-      unmatchedAppointmentIds: [],
-    },
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-    error: null,
-  }),
+// Stub RegionSelector so the modal test drives handleSave's region branches deterministically
+// (the real SelectInput has no "empty" option, so clearing can only be exercised via this stub).
+// RegionSelector's own rendering/banners are covered in RegionSelector.test.tsx.
+vi.mock('./RegionSelector', () => ({
+  RegionSelector: ({ selectedRegionId, onRegionChange }: { selectedRegionId: string; onRegionChange: (id: string) => void }) => (
+    <div>
+      <span>region-value:{selectedRegionId}</span>
+      <button type="button" onClick={() => onRegionChange('r2')}>set-region-r2</button>
+      <button type="button" onClick={() => onRegionChange('')}>clear-region</button>
+    </div>
+  ),
 }));
 
 const mockServiceGroup = {
@@ -107,7 +102,7 @@ describe('EditGroupModal', () => {
     expect(descInput).toHaveValue('A test group');
   });
 
-  it('shows the region selector', () => {
+  it('renders the region selector pre-filled with the current region', () => {
     render(
       <EditGroupModal
         open={true}
@@ -116,10 +111,10 @@ describe('EditGroupModal', () => {
         onSaved={vi.fn()}
       />,
     );
-    expect(screen.getByText('Target Region')).toBeInTheDocument();
+    expect(screen.getByText('region-value:r1')).toBeInTheDocument();
   });
 
-  it('shows the region selector regardless of status (PUBLISHED)', () => {
+  it('renders the region selector regardless of status (PUBLISHED)', () => {
     render(
       <EditGroupModal
         open={true}
@@ -128,7 +123,7 @@ describe('EditGroupModal', () => {
         onSaved={vi.fn()}
       />,
     );
-    expect(screen.getByText('Target Region')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'set-region-r2' })).toBeInTheDocument();
   });
 
   it('sends serviceRegionId in the update payload when the region changes', () => {
@@ -140,13 +135,27 @@ describe('EditGroupModal', () => {
         onSaved={vi.fn()}
       />,
     );
-    // Open the region dropdown and pick a different region.
-    fireEvent.click(screen.getByRole('button', { name: 'Target Region' }));
-    fireEvent.click(screen.getByText('South (1/1)'));
+    fireEvent.click(screen.getByRole('button', { name: 'set-region-r2' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockUpdate.mock.calls[0][0]).toMatchObject({ serviceRegionId: 'r2' });
+  });
+
+  it('sends serviceRegionId: null when the region is cleared', () => {
+    render(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={mockServiceGroup}
+        onSaved={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'clear-region' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate.mock.calls[0][0]).toHaveProperty('serviceRegionId', null);
   });
 
   it('omits serviceRegionId from the payload when the region is unchanged', () => {
