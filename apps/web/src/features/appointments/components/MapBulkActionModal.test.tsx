@@ -216,12 +216,13 @@ describe('MapBulkActionModal', () => {
     });
 
     it('shows an em-dash in the Group cell for an ungrouped appointment', () => {
-      // sampleAppointments[0] has every other cell populated (inspector, client,
-      // address, confirmation icons) so the only "—" is the Group cell.
       const ungrouped: AppointmentMapItem = { ...sampleAppointments[0]! }; // no serviceGroupCode
       renderModal({ appointments: [ungrouped] });
       const row = screen.getByTestId(`bulk-modal-row-${ungrouped.code}`).closest('tr')!;
-      expect(within(row).getByText('—')).toBeInTheDocument();
+      // Group is the 3rd column (checkbox, Code, Group). Assert the dash is in
+      // that cell specifically, not just somewhere in the row.
+      const groupCell = within(row).getAllByRole('cell')[2]!;
+      expect(groupCell).toHaveTextContent('—');
     });
   });
 });

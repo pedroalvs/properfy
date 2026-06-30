@@ -133,6 +133,17 @@ describe('PrismaAppointmentRepository.findAll — service group join', () => {
       tenantId, branchId, propertyId, serviceTypeId, userId,
     });
 
+    // A second tenant with its own grouped appointment. It must NOT appear in a
+    // tenant-A-scoped query — this pins the `tenantId` WHERE filter so the test
+    // would fail if findAll stopped scoping by tenant.
+    const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'Agency B');
+    const branchB = await getBranchId(harness.prisma, tenantB);
+    const propertyB = await seedProperty(harness.prisma, tenantB, branchB);
+    const groupB = await seedGroup(harness.prisma, serviceTypeId, userB);
+    const tenantBApptId = await seedAppointment(harness.prisma, {
+      tenantId: tenantB, branchId: branchB, propertyId: propertyB, serviceTypeId, userId: userB, groupId: groupB.id,
+    });
+
     const items = await repo.findAll({ tenantId }, PAGINATION);
 
     const grouped = items.find((i) => i.appointment.id === groupedApptId);
@@ -142,5 +153,9 @@ describe('PrismaAppointmentRepository.findAll — service group join', () => {
     expect(grouped?.appointment.serviceGroupId).toBe(group.id);
     expect(ungrouped?.serviceGroupNumber).toBeNull();
     expect(ungrouped?.appointment.serviceGroupId).toBeNull();
+
+    // Tenant isolation: only tenant A's two appointments are returned.
+    expect(items).toHaveLength(2);
+    expect(items.some((i) => i.appointment.id === tenantBApptId)).toBe(false);
   });
 });
